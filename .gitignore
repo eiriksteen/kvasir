@@ -1,0 +1,10 @@
+data
+__pycache__
+.DS_Store
+*result*
+*egg*
+pretrained
+dataset
+checkpoints
+train_forecasts
+validation_forecasts
