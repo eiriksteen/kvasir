@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # Database service
+  db:
+    image: postgres:latest
+    container_name: synesis-db
+    environment:
+      POSTGRES_DB: synesis
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # Python Code Sandbox service
+  sandbox:
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    container_name: synesis-sandbox
+
+  redis:
+    image: redis:latest
+    container_name: synesis-redis
+    ports:
+      - "6379:6379"
+
+  # API service
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: synesis-api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./logs:/app/logs
+
+  # Celery Worker service
+  celery_worker:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: synesis-celery
+    user: 1000:1000
+    command: celery -A src.synesis_api.main.celery worker --loglevel=INFO --logfile=/app/logs/celery.log
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+      - api
+
+# Further services to be added:
+# - Frontend service
+# - NGINX service
+
+volumes:
+  postgres_data:
+  logs:
