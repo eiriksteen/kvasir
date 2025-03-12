@@ -20,6 +20,7 @@ class TimeSeries(BaseModel):
 
 class TimeSeriesDataset(BaseModel):
     id: uuid.UUID
+    user_id: uuid.UUID
     name: str
     description: str
     num_series: int

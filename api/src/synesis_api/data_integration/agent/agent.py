@@ -59,7 +59,6 @@ async def visualize_raw_data(ctx: RunContext[IntegrationDeps]):
         raise FileNotFoundError(f"File not found: {ctx.deps.data_path}")
 
     if ctx.deps.data_path.suffix == ".csv":
-
         async with aiofiles.open(ctx.deps.data_path) as f:
             text = await f.read()
 
@@ -94,7 +93,6 @@ async def execute_python_code(python_code: str):
     """
     Execute a python code block.
     """
-    print(f"Executing code: {python_code}")
     out, err = await run_code_in_container(python_code)
 
     if err:
@@ -131,22 +129,15 @@ async def validate_restructuring(ctx: RunContext[str], result: IntegrationAgentO
         f"api_key='{ctx.deps.api_key}'))"
     )
 
-    print(f"Submitting data: {submission_code}")
     out, err = await run_code_in_container(submission_code)
 
     if err:
         raise ModelRetry(f"Error submitting data: {err}")
 
-    print("CODE OUTPUT:")
-    print(out)
-
     api_response = DataSubmissionResponse(
         **extract_json_from_markdown(out)
     )
 
-    result = IntegrationAgentOutput(
-        **result.model_dump(),
-        dataset_id=api_response.dataset_id
-    )
+    result.dataset_id = api_response.dataset_id
 
     return result

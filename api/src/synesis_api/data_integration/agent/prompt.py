@@ -31,12 +31,13 @@ Workflow:
 Important:
 - Do not drop any values, features, or entities! Your job is not to filter or clean the data, but to integrate and restructure it!
 - DO NOT ACTUALLY SET THE INDEX, KEEP IT ALL AS COLUMNS SINCE THE INDEX MIGHT GET DROPPED WHEN WE SEND THE DATA FURTHER!
+- The final restructured variable must be named "restructured_data"
 
 Output:
 - Python code: The generated Python code for the transformation, None if no code is generated. 
 - Data modality: The modality of the data to submit, one of ["time_series", "tabular", "image", "text"]
 - Data description: A description of the data to submit
-- Dataset name: Create a suitable name for the dataset
+- Dataset name: Create a suitable name for the dataset, it should be human readable without special characters
 - Index first level: The first level index name of the data to submit
 - Index second level: The second level index name of the data to submit
 """

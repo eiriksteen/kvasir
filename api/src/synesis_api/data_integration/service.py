@@ -7,7 +7,7 @@ from celery import shared_task
 from datetime import datetime
 from fastapi import HTTPException
 from celery.utils.log import get_task_logger
-from sqlalchemy import select, insert
+from sqlalchemy import select, insert, update
 from ..ontology.models import time_series, time_series_dataset
 from ..ontology.schema import TimeSeries, TimeSeriesDataset
 from .schema import (IntegrationJobMetadataInDB,
@@ -27,38 +27,62 @@ async def run_integration_agent(
         data_description: str,
 ) -> IntegrationJobResultInDB:
 
-    deps = IntegrationDeps(
-        api_key=api_key,
-        data_path=Path(data_path),
-        data_description=data_description
-    )
+    try:
+        deps = IntegrationDeps(
+            api_key=api_key,
+            data_path=Path(data_path),
+            data_description=data_description
+        )
 
-    nodes = []
-    async with integration_agent.iter(
-        "Restructure and integrate the data",
-        deps=deps
-    ) as agent_run:
+        nodes = []
+        async with integration_agent.iter(
+            "Restructure and integrate the data",
+            deps=deps
+        ) as agent_run:
 
-        async for node in agent_run:
-            # TODO: Publish the node outputs for agent monitoring
-            nodes.append(node)
-            logger.info(f"Integration agent state: {node}")
+            async for node in agent_run:
+                # TODO: Publish the node outputs for agent monitoring
+                nodes.append(node)
+                logger.info(f"Integration agent state: {node}")
 
-        logger.info(f"Integration agent run completed for job {job_id}")
+            logger.info(f"Integration agent run completed for job {job_id}")
 
-    agent_output = agent_run.result.data
+        agent_output = agent_run.result.data
 
-    output_in_db = IntegrationJobResultInDB(
-        job_id=job_id,
-        **agent_output.model_dump()
-    )
+        output_in_db = IntegrationJobResultInDB(
+            job_id=job_id,
+            **agent_output.model_dump()
+        )
 
-    await execute(
-        insert(integration_jobs_results).values(output_in_db.model_dump()),
-        commit_after=True
-    )
+        await execute(
+            insert(integration_jobs_results).values(output_in_db.model_dump()),
+            commit_after=True
+        )
 
-    return agent_output
+        # Update integration jobs status to completed
+        await execute(
+            update(integration_jobs).values(
+                status="completed", completed_at=datetime.now()),
+            commit_after=True
+        )
+
+    except Exception as e:
+        logger.error(f"Error running integration agent: {e}")
+
+        await execute(
+            update(integration_jobs).values(
+                status="failed", completed_at=datetime.now()),
+            commit_after=True
+        )
+
+        if Path(data_path).exists():
+            Path(data_path).unlink()
+
+        raise HTTPException(
+            status_code=500, detail="Failed to process the integration request")
+
+    else:
+        return agent_output
 
 
 @shared_task
@@ -67,10 +91,10 @@ def run_integration_job(job_id: uuid.UUID, api_key: str, data_path: str, data_de
         job_id, api_key, data_path, data_description))
 
 
-async def create_integration_job(user_id: uuid.UUID, api_key_id: uuid.UUID) -> IntegrationJobMetadataInDB:
+async def create_integration_job(user_id: uuid.UUID, api_key_id: uuid.UUID, job_id: uuid.UUID | None = None) -> IntegrationJobMetadataInDB:
 
     integration_job = IntegrationJobMetadataInDB(
-        id=uuid.uuid4(),
+        id=job_id if job_id else uuid.uuid4(),
         user_id=user_id,
         api_key_id=api_key_id,
         status="running",
@@ -85,11 +109,10 @@ async def create_integration_job(user_id: uuid.UUID, api_key_id: uuid.UUID) -> I
     return integration_job
 
 
-async def get_job_metadata(user_id: uuid.UUID, job_id: uuid.UUID) -> IntegrationJobMetadataInDB:
+async def get_job_metadata(job_id: uuid.UUID) -> IntegrationJobMetadataInDB:
 
     job = await fetch_one(
-        select(integration_jobs).where(integration_jobs.c.id == job_id,
-                                       integration_jobs.c.user_id == user_id),
+        select(integration_jobs).where(integration_jobs.c.id == job_id),
         commit_after=True
     )
 
@@ -142,7 +165,8 @@ async def insert_restructured_time_series_data_to_db(
         df: pd.DataFrame,
         data_description: str,
         dataset_name: str,
-        data_modality: str) -> uuid.UUID:
+        data_modality: str,
+        user_id: uuid.UUID) -> uuid.UUID:
 
     if data_modality != "time_series":
         raise HTTPException(
@@ -167,6 +191,7 @@ async def insert_restructured_time_series_data_to_db(
         id=dataset_id,
         name=dataset_name,
         description=data_description,
+        user_id=user_id,
         num_series=num_series,
         num_features=len(df.columns),
         avg_num_timestamps=int(series_counts.mean()),

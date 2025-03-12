@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, Form
 from io import StringIO
 from pathlib import Path
 from .service import (
-    run_integration_agent,
     run_integration_job,
     create_integration_job,
     get_job_metadata,
@@ -19,7 +18,8 @@ from ..auth.schema import User
 from ..auth.service import (create_api_key,
                             get_current_user,
                             get_user_from_api_key,
-                            delete_api_key)
+                            delete_api_key,
+                            user_owns_job)
 
 
 router = APIRouter()
@@ -49,13 +49,20 @@ async def call_integration_agent(
 
         api_key = await create_api_key(user)
 
-        job_id = uuid.uuid4()
+        integration_job = await create_integration_job(user.id, api_key.id)
 
-        run_integration_job.apply_async(
-            args=[job_id, api_key.key, str(data_path), data_description]
+        task = run_integration_job.apply_async(
+            args=[integration_job.id,
+                  api_key.key,
+                  str(data_path),
+                  data_description]
         )
 
-        integration_job = await create_integration_job(user.id, api_key.id)
+        if task.status == "FAILURE":
+            raise HTTPException(
+                status_code=500, detail="Failed to process the integration request")
+
+        return integration_job
 
     except Exception as e:
         if data_path and data_path.exists():
@@ -65,9 +72,6 @@ async def call_integration_agent(
         raise HTTPException(
             status_code=500, detail=f"Failed to process the integration request: {str(e)}")
 
-    else:
-        return integration_job
-
 
 @router.get("/integration_job_status/{job_id}", response_model=IntegrationJobMetadata)
 async def get_integration_job_status(
@@ -75,7 +79,11 @@ async def get_integration_job_status(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> IntegrationJobMetadata:
 
-    job_metadata = await get_job_metadata(user.id, job_id)
+    if not await user_owns_job(user.id, job_id):
+        raise HTTPException(
+            status_code=403, detail="You do not have permission to access this job")
+
+    job_metadata = await get_job_metadata(job_id)
     return job_metadata
 
 
@@ -85,7 +93,11 @@ async def get_integration_job_results(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> IntegrationJobResult:
 
-    job_metadata = await get_job_metadata(user.id, job_id)
+    if not await user_owns_job(user.id, job_id):
+        raise HTTPException(
+            status_code=403, detail="You do not have permission to access this job")
+
+    job_metadata = await get_job_metadata(job_id)
     if job_metadata.status == "completed":
         return await get_job_results(job_id)
 
@@ -123,7 +135,8 @@ async def post_restructured_data(
             df,
             data_description,
             dataset_name,
-            data_modality
+            data_modality,
+            user.id
         )
     else:
         raise HTTPException(

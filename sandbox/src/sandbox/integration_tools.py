@@ -1,5 +1,6 @@
 import httpx
 import pandas as pd
+import json
 from io import StringIO
 from .secrets import API_URL
 
@@ -45,7 +46,7 @@ def submit_restructured_data(
 
     json_markdown = f"""
     ```json
-    {response.json()}
+    {json.dumps(response.json())}
     ```
     """
 
