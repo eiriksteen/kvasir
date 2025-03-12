@@ -1,36 +1,15 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "synesis"
 version = "0.1.0"
-description = "Multi-agent system for AI engineering automation"
-authors = [
-    { name = "Eirik Drage Steen", email = "eirik.drage.steen@gmail.com" }
-]
-readme = "README.md"
-license = { text = "MIT" }
-requires-python = ">=3.7"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-]
+description = "Synesis project"
+requires-python = ">=3.11"
 dependencies = [
-    "numpy",
-    "torch",
-    "argparse",
-    "matplotlib",
-    "seaborn",
-    "scikit-learn",
-    "tqdm",
-    "transformers",
-    "datasets",
-    "pandas",
-    "scipy"
+    # Add your project dependencies here
 ]
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-packages = ["synesis"]
+[tool.hatch.build.targets.wheel]
+packages = ["sandbox", "api"] 
