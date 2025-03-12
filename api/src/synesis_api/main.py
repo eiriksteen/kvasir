@@ -5,12 +5,13 @@ from celery import Celery
 from contextlib import asynccontextmanager
 from .auth.router import router as auth_router
 from .data_integration.router import router as data_integration_router
+from .ontology.router import router as ontology_router
 from .secrets import CELERY_BROKER_URL, CELERY_BACKEND_URL, CACHE_URL
 
 
 app = FastAPI(
-    title="AsterA API",
-    description="Astera API",
+    title="Synesis API",
+    description="Synesis API",
     version="1.0.0"
 )
 
@@ -32,6 +33,10 @@ app.include_router(data_integration_router,
                    prefix="/data",
                    tags=["Data Integration"])
 
+app.include_router(ontology_router,
+                   prefix="/ontology",
+                   tags=["Ontology"])
+
 
 celery = Celery(
     "tasks",
@@ -50,7 +55,7 @@ async def lifespan(app: FastAPI):
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to the Astera API"}
+    return {"message": "Welcome to the Synesis API"}
 
 
 @app.get("/health")
