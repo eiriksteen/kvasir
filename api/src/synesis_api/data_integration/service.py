@@ -60,6 +60,7 @@ async def run_integration_agent(
         )
 
         # Update integration jobs status to completed
+        # This does not work? You have to condition on the job_id?
         await execute(
             update(integration_jobs).values(
                 status="completed", completed_at=datetime.now()),

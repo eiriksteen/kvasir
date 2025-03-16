@@ -5,6 +5,20 @@ from ..database.core import metadata
 import uuid
 
 
+feature_data = Table(
+    "feature_data",
+    metadata,
+    Column("id", UUID, primary_key=True, default=uuid.uuid4),
+    Column("description", String, nullable=False),
+    Column("features", ARRAY(String), nullable=False),
+    Column("num_features", Integer, nullable=False),
+    Column("dataset_id", UUID, ForeignKey(
+        "time_series_dataset.id"), nullable=False),
+    Column("created_at", DateTime, default=datetime.now(), nullable=False),
+    Column("updated_at", DateTime, default=datetime.now(),
+           onupdate=datetime.now(), nullable=False)
+)
+
 time_series = Table(
     "time_series",
     metadata,

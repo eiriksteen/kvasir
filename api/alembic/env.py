@@ -5,11 +5,12 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from synesis_api.auth.models import users, user_api_keys
-from synesis_api.data_integration.models import integration_jobs, integration_jobs_results
-from synesis_api.ontology.models import time_series, time_series_dataset
-from synesis_api.database.core import metadata
-from synesis_api.secrets import DATABASE_URL
+from src.synesis_api.auth.models import users, user_api_keys
+from src.synesis_api.data_integration.models import integration_jobs, integration_jobs_results
+from src.synesis_api.ontology.models import time_series, time_series_dataset
+from src.synesis_api.eda.models import eda_jobs, eda_jobs_results
+from src.synesis_api.database.core import metadata
+from src.synesis_api.secrets import DATABASE_URL
 
 from alembic import context
 

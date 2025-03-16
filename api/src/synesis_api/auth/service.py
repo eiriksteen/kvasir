@@ -10,6 +10,7 @@ from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from .schema import User, UserInDB, TokenData, UserAPIKey
 from .models import users, user_api_keys
 from ..data_integration.models import integration_jobs
+from ..eda.models import eda_jobs
 from ..secrets import API_SECRET_KEY, API_SECRET_ALGORITHM
 from ..database.service import fetch_one, execute
 
@@ -103,7 +104,6 @@ async def create_api_key(current_user: UserInDB) -> UserAPIKey:
                          user_id=current_user.id,
                          key=uuid.uuid4().hex,
                          expires_at=expiration_time)
-
     await execute(Insert(user_api_keys).values(id=key_id,
                                                user_id=current_user.id,
                                                key=api_key.key,
@@ -161,6 +161,10 @@ async def get_user_from_api_key(api_key: str = Security(api_key_header)) -> User
     return UserInDB(**user)
 
 
-async def user_owns_job(user_id: uuid.UUID, job_id: uuid.UUID) -> bool:
+async def user_owns_integration_job(user_id: uuid.UUID, job_id: uuid.UUID) -> bool:
     job = await fetch_one(Select(integration_jobs).where(integration_jobs.c.id == job_id, integration_jobs.c.user_id == user_id))
+    return job is not None
+
+async def user_owns_eda_job(user_id: uuid.UUID, eda_id: uuid.UUID) -> bool:
+    job = await fetch_one(Select().where(eda_jobs.c.id == eda_id, eda_jobs.c.user_id == user_id))
     return job is not None

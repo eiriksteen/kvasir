@@ -5,6 +5,7 @@ from celery import Celery
 from contextlib import asynccontextmanager
 from .auth.router import router as auth_router
 from .data_integration.router import router as data_integration_router
+from .eda.router import router as eda_router
 from .ontology.router import router as ontology_router
 from .secrets import CELERY_BROKER_URL, CELERY_BACKEND_URL, CACHE_URL
 
@@ -36,6 +37,10 @@ app.include_router(data_integration_router,
 app.include_router(ontology_router,
                    prefix="/ontology",
                    tags=["Ontology"])
+
+app.include_router(eda_router,
+                   prefix="/eda",
+                   tags=["Exploratory Data Analysis"])
 
 
 celery = Celery(

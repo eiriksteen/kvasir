@@ -19,7 +19,7 @@ from ..auth.service import (create_api_key,
                             get_current_user,
                             get_user_from_api_key,
                             delete_api_key,
-                            user_owns_job)
+                            user_owns_integration_job)
 
 
 router = APIRouter()
@@ -31,13 +31,11 @@ async def call_integration_agent(
     data_description: str = Form(...),
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> IntegrationJobMetadata:
-
     if file.content_type != "text/csv":
         raise HTTPException(
             status_code=400, detail="The file must be a CSV file")
 
     data_path, api_key = None, None
-
     try:
         user_dir = Path("files") / f"{user.id}"
         user_dir.mkdir(parents=True, exist_ok=True)
@@ -48,7 +46,6 @@ async def call_integration_agent(
             await f.write(contents)
 
         api_key = await create_api_key(user)
-
         integration_job = await create_integration_job(user.id, api_key.id)
 
         task = run_integration_job.apply_async(
@@ -62,7 +59,7 @@ async def call_integration_agent(
             raise HTTPException(
                 status_code=500, detail="Failed to process the integration request")
 
-        return integration_job
+        return integration_job # should you not reload the integration job so the completed_at will be filled
 
     except Exception as e:
         if data_path and data_path.exists():
@@ -79,7 +76,7 @@ async def get_integration_job_status(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> IntegrationJobMetadata:
 
-    if not await user_owns_job(user.id, job_id):
+    if not await user_owns_integration_job(user.id, job_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 
@@ -93,7 +90,7 @@ async def get_integration_job_results(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> IntegrationJobResult:
 
-    if not await user_owns_job(user.id, job_id):
+    if not await user_owns_integration_job(user.id, job_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 
