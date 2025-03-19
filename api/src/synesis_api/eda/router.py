@@ -22,7 +22,7 @@ from ..project_spec.schema import DataDescription
 
 router = APIRouter()
 
-@router.post("/call_eda_agent", response_model=EDAJobMetaData)
+@router.post("/call-eda-agent", response_model=EDAJobMetaData)
 async def call_eda_agent(
     # problem_id: uuid.UUID,
     # data_id: uuid.UUID,
@@ -42,13 +42,12 @@ async def call_eda_agent(
         api_key = await create_api_key(user)
         eda_job = await create_eda_job(user.id, api_key.id)
     except:
-        # delete_api_key-function does not work
-        # if api_key:
-        #     await delete_api_key(user)
         raise HTTPException(status_code=500, detail="Failed to create EDA job.")
     
-    # data_dir = Path("files") / f"{user.id}"
-    # data_path = data_dir / f"{data_id}.csv"
+    # data_dir = Path("integrated_data") / f"{user.id}"
+    # data_path = data_dir / f"{data_id}.csv" # need a way of getting the data_id
+
+    
     data_dir = Path("files") / "98ca0ae7-5221-4ec0-9bf3-092a0445695a"
     data_path = data_dir / "37ed5a92-3b14-46de-b7b5-21674ec1bb54.csv"
     project_description = "The goal of this project is to analyze and model the Boston Housing Dataset, with the aim of predicting house prices based on various features. This dataset contains information about different attributes of houses in the Boston area, such as crime rates, average number of rooms, and proximity to employment centers. The project explores the relationship between these attributes and the price of homes, allowing for both descriptive and predictive analytics."
@@ -78,7 +77,7 @@ async def call_eda_agent(
     return eda_job
 
 
-@router.get("/eda_job_status/{eda_id}", response_model=EDAJobMetaData)
+@router.get("/eda-job-status/{eda_id}", response_model=EDAJobMetaData)
 async def get_eda_job_status(
     eda_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None
@@ -92,7 +91,7 @@ async def get_eda_job_status(
     return job_meta_data
 
 
-@router.get("/eda_job_results/{eda_id}", response_model=EDAJobResult)
+@router.get("/eda-job-results/{eda_id}", response_model=EDAJobResult)
 async def get_eda_job_results(
     eda_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None

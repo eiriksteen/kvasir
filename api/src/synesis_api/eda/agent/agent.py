@@ -84,22 +84,22 @@ async def get_system_prompt(ctx: RunContext[EDADepsIndependent]) -> str:
         f"The problem description is as follows: {ctx.deps.problem_description}\n"
         f"The data description is as follows: {ctx.deps.data_description}\n"
         f"The result from the basic data analysis: {ctx.deps.basic_data_analysis}\n"
-        f"The result from the advanced data analysis: {ctx.deps.advanced_data_analysis}"
-        # must input where the file is stored
+        f"The result from the advanced data analysis: {ctx.deps.advanced_data_analysis}\n"
+        f"The path to load the dataframe: /tmp/{ctx.deps.data_path.name}"
     )
     return sys_prompt
 
-# @eda_independent_agent.tool_plain
-# async def execute_python_code(python_code: str):
-#     """
-#     Execute a python code block.
-#     """
-#     out, err = await run_code_in_container(python_code)
+@eda_independent_agent.tool_plain
+async def execute_python_code(python_code: str):
+    """
+    Execute a python code block.
+    """
+    out, err = await run_code_in_container(python_code)
 
-#     if err:
-#         raise ModelRetry(f"Error executing code: {err}")
+    if err:
+        raise ModelRetry(f"Error executing code: {err}")
 
-#     return out
+    return out
 
 
 @eda_summary_agent.system_prompt

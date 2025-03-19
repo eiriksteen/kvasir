@@ -30,12 +30,11 @@ async def run_eda_agent(
     
     try:
         async with aiofiles.open(data_path, 'r', encoding="utf-8") as f:
-            content = await f.read()  # Read file content asynchronously
+            content = await f.read() 
             df = pd.read_csv(StringIO(content)) 
     except:
         raise HTTPException(status_code=404, detail=f"File in {data_path} not found")
     
-    print("1")
     try: 
         eda_deps_basic = EDADepsBasic(
             df=df,
@@ -44,7 +43,7 @@ async def run_eda_agent(
             problem_description=problem_description,
             api_key=None,
         )
-        print("2")
+
         basic_eda = await eda_basic_agent.run(
             user_prompt=BASIC_PROMPT,
             deps=eda_deps_basic
@@ -58,7 +57,7 @@ async def run_eda_agent(
             api_key=None,
             basic_data_analysis=basic_eda.data.detailed_summary
         )
-        print("3")
+
         advanced_eda = await eda_advanced_agent.run(
             user_prompt=ADVANCED_PROMPT,
             deps=eda_deps_advanced
@@ -77,17 +76,15 @@ async def run_eda_agent(
             basic_data_analysis=basic_eda.data.detailed_summary,
             advanced_data_analysis=advanced_eda.data.detailed_summary,
         )
-        print("4")
+
         independent_eda = await eda_independent_agent.run(
             user_prompt=INDEPENDENT_PROMPT,
             deps=eda_deps_independent
         )
-        print("4.5")
     except:
         raise HTTPException(status_code=500, detail="Failed during independent eda")
 
     try: 
-        print("EDA Complete")
         eda_deps_summary = EDADepsSummary(
             data_description=data_description,
             data_type=data_type,
@@ -106,22 +103,17 @@ async def run_eda_agent(
         raise HTTPException(status_code=500, detail="Failed in summary of eda")
     
     
-    print("4.7")
     output_in_db = EDAJobResultInDB(
         job_id=eda_job_id,
         **summary.data.model_dump()
     )
 
-    print("5")
     # Write an html of the summary
     user_dir = Path("files") / f"{user_id}"
     user_dir.mkdir(parents=True, exist_ok=True)
     output_path = user_dir / f"{eda_job_id}.html"
 
-    print("6")
     await save_markdown_as_html(output_in_db.detailed_summary, output_path)
-
-    print("7")
 
     # insert results into db
     await execute(
@@ -129,7 +121,6 @@ async def run_eda_agent(
         commit_after=True
     )
 
-    print("8")
     # update job to completed
     await execute(
         update(eda_jobs).where(eda_jobs.c.id == eda_job_id).values(

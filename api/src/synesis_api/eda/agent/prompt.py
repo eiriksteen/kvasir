@@ -56,13 +56,12 @@ Conduct advanced data analysis based on the problem description, data descriptio
 """
 INDEPENDENT_PROMPT = """
 Conduct independent data analysis based on the problem description, data description and the results from the basic and advanced data analysis. 
-    - For this step you are only given one tool, which is to run the python code you generate. Use this tool to run the code in docker.
+    - For this step you are only given one tool, which is to run the python code you generate. Use this tool to run the code.
     - You will generate python code that dives deeper into the data.
-    - Make code that only have textual outputs. Do not plot anything.
+    - Make code that only have textual outputs. Do not plot anything. Remember to print the results from all the code.
     - It is important that the output of the code can be given to an LLM to be summarized.
     - The independent analysis should be quite advanced.
-    - The independent analysis should only cover things that has not been explored in previous steps.
-    - For the independent data analysis you will be given the results of the basic data analysis and the advanced data analysis in the two previous steps.
+    - The independent analysis should only cover things that has not been explored in the basic and advanced data analysis.
 """
 
 
