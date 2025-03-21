@@ -13,6 +13,7 @@ from .service import (
     get_job_metadata, 
     get_job_results,
     create_eda_job,
+    run_eda_job,
     run_eda_agent,
 )
 from ..auth.schema import User
@@ -68,9 +69,11 @@ async def call_eda_agent(
         LSTAT – Percentage of lower status population.
         MEDV – Median value of owner-occupied homes (target variable, in $1,000s).
     """
-
     try:
-        summary = await run_eda_agent(eda_job.id, user.id, str(data_path), data_description, project_description)
+        # summary = await run_eda_agent(eda_job.id, user.id, str(data_path), data_description, project_description)
+        summary = run_eda_job.apply_async(
+            args=[eda_job.id, user.id, str(data_path), data_description, project_description]
+        )
     except:
         raise HTTPException(status_code=500, detail="Failed to run EDA job.")
 

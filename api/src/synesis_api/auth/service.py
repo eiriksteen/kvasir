@@ -166,5 +166,5 @@ async def user_owns_integration_job(user_id: uuid.UUID, job_id: uuid.UUID) -> bo
     return job is not None
 
 async def user_owns_eda_job(user_id: uuid.UUID, eda_id: uuid.UUID) -> bool:
-    job = await fetch_one(Select().where(eda_jobs.c.id == eda_id, eda_jobs.c.user_id == user_id))
+    job = await fetch_one(Select(eda_jobs).where(eda_jobs.c.id == eda_id, eda_jobs.c.user_id == user_id))
     return job is not None

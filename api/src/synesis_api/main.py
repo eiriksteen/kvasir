@@ -1,13 +1,12 @@
 import redis
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from celery import Celery
 from contextlib import asynccontextmanager
 from .auth.router import router as auth_router
 from .data_integration.router import router as data_integration_router
 from .eda.router import router as eda_router
 from .ontology.router import router as ontology_router
-from .secrets import CELERY_BROKER_URL, CELERY_BACKEND_URL, CACHE_URL
+from .secrets import CACHE_URL
 
 
 app = FastAPI(
@@ -42,13 +41,6 @@ app.include_router(eda_router,
                    prefix="/eda",
                    tags=["Exploratory Data Analysis"])
 
-
-celery = Celery(
-    "tasks",
-    broker=CELERY_BROKER_URL,
-    backend=CELERY_BACKEND_URL,
-    include=["src.synesis_api.data_integration.service"]
-)
 
 
 @asynccontextmanager

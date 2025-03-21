@@ -1,11 +1,15 @@
 import uuid
 import aiofiles
+import asyncio
 from io import StringIO
 import uuid
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
 from fastapi import HTTPException
+from celery import shared_task
+from celery.utils.log import get_task_logger
+from asgiref.sync import async_to_sync
 from sqlalchemy import select, insert, update
 from ..database.service import execute, fetch_one
 from ..ontology.models import time_series, time_series_dataset
@@ -17,7 +21,7 @@ from .agent.deps import EDADepsBasic, EDADepsAdvanced, EDADepsIndependent, EDADe
 from .agent.prompt import BASIC_PROMPT, ADVANCED_PROMPT, INDEPENDENT_PROMPT, SUMMARIZE_EDA
 from ..utils import save_markdown_as_html
 
-# task logger?
+logger = get_task_logger(__name__)
 
 async def run_eda_agent(
         eda_job_id: uuid.UUID, 
@@ -27,11 +31,13 @@ async def run_eda_agent(
         problem_description: str, 
         data_type: str = "TimeSeries",
 ) -> EDAJobResultInDB:
-    
+    print(1)
+    logger.info("Initialize eda agent")
     try:
         async with aiofiles.open(data_path, 'r', encoding="utf-8") as f:
             content = await f.read() 
             df = pd.read_csv(StringIO(content)) 
+            logger.info("Loaded dataframe")
     except:
         raise HTTPException(status_code=404, detail=f"File in {data_path} not found")
     
@@ -48,6 +54,7 @@ async def run_eda_agent(
             user_prompt=BASIC_PROMPT,
             deps=eda_deps_basic
         )
+        print(2)
 
         eda_deps_advanced = EDADepsAdvanced(
             df=df,
@@ -62,9 +69,10 @@ async def run_eda_agent(
             user_prompt=ADVANCED_PROMPT,
             deps=eda_deps_advanced
         )
-
     except:
         raise HTTPException(status_code=500, detail="Failed during eda")
+    
+    print(3)
     
     try: 
         eda_deps_independent = EDADepsIndependent(
@@ -84,6 +92,7 @@ async def run_eda_agent(
     except:
         raise HTTPException(status_code=500, detail="Failed during independent eda")
 
+    print(4)
     try: 
         eda_deps_summary = EDADepsSummary(
             data_description=data_description,
@@ -130,7 +139,19 @@ async def run_eda_agent(
     
     return output_in_db
 
-
+@shared_task
+def run_eda_job(
+    eda_job_id: uuid.UUID, 
+    user_id: uuid.UUID,
+    data_path: str, 
+    data_description: str, 
+    problem_description: str, 
+    data_type: str = "TimeSeries",
+):
+    # async_to_sync(run_eda_agent)(eda_job_id, user_id, data_path, data_description, problem_description, data_type)
+    asyncio.run(run_eda_agent(eda_job_id, user_id, data_path, data_description, problem_description, data_type))
+        
+    
 
 async def get_job_metadata(eda_id: uuid.UUID) -> EDAJobMetaDataInDB:
     job = await fetch_one(

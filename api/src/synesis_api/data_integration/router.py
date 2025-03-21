@@ -47,13 +47,14 @@ async def call_integration_agent(
 
         api_key = await create_api_key(user)
         integration_job = await create_integration_job(user.id, api_key.id)
-
+        print("hei")
         task = run_integration_job.apply_async(
             args=[integration_job.id,
                   api_key.key,
                   str(data_path),
                   data_description]
         )
+        print(task)
 
         if task.status == "FAILURE":
             raise HTTPException(
