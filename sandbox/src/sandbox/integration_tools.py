@@ -14,7 +14,7 @@ def submit_restructured_data(
         index_second_level: str | None,
         api_key: str) -> dict:
 
-    url = f"{API_URL}/data/restructured_data"
+    url = f"{API_URL}/data/restructured-data"
     header = {"X-API-Key": api_key}
 
     # Convert DataFrame to CSV string in memory

@@ -9,10 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "lucide-react": "^0.482.0",
     "next": "15.2.1",
+    "next-auth": "^4.24.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-typed": "^2.0.12"
+    "react-typed": "^2.0.12",
+    "react-use-websocket": "^4.13.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

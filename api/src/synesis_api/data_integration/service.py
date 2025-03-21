@@ -2,6 +2,8 @@ import uuid
 import asyncio
 import numpy as np
 import pandas as pd
+from asgiref.sync import async_to_sync
+from typing import List
 from pathlib import Path
 from celery import shared_task
 from datetime import datetime
@@ -13,7 +15,7 @@ from ..ontology.schema import TimeSeries, TimeSeriesDataset
 from .schema import (IntegrationJobMetadataInDB,
                      IntegrationJobResultInDB)
 from .models import integration_jobs, integration_jobs_results
-from ..database.service import execute, fetch_one
+from ..database.service import execute, fetch_one, fetch_all
 from .agent import IntegrationDeps, integration_agent
 
 
@@ -87,8 +89,10 @@ async def run_integration_agent(
 
 @shared_task
 def run_integration_job(job_id: uuid.UUID, api_key: str, data_path: str, data_description: str):
-    asyncio.run(run_integration_agent(
-        job_id, api_key, data_path, data_description))
+    # asyncio.run(run_integration_agent(
+    #     job_id, api_key, data_path, data_description))
+    async_to_sync(run_integration_agent)(
+        job_id, api_key, data_path, data_description)
 
 
 async def create_integration_job(user_id: uuid.UUID, api_key_id: uuid.UUID, job_id: uuid.UUID | None = None) -> IntegrationJobMetadataInDB:
@@ -138,6 +142,15 @@ async def get_job_results(job_id: uuid.UUID) -> IntegrationJobResultInDB:
     )
 
     return IntegrationJobResultInDB(**results)
+
+
+async def get_jobs(user_id: uuid.UUID) -> List[IntegrationJobMetadataInDB]:
+    result = await fetch_all(
+        select(integration_jobs).where(integration_jobs.c.user_id == user_id),
+        commit_after=True
+    )
+
+    return [IntegrationJobMetadataInDB(**job) for job in result]
 
 
 def validate_restructured_data(data: pd.DataFrame, index_first_level: str, index_second_level: str | None) -> pd.DataFrame | None:

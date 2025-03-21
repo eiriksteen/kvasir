@@ -1,7 +1,7 @@
 import uuid
 import aiofiles
 import pandas as pd
-from typing import Annotated
+from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, Form
 from io import StringIO
 from pathlib import Path
@@ -11,7 +11,8 @@ from .service import (
     get_job_metadata,
     validate_restructured_data,
     insert_restructured_time_series_data_to_db,
-    get_job_results
+    get_job_results,
+    get_jobs
 )
 from .schema import IntegrationJobMetadata, DataSubmissionResponse, IntegrationJobResult
 from ..auth.schema import User
@@ -25,7 +26,7 @@ from ..auth.service import (create_api_key,
 router = APIRouter()
 
 
-@router.post("/call_integration_agent", response_model=IntegrationJobMetadata)
+@router.post("/call-integration-agent", response_model=IntegrationJobMetadata)
 async def call_integration_agent(
     file: UploadFile,
     data_description: str = Form(...),
@@ -73,7 +74,7 @@ async def call_integration_agent(
             status_code=500, detail=f"Failed to process the integration request: {str(e)}")
 
 
-@router.get("/integration_job_status/{job_id}", response_model=IntegrationJobMetadata)
+@router.get("/integration-job-status/{job_id}", response_model=IntegrationJobMetadata)
 async def get_integration_job_status(
     job_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None
@@ -87,7 +88,7 @@ async def get_integration_job_status(
     return job_metadata
 
 
-@router.get("/integration_job_results/{job_id}", response_model=IntegrationJobResult)
+@router.get("/integration-job-results/{job_id}", response_model=IntegrationJobResult)
 async def get_integration_job_results(
     job_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None
@@ -106,8 +107,15 @@ async def get_integration_job_results(
             status_code=500, detail="Integration job is still running")
 
 
+@router.get("/integration-jobs", response_model=List[IntegrationJobMetadata])
+async def get_integration_jobs(
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> List[IntegrationJobMetadata]:
+    return await get_jobs(user.id)
+
+
 # TODO: Make efficient
-@router.post("/restructured_data", response_model=DataSubmissionResponse)
+@router.post("/restructured-data", response_model=DataSubmissionResponse)
 async def post_restructured_data(
     file: UploadFile,
     data_description: str = Form(...),

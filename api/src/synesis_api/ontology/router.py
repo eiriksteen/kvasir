@@ -11,7 +11,7 @@ from ..auth.service import get_current_user
 router = APIRouter()
 
 
-@router.get("/time_series_datasets", response_model=List[TimeSeriesDataset])
+@router.get("/time-series-datasets", response_model=List[TimeSeriesDataset])
 async def get_time_series_datasets(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> List[TimeSeriesDataset]:

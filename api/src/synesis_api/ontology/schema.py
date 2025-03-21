@@ -1,10 +1,10 @@
-from pydantic import BaseModel
+import uuid
 from datetime import datetime
 from typing import List, Optional
-import uuid
+from ..base_schema import BaseSchema
 
 
-class TimeSeries(BaseModel):
+class TimeSeries(BaseSchema):
     id: uuid.UUID
     description: str
     features: List[str]
@@ -18,7 +18,7 @@ class TimeSeries(BaseModel):
     updated_at: datetime
 
 
-class TimeSeriesDataset(BaseModel):
+class TimeSeriesDataset(BaseSchema):
     id: uuid.UUID
     user_id: uuid.UUID
     name: str
