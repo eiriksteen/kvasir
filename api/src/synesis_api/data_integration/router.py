@@ -47,20 +47,19 @@ async def call_integration_agent(
 
         api_key = await create_api_key(user)
         integration_job = await create_integration_job(user.id, api_key.id)
-        print("hei")
+
         task = run_integration_job.apply_async(
             args=[integration_job.id,
                   api_key.key,
                   str(data_path),
                   data_description]
         )
-        print(task)
 
         if task.status == "FAILURE":
             raise HTTPException(
                 status_code=500, detail="Failed to process the integration request")
 
-        return integration_job # should you not reload the integration job so the completed_at will be filled
+        return integration_job
 
     except Exception as e:
         if data_path and data_path.exists():
