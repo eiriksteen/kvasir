@@ -7,7 +7,7 @@ from .data_integration.router import router as data_integration_router
 from .eda.router import router as eda_router
 from .ontology.router import router as ontology_router
 from .secrets import CACHE_URL
-from .main_celery import celery
+from .worker import celery
 
 
 app = FastAPI(
