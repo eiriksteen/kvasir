@@ -11,6 +11,7 @@ from .schema import User, UserInDB, TokenData, UserAPIKey
 from .models import users, user_api_keys
 from ..data_integration.models import integration_jobs
 from ..eda.models import eda_jobs
+# from ..model.models import model_jobs
 from ..secrets import API_SECRET_KEY, API_SECRET_ALGORITHM
 from ..database.service import fetch_one, execute
 
@@ -167,4 +168,8 @@ async def user_owns_integration_job(user_id: uuid.UUID, job_id: uuid.UUID) -> bo
 
 async def user_owns_eda_job(user_id: uuid.UUID, eda_id: uuid.UUID) -> bool:
     job = await fetch_one(Select(eda_jobs).where(eda_jobs.c.id == eda_id, eda_jobs.c.user_id == user_id))
+    return job is not None
+
+async def user_owns_model_job(user_id: uuid.UUID, model_id: uuid.UUID) -> bool:
+    job = await fetch_one(Select(eda_jobs).where(model_jobs.c.id == model_id, model_jobs.c.user_id == user_id))
     return job is not None
