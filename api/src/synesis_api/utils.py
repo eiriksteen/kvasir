@@ -1,9 +1,48 @@
 import asyncio
 import json
 import re
+import pandas as pd
+import markdown2
 from pathlib import Path
 from typing import Tuple, List
-import pandas as pd
+import aiofiles
+
+async def save_markdown_as_html(markdown_content: str, output_path: str):
+    # Convert markdown to HTML
+    html_content = markdown2.markdown(markdown_content, extras=["tables", "fenced-code-blocks"])
+
+    # Wrap it in a basic HTML structure to improve styling
+    full_html = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 20px; }}
+            h1, h2, h3, h4, h5, h6 {{ color: #333; }}
+            pre {{ background-color: #f4f4f4; padding: 10px; border-radius: 5px; }}
+            code {{ font-family: monospace; color: #d63384; }}
+            table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+            th {{ background-color: #f2f2f2; }}
+        </style>
+    </head>
+    <body>
+        {html_content}
+    </body>
+    </html>
+    """
+
+    # Save the HTML to a file
+    async with aiofiles.open(output_path, 'w', encoding='utf-8') as f:
+        await f.write(full_html)
+
+
+
+def parse_code(python_code: str) -> str:
+    matches = re.findall(r'```(?:\w+\n)?(.*?)```', python_code, re.DOTALL)
+    if matches:
+        return "\n\n".join(matches).strip()
+    
+    return python_code.strip()
 
 
 async def run_code_in_container(python_code: str, container_name: str = "synesis-sandbox") -> Tuple[str, str]:
@@ -11,7 +50,7 @@ async def run_code_in_container(python_code: str, container_name: str = "synesis
     Helper function that actually runs Python code inside a Docker container named `sandbox` (by default).
     This is an async version that uses asyncio.create_subprocess_exec for non-blocking execution.
     """
-    python_code_stripped = python_code.strip('"""')
+    python_code_parsed = parse_code(python_code)
 
     cmd = [
         "docker", "exec", "-i",
@@ -26,7 +65,7 @@ async def run_code_in_container(python_code: str, container_name: str = "synesis
         stderr=asyncio.subprocess.PIPE
     )
 
-    out, err = await process.communicate(python_code_stripped.encode('utf-8'))
+    out, err = await process.communicate(python_code_parsed.encode('utf-8'))
 
     # Decode the bytes output back to strings
     return out.decode('utf-8'), err.decode('utf-8')
