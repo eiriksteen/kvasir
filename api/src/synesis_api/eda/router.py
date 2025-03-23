@@ -27,11 +27,27 @@ async def call_eda_agent(
 ):
     # need a way to load the problem and data description based on a problem_id:
     data_description = DataDescription(
-        data_description = "",
-        data_type = "",
-        data_format = "",
-        data_source = "",
-        data_size = "",
+        data_description = """
+            The Boston Housing Dataset is a widely used dataset in machine learning and statistics, providing information on various aspects of housing in the Boston area. The dataset contains the following columns:
+            CRIM – Crime rate per capita by town.
+            ZN – Proportion of residential land zoned for large-scale properties.
+            INDUS – Proportion of non-retail business acres per town.
+            CHAS – Charles River dummy variable (1 if the property borders the Charles River; 0 otherwise).
+            NOX – Nitrogen oxide concentration (parts per 10 million).
+            RM – Average number of rooms per dwelling.
+            AGE – Proportion of owner-occupied units built before 1940.
+            DIS – Weighted distance to employment centers.
+            RAD – Index of accessibility to radial highways.
+            TAX – Property tax rate per $10,000.
+            PTRATIO – Pupil-teacher ratio by town.
+            B – Proportion of residents of African American descent by town.
+            LSTAT – Percentage of lower status population.
+            MEDV – Median value of owner-occupied homes (target variable, in $1,000s).
+        """,
+        data_type = "Numeric",
+        data_format = "Feature data",
+        data_source = "Census",
+        data_size = "506 rows, 14 columns",
     )
 
     try:
@@ -46,24 +62,6 @@ async def call_eda_agent(
     data_dir = Path("files") / "98ca0ae7-5221-4ec0-9bf3-092a0445695a"
     data_path = data_dir / "0b1626e1-d671-47ad-9013-f6ea23b35763.csv"
     project_description = "The goal of this project is to analyze and model the Boston Housing Dataset, with the aim of predicting house prices based on various features. This dataset contains information about different attributes of houses in the Boston area, such as crime rates, average number of rooms, and proximity to employment centers. The project explores the relationship between these attributes and the price of homes, allowing for both descriptive and predictive analytics."
-    data_description = """
-        The Boston Housing Dataset is a widely used dataset in machine learning and statistics, providing information on various aspects of housing in the Boston area. The dataset contains the following columns:
-        CRIM – Crime rate per capita by town.
-        ZN – Proportion of residential land zoned for large-scale properties.
-        INDUS – Proportion of non-retail business acres per town.
-        CHAS – Charles River dummy variable (1 if the property borders the Charles River; 0 otherwise).
-        NOX – Nitrogen oxide concentration (parts per 10 million).
-        RM – Average number of rooms per dwelling.
-        AGE – Proportion of owner-occupied units built before 1940.
-        DIS – Weighted distance to employment centers.
-        RAD – Index of accessibility to radial highways.
-        TAX – Property tax rate per $10,000.
-        PTRATIO – Pupil-teacher ratio by town.
-        B – Proportion of residents of African American descent by town.
-        LSTAT – Percentage of lower status population.
-        MEDV – Median value of owner-occupied homes (target variable, in $1,000s).
-    """
-    
     try:
         summary = run_eda_job.apply_async(
             args=[eda_job.id, user.id, str(data_path), data_description, project_description]
