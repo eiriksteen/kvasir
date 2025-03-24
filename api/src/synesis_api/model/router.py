@@ -44,10 +44,9 @@ async def call_model_agent(
     project_description = "The goal of this project is to analyze and model the Boston Housing Dataset, with the aim of predicting house prices based on various features. This dataset contains information about different attributes of houses in the Boston area, such as crime rates, average number of rooms, and proximity to employment centers. The project explores the relationship between these attributes and the price of homes, allowing for both descriptive and predictive analytics."
 
     try:
-        model = await run_model_agent(model_job.id, data_path, project_description, data_analysis)
-        # model = run_eda_job.apply_async(
-        #     args=[args]
-        # )
+        model = run_model_job.apply_async(
+            args=[model_job.id, str(data_path), project_description, data_analysis]
+        )
 
     except:
         raise HTTPException(status_code=500, detail="Failed during model training")

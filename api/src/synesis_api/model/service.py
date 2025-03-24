@@ -62,8 +62,13 @@ async def run_model_agent(
     return output_in_db
 
 @shared_task
-def run_model_job(args):
-    async_to_sync(run_model_agent)(args)
+def run_model_job(
+    project_id: uuid.UUID,
+    data_path: str,
+    problem_description: str,
+    data_analysis: str
+):
+    async_to_sync(run_model_agent)(project_id, data_path, problem_description, data_analysis)
 
 
 async def get_job_metadata(model_id: uuid.UUID) -> ModelJobMetadataInDB:
