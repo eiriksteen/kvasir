@@ -33,7 +33,7 @@ async def get_system_prompt(ctx: RunContext[ModelDeps]) -> str:
         f"{MODEL_SYSTEM_PROMPT}\n"
         f"The problem description is as follows: {ctx.deps.problem_description}.\n"
         f"The data analysis: {ctx.deps.data_analysis}.\n"
-        f"The path where the data is stored: /tmp/{ctx.deps.data_path}."
+        f"The path where the data is stored: /tmp/{ctx.deps.data_path.name}."
     )
     return sys_prompt
 

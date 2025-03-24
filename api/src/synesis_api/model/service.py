@@ -30,27 +30,33 @@ async def run_model_agent(
             data_analysis=data_analysis,
             problem_description=problem_description
         )
-        
-        output = await model_agent.run(
-            "Create python code for the model and run it in the container.",
+        nodes = []
+        async with model_agent.iter(
+            "Implement an AI model in python and run it in the container. Return the code and an explanation for how and which model you chose.",
             deps=model_deps
-        )
-        print(output)
+        ) as agent_run:
+
+            async for node in agent_run:
+                nodes.append(node)
+                logger.info(f"Integration agent state: {node}")
+
+            logger.info(f"Integration agent run completed for job {project_id}")
+
+        output = agent_run.result.data
     except:
         raise HTTPException(status_code=500, detail="Failed during modeling.")
     
-    logger.info("Running model completed")
 
     await execute(
         update(model_jobs).where(model_jobs.c.id == project_id).values(
             status="completed", completed_at=datetime.now()),
             commit_after=True
     )
-    logger.info("Running model")
+    logger.info("Model job updated in DB")
 
     output_in_db = ModelJobResultInDB(
         job_id = project_id,
-        **output.data.model_dump()
+        **output.model_dump()
     )
     
     return output_in_db

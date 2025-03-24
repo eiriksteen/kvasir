@@ -20,4 +20,5 @@ class ModelJobResultInDB(ModelJobResult):
 
 
 class ModelAgentOutput(BaseModel):
+    explanation: str
     python_code: str

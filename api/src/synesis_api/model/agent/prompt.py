@@ -12,7 +12,7 @@ Workflow:
 - Split the data into a training and test set.
 - If there are missing values you have to deal with this. You have to choose how to deal with it. Ensure that there is no data leakage.
 - Use one hot encoding for categorical features. The data description or the data analysis will specify which features are categorical.
-- Return the code 
+- Return the code and an explanation of how and why you chose the model and hyperparameters.
 """
 # - Train the model and save it.
 
