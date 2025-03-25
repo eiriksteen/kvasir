@@ -64,7 +64,7 @@ async def call_eda_agent(
     project_description = "The goal of this project is to analyze and model the Boston Housing Dataset, with the aim of predicting house prices based on various features. This dataset contains information about different attributes of houses in the Boston area, such as crime rates, average number of rooms, and proximity to employment centers. The project explores the relationship between these attributes and the price of homes, allowing for both descriptive and predictive analytics."
     try:
         summary = run_eda_job.apply_async(
-            args=[eda_job.id, user.id, str(data_path), data_description, project_description]
+            args=[eda_job.id, user.id, str(data_path), data_description.data_description, project_description]
         )
     except:
         raise HTTPException(status_code=500, detail="Failed to run EDA job.")
