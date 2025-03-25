@@ -14,9 +14,11 @@ class ModelJobMetadataInDB(ModelJobMetadata):
 
 class ModelJobResult(BaseModel):
     job_id: UUID
+    explanation: str
+    python_code: str
 
 class ModelJobResultInDB(ModelJobResult):
-    python_code: str
+    pass
 
 
 class ModelAgentOutput(BaseModel):

@@ -10,6 +10,7 @@ from .schema import ModelJobMetadataInDB, ModelJobResultInDB
 from .models import model_jobs
 from .agent.deps import ModelDeps
 from .agent.agent import model_agent
+from ..aws_auth.service import upload_object_s3, retrieve_object
 
 from fastapi import HTTPException
 
@@ -58,6 +59,9 @@ async def run_model_agent(
         job_id = project_id,
         **output.model_dump()
     )
+
+    logger.info("Model stored in S3")
+    await upload_object_s3(output_in_db, "synesis-model", f"{project_id}.json")
     
     return output_in_db
 
@@ -92,13 +96,9 @@ async def get_job_results(job_id: uuid.UUID) -> ModelJobResultInDB:
     if metadata.status != "completed":
         raise HTTPException(status_code=400, detail="Job is not completed")
 
-    results = await fetch_one(
-        select(model_jobs_results).where(
-            model_jobs_results.c.job_id == job_id),
-        commit_after=True
-    )
+    json_data = await retrieve_object("synesis-model", f"{job_id}.json")
 
-    return ModelJobResultInDB(**results)
+    return ModelJobResultInDB.model_validate_json(json_data)
 
 
 async def create_model_job(user_id: uuid.UUID, api_key_id: uuid.UUID = None, job_id: uuid.UUID = None) -> ModelJobMetadataInDB:

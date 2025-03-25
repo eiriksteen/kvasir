@@ -11,7 +11,7 @@ from .schema import User, UserInDB, TokenData, UserAPIKey
 from .models import users, user_api_keys
 from ..data_integration.models import integration_jobs
 from ..eda.models import eda_jobs
-# from ..model.models import model_jobs
+from ..model.models import model_jobs
 from ..secrets import API_SECRET_KEY, API_SECRET_ALGORITHM
 from ..database.service import fetch_one, execute
 
