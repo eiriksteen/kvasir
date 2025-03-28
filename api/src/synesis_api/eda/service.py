@@ -18,6 +18,7 @@ from .agent.agent import eda_basic_agent, eda_advanced_agent, eda_independent_ag
 from .agent.deps import EDADepsBasic, EDADepsAdvanced, EDADepsIndependent, EDADepsSummary
 from .agent.prompt import BASIC_PROMPT, ADVANCED_PROMPT, INDEPENDENT_PROMPT, SUMMARIZE_EDA
 from ..utils import save_markdown_as_html
+from ..aws_auth.service import upload_object_s3, retrieve_object
 
 logger = get_task_logger(__name__)
 
@@ -85,7 +86,7 @@ async def run_eda_agent(
             user_prompt=INDEPENDENT_PROMPT,
             deps=eda_deps_independent
         )
-        logger.info("Summary Completed")
+        logger.info("Independent EDA completed")
     except:
         raise HTTPException(status_code=500, detail="Failed during independent eda")
 
@@ -104,10 +105,11 @@ async def run_eda_agent(
             user_prompt=SUMMARIZE_EDA,
             deps=eda_deps_summary
         )
+        logger.info("Summary Completed")
     except:
         raise HTTPException(status_code=500, detail="Failed in summary of eda")
-    
-    
+
+
     output_in_db = EDAJobResultInDB(
         job_id=eda_job_id,
         **summary.data.model_dump()
@@ -118,13 +120,13 @@ async def run_eda_agent(
     user_dir.mkdir(parents=True, exist_ok=True)
     output_path = user_dir / f"{eda_job_id}.html"
 
+
     await save_markdown_as_html(output_in_db.detailed_summary, output_path)
+    logger.info("HTML file saved")
 
     # insert results into db
-    await execute(
-        insert(eda_jobs_results).values(output_in_db.model_dump()),
-        commit_after=True
-    )
+    await upload_object_s3(output_in_db, "synesis-eda", f"{eda_job_id}.json")
+    logger.info("Results uploaded to S3")
 
     # update job to completed
     await execute(
@@ -132,8 +134,7 @@ async def run_eda_agent(
             status="completed", completed_at=datetime.now()),
             commit_after=True
     )
-
-    logger.info("Results stored in DB")
+    logger.info("Job updated in DB")
     
     return output_in_db
 
@@ -170,13 +171,9 @@ async def get_job_results(job_id: uuid.UUID) -> EDAJobResultInDB:
     if metadata.status != "completed":
         raise HTTPException(status_code=400, detail="Job is not completed")
 
-    results = await fetch_one(
-        select(eda_jobs_results).where(
-            eda_jobs_results.c.job_id == job_id),
-        commit_after=True
-    )
+    json_data = await retrieve_object("synesis-eda", f"{job_id}.json")
 
-    return EDAJobResultInDB(**results)
+    return EDAJobResultInDB.model_validate_json(json_data)
 
 async def create_eda_job(user_id: uuid.UUID, api_key_id: uuid.UUID = None, job_id: uuid.UUID = None) -> EDAJobMetaDataInDB:
     eda_job = EDAJobMetaDataInDB(

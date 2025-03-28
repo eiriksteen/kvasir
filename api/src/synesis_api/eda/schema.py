@@ -15,10 +15,11 @@ class EDAJobMetaDataInDB(EDAJobMetaData):
 
 class EDAJobResult(BaseModel):
     job_id: UUID
-
-class EDAJobResultInDB(EDAJobResult):
     detailed_summary: str
     python_code: str
+
+class EDAJobResultInDB(EDAJobResult):
+    pass
 
 class EDAResponse(BaseModel):
     detailed_summary: str

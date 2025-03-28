@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from .auth.router import router as auth_router
 from .data_integration.router import router as data_integration_router
 from .eda.router import router as eda_router
+from .model.router import router as model_router
 from .ontology.router import router as ontology_router
 from .secrets import CACHE_URL
 from .worker import celery
@@ -41,6 +42,10 @@ app.include_router(ontology_router,
 app.include_router(eda_router,
                    prefix="/eda",
                    tags=["Exploratory Data Analysis"])
+
+app.include_router(model_router,
+                   prefix="/model",
+                   tags=["AI Modeling"])
 
 
 

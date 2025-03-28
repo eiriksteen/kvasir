@@ -37,7 +37,7 @@ EDA_SYSTEM_PROMPT = """
 You are an AI agent tasked with doing exploratory data analysis for an AI/ML-project. 
 
 You will do this based on the 3 enumerated things below:
-1. A clearly defined problem description.
+1. A clearly defined problem statement outlining the objectives.
 2. A description of the data.
 3. The data itself on a specified format.
 

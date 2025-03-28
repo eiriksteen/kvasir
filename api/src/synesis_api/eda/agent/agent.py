@@ -2,13 +2,10 @@ import pandas as pd
 from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.settings import ModelSettings
-from pathlib import Path
-from dataclasses import dataclass
 from .tools import eda_cs_basic_tools, eda_cs_advanced_tools
 from .prompt import EDA_SYSTEM_PROMPT
 from .deps import EDADepsBasic, EDADepsAdvanced, EDADepsIndependent, EDADepsSummary
 from ...secrets import OPENAI_API_KEY, OPENAI_API_MODEL
-from ...ontology.schema import DataModelBase
 from ..schema import EDAResponse, EDAResponseWithCode
 from ...utils import run_code_in_container, copy_file_to_container
 
@@ -60,7 +57,7 @@ eda_summary_agent = Agent(
     ),
 )
 
-
+# Why is this async?
 @eda_advanced_agent.system_prompt
 async def get_system_prompt(ctx: RunContext[EDADepsAdvanced]) -> str:
     sys_prompt = (
