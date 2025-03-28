@@ -1,13 +1,13 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { JobMetadata } from '../types/jobs';
+import { Job } from '../types/jobs';
 
 interface JobsOverviewProps {
   job_type: string;
   isOpen: boolean;
   onClose: () => void;
-  jobs: JobMetadata[];
+  jobs: Job[];
 }
 
 export default function JobsOverview({ job_type, isOpen, onClose, jobs }: JobsOverviewProps) {

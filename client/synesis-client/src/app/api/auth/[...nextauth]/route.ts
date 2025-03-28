@@ -43,7 +43,7 @@ export const authOptions: AuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
     async jwt({ token, user }) {
-      // Initial sign in
+
       if (user as UserType) {
         token.APIToken = {
           accessToken: (user as UserType).accessToken,
@@ -52,19 +52,11 @@ export const authOptions: AuthOptions = {
         return token;
       }
 
-      // On subsequent calls, check if token needs refresh
+
       const tokenExpiresAt = new Date(token.APIToken?.tokenExpiresAt);
       const now = new Date();
-
-      /* CHeck expiration, log it, log whether it's expired or not */
-      console.log("Token expires at: " + tokenExpiresAt);
-      console.log("Now: " + now);
-      console.log("Is expired: " + (tokenExpiresAt < now));
-      console.log(tokenExpiresAt && tokenExpiresAt < now);
       
       if (tokenExpiresAt && tokenExpiresAt < now) {
-
-        console.log("Refreshing token");
 
         try {
 
@@ -84,9 +76,6 @@ export const authOptions: AuthOptions = {
             tokenExpiresAt: refreshedUser.tokenExpiresAt,
           };
         } catch (error) {
-
-          console.log("Error refreshing token");
-          console.log(error);
 
           return {
             ...token,

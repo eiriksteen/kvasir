@@ -15,7 +15,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-typed": "^2.0.12",
-    "react-use-websocket": "^4.13.0"
+    "react-use-websocket": "^4.13.0",
+    "swr": "^2.3.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

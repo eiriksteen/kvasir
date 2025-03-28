@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Upload, X, Loader2 } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
+import { submitDataset } from '@/lib/api';
+import { useSession } from 'next-auth/react';
+import { redirect } from 'next/navigation';
 
 interface AddDatasetProps {
   isOpen: boolean;
@@ -10,11 +13,16 @@ interface AddDatasetProps {
 }
 
 export default function AddDataset({ isOpen, onClose, onAdd }: AddDatasetProps) {
+
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { data: session } = useSession();
+
+  if (!session) {
+    redirect("/login");
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -60,31 +68,15 @@ export default function AddDataset({ isOpen, onClose, onAdd }: AddDatasetProps) 
       setError('Please provide a description');
       return;
     }
-
-    setIsSubmitting(true);
+    
     setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('data_description', description);
-
-      const response = await fetch(`/api/proxy/data/call-integration-agent`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to upload dataset');
-      }
-
+      await submitDataset(session?.APIToken.accessToken, file, description);
       onClose();
       onAdd();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
-    } finally {
-      setIsSubmitting(false);
+      setError(err instanceof Error ? err.message : "An unknown error occurred");
     }
   };
 
@@ -159,24 +151,15 @@ export default function AddDataset({ isOpen, onClose, onAdd }: AddDatasetProps) 
             <button
               type="button"
               onClick={onClose}
-              disabled={isSubmitting}
               className="px-4 py-2 bg-zinc-800 text-zinc-300 rounded-md hover:bg-zinc-700 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition-colors disabled:opacity-50 flex items-center"
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 size={16} className="mr-2 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                'Upload Dataset'
-              )}
+              Upload Dataset
             </button>
           </div>
         </form>

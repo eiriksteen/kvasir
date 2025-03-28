@@ -6,7 +6,8 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from synesis_api.auth.models import users, user_api_keys
-from synesis_api.data_integration.models import integration_jobs, integration_jobs_results
+from synesis_api.shared.models import jobs
+from synesis_api.data_integration.models import integration_jobs_results
 from synesis_api.ontology.models import time_series, time_series_dataset
 from synesis_api.database.core import metadata
 from synesis_api.secrets import DATABASE_URL

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Database, X } from 'lucide-react';
 import { TimeSeriesDataset } from '@/types/datasets';
+import { Automation } from '@/types/automations';
 
 // Message type
 interface Message {
@@ -13,16 +14,18 @@ interface Message {
 }
 
 interface ChatbotProps {
-  selectedDatasets: TimeSeriesDataset[];
-  onRemoveDataset: (datasetId: string) => void;
+  datasetsInContext: TimeSeriesDataset[];
+  automationsInContext: Automation[];
+  onRemoveDatasetFromContext: (datasetId: string) => void;
+  onRemoveAutomationFromContext: (automationId: string) => void;
 }
 
-export default function Chatbot({ selectedDatasets = [], onRemoveDataset }: ChatbotProps) {
+export default function Chatbot({ datasetsInContext, automationsInContext, onRemoveDatasetFromContext, onRemoveAutomationFromContext }: ChatbotProps) {
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [width, setWidth] = useState(400);
   const [isDragging, setIsDragging] = useState(false);
-  const [contextDatasets, setContextDatasets] = useState<TimeSeriesDataset[]>([]);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
@@ -35,11 +38,6 @@ export default function Chatbot({ selectedDatasets = [], onRemoveDataset }: Chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // Update context datasets when selectedDatasets changes
-  useEffect(() => {
-    setContextDatasets(selectedDatasets);
-  }, [selectedDatasets]);
 
   // Handle resize
   useEffect(() => {
@@ -118,10 +116,6 @@ export default function Chatbot({ selectedDatasets = [], onRemoveDataset }: Chat
     setIsDragging(true);
   };
 
-  const removeDatasetFromContext = (datasetId: string) => {
-    onRemoveDataset(datasetId);
-  };
-
   const isCollapsed = width <= MIN_WIDTH;
 
   return (
@@ -146,15 +140,15 @@ export default function Chatbot({ selectedDatasets = [], onRemoveDataset }: Chat
                 <h3 className="text-sm pl-1 pt-1 font-medium text-purple-300">Selected Datasets</h3>
               </div>
               <div className="flex flex-wrap gap-2">
-                {contextDatasets.length > 0 ? (
-                  contextDatasets.map(dataset => (
+                {datasetsInContext.length > 0 ? (
+                  datasetsInContext.map(dataset => (
                     <div 
                       key={dataset.id}
-                    className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-blue-900/30 text-blue-300"
-                  >
-                    {dataset.name}
-                    <button 
-                      onClick={() => removeDatasetFromContext(dataset.id)}
+                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-blue-900/30 text-blue-300"
+                    >
+                      {dataset.name}
+                      <button 
+                        onClick={() => onRemoveDatasetFromContext(dataset.id)}
                       className="text-zinc-400 hover:text-white"
                     >
                       <X size={12} />
@@ -226,7 +220,7 @@ export default function Chatbot({ selectedDatasets = [], onRemoveDataset }: Chat
             <div className="mt-2 flex items-center gap-2 pl-2">
               <div className="text-xs text-zinc-500 flex items-center gap-1">
                 <Database size={12} />
-                <span>{contextDatasets.length} dataset{contextDatasets.length !== 1 ? 's' : ''} in context</span>
+                <span>{datasetsInContext.length} dataset{datasetsInContext.length !== 1 ? 's' : ''} in context</span>
               </div>
             </div>
 

@@ -14,9 +14,7 @@ export interface TimeSeriesDataset {
   updatedAt: string;
 }
 
-export interface Automation {
-  id: string;
-  name: string;
-  description: string;
-  datasetIds: string[];
-} 
+export interface Datasets {
+  timeSeries: TimeSeriesDataset[];
+  numDatasets: number;
+}

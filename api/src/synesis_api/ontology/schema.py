@@ -32,3 +32,9 @@ class TimeSeriesDataset(BaseSchema):
     index_second_level: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class Datasets(BaseSchema):
+    time_series: List[TimeSeriesDataset]
+    # TODO: add documents, feature-based, images, etc
+    num_datasets: int

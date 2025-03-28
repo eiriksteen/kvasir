@@ -2,16 +2,21 @@
 
 import { useState, useMemo } from 'react';
 import { Database, Plus, Check, Upload, Loader2 } from 'lucide-react';
-import { TimeSeriesDataset, Automation } from '@/types/datasets';
-
+import { TimeSeriesDataset } from '@/types/datasets';
+import { Automation } from '@/types/automations';
+import { useDatasets } from '@/hooks/apiHooks';
+import { useSession } from 'next-auth/react';
+import { redirect } from 'next/navigation';
+import AddDataset from '@/components/addDataset';
 // Props type
 interface OntologyBarProps {
-    datasets: TimeSeriesDataset[];
-    automations: Automation[];
     datasetsInContext: TimeSeriesDataset[];
+    automationsInContext: Automation[];
     onAddDatasetToContext: (dataset: TimeSeriesDataset) => void;
     onRemoveDatasetFromContext: (datasetId: string) => void;
-    onOpenAddDataset: () => void;
+    onAddAutomationToContext: (automation: Automation) => void;
+    onRemoveAutomationFromContext: (automationId: string) => void;
+    setIntegrationJobState: (jobState: string) => void;
 }
 
 function DatasetItem({ 
@@ -85,24 +90,26 @@ function AutomationItem({
 }
 
 export default function OntologyBar({ 
-    datasets,
-    automations,
     datasetsInContext, 
+    automationsInContext,
     onAddDatasetToContext, 
     onRemoveDatasetFromContext,
-    onOpenAddDataset
+    onAddAutomationToContext,
+    onRemoveAutomationFromContext,
+    setIntegrationJobState
 }: OntologyBarProps) {
+
     const [selectedAutomation, setSelectedAutomation] = useState<string | null>(null);
     const [showAutomations, setShowAutomations] = useState(false);
+    const [showAddDataset, setShowAddDataset] = useState(false);
+    const {data: session} = useSession();
 
-    // Memoize filtered datasets and automations
-    const filteredDatasets = selectedAutomation
-        ? datasets.filter(dataset => {
-            // Since we don't have automationIds in TimeSeriesDataset, 
-            // we'll need to implement a different filtering logic or use a different approach
-            return true; // For now, show all datasets when an automation is selected
-          })
-        : datasets;
+    if (!session) {
+        redirect("/login");
+    }
+
+    const { datasets } = useDatasets(session?.APIToken.accessToken);
+    const automations: Automation[] = [];
 
 
     const filteredAutomations = useMemo(() => 
@@ -142,14 +149,14 @@ export default function OntologyBar({
                 </div>
                 
                 <div className="space-y-2 flex-grow overflow-y-auto">
-                    {filteredDatasets.length === 0 && (
+                    {datasets?.timeSeries.length === 0 && (
                         <div className="p-3 rounded-lg mb-3">
                             <p className="text-xs text-zinc-400">
                                 No datasets found. 
                             </p>
                         </div>
                     )}
-                    {filteredDatasets.map((dataset) => (
+                    {datasets?.timeSeries.map((dataset) => (
                         <DatasetItem 
                             key={dataset.id}
                             dataset={dataset}
@@ -170,7 +177,7 @@ export default function OntologyBar({
                     </div>
                     
                     <button
-                        onClick={onOpenAddDataset}
+                        onClick={() => setShowAddDataset(true)}
                         className="w-full py-2 px-3 text-white rounded-md transition-colors flex items-center justify-center gap-2 text-sm border border-[#2a4170]"
                     >
                         <Upload size={14} />
@@ -181,7 +188,7 @@ export default function OntologyBar({
 
             {/* Automations Side Panel */}
             {showAutomations && (
-                <div className="absolute left-[300px] top-0 w-[300px] h-screen bg-[#1a1625]/95 text-white p-4 border-r border-purple-900/30">
+                <div className="absolute left-[300px] top-12 w-[300px] h-[calc(100vh-3rem)] bg-[#1a1625]/95 text-white p-4 border-r border-purple-900/30">
                     <h2 className="text-sm font-mono uppercase tracking-wider text-purple-300 mb-4">Automations</h2>
                     <div className="space-y-2">
                         {filteredAutomations.length === 0 && (
@@ -203,6 +210,14 @@ export default function OntologyBar({
                         ))}
                     </div>
                 </div>
+            )}
+
+            {showAddDataset && (
+                <AddDataset
+                    isOpen={showAddDataset}
+                    onClose={() => setShowAddDataset(false)}
+                    onAdd={() => setIntegrationJobState("running")}
+                />
             )}
         </div>
     );

@@ -1,4 +1,3 @@
-import redis
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from celery import Celery
@@ -6,7 +5,9 @@ from contextlib import asynccontextmanager
 from .auth.router import router as auth_router
 from .data_integration.router import router as data_integration_router
 from .ontology.router import router as ontology_router
+from .shared.router import router as shared_router
 from .secrets import CELERY_BROKER_URL, CELERY_BACKEND_URL, CACHE_URL
+import redis
 
 
 app = FastAPI(
@@ -24,18 +25,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Include routers
 app.include_router(auth_router,
                    prefix="/auth",
                    tags=["Authentication"])
 
+
 app.include_router(data_integration_router,
                    prefix="/data",
                    tags=["Data Integration"])
 
+
 app.include_router(ontology_router,
                    prefix="/ontology",
                    tags=["Ontology"])
+
+
+app.include_router(shared_router,
+                   prefix="",
+                   tags=["Shared"])
 
 
 celery = Celery(
@@ -46,11 +55,11 @@ celery = Celery(
 )
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    app.state.redis = redis.Redis(host=CACHE_URL)
-    yield
-    await app.state.redis.close()
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     app.state.redis = redis.Redis(host=CACHE_URL)
+#     yield
+#     await app.state.redis.close()
 
 
 @app.get("/")

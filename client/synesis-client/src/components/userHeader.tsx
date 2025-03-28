@@ -2,27 +2,76 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Database, BarChart, Bot } from 'lucide-react';
-import { useState } from 'react';
 import JobsOverview from './jobsOverview';
-import { JobMetadata } from '../types/jobs';
+import { Database, BarChart, Bot } from 'lucide-react';
+import { use, useState } from 'react';
+import { Job } from '../types/jobs';
 import { getStatusColor } from '../lib/utils';
-
-
+import { useSession } from 'next-auth/react';
+import { useJobs } from '@/hooks/apiHooks';
+import { redirect } from 'next/navigation';
+import { useMonitorJobs } from '@/hooks/apiHooks';
 
 interface UserHeaderProps {
-	analysisJobs: JobMetadata[];
-	automationJobs: JobMetadata[];
-	integrationJobs: JobMetadata[];
+	integrationJobState: string;
+	setIntegrationJobState: (jobState: string) => void;
+	analysisJobState: string;
+	setAnalysisJobState: (jobState: string) => void;
+	automationJobState: string;
+	setAutomationJobState: (jobState: string) => void;
 }
 
 export default function UserHeader({ 
-	analysisJobs,	
-	automationJobs,
-	integrationJobs,
-
+	integrationJobState,
+	setIntegrationJobState,
+	analysisJobState,
+	setAnalysisJobState,
+	automationJobState,
+	setAutomationJobState
 }: UserHeaderProps) {
-	const [isJobsOverviewOpen, setIsJobsOverviewOpen] = useState(false);
+
+
+	const [integrationJobsIsOpen, setIntegrationJobsIsOpen] = useState(false);
+	const [analysisJobsIsOpen, setAnalysisJobsIsOpen] = useState(false);
+	const [automationJobsIsOpen, setAutomationJobsIsOpen] = useState(false);
+	const { data: session } = useSession();
+
+	if (!session) {
+		redirect("/login");
+	}
+
+	const { jobs } = useJobs(session?.APIToken.accessToken);
+
+	const { jobsInProgress: integrationJobsInProgress } = useMonitorJobs(
+		integrationJobState,
+		setIntegrationJobState,
+		session?.APIToken.accessToken
+	);
+	const { jobsInProgress: analysisJobsInProgress } = useMonitorJobs(
+		analysisJobState,
+		setAnalysisJobState,
+		session?.APIToken.accessToken
+	);
+	const { jobsInProgress: automationJobsInProgress } = useMonitorJobs(
+		automationJobState,
+		setAutomationJobState,
+		session?.APIToken.accessToken
+	);
+
+	const integrationJobs = jobs?.filter((job: Job) => job.type === "integration");
+	const analysisJobs = jobs?.filter((job: Job) => job.type === "analysis");
+	const automationJobs = jobs?.filter((job: Job) => job.type === "automation");
+
+	const onCloseJobsOverview = (
+		oldState: string,
+		setOpen: (open: boolean) => void, 
+		setJobState: (jobState: string) => void) => {
+			
+		setOpen(false)
+		if (oldState !== "running") {
+			setJobState("")
+		}
+	}
 
 	return (
 		<>
@@ -43,15 +92,18 @@ export default function UserHeader({
 						
 						<div className="flex items-center space-x-4">
 							<button 
-								className={`${getStatusColor("")} hover:opacity-80`}
-								onClick={() => setIsJobsOverviewOpen(true)}
-							>
+								className={`${getStatusColor(integrationJobState)} hover:opacity-80`}
+								onClick={() => setIntegrationJobsIsOpen(true)}>
 								<Database size={20} />
 							</button>
-							<button className={`${getStatusColor("")} hover:opacity-80`}>
+							<button 
+								className={`${getStatusColor(analysisJobState)} hover:opacity-80`}
+								onClick={() => setAnalysisJobsIsOpen(true)}>
 								<BarChart size={20} />
 							</button>
-							<button className={`${getStatusColor("")} hover:opacity-80`}>
+							<button 
+								className={`${getStatusColor(automationJobState)} hover:opacity-80`}
+								onClick={() => setAutomationJobsIsOpen(true)}>
 								<Bot size={20} />
 							</button>
 						</div>
@@ -61,10 +113,23 @@ export default function UserHeader({
 			
 			<JobsOverview 
 				job_type="Integration"
-				isOpen={isJobsOverviewOpen}
-				onClose={() => setIsJobsOverviewOpen(false)}
-				jobs={integrationJobs}
+				isOpen={integrationJobsIsOpen}
+				onClose={() => onCloseJobsOverview(integrationJobState, setIntegrationJobsIsOpen, setIntegrationJobState)}
+				jobs={integrationJobs || []}
 			/>
+			<JobsOverview 
+				job_type="Analysis"
+				isOpen={analysisJobsIsOpen}
+				onClose={() => onCloseJobsOverview(analysisJobState, setAnalysisJobsIsOpen, setAnalysisJobState)}
+				jobs={analysisJobs || []}
+			/>
+			<JobsOverview 
+				job_type="Automation"
+				isOpen={automationJobsIsOpen}
+				onClose={() => onCloseJobsOverview(automationJobState, setAutomationJobsIsOpen, setAutomationJobState)}
+				jobs={automationJobs || []}
+			/>
+			
 		</>
 	);
 } 
