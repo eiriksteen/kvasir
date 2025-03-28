@@ -132,7 +132,6 @@ async def create_api_key(user: UserInDB) -> UserAPIKey:
                          user_id=user.id,
                          key=uuid.uuid4().hex,
                          expires_at=expiration_time)
-
     await execute(Insert(user_api_keys).values(id=key_id,
                                                user_id=user.id,
                                                key=api_key.key,

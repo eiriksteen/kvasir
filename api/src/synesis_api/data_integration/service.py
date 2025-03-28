@@ -1,7 +1,6 @@
 import uuid
 import numpy as np
 import pandas as pd
-from asgiref.sync import async_to_sync
 import asyncio
 from pathlib import Path
 from celery import shared_task
@@ -17,7 +16,6 @@ from .models import integration_jobs_results
 from ..database.service import execute, fetch_one
 from .agent import IntegrationDeps, integration_agent
 from ..redis.core import get_redis
-# import redis
 
 logger = get_task_logger(__name__)
 
@@ -41,7 +39,6 @@ async def run_integration_agent(
         async with integration_agent.iter("Restructure and integrate the data", deps=deps) as agent_run:
 
             async for node in agent_run:
-                # TODO: Publish the node outputs for agent monitoring
                 nodes.append(node)
                 logger.info(f"Integration agent state: {node}")
                 await redis_stream.xadd(str(job_id), {"agent_state": str(node)})
@@ -60,7 +57,6 @@ async def run_integration_agent(
             commit_after=True
         )
 
-        # Update integration jobs status to completed
         await update_job_status(job_id, "completed")
 
     except Exception as e:
@@ -83,10 +79,6 @@ def run_integration_job(job_id: uuid.UUID, api_key: str, data_path: str, data_de
     loop = asyncio.get_event_loop()
     loop.run_until_complete(run_integration_agent(
         job_id, api_key, data_path, data_description))
-    # loop.close()
-
-    # async_to_sync(run_integration_agent)(
-    #     job_id, api_key, data_path, data_description)
 
 
 def validate_restructured_data(data: pd.DataFrame, index_first_level: str, index_second_level: str | None) -> pd.DataFrame | None:

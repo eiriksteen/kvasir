@@ -3,10 +3,10 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.settings import ModelSettings
 from .prompt import CHATBOT_SYSTEM_PROMPT
 from ..schema import ChatbotOutput
-from ...secrets import OPENAI_API_KEY
+from ...secrets import OPENAI_API_KEY, OPENAI_API_MODEL
 
 model = OpenAIModel(
-    "gpt-4o",
+    model=OPENAI_API_MODEL,
     api_key=OPENAI_API_KEY
 )
 

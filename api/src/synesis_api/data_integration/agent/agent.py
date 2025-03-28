@@ -9,11 +9,11 @@ from pydantic_ai.models.openai import OpenAIModel
 from .prompt import INTEGRATION_SYSTEM_PROMPT, TIME_SERIES_TARGET_STRUCTURE
 from ..schema import IntegrationAgentOutput, DataSubmissionResponse
 from ...utils import get_df_info, run_code_in_container, copy_file_to_container, extract_json_from_markdown
-from ...secrets import OPENAI_API_KEY
+from ...secrets import OPENAI_API_KEY, OPENAI_API_MODEL
 
 
 model = OpenAIModel(
-    "gpt-4o",
+    model_name=OPENAI_API_MODEL,
     api_key=OPENAI_API_KEY
 )
 

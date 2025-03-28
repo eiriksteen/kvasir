@@ -40,7 +40,6 @@ async def call_integration_agent(
             status_code=400, detail="The file must be a CSV file")
 
     data_path, api_key = None, None
-
     try:
         user_dir = Path("files") / f"{user.id}"
         user_dir.mkdir(parents=True, exist_ok=True)
@@ -87,7 +86,7 @@ async def get_integration_agent_history(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> list[IntegrationAgentState]:
 
-    if not await user_owns_job(user.id, job_id):
+    if not await user_owns_integration_job(user.id, job_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 
@@ -106,7 +105,7 @@ async def get_integration_agent_state(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> StreamingResponse:
 
-    if not await user_owns_job(user.id, job_id):
+    if not await user_owns_integration_job(user.id, job_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 
