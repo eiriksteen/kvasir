@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react';
 import { Job } from '../types/jobs';
+import { getStatusColor } from '../lib/utils';
 
 interface JobsOverviewProps {
   job_type: string;
@@ -18,16 +19,21 @@ export default function JobsOverview({ job_type, isOpen, onClose, jobs }: JobsOv
   };
 
   const getStatusBadge = (status: string) => {
-    switch(status) {
-      case 'in_progress':
-        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-200 text-yellow-800">In Progress</span>;
-      case 'failed':
-        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-200 text-red-800">Failed</span>;
-      case 'completed':
-        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-200 text-green-800">Completed</span>;
-      default:
-        return <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-800">{status}</span>;
-    }
+    const color = getStatusColor(status);
+    return (
+      <span className={`
+        px-2.5 py-1 
+        text-xs font-medium 
+        rounded-full 
+        ${color}
+        bg-opacity-10
+        border border-opacity-20
+        transition-all duration-200
+        capitalize
+      `}>
+        {status.replace('_', ' ')}
+      </span>
+    );
   };
 
   return (

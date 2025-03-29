@@ -9,7 +9,7 @@ import { useRefreshDatasets, useRefreshJobs } from '@/hooks/apiHooks';
 import OntologyBar from "@/components/ontologyBar";
 import Chatbot from "@/components/chatbot";
 import UserHeader from "@/components/userHeader";
-
+import { Job } from '@/types/jobs';
 interface DashboardProps {
   session: Session;
 }
@@ -18,16 +18,10 @@ export default function DashboardContainer({ session }: DashboardProps) {
 
   const [datasetsInContext, setDatasetsInContext] = useState<TimeSeriesDataset[]>([]);
   const [automationsInContext, setAutomationsInContext] = useState<Automation[]>([]);
-  const [integrationJobState, setIntegrationJobState] = useState<string>("");
-  const [analysisJobState, setAnalysisJobState] = useState<string>("");
-  const [automationJobState, setAutomationJobState] = useState<string>("");
+  const [addedJobs, setAddedJobs] = useState<Job[]>([]);
 
-  console.log("INTEGRATION JOB STATE", integrationJobState);
-  console.log("ANALYSIS JOB STATE", analysisJobState);
-  console.log("AUTOMATION JOB STATE", automationJobState);
-
-  useRefreshDatasets(integrationJobState);
-  useRefreshJobs(integrationJobState);
+  useRefreshDatasets(addedJobs);
+  useRefreshJobs(addedJobs);
 
   const handleAddDatasetToContext = (dataset: TimeSeriesDataset) => {
     if (!datasetsInContext.some(d => d.id === dataset.id)) {
@@ -53,12 +47,8 @@ export default function DashboardContainer({ session }: DashboardProps) {
     <SessionProvider session={session}>
       <div className="flex flex-col h-full bg-zinc-950">
         <UserHeader 
-          integrationJobState={integrationJobState}
-          setIntegrationJobState={setIntegrationJobState}
-          analysisJobState={analysisJobState}
-          setAnalysisJobState={setAnalysisJobState}
-          automationJobState={automationJobState}
-          setAutomationJobState={setAutomationJobState}
+          addedJobs={addedJobs}
+          setAddedJobs={setAddedJobs}
         />
         <OntologyBar 
           datasetsInContext={datasetsInContext}
@@ -67,7 +57,8 @@ export default function DashboardContainer({ session }: DashboardProps) {
           onRemoveDatasetFromContext={handleRemoveDatasetFromContext}
           onAddAutomationToContext={handleAddAutomationToContext}
           onRemoveAutomationFromContext={handleRemoveAutomationFromContext}
-          setIntegrationJobState={setIntegrationJobState}
+          addedJobs={addedJobs}
+          setAddedJobs={setAddedJobs}
         />
         <Chatbot 
           datasetsInContext={datasetsInContext}

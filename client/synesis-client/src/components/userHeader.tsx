@@ -10,24 +10,16 @@ import { getStatusColor } from '../lib/utils';
 import { useSession } from 'next-auth/react';
 import { useJobs } from '@/hooks/apiHooks';
 import { redirect } from 'next/navigation';
-import { useMonitorJobs } from '@/hooks/apiHooks';
-
+import { useMonitorRunningJobs } from '@/hooks/apiHooks';
+import { useJobStates } from '@/hooks/useJobStates';
 interface UserHeaderProps {
-	integrationJobState: string;
-	setIntegrationJobState: (jobState: string) => void;
-	analysisJobState: string;
-	setAnalysisJobState: (jobState: string) => void;
-	automationJobState: string;
-	setAutomationJobState: (jobState: string) => void;
+	addedJobs: Job[];
+	setAddedJobs: (addedJobs: Job[]) => void;
 }
 
 export default function UserHeader({ 
-	integrationJobState,
-	setIntegrationJobState,
-	analysisJobState,
-	setAnalysisJobState,
-	automationJobState,
-	setAutomationJobState
+	addedJobs,
+	setAddedJobs
 }: UserHeaderProps) {
 
 
@@ -42,36 +34,27 @@ export default function UserHeader({
 
 	const { jobs } = useJobs(session?.APIToken.accessToken);
 
-	const { jobsInProgress: integrationJobsInProgress } = useMonitorJobs(
-		integrationJobState,
-		setIntegrationJobState,
+	useMonitorRunningJobs(
+		addedJobs,
+		setAddedJobs,
 		session?.APIToken.accessToken
 	);
-	const { jobsInProgress: analysisJobsInProgress } = useMonitorJobs(
-		analysisJobState,
-		setAnalysisJobState,
+	useMonitorRunningJobs(
+		addedJobs,
+		setAddedJobs,
 		session?.APIToken.accessToken
 	);
-	const { jobsInProgress: automationJobsInProgress } = useMonitorJobs(
-		automationJobState,
-		setAutomationJobState,
+	useMonitorRunningJobs(
+		addedJobs,
+		setAddedJobs,
 		session?.APIToken.accessToken
 	);
+
+	const { integrationState, analysisState, automationState } = useJobStates(addedJobs);
 
 	const integrationJobs = jobs?.filter((job: Job) => job.type === "integration");
 	const analysisJobs = jobs?.filter((job: Job) => job.type === "analysis");
 	const automationJobs = jobs?.filter((job: Job) => job.type === "automation");
-
-	const onCloseJobsOverview = (
-		oldState: string,
-		setOpen: (open: boolean) => void, 
-		setJobState: (jobState: string) => void) => {
-			
-		setOpen(false)
-		if (oldState !== "running") {
-			setJobState("")
-		}
-	}
 
 	return (
 		<>
@@ -92,17 +75,17 @@ export default function UserHeader({
 						
 						<div className="flex items-center space-x-4">
 							<button 
-								className={`${getStatusColor(integrationJobState)} hover:opacity-80`}
+								className={`${getStatusColor(integrationState)} hover:opacity-80 ${integrationState === 'running' ? 'animate-pulse-running' : ''}`}
 								onClick={() => setIntegrationJobsIsOpen(true)}>
 								<Database size={20} />
 							</button>
 							<button 
-								className={`${getStatusColor(analysisJobState)} hover:opacity-80`}
+								className={`${getStatusColor(analysisState)} hover:opacity-80 ${analysisState === 'running' ? 'animate-pulse-running' : ''}`}
 								onClick={() => setAnalysisJobsIsOpen(true)}>
 								<BarChart size={20} />
 							</button>
 							<button 
-								className={`${getStatusColor(automationJobState)} hover:opacity-80`}
+								className={`${getStatusColor(automationState)} hover:opacity-80 ${automationState === 'running' ? 'animate-pulse-running' : ''}`}
 								onClick={() => setAutomationJobsIsOpen(true)}>
 								<Bot size={20} />
 							</button>
@@ -114,19 +97,19 @@ export default function UserHeader({
 			<JobsOverview 
 				job_type="Integration"
 				isOpen={integrationJobsIsOpen}
-				onClose={() => onCloseJobsOverview(integrationJobState, setIntegrationJobsIsOpen, setIntegrationJobState)}
+				onClose={() => setIntegrationJobsIsOpen(false)}
 				jobs={integrationJobs || []}
 			/>
 			<JobsOverview 
 				job_type="Analysis"
 				isOpen={analysisJobsIsOpen}
-				onClose={() => onCloseJobsOverview(analysisJobState, setAnalysisJobsIsOpen, setAnalysisJobState)}
+				onClose={() => setAnalysisJobsIsOpen(false)}
 				jobs={analysisJobs || []}
 			/>
 			<JobsOverview 
 				job_type="Automation"
 				isOpen={automationJobsIsOpen}
-				onClose={() => onCloseJobsOverview(automationJobState, setAutomationJobsIsOpen, setAutomationJobState)}
+				onClose={() => setAutomationJobsIsOpen(false)}
 				jobs={automationJobs || []}
 			/>
 			

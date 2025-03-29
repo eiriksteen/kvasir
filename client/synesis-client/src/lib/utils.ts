@@ -1,4 +1,3 @@
-
 export const getStatusColor = (status: string) => {
 	switch(status) {
 		case 'running': return 'text-yellow-400';

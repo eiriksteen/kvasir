@@ -5,11 +5,12 @@ import { Upload, X } from 'lucide-react';
 import { submitDataset } from '@/lib/api';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
+import { Job } from '@/types/jobs';
 
 interface AddDatasetProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: () => void;
+  onAdd: (job: Job) => void;
 }
 
 export default function AddDataset({ isOpen, onClose, onAdd }: AddDatasetProps) {
@@ -72,9 +73,9 @@ export default function AddDataset({ isOpen, onClose, onAdd }: AddDatasetProps) 
     setError(null);
 
     try {
-      await submitDataset(session?.APIToken.accessToken, file, description);
+      const job = await submitDataset(session?.APIToken.accessToken, file, description);
       onClose();
-      onAdd();
+      onAdd(job);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred");
     }

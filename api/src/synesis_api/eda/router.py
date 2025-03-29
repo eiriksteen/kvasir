@@ -13,7 +13,7 @@ from .service import (
 from ..shared.service import create_job, get_job_metadata
 from ..shared.schema import JobMetadata
 from ..auth.schema import User
-from ..project_spec.schema import DataDescription
+from ..chat.schema import DataDescription
 
 
 router = APIRouter()

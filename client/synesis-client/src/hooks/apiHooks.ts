@@ -1,4 +1,5 @@
 import { fetchDatasets, fetchJobs, fetchJob } from "@/lib/api";
+import { Job } from "@/types/jobs";
 import { useEffect, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import useSWRSubscription from "swr/subscription";
@@ -29,59 +30,44 @@ export const useJobs = (token: string) => {
 };
 
 
-export const useRefreshDatasets = (jobState: string) => {
+export const useRefreshDatasets = (runningJobs: Job[]) => {
   const {mutate} = useSWRConfig();
   
   useEffect(() => {
-    if (jobState === "completed") {
+    if (runningJobs.length === 0) {
       mutate(`${URL}/ontology/datasets`);
     }
-  }, [jobState]);
+  }, [runningJobs]);
 };
 
 
-export const useRefreshJobs = (jobState: string) => {
+export const useRefreshJobs = (runningJobs: Job[]) => {
   const {mutate} = useSWRConfig();
 
   useEffect(() => {
-    if (jobState !== "") {
       mutate(`${URL}/jobs`);
-    }
-  }, [jobState]);
+  }, [runningJobs]);
 };
 
-export const useMonitorJobs = (
-  jobState: string,
-  setJobState: (jobState: string) => void,
+export const useMonitorRunningJobs = (
+  runningJobs: Job[],
+  setRunningJobs: (runningJobs: Job[]) => void,
   token: string
 ) => {
 
   const { data, error } = useSWR(
-    jobState === "running" ? [`${URL}/jobs`, "monitor"] : null,
+    runningJobs.length > 0 ? [`${URL}/jobs`, runningJobs] : null,
     () => fetchJobs(token, true),
     {
       refreshInterval: 2000
     }
   );
 
-  console.log("DATA", data);
-  console.log("JOB STATE", jobState);
-  console.log("ERROR", error);
-
   useEffect(() => {
-    console.log("RUNNING USE EFFECT");
-    console.log("DATA", data);
-    console.log("JOB STATE", jobState);
-    console.log("ERROR", error);
+
     if (data) {
-      console.log("RUNNING IF");
-      if (data.some(job => job.status === "failed")) {
-        console.log("RUNNING IF 1");
-        setJobState("failed");
-      }
-      else if (data?.length === 0) {
-        console.log("RUNNING ELSE IF");
-        setJobState("completed");
+      if (data?.length === 0) {
+        setRunningJobs([]);
       }
     }
 

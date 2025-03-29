@@ -8,7 +8,8 @@ import { useDatasets } from '@/hooks/apiHooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import AddDataset from '@/components/addDataset';
-// Props type
+import { Job } from '@/types/jobs';
+
 interface OntologyBarProps {
     datasetsInContext: TimeSeriesDataset[];
     automationsInContext: Automation[];
@@ -16,7 +17,8 @@ interface OntologyBarProps {
     onRemoveDatasetFromContext: (datasetId: string) => void;
     onAddAutomationToContext: (automation: Automation) => void;
     onRemoveAutomationFromContext: (automationId: string) => void;
-    setIntegrationJobState: (jobState: string) => void;
+    addedJobs: Job[];
+    setAddedJobs: (jobs: Job[]) => void;
 }
 
 function DatasetItem({ 
@@ -96,7 +98,8 @@ export default function OntologyBar({
     onRemoveDatasetFromContext,
     onAddAutomationToContext,
     onRemoveAutomationFromContext,
-    setIntegrationJobState
+    addedJobs,
+    setAddedJobs
 }: OntologyBarProps) {
 
     const [selectedAutomation, setSelectedAutomation] = useState<string | null>(null);
@@ -133,6 +136,9 @@ export default function OntologyBar({
     const isDatasetInContext = (datasetId: string) => 
         datasetsInContext.some(dataset => dataset.id === datasetId);
         
+    const handleAddDataset = (job: Job) => {
+        setAddedJobs([...addedJobs, job]);
+    }
 
     return (
         <div className="relative flex pt-12 h-screen">
@@ -216,7 +222,7 @@ export default function OntologyBar({
                 <AddDataset
                     isOpen={showAddDataset}
                     onClose={() => setShowAddDataset(false)}
-                    onAdd={() => setIntegrationJobState("running")}
+                    onAdd={handleAddDataset}
                 />
             )}
         </div>
