@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import HTTPException
 from sqlalchemy import select, insert, update
 from .models import jobs
-from .schema import IntegrationJobMetadataInDB
+from .schema import JobMetadataInDB
 from ..database.service import execute, fetch_one, fetch_all
 from typing import List
 
@@ -13,9 +13,9 @@ async def create_job(
     api_key_id: uuid.UUID,
     job_type: str,
     job_id: uuid.UUID | None = None
-) -> IntegrationJobMetadataInDB:
+) -> JobMetadataInDB:
 
-    job = IntegrationJobMetadataInDB(
+    job = JobMetadataInDB(
         id=job_id if job_id else uuid.uuid4(),
         type=job_type,
         user_id=user_id,
@@ -32,7 +32,7 @@ async def create_job(
     return job
 
 
-async def get_job_metadata(job_id: uuid.UUID) -> IntegrationJobMetadataInDB:
+async def get_job_metadata(job_id: uuid.UUID) -> JobMetadataInDB:
     job = await fetch_one(
         select(jobs).where(jobs.c.id == job_id),
         commit_after=True
@@ -43,10 +43,10 @@ async def get_job_metadata(job_id: uuid.UUID) -> IntegrationJobMetadataInDB:
             status_code=404, detail="Job not found"
         )
 
-    return IntegrationJobMetadataInDB(**job)
+    return JobMetadataInDB(**job)
 
 
-async def get_jobs(user_id: uuid.UUID, only_running: bool = False) -> List[IntegrationJobMetadataInDB]:
+async def get_jobs(user_id: uuid.UUID, only_running: bool = False) -> List[JobMetadataInDB]:
     query = select(jobs).where(jobs.c.user_id == user_id)
     if only_running:
         query = query.where(jobs.c.status == "running")
@@ -57,7 +57,7 @@ async def get_jobs(user_id: uuid.UUID, only_running: bool = False) -> List[Integ
         commit_after=True
     )
 
-    return [IntegrationJobMetadataInDB(**job) for job in result]
+    return [JobMetadataInDB(**job) for job in result]
 
 
 async def update_job_status(job_id: uuid.UUID, status: str):

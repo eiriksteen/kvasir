@@ -4,9 +4,9 @@ from scipy import stats
 import statsmodels.api as sm
 from typing import List
 from sklearn.decomposition import PCA
-
 from pydantic_ai import RunContext, Tool
 from .deps import EDADepsBasic, EDADepsAdvanced
+
 
 def check_missing_values(ctx: RunContext[EDADepsBasic]) -> str:
     """
@@ -64,6 +64,7 @@ def moments_of_distribution(ctx: RunContext[EDADepsBasic], column: str) -> str:
             f'Skewness: {skewness}\n'
             f'Kurtosis: {kurtosis}')
 
+
 def summary_statistics(ctx: RunContext[EDADepsBasic]) -> str:
     """
     Compute summary statistics of the df in the context.
@@ -79,6 +80,7 @@ def summary_statistics(ctx: RunContext[EDADepsBasic]) -> str:
 
     return summary_stats.to_string()
 
+
 def summary_statistics_grouped(ctx: RunContext[EDADepsBasic], group_by: str):
     """
     Compute summary statistics for each group in the df in the context after grouping by the specified column.
@@ -92,7 +94,7 @@ def summary_statistics_grouped(ctx: RunContext[EDADepsBasic], group_by: str):
     """
     df = ctx.deps.df
     grouped = df.groupby(group_by)
-    summary_stats = grouped.describe()  
+    summary_stats = grouped.describe()
 
     return summary_stats.to_string()
 
@@ -122,11 +124,11 @@ def check_outliers(ctx: RunContext[EDADepsBasic], column: str, method: str = 'iq
         outliers = z_scores > 3
     else:
         raise ValueError("Method must be 'iqr' or 'zscore'")
-    
+
     num_outliers = outliers.sum()
     total_points = len(df[column])
     percent_outliers = (num_outliers / total_points) * 100
-    
+
     return (f'Number of outliers in {column}: {num_outliers}\n'
             f'Percentage of outliers in {column}: {percent_outliers:.2f}%')
 
@@ -153,6 +155,7 @@ def regression(ctx: RunContext[EDADepsAdvanced], endo: str, exo: List[str]) -> s
 
     return summary.as_text()
 
+
 def anova(ctx: RunContext[EDADepsAdvanced], numerical_col: str, group_by: str) -> str:
     """
     Perform ANOVA (Analysis of Variance) to determine if there are statistically 
@@ -170,7 +173,7 @@ def anova(ctx: RunContext[EDADepsAdvanced], numerical_col: str, group_by: str) -
     model = sm.formula.ols(f'{numerical_col} ~ C({group_by})', data=df).fit()
     anova_table = sm.stats.anova_lm(model, typ=2)
     return anova_table.to_string()
-    
+
 
 def pca_analysis(ctx: RunContext[EDADepsAdvanced], n_components: int = 2) -> str:
     """
@@ -191,7 +194,6 @@ def pca_analysis(ctx: RunContext[EDADepsAdvanced], n_components: int = 2) -> str
     explained_variance = pca.explained_variance_ratio_
 
     return (f'Explained variance ratio of the first {n_components} principal components: {explained_variance}')
-
 
 
 eda_cs_basic_tools = [

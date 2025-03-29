@@ -57,9 +57,9 @@ eda_summary_agent = Agent(
     ),
 )
 
-# Why is this async?
+
 @eda_advanced_agent.system_prompt
-async def get_system_prompt(ctx: RunContext[EDADepsAdvanced]) -> str:
+def get_system_prompt(ctx: RunContext[EDADepsAdvanced]) -> str:
     sys_prompt = (
         f"{EDA_SYSTEM_PROMPT}\n"
         f"The problem description is as follows: {ctx.deps.problem_description}\n"
@@ -85,6 +85,7 @@ async def get_system_prompt(ctx: RunContext[EDADepsIndependent]) -> str:
         f"The path to load the dataframe: /tmp/{ctx.deps.data_path.name}"
     )
     return sys_prompt
+
 
 @eda_independent_agent.tool_plain
 async def execute_python_code(python_code: str):

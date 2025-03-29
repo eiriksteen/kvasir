@@ -11,6 +11,6 @@ class JobMetadata(BaseSchema):
     completed_at: datetime | None = None
 
 
-class IntegrationJobMetadataInDB(JobMetadata):
+class JobMetadataInDB(JobMetadata):
     user_id: UUID
     api_key_id: UUID

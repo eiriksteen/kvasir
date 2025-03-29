@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .auth.router import router as auth_router
 from .data_integration.router import router as data_integration_router
 from .eda.router import router as eda_router
-from .model.router import router as model_router
+from .modeling.router import router as model_router
 from .ontology.router import router as ontology_router
 
 

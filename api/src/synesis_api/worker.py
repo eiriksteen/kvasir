@@ -8,6 +8,6 @@ celery = Celery(
     include=[
         "src.synesis_api.data_integration.service",
         "src.synesis_api.eda.service",
-        "src.synesis_api.model.service"
+        "src.synesis_api.modeling.service"
     ]
 )
