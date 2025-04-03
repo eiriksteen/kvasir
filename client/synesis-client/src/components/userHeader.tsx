@@ -39,16 +39,6 @@ export default function UserHeader({
 		setAddedJobs,
 		session?.APIToken.accessToken
 	);
-	useMonitorRunningJobs(
-		addedJobs,
-		setAddedJobs,
-		session?.APIToken.accessToken
-	);
-	useMonitorRunningJobs(
-		addedJobs,
-		setAddedJobs,
-		session?.APIToken.accessToken
-	);
 
 	const { integrationState, analysisState, automationState } = useJobStates(addedJobs);
 

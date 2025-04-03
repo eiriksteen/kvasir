@@ -15,7 +15,7 @@ from .schema import IntegrationJobResultInDB
 from .models import integration_jobs_results
 from ..database.service import execute, fetch_one
 from .agent import IntegrationDeps, integration_agent
-from ..redis.core import get_redis
+from ..redis import get_redis
 
 logger = get_task_logger(__name__)
 

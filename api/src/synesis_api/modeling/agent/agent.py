@@ -1,15 +1,18 @@
 from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.settings import ModelSettings
+from pydantic_ai.providers.openai import OpenAIProvider
 from .prompt import MODEL_SYSTEM_PROMPT
 from .deps import ModelDeps
 from ...secrets import OPENAI_API_KEY, OPENAI_API_MODEL
 from ..schema import ModelAgentOutput
 from ...utils import run_code_in_container, copy_file_to_container
 
+provider = OpenAIProvider(api_key=OPENAI_API_KEY)
+
 model = OpenAIModel(
     model_name=OPENAI_API_MODEL,
-    api_key=OPENAI_API_KEY
+    provider=provider
 )
 
 model_agent = Agent(
@@ -21,6 +24,7 @@ model_agent = Agent(
         temperature=0.1
     )
 )
+
 
 @model_agent.system_prompt
 async def get_system_prompt(ctx: RunContext[ModelDeps]) -> str:

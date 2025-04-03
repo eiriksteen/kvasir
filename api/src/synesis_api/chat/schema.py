@@ -1,36 +1,34 @@
 from typing import Literal
+from datetime import datetime
 from ..base_schema import BaseSchema
-
-
-class DataDescription(BaseSchema):
-    data_description: str
-    data_type: str
-    data_format: str
-    data_source: str
-    data_size: str
-
-
-class GoalDescription(BaseSchema):
-    goal_description: str
-    goal_type: Literal["prediction", "automation", "insights", "other"]
-
-
-class DeliverableDescription(BaseSchema):
-    deliverable_description: str
-    deliverable_type: Literal["api",
-                              "web_app",
-                              "report",
-                              "periodic_job",
-                              "other"]
-
-
-class ChatSummary(BaseSchema):
-    data_description: DataDescription
-    goals_description: list[GoalDescription]
-    deliverables_description: list[DeliverableDescription]
+from ..ontology.schema import TimeSeriesDataset, FeatureDataset
+import uuid
 
 
 class ChatbotOutput(BaseSchema):
-    state: Literal["in_progress", "done"]
-    response: str | None = None
-    summary: ChatSummary | None = None
+    goal_description: str
+    deliverable_description: str
+    task_type: Literal["analysis", "automation"]
+
+
+class ChatMessage(BaseSchema):
+    id: uuid.UUID
+    conversation_id: uuid.UUID
+    role: Literal["user", "assistant"]
+    content: str
+    created_at: datetime
+
+
+class Prompt(BaseSchema):
+    content: str
+
+
+class Conversation(BaseSchema):
+    id: uuid.UUID
+    user_id: uuid.UUID
+
+
+class PydanticMessage(BaseSchema):
+    id: uuid.UUID
+    conversation_id: uuid.UUID
+    message_list: bytes

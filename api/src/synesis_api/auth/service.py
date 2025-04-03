@@ -9,6 +9,7 @@ from fastapi import Depends, HTTPException, status, Security, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from .schema import User, UserInDB, TokenData, UserAPIKey, UserCreate
 from .models import users, user_api_keys
+from ..chat.models import conversations
 from ..shared.models import jobs
 from ..secrets import API_SECRET_KEY, API_SECRET_ALGORITHM
 from ..database.service import fetch_one, execute
@@ -192,3 +193,8 @@ async def get_user_from_api_key(api_key: str = Security(api_key_header)) -> User
 async def user_owns_job(user_id: uuid.UUID, job_id: uuid.UUID) -> bool:
     job = await fetch_one(Select(jobs).where(jobs.c.id == job_id, jobs.c.user_id == user_id))
     return job is not None
+
+
+async def user_owns_conversation(user_id: uuid.UUID, conversation_id: uuid.UUID) -> bool:
+    conversation = await fetch_one(Select(conversations).where(conversations.c.id == conversation_id, conversations.c.user_id == user_id))
+    return conversation is not None

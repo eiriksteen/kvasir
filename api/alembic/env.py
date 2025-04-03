@@ -9,7 +9,8 @@ from src.synesis_api.auth.models import users, user_api_keys
 from src.synesis_api.data_integration.models import integration_jobs_results
 from src.synesis_api.shared.models import jobs
 from src.synesis_api.ontology.models import time_series, time_series_dataset
-from src.synesis_api.eda.models import eda_jobs_results
+from src.synesis_api.analysis.models import eda_jobs_results
+from src.synesis_api.chat.models import chat_messages, pydantic_messages, conversations
 from src.synesis_api.database.core import metadata
 from src.synesis_api.secrets import DATABASE_URL
 

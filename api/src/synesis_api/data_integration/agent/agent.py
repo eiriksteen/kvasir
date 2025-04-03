@@ -5,6 +5,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.settings import ModelSettings
+from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.models.openai import OpenAIModel
 from .prompt import INTEGRATION_SYSTEM_PROMPT, TIME_SERIES_TARGET_STRUCTURE
 from ..schema import IntegrationAgentOutput, DataSubmissionResponse
@@ -12,9 +13,11 @@ from ...utils import get_df_info, run_code_in_container, copy_file_to_container,
 from ...secrets import OPENAI_API_KEY, OPENAI_API_MODEL
 
 
+provider = OpenAIProvider(api_key=OPENAI_API_KEY)
+
 model = OpenAIModel(
     model_name=OPENAI_API_MODEL,
-    api_key=OPENAI_API_KEY
+    provider=provider
 )
 
 

@@ -24,8 +24,7 @@ interface OntologyBarProps {
 function DatasetItem({ 
     dataset, 
     isInContext, 
-    onClick 
-}: { 
+    onClick }: { 
     dataset: TimeSeriesDataset; 
     isInContext: boolean; 
     onClick: () => void 

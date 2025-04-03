@@ -1,3 +1,4 @@
+import { ChatMessageAPI, Conversation } from "@/types/chat";
 import { Datasets } from "@/types/datasets";
 import { Job } from "@/types/jobs";
 
@@ -83,3 +84,81 @@ export async function fetchJob(token: string, jobId: string): Promise<Job> {
 }
 
     
+export async function* streamChat(token: string, prompt: string, conversationId: string): AsyncGenerator<string> {
+  const response = await fetch(`${API_URL}/chat/completions/${conversationId}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ "content": prompt })
+  });
+
+  const reader = response.body?.getReader();
+  if (!reader) return;
+  const decoder = new TextDecoder();
+  
+  while (true) {
+    const result = await reader.read();
+    if (result.done) break;
+    const text = decoder.decode(result.value);
+    console.log("TEXT IS", text);
+    yield text;
+  }
+}
+
+
+export async function fetchMessages(token: string, conversationId: string): Promise<ChatMessageAPI[]> {
+  const response = await fetch(`${API_URL}/chat/conversation/${conversationId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch messages', errorText);
+    throw new Error(`Failed to fetch messages: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+export async function createConversation(token: string): Promise<Conversation> {
+  const response = await fetch(`${API_URL}/chat/conversation`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to create conversation', errorText);
+    throw new Error(`Failed to create conversation: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+export async function getConversations(token: string): Promise<Conversation[]> {
+  const response = await fetch(`${API_URL}/chat/conversations`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to get conversations', errorText);
+    throw new Error(`Failed to get conversations: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
