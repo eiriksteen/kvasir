@@ -2,19 +2,14 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Send, Database, X } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { Automation } from '@/types/automations';
 import { useChat, useCreateConversation, useUpdateContext } from '@/hooks/apiHooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 
-// Message type
-interface Message {
-  id: string;
-  content: string;
-  sender: 'user' | 'ai';
-  timestamp: Date;
-}
 
 interface ChatbotProps {
   datasetsInContext: TimeSeriesDataset[];
@@ -173,7 +168,11 @@ function Chat({ datasetsInContext, automationsInContext, onRemoveDatasetFromCont
                       : 'bg-blue-950/40 text-white rounded-tl-none border border-blue-800/50'
                   }`}
                 >
-                  {message.content}
+                  <div className="prose prose-invert max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </div>
             ))}
@@ -186,7 +185,11 @@ function Chat({ datasetsInContext, automationsInContext, onRemoveDatasetFromCont
                   'bg-blue-950/40 text-white rounded-tl-none border border-blue-800/50'
                 }`}
               >
-                {response}
+                <div className="prose prose-invert max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {response}
+                  </ReactMarkdown>
+                </div>
               </div>
             </div>
             )}
