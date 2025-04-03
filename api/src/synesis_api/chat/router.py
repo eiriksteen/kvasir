@@ -30,16 +30,12 @@ async def post_chat(
     async def stream_messages():
         messages = await get_messages_pydantic(conversation_id)
 
-        print(messages)
-
         async with chatbot_agent.run_stream(prompt.content, message_history=messages) as result:
             prev_text = ""
             async for text in result.stream(debounce_by=0.01):
                 if text != prev_text:
                     yield text
                     prev_text = text
-
-            print(result.new_messages())
 
             await insert_message_pydantic(conversation_id, result.new_messages_json())
 
