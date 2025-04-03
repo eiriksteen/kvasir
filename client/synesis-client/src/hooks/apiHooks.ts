@@ -1,10 +1,12 @@
-import { fetchDatasets, fetchJobs, streamChat, fetchMessages, createConversation } from "@/lib/api";
+import { fetchDatasets, fetchJobs, streamChat, fetchMessages, createConversation, updateContext } from "@/lib/api";
 import { Job } from "@/types/jobs";
 import { ChatMessage } from "@/types/chat";
 import { useEffect, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { apiMessageToChatMessage } from "@/lib/utils";
-
+import { useSession } from "next-auth/react";
+import { Automation } from "@/types/automations";
+import { TimeSeriesDataset } from "@/types/datasets";
 const URL = process.env.NEXT_PUBLIC_API_URL;
 
 // TODO: data fetching needs optimization
@@ -19,8 +21,21 @@ const URL = process.env.NEXT_PUBLIC_API_URL;
 // alternatively, create API endpoint that receives a list of job ids and returns their statuses
 //      (on job status change, update monitoring list)
 
-export const useDatasets = (token: string) => {
-  const { data, error, isLoading } = useSWR(`${URL}/ontology/datasets`, () => fetchDatasets(token));
+export const useDatasets = () => {
+  const {data: session} = useSession();
+
+  if (!session) {
+    return {
+      datasets: {
+        timeSeries: [],
+        numDatasets: 0,
+      },
+      isLoading: false,
+      isError: false,
+    };
+  }
+
+  const { data, error, isLoading } = useSWR(`${URL}/ontology/datasets`, () => fetchDatasets(session.APIToken.accessToken));
 
   return {
     datasets: data,
@@ -30,8 +45,18 @@ export const useDatasets = (token: string) => {
 };
 
 
-export const useJobs = (token: string) => {
-  const { data, error, isLoading } = useSWR(`${URL}/jobs`, () => fetchJobs(token));
+export const useJobs = () => {
+  const {data: session} = useSession();
+
+  if (!session) {
+    return {
+      jobs: [],
+      isLoading: false,
+      isError: false,
+    };
+  }
+
+  const { data, error, isLoading } = useSWR(`${URL}/jobs`, () => fetchJobs(session.APIToken.accessToken));
 
   return {
     jobs: data,
@@ -63,12 +88,17 @@ export const useRefreshJobs = (runningJobs: Job[]) => {
 
 export const useMonitorRunningJobs = (
   addedJobs: Job[],
-  setAddedJobs: (addedJobs: Job[]) => void,
-  token: string) => {
+  setAddedJobs: (addedJobs: Job[]) => void) => {
+
+  const {data: session} = useSession();
+
+  if (!session) {
+    return;
+  }
 
   const { data, error } = useSWR(
     addedJobs.length > 0 ? [`${URL}/jobs`, addedJobs] : null,
-    () => fetchJobs(token, true),
+    () => fetchJobs(session.APIToken.accessToken, true),
     {
       refreshInterval: 2000
     }
@@ -91,16 +121,23 @@ export const useMonitorRunningJobs = (
 };
 
 
-export const useCreateConversation = (token: string, setConversationId: (conversationId: string) => void) => {
+export const useCreateConversation = (setConversationId: (conversationId: string) => void) => {
+
+  const {data: session} = useSession();
+
+  if (!session) {
+    return;
+  }
+
   useEffect(() => {
-    createConversation(token).then((conversation) => {
+    createConversation(session.APIToken.accessToken).then((conversation) => {
       setConversationId(conversation.id);
     });
   }, []);
 };
 
 
-export const useChat = (prompt: string, token: string, conversationId: string | null  ) => {
+export const useChat = (prompt: string, token: string, conversationId: string | null ) => {
   const [response, setResponse] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([{"role": "user", "content": prompt}]);
 
@@ -127,7 +164,6 @@ export const useChat = (prompt: string, token: string, conversationId: string | 
       setResponse("");
       const stream = streamChat(token, prompt, conversationId);
       for await (const chunk of stream) {
-        console.log(chunk);
         setResponse(chunk);
       }
     })();
@@ -135,3 +171,23 @@ export const useChat = (prompt: string, token: string, conversationId: string | 
 
   return { response, messages };
 };
+
+export const useUpdateContext = (conversationId: string | null, datasetsInContext: TimeSeriesDataset[], automationsInContext: Automation[]) => {
+  const {data: session} = useSession();
+
+  // if (!session || !conversationId) {
+  //   return;
+  // }
+
+  useEffect(() => {
+    if (!session || !conversationId) {
+      return;
+    }
+    const datasetIds = datasetsInContext.map((dataset) => dataset.id);
+    const automationIds = automationsInContext.map((automation) => automation.id);
+    updateContext(session.APIToken.accessToken, conversationId, datasetIds, automationIds).then((data) => {
+      console.log(data);
+    });
+
+  }, [datasetsInContext, automationsInContext]);
+}

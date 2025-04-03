@@ -110,7 +110,7 @@ export default function OntologyBar({
         redirect("/login");
     }
 
-    const { datasets } = useDatasets(session?.APIToken.accessToken);
+    const { datasets } = useDatasets();
     const automations: Automation[] = [];
 
 

@@ -32,13 +32,9 @@ export default function UserHeader({
 		redirect("/login");
 	}
 
-	const { jobs } = useJobs(session?.APIToken.accessToken);
+	const { jobs } = useJobs();
 
-	useMonitorRunningJobs(
-		addedJobs,
-		setAddedJobs,
-		session?.APIToken.accessToken
-	);
+	useMonitorRunningJobs(addedJobs, setAddedJobs);
 
 	const { integrationState, analysisState, automationState } = useJobStates(addedJobs);
 

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Database, X } from 'lucide-react';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { Automation } from '@/types/automations';
-import { useChat, useCreateConversation } from '@/hooks/apiHooks';
+import { useChat, useCreateConversation, useUpdateContext } from '@/hooks/apiHooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 
@@ -240,7 +240,8 @@ export default function Chatbot({ datasetsInContext, automationsInContext, onRem
     redirect("/login");
   }
 
-  useCreateConversation(session?.APIToken.accessToken, setConversationId);
+  useCreateConversation(setConversationId);
+  useUpdateContext(conversationId, datasetsInContext, automationsInContext);
 
   if (!conversationId) {
     return <div>Loading...</div>;

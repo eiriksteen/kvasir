@@ -3,11 +3,12 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from typing import Annotated, List
-from pydantic_ai.messages import ModelResponse, TextPart
-from .schema import ChatMessage, Conversation, Prompt
+from pydantic_core import to_jsonable_python
+from pydantic_ai.messages import ModelResponse, TextPart, ModelRequest, SystemPromptPart, ModelMessagesTypeAdapter
+from ..ontology.service import get_user_datasets
+from .schema import ChatMessage, Conversation, Prompt, Context
 from .service import create_conversation, get_messages, get_messages_pydantic, insert_message, insert_message_pydantic, get_conversations
 from .agent.agent import chatbot_agent
-from .agent.utils import to_chat_message
 from ..auth.service import get_current_user, user_owns_conversation
 from ..auth.schema import User
 
@@ -29,12 +30,16 @@ async def post_chat(
     async def stream_messages():
         messages = await get_messages_pydantic(conversation_id)
 
+        print(messages)
+
         async with chatbot_agent.run_stream(prompt.content, message_history=messages) as result:
             prev_text = ""
             async for text in result.stream(debounce_by=0.01):
                 if text != prev_text:
                     yield text
                     prev_text = text
+
+            print(result.new_messages())
 
             await insert_message_pydantic(conversation_id, result.new_messages_json())
 
@@ -68,3 +73,29 @@ async def get_conversation(
 async def get_conversations(user: Annotated[User, Depends(get_current_user)] = None) -> List[Conversation]:
     conversations = await get_conversations(user.id)
     return conversations
+
+
+@router.post("/context/{conversation_id}")
+async def update_context(conversation_id: uuid.UUID, context: Context, user: Annotated[User, Depends(get_current_user)] = None):
+    if not await user_owns_conversation(user.id, conversation_id):
+        raise HTTPException(
+            status_code=403, detail="You do not have access to this conversation")
+
+    datasets = await get_user_datasets(user.id, context.dataset_ids)
+    automations = []
+
+    updated_context = SystemPromptPart(
+        content=f"""
+        <CONTEXT UPDATES>
+        Current datasets in context: {datasets}
+        Current automations in context: {automations}
+        </CONTEXT UPDATES>
+        """
+    )
+
+    new_messages = [ModelRequest(parts=[updated_context])]
+    messages_bytes = json.dumps(
+        to_jsonable_python(new_messages)).encode("utf-8")
+    await insert_message_pydantic(conversation_id, messages_bytes)
+
+    return "Context updated"

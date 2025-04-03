@@ -162,3 +162,25 @@ export async function getConversations(token: string): Promise<Conversation[]> {
   const data = await response.json();
   return data;
 }
+
+
+export async function updateContext(token: string, conversationId: string, datasetIds: string[], automationIds: string[]): Promise<string> {
+  const response = await fetch(`${API_URL}/chat/context/${conversationId}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ "dataset_ids": datasetIds, "automation_ids": automationIds })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to update context', errorText);
+    throw new Error(`Failed to update context: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  
+  return data;
+}

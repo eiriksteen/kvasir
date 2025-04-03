@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, List
 from datetime import datetime
 from ..base_schema import BaseSchema
 from ..ontology.schema import TimeSeriesDataset, FeatureDataset
@@ -32,3 +32,8 @@ class PydanticMessage(BaseSchema):
     id: uuid.UUID
     conversation_id: uuid.UUID
     message_list: bytes
+
+
+class Context(BaseSchema):
+    dataset_ids: List[uuid.UUID]
+    automation_ids: List[uuid.UUID]
