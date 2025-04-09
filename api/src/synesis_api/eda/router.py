@@ -2,23 +2,24 @@ import uuid
 from typing import Annotated
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
-from .schema import EDAJobMetaData, EDAJobResult
+from .schema import EDAJobResult
 from ..auth.service import (create_api_key,
                             get_current_user,
-                            user_owns_eda_job)
+                            user_owns_job)
 from .service import (
-    get_job_metadata, 
-    get_job_results,
-    create_eda_job,
-    run_eda_job
+    run_eda_job,
+    get_job_results
 )
+from ..shared.service import create_job, get_job_metadata
+from ..shared.schema import JobMetadata
 from ..auth.schema import User
-from ..project_spec.schema import DataDescription
+from ..chat.schema import DataDescription
 
 
 router = APIRouter()
 
-@router.post("/call-eda-agent", response_model=EDAJobMetaData)
+
+@router.post("/call-eda-agent", response_model=JobMetadata)
 async def call_eda_agent(
     # problem_id: uuid.UUID,
     # data_id: uuid.UUID,
@@ -27,7 +28,7 @@ async def call_eda_agent(
 ):
     # need a way to load the problem and data description based on a problem_id:
     data_description = DataDescription(
-        data_description = """
+        data_description="""
             The Boston Housing Dataset is a widely used dataset in machine learning and statistics, providing information on various aspects of housing in the Boston area. The dataset contains the following columns:
             CRIM – Crime rate per capita by town.
             ZN – Proportion of residential land zoned for large-scale properties.
@@ -44,27 +45,29 @@ async def call_eda_agent(
             LSTAT – Percentage of lower status population.
             MEDV – Median value of owner-occupied homes (target variable, in $1,000s).
         """,
-        data_type = "Numeric",
-        data_format = "Feature data",
-        data_source = "Census",
-        data_size = "506 rows, 14 columns",
+        data_type="Numeric",
+        data_format="Feature data",
+        data_source="Census",
+        data_size="506 rows, 14 columns",
     )
 
     try:
         api_key = await create_api_key(user)
-        eda_job = await create_eda_job(user.id, api_key.id)
+        eda_job = await create_job(user.id, api_key.id, "eda")
     except:
-        raise HTTPException(status_code=500, detail="Failed to create EDA job.")
-    
+        raise HTTPException(
+            status_code=500, detail="Failed to create EDA job.")
+
     # data_dir = Path("integrated_data") / f"{user.id}"
     # data_path = data_dir / f"{data_id}.csv" # need a way of getting the data_id
-    
+
     data_dir = Path("files") / "98ca0ae7-5221-4ec0-9bf3-092a0445695a"
     data_path = data_dir / "0b1626e1-d671-47ad-9013-f6ea23b35763.csv"
     project_description = "The goal of this project is to analyze and model the Boston Housing Dataset, with the aim of predicting house prices based on various features. This dataset contains information about different attributes of houses in the Boston area, such as crime rates, average number of rooms, and proximity to employment centers. The project explores the relationship between these attributes and the price of homes, allowing for both descriptive and predictive analytics."
     try:
         summary = run_eda_job.apply_async(
-            args=[eda_job.id, user.id, str(data_path), data_description.data_description, project_description]
+            args=[eda_job.id, user.id, str(
+                data_path), data_description.data_description, project_description]
         )
     except:
         raise HTTPException(status_code=500, detail="Failed to run EDA job.")
@@ -72,16 +75,16 @@ async def call_eda_agent(
     return eda_job
 
 
-@router.get("/eda-job-status/{eda_id}", response_model=EDAJobMetaData)
+@router.get("/eda-job-status/{eda_id}", response_model=JobMetadata)
 async def get_eda_job_status(
     eda_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None
-) -> EDAJobMetaData:
-    if not await user_owns_eda_job(user.id, eda_id):
+) -> JobMetadata:
+    if not await user_owns_job(user.id, eda_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job"
         )
-    
+
     job_meta_data = await get_job_metadata(eda_id)
     return job_meta_data
 
@@ -92,7 +95,7 @@ async def get_eda_job_results(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> EDAJobResult:
 
-    if not await user_owns_eda_job(user.id, eda_id):
+    if not await user_owns_job(user.id, eda_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 

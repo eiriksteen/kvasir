@@ -1,36 +1,40 @@
 import uuid
+import redis
 import aiofiles
 import pandas as pd
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, Form
 from io import StringIO
 from pathlib import Path
+from fastapi.responses import StreamingResponse
 from .service import (
     run_integration_job,
-    create_integration_job,
-    get_job_metadata,
     validate_restructured_data,
     insert_restructured_time_series_data_to_db,
     get_job_results
 )
-from .schema import IntegrationJobMetadata, DataSubmissionResponse, IntegrationJobResult
+from .schema import DataSubmissionResponse, IntegrationJobResult, IntegrationAgentState
+from ..shared.schema import JobMetadata
 from ..auth.schema import User
 from ..auth.service import (create_api_key,
                             get_current_user,
                             get_user_from_api_key,
                             delete_api_key,
-                            user_owns_integration_job)
+                            user_owns_job)
+from ..shared.service import create_job, get_job_metadata
+from ..redis.core import get_redis
 
 
 router = APIRouter()
 
 
-@router.post("/call_integration_agent", response_model=IntegrationJobMetadata)
+@router.post("/call-integration-agent", response_model=JobMetadata)
 async def call_integration_agent(
     file: UploadFile,
     data_description: str = Form(...),
     user: Annotated[User, Depends(get_current_user)] = None
-) -> IntegrationJobMetadata:
+) -> JobMetadata:
+
     if file.content_type != "text/csv":
         raise HTTPException(
             status_code=400, detail="The file must be a CSV file")
@@ -46,7 +50,12 @@ async def call_integration_agent(
             await f.write(contents)
 
         api_key = await create_api_key(user)
-        integration_job = await create_integration_job(user.id, api_key.id)
+
+        integration_job = await create_job(
+            user.id,
+            api_key.id,
+            "integration"
+        )
 
         task = run_integration_job.apply_async(
             args=[integration_job.id,
@@ -70,41 +79,52 @@ async def call_integration_agent(
             status_code=500, detail=f"Failed to process the integration request: {str(e)}")
 
 
-@router.get("/integration_job_status/{job_id}", response_model=IntegrationJobMetadata)
-async def get_integration_job_status(
+@router.get("/integration-agent-history/{job_id}")
+async def get_integration_agent_history(
     job_id: uuid.UUID,
+    cache: Annotated[redis.Redis, Depends(get_redis)],
     user: Annotated[User, Depends(get_current_user)] = None
-) -> IntegrationJobMetadata:
+) -> list[IntegrationAgentState]:
 
-    if not await user_owns_integration_job(user.id, job_id):
+    if not await user_owns_job(user.id, job_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 
-    job_metadata = await get_job_metadata(job_id)
-    return job_metadata
+    stream_key = str(job_id)
+    data = await cache.xread({stream_key: 0}, count=None)
+    states = [item[1]["agent_state"] for item in data[0][1]]
+    states = [IntegrationAgentState(agent_state=state) for state in states]
+
+    return states
 
 
-@router.get("/integration_job_results/{job_id}", response_model=IntegrationJobResult)
-async def get_integration_job_results(
+@router.get("/integration-agent-state/{job_id}")
+async def get_integration_agent_state(
     job_id: uuid.UUID,
+    cache: Annotated[redis.Redis, Depends(get_redis)],
     user: Annotated[User, Depends(get_current_user)] = None
-) -> IntegrationJobResult:
+) -> StreamingResponse:
 
-    if not await user_owns_integration_job(user.id, job_id):
+    if not await user_owns_job(user.id, job_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 
-    job_metadata = await get_job_metadata(job_id)
-    if job_metadata.status == "completed":
-        return await get_job_results(job_id)
+    async def generate_agent_state():
+        stream_key = str(job_id)
+        last_id = 0
+        while True:
+            data = await cache.xread({stream_key: last_id}, count=1)
+            if data:
+                state = IntegrationAgentState(
+                    agent_state=data[0][1][0][1]["agent_state"])
+                yield state.model_dump_json()
+                last_id = data[0][1][0][0]
 
-    else:
-        raise HTTPException(
-            status_code=500, detail="Integration job is still running")
+    return StreamingResponse(generate_agent_state(), media_type="text/event-stream")
 
 
 # TODO: Make efficient
-@router.post("/restructured_data", response_model=DataSubmissionResponse)
+@router.post("/restructured-data", response_model=DataSubmissionResponse)
 async def post_restructured_data(
     file: UploadFile,
     data_description: str = Form(...),
@@ -112,7 +132,7 @@ async def post_restructured_data(
     data_modality: str = Form(...),
     index_first_level: str = Form(...),
     index_second_level: str | None = Form(None),
-    user: str = Depends(get_user_from_api_key)
+    user: Annotated[User, Depends(get_user_from_api_key)] = None
 ) -> DataSubmissionResponse:
 
     if file.content_type != "text/csv":
@@ -151,3 +171,22 @@ async def post_restructured_data(
             status_code=500, detail=f"Failed to write output file: {str(e)}")
 
     return DataSubmissionResponse(dataset_id=dataset_id)
+
+
+@router.get("/integration-job-results/{job_id}", response_model=IntegrationJobResult)
+async def get_integration_job_results(
+    job_id: uuid.UUID,
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> IntegrationJobResult:
+
+    if not await user_owns_job(user.id, job_id):
+        raise HTTPException(
+            status_code=403, detail="You do not have permission to access this job")
+
+    job_metadata = await get_job_metadata(job_id)
+    if job_metadata.status == "completed":
+        return await get_job_results(job_id)
+
+    else:
+        raise HTTPException(
+            status_code=500, detail="Integration job is still running")

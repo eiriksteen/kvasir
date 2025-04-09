@@ -1,8 +1,8 @@
-from pydantic import BaseModel
 from typing import Literal
+from ..base_schema import BaseSchema
 
 
-class DataDescription(BaseModel):
+class DataDescription(BaseSchema):
     data_description: str
     data_type: str
     data_format: str
@@ -10,12 +10,12 @@ class DataDescription(BaseModel):
     data_size: str
 
 
-class GoalDescription(BaseModel):
+class GoalDescription(BaseSchema):
     goal_description: str
     goal_type: Literal["prediction", "automation", "insights", "other"]
 
 
-class DeliverableDescription(BaseModel):
+class DeliverableDescription(BaseSchema):
     deliverable_description: str
     deliverable_type: Literal["api",
                               "web_app",
@@ -24,13 +24,13 @@ class DeliverableDescription(BaseModel):
                               "other"]
 
 
-class ChatSummary(BaseModel):
+class ChatSummary(BaseSchema):
     data_description: DataDescription
     goals_description: list[GoalDescription]
     deliverables_description: list[DeliverableDescription]
 
 
-class ChatbotOutput(BaseModel):
+class ChatbotOutput(BaseSchema):
     state: Literal["in_progress", "done"]
     response: str | None = None
     summary: ChatSummary | None = None

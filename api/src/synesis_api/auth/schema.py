@@ -1,13 +1,12 @@
-from datetime import datetime
-from pydantic import BaseModel, EmailStr
-from typing import Optional
 from uuid import UUID
+from datetime import datetime
+from pydantic import EmailStr
+from ..base_schema import BaseSchema
 
 
-class UserBase(BaseModel):
-    username: str
-    email: Optional[EmailStr] = None
-    full_name: Optional[str] = None
+class UserBase(BaseSchema):
+    email: EmailStr
+    name: str
     disabled: bool = False
 
 
@@ -25,16 +24,18 @@ class UserInDB(User):
     hashed_password: str
 
 
-class Token(BaseModel):
+class UserWithToken(User):
     access_token: str
     token_type: str
+    token_expires_at: datetime
+    # TODO: add refresh_token
 
 
-class TokenData(BaseModel):
-    username: str | None = None
+class TokenData(BaseSchema):
+    user_id: str
 
 
-class UserAPIKey(BaseModel):
+class UserAPIKey(BaseSchema):
     id: UUID
     user_id: UUID
     key: str

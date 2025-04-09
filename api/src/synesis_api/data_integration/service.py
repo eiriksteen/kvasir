@@ -1,21 +1,21 @@
 import uuid
-import asyncio
 import numpy as np
 import pandas as pd
+import asyncio
 from pathlib import Path
 from celery import shared_task
 from datetime import datetime
 from fastapi import HTTPException
 from celery.utils.log import get_task_logger
-from sqlalchemy import select, insert, update
+from sqlalchemy import insert, select
 from ..ontology.models import time_series, time_series_dataset
 from ..ontology.schema import TimeSeries, TimeSeriesDataset
-from .schema import (IntegrationJobMetadataInDB,
-                     IntegrationJobResultInDB)
-from .models import integration_jobs, integration_jobs_results
+from ..shared.service import update_job_status
+from .schema import IntegrationJobResultInDB
+from .models import integration_jobs_results
 from ..database.service import execute, fetch_one
 from .agent import IntegrationDeps, integration_agent
-
+from ..redis.core import get_redis
 
 logger = get_task_logger(__name__)
 
@@ -24,10 +24,11 @@ async def run_integration_agent(
         job_id: uuid.UUID,
         api_key: str,
         data_path: str,
-        data_description: str,
-) -> IntegrationJobResultInDB:
+        data_description: str) -> IntegrationJobResultInDB:
 
     try:
+        redis_stream = get_redis()
+
         deps = IntegrationDeps(
             api_key=api_key,
             data_path=Path(data_path),
@@ -35,15 +36,12 @@ async def run_integration_agent(
         )
 
         nodes = []
-        async with integration_agent.iter(
-            "Restructure and integrate the data",
-            deps=deps
-        ) as agent_run:
+        async with integration_agent.iter("Restructure and integrate the data", deps=deps) as agent_run:
 
             async for node in agent_run:
-                # TODO: Publish the node outputs for agent monitoring
                 nodes.append(node)
                 logger.info(f"Integration agent state: {node}")
+                await redis_stream.xadd(str(job_id), {"agent_state": str(node)})
 
             logger.info(f"Integration agent run completed for job {job_id}")
 
@@ -59,28 +57,17 @@ async def run_integration_agent(
             commit_after=True
         )
 
-        # Update integration jobs status to completed
-        # This does not work? You have to condition on the job_id?
-        await execute(
-            update(integration_jobs).values(
-                status="completed", completed_at=datetime.now()),
-            commit_after=True
-        )
+        await update_job_status(job_id, "completed")
 
     except Exception as e:
         logger.error(f"Error running integration agent: {e}")
 
-        await execute(
-            update(integration_jobs).values(
-                status="failed", completed_at=datetime.now()),
-            commit_after=True
-        )
+        await update_job_status(job_id, "failed")
 
         if Path(data_path).exists():
             Path(data_path).unlink()
 
-        raise HTTPException(
-            status_code=500, detail="Failed to process the integration request")
+        raise e
 
     else:
         return agent_output
@@ -88,61 +75,13 @@ async def run_integration_agent(
 
 @shared_task
 def run_integration_job(job_id: uuid.UUID, api_key: str, data_path: str, data_description: str):
-    asyncio.run(run_integration_agent(
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(run_integration_agent(
         job_id, api_key, data_path, data_description))
 
 
-async def create_integration_job(user_id: uuid.UUID, api_key_id: uuid.UUID, job_id: uuid.UUID | None = None) -> IntegrationJobMetadataInDB:
-
-    integration_job = IntegrationJobMetadataInDB(
-        id=job_id if job_id else uuid.uuid4(),
-        user_id=user_id,
-        api_key_id=api_key_id,
-        status="running",
-        started_at=datetime.now()
-    )
-
-    await execute(
-        insert(integration_jobs).values(integration_job.model_dump()),
-        commit_after=True
-    )
-
-    return integration_job
-
-
-async def get_job_metadata(job_id: uuid.UUID) -> IntegrationJobMetadataInDB:
-
-    job = await fetch_one(
-        select(integration_jobs).where(integration_jobs.c.id == job_id),
-        commit_after=True
-    )
-
-    if job is None:
-        raise HTTPException(
-            status_code=404, detail="Job not found"
-        )
-
-    return IntegrationJobMetadataInDB(**job)
-
-
-async def get_job_results(job_id: uuid.UUID) -> IntegrationJobResultInDB:
-
-    metadata = await get_job_metadata(job_id)
-
-    if metadata.status != "completed":
-        raise HTTPException(status_code=400, detail="Job is not completed")
-
-    results = await fetch_one(
-        select(integration_jobs_results).where(
-            integration_jobs_results.c.job_id == job_id),
-        commit_after=True
-    )
-
-    return IntegrationJobResultInDB(**results)
-
-
 def validate_restructured_data(data: pd.DataFrame, index_first_level: str, index_second_level: str | None) -> pd.DataFrame | None:
-
     if index_first_level not in data.columns:
         raise HTTPException(
             status_code=400,
@@ -256,3 +195,14 @@ async def insert_restructured_time_series_data_to_db(
         )
 
     return dataset_id
+
+
+async def get_job_results(job_id: uuid.UUID) -> IntegrationJobResultInDB:
+    # get results from integration_jobs_results
+    results = await fetch_one(
+        select(integration_jobs_results).where(
+            integration_jobs_results.c.job_id == job_id),
+        commit_after=True
+    )
+
+    return IntegrationJobResultInDB(**results)

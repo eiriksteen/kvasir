@@ -1,4 +1,5 @@
 import uuid
+import asyncio
 import aiofiles
 import pandas as pd
 from io import StringIO
@@ -7,39 +8,40 @@ from pathlib import Path
 from fastapi import HTTPException
 from celery import shared_task
 from celery.utils.log import get_task_logger
-from asgiref.sync import async_to_sync
-from sqlalchemy import select, insert, update
-from ..database.service import execute, fetch_one
-from ..ontology.models import time_series, time_series_dataset
-from ..ontology.schema import TimeSeries, TimeSeriesDataset
-from .schema import EDAJobMetaDataInDB, EDAJobResultInDB
-from .models import eda_jobs, eda_jobs_results
+from sqlalchemy import update
+from ..database.service import execute
+from .schema import EDAJobResultInDB
 from .agent.agent import eda_basic_agent, eda_advanced_agent, eda_independent_agent, eda_summary_agent
 from .agent.deps import EDADepsBasic, EDADepsAdvanced, EDADepsIndependent, EDADepsSummary
 from .agent.prompt import BASIC_PROMPT, ADVANCED_PROMPT, INDEPENDENT_PROMPT, SUMMARIZE_EDA
+from ..shared.models import jobs
+from ..shared.service import get_job_metadata
 from ..utils import save_markdown_as_html
-from ..aws_auth.service import upload_object_s3, retrieve_object
+from ..aws.service import upload_object_s3, retrieve_object
 
 logger = get_task_logger(__name__)
 
+
 async def run_eda_agent(
-        eda_job_id: uuid.UUID, 
+        eda_job_id: uuid.UUID,
         user_id: uuid.UUID,
-        data_path: str, 
-        data_description: str, 
+        data_path: str,
+        data_description: str,
         problem_description: str,
         data_type: str = "TimeSeries",
 ) -> EDAJobResultInDB:
+
     try:
         async with aiofiles.open(data_path, 'r', encoding="utf-8") as f:
-            content = await f.read() 
-            df = pd.read_csv(StringIO(content)) 
+            content = await f.read()
+            df = pd.read_csv(StringIO(content))
     except:
-        raise HTTPException(status_code=404, detail=f"File in {data_path} not found")
-    
+        raise HTTPException(
+            status_code=404, detail=f"File in {data_path} not found")
+
     logger.info("Data loaded")
-    
-    try: 
+
+    try:
         eda_deps_basic = EDADepsBasic(
             df=df,
             data_description=data_description,
@@ -71,8 +73,8 @@ async def run_eda_agent(
         logger.info("Advanced EDA completed")
     except:
         raise HTTPException(status_code=500, detail="Failed during eda")
-    
-    try: 
+
+    try:
         eda_deps_independent = EDADepsIndependent(
             data_path=Path(data_path),
             data_description=data_description,
@@ -88,9 +90,10 @@ async def run_eda_agent(
         )
         logger.info("Independent EDA completed")
     except:
-        raise HTTPException(status_code=500, detail="Failed during independent eda")
+        raise HTTPException(
+            status_code=500, detail="Failed during independent eda")
 
-    try: 
+    try:
         eda_deps_summary = EDADepsSummary(
             data_description=data_description,
             data_type=data_type,
@@ -109,7 +112,6 @@ async def run_eda_agent(
     except:
         raise HTTPException(status_code=500, detail="Failed in summary of eda")
 
-
     output_in_db = EDAJobResultInDB(
         job_id=eda_job_id,
         **summary.data.model_dump()
@@ -120,7 +122,6 @@ async def run_eda_agent(
     user_dir.mkdir(parents=True, exist_ok=True)
     output_path = user_dir / f"{eda_job_id}.html"
 
-
     await save_markdown_as_html(output_in_db.detailed_summary, output_path)
     logger.info("HTML file saved")
 
@@ -130,38 +131,28 @@ async def run_eda_agent(
 
     # update job to completed
     await execute(
-        update(eda_jobs).where(eda_jobs.c.id == eda_job_id).values(
+        update(jobs).where(jobs.c.id == eda_job_id).values(
             status="completed", completed_at=datetime.now()),
-            commit_after=True
+        commit_after=True
     )
     logger.info("Job updated in DB")
-    
+
     return output_in_db
 
 
 @shared_task
 def run_eda_job(
-    eda_job_id: uuid.UUID, 
+    eda_job_id: uuid.UUID,
     user_id: uuid.UUID,
-    data_path: str, 
-    data_description: str, 
-    problem_description: str, 
+    data_path: str,
+    data_description: str,
+    problem_description: str,
     data_type: str = "TimeSeries",
 ):
-    async_to_sync(run_eda_agent)(eda_job_id, user_id, data_path, data_description, problem_description, data_type)
 
-async def get_job_metadata(eda_id: uuid.UUID) -> EDAJobMetaDataInDB:
-    job = await fetch_one(
-        select(eda_jobs).where(eda_jobs.c.id == eda_id),
-        commit_after=True
-    )
-
-    if job is None:
-        raise HTTPException(
-            status_code=404, detail="Job not found"
-        )
-
-    return EDAJobMetaDataInDB(**job)
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(run_eda_agent(eda_job_id, user_id, data_path,
+                                          data_description, problem_description, data_type))
 
 
 async def get_job_results(job_id: uuid.UUID) -> EDAJobResultInDB:
@@ -173,18 +164,4 @@ async def get_job_results(job_id: uuid.UUID) -> EDAJobResultInDB:
 
     json_data = await retrieve_object("synesis-eda", f"{job_id}.json")
 
-    return EDAJobResultInDB.model_validate_json(json_data)
-
-async def create_eda_job(user_id: uuid.UUID, api_key_id: uuid.UUID = None, job_id: uuid.UUID = None) -> EDAJobMetaDataInDB:
-    eda_job = EDAJobMetaDataInDB(
-        id = job_id if job_id else uuid.uuid4(),
-        status="running",
-        api_key_id=api_key_id if api_key_id else uuid.uuid4(),
-        user_id=user_id,
-        started_at=datetime.now()
-    )
-    await execute(
-        insert(eda_jobs).values(eda_job.model_dump()),
-        commit_after=True
-    )
-    return eda_job
+    return EDAJobResultInDB(**json_data)

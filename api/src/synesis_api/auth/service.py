@@ -5,23 +5,21 @@ from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 from sqlalchemy import Insert, Select, Delete
 from datetime import datetime, timedelta, timezone
-from fastapi import Depends, HTTPException, status, Security
+from fastapi import Depends, HTTPException, status, Security, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
-from .schema import User, UserInDB, TokenData, UserAPIKey
+from .schema import User, UserInDB, TokenData, UserAPIKey, UserCreate
 from .models import users, user_api_keys
-from ..data_integration.models import integration_jobs
-from ..eda.models import eda_jobs
-from ..model.models import model_jobs
+from ..shared.models import jobs
 from ..secrets import API_SECRET_KEY, API_SECRET_ALGORITHM
 from ..database.service import fetch_one, execute
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
-def verify_password(plain_password, hashed_password):
+def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
@@ -29,15 +27,22 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-async def get_user(username: str) -> UserInDB | None:
-    user = await fetch_one(Select(users).where(users.c.username == username))
+async def get_user_by_email(email: str) -> UserInDB | None:
+    user = await fetch_one(Select(users).where(users.c.email == email))
     if user:
         return UserInDB(**user)
     return None
 
 
-async def authenticate_user(username: str, password: str) -> User:
-    user = await get_user(username)
+async def get_user_by_id(user_id: uuid.UUID) -> UserInDB | None:
+    user = await fetch_one(Select(users).where(users.c.id == user_id))
+    if user:
+        return UserInDB(**user)
+    return None
+
+
+async def authenticate_user(email: str, password: str) -> User:
+    user = await get_user_by_email(email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if not verify_password(password, user.hashed_password):
@@ -45,20 +50,29 @@ async def authenticate_user(username: str, password: str) -> User:
     return user
 
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+def create_token(data: dict, expires_delta: timedelta | None = None) -> tuple[str, datetime]:
+
+    assert "sub" in data, "subject must be provided"
+
+    if isinstance(data["sub"], uuid.UUID):
+        data["sub"] = str(data["sub"])
+
     to_encode = data.copy()
+
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode,
                              API_SECRET_KEY,
                              algorithm=API_SECRET_ALGORITHM)
-    return encoded_jwt
+
+    return encoded_jwt, expire
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> UserInDB:
+def decode_token(token: str) -> dict:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -68,27 +82,40 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Use
         payload = jwt.decode(token,
                              API_SECRET_KEY,
                              algorithms=[API_SECRET_ALGORITHM])
-        username = payload.get("sub")
-        if username is None:
+        user_id = payload.get("sub")
+        if user_id is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
+        token_data = TokenData(user_id=user_id)
     except InvalidTokenError:
         raise credentials_exception
-    user = await get_user(token_data.username)
+    return token_data
+
+
+def get_refresh_token_from_cookie(request: Request) -> str | None:
+    refresh_token = request.cookies.get("refresh_token")
+    if refresh_token is None:
+        return None
+    return refresh_token
+
+
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> UserInDB:
+    token_data = decode_token(token)
+    user = await get_user_by_id(token_data.user_id)
     if user is None:
-        raise credentials_exception
+        raise HTTPException(status_code=401, detail="User not found")
     return user
 
 
-async def create_user(username: str, password: str) -> UserInDB:
-    user = await get_user(username)
+async def create_user(user_create: UserCreate) -> UserInDB:
+    user = await get_user_by_email(user_create.email)
     if user:
-        raise HTTPException(status_code=400, detail="Username already exists")
+        raise HTTPException(status_code=400, detail="Email already exists")
 
-    hashed_password = get_password_hash(password)
+    hashed_password = get_password_hash(user_create.password)
     user_id = uuid.uuid4()
     user = UserInDB(id=user_id,
-                    username=username,
+                    email=user_create.email,
+                    name=user_create.name,
                     hashed_password=hashed_password,
                     created_at=datetime.now(timezone.utc).replace(tzinfo=None),
                     updated_at=datetime.now(timezone.utc).replace(tzinfo=None))
@@ -96,25 +123,25 @@ async def create_user(username: str, password: str) -> UserInDB:
     return user
 
 
-async def create_api_key(current_user: UserInDB) -> UserAPIKey:
+async def create_api_key(user: UserInDB) -> UserAPIKey:
     expiration_time = (datetime.now(timezone.utc) +
                        timedelta(minutes=15)).replace(tzinfo=None)
 
     key_id = uuid.uuid4()
     api_key = UserAPIKey(id=key_id,
-                         user_id=current_user.id,
+                         user_id=user.id,
                          key=uuid.uuid4().hex,
                          expires_at=expiration_time)
     await execute(Insert(user_api_keys).values(id=key_id,
-                                               user_id=current_user.id,
+                                               user_id=user.id,
                                                key=api_key.key,
                                                expires_at=expiration_time), commit_after=True)
     return api_key
 
 
-async def get_api_key(current_user: UserInDB) -> UserAPIKey:
+async def get_api_key(user: UserInDB) -> UserAPIKey:
 
-    api_key = await fetch_one(Select(user_api_keys).where(user_api_keys.c.user_id == current_user.id))
+    api_key = await fetch_one(Select(user_api_keys).where(user_api_keys.c.user_id == user.id))
 
     if api_key is None:
         raise HTTPException(status_code=401, detail="No API key found")
@@ -122,14 +149,14 @@ async def get_api_key(current_user: UserInDB) -> UserAPIKey:
     api_key = UserAPIKey(**api_key)
 
     if api_key.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
-        await delete_api_key(current_user)
+        await delete_api_key(user)
         raise HTTPException(status_code=401, detail="API key has expired")
 
     return api_key
 
 
-async def delete_api_key(current_user: UserInDB) -> None:
-    await execute(Delete(user_api_keys).where(user_api_keys.c.user_id == current_user.id), commit_after=True)
+async def delete_api_key(user: UserInDB) -> None:
+    await execute(Delete(user_api_keys).where(user_api_keys.c.user_id == user.id), commit_after=True)
 
 
 async def get_user_from_api_key(api_key: str = Security(api_key_header)) -> UserInDB:
@@ -162,14 +189,6 @@ async def get_user_from_api_key(api_key: str = Security(api_key_header)) -> User
     return UserInDB(**user)
 
 
-async def user_owns_integration_job(user_id: uuid.UUID, job_id: uuid.UUID) -> bool:
-    job = await fetch_one(Select(integration_jobs).where(integration_jobs.c.id == job_id, integration_jobs.c.user_id == user_id))
-    return job is not None
-
-async def user_owns_eda_job(user_id: uuid.UUID, eda_id: uuid.UUID) -> bool:
-    job = await fetch_one(Select(eda_jobs).where(eda_jobs.c.id == eda_id, eda_jobs.c.user_id == user_id))
-    return job is not None
-
-async def user_owns_model_job(user_id: uuid.UUID, model_id: uuid.UUID) -> bool:
-    job = await fetch_one(Select(eda_jobs).where(model_jobs.c.id == model_id, model_jobs.c.user_id == user_id))
+async def user_owns_job(user_id: uuid.UUID, job_id: uuid.UUID) -> bool:
+    job = await fetch_one(Select(jobs).where(jobs.c.id == job_id, jobs.c.user_id == user_id))
     return job is not None

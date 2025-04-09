@@ -46,7 +46,9 @@ dependencies = [
     "alembic",
     "redis",
     "celery",
-    "aioredis"
+    "statsmodels",
+    "markdown2",
+    "boto3"
 ]
 
 [tool.setuptools]
