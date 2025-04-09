@@ -22,7 +22,7 @@ from ..auth.service import (create_api_key,
                             delete_api_key,
                             user_owns_job)
 from ..shared.service import create_job, get_job_metadata
-from ..redis.core import get_redis
+from ..redis import get_redis
 
 
 router = APIRouter()

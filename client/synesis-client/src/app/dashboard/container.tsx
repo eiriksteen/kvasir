@@ -10,6 +10,7 @@ import OntologyBar from "@/components/ontologyBar";
 import Chatbot from "@/components/chatbot";
 import UserHeader from "@/components/userHeader";
 import { Job } from '@/types/jobs';
+
 interface DashboardProps {
   session: Session;
 }

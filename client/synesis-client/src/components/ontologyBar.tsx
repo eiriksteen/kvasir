@@ -24,8 +24,7 @@ interface OntologyBarProps {
 function DatasetItem({ 
     dataset, 
     isInContext, 
-    onClick 
-}: { 
+    onClick }: { 
     dataset: TimeSeriesDataset; 
     isInContext: boolean; 
     onClick: () => void 
@@ -111,7 +110,7 @@ export default function OntologyBar({
         redirect("/login");
     }
 
-    const { datasets } = useDatasets(session?.APIToken.accessToken);
+    const { datasets } = useDatasets();
     const automations: Automation[] = [];
 
 

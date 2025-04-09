@@ -43,4 +43,3 @@ class TimeSeriesDataset(DatasetBase):
 class Datasets(BaseSchema):
     time_series: List[TimeSeriesDataset]
     # TODO: add documents, feature-based, images, etc
-    num_datasets: int
