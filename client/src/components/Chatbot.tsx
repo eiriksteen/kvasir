@@ -1,8 +1,8 @@
 'use client';
 
+import { memo } from 'react';
 import { useState, useRef, useEffect } from 'react';
-import {memo} from 'react';
-import { Send, Database, X } from 'lucide-react';
+import { Send, Database, X, BarChart } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useChat, useConversation, useAgentContext } from '@/hooks';
@@ -10,6 +10,7 @@ import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { ChatMessage } from '@/types/chat';
 import { TimeSeriesDataset } from '@/types/datasets';
+import { submitAnalysis } from '@/lib/api';
 
 
 interface ChatProps {
@@ -40,6 +41,7 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
 
 // Add display name to the memo component
 ChatListItem.displayName = 'ChatListItem';
+
 
 function Chat({ conversationId }: ChatProps) {
   
@@ -77,6 +79,17 @@ function Chat({ conversationId }: ChatProps) {
     if (input.trim()) {
       submitPrompt(input);
       setInput('');
+    }
+  };
+
+  const handleFullAnalysis = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    try {
+      const stringIds = datasetsInContext.map((dataset: TimeSeriesDataset) => dataset.id);
+      setInput(stringIds.join(', '));
+      // const job = await submitAnalysis(token, stringIds[0]);
+    } catch (err) {
+      setInput(err instanceof Error ? err.message : "An unknown error occurred");
     }
   };
 
@@ -233,6 +246,7 @@ function Chat({ conversationId }: ChatProps) {
     </div>
   );
 }
+
 
 export default function Chatbot() {
 

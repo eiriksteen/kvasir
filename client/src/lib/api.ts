@@ -51,8 +51,27 @@ export async function postIntegrationJob(token: string, files: File[], descripti
   return data;
 }
 
-export async function fetchJobs(token: string, onlyRunning: boolean = false, type: string | null = null): Promise<Job[]> {
-  const response = await fetch(`${API_URL}/jobs?only_running=${onlyRunning}&type=${type}`, {
+export async function submitAnalysis(token: string, datasetId: string): Promise<Job> {
+  const response = await fetch(`${API_URL}/eda/call-analysis-agent`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ "dataset_id": datasetId })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to do analysis', errorText);
+    throw new Error(`Failed to do analysis: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+export async function fetchJobs(token: string, onlyRunning: boolean = false): Promise<Job[]> {
+  const response = await fetch(`${API_URL}/jobs?only_running=${onlyRunning}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
