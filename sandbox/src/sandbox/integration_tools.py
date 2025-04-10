@@ -35,7 +35,8 @@ def submit_restructured_data(
                 "data_modality": data_modality,
                 "index_first_level": index_first_level,
                 "index_second_level": index_second_level
-            }
+            },
+            timeout=30
         )
 
     except Exception as e:
