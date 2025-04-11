@@ -1,4 +1,5 @@
 import {EventSource} from 'eventsource'
+import { Analysis } from "@/types/analysis";
 import { ChatMessageAPI, Conversation } from "@/types/chat";
 import { Datasets } from "@/types/datasets";
 import { Job } from "@/types/jobs";
@@ -52,18 +53,36 @@ export async function postIntegrationJob(token: string, files: File[], descripti
 }
 
 export async function submitAnalysis(token: string, datasetId: string): Promise<Job> {
-  const response = await fetch(`${API_URL}/eda/call-analysis-agent`, {
+  const response = await fetch(`${API_URL}/eda/call-eda-agent?dataset_id=${datasetId}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify({ "dataset_id": datasetId })
   });
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error(JSON.stringify({ "dataset_id": datasetId }));
     console.error('Failed to do analysis', errorText);
     throw new Error(`Failed to do analysis: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+export async function fetchAnalysis(token: string, datasetId: string): Promise<Analysis> {
+  const response = await fetch(`${API_URL}/eda/analysis-result/${datasetId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('Failed to fetch analysis', errorText);
+    throw new Error(`Failed to fetch analysis: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();

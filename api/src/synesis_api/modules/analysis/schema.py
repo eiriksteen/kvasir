@@ -4,6 +4,7 @@ from uuid import UUID
 
 class EDAJobResult(BaseModel):
     job_id: UUID
+    dataset_id: UUID
     basic_eda: str | None = None
     advanced_eda: str | None = None
     independent_eda: str | None = None
@@ -12,8 +13,7 @@ class EDAJobResult(BaseModel):
 
 
 class EDAJobResultInDB(EDAJobResult):
-    dataset_id: UUID
-
+    pass
 
 class EDAResponse(BaseModel):
     analysis: str

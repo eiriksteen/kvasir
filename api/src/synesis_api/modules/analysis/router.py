@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated
+from typing import Annotated, List
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from synesis_api.modules.analysis.schema import EDAJobResult
@@ -9,7 +9,8 @@ from synesis_api.auth.service import (create_api_key,
 from synesis_api.modules.analysis.service import (
     run_eda_job,
     get_job_results,
-    create_pdf_from_results
+    create_pdf_from_results,
+    get_user_analysis_by_dataset_id,
 )
 from synesis_api.modules.jobs.service import create_job, get_job_metadata
 from synesis_api.modules.jobs.schema import JobMetadata
@@ -22,11 +23,11 @@ router = APIRouter()
 
 @router.post("/call-eda-agent", response_model=JobMetadata)
 async def call_eda_agent(
-    data_id: uuid.UUID,
+    dataset_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None,
 
 ):
-    dataset = await get_user_time_series_dataset_by_id(data_id, user.id)
+    dataset = await get_user_time_series_dataset_by_id(dataset_id, user.id)
 
     try:
         api_key = await create_api_key(user)
@@ -36,7 +37,7 @@ async def call_eda_agent(
             status_code=500, detail="Failed to create EDA job.")
     
     data_dir = Path("integrated_data") / f"{user.id}"
-    data_path = data_dir / f"{data_id}.csv"
+    data_path = data_dir / f"{dataset_id}.csv"
     project_description = ""
     try:
         summary = run_eda_job.apply_async(
@@ -80,6 +81,7 @@ async def get_eda_job_results(
         raise HTTPException(
             status_code=500, detail="EDA job is still running")
 
+
 @router.post("/create-eda-pdf/{eda_id}", response_model=EDAJobResult)
 async def create_eda_pdf(
     eda_id: uuid.UUID,
@@ -99,3 +101,9 @@ async def create_eda_pdf(
     return job_results
     
 
+@router.get("/analysis-result/{dataset_id}", response_model=EDAJobResult)
+async def get_analysis(
+    dataset_id: uuid.UUID,
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> EDAJobResult:
+    return await get_user_analysis_by_dataset_id(user.id, dataset_id)

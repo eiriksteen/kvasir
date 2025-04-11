@@ -7,6 +7,8 @@ import { Automation } from '@/types/automations';
 import { useAgentContext, useDatasets } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
+import { Analysis } from '@/types/analysis';
+import { fetchAnalysis } from '@/lib/api';
 
 
 
@@ -64,19 +66,30 @@ function AutomationItem({ automation, isSelected, onClick }: { automation: Autom
     );
 }
 
-const automations = [
-    {
-        id: '1',
-        name: 'Automated Analysis',
-        description: 'Automated analysis of the selected datasets',
-        datasetIds: [],
-    },
-]
+function AnalysisItem({ analysis, isSelected }: {analysis: Analysis, isSelected: boolean  }) {
+    return (
+        <div className={`p-3 rounded-lg cursor-pointer hover:bg-[#1a2438] border-2 ${
+            isSelected ? 'bg-[#1a2438] border-blue-800' : 'bg-[#0e1a30]/80 border-[#1a2438]'
+        }`}>
+            <div className="flex flex-col gap-2">
+                <div className="text-sm font-medium text-blue-300">Analysis Results</div>
+                <div className="text-xs text-zinc-400">
+                    <div>Basic EDA: {analysis.basic_eda}</div>
+                    <div>Advanced EDA: {analysis.advanced_eda}</div>
+                    <div>Independent EDA: {analysis.independent_eda}</div>
+                    <div>Adhoc EDA: {analysis.ad_hoc_eda}</div>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function OntologyBar() {
-
     const [selectedAutomation, setSelectedAutomation] = useState<string | null>(null);
     const [showAutomations, setShowAutomations] = useState(false);
+    const [showAnalysis, setShowAnalysis] = useState(false);
+    const [showAddDataset, setShowAddDataset] = useState(false);
+    const [analysis, setAnalysis] = useState<Analysis | null>(null);
     const {data: session} = useSession();
     const { 
         datasetsInContext, 
@@ -92,6 +105,7 @@ export default function OntologyBar() {
     }
 
     const { datasets } = useDatasets();
+    const automations: Automation[] = [];
 
     const filteredAutomations = useMemo(() => 
         datasetsInContext.timeSeries.length > 0
@@ -114,18 +128,37 @@ export default function OntologyBar() {
     const isDatasetInContext = (datasetId: string) => 
         datasetsInContext.timeSeries.some((dataset: TimeSeriesDataset) => dataset.id === datasetId);
 
+    const handleRetrieveAnalysis = async (datasetId: string) => {
+        if (!session?.APIToken?.accessToken) return;
+        try {
+            const response = await fetchAnalysis(session.APIToken.accessToken, datasetId);
+            setAnalysis(response);
+            console.log(response);
+        } catch (error) {
+            console.error('Failed to fetch analysis:', error);
+        }
+    }
+
     return (
         <div className="relative flex pt-12 h-screen">
             {/* Main Bar with Datasets */}
             <div className="w-[20%] min-w-[300px] bg-gray-950 border-r border-[#101827] text-white p-4 flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-sm font-mono uppercase tracking-wider text-[#6b89c0]">Datasets</h2>
-                    <button
-                        onClick={() => setShowAutomations(!showAutomations)}
-                        className="px-3 py-1 text-xs rounded-full text-white"
-                    >
-                        {showAutomations ? 'Hide Automations' : 'Show Automations'}
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setShowAnalysis(!showAnalysis)}
+                            className="px-3 py-1 text-xs rounded-full text-white"
+                        >
+                            {showAnalysis ? 'Hide Analysis' : 'Show Analysis'}
+                        </button>
+                        <button
+                            onClick={() => setShowAutomations(!showAutomations)}
+                            className="px-3 py-1 text-xs rounded-full text-white"
+                        >
+                            {showAutomations ? 'Hide Automations' : 'Show Automations'}
+                        </button>
+                    </div>
                 </div>
                 
                 <div className="space-y-2 flex-grow overflow-y-auto">
@@ -157,6 +190,43 @@ export default function OntologyBar() {
                     </div>
                 </div>
             </div>
+
+            {/* Analysis Side Panel */}
+            {showAnalysis && (
+                <div className="absolute left-[300px] top-12 w-[300px] h-[calc(100vh-3rem)] bg-[#1a1625]/95 text-white p-4 border-r border-purple-900/30">
+                    <h2 className="text-sm font-mono uppercase tracking-wider text-purple-300 mb-4">Analysis</h2>
+                    
+                    {datasetsInContext.length === 0 ? (
+                        <div className="p-3 rounded-lg mb-3">
+                            <p className="text-xs text-zinc-400">
+                                Select a dataset to view analysis.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            <div className="p-3 rounded-lg mb-3">
+                                <p className="text-xs text-zinc-400">
+                                    Dataset selected: {datasetsInContext[0].name}
+                                </p>
+                                {!analysis ? (
+                                    <button
+                                        onClick={async () => {
+                                            await handleRetrieveAnalysis(datasetsInContext[0].id);
+                                        }}
+                                        className="mt-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-md text-sm text-white transition-colors"
+                                    >
+                                        Retrieve analysis for dataset
+                                    </button>
+                                ) : (
+                                    <div className="mt-4">
+                                        {analysis && <AnalysisItem analysis={analysis} isSelected={true} />}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Automations Side Panel */}
             {showAutomations && (

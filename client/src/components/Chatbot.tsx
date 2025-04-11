@@ -86,8 +86,44 @@ function Chat({ conversationId }: ChatProps) {
     e.preventDefault();
     try {
       const stringIds = datasetsInContext.map((dataset: TimeSeriesDataset) => dataset.id);
-      setInput(stringIds.join(', '));
-      // const job = await submitAnalysis(token, stringIds[0]);
+      // const job = await submitAnalysis(session.APIToken.accessToken, stringIds[0]);
+      // Show success popup
+      const popup = document.createElement('div');
+      popup.style.position = 'fixed';
+      popup.style.bottom = '20px';
+      popup.style.right = '20px';
+      popup.style.backgroundColor = '#4CAF50';
+      popup.style.color = 'white';
+      popup.style.padding = '15px';
+      popup.style.borderRadius = '5px';
+      popup.style.zIndex = '1000';
+      popup.style.display = 'flex';
+      popup.style.alignItems = 'center';
+      popup.style.gap = '10px';
+
+      const message = document.createElement('span');
+      message.textContent = 'Full analysis submitted';
+      popup.appendChild(message);
+
+      const closeButton = document.createElement('button');
+      closeButton.innerHTML = '&times;';
+      closeButton.style.background = 'none';
+      closeButton.style.border = 'none';
+      closeButton.style.color = 'white';
+      closeButton.style.fontSize = '20px';
+      closeButton.style.cursor = 'pointer';
+      closeButton.style.padding = '0 5px';
+      closeButton.onclick = () => document.body.removeChild(popup);
+      popup.appendChild(closeButton);
+      
+      document.body.appendChild(popup);
+
+      // Remove popup after 5 seconds if not manually closed
+      const timeoutId = setTimeout(() => {
+        if (document.body.contains(popup)) {
+          document.body.removeChild(popup);
+        }
+      }, 5000);
     } catch (err) {
       setInput(err instanceof Error ? err.message : "An unknown error occurred");
     }

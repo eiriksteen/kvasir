@@ -18,6 +18,7 @@ from synesis_api.database.service import execute, fetch_one
 from synesis_api.modules.jobs.models import eda_jobs_results
 from synesis_api.modules.jobs.service import get_job_metadata, update_job_status
 
+
 logger = get_task_logger(__name__)
 
 
@@ -141,3 +142,18 @@ async def create_pdf_from_results(job_results: EDAJobResultInDB, eda_job_id: uui
     file = None
     await upload_object_s3(file, "synesis-eda", f"{eda_job_id}.html")
     logger.info("Results uploaded to S3")
+
+
+
+async def get_user_analysis_by_dataset_id(user_id: uuid.UUID, dataset_id: uuid.UUID) -> EDAJobResultInDB:
+    data = await fetch_one(
+        select(eda_jobs_results).join(
+            time_series_dataset,
+            eda_jobs_results.c.dataset_id == time_series_dataset.c.id
+        ).where(time_series_dataset.c.user_id == user_id, eda_jobs_results.c.dataset_id == dataset_id).with_only_columns(eda_jobs_results)
+    )
+
+    if data is None:
+        raise HTTPException(status_code=404, detail="No analysis found for this dataset.")
+    else:
+        return EDAJobResultInDB(**data)
