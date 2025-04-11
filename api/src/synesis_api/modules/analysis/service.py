@@ -2,15 +2,15 @@ import uuid
 from fastapi import HTTPException
 from sqlalchemy import update, select, insert, delete
 from typing import List
-from ...database.service import execute, fetch_one, fetch_all
-from .models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
-from .schema import AnalysisJobResultMetadataInDB, AnalysisJobResultInDB, AnalysisPlan, AnalysisJobResultMetadataList, AnalysisJobResult, AnalysisStatusMessage
-from ..jobs.service import update_job_status
-from ...utils import save_markdown_as_html
-from ...aws.service import upload_object_s3
-from ...worker import logger
-from ..jobs.service import delete_job_by_id
-from ..chat.models import analysis_context
+from synesis_api.database.service import execute, fetch_one, fetch_all
+from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
+from synesis_api.modules.analysis.schema import AnalysisJobResultMetadataInDB, AnalysisJobResultInDB, AnalysisPlan, AnalysisJobResultMetadataList, AnalysisJobResult, AnalysisStatusMessage
+from synesis_api.modules.jobs.service import update_job_status
+from synesis_api.utils import save_markdown_as_html
+from synesis_api.aws.service import upload_object_s3
+from synesis_api.worker import logger
+from synesis_api.modules.jobs.service import delete_job_by_id
+from synesis_api.modules.chat.models import analysis_context
 
 
 async def run_analysis_execution(
