@@ -8,7 +8,8 @@ from synesis_api.auth.service import (create_api_key,
                                       user_owns_job)
 from synesis_api.modules.analysis.service import (
     run_eda_job,
-    get_job_results
+    get_job_results,
+    create_pdf_from_results
 )
 from synesis_api.modules.jobs.service import create_job, get_job_metadata
 from synesis_api.modules.jobs.schema import JobMetadata
@@ -25,29 +26,25 @@ async def call_eda_agent(
     user: Annotated[User, Depends(get_current_user)] = None,
 
 ):
-    print(data_id)
-    print(user.id)
     dataset = await get_user_time_series_dataset_by_id(data_id, user.id)
 
-    print(1)
     try:
-        eda_job = await create_job(user.id, "eda")
+        api_key = await create_api_key(user)
+        eda_job = await create_job(user.id, api_key.id, "analysis")
     except:
         raise HTTPException(
             status_code=500, detail="Failed to create EDA job.")
-    print(2)
+    
     data_dir = Path("integrated_data") / f"{user.id}"
     data_path = data_dir / f"{data_id}.csv"
     project_description = ""
-    print(3)
     try:
         summary = run_eda_job.apply_async(
-            args=[eda_job.id, user.id, str(
+            args=[eda_job.id, dataset.id, str(
                 data_path), dataset.description, project_description] # do we need this?
         )
     except:
         raise HTTPException(status_code=500, detail="Failed to run EDA job.")
-    print(4)
     return eda_job
 
 
@@ -82,3 +79,23 @@ async def get_eda_job_results(
     else:
         raise HTTPException(
             status_code=500, detail="EDA job is still running")
+
+@router.post("/create-eda-pdf/{eda_id}", response_model=EDAJobResult)
+async def create_eda_pdf(
+    eda_id: uuid.UUID,
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> EDAJobResult:
+    if not await user_owns_job(user.id, eda_id):
+        raise HTTPException(
+            status_code=403, detail="You do not have permission to access this job")
+    
+    job_metadata = await get_job_metadata(eda_id)
+    if job_metadata.status == "completed":
+        job_results = await get_job_results(eda_id)
+        await create_pdf_from_results(job_results)
+    else:
+        raise HTTPException(
+            status_code=500, detail="EDA job is still running")
+    return job_results
+    
+

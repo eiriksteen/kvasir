@@ -8,6 +8,8 @@ from synesis_api.modules.ontology.schema import Dataset
 class EDADeps:
     data_description: str
     data_type: Dataset
+    column_names: str
+    data_type: str
     problem_description: str
     api_key: str
 
@@ -19,19 +21,19 @@ class EDADepsBasic(EDADeps):
 
 @dataclass
 class EDADepsAdvanced(EDADepsBasic):
-    basic_data_analysis: str
+    basic_eda: str
 
 
 @dataclass
 class EDADepsIndependent(EDADeps):
-    basic_data_analysis: str
-    advanced_data_analysis: str
+    basic_eda: str
+    advanced_eda: str
     data_path: Path
 
 
 @dataclass
-class EDADepsSummary(EDADeps):
-    basic_data_analysis: str
-    advanced_data_analysis: str
-    independent_data_analysis: str
+class EDADepsTotal(EDADeps):
+    basic_eda: str
+    advanced_eda: str
+    independent_eda: str
     python_code: str
