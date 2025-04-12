@@ -24,7 +24,6 @@ def submit_restructured_data(
     csv_buffer.close()
 
     try:
-
         response = httpx.post(
             url,
             files={"file": ("data.csv", csv_str, "text/csv")},
@@ -36,7 +35,7 @@ def submit_restructured_data(
                 "index_first_level": index_first_level,
                 "index_second_level": index_second_level
             },
-            timeout=15
+            timeout=30
         )
 
     except Exception as e:
