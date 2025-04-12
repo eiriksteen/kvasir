@@ -9,8 +9,8 @@ from fastapi import Depends, HTTPException, status, Security, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from .schema import User, UserInDB, TokenData, UserAPIKey, UserCreate
 from .models import users, user_api_keys
-from ..chat.models import conversations
-from ..shared.models import jobs
+from ..modules.chat.models import conversations
+from ..modules.jobs.models import jobs
 from ..secrets import API_SECRET_KEY, API_SECRET_ALGORITHM
 from ..database.service import fetch_one, execute
 

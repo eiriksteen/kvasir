@@ -1,6 +1,6 @@
+import uuid
 from sqlalchemy import Table, Column, String, Boolean, DateTime, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-import uuid
 from ..database.core import metadata
 
 users = Table(

@@ -14,7 +14,7 @@ def submit_restructured_data(
         index_second_level: str | None,
         api_key: str) -> dict:
 
-    url = f"{API_URL}/data/restructured-data"
+    url = f"{API_URL}/integration/restructured-data"
     header = {"X-API-Key": api_key}
 
     # Convert DataFrame to CSV string in memory
@@ -22,12 +22,6 @@ def submit_restructured_data(
     df.to_csv(csv_buffer, index=False)
     csv_str = csv_buffer.getvalue()
     csv_buffer.close()
-
-    # raise ValueError("Not implemented")
-
-    print("HELLO"*200)
-    print(url)
-    print(header)
 
     try:
 
@@ -41,7 +35,8 @@ def submit_restructured_data(
                 "data_modality": data_modality,
                 "index_first_level": index_first_level,
                 "index_second_level": index_second_level
-            }
+            },
+            timeout=15
         )
 
     except Exception as e:

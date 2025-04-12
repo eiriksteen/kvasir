@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { Database, Plus, Check, Upload } from 'lucide-react';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { Automation } from '@/types/automations';
-import { useAutomationsInContext, useDatasets, useDatasetsInContext } from '@/hooks';
+import { useContext, useDatasets } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import AddDataset from '@/components/addDataset';
@@ -71,8 +71,14 @@ export default function OntologyBar() {
     const [showAutomations, setShowAutomations] = useState(false);
     const [showAddDataset, setShowAddDataset] = useState(false);
     const {data: session} = useSession();
-    const { datasetsInContext, addDatasetToContext, removeDatasetFromContext } = useDatasetsInContext();
-    const { automationsInContext, addAutomationToContext, removeAutomationFromContext } = useAutomationsInContext();
+    const { 
+        datasetsInContext, 
+        addDatasetToContext, 
+        removeDatasetFromContext,
+        automationsInContext,
+        addAutomationToContext,
+        removeAutomationFromContext
+    } = useContext();
 
     if (!session) {
         redirect("/login");

@@ -1,8 +1,7 @@
 import { fetchJobs, fetchJobsBatch, postDataset } from "@/lib/api";
 import { AnalysisJobInput, AutomationJobInput, IntegrationJobInput, Job, JobCategory } from "@/types/jobs";
 import { useSession } from "next-auth/react";
-import { useMemo } from "react";
-import useSWR, { mutate } from "swr";
+import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 
 interface JobStateResult {
@@ -51,37 +50,37 @@ export const useJobs = () => {
   const {data: session} = useSession();
   const {data: jobs, mutate: mutateJobs, isLoading, error} = useSWR(session ? "jobs" : null, () => fetchJobs(session ? session.APIToken.accessToken : "", false));
   const {data: jobState, mutate: mutateJobState} = useSWR(jobs ? "jobState" : null, {fallbackData: emptyJobState})
-  const {trigger: triggerJob} = useSWRMutation("jobs", async (_, {arg}: {arg: IntegrationJobInput | AnalysisJobInput | AutomationJobInput}) => {
+  const {trigger: triggerJob} = useSWRMutation(session ? "jobs" : null, async (_, {arg}: {arg: IntegrationJobInput | AnalysisJobInput | AutomationJobInput}) => {
     if (arg.type === "integration") {
       const newJob = await postDataset(session ? session.APIToken.accessToken : "", arg.file, arg.data_description);
-      mutateJobState({...jobState, jobsAreRunning: true, integrationState: "running"}, {revalidate: false});
       if (jobs) {
-        return [...jobs, newJob];
+        return [newJob, ...jobs];
       }
       return [newJob];
     }
     // TODO: Implement analysis and automation job triggers
+  }, {
+    onSuccess: () => {
+      mutateJobState({...jobState, jobsAreRunning: true, integrationState: "running"}, {revalidate: false});
+    }
   });
 
 
   const {data: runningJobs} = useSWR(jobs && jobState.jobsAreRunning ? "jobsToMonitor" : null, async () => {
     if (!jobs) return [];
     const runningJobIds = jobs.filter(job => job.status === "running").map(job => job.id);
+    if (runningJobIds.length === 0) return [];
     const jobsUpdated = await fetchJobsBatch(session ? session.APIToken.accessToken : "", runningJobIds);
     const jobsStopped = jobsUpdated.filter((job) => job.status !== "running");
-
-    if (jobsStopped.length > 0) {
-      //console.log("SOME JOBS STOPPED");
-      const updatedJobs = jobs.map(job => {
-        const updatedJob = jobsStopped.find(stoppedJob => stoppedJob.id === job.id);
-        return updatedJob || job;
-      });
-      mutateJobs(updatedJobs, {revalidate: false});
-    }
     const jobsStillRunning = jobsUpdated.filter((job) => job.status === "running");
 
+    console.log("STATE OF JOBS")
+    console.log("jobsStopped", jobsStopped);
+    console.log("jobsStillRunning", jobsStillRunning);
+    console.log("jobs", jobs);
+
+    // If there are no jobs still running, update the job state to reflect the result of the stopped jobs
     if (jobsStillRunning.length === 0) {
-      //console.log("NO JOBS STILL RUNNING");
       const newJobState = computeJobState(jobsStopped);
       mutateJobState(newJobState, {revalidate: false});
 
@@ -89,10 +88,22 @@ export const useJobs = () => {
         mutateJobState(emptyJobState, {revalidate: false});
       }, 5000);
     }
+
+    // If there are jobs that have stopped running, update the jobs list to reflect the new states
+    if (jobsStopped.length > 0) {
+      const updatedJobs = jobs.map(job => {
+        const updatedJob = jobsStopped.find(stoppedJob => stoppedJob.id === job.id);
+        return updatedJob || job;
+      });
+      mutateJobs(updatedJobs, {revalidate: false});
+    }
+
     return jobsStillRunning;
   }, {
     refreshInterval: 2000
   });
+
+  
 
   return { jobs, triggerJob, isLoading, error, jobState, runningJobs };
 };

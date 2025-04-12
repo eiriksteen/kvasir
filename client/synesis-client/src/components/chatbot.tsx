@@ -5,7 +5,7 @@ import {memo} from 'react';
 import { Send, Database, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useChat, useConversations, useDatasetsInContext } from '@/hooks';
+import { useChat, useConversation, useContext } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { ChatMessage } from '@/types/chat';
@@ -48,7 +48,7 @@ function Chat({ conversationId }: ChatProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const { messages, submitPrompt } = useChat(conversationId);
-  const { datasetsInContext, removeDatasetFromContext } = useDatasetsInContext();
+  const { datasetsInContext, removeDatasetFromContext } = useContext();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -237,7 +237,7 @@ function Chat({ conversationId }: ChatProps) {
 export default function Chatbot() {
 
   const {data: session} = useSession();
-  const { currentConversationID, createConversation } = useConversations();
+  const { currentConversationID, createConversation } = useConversation();
 
   if (!session) {
     redirect("/login");

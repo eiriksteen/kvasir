@@ -29,7 +29,7 @@ export async function postDataset(token: string, file: File, description: string
   formData.append("file", file);
   formData.append("data_description", description);
 
-  const response = await fetch(`${API_URL}/data/call-integration-agent`, {
+  const response = await fetch(`${API_URL}/integration/call-integration-agent`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`

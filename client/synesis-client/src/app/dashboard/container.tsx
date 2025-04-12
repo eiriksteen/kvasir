@@ -12,7 +12,6 @@ interface DashboardProps {
 
 export default function DashboardContainer({ session }: DashboardProps) {
 
-
   return (
     <SessionProvider session={session}>
       <div className="flex flex-col h-full bg-zinc-950">
