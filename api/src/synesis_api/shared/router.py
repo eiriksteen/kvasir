@@ -14,7 +14,7 @@ router = APIRouter()
 async def get_job(
     job_id: uuid.UUID,
     current_user: User = Depends(get_current_user)
-):
+) -> JobMetadata:
     job = await get_job_metadata(job_id)
     if job.user_id != current_user.id:
         raise HTTPException(
@@ -26,5 +26,13 @@ async def get_job(
 async def list_jobs(
     only_running: bool = False,
     current_user: User = Depends(get_current_user)
-):
+) -> List[JobMetadata]:
     return await get_jobs(current_user.id, only_running)
+
+
+@router.post("/jobs/batch", response_model=List[JobMetadata])
+async def batch_jobs(
+    job_ids: List[uuid.UUID],
+    current_user: User = Depends(get_current_user)
+) -> List[JobMetadata]:
+    return await get_jobs(current_user.id, job_ids)

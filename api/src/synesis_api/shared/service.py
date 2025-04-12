@@ -46,8 +46,14 @@ async def get_job_metadata(job_id: uuid.UUID) -> JobMetadataInDB:
     return JobMetadataInDB(**job)
 
 
-async def get_jobs(user_id: uuid.UUID, only_running: bool = False) -> List[JobMetadataInDB]:
+async def get_jobs(
+        user_id: uuid.UUID,
+        job_ids: List[uuid.UUID] | None = None,
+        only_running: bool = False) -> List[JobMetadataInDB]:
+
     query = select(jobs).where(jobs.c.user_id == user_id)
+    if job_ids:
+        query = query.where(jobs.c.id.in_(job_ids))
     if only_running:
         query = query.where(jobs.c.status == "running")
     query = query.order_by(jobs.c.started_at.desc())

@@ -17,3 +17,11 @@ class ModelJobResultInDB(ModelJobResult):
 class ModelAgentOutput(BaseSchema):
     explanation: str
     python_code: str
+
+
+class Automations(BaseSchema):
+    id: UUID
+    name: str
+    description: str
+    created_at: datetime
+    updated_at: datetime

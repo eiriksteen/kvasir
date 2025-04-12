@@ -23,7 +23,7 @@ export async function fetchDatasets(token: string): Promise<Datasets> {
   return data;
 }
 
-export async function submitDataset(token: string, file: File, description: string): Promise<Job> {
+export async function postDataset(token: string, file: File, description: string): Promise<Job> {
 
   const formData = new FormData();
   formData.append("file", file);
@@ -65,6 +65,26 @@ export async function fetchJobs(token: string, onlyRunning: boolean = false): Pr
   return data;
 } 
 
+export async function fetchJobsBatch(token: string, jobIds: string[]): Promise<Job[]> {
+  const response = await fetch(`${API_URL}/jobs/batch`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(jobIds)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch jobs', errorText);
+    throw new Error(`Failed to fetch jobs: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
 export async function fetchJob(token: string, jobId: string): Promise<Job> {
   const response = await fetch(`${API_URL}/jobs/${jobId}`, {
     headers: {
@@ -83,7 +103,6 @@ export async function fetchJob(token: string, jobId: string): Promise<Job> {
   return data;
 }
 
-    
 export async function* streamChat(token: string, prompt: string, conversationId: string): AsyncGenerator<string> {
   const response = await fetch(`${API_URL}/chat/completions/${conversationId}`, {
     method: 'POST',
@@ -102,11 +121,9 @@ export async function* streamChat(token: string, prompt: string, conversationId:
     const result = await reader.read();
     if (result.done) break;
     const text = decoder.decode(result.value);
-    console.log("TEXT IS", text);
     yield text;
   }
 }
-
 
 export async function fetchMessages(token: string, conversationId: string): Promise<ChatMessageAPI[]> {
   const response = await fetch(`${API_URL}/chat/conversation/${conversationId}`, {
@@ -126,7 +143,7 @@ export async function fetchMessages(token: string, conversationId: string): Prom
   return data;
 }
 
-export async function createConversation(token: string): Promise<Conversation> {
+export async function postConversation(token: string): Promise<Conversation> {
   const response = await fetch(`${API_URL}/chat/conversation`, {
     method: 'POST',
     headers: {
@@ -145,7 +162,7 @@ export async function createConversation(token: string): Promise<Conversation> {
   return data;
 }
 
-export async function getConversations(token: string): Promise<Conversation[]> {
+export async function fetchConversations(token: string): Promise<Conversation[]> {
   const response = await fetch(`${API_URL}/chat/conversations`, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -163,15 +180,18 @@ export async function getConversations(token: string): Promise<Conversation[]> {
   return data;
 }
 
-
-export async function updateContext(token: string, conversationId: string, datasetIds: string[], automationIds: string[]): Promise<string> {
-  const response = await fetch(`${API_URL}/chat/context/${conversationId}`, {
+export async function postChatContextUpdate(token: string, conversationId: string, datasetIds: string[], automationIds: string[]): Promise<string> {
+  const response = await fetch(`${API_URL}/chat/context`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ "dataset_ids": datasetIds, "automation_ids": automationIds })
+    body: JSON.stringify({
+      "conversation_id": conversationId,
+      "dataset_ids": datasetIds,
+      "automation_ids": automationIds
+    })
   });
 
   if (!response.ok) {

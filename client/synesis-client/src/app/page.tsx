@@ -24,7 +24,7 @@ export default async function Home() {
         />
         <TypedHeading
           strings={[
-            "Cover your AI use cases. No technical expertise required.",
+            "Integrate, analyze, automate. State of the art AI applications for all your data.",
           ]}
           typeSpeed={0.0001}
           loop={false}

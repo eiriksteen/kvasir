@@ -1,13 +1,13 @@
 import pandas as pd
 from pathlib import Path
 from dataclasses import dataclass
-from ...ontology.schema import DatasetBase
+from ...ontology.schema import Dataset
 
 
 @dataclass
 class EDADeps:
     data_description: str
-    data_type: DatasetBase
+    data_type: Dataset
     problem_description: str
     api_key: str
 

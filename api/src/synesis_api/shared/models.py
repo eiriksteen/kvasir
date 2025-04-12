@@ -11,12 +11,13 @@ jobs = Table(
     Column("status", String, nullable=False),
     Column("user_id",
            UUID(as_uuid=True),
-           ForeignKey("users.id"),
+           ForeignKey("auth.users.id"),
            nullable=False),
     Column("api_key_id",
            UUID(as_uuid=True),
-           ForeignKey("user_api_keys.id"),
+           ForeignKey("auth.user_api_keys.id"),
            nullable=False),
     Column("started_at", DateTime, nullable=False),
     Column("completed_at", DateTime, nullable=True),
+    schema="shared"
 )

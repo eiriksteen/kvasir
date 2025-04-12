@@ -1,13 +1,23 @@
 import json
 import uuid
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from typing import Annotated, List
 from pydantic_core import to_jsonable_python
-from pydantic_ai.messages import ModelResponse, TextPart, ModelRequest, SystemPromptPart, ModelMessagesTypeAdapter
-from ..ontology.service import get_user_datasets
-from .schema import ChatMessage, Conversation, Prompt, Context
-from .service import create_conversation, get_messages, get_messages_pydantic, insert_message, insert_message_pydantic, get_conversations
+from pydantic_ai.messages import ModelRequest, SystemPromptPart
+from ..ontology.service import get_user_datasets_by_ids
+from .schema import ChatMessage, Conversation, Prompt, Context, ContextCreate
+from .service import (
+    create_conversation,
+    get_messages,
+    get_messages_pydantic,
+    insert_message,
+    insert_message_pydantic,
+    get_conversations,
+    insert_context,
+    get_context_by_time_stamp
+)
 from .agent.agent import chatbot_agent
 from ..auth.service import get_current_user, user_owns_conversation
 from ..auth.schema import User
@@ -46,16 +56,15 @@ async def post_chat(
 
 
 @router.post("/conversation")
-async def post_conversation(user: Annotated[User, Depends(get_current_user)] = None) -> Conversation:
+async def post_user_conversation(user: Annotated[User, Depends(get_current_user)] = None) -> Conversation:
     conversation = await create_conversation(user.id)
     return conversation
 
 
 @router.get("/conversation/{conversation_id}")
-async def get_conversation(
+async def get_user_conversation(
         conversation_id: uuid.UUID,
         user: Annotated[User, Depends(get_current_user)] = None) -> List[ChatMessage]:
-
     if not await user_owns_conversation(user.id, conversation_id):
         raise HTTPException(
             status_code=403, detail="You do not have access to this conversation")
@@ -66,18 +75,41 @@ async def get_conversation(
 
 
 @router.get("/conversations")
-async def get_conversations(user: Annotated[User, Depends(get_current_user)] = None) -> List[Conversation]:
+async def get_user_conversations(user: Annotated[User, Depends(get_current_user)] = None) -> List[Conversation]:
     conversations = await get_conversations(user.id)
     return conversations
 
 
-@router.post("/context/{conversation_id}")
-async def update_context(conversation_id: uuid.UUID, context: Context, user: Annotated[User, Depends(get_current_user)] = None):
+@router.get("/context/{conversation_id}")
+async def get_context(conversation_id: uuid.UUID, user: Annotated[User, Depends(get_current_user)] = None) -> Context:
     if not await user_owns_conversation(user.id, conversation_id):
         raise HTTPException(
             status_code=403, detail="You do not have access to this conversation")
 
-    datasets = await get_user_datasets(user.id, context.dataset_ids)
+    return await get_context(conversation_id)
+
+
+@router.post("/context")
+async def update_context(
+        context: ContextCreate,
+        append: bool = True,
+        user: Annotated[User, Depends(get_current_user)] = None):
+
+    if not await user_owns_conversation(user.id, context.conversation_id):
+        raise HTTPException(
+            status_code=403, detail="You do not have access to this conversation")
+
+    if append:
+        current_context = await get_context_by_time_stamp(context.conversation_id, user.id, datetime.now())
+        new_dataset_ids = [id for id in context.dataset_ids]
+        if current_context is not None:
+            new_dataset_ids += [id for id in current_context.dataset_ids]
+        # new_automation_ids = # [a.id for a in context.automation_ids] + current_context.automation_ids
+    else:
+        new_dataset_ids = [id for id in context.dataset_ids]
+        # new_automation_ids = [a.id for a in context.automation_ids]
+
+    datasets = await get_user_datasets_by_ids(user.id, new_dataset_ids)
     automations = []
 
     updated_context = SystemPromptPart(
@@ -92,6 +124,8 @@ async def update_context(conversation_id: uuid.UUID, context: Context, user: Ann
     new_messages = [ModelRequest(parts=[updated_context])]
     messages_bytes = json.dumps(
         to_jsonable_python(new_messages)).encode("utf-8")
-    await insert_message_pydantic(conversation_id, messages_bytes)
 
-    return "Context updated"
+    await insert_context(user.id, context.conversation_id, context.dataset_ids, context.automation_ids)
+    await insert_message_pydantic(context.conversation_id, messages_bytes)
+
+    return context

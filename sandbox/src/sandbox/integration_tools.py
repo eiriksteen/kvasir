@@ -23,6 +23,12 @@ def submit_restructured_data(
     csv_str = csv_buffer.getvalue()
     csv_buffer.close()
 
+    # raise ValueError("Not implemented")
+
+    print("HELLO"*200)
+    print(url)
+    print(header)
+
     try:
 
         response = httpx.post(

@@ -6,7 +6,7 @@ from .auth.router import router as auth_router
 from .data_integration.router import router as data_integration_router
 from .chat.router import router as chat_router
 from .analysis.router import router as eda_router
-from .modeling.router import router as model_router
+from .automation.router import router as automation_router
 from .ontology.router import router as ontology_router
 
 
@@ -52,9 +52,9 @@ app.include_router(eda_router,
                    tags=["Exploratory Data Analysis"])
 
 
-app.include_router(model_router,
-                   prefix="/model",
-                   tags=["AI Modeling"])
+app.include_router(automation_router,
+                   prefix="/automation",
+                   tags=["AI Automation"])
 
 
 app.include_router(shared_router,

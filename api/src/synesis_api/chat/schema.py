@@ -1,7 +1,8 @@
 from typing import Literal, List
 from datetime import datetime
 from ..base_schema import BaseSchema
-from ..ontology.schema import TimeSeriesDataset, FeatureDataset
+from ..ontology.schema import Datasets
+from ..automation.schema import Automations
 import uuid
 
 
@@ -32,8 +33,34 @@ class PydanticMessage(BaseSchema):
     id: uuid.UUID
     conversation_id: uuid.UUID
     message_list: bytes
+    created_at: datetime
+
+
+class ContextCreate(BaseSchema):
+    conversation_id: uuid.UUID
+    dataset_ids: List[uuid.UUID] = []
+    automation_ids: List[uuid.UUID] = []
 
 
 class Context(BaseSchema):
-    dataset_ids: List[uuid.UUID]
-    automation_ids: List[uuid.UUID]
+    id: uuid.UUID
+    conversation_id: uuid.UUID
+    created_at: datetime
+    dataset_ids: List[uuid.UUID] = []
+    automation_ids: List[uuid.UUID] = []
+
+
+class ContextInDB(BaseSchema):
+    id: uuid.UUID
+    conversation_id: uuid.UUID
+    created_at: datetime
+
+
+class DatasetContextInDB(BaseSchema):
+    context_id: uuid.UUID
+    dataset_id: uuid.UUID
+
+
+class AutomationContextInDB(BaseSchema):
+    context_id: uuid.UUID
+    automation_id: uuid.UUID
