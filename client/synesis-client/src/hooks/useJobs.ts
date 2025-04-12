@@ -54,7 +54,7 @@ export const useJobs = () => {
     if (arg.type === "integration") {
       const newJob = await postDataset(session ? session.APIToken.accessToken : "", arg.file, arg.data_description);
       if (jobs) {
-        return [newJob, ...jobs];
+        return [...jobs, newJob];
       }
       return [newJob];
     }
@@ -73,11 +73,6 @@ export const useJobs = () => {
     const jobsUpdated = await fetchJobsBatch(session ? session.APIToken.accessToken : "", runningJobIds);
     const jobsStopped = jobsUpdated.filter((job) => job.status !== "running");
     const jobsStillRunning = jobsUpdated.filter((job) => job.status === "running");
-
-    console.log("STATE OF JOBS")
-    console.log("jobsStopped", jobsStopped);
-    console.log("jobsStillRunning", jobsStillRunning);
-    console.log("jobs", jobs);
 
     // If there are no jobs still running, update the job state to reflect the result of the stopped jobs
     if (jobsStillRunning.length === 0) {
