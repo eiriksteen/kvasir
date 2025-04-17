@@ -1,12 +1,14 @@
+import json
 import httpx
 import pandas as pd
-import json
 from io import StringIO
 from .secrets import API_URL
 
 
 def submit_restructured_data(
         df: pd.DataFrame,
+        metadata: pd.DataFrame,
+        mapping_dict: dict,
         data_description: str,
         dataset_name: str,
         data_modality: str,
@@ -23,10 +25,19 @@ def submit_restructured_data(
     csv_str = csv_buffer.getvalue()
     csv_buffer.close()
 
+    metadata_buffer = StringIO()
+    metadata.to_csv(metadata_buffer, index=False)
+    metadata_str = metadata_buffer.getvalue()
+    metadata_buffer.close()
+
+    mapping_str = json.dumps(mapping_dict)
+
     try:
         response = httpx.post(
             url,
-            files={"file": ("data.csv", csv_str, "text/csv")},
+            files={"data": ("data.csv", csv_str, "text/csv"),
+                   "metadata": ("metadata.csv", metadata_str, "text/csv"),
+                   "mapping": ("mapping.json", mapping_str, "application/json")},
             headers=header,
             data={
                 "data_description": data_description,

@@ -24,7 +24,8 @@ dependencies = [
     "scipy",
     "scikit-learn",
     "matplotlib",
-    "seaborn"
+    "seaborn",
+    "openpyxl"
 ]
 
 [tool.setuptools]

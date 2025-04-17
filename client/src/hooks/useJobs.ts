@@ -12,27 +12,27 @@ interface JobStateResult {
 }
 
 const computeJobState = (jobs: Job[]): JobStateResult => {
-      const result: JobStateResult = {
-      integrationState: "",
-      analysisState: "",
-      automationState: "",
-      jobsAreRunning: false
-    }
+  const result: JobStateResult = {
+    integrationState: "",
+    analysisState: "",
+    automationState: "",
+    jobsAreRunning: false
+  }
 
-    if (!jobs) return result;
+  if (!jobs) return result;
 
-    const getJobState = (jobs: Job[]) => {
-      if (jobs.some(job => job.status === "running")) return "running";
-      if (jobs.some(job => job.status === "failed")) return "failed";
-      if (jobs.some(job => job.status === "completed")) return "completed";
-      return "";
-    };
+  const getJobState = (jobs: Job[]) => {
+    if (jobs.some(job => job.status === "running")) return "running";
+    if (jobs.some(job => job.status === "failed")) return "failed";
+    if (jobs.some(job => job.status === "completed")) return "completed";
+    return "";
+  };
 
-    const categories: JobCategory[] = ["integration", "analysis", "automation"];
-    for (const category of categories) {
-      const categoryJobs = jobs.filter((job) => job.type === category);
-      result[`${category}State`] = getJobState(categoryJobs);
-    }
+  const categories: JobCategory[] = ["integration", "analysis", "automation"];
+  for (const category of categories) {
+    const categoryJobs = jobs.filter((job) => job.type === category);
+    result[`${category}State`] = getJobState(categoryJobs);
+  }
 
   result.jobsAreRunning = result.integrationState === "running" || result.analysisState === "running" || result.automationState === "running";
 
@@ -52,7 +52,12 @@ export const useJobs = () => {
   const {data: jobState, mutate: mutateJobState} = useSWR(jobs ? "jobState" : null, {fallbackData: emptyJobState})
   const {trigger: triggerJob} = useSWRMutation(session ? "jobs" : null, async (_, {arg}: {arg: IntegrationJobInput | AnalysisJobInput | AutomationJobInput}) => {
     if (arg.type === "integration") {
-      const newJob = await postDataset(session ? session.APIToken.accessToken : "", arg.file, arg.data_description);
+      const newJob = await postDataset(
+        session ? session.APIToken.accessToken : "", 
+        arg.files, 
+        arg.data_description,
+        arg.data_source
+      );
       if (jobs) {
         return [...jobs, newJob];
       }
@@ -64,7 +69,6 @@ export const useJobs = () => {
       mutateJobState({...jobState, jobsAreRunning: true, integrationState: "running"}, {revalidate: false});
     }
   });
-
 
   const {data: runningJobs} = useSWR(jobs && jobState.jobsAreRunning ? "jobsToMonitor" : null, async () => {
     if (!jobs) return [];
@@ -97,8 +101,6 @@ export const useJobs = () => {
   }, {
     refreshInterval: 2000
   });
-
-  
 
   return { jobs, triggerJob, isLoading, error, jobState, runningJobs };
 };

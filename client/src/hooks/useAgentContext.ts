@@ -1,17 +1,23 @@
 import { postChatContextUpdate } from "@/lib/api";
 import { Automation } from "@/types/automations";
-import { TimeSeriesDataset } from "@/types/datasets";
+import { Datasets, TimeSeriesDataset } from "@/types/datasets";
 import { useSession } from "next-auth/react";
 import { useConversation } from "@/hooks/useConversation";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 
-export const useContext = () => {
+const emptyDatasetsInContext: Datasets = {
+  timeSeries: [],
+}
+
+const emptyAutomationsInContext = {}
+
+export const useAgentContext = () => {
   const { data: session } = useSession();
   const { currentConversationID } = useConversation();
   
-  const { data: datasetsInContext } = useSWR("datasetsInContext", { fallbackData: [] });
-  const { data: automationsInContext } = useSWR("automationsInContext", { fallbackData: [] });
+  const { data: datasetsInContext } = useSWR("datasetsInContext", { fallbackData: emptyDatasetsInContext });
+  const { data: automationsInContext } = useSWR("automationsInContext", { fallbackData: emptyAutomationsInContext });
 
   const { trigger: addDatasetToContext } = useSWRMutation("datasetsInContext",
     async (_, { arg }: { arg: TimeSeriesDataset }) => {
@@ -24,12 +30,7 @@ export const useContext = () => {
       return arg;
     },
     {
-      populateCache: (newData: TimeSeriesDataset) => {
-        if (datasetsInContext) {
-          return [...datasetsInContext, newData];
-        }
-        return [newData];
-      }
+      populateCache: (newData: TimeSeriesDataset) => ({...datasetsInContext, timeSeries: [...datasetsInContext.timeSeries, newData]})
     }
   );
 
@@ -46,7 +47,10 @@ export const useContext = () => {
     {
       populateCache: (newData: TimeSeriesDataset) => {
         if (datasetsInContext) {
-          return datasetsInContext.filter((d: TimeSeriesDataset) => d.id !== newData.id);
+          return {
+            ...datasetsInContext,
+            timeSeries: datasetsInContext.timeSeries.filter((d: TimeSeriesDataset) => d.id !== newData.id)
+          };
         }
         return [];
       }
@@ -64,12 +68,7 @@ export const useContext = () => {
       return arg;
     },
     {
-      populateCache: (newData: Automation) => {
-        if (automationsInContext) {
-          return [...automationsInContext, newData];
-        }
-        return [newData];
-      }
+      populateCache: (newData: Automation) => ({...automationsInContext, [newData.id]: newData})
     }
   );
 
@@ -86,7 +85,10 @@ export const useContext = () => {
     {
       populateCache: (newData: Automation) => {
         if (automationsInContext) {
-          return automationsInContext.filter((a: Automation) => a.id !== newData.id);
+          return {
+            ...automationsInContext,
+            [newData.id]: undefined
+          };
         }
         return [];
       }

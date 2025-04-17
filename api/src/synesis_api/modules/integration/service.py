@@ -14,7 +14,7 @@ from ..jobs.service import update_job_status
 from .schema import IntegrationJobResultInDB
 from .models import integration_jobs_results
 from ...database.service import execute, fetch_one
-from .agent import IntegrationDeps, integration_agent
+from .agent import DirectoryIntegrationDeps, directory_integration_agent
 from ...redis import get_redis
 
 
@@ -25,17 +25,24 @@ async def run_integration_agent(
         job_id: uuid.UUID,
         api_key: str,
         data_path: str,
-        data_description: str) -> IntegrationJobResultInDB:
+        data_description: str,
+        data_source: str) -> IntegrationJobResultInDB:
+
+    redis_stream = get_redis()
+
+    if data_source == "directory":
+        integration_agent = directory_integration_agent
+        deps = DirectoryIntegrationDeps(
+            api_key=api_key,
+            data_directory=Path(data_path),
+            data_description=data_description,
+            redis_stream=redis_stream
+        )
+    else:
+        raise ValueError(
+            "Invalid data source, currently only directory is supported")
 
     try:
-        redis_stream = get_redis()
-
-        deps = IntegrationDeps(
-            api_key=api_key,
-            data_path=Path(data_path),
-            data_description=data_description
-        )
-
         nodes = []
         async with integration_agent.iter("Restructure and integrate the data", deps=deps) as agent_run:
 
@@ -65,8 +72,10 @@ async def run_integration_agent(
 
         await update_job_status(job_id, "failed")
 
-        if Path(data_path).exists():
-            Path(data_path).unlink()
+        for file in Path(data_path).glob("*"):
+            file.unlink()
+
+        Path(data_path).rmdir()
 
         raise e
 
@@ -75,14 +84,21 @@ async def run_integration_agent(
 
 
 @shared_task
-def run_integration_job(job_id: uuid.UUID, api_key: str, data_path: str, data_description: str):
+def run_integration_job(job_id: uuid.UUID, api_key: str, data_path: str, data_description: str, data_source: str):
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(run_integration_agent(
-        job_id, api_key, data_path, data_description))
+        job_id, api_key, data_path, data_description, data_source))
 
 
-def validate_restructured_data(data: pd.DataFrame, index_first_level: str, index_second_level: str | None) -> pd.DataFrame | None:
+def validate_restructured_data(
+        data: pd.DataFrame,
+        metadata: pd.DataFrame,
+        mapping_dict: dict,
+        index_first_level: str,
+        index_second_level: str | None
+) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+
     if index_first_level not in data.columns:
         raise HTTPException(
             status_code=400,
@@ -93,13 +109,52 @@ def validate_restructured_data(data: pd.DataFrame, index_first_level: str, index
         if index_second_level not in data.columns:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid data: Second level index column '{index_second_level}' not found in DataFrame"
+                detail=f"Invalid data: Second level index column '{index_second_level}' not found in DataFrame!"
             )
         data = data.set_index([index_first_level, index_second_level])
     else:
         data = data.set_index(index_first_level)
 
-    return data
+    # Check for empty dataframes
+    if data.empty:
+        raise HTTPException(
+            status_code=400,
+            detail="Data is empty, please check your data and try again"
+        )
+
+    try:
+        metadata = metadata.set_index(index_first_level)
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid metadata or index, the first level index is not present in the metadata, Error: {e}"
+        )
+
+    first_level_indices_data = set(
+        data.index.get_level_values(0).unique().tolist())
+    first_level_indices_metadata = set(
+        metadata.index.get_level_values(0).unique().tolist())
+
+    len_metadata = len(first_level_indices_metadata)
+    len_data = len(first_level_indices_data)
+    len_intersection = len(
+        first_level_indices_metadata.intersection(first_level_indices_data))
+
+    if not len_metadata == len_data or not len_metadata == len_intersection:
+        intersection_fraction = len_intersection / len_metadata
+
+        if intersection_fraction == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="No overlap between metadata and data, are you sure you set the right index?"
+            )
+
+        raise HTTPException(
+            status_code=400,
+            detail=f"Metadata index does not match data index, {intersection_fraction} of metadata is present in data"
+        )
+
+    return data, metadata, mapping_dict
 
 
 async def insert_base_dataset(
@@ -223,7 +278,7 @@ async def insert_time_series_dataset(
         )
 
 
-async def insert_restructured_time_series_data_to_db(
+async def insert_restructured_data_to_db(
         df: pd.DataFrame,
         data_description: str,
         dataset_name: str,

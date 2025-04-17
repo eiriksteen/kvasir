@@ -12,10 +12,17 @@ export interface TimeSeriesDataset {
   indexSecondLevel?: string;
   createdAt: string;
   updatedAt: string;
+  type: "timeSeries";
 }
 
 export interface Datasets {
   timeSeries: TimeSeriesDataset[];
-  numDatasets: number;
 }
 
+export interface TimeSeriesData {
+  id: string;
+  timestamps: Date[];
+  values: number[][];
+  missingValues: boolean[][];
+  featureNames: string[];
+}

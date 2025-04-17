@@ -23,11 +23,13 @@ export async function fetchDatasets(token: string): Promise<Datasets> {
   return data;
 }
 
-export async function postDataset(token: string, file: File, description: string): Promise<Job> {
-
+export async function postDataset(token: string, files: File[], description: string, dataSource: string): Promise<Job> {
   const formData = new FormData();
-  formData.append("file", file);
+  files.forEach(file => {
+    formData.append("files", file);
+  });
   formData.append("data_description", description);
+  formData.append("data_source", dataSource);
 
   const response = await fetch(`${API_URL}/integration/call-integration-agent`, {
     method: 'POST',

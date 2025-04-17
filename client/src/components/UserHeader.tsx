@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import JobsOverview from './jobsOverview';
+import JobsOverview from '@/components/JobsOverview';
 import { Database, BarChart, Bot } from 'lucide-react';
 import { useState } from 'react';
 import { Job } from '../types/jobs';

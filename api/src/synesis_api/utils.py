@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Tuple, List
 import aiofiles
 
+
 async def save_markdown_as_html(markdown_content: str, output_path: str):
     # Convert markdown to HTML
-    html_content = markdown2.markdown(markdown_content, extras=["tables", "fenced-code-blocks"])
+    html_content = markdown2.markdown(markdown_content, extras=[
+                                      "tables", "fenced-code-blocks"])
 
     # Wrap it in a basic HTML structure to improve styling
     full_html = f"""
@@ -36,12 +38,11 @@ async def save_markdown_as_html(markdown_content: str, output_path: str):
         await f.write(full_html)
 
 
-
 def parse_code(python_code: str) -> str:
     matches = re.findall(r'```(?:\w+\n)?(.*?)```', python_code, re.DOTALL)
     if matches:
         return "\n\n".join(matches).strip()
-    
+
     return python_code.strip()
 
 
@@ -71,12 +72,12 @@ async def run_code_in_container(python_code: str, container_name: str = "synesis
     return out.decode('utf-8'), err.decode('utf-8')
 
 
-async def copy_file_to_container(
+async def copy_to_container(
         file_path: Path,
         target_dir: str = "/tmp",
         container_name: str = "synesis-sandbox"):
     """
-    Copy a file to the container.
+    Copy a file or directory to the container.
     """
     cmd = [
         "docker", "cp", file_path, f"{container_name}:{target_dir}/{file_path.name}"
@@ -91,7 +92,40 @@ async def copy_file_to_container(
 
     out, err = await process.communicate()
 
-    return out.decode('utf-8'), err.decode('utf-8')
+    return out.decode("utf-8"), err.decode("utf-8")
+
+
+async def remove_from_container(
+        directory_path: Path,
+        container_name: str = "synesis-sandbox"):
+    """
+    Remove a file or directory from the container.
+    """
+    cmd = [
+        "docker", "exec", "-i",
+        container_name,
+        "rm", "-rf", f"{directory_path}"
+    ]
+
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+
+    out, err = await process.communicate()
+
+    return out.decode("utf-8"), err.decode("utf-8")
+
+
+def get_basic_df_info(df: pd.DataFrame):
+    shape = df.shape
+    sample_data = df.head()
+    info = df.info()
+    description = df.describe()
+
+    return f"Shape: {shape}\nSample Data: {sample_data}\nInfo: {info}\nDescription: {description}"
 
 
 def get_df_info(df: pd.DataFrame, max_cols: int = 10):

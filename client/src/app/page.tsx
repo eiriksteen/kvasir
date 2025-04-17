@@ -1,5 +1,5 @@
 import Image from "next/image";
-import TypedHeading from "@/components/typedHeading";
+import TypedHeading from "@/components/TypedHeading";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/getSession";
 
@@ -24,7 +24,7 @@ export default async function Home() {
         />
         <TypedHeading
           strings={[
-            "Integrate, analyze, automate. State of the art AI applications for all your data.",
+            "State of the art AI/ML applications for all your data.",
           ]}
           typeSpeed={0.0001}
           loop={false}

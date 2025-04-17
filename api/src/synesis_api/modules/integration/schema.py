@@ -15,15 +15,5 @@ class DataSubmissionResponse(BaseSchema):
     dataset_id: UUID
 
 
-class IntegrationAgentOutput(BaseSchema):
-    python_code: str
-    data_modality: str
-    data_description: str
-    dataset_name: str
-    index_first_level: str
-    index_second_level: str | None
-    dataset_id: UUID | None = None
-
-
 class IntegrationAgentState(BaseSchema):
     agent_state: str

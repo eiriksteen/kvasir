@@ -1,8 +1,8 @@
 from uuid import UUID
 from typing import List
-from sqlalchemy import select, join
-from .models import time_series_dataset, dataset
-from .schema import TimeSeriesDataset, Datasets
+from sqlalchemy import select
+from .models import time_series_dataset, dataset, time_series
+from .schema import TimeSeriesDataset, Datasets, TimeSeries
 from ...database.service import fetch_all, fetch_one
 
 
@@ -42,3 +42,12 @@ async def get_user_time_series_dataset(user_id: UUID, dataset_id: UUID) -> TimeS
 
     dataset = await fetch_one(query)
     return TimeSeriesDataset(**dataset)
+
+
+async def get_time_series_in_dataset(dataset_id: UUID) -> List[TimeSeries]:
+    query = select(time_series).where(
+        time_series.c.dataset_id == dataset_id
+    )
+
+    series = await fetch_all(query)
+    return [TimeSeries(**s) for s in series]

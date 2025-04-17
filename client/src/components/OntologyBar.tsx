@@ -4,10 +4,10 @@ import { useState, useMemo } from 'react';
 import { Database, Plus, Check, Upload } from 'lucide-react';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { Automation } from '@/types/automations';
-import { useContext, useDatasets } from '@/hooks';
+import { useAgentContext, useDatasets } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import AddDataset from '@/components/addDataset';
+import IntegrationMenu from '@/components/IntegrationMenu';
 
 
 
@@ -23,7 +23,7 @@ function DatasetItem({ dataset, isInContext, onClick }: { dataset: TimeSeriesDat
                 <div className="flex-1">
                     <div className="text-sm font-medium">{dataset.name}</div>
                     <div className="text-xs text-zinc-400 flex items-center gap-1.5">
-                        <span>timeseries</span>
+                        <span>Time Series</span>
                         {isInContext && (
                             <span className="bg-[#0e1a30] text-blue-300 text-xs px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                                 <Database size={10} />
@@ -65,6 +65,15 @@ function AutomationItem({ automation, isSelected, onClick }: { automation: Autom
     );
 }
 
+const automations = [
+    {
+        id: '1',
+        name: 'Automated Analysis',
+        description: 'Automated analysis of the selected datasets',
+        datasetIds: [],
+    },
+]
+
 export default function OntologyBar() {
 
     const [selectedAutomation, setSelectedAutomation] = useState<string | null>(null);
@@ -75,30 +84,28 @@ export default function OntologyBar() {
         datasetsInContext, 
         addDatasetToContext, 
         removeDatasetFromContext,
-        automationsInContext,
-        addAutomationToContext,
-        removeAutomationFromContext
-    } = useContext();
+        // automationsInContext,
+        // addAutomationToContext,
+        // removeAutomationFromContext
+    } = useAgentContext();
 
     if (!session) {
         redirect("/login");
     }
 
     const { datasets } = useDatasets();
-    const automations: Automation[] = [];
-
 
     const filteredAutomations = useMemo(() => 
-        datasetsInContext.length > 0
-            ? automations.filter(automation => 
-                datasetsInContext.some((dataset: TimeSeriesDataset) => automation.datasetIds.includes(dataset.id)))
+        datasetsInContext.timeSeries.length > 0
+            ? automations.filter((automation: Automation) => 
+                datasetsInContext.timeSeries.some((dataset: TimeSeriesDataset) => automation.datasetIds.includes(dataset.id)))
             : automations,
         [datasetsInContext, automations]
     );
 
         
     const handleDatasetToggle = (dataset: TimeSeriesDataset) => {
-        const isActive = datasetsInContext.some((d: TimeSeriesDataset) => d.id === dataset.id);
+        const isActive = datasetsInContext.timeSeries.some((d: TimeSeriesDataset) => d.id === dataset.id);
         if (isActive) {
             removeDatasetFromContext(dataset);
         } else {
@@ -107,7 +114,7 @@ export default function OntologyBar() {
     };
 
     const isDatasetInContext = (datasetId: string) => 
-        datasetsInContext.some((dataset: TimeSeriesDataset) => dataset.id === datasetId);
+        datasetsInContext.timeSeries.some((dataset: TimeSeriesDataset) => dataset.id === datasetId);
 
     return (
         <div className="relative flex pt-12 h-screen">
@@ -188,7 +195,7 @@ export default function OntologyBar() {
             )}
 
             {showAddDataset && (
-                <AddDataset
+                <IntegrationMenu
                     isOpen={showAddDataset}
                     onClose={() => setShowAddDataset(false)}
                     onAdd={() => setShowAddDataset(false)}

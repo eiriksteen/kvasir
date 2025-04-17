@@ -5,7 +5,7 @@ import {memo} from 'react';
 import { Send, Database, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useChat, useConversation, useContext } from '@/hooks';
+import { useChat, useConversation, useAgentContext } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { ChatMessage } from '@/types/chat';
@@ -48,7 +48,7 @@ function Chat({ conversationId }: ChatProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const { messages, submitPrompt } = useChat(conversationId);
-  const { datasetsInContext, removeDatasetFromContext } = useContext();
+  const { datasetsInContext, removeDatasetFromContext } = useAgentContext();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -133,8 +133,8 @@ function Chat({ conversationId }: ChatProps) {
                 <h3 className="text-sm pl-1 pt-1 font-medium text-purple-300">Selected Datasets</h3>
               </div>
               <div className="flex flex-wrap gap-2">
-                {datasetsInContext.length > 0 ? (
-                  datasetsInContext.map((dataset: TimeSeriesDataset) => (
+                {datasetsInContext.timeSeries.length > 0 ? (
+                  datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => (
                     <div 
                       key={dataset.id}
                       className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-blue-900/30 text-blue-300"

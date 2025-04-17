@@ -6,7 +6,7 @@ from .prompt import MODEL_SYSTEM_PROMPT
 from .deps import ModelDeps
 from ....secrets import OPENAI_API_KEY, OPENAI_API_MODEL
 from ..schema import ModelAgentOutput
-from ....utils import run_code_in_container, copy_file_to_container
+from ....utils import run_code_in_container, copy_to_container
 
 provider = OpenAIProvider(api_key=OPENAI_API_KEY)
 
@@ -28,7 +28,7 @@ model_agent = Agent(
 
 @model_agent.system_prompt
 async def get_system_prompt(ctx: RunContext[ModelDeps]) -> str:
-    _, err = await copy_file_to_container(ctx.deps.data_path, target_dir="/tmp")
+    _, err = await copy_to_container(ctx.deps.data_path, target_dir="/tmp")
 
     if err:
         raise ValueError(f"Error copying file to container: {err}")

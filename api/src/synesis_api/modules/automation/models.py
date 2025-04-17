@@ -8,7 +8,7 @@ model_job_result = Table(
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     Column("job_id", UUID(as_uuid=True),
-           ForeignKey("shared.jobs.id"), nullable=False),
+           ForeignKey("jobs.jobs.id"), nullable=False),
     Column("explanation", String, nullable=False),
     Column("python_code", String, nullable=False),
     schema="automation"

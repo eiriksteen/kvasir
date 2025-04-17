@@ -8,7 +8,7 @@ from .prompt import EDA_SYSTEM_PROMPT
 from .deps import EDADepsBasic, EDADepsAdvanced, EDADepsIndependent, EDADepsSummary
 from ....secrets import OPENAI_API_KEY, OPENAI_API_MODEL
 from ..schema import EDAResponse, EDAResponseWithCode
-from ....utils import run_code_in_container, copy_file_to_container
+from ....utils import run_code_in_container, copy_to_container
 
 provider = OpenAIProvider(api_key=OPENAI_API_KEY)
 
@@ -74,7 +74,7 @@ def get_system_prompt(ctx: RunContext[EDADepsAdvanced]) -> str:
 
 @eda_independent_agent.system_prompt
 async def get_system_prompt(ctx: RunContext[EDADepsIndependent]) -> str:
-    _, err = await copy_file_to_container(ctx.deps.data_path, target_dir="/tmp")
+    _, err = await copy_to_container(ctx.deps.data_path, target_dir="/tmp")
 
     if err:
         raise ValueError(f"Error copying file to container: {err}")
