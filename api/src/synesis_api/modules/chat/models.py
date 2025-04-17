@@ -1,0 +1,70 @@
+import uuid
+from sqlalchemy import Table, Column, String, DateTime, func, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID, BYTEA
+from ...database.core import metadata
+
+
+chat_messages = Table(
+    "chat_message",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
+    Column("conversation_id", UUID(as_uuid=True),
+           ForeignKey("chat.conversation.id"), nullable=False),
+    Column("role", String, nullable=False),
+    Column("content", String, nullable=False),
+    Column("created_at", DateTime, nullable=False, default=func.now()),
+    schema="chat"
+)
+
+
+pydantic_messages = Table(
+    "pydantic_message",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
+    Column("conversation_id", UUID(as_uuid=True),
+           ForeignKey("chat.conversation.id"), nullable=False),
+    Column("message_list", BYTEA, nullable=False),
+    Column("created_at", DateTime, nullable=False, default=func.now()),
+    schema="chat"
+)
+
+
+conversations = Table(
+    "conversation",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
+    Column("user_id", UUID(as_uuid=True),
+           ForeignKey("auth.users.id"), nullable=False),
+    schema="chat"
+)
+
+
+context = Table(
+    "context",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
+    Column("conversation_id", UUID(as_uuid=True),
+           ForeignKey("chat.conversation.id"), nullable=False),
+    Column("created_at", DateTime, nullable=False, default=func.now()),
+    schema="chat"
+)
+
+dataset_context = Table(
+    "dataset_context",
+    metadata,
+    Column("context_id", UUID(as_uuid=True),
+           ForeignKey("chat.context.id"), nullable=False),
+    Column("dataset_id", UUID(as_uuid=True),
+           ForeignKey("ontology.dataset.id"), nullable=False),
+    schema="chat"
+)
+
+automation_context = Table(
+    "automation_context",
+    metadata,
+    Column("context_id", UUID(as_uuid=True),
+           ForeignKey("chat.context.id"), nullable=False),
+    Column("automation_id", UUID(as_uuid=True),
+           ForeignKey("automation.automation.id"), nullable=False),
+    schema="chat"
+)

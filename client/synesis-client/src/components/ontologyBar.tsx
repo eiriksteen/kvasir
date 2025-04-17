@@ -1,34 +1,17 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Database, Plus, Check, Upload, Loader2 } from 'lucide-react';
+import { Database, Plus, Check, Upload } from 'lucide-react';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { Automation } from '@/types/automations';
-import { useDatasets } from '@/hooks/apiHooks';
+import { useContext, useDatasets } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import AddDataset from '@/components/addDataset';
-import { Job } from '@/types/jobs';
 
-interface OntologyBarProps {
-    datasetsInContext: TimeSeriesDataset[];
-    automationsInContext: Automation[];
-    onAddDatasetToContext: (dataset: TimeSeriesDataset) => void;
-    onRemoveDatasetFromContext: (datasetId: string) => void;
-    onAddAutomationToContext: (automation: Automation) => void;
-    onRemoveAutomationFromContext: (automationId: string) => void;
-    addedJobs: Job[];
-    setAddedJobs: (jobs: Job[]) => void;
-}
 
-function DatasetItem({ 
-    dataset, 
-    isInContext, 
-    onClick }: { 
-    dataset: TimeSeriesDataset; 
-    isInContext: boolean; 
-    onClick: () => void 
-}) {
+
+function DatasetItem({ dataset, isInContext, onClick }: { dataset: TimeSeriesDataset; isInContext: boolean; onClick: () => void }) {
     return (
         <div
             onClick={onClick}
@@ -68,15 +51,7 @@ function DatasetItem({
     );
 }
 
-function AutomationItem({ 
-    automation, 
-    isSelected, 
-    onClick 
-}: { 
-    automation: Automation; 
-    isSelected: boolean; 
-    onClick: () => void 
-}) {
+function AutomationItem({ automation, isSelected, onClick }: { automation: Automation; isSelected: boolean; onClick: () => void }) {
     return (
         <div
             onClick={onClick}
@@ -90,21 +65,20 @@ function AutomationItem({
     );
 }
 
-export default function OntologyBar({ 
-    datasetsInContext, 
-    automationsInContext,
-    onAddDatasetToContext, 
-    onRemoveDatasetFromContext,
-    onAddAutomationToContext,
-    onRemoveAutomationFromContext,
-    addedJobs,
-    setAddedJobs
-}: OntologyBarProps) {
+export default function OntologyBar() {
 
     const [selectedAutomation, setSelectedAutomation] = useState<string | null>(null);
     const [showAutomations, setShowAutomations] = useState(false);
     const [showAddDataset, setShowAddDataset] = useState(false);
     const {data: session} = useSession();
+    const { 
+        datasetsInContext, 
+        addDatasetToContext, 
+        removeDatasetFromContext,
+        automationsInContext,
+        addAutomationToContext,
+        removeAutomationFromContext
+    } = useContext();
 
     if (!session) {
         redirect("/login");
@@ -117,27 +91,23 @@ export default function OntologyBar({
     const filteredAutomations = useMemo(() => 
         datasetsInContext.length > 0
             ? automations.filter(automation => 
-                datasetsInContext.some(dataset => automation.datasetIds.includes(dataset.id)))
+                datasetsInContext.some((dataset: TimeSeriesDataset) => automation.datasetIds.includes(dataset.id)))
             : automations,
         [datasetsInContext, automations]
     );
 
         
     const handleDatasetToggle = (dataset: TimeSeriesDataset) => {
-        const isActive = datasetsInContext.some(d => d.id === dataset.id);
+        const isActive = datasetsInContext.some((d: TimeSeriesDataset) => d.id === dataset.id);
         if (isActive) {
-            onRemoveDatasetFromContext(dataset.id);
+            removeDatasetFromContext(dataset);
         } else {
-            onAddDatasetToContext(dataset);
+            addDatasetToContext(dataset);
         }
     };
 
     const isDatasetInContext = (datasetId: string) => 
-        datasetsInContext.some(dataset => dataset.id === datasetId);
-        
-    const handleAddDataset = (job: Job) => {
-        setAddedJobs([...addedJobs, job]);
-    }
+        datasetsInContext.some((dataset: TimeSeriesDataset) => dataset.id === datasetId);
 
     return (
         <div className="relative flex pt-12 h-screen">
@@ -221,7 +191,7 @@ export default function OntologyBar({
                 <AddDataset
                     isOpen={showAddDataset}
                     onClose={() => setShowAddDataset(false)}
-                    onAdd={handleAddDataset}
+                    onAdd={() => setShowAddDataset(false)}
                 />
             )}
         </div>

@@ -4,24 +4,16 @@ import Image from 'next/image';
 import Link from 'next/link';
 import JobsOverview from './jobsOverview';
 import { Database, BarChart, Bot } from 'lucide-react';
-import { use, useState } from 'react';
+import { useState } from 'react';
 import { Job } from '../types/jobs';
 import { getStatusColor } from '../lib/utils';
 import { useSession } from 'next-auth/react';
-import { useJobs } from '@/hooks/apiHooks';
+import { useJobs } from '@/hooks';
 import { redirect } from 'next/navigation';
-import { useMonitorRunningJobs } from '@/hooks/apiHooks';
-import { useJobStates } from '@/hooks/useJobStates';
-interface UserHeaderProps {
-	addedJobs: Job[];
-	setAddedJobs: (addedJobs: Job[]) => void;
-}
 
-export default function UserHeader({ 
-	addedJobs,
-	setAddedJobs
-}: UserHeaderProps) {
 
+
+export default function UserHeader() {
 
 	const [integrationJobsIsOpen, setIntegrationJobsIsOpen] = useState(false);
 	const [analysisJobsIsOpen, setAnalysisJobsIsOpen] = useState(false);
@@ -32,12 +24,7 @@ export default function UserHeader({
 		redirect("/login");
 	}
 
-	const { jobs } = useJobs();
-
-	useMonitorRunningJobs(addedJobs, setAddedJobs);
-
-	const { integrationState, analysisState, automationState } = useJobStates(addedJobs);
-
+	const { jobs, jobState } = useJobs();
 	const integrationJobs = jobs?.filter((job: Job) => job.type === "integration");
 	const analysisJobs = jobs?.filter((job: Job) => job.type === "analysis");
 	const automationJobs = jobs?.filter((job: Job) => job.type === "automation");
@@ -61,17 +48,17 @@ export default function UserHeader({
 						
 						<div className="flex items-center space-x-4">
 							<button 
-								className={`${getStatusColor(integrationState)} hover:opacity-80 ${integrationState === 'running' ? 'animate-pulse-running' : ''}`}
+								className={`${getStatusColor(jobState.integrationState)} hover:opacity-80 ${jobState.integrationState === 'running' ? 'animate-pulse-running' : ''}`}
 								onClick={() => setIntegrationJobsIsOpen(true)}>
 								<Database size={20} />
 							</button>
 							<button 
-								className={`${getStatusColor(analysisState)} hover:opacity-80 ${analysisState === 'running' ? 'animate-pulse-running' : ''}`}
+								className={`${getStatusColor(jobState.analysisState)} hover:opacity-80 ${jobState.analysisState === 'running' ? 'animate-pulse-running' : ''}`}
 								onClick={() => setAnalysisJobsIsOpen(true)}>
 								<BarChart size={20} />
 							</button>
 							<button 
-								className={`${getStatusColor(automationState)} hover:opacity-80 ${automationState === 'running' ? 'animate-pulse-running' : ''}`}
+								className={`${getStatusColor(jobState.automationState)} hover:opacity-80 ${jobState.automationState === 'running' ? 'animate-pulse-running' : ''}`}
 								onClick={() => setAutomationJobsIsOpen(true)}>
 								<Bot size={20} />
 							</button>

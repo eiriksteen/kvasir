@@ -6,8 +6,8 @@ celery = Celery(
     broker=CELERY_BROKER_URL,
     backend=CELERY_BACKEND_URL,
     include=[
-        "src.synesis_api.data_integration.service",
-        "src.synesis_api.analysis.service",
-        "src.synesis_api.modeling.service"
+        "src.synesis_api.modules.integration.service",
+        "src.synesis_api.modules.analysis.service",
+        "src.synesis_api.modules.automation.service"
     ]
 )

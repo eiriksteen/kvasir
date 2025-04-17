@@ -1,13 +1,13 @@
 from .worker import celery
-from .shared.router import router as shared_router
+from .modules.jobs.router import router as jobs_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .auth.router import router as auth_router
-from .data_integration.router import router as data_integration_router
-from .chat.router import router as chat_router
-from .analysis.router import router as eda_router
-from .modeling.router import router as model_router
-from .ontology.router import router as ontology_router
+from .modules.integration.router import router as integration_router
+from .modules.chat.router import router as chat_router
+from .modules.analysis.router import router as eda_router
+from .modules.automation.router import router as automation_router
+from .modules.ontology.router import router as ontology_router
 
 
 app = FastAPI(
@@ -37,9 +37,9 @@ app.include_router(auth_router,
                    tags=["Authentication"])
 
 
-app.include_router(data_integration_router,
-                   prefix="/data",
-                   tags=["Data Integration"])
+app.include_router(integration_router,
+                   prefix="/integration",
+                   tags=["Integration"])
 
 
 app.include_router(ontology_router,
@@ -52,14 +52,14 @@ app.include_router(eda_router,
                    tags=["Exploratory Data Analysis"])
 
 
-app.include_router(model_router,
-                   prefix="/model",
-                   tags=["AI Modeling"])
+app.include_router(automation_router,
+                   prefix="/automation",
+                   tags=["AI Automation"])
 
 
-app.include_router(shared_router,
+app.include_router(jobs_router,
                    prefix="",
-                   tags=["Shared"])
+                   tags=["Jobs"])
 
 
 @app.get("/")

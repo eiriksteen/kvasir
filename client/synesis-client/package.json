@@ -18,7 +18,8 @@
     "react-typed": "^2.0.12",
     "react-use-websocket": "^4.13.0",
     "remark-gfm": "^4.0.1",
-    "swr": "^2.3.3"
+    "swr": "^2.3.3",
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

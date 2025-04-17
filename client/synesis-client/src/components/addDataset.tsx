@@ -2,15 +2,14 @@
 
 import { useState, useRef } from 'react';
 import { Upload, X } from 'lucide-react';
-import { submitDataset } from '@/lib/api';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import { Job } from '@/types/jobs';
+import { useJobs } from '@/hooks';
 
 interface AddDatasetProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (job: Job) => void;
+  onAdd: () => void;
 }
 
 export default function AddDataset({ isOpen, onClose, onAdd }: AddDatasetProps) {
@@ -20,6 +19,7 @@ export default function AddDataset({ isOpen, onClose, onAdd }: AddDatasetProps) 
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { data: session } = useSession();
+  const {  triggerJob } = useJobs();
 
   if (!session) {
     redirect("/login");
@@ -73,9 +73,13 @@ export default function AddDataset({ isOpen, onClose, onAdd }: AddDatasetProps) 
     setError(null);
 
     try {
-      const job = await submitDataset(session?.APIToken.accessToken, file, description);
+      await triggerJob({
+        file,
+        data_description: description,
+        type: "integration"
+      });
       onClose();
-      onAdd(job);
+      onAdd();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred");
     }

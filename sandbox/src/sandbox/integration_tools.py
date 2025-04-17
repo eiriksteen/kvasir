@@ -14,7 +14,7 @@ def submit_restructured_data(
         index_second_level: str | None,
         api_key: str) -> dict:
 
-    url = f"{API_URL}/data/restructured-data"
+    url = f"{API_URL}/integration/restructured-data"
     header = {"X-API-Key": api_key}
 
     # Convert DataFrame to CSV string in memory
@@ -24,7 +24,6 @@ def submit_restructured_data(
     csv_buffer.close()
 
     try:
-
         response = httpx.post(
             url,
             files={"file": ("data.csv", csv_str, "text/csv")},

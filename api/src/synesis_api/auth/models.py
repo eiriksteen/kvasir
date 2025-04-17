@@ -1,6 +1,6 @@
+import uuid
 from sqlalchemy import Table, Column, String, Boolean, DateTime, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-import uuid
 from ..database.core import metadata
 
 users = Table(
@@ -13,7 +13,8 @@ users = Table(
     Column("hashed_password", String, nullable=False),
     Column("created_at", DateTime, nullable=False, default=func.now()),
     Column("updated_at", DateTime, nullable=False,
-           default=func.now(), onupdate=func.now())
+           default=func.now(), onupdate=func.now()),
+    schema="auth"
 )
 
 user_api_keys = Table(
@@ -21,10 +22,11 @@ user_api_keys = Table(
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     Column("user_id", UUID(as_uuid=True),
-           ForeignKey("users.id"), nullable=False),
+           ForeignKey("auth.users.id"), nullable=False),
     Column("key", String, nullable=False, unique=True),
     Column("expires_at", DateTime, nullable=False),
     Column("created_at", DateTime, default=func.now()),
     Column("updated_at", DateTime, default=func.now(),
-           onupdate=func.now())
+           onupdate=func.now()),
+    schema="auth"
 )

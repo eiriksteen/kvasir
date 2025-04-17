@@ -1,5 +1,4 @@
-import NextAuth, { DefaultSession } from "next-auth"
-import { JWT, DefaultJWT } from "next-auth/jwt"
+import { DefaultJWT } from "next-auth/jwt"
 
 
 export interface User {
