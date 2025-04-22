@@ -4,12 +4,10 @@ import { useState, useMemo } from 'react';
 import { Database, Plus, Check } from 'lucide-react';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { Automation } from '@/types/automations';
-import { useAgentContext, useDatasets } from '@/hooks';
+import { useAgentContext, useDatasets, useAnalysis } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { Analysis } from '@/types/analysis';
-import { fetchAnalysis } from '@/lib/api';
-
 
 
 function DatasetItem({ dataset, isInContext, onClick }: { dataset: TimeSeriesDataset; isInContext: boolean; onClick: () => void }) {
@@ -89,23 +87,24 @@ export default function OntologyBar() {
     const [showAutomations, setShowAutomations] = useState(false);
     const [showAnalysis, setShowAnalysis] = useState(false);
     const [showAddDataset, setShowAddDataset] = useState(false);
-    const [analysis, setAnalysis] = useState<Analysis | null>(null);
     const {data: session} = useSession();
     const { 
         datasetsInContext, 
         addDatasetToContext, 
         removeDatasetFromContext,
-        // automationsInContext,
-        // addAutomationToContext,
-        // removeAutomationFromContext
+        analysisesInContext,
+        addAnalysisToContext,
+        removeAnalysisFromContext
     } = useAgentContext();
 
     if (!session) {
         redirect("/login");
     }
 
+
     const { datasets } = useDatasets();
     const automations: Automation[] = [];
+    const { analysises } = useAnalysis();
 
     const filteredAutomations = useMemo(() => 
         datasetsInContext.timeSeries.length > 0
@@ -128,16 +127,6 @@ export default function OntologyBar() {
     const isDatasetInContext = (datasetId: string) => 
         datasetsInContext.timeSeries.some((dataset: TimeSeriesDataset) => dataset.id === datasetId);
 
-    const handleRetrieveAnalysis = async (datasetId: string) => {
-        if (!session?.APIToken?.accessToken) return;
-        try {
-            const response = await fetchAnalysis(session.APIToken.accessToken, datasetId);
-            setAnalysis(response);
-            console.log(response);
-        } catch (error) {
-            console.error('Failed to fetch analysis:', error);
-        }
-    }
 
     return (
         <div className="relative flex pt-12 h-screen">
@@ -196,35 +185,23 @@ export default function OntologyBar() {
                 <div className="absolute left-[300px] top-12 w-[300px] h-[calc(100vh-3rem)] bg-[#1a1625]/95 text-white p-4 border-r border-purple-900/30">
                     <h2 className="text-sm font-mono uppercase tracking-wider text-purple-300 mb-4">Analysis</h2>
                     
-                    {datasetsInContext.length === 0 ? (
-                        <div className="p-3 rounded-lg mb-3">
-                            <p className="text-xs text-zinc-400">
-                                Select a dataset to view analysis.
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
+                    <div className="space-y-2 flex-grow overflow-y-auto">
+                        {analysises?.length === 0 && (
                             <div className="p-3 rounded-lg mb-3">
                                 <p className="text-xs text-zinc-400">
-                                    Dataset selected: {datasetsInContext[0].name}
+                                    No analysis found. 
                                 </p>
-                                {!analysis ? (
-                                    <button
-                                        onClick={async () => {
-                                            await handleRetrieveAnalysis(datasetsInContext[0].id);
-                                        }}
-                                        className="mt-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-md text-sm text-white transition-colors"
-                                    >
-                                        Retrieve analysis for dataset
-                                    </button>
-                                ) : (
-                                    <div className="mt-4">
-                                        {analysis && <AnalysisItem analysis={analysis} isSelected={true} />}
-                                    </div>
-                                )}
                             </div>
-                        </div>
-                    )}
+                        )}
+                        {analysises?.map((analysis) => (
+                            <AnalysisItem 
+                                key={analysis.id}
+                                analysis={analysis}
+                                isSelected={analysisesInContext.some((a: Analysis) => a.id === analysis.id)}
+                            />
+                        ))}
+                        
+                    </div>
                 </div>
             )}
 

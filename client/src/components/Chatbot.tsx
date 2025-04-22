@@ -5,12 +5,12 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Database, X, BarChart } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useChat, useConversation, useAgentContext } from '@/hooks';
+import { useChat, useConversation, useAgentContext, useAnalysis } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { ChatMessage } from '@/types/chat';
 import { TimeSeriesDataset } from '@/types/datasets';
-import { submitAnalysis } from '@/lib/api';
+
 
 
 interface ChatProps {
@@ -52,6 +52,7 @@ function Chat({ conversationId }: ChatProps) {
   const { messages, submitPrompt } = useChat(conversationId);
   const { datasetsInContext, removeDatasetFromContext } = useAgentContext();
   
+  const { createAnalysisPlanner } = useAnalysis();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
@@ -82,11 +83,10 @@ function Chat({ conversationId }: ChatProps) {
     }
   };
 
-  const handleFullAnalysis = async (e: React.MouseEvent<HTMLButtonElement>) => {
+  const initializeAnalysis = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     try {
-      const stringIds = datasetsInContext.map((dataset: TimeSeriesDataset) => dataset.id);
-      // const job = await submitAnalysis(session.APIToken.accessToken, stringIds[0]);
+      const plan = await createAnalysisPlanner();
       // Show success popup
       const popup = document.createElement('div');
       popup.style.position = 'fixed';
@@ -102,7 +102,7 @@ function Chat({ conversationId }: ChatProps) {
       popup.style.gap = '10px';
 
       const message = document.createElement('span');
-      message.textContent = 'Full analysis submitted';
+      message.textContent = 'Analysis submitted';
       popup.appendChild(message);
 
       const closeButton = document.createElement('button');
@@ -123,12 +123,12 @@ function Chat({ conversationId }: ChatProps) {
         if (document.body.contains(popup)) {
           document.body.removeChild(popup);
         }
-      }, 5000);
+      }, 2000);
     } catch (err) {
       setInput(err instanceof Error ? err.message : "An unknown error occurred");
     }
   };
-
+  
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
@@ -222,6 +222,12 @@ function Chat({ conversationId }: ChatProps) {
                 className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 Describe my data
+              </button>
+              <button
+                onClick={initializeAnalysis}
+                className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
+              >
+                Run analysis on datasets
               </button>
             </div>
           </div>

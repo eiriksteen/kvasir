@@ -1,34 +1,45 @@
 from pydantic import BaseModel
 from uuid import UUID
+from datetime import datetime
+from typing import List
+from ...base_schema import BaseSchema
+from ..ontology.schema import Datasets
+
+class AnalysisPlanStep(BaseSchema):
+    step_name: str
+    step_description: str
+
+class AnalysisPlan(BaseModel):
+    analysis_overview: str
+    analysis_plan: List[AnalysisPlanStep]
 
 
-class EDAJobResult(BaseModel):
+class AnalysisJobResultMetadata(BaseSchema):
     job_id: UUID
-    dataset_id: UUID
-    basic_eda: str | None = None
-    advanced_eda: str | None = None
-    independent_eda: str | None = None
+    dataset_ids: List[UUID]
+    automation_ids: List[UUID]
+    number_of_datasets: int
+    number_of_automations: int
+    analysis_plan: AnalysisPlan
+    created_at: datetime
+    pdf_created: bool
+
+class AnalysisJobResultMetadataInDB(AnalysisJobResultMetadata):
+    pdf_s3_path: str | None = None
+    user_id: UUID
+
+
+class AnalysisJobResult(BaseModel):
+    job_id: UUID
+    analysis: str | None = None
     python_code: str | None = None
-    ad_hoc: str | None = None
 
-
-class EDAJobResultInDB(EDAJobResult):
+class AnalysisJobResultInDB(AnalysisJobResult):
     pass
 
-class EDAResponse(BaseModel):
-    analysis: str
 
+class AnalysisJobResultMetadataList(BaseSchema):
+    analysis_job_results: List[AnalysisJobResultMetadata] = []
 
-class EDAResponseWithCode(EDAResponse):
-    python_code: str
-
-class EDAResponseTotal(BaseModel):
-    basic_eda: str
-    advanced_eda: str
-    independent_eda: str
-    python_code: str
-
-
-class EDAResponseSummary(BaseModel):
-    summary: str
-    python_code: str
+class AnalysisPlannerRequest(Datasets):
+    prompt: str | None = "Make a detailed analysis plan."

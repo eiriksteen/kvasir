@@ -1,7 +1,7 @@
 import {EventSource} from 'eventsource'
 import { Analysis } from "@/types/analysis";
 import { ChatMessageAPI, Conversation } from "@/types/chat";
-import { Datasets } from "@/types/datasets";
+import { Datasets, TimeSeriesDataset } from "@/types/datasets";
 import { Job } from "@/types/jobs";
 import { IntegrationAgentFeedback, IntegrationMessage } from "@/types/integration";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -52,8 +52,30 @@ export async function postIntegrationJob(token: string, files: File[], descripti
   return data;
 }
 
-export async function submitAnalysis(token: string, datasetId: string): Promise<Job> {
-  const response = await fetch(`${API_URL}/eda/call-eda-agent?dataset_id=${datasetId}`, {
+export async function postAnalysisPlanner(token: string, datasets: Datasets): Promise<Analysis> { // TODO: add automations 
+  const response = await fetch(`${API_URL}/analysis/run-analysis-planner`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      "time_series": datasets
+    })
+  });
+  console.log(datasets.timeSeries);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to run analysis planner: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+
+export async function postAnalysis(token: string, datasetIds: string[], automationIds: string[]): Promise<Job> {
+  const response = await fetch(`${API_URL}/eda/call-eda-agent?dataset_ids=${datasetIds.join(",")}&automation_ids=${automationIds.join(",")}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -62,8 +84,6 @@ export async function submitAnalysis(token: string, datasetId: string): Promise<
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(JSON.stringify({ "dataset_id": datasetId }));
-    console.error('Failed to do analysis', errorText);
     throw new Error(`Failed to do analysis: ${response.status} ${errorText}`);
   }
 
@@ -71,8 +91,8 @@ export async function submitAnalysis(token: string, datasetId: string): Promise<
   return data;
 }
 
-export async function fetchAnalysis(token: string, datasetId: string): Promise<Analysis> {
-  const response = await fetch(`${API_URL}/eda/analysis-result/${datasetId}`, {
+export async function fetchAnalysises(token: string): Promise<Analysis[]> {
+  const response = await fetch(`${API_URL}/analysis/analysis-result`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -222,7 +242,7 @@ export async function fetchConversations(token: string): Promise<Conversation[]>
   return data;
 }
 
-export async function postChatContextUpdate(token: string, conversationId: string, datasetIds: string[], automationIds: string[]): Promise<string> {
+export async function postChatContextUpdate(token: string, conversationId: string, datasetIds: string[], automationIds: string[], analysisIds: string[]): Promise<string> {
   const response = await fetch(`${API_URL}/chat/context`, {
     method: 'POST',
     headers: {
@@ -232,7 +252,8 @@ export async function postChatContextUpdate(token: string, conversationId: strin
     body: JSON.stringify({
       "conversation_id": conversationId,
       "dataset_ids": datasetIds,
-      "automation_ids": automationIds
+      "automation_ids": automationIds,
+      "analysis_ids": analysisIds
     })
   });
 

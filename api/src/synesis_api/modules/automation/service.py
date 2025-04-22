@@ -1,8 +1,6 @@
 import uuid
 import asyncio
 from datetime import datetime
-from celery import shared_task
-from celery.utils.log import get_task_logger
 from pathlib import Path
 from sqlalchemy import update
 from synesis_api.database.service import execute
@@ -14,9 +12,6 @@ from synesis_api.modules.automation.agent.agent import model_agent
 from synesis_api.aws.service import upload_object_s3, retrieve_object
 
 from fastapi import HTTPException
-
-
-logger = get_task_logger(__name__)
 
 
 async def run_model_agent(
@@ -66,17 +61,16 @@ async def run_model_agent(
     return output_in_db
 
 
-@shared_task
-def run_model_job(
+@broker.task
+async def run_model_job(
     project_id: uuid.UUID,
     data_path: str,
     problem_description: str,
     data_analysis: str
 ):
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_model_agent(
-        project_id, data_path, problem_description, data_analysis))
+    return await run_model_agent(
+        project_id, data_path, problem_description, data_analysis)
 
 
 async def get_job_results(job_id: uuid.UUID) -> ModelJobResultInDB:

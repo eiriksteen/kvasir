@@ -50,6 +50,7 @@ dependencies = [
     "markdown2",
     "boto3",
     "openpyxl"
+    "taskiq"
 ]
 
 [tool.setuptools]

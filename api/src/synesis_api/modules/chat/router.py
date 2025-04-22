@@ -25,6 +25,20 @@ from synesis_api.auth.schema import User
 
 router = APIRouter()
 
+@router.post("/completions/analysis-planner/{conversation_id}")
+async def post_chat(
+    conversation_id: uuid.UUID,
+    prompt: Prompt,
+    datasets: List[Dataset],
+    # automations: List[Automation],
+    user: Annotated[User, Depends(get_current_user)] = None
+):
+    if not await user_owns_conversation(user.id, conversation_id):
+        raise HTTPException(
+            status_code=403, detail="You do not have access to this conversation")
+    
+    # TODO: should all things that go through chat be handled here?
+
 
 @router.post("/completions/{conversation_id}")
 async def post_chat(

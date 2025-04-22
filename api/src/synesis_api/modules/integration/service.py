@@ -1,6 +1,5 @@
 import uuid
 import pandas as pd
-import asyncio
 from pathlib import Path
 from celery import shared_task
 from datetime import datetime, timezone
@@ -14,7 +13,7 @@ from synesis_api.modules.integration.models import integration_jobs_results, int
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.integration.agent import DirectoryIntegrationDeps, directory_integration_agent
 from synesis_api.redis import get_redis
-
+from synesis_api.worker import broker
 
 logger = get_task_logger(__name__)
 
@@ -102,11 +101,11 @@ async def run_integration_agent(
         return agent_output
 
 
-@shared_task
+@broker.task
 def run_integration_job(job_id: uuid.UUID, api_key: str, data_directory: str, data_description: str, data_source: str):
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_integration_agent(
-        job_id, api_key, data_directory, data_description, data_source))
+    run_integration_agent.kiq(
+        job_id, api_key, data_directory, data_description, data_source)
+
 
 
 async def create_integration_result(result: IntegrationJobResultInDB):

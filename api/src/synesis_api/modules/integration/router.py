@@ -3,6 +3,8 @@ import json
 import time
 import redis
 import aiofiles
+import asyncio
+import redis
 import pandas as pd
 from datetime import datetime, timezone
 from typing import Annotated
@@ -42,7 +44,6 @@ from synesis_api.auth.service import (create_api_key,
                                       user_owns_job)
 from synesis_api.modules.jobs.service import create_job, get_job_metadata, update_job_status
 from synesis_api.redis import get_redis
-
 
 router = APIRouter()
 
@@ -184,9 +185,10 @@ async def integration_agent_feedback(
                   "directory"]
         )
 
-        if task.status == "FAILURE":
-            raise HTTPException(
-                status_code=500, detail="Failed to process the integration request")
+        # print(task)
+        # if task.status == "FAILURE":
+        #     raise HTTPException(
+        #         status_code=500, detail="Failed to process the integration request")
 
         integration_job.status = "running"
 
@@ -194,7 +196,8 @@ async def integration_agent_feedback(
 
     except Exception as e:
         if api_key:
-            await delete_api_key(user)
+            await delete_job_by_id(integration_job.id)
+            await delete_api_key(user)  # cannot delete api key here since it is referenced from job table
         raise HTTPException(
             status_code=500, detail=f"Failed to process the integration request: {str(e)}")
 

@@ -4,10 +4,10 @@ import statsmodels.api as sm
 from typing import List
 from sklearn.decomposition import PCA
 from pydantic_ai import RunContext, Tool
-from synesis_api.modules.analysis.agent.deps import EDADepsBasic, EDADepsAdvanced
+from synesis_api.modules.analysis.agent.deps import AnalysisExecutionDeps
 
 
-def check_missing_values(ctx: RunContext[EDADepsBasic]) -> str:
+def check_missing_values(ctx: RunContext[AnalysisExecutionDeps]) -> str:
     """
     Check for missing values in the df in the context.
 
@@ -23,7 +23,7 @@ def check_missing_values(ctx: RunContext[EDADepsBasic]) -> str:
     return "Missing values:" + missing_values.to_string()
 
 
-def correlation_matrix(ctx: RunContext[EDADepsBasic], cols: List[str], method: str = 'pearson') -> str:
+def correlation_matrix(ctx: RunContext[AnalysisExecutionDeps], cols: List[str], method: str = 'pearson') -> str:
     """
     Compute the correlation matrix for the df in the context.
 
@@ -47,7 +47,7 @@ def correlation_matrix(ctx: RunContext[EDADepsBasic], cols: List[str], method: s
     return "Correlation matrix:" + corr_matrix.to_string()
 
 
-def moments_of_distribution(ctx: RunContext[EDADepsBasic], column: str) -> str:
+def moments_of_distribution(ctx: RunContext[AnalysisExecutionDeps], column: str) -> str:
     """
     Compute the moments of distribution (mean, variance, skewness, kurtosis) for a specific column in the df in the context.
 
@@ -76,7 +76,7 @@ def moments_of_distribution(ctx: RunContext[EDADepsBasic], column: str) -> str:
             f'Kurtosis: {kurtosis}')
 
 
-def summary_statistics(ctx: RunContext[EDADepsBasic]) -> str:
+def summary_statistics(ctx: RunContext[AnalysisExecutionDeps]) -> str:
     """
     Compute summary statistics of the df in the context.
 
@@ -92,7 +92,7 @@ def summary_statistics(ctx: RunContext[EDADepsBasic]) -> str:
     return summary_stats.to_string()
 
 
-def summary_statistics_grouped(ctx: RunContext[EDADepsBasic], group_by: str):
+def summary_statistics_grouped(ctx: RunContext[AnalysisExecutionDeps], group_by: str):
     """
     Compute summary statistics for each group in the df in the context after grouping by the specified column.
 
@@ -110,7 +110,7 @@ def summary_statistics_grouped(ctx: RunContext[EDADepsBasic], group_by: str):
     return summary_stats.to_string()
 
 
-def check_outliers(ctx: RunContext[EDADepsBasic], column: str, method: str = 'iqr') -> str:
+def check_outliers(ctx: RunContext[AnalysisExecutionDeps], column: str, method: str = 'iqr') -> str:
     """
     Check for outliers in a specific column of the df in the context using the specified method.
 
@@ -147,7 +147,7 @@ def check_outliers(ctx: RunContext[EDADepsBasic], column: str, method: str = 'iq
             f'Percentage of outliers in {column}: {percent_outliers:.2f}%')
 
 
-def regression(ctx: RunContext[EDADepsAdvanced], endo: str, exo: List[str]) -> str:
+def regression(ctx: RunContext[AnalysisExecutionDeps], endo: str, exo: List[str]) -> str:
     """
     Runs an ordinary least squares regression.
 
@@ -177,7 +177,7 @@ def regression(ctx: RunContext[EDADepsAdvanced], endo: str, exo: List[str]) -> s
     return summary.as_text()
 
 
-def anova(ctx: RunContext[EDADepsAdvanced], numerical_col: str, group_by: str) -> str:
+def anova(ctx: RunContext[AnalysisExecutionDeps], numerical_col: str, group_by: str) -> str:
     """
     Perform ANOVA (Analysis of Variance) to determine if there are statistically 
     significant differences between the means of groups defined by a categorical column.
@@ -208,7 +208,7 @@ def anova(ctx: RunContext[EDADepsAdvanced], numerical_col: str, group_by: str) -
     return anova_table.to_string()
 
 
-def pca_analysis(ctx: RunContext[EDADepsAdvanced], n_components: int = 2, cols: List[str] = None) -> str:
+def pca_analysis(ctx: RunContext[AnalysisExecutionDeps], n_components: int = 2, cols: List[str] = None) -> str:
     """
     Perform Principal Component Analysis (PCA) on the dataframe in the context.
 
@@ -242,19 +242,15 @@ def pca_analysis(ctx: RunContext[EDADepsAdvanced], n_components: int = 2, cols: 
 
     return (f'Explained variance ratio of the first {n_components} principal components: {explained_variance}')
 
-
-
-
-eda_cs_basic_tools = [
+eda_cs_tools = [
     Tool(check_missing_values, takes_ctx=True, docstring_format="google"),
     Tool(correlation_matrix, takes_ctx=True, docstring_format="google"),
     Tool(summary_statistics, takes_ctx=True, docstring_format="google"),
     Tool(summary_statistics_grouped, takes_ctx=True, docstring_format="google"),
     Tool(check_outliers, takes_ctx=True, docstring_format="google"),
-]
-
-eda_cs_advanced_tools = [
     Tool(regression, takes_ctx=True, docstring_format="google"),
     Tool(anova, takes_ctx=True, docstring_format="google"),
     Tool(pca_analysis, takes_ctx=True, docstring_format="google"),
 ]
+
+eda_cs_tools_str = [f"{tool.name}: {tool.description}" for tool in eda_cs_tools]
