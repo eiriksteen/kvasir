@@ -54,7 +54,6 @@ function Chat({ conversationId }: ChatProps) {
 
   const { messages, submitPrompt } = useChat(conversationId);
   const { datasetsInContext, removeDatasetFromContext, analysisesInContext, removeAnalysisFromContext } = useAgentContext();
-  const { createAnalysisPlanner } = useAnalysis();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);

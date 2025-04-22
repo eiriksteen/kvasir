@@ -93,3 +93,10 @@ async def delete_job_by_id(job_id: uuid.UUID):
         delete(jobs).where(jobs.c.id == job_id),
         commit_after=True
     )
+
+
+async def delete_job_by_id(job_id: uuid.UUID):
+    await execute(
+        delete(jobs).where(jobs.c.id == job_id),
+        commit_after=True
+    )

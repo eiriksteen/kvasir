@@ -12,6 +12,8 @@ from synesis_api.worker import logger
 from synesis_api.modules.jobs.service import delete_job_by_id
 from synesis_api.modules.chat.models import analysis_context
 
+# Add dataset cache
+dataset_cache: Dict[str, pd.DataFrame] = {}
 
 async def run_analysis_execution(
         job_id: uuid.UUID,
