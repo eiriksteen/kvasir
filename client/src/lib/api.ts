@@ -1,5 +1,5 @@
 import {EventSource} from 'eventsource'
-import { Analysis } from "@/types/analysis";
+import { AnalysisJobResultMetadata, Analysises } from "@/types/analysis";
 import { ChatMessageAPI, Conversation } from "@/types/chat";
 import { Datasets, TimeSeriesDataset } from "@/types/datasets";
 import { Job } from "@/types/jobs";
@@ -52,7 +52,7 @@ export async function postIntegrationJob(token: string, files: File[], descripti
   return data;
 }
 
-export async function postAnalysisPlanner(token: string, datasets: Datasets): Promise<Analysis> { // TODO: add automations 
+export async function postAnalysisPlanner(token: string, datasets: Datasets): Promise<Job> { // TODO: add automations 
   const response = await fetch(`${API_URL}/analysis/run-analysis-planner`, {
     method: 'POST',
     headers: {
@@ -63,7 +63,7 @@ export async function postAnalysisPlanner(token: string, datasets: Datasets): Pr
       "time_series": datasets
     })
   });
-  console.log(datasets.timeSeries);
+  
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`Failed to run analysis planner: ${response.status} ${errorText}`);
@@ -91,8 +91,8 @@ export async function postAnalysis(token: string, datasetIds: string[], automati
   return data;
 }
 
-export async function fetchAnalysises(token: string): Promise<Analysis[]> {
-  const response = await fetch(`${API_URL}/analysis/analysis-result`, {
+export async function fetchAnalysisJobResults(token: string): Promise<Analysises> {
+  const response = await fetch(`${API_URL}/analysis/analysis-job-results`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

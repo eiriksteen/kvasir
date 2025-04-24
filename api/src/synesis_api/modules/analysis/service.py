@@ -47,11 +47,13 @@ async def load_dataset_from_cache_or_disk(dataset_id: uuid.UUID, user_id: uuid.U
 
 async def run_analysis_planner(
     job_id: uuid.UUID,
+    user_id: uuid.UUID,
     datasets: List[Dataset],
     # automations: List[Automation],
     problem_description: str,
     prompt: str,
-) -> AnalysisPlan:
+    analysis_job_result: AnalysisJobResultMetadataInDB | None = None,
+) -> AnalysisJobResultMetadataInDB:
     
     dfs = [] # we should store column names in the dataset object
     try:
@@ -66,6 +68,8 @@ async def run_analysis_planner(
         )
     try: 
         logger.info(f"Start running analysis planner")
+        if analysis_job_result is not None:
+            prompt = "You create this analysis plan: " + json.dumps(analysis_job_result.analysis_plan.model_dump()) + "The user's feedback: " + prompt + "Change the analysis plan to reflect these wishes."
         response = await analysis_planner_agent.run_analysis_planner(
             dfs,
             problem_description,
@@ -73,14 +77,120 @@ async def run_analysis_planner(
             eda_cs_tools_str,
             prompt
         )
+
         logger.info(f"Analysis planner completed")
-        output_to_user = AnalysisPlan(response.model_dump())
-        return output_to_user
-        
+        logger.info(response)
+        analysis_plan = AnalysisPlan(**response.model_dump())
     except Exception as e:
-        logger.error(f"Error running analysis planner: {e}")
-        await update_job_status(job_id, "failed")
-        raise e
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error running analysis planner: {str(e)}"
+        )
+    
+    analysis_job_result_metadata_in_db = AnalysisJobResultMetadataInDB(
+                job_id=job_id,
+                user_id=user_id,
+                number_of_datasets=len(datasets),
+                number_of_automations=0, # TODO: add automations
+                analysis_plan=analysis_plan, # Store the full analysis plan object
+                created_at=datetime.now(),
+                pdf_created=False,
+                pdf_s3_path=None
+            )
+
+    try:
+        if analysis_job_result is None:
+            logger.info("Inserting analysis plan into DB")
+
+            # Insert dataset mappings
+            for dataset in datasets:
+                await execute(
+                    insert(analysis_jobs_datasets).values(
+                        job_id=job_id,
+                        dataset_id=dataset.id
+                    ),
+                    commit_after=True
+                )
+
+            await execute(
+                insert(analysis_jobs_results).values(
+                    **analysis_job_result_metadata_in_db.model_dump()
+                ),
+                commit_after=True
+            )
+
+            await update_job_status(job_id, "completed")
+
+            logger.info("Analysis plan inserted into DB")
+
+            return analysis_job_result_metadata_in_db
+        
+        else:
+            logger.info("Updating analysis plan in DB")
+            
+            await execute(
+                update(analysis_jobs_results).values(
+                    **analysis_job_result_metadata_in_db.model_dump()
+                ),
+                commit_after=True
+            )
+            
+            await update_job_status(job_id, "completed")
+
+            logger.info("Analysis plan updated in DB")
+
+            return analysis_job_result_metadata_in_db
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error inserting analysis plan into DB: {str(e)}"
+        )
+
+    
+        
+
+async def edit_analysis_planner(
+    job_id: uuid.UUID,
+    user_id: uuid.UUID,
+    datasets: List[Dataset],
+    # automations: List[Automation],
+    problem_description: str,
+    prompt: str,
+    analysis_job_result: AnalysisJobResultMetadataInDB | None = None,
+) -> AnalysisJobResultMetadataInDB:
+    dfs = [] # we should store column names in the dataset object
+    try:
+        logger.info(f"Start loading datasets")
+        for dataset in datasets:
+            df = await load_dataset_from_cache_or_disk(dataset.id, dataset.user_id)
+            dfs.append(df)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error loading datasets: {str(e)}"
+        )
+    
+    try: 
+        logger.info(f"Start running analysis planner")
+        if analysis_job_result is not None:
+            prompt = "The user's feedback: " + prompt + "Change the analysis plan to reflect these wishes."
+        response = await analysis_planner_agent.run_analysis_planner(
+            dfs,
+            problem_description,
+            datasets,
+            eda_cs_tools_str,
+            prompt
+        )
+
+        logger.info(f"Analysis planner completed")
+        logger.info(response)
+        analysis_plan = AnalysisPlan(**response.model_dump())
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error running analysis planner: {str(e)}"
+        )
 
 
 async def run_analysis_execution(
@@ -179,31 +289,14 @@ async def run_analysis_execution_job(
 @broker.task
 async def run_analysis_planner_job(
     job_id: uuid.UUID,
+    user_id: uuid.UUID,
     datasets: List[Dataset],
     # automations: List[Automation],
     problem_description: str,
     prompt: str,
-) -> AnalysisPlan:
-    return await run_analysis_planner(job_id, datasets, problem_description, prompt) # TODO: add automations
-
-
-@broker.task
-async def test_task():
-    logger.info("Test task")
-
-async def get_job_results(job_id: uuid.UUID) -> AnalysisJobResultInDB:
-
-    metadata = await get_job_metadata(job_id)
-
-    if metadata.status != "completed":
-        raise HTTPException(status_code=400, detail="Job is not completed")
-
-    data = await fetch_one(
-        select(analysis_jobs_results).where(analysis_jobs_results.c.job_id == job_id),
-        commit_after=True
-    )
-
-    return AnalysisJobResultInDB(**data)
+    analysis_job_result: AnalysisJobResultMetadataInDB | None = None,
+) -> AnalysisJobResultMetadataInDB:
+    return await run_analysis_planner(job_id, user_id, datasets, problem_description, prompt, analysis_job_result) # TODO: add automations
 
 
 async def create_pdf_from_results(job_results: AnalysisJobResultInDB, eda_job_id: uuid.UUID) -> None:
@@ -223,3 +316,16 @@ async def get_user_analysis_metadata(user_id: uuid.UUID) -> AnalysisJobResultMet
     )
     return AnalysisJobResultMetadataList(analysis_job_results=[AnalysisJobResultMetadataInDB(**d) for d in data])
 
+
+async def get_analysis_job_results_from_db(job_id: uuid.UUID) -> AnalysisJobResultMetadataInDB:
+    result = await fetch_one(
+        select(analysis_jobs_results).where(analysis_jobs_results.c.job_id == job_id),
+        commit_after=True
+    )
+
+    if result is None:
+        raise HTTPException(
+            status_code=404, detail="Analysis job results not found"
+        )
+
+    return AnalysisJobResultMetadataInDB(**result)

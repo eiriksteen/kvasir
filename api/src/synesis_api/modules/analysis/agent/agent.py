@@ -27,7 +27,7 @@ class AnalysisPlannerAgent:
     def __init__(
         self
     ):
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger
 
         self.provider = OpenAIProvider(api_key=OPENAI_API_KEY)
         self.model = OpenAIModel(
@@ -90,7 +90,7 @@ class AnalysisExecutionAgent:
         self,
         tools: List[Tool],
     ):
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger
         self.tools = tools
 
         self.provider = OpenAIProvider(api_key=OPENAI_API_KEY)

@@ -1,9 +1,22 @@
-export interface Analysis {
-    id: string;
-    dataset_id: string;
-    basic_eda: string;
-    advanced_eda: string;
-    independent_eda: string;
-    ad_hoc_eda: string;
-    python_code: string;
-  } 
+export interface AnalysisStep {
+    stepName: string;
+    stepDescription: string;
+}
+
+export interface AnalysisPlan {
+    analysisOverview: string;
+    analysisPlan: AnalysisStep[];
+}
+
+export interface AnalysisJobResultMetadata {
+    jobId: string;
+    numberOfDatasets: number;
+    numberOfAutomations: number;
+    analysisPlan: AnalysisPlan;
+    createdAt: string;
+    pdfCreated: boolean;
+}
+
+export interface Analysises {
+    analysisJobResults: AnalysisJobResultMetadata[];
+}

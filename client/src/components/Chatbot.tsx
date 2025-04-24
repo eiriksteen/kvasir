@@ -10,6 +10,7 @@ import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { ChatMessage } from '@/types/chat';
 import { TimeSeriesDataset } from '@/types/datasets';
+import { AnalysisJobResultMetadata } from '@/types/analysis';
 
 
 
@@ -50,8 +51,7 @@ function Chat({ conversationId }: ChatProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const { messages, submitPrompt } = useChat(conversationId);
-  const { datasetsInContext, removeDatasetFromContext } = useAgentContext();
-  
+  const { datasetsInContext, removeDatasetFromContext, analysisesInContext, removeAnalysisFromContext } = useAgentContext();
   const { createAnalysisPlanner } = useAnalysis();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -194,10 +194,37 @@ function Chat({ conversationId }: ChatProps) {
                         className="text-zinc-400 hover:text-white"
                       >
                         <X size={12} />
-                    </button>
-                  </div>
-                ))
+                      </button>
+                    </div>
+                  ))
                 ) : ( <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select datasets from the left panel</h3>
+                )}
+              </div>
+            </div>
+
+            {/* Analysis context panel */}
+            <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-sm pl-1 pt-1 font-medium text-purple-300">Selected Analyses</h3>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {analysisesInContext.length > 0 ? (
+                  analysisesInContext.map((analysis: AnalysisJobResultMetadata) => (
+                    <div 
+                      key={analysis.jobId}
+                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-purple-900/30 text-purple-300"
+                    >
+                      <BarChart size={12} />
+                      Analysis {analysis.jobId.slice(0, 6)}
+                      <button 
+                        onClick={() => removeAnalysisFromContext(analysis)}
+                        className="text-zinc-400 hover:text-white"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))
+                ) : ( <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select analyses from the left panel</h3>
                 )}
               </div>
             </div>

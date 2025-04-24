@@ -1,4 +1,4 @@
-import { fetchAnalysises, postAnalysisPlanner } from "@/lib/api";
+import { fetchAnalysisJobResults, postAnalysisPlanner } from "@/lib/api";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from 'swr/mutation'
@@ -10,17 +10,15 @@ export const useAnalysis = () => {
     // const { data: automationsInContext } = useSWR("automationsInContext", { fallbackData: [] });
     const context = useAgentContext();
 
-
-
-    const { data: analysises, error, isLoading, mutate: mutateAnalysises } = useSWR(session ? "analysis" : null, () => fetchAnalysises(session ? session.APIToken.accessToken : ""));
+    const { data: analysisJobResults, error, isLoading } = useSWR(session ? "analysisJobResults" : null, () => fetchAnalysisJobResults(session ? session.APIToken.accessToken : ""));
     const { data: currentAnalysisID } = useSWR("currentAnalysis", {fallbackData: null});
 
     const { trigger: createAnalysisPlanner } = useSWRMutation("createAnalysisPlanner", () => postAnalysisPlanner(session ? session.APIToken.accessToken : "", context.datasetsInContext ? context.datasetsInContext : []), {
-      populateCache: (newData) => {
-        if (analysises) {
-          mutateAnalysises([...analysises, newData]);
-        }
-      }
+      // populateCache: (newData) => {
+      //   if (analysises) {
+      //     mutateAnalysises([...analysises, newData]);
+      //   }
+      // }
     });
   
     // const { trigger: createAnalysis } = useSWRMutation("createAnalysis", () => postAnalysisPlanner(session ? session.APIToken.accessToken : "", datasetsInContext ? datasetsInContext : []), {
@@ -37,7 +35,7 @@ export const useAnalysis = () => {
   
     return {
       currentAnalysisID,
-      analysises,
+      analysisJobResults,
       error,
       isLoading,
       createAnalysisPlanner,

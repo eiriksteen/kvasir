@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useConversation } from "@/hooks/useConversation";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
-import { Analysis } from "@/types/analysis";
+import { AnalysisJobResultMetadata } from "@/types/analysis";
 
 const emptyDatasetsInContext: Datasets = {
   timeSeries: [],
@@ -102,18 +102,18 @@ export const useAgentContext = () => {
   );
 
   const { trigger: addAnalysisToContext } = useSWRMutation("analysisesInContext",
-    async (_, { arg }: { arg: Analysis }) => {
+    async (_, { arg }: { arg: AnalysisJobResultMetadata }) => {
       await postChatContextUpdate(
         session?.APIToken.accessToken || "",
         currentConversationID || "",
         [],
         [],
-        [arg.id]
+        [arg.jobId]
       );
       return arg;
     },
     {
-      populateCache: (newData: Analysis) => {
+      populateCache: (newData: AnalysisJobResultMetadata) => {
         if (analysisesInContext) {
           return [...analysisesInContext, newData];
         }
@@ -123,20 +123,20 @@ export const useAgentContext = () => {
   );
 
   const { trigger: removeAnalysisFromContext } = useSWRMutation("analysisesInContext",
-    async (_, { arg }: { arg: Analysis }) => {
+    async (_, { arg }: { arg: AnalysisJobResultMetadata }) => {
       await postChatContextUpdate(
         session?.APIToken.accessToken || "",
         currentConversationID || "",
         [],
         [],
-        [arg.id]
+        [arg.jobId]
       );
       return arg;
     },
     {
-      populateCache: (newData: Analysis) => {
+      populateCache: (newData: AnalysisJobResultMetadata) => {
         if (analysisesInContext) {
-          return analysisesInContext.filter((a: Analysis) => a.id !== newData.id);
+          return analysisesInContext.filter((a: AnalysisJobResultMetadata) => a.jobId !== newData.jobId);
         }
         return [];
       }

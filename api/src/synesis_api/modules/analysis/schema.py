@@ -3,21 +3,18 @@ from uuid import UUID
 from datetime import datetime
 from typing import List
 from ...base_schema import BaseSchema
-from ..ontology.schema import Datasets
 
 class AnalysisPlanStep(BaseSchema):
     step_name: str
     step_description: str
 
-class AnalysisPlan(BaseModel):
+class AnalysisPlan(BaseSchema):
     analysis_overview: str
     analysis_plan: List[AnalysisPlanStep]
 
 
 class AnalysisJobResultMetadata(BaseSchema):
     job_id: UUID
-    dataset_ids: List[UUID]
-    automation_ids: List[UUID]
     number_of_datasets: int
     number_of_automations: int
     analysis_plan: AnalysisPlan
@@ -41,5 +38,8 @@ class AnalysisJobResultInDB(AnalysisJobResult):
 class AnalysisJobResultMetadataList(BaseSchema):
     analysis_job_results: List[AnalysisJobResultMetadata] = []
 
-class AnalysisPlannerRequest(Datasets):
+class AnalysisPlannerRequest(BaseSchema):
+    job_id: UUID | None = None
+    dataset_ids: List[UUID]
+    automation_ids: List[UUID]
     prompt: str | None = "Make a detailed analysis plan."

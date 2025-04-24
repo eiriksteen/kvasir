@@ -7,7 +7,7 @@ import { Automation } from '@/types/automations';
 import { useAgentContext, useDatasets, useAnalysis } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import { Analysis } from '@/types/analysis';
+import { AnalysisJobResultMetadata } from '@/types/analysis';
 
 
 function DatasetItem({ dataset, isInContext, onClick }: { dataset: TimeSeriesDataset; isInContext: boolean; onClick: () => void }) {
@@ -64,19 +64,39 @@ function AutomationItem({ automation, isSelected, onClick }: { automation: Autom
     );
 }
 
-function AnalysisItem({ analysis, isSelected }: {analysis: Analysis, isSelected: boolean  }) {
+function AnalysisItem({ analysis, isSelected, onClick }: {analysis: AnalysisJobResultMetadata, isSelected: boolean, onClick: () => void }) {
     return (
-        <div className={`p-3 rounded-lg cursor-pointer hover:bg-[#1a2438] border-2 ${
-            isSelected ? 'bg-[#1a2438] border-blue-800' : 'bg-[#0e1a30]/80 border-[#1a2438]'
-        }`}>
-            <div className="flex flex-col gap-2">
-                <div className="text-sm font-medium text-blue-300">Analysis Results</div>
-                <div className="text-xs text-zinc-400">
-                    <div>Basic EDA: {analysis.basic_eda}</div>
-                    <div>Advanced EDA: {analysis.advanced_eda}</div>
-                    <div>Independent EDA: {analysis.independent_eda}</div>
-                    <div>Adhoc EDA: {analysis.ad_hoc_eda}</div>
+        <div 
+            onClick={onClick}
+            className={`p-3 rounded-lg cursor-pointer hover:bg-[#1a2438] border-2 ${
+                isSelected ? 'bg-[#1a2438] border-blue-800' : 'bg-[#0e1a30]/80 border-[#1a2438]'
+            }`}
+        >
+            <div className="flex justify-between items-start">
+                <div className="flex flex-col gap-2">
+                    <div className="text-sm font-medium text-blue-300">Analysis Results</div>
+                    <div className="text-xs text-zinc-400">
+                        <div>Job ID: {analysis.jobId}</div>
+                        <div>Datasets: {analysis.numberOfDatasets}</div>
+                        <div>Automations: {analysis.numberOfAutomations}</div>
+                        <div>Created: {new Date(analysis.createdAt).toLocaleDateString()}</div>
+                        <div>PDF Created: {analysis.pdfCreated ? "Yes" : "No"}</div>
+                    </div>
                 </div>
+                <button 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onClick();
+                    }}
+                    className={`p-1.5 rounded-full border shadow-md ${
+                        isSelected
+                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-500 shadow-blue-900/30'
+                            : 'bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]'
+                    }`}
+                    title={isSelected ? "Remove from context" : "Add to chat context"}
+                >
+                    {isSelected ? <Check size={14} /> : <Plus size={14} />}
+                </button>
             </div>
         </div>
     );
@@ -104,7 +124,9 @@ export default function OntologyBar() {
 
     const { datasets } = useDatasets();
     const automations: Automation[] = [];
-    const { analysises } = useAnalysis();
+    const { analysisJobResults } = useAnalysis();
+    console.log(analysisJobResults);
+
 
     const filteredAutomations = useMemo(() => 
         datasetsInContext.timeSeries.length > 0
@@ -124,14 +146,23 @@ export default function OntologyBar() {
         }
     };
 
+
     const isDatasetInContext = (datasetId: string) => 
         datasetsInContext.timeSeries.some((dataset: TimeSeriesDataset) => dataset.id === datasetId);
 
+    const handleAnalysisToggle = (analysis: AnalysisJobResultMetadata) => {
+        const isActive = analysisesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId);
+        if (isActive) {
+            removeAnalysisFromContext(analysis);
+        } else {
+            addAnalysisToContext(analysis);
+        }
+    };
 
     return (
         <div className="relative flex pt-12 h-screen">
             {/* Main Bar with Datasets */}
-            <div className="w-[20%] min-w-[300px] bg-gray-950 border-r border-[#101827] text-white p-4 flex flex-col">
+            <div className="w-[300px] bg-gray-950 border-r border-[#101827] text-white p-4 flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-sm font-mono uppercase tracking-wider text-[#6b89c0]">Datasets</h2>
                     <div className="flex gap-2">
@@ -186,21 +217,21 @@ export default function OntologyBar() {
                     <h2 className="text-sm font-mono uppercase tracking-wider text-purple-300 mb-4">Analysis</h2>
                     
                     <div className="space-y-2 flex-grow overflow-y-auto">
-                        {analysises?.length === 0 && (
+                        {analysisJobResults?.analysisJobResults.length === 0 && (    
                             <div className="p-3 rounded-lg mb-3">
                                 <p className="text-xs text-zinc-400">
                                     No analysis found. 
                                 </p>
                             </div>
                         )}
-                        {analysises?.map((analysis) => (
-                            <AnalysisItem 
-                                key={analysis.id}
+                        {analysisJobResults?.analysisJobResults.map((analysis: AnalysisJobResultMetadata) => (
+                            <AnalysisItem
+                                key={analysis.jobId}
                                 analysis={analysis}
-                                isSelected={analysisesInContext.some((a: Analysis) => a.id === analysis.id)}
+                                isSelected={analysisesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId)}
+                                onClick={() => handleAnalysisToggle(analysis)}
                             />
                         ))}
-                        
                     </div>
                 </div>
             )}

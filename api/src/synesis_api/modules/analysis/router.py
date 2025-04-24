@@ -2,62 +2,84 @@ import uuid
 from typing import Annotated, List
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
-from synesis_api.modules.analysis.schema import EDAJobResult
-from synesis_api.auth.service import (create_api_key,
-                                      get_current_user,
-                                      user_owns_job)
-
-from synesis_api.modules.analysis.service import (
+from .schema import AnalysisJobResultMetadata, AnalysisJobResultMetadataList, AnalysisPlannerRequest
+from ...auth.service import (create_api_key,
+                             get_current_user,
+                             user_owns_job)
+from .service import (
     # run_analysis_execution_job,
     run_analysis_planner_job,
-    get_job_results,
+    get_analysis_job_results_from_db,
     get_user_analysis_metadata,
-    create_pdf_from_results,
-    test_task
+    create_pdf_from_results
 )
-from synesis_api.modules.jobs.service import create_job, get_job_metadata
-from synesis_api.modules.jobs.schema import JobMetadata
-from synesis_api.auth.schema import User
-from synesis_api.modules.ontology.service import get_user_time_series_dataset_by_id
+from ..jobs.service import create_job, get_job_metadata, update_job_status
+from ..jobs.schema import JobMetadata
+from ...auth.schema import User
+from ..ontology.service import get_user_datasets_by_ids
 
 router = APIRouter()
 
 # TODO: Implement caching for datasets and automations
 
-@router.post("/run-analysis-planner", response_model=AnalysisPlan)
+@router.post("/run-analysis-planner", response_model=JobMetadata)
 async def run_analysis_planner(
     analysis_planner_request: AnalysisPlannerRequest,
     user: Annotated[User, Depends(get_current_user)] = None,
-) -> AnalysisPlan:
-    print(analysis_planner_request)
-    if len(analysis_planner_request.time_series) == 0 and len(analysis_planner_request.tabular) == 0:
+) -> JobMetadata:
+    if len(analysis_planner_request.dataset_ids) == 0 and len(analysis_planner_request.automation_ids) == 0:
         raise HTTPException(
-            status_code=400, detail="At least one dataset is required.")
+            status_code=400, detail="At least one dataset or automationis required.")
     
     # if len(automations) == 0:
     #     problem_description = "No problem description provided."
 
-    try:
-        api_key = await create_api_key(user)
-        analysis_job = await create_job(user.id, api_key.id, "analysis")
+    # Get datasets and automations from database
+    try: 
+        datasets = await get_user_datasets_by_ids(user.id, analysis_planner_request.dataset_ids)
     except:
         raise HTTPException(
-            status_code=500, detail="Failed to create analysis job.")
-    
+            status_code=500, detail="Failed to get datasets.")
+
+    # TODO: Get automations from database
 
     data_dir = Path("integrated_data") / f"{user.id}"
-    data_paths = [data_dir / f"{dataset.id}.csv" for dataset in analysis_planner_request.time_series]
+    data_paths = [data_dir / f"{dataset_id}.csv" for dataset_id in analysis_planner_request.dataset_ids]
     problem_description = "" # should come from Automation
-    data_type = "time_series"
 
-    return await run_analysis_planner_job.kiq(
-        analysis_job.id,
-        # data_paths,
-        analysis_planner_request.time_series,
-        # automations
-        problem_description,
-        analysis_planner_request.prompt,
-    )
+    if analysis_planner_request.job_id is None and analysis_planner_request.prompt is None:
+        raise HTTPException(
+            status_code=400, detail="You need to provide a desired change.")
+    
+    if analysis_planner_request.job_id is None:
+        try:
+            api_key = await create_api_key(user)
+            analysis_job = await create_job(user.id, api_key.id, "analysis")
+            prev_job_results = None
+        except:
+            raise HTTPException(
+                status_code=500, detail="Failed to create analysis job.")
+    else:
+        analysis_job = await get_job_metadata(analysis_planner_request.job_id)
+        prev_job_results = await get_analysis_job_results(analysis_planner_request.job_id, user)
+        await update_job_status(analysis_planner_request.job_id, "running")
+    
+
+    try:
+        job_results = await run_analysis_planner_job.kiq(
+            analysis_job.id,
+            user.id,
+            datasets.time_series,
+            problem_description,
+            analysis_planner_request.prompt,
+            prev_job_results
+        )
+    except:
+        await update_job_status(analysis_job.id, "failed")
+        raise HTTPException(
+            status_code=500, detail="Failed to run analysis planner.")
+    
+    return analysis_job 
 
 # @router.post("/call-analysis-agent", response_model=JobMetadata)
 # async def call_analysis_agent(
@@ -115,11 +137,17 @@ async def get_analysis_job_results(
 
     job_metadata = await get_job_metadata(job_id)
     if job_metadata.status == "completed":
-        return await get_job_results(job_id)
+        return await get_analysis_job_results_from_db(job_id)
 
     else:
         raise HTTPException(
             status_code=500, detail="Analysis job is still running")
+    
+@router.get("/analysis-job-results", response_model=AnalysisJobResultMetadataList)
+async def get_analysis_job_results_list(
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> AnalysisJobResultMetadataList:
+    return await get_user_analysis_metadata(user.id)
 
 
 @router.post("/create-analysis-pdf/{job_id}", response_model=AnalysisJobResultMetadata)
@@ -132,8 +160,9 @@ async def create_analysis_pdf(
             status_code=403, detail="You do not have permission to access this job")
     
     job_metadata = await get_job_metadata(job_id)
+    
     if job_metadata.status == "completed":
-        job_results = await get_job_results(job_id)
+        job_results = await get_analysis_job_results_from_db(job_id)
         await create_pdf_from_results(job_results, job_id)
     else:
         raise HTTPException(
