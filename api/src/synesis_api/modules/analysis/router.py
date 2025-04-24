@@ -5,13 +5,13 @@ from typing import Annotated, List
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from ...redis import get_redis
+from synesis_api.redis import get_redis
 import redis
-from .schema import AnalysisJobResultMetadata, AnalysisJobResultMetadataList, AnalysisRequest, AnalysisJobResult
-from ...auth.service import (create_api_key,
+from synesis_api.modules.analysis.schema import AnalysisJobResultMetadata, AnalysisJobResultMetadataList, AnalysisRequest, AnalysisJobResult
+from synesis_api.auth.service import (create_api_key,
                              get_current_user,
                              user_owns_job)
-from .service import (
+from synesis_api.modules.analysis.service import (
     get_analysis_job_results_from_db,
     get_user_analysis_metadata,
     create_pdf_from_results,

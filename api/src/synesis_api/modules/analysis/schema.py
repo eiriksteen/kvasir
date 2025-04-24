@@ -1,8 +1,8 @@
 from uuid import UUID
 from datetime import datetime
 from typing import List, Literal
-from ...base_schema import BaseSchema
-from ...auth.schema import User
+from synesis_api.base_schema import BaseSchema
+from synesis_api.auth.schema import User
 from pydantic_ai.messages import ModelMessage
 from datetime import timezone
 
