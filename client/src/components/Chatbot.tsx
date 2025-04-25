@@ -206,11 +206,11 @@ function Chat({ conversationId }: ChatProps) {
                         <X size={12} />
                       </button>
                     </div>
-                  ))
-                ) : ( <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select analyses from the left panel</h3>
-                )}
-              </div>
+                  ))}
+                </>
+              )}
             </div>
+          </div>
 
           {/* Quick action buttons */}
           <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
