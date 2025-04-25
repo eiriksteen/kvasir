@@ -40,6 +40,6 @@ class AnalysisJobResultMetadataList(BaseSchema):
 
 class AnalysisPlannerRequest(BaseSchema):
     job_id: UUID | None = None
-    dataset_ids: List[UUID]
-    automation_ids: List[UUID]
+    dataset_ids: List[UUID] = []
+    automation_ids: List[UUID] = []
     prompt: str | None = "Make a detailed analysis plan."

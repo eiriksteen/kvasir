@@ -242,7 +242,7 @@ export async function fetchConversations(token: string): Promise<Conversation[]>
   return data;
 }
 
-export async function postChatContextUpdate(token: string, conversationId: string, datasetIds: string[], automationIds: string[], analysisIds: string[]): Promise<string> {
+export async function postChatContextUpdate(token: string, conversationId: string, datasetIds: string[], automationIds: string[], analysisIds: string[], remove: boolean = false): Promise<string> {
   const response = await fetch(`${API_URL}/chat/context`, {
     method: 'POST',
     headers: {
@@ -253,7 +253,8 @@ export async function postChatContextUpdate(token: string, conversationId: strin
       "conversation_id": conversationId,
       "dataset_ids": datasetIds,
       "automation_ids": automationIds,
-      "analysis_ids": analysisIds
+      "analysis_ids": analysisIds,
+      "remove": remove
     })
   });
 

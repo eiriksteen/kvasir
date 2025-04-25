@@ -27,9 +27,11 @@ async def run_analysis_planner(
     analysis_planner_request: AnalysisPlannerRequest,
     user: Annotated[User, Depends(get_current_user)] = None,
 ) -> JobMetadata:
+    print("hei")
+    print(analysis_planner_request)
     if len(analysis_planner_request.dataset_ids) == 0 and len(analysis_planner_request.automation_ids) == 0:
         raise HTTPException(
-            status_code=400, detail="At least one dataset or automationis required.")
+            status_code=400, detail="At least one dataset or automation is required.")
     
     # if len(automations) == 0:
     #     problem_description = "No problem description provided."

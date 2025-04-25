@@ -44,7 +44,8 @@ export const useAgentContext = () => {
         currentConversationID || "",
         [arg.id],
         [],
-        []
+        [],
+        true
       );
       return arg;
     },
@@ -84,7 +85,8 @@ export const useAgentContext = () => {
         currentConversationID || "",
         [],
         [arg.id],
-        []
+        [],
+        true
       );
       return arg;
     },
@@ -129,7 +131,8 @@ export const useAgentContext = () => {
         currentConversationID || "",
         [],
         [],
-        [arg.jobId]
+        [arg.jobId],
+        true
       );
       return arg;
     },

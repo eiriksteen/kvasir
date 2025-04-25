@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Table, Column, String, DateTime, func, ForeignKey
+from sqlalchemy import Table, Column, String, DateTime, func, ForeignKey, PrimaryKeyConstraint
 from sqlalchemy.dialects.postgresql import UUID, BYTEA
 from synesis_api.database.core import metadata
 
@@ -59,6 +59,7 @@ dataset_context = Table(
            ForeignKey("chat.context.id"), nullable=False),
     Column("dataset_id", UUID(as_uuid=True),
            ForeignKey("ontology.dataset.id"), nullable=False),
+    PrimaryKeyConstraint("context_id", "dataset_id"),
     schema="chat"
 )
 
@@ -69,5 +70,17 @@ automation_context = Table(
            ForeignKey("chat.context.id"), nullable=False),
     Column("automation_id", UUID(as_uuid=True),
            ForeignKey("automation.automation.id"), nullable=False),
+    PrimaryKeyConstraint("context_id", "automation_id"),
+    schema="chat"
+)
+
+analysis_context = Table(
+    "analysis_context",
+    metadata,
+    Column("context_id", UUID(as_uuid=True),
+           ForeignKey("chat.context.id"), nullable=False),
+    Column("analysis_id", UUID(as_uuid=True),
+           ForeignKey("analysis.analysis_jobs_results.job_id"), nullable=False),
+    PrimaryKeyConstraint("context_id", "analysis_id"),
     schema="chat"
 )

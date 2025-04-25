@@ -54,7 +54,18 @@ async def post_chat(
     async def stream_messages():
         messages = await get_messages_pydantic(conversation_id)
 
-        async with chatbot_agent.run_stream(prompt.content, message_history=messages) as result:
+        context = await get_context_by_time_stamp(conversation_id, user.id, datetime.now())
+        print("Here we print the context")
+        print(context)
+
+        context_deps = ContextDeps(
+            user=user,
+            **context.model_dump()
+        )
+
+        print(context_deps)
+
+        async with chatbot_agent.run_stream(prompt.content, message_history=messages, deps=context_deps) as result:
             prev_text = ""
             async for text in result.stream(debounce_by=0.01):
                 if text != prev_text:
@@ -106,41 +117,66 @@ async def get_context(conversation_id: uuid.UUID, user: Annotated[User, Depends(
 @router.post("/context")
 async def update_context(
         context: ContextCreate,
-        append: bool = True,
         user: Annotated[User, Depends(get_current_user)] = None) -> ContextCreate:
+    
+    print("Context sent from client: ", context)
 
     if not await user_owns_conversation(user.id, context.conversation_id):
         raise HTTPException(
             status_code=403, detail="You do not have access to this conversation")
 
-    if append:
-        current_context = await get_context_by_time_stamp(context.conversation_id, user.id, datetime.now())
+    current_context = await get_context_by_time_stamp(context.conversation_id, user.id, datetime.now())
+    
+    if context.remove:
+        # When removing, we need to get the current context and remove the specified IDs
+        if current_context is None:
+            return context  # Nothing to remove if no current context
+            
+        # Start with all current IDs
+        new_dataset_ids = [id for id in current_context.dataset_ids]
+        new_analysis_ids = [id for id in current_context.analysis_ids]
+        
+        # Remove the specified IDs
+        new_dataset_ids = [id for id in new_dataset_ids if id not in context.dataset_ids]
+        new_analysis_ids = [id for id in new_analysis_ids if id not in context.analysis_ids]
+    elif context.append:
+        # When appending, combine new IDs with existing ones
         new_dataset_ids = [id for id in context.dataset_ids]
+        new_analysis_ids = [id for id in context.analysis_ids]
         if current_context is not None:
             new_dataset_ids += [id for id in current_context.dataset_ids]
-        # [a.id for a in context.automation_ids] + current_context.automation_ids
-        new_automation_ids = []
+            new_analysis_ids += [id for id in current_context.analysis_ids]
     else:
+        # When not appending and not removing, use only the new IDs
         new_dataset_ids = [id for id in context.dataset_ids]
-        new_automation_ids = []  # [a.id for a in context.automation_ids]
+        new_analysis_ids = [id for id in context.analysis_ids]
+
+    # Remove duplicates while preserving order
+    new_dataset_ids = list(dict.fromkeys(new_dataset_ids))
+    new_analysis_ids = list(dict.fromkeys(new_analysis_ids))
 
     datasets = await get_user_datasets_by_ids(user.id, new_dataset_ids)
     automations = []
+    analyses = await get_user_analyses_by_ids(user.id, new_analysis_ids)
 
     updated_context = SystemPromptPart(
         content=f"""
         <CONTEXT UPDATES>
         Current datasets in context: {datasets}
         Current automations in context: {automations}
+        Current analyses in context: {analyses}
         </CONTEXT UPDATES>
         """
     )
+
+    print("Print new analysis ids: ", new_analysis_ids)
+    print("Print new dataset ids: ", new_dataset_ids)
 
     new_messages = [ModelRequest(parts=[updated_context])]
     messages_bytes = json.dumps(
         to_jsonable_python(new_messages)).encode("utf-8")
 
-    await create_context(user.id, context.conversation_id, new_dataset_ids, new_automation_ids)
-    await create_messages_pydantic(context.conversation_id, messages_bytes)
+    await insert_context(user.id, context.conversation_id, new_dataset_ids, context.automation_ids, new_analysis_ids)
+    await insert_message_pydantic(context.conversation_id, messages_bytes)
 
     return context

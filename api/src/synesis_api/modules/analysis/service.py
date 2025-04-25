@@ -329,3 +329,10 @@ async def get_analysis_job_results_from_db(job_id: uuid.UUID) -> AnalysisJobResu
         )
 
     return AnalysisJobResultMetadataInDB(**result)
+
+
+async def get_user_analyses_by_ids(user_id: uuid.UUID, analysis_ids: List[uuid.UUID]) -> AnalysisJobResultMetadataList:
+    data = await fetch_all(
+        select(analysis_jobs_results).where(analysis_jobs_results.c.user_id == user_id, analysis_jobs_results.c.job_id.in_(analysis_ids))
+    )
+    return [AnalysisJobResultMetadataInDB(**d) for d in data]

@@ -4,7 +4,7 @@ from synesis_api.base_schema import BaseSchema
 from synesis_api.modules.ontology.schema import Datasets
 from synesis_api.modules.automation.schema import Automations
 import uuid
-
+from ...auth.schema import User
 
 class ChatbotOutput(BaseSchema):
     goal_description: str
@@ -40,6 +40,9 @@ class ContextCreate(BaseSchema):
     conversation_id: uuid.UUID
     dataset_ids: List[uuid.UUID] = []
     automation_ids: List[uuid.UUID] = []
+    analysis_ids: List[uuid.UUID] = []
+    append: bool = True
+    remove: bool = False
 
 
 class Context(BaseSchema):
@@ -48,7 +51,10 @@ class Context(BaseSchema):
     created_at: datetime = datetime.now(timezone.utc)
     dataset_ids: List[uuid.UUID] = []
     automation_ids: List[uuid.UUID] = []
+    analysis_ids: List[uuid.UUID] = []
 
+class ContextDeps(Context):
+    user: User
 
 class ContextInDB(BaseSchema):
     id: uuid.UUID
@@ -64,3 +70,7 @@ class DatasetContextInDB(BaseSchema):
 class AutomationContextInDB(BaseSchema):
     context_id: uuid.UUID
     automation_id: uuid.UUID
+
+class AnalysisContextInDB(BaseSchema):
+    context_id: uuid.UUID
+    analysis_id: uuid.UUID
