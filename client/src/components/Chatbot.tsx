@@ -175,19 +175,23 @@ function Chat({ conversationId }: ChatProps) {
 
       {!isCollapsed && (
         <>
-          
-          {/* Dataset context panel - only shown when datasets are available */}
-            <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-sm pl-1 pt-1 font-medium text-purple-300">Selected Datasets</h3>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {datasetsInContext.timeSeries.length > 0 ? (
-                  datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => (
+          {/* Combined context bar */}
+          <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm pl-1 pt-1 font-medium text-purple-300">Context</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {datasetsInContext.length === 0 && analysisesInContext.length === 0 ? (
+                <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select items from the left panel</h3>
+              ) : (
+                <>
+                  {/* Datasets */}
+                  {datasetsInContext.map((dataset: TimeSeriesDataset) => (
                     <div 
                       key={dataset.id}
                       className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-blue-900/30 text-blue-300"
                     >
+                      <Database size={12} />
                       {dataset.name}
                       <button 
                         onClick={() => removeDatasetFromContext(dataset)}
@@ -196,20 +200,10 @@ function Chat({ conversationId }: ChatProps) {
                         <X size={12} />
                       </button>
                     </div>
-                  ))
-                ) : ( <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select datasets from the left panel</h3>
-                )}
-              </div>
-            </div>
-
-            {/* Analysis context panel */}
-            <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-sm pl-1 pt-1 font-medium text-purple-300">Selected Analyses</h3>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {analysisesInContext.length > 0 ? (
-                  analysisesInContext.map((analysis: AnalysisJobResultMetadata) => (
+                  ))}
+                  
+                  {/* Analyses */}
+                  {analysisesInContext.map((analysis: AnalysisJobResultMetadata) => (
                     <div 
                       key={analysis.jobId}
                       className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-purple-900/30 text-purple-300"
@@ -223,11 +217,11 @@ function Chat({ conversationId }: ChatProps) {
                         <X size={12} />
                       </button>
                     </div>
-                  ))
-                ) : ( <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select analyses from the left panel</h3>
-                )}
-              </div>
+                  ))}
+                </>
+              )}
             </div>
+          </div>
 
           {/* Quick action buttons */}
           <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">

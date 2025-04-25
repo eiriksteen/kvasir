@@ -336,3 +336,10 @@ async def get_user_analyses_by_ids(user_id: uuid.UUID, analysis_ids: List[uuid.U
         select(analysis_jobs_results).where(analysis_jobs_results.c.user_id == user_id, analysis_jobs_results.c.job_id.in_(analysis_ids))
     )
     return [AnalysisJobResultMetadataInDB(**d) for d in data]
+
+async def get_dataset_ids_by_job_id(job_id: uuid.UUID) -> List[uuid.UUID]:
+    dataset_mappings = await fetch_all(
+        select(analysis_jobs_datasets).where(analysis_jobs_datasets.c.job_id == job_id)
+    )
+    
+    return [mapping["dataset_id"] for mapping in dataset_mappings]

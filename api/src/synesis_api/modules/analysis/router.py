@@ -11,7 +11,8 @@ from .service import (
     run_analysis_planner_job,
     get_analysis_job_results_from_db,
     get_user_analysis_metadata,
-    create_pdf_from_results
+    create_pdf_from_results,
+    get_dataset_ids_by_job_id
 )
 from ..jobs.service import create_job, get_job_metadata, update_job_status
 from ..jobs.schema import JobMetadata
@@ -20,15 +21,33 @@ from ..ontology.service import get_user_datasets_by_ids
 
 router = APIRouter()
 
-# TODO: Implement caching for datasets and automations
-
 @router.post("/run-analysis-planner", response_model=JobMetadata)
 async def run_analysis_planner(
     analysis_planner_request: AnalysisPlannerRequest,
     user: Annotated[User, Depends(get_current_user)] = None,
 ) -> JobMetadata:
-    print("hei")
-    print(analysis_planner_request)
+    
+    if analysis_planner_request.job_id is None and analysis_planner_request.prompt is None:
+        raise HTTPException(
+            status_code=400, detail="You need to provide a desired change.")
+
+    if analysis_planner_request.job_id is None:
+        try:
+            api_key = await create_api_key(user)
+            analysis_job = await create_job(user.id, api_key.id, "analysis")
+            prev_job_results = None
+        except:
+            raise HTTPException(
+                status_code=500, detail="Failed to create analysis job.")
+    else:
+        analysis_job = await get_job_metadata(analysis_planner_request.job_id)
+        prev_job_results = await get_analysis_job_results(analysis_planner_request.job_id, user)
+        dataset_ids = await get_dataset_ids_by_job_id(analysis_planner_request.job_id)
+        # automation_ids = await get_automation_by_job_id(analysis_planner_request.job_id)
+        analysis_planner_request.dataset_ids = dataset_ids
+        # analysis_planner_request.automation_ids = automation_ids
+        await update_job_status(analysis_planner_request.job_id, "running")
+        
     if len(analysis_planner_request.dataset_ids) == 0 and len(analysis_planner_request.automation_ids) == 0:
         raise HTTPException(
             status_code=400, detail="At least one dataset or automation is required.")
@@ -49,24 +68,7 @@ async def run_analysis_planner(
     data_paths = [data_dir / f"{dataset_id}.csv" for dataset_id in analysis_planner_request.dataset_ids]
     problem_description = "" # should come from Automation
 
-    if analysis_planner_request.job_id is None and analysis_planner_request.prompt is None:
-        raise HTTPException(
-            status_code=400, detail="You need to provide a desired change.")
     
-    if analysis_planner_request.job_id is None:
-        try:
-            api_key = await create_api_key(user)
-            analysis_job = await create_job(user.id, api_key.id, "analysis")
-            prev_job_results = None
-        except:
-            raise HTTPException(
-                status_code=500, detail="Failed to create analysis job.")
-    else:
-        analysis_job = await get_job_metadata(analysis_planner_request.job_id)
-        prev_job_results = await get_analysis_job_results(analysis_planner_request.job_id, user)
-        await update_job_status(analysis_planner_request.job_id, "running")
-    
-
     try:
         job_results = await run_analysis_planner_job.kiq(
             analysis_job.id,
