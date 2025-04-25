@@ -150,6 +150,8 @@ async def get_context(conversation_id: uuid.UUID, user: Annotated[User, Depends(
 async def update_context(
         context: ContextCreate,
         user: Annotated[User, Depends(get_current_user)] = None) -> ContextCreate:
+    
+    print("Context sent from client: ", context)
 
 
     if not await user_owns_conversation(user.id, context.conversation_id):
@@ -199,6 +201,9 @@ async def update_context(
         </CONTEXT UPDATES>
         """
     )
+
+    print("Print new analysis ids: ", new_analysis_ids)
+    print("Print new dataset ids: ", new_dataset_ids)
 
     new_messages = [ModelRequest(parts=[updated_context])]
     messages_bytes = json.dumps(

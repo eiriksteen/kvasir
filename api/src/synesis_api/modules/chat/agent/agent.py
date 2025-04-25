@@ -30,6 +30,20 @@ summary_agent = Agent(
     result_type=ChatbotOutput,
 )
 
+@chatbot_agent.tool
+async def run_analysis_planner_job(
+    ctx: RunContext[ContextDeps],
+    prompt: str
+) -> str:
+    analysis_planner_request = AnalysisPlannerRequest(
+        job_id=ctx.deps.analysis_ids[0], # TODO: handle multiple analysis ids
+        dataset_ids=ctx.deps.dataset_ids,
+        automation_ids=ctx.deps.automation_ids,
+        prompt=prompt
+    )
+    
+    await run_analysis_planner(analysis_planner_request, ctx.deps.user)
+    return "Analysis planner job started. The analysis will be ready soon."
 
 
 @chatbot_agent.tool_plain
