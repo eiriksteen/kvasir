@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import Literal
+from typing import Literal, AsyncGenerator
 from pathlib import Path
 from pydantic_ai import Agent, RunContext, ModelRetry, Tool
 from pydantic_ai.models.openai import OpenAIModel
@@ -112,10 +112,16 @@ class AnalysisExecutionAgent:
 
         @self.agent.system_prompt
         async def get_system_prompt(ctx: RunContext[AnalysisExecutionDeps]) -> str:
+            _, err = await copy_file_to_container(ctx.deps.data_path, target_dir="/tmp")
+
+            if err:
+                raise ValueError(f"Error copying file to container: {err}")
+
             sys_prompt = (
                 f"{ANALYSIS_EXECUTION_SYSTEM_PROMPT}\n"
                 f"Here is the analysis plan: {ctx.deps.analysis_plan}\n"
-                f"If some inputs to the tools are missing or not working here are the column names: {ctx.deps.df.column_names}\n"
+                f"If some inputs to the tools are missing or not working here are the column names: {ctx.deps.df.columns}\n"
+                f"If you crete code yourself, you can retrieve the data from the following path: /tmp/{ctx.deps.data_path.name}\n"
             )
             return sys_prompt
         
@@ -125,9 +131,9 @@ class AnalysisExecutionAgent:
             Execute a python code block.
             """
             out, err = await run_code_in_container(python_code)
-
             if err:
-                raise ModelRetry(f"Error executing code: {err}")
+                # Instead of retrying, return the error message
+                return f"Error executing code: {err}\n\nPlease fix the code and try again."
 
             return out
     
@@ -150,6 +156,46 @@ class AnalysisExecutionAgent:
                 self.logger.info(f"Analysis execution agent state: {node}")
         return agent_run.result.data
     
+            
+    async def simple_analysis_stream(
+        self,
+        dfs: List[pd.DataFrame],
+        prompt: str,
+        data_paths: List[Path],
+        message_history: List[ModelMessage]
+    ):
+        deps = AnalysisExecutionDeps(
+            df=dfs[0], # TODO: handle multiple datasets
+            data_path=data_paths[0],
+            analysis_plan=None  # Explicitly set to None for simple analysis
+        )
+
+        # TODO: I do not like this approach. We need some sort of this solution as the message history already containst
+        # a system prompt. So it will never use the get_system_prompt function.
+        system_prompt = SystemPromptPart(
+            content= f"""
+            {ANALYSIS_EXECUTION_SYSTEM_PROMPT}\n
+            Here is the analysis plan: {deps.analysis_plan}\n
+            If some inputs to the tools are missing or not working here are the column names: {deps.df.columns.tolist()}\n
+            If you crete code yourself, you can retrieve the data from the following path: /tmp/{deps.data_path.name}\n
+            """
+        )
+        model_request = ModelRequest(parts=[system_prompt])
+        message_history.append(model_request)
+
+        prompt = prompt
+        async with self.agent.run_stream(
+            prompt,
+            message_history=message_history,
+            deps=deps
+        ) as result:
+            prev_text = ""
+            async for text in result.stream(debounce_by=0.1):
+                if text != prev_text:
+                    yield text
+                    prev_text = text
+
+            yield result
     
     
     

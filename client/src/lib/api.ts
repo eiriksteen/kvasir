@@ -52,7 +52,7 @@ export async function postIntegrationJob(token: string, files: File[], descripti
   return data;
 }
 
-export async function postAnalysisPlanner(token: string, datasets: Datasets): Promise<Job> { // TODO: add automations 
+export async function postAnalysisPlanner(token: string, datasetIds: string[], automationIds: string[], prompt: string | null = null): Promise<Job> { // TODO: add automations 
   const response = await fetch(`${API_URL}/analysis/run-analysis-planner`, {
     method: 'POST',
     headers: {
@@ -60,7 +60,9 @@ export async function postAnalysisPlanner(token: string, datasets: Datasets): Pr
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      "time_series": datasets
+      "dataset_ids": datasetIds,
+      "automation_ids": automationIds,
+      "prompt": prompt
     })
   });
   

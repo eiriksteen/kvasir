@@ -2,17 +2,10 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import select
 from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
-<<<<<<< HEAD
 from synesis_api.modules.chat.schema import ChatMessage, PydanticMessage, Conversation, Context, Datasets, ContextInDB, DatasetContextInDB, AutomationContextInDB
 from synesis_api.modules.chat.models import chat_message, pydantic_message, conversations, context, dataset_context, automation_context
 from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.ontology.service import get_user_datasets_by_ids
-=======
-from .schema import ChatMessage, PydanticMessage, Conversation, Context, Datasets, ContextInDB, DatasetContextInDB, AutomationContextInDB, AnalysisContextInDB
-from .models import chat_messages, pydantic_messages, conversations, context, dataset_context, automation_context, analysis_context
-from ...database.service import fetch_all, execute, fetch_one
-from ..ontology.service import get_user_datasets_by_ids
->>>>>>> 6574354 (added chat functionality for analysis. Fixed context route)
 
 
 async def create_conversation(user_id: uuid.UUID) -> Conversation:

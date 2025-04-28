@@ -26,8 +26,7 @@ class AnalysisJobResultMetadataInDB(AnalysisJobResultMetadata):
     user_id: UUID
 
 
-class AnalysisJobResult(BaseModel):
-    job_id: UUID
+class AnalysisJobResult(BaseSchema):
     analysis: str | None = None
     python_code: str | None = None
 

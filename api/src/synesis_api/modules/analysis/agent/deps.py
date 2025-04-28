@@ -17,5 +17,6 @@ class AnalysisPlannerDeps:
 @dataclass
 class AnalysisExecutionDeps:
     df: pd.DataFrame
-    analysis_plan: AnalysisPlan
+    data_path: Path
+    analysis_plan: AnalysisPlan | None = None
 

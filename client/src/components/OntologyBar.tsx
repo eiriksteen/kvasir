@@ -125,7 +125,6 @@ export default function OntologyBar() {
     const { datasets } = useDatasets();
     const automations: Automation[] = [];
     const { analysisJobResults } = useAnalysis();
-    console.log(analysisJobResults);
 
 
     const filteredAutomations = useMemo(() => 

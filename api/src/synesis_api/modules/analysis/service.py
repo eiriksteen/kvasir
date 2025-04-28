@@ -1,5 +1,4 @@
 import uuid
-import asyncio
 import aiofiles
 import pandas as pd
 from io import StringIO
@@ -25,6 +24,7 @@ logger = get_task_logger(__name__)
 dataset_cache: Dict[str, pd.DataFrame] = {}
 
 analysis_planner_agent = AnalysisPlannerAgent()
+analysis_execution_agent = AnalysisExecutionAgent(eda_cs_tools)
 
 async def load_dataset_from_cache_or_disk(dataset_id: uuid.UUID, user_id: uuid.UUID) -> pd.DataFrame:
     """Load dataset from cache if available, otherwise load from disk and cache it."""
@@ -147,51 +147,6 @@ async def run_analysis_planner(
             detail=f"Error inserting analysis plan into DB: {str(e)}"
         )
 
-    
-        
-
-async def edit_analysis_planner(
-    job_id: uuid.UUID,
-    user_id: uuid.UUID,
-    datasets: List[Dataset],
-    # automations: List[Automation],
-    problem_description: str,
-    prompt: str,
-    analysis_job_result: AnalysisJobResultMetadataInDB | None = None,
-) -> AnalysisJobResultMetadataInDB:
-    dfs = [] # we should store column names in the dataset object
-    try:
-        logger.info(f"Start loading datasets")
-        for dataset in datasets:
-            df = await load_dataset_from_cache_or_disk(dataset.id, dataset.user_id)
-            dfs.append(df)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error loading datasets: {str(e)}"
-        )
-    
-    try: 
-        logger.info(f"Start running analysis planner")
-        if analysis_job_result is not None:
-            prompt = "The user's feedback: " + prompt + "Change the analysis plan to reflect these wishes."
-        response = await analysis_planner_agent.run_analysis_planner(
-            dfs,
-            problem_description,
-            datasets,
-            eda_cs_tools_str,
-            prompt
-        )
-
-        logger.info(f"Analysis planner completed")
-        logger.info(response)
-        analysis_plan = AnalysisPlan(**response.model_dump())
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error running analysis planner: {str(e)}"
-        )
-
 
 async def run_analysis_execution(
         job_id: uuid.UUID,
@@ -271,6 +226,42 @@ async def run_analysis_execution(
     #     raise e
 
     # return output_in_db
+
+async def run_simple_analysis_job(
+    datasets: List[Dataset],    
+    prompt: str,
+    data_paths: List[Path],
+    message_history: List[ModelMessage]
+):
+    dfs = [] # we should store column names in the dataset object
+    yield "Loading datasets and checking cache..."
+    try:
+        logger.info(f"Start loading datasets")
+        for dataset in datasets:
+            df = await load_dataset_from_cache_or_disk(dataset.id, dataset.user_id)
+            dfs.append(df)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error loading datasets: {str(e)}"
+        )
+    
+    try:
+        logger.info(f"Start running simple analysis")
+        yield "Running analysis..."
+        async for progress in analysis_execution_agent.simple_analysis_stream(
+            dfs,
+            prompt,
+            data_paths,
+            message_history
+        ):
+            yield progress
+        logger.info(f"Simple analysis completed")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error running simple analysis: {str(e)}"
+        )
 
 
 @broker.task

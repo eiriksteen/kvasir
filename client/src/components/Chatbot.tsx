@@ -84,6 +84,7 @@ function Chat({ conversationId }: ChatProps) {
   };
 
   const initializeAnalysis = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    console.log(datasetsInContext);
     e.preventDefault();
     try {
       const plan = await createAnalysisPlanner();

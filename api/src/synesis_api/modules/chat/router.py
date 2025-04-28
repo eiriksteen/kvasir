@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from typing import Annotated, List
+from typing import Annotated, List, Literal
 from pydantic_core import to_jsonable_python
 from pydantic_ai.messages import ModelRequest, SystemPromptPart
 from synesis_api.modules.ontology.service import get_user_datasets_by_ids
@@ -23,6 +23,14 @@ from synesis_api.auth.service import get_current_user, user_owns_conversation
 from synesis_api.auth.schema import User
 
 
+from synesis_api.modules.chat.agent.agent import chatbot_agent
+from synesis_api.auth.service import get_current_user, user_owns_conversation
+from synesis_api.auth.schema import User
+from synesis_api.modules.ontology.schema import Dataset
+from synesis_api.modules.analysis.service import get_user_analyses_by_ids
+from synesis_api.modules.orchestrator.agent.agent import orchestrator_agent
+from synesis_api.modules.analysis.router import run_simple_analysis
+from synesis_api.modules.analysis.schema import AnalysisPlannerRequest, AnalysisJobResult
 router = APIRouter()
 
 @router.post("/completions/analysis-planner/{conversation_id}")
@@ -50,29 +58,45 @@ async def post_chat(
     if not await user_owns_conversation(user.id, conversation_id):
         raise HTTPException(
             status_code=403, detail="You do not have access to this conversation")
+    
 
     async def stream_messages():
         messages = await get_messages_pydantic(conversation_id)
+        orchestrator_output = await orchestrator_agent.run(prompt.content, message_history=messages)
+        handoff_agent = orchestrator_output.data.handoff_agent
+    
+        if handoff_agent == "chat":
+            async with chatbot_agent.run_stream(prompt.content, message_history=messages) as result:
+                prev_text = ""
+                async for text in result.stream(debounce_by=0.01):
+                    if text != prev_text:
+                        yield text
+                        prev_text = text
+        elif handoff_agent == "analysis" or handoff_agent == "automation":
+            context = await get_context_by_time_stamp(conversation_id, user.id, datetime.now())
 
-        context = await get_context_by_time_stamp(conversation_id, user.id, datetime.now())
-        print("Here we print the context")
-        print(context)
-
-        context_deps = ContextDeps(
-            user=user,
-            **context.model_dump()
-        )
-
-        print(context_deps)
-
-        async with chatbot_agent.run_stream(prompt.content, message_history=messages, deps=context_deps) as result:
-            prev_text = ""
-            async for text in result.stream(debounce_by=0.01):
-                if text != prev_text:
-                    yield text
-                    prev_text = text
-
-            await create_messages_pydantic(conversation_id, result.new_messages_json())
+            context_deps = ContextDeps(
+                user=user,
+                **context.model_dump()
+            )
+            analysis_planner_request = AnalysisPlannerRequest(
+                dataset_ids=context_deps.dataset_ids,
+                automation_ids=context_deps.automation_ids,
+                prompt=prompt.content
+            )
+            async for progress in run_simple_analysis(analysis_planner_request, context_deps.user, message_history=messages):
+                if isinstance(progress, AnalysisJobResult):
+                    yield progress.analysis + "\n\n"
+                    text = progress.analysis
+                    if progress.python_code is not None:
+                        yield "The python code that was executed:" + "\n\n"
+                        yield progress.python_code
+                elif isinstance(progress, StreamedRunResult):
+                    result = progress
+                    break
+                else:
+                    yield progress + "\n\n"
+        await insert_message_pydantic(conversation_id, result.new_messages_json())
 
         await create_message(conversation_id, "user", prompt.content)
         await create_message(conversation_id, "assistant", text)
@@ -118,8 +142,7 @@ async def get_context(conversation_id: uuid.UUID, user: Annotated[User, Depends(
 async def update_context(
         context: ContextCreate,
         user: Annotated[User, Depends(get_current_user)] = None) -> ContextCreate:
-    
-    print("Context sent from client: ", context)
+
 
     if not await user_owns_conversation(user.id, context.conversation_id):
         raise HTTPException(
@@ -168,9 +191,6 @@ async def update_context(
         </CONTEXT UPDATES>
         """
     )
-
-    print("Print new analysis ids: ", new_analysis_ids)
-    print("Print new dataset ids: ", new_dataset_ids)
 
     new_messages = [ModelRequest(parts=[updated_context])]
     messages_bytes = json.dumps(
