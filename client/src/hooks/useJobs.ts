@@ -1,58 +1,90 @@
-import { fetchJobs, fetchJobsBatch, postDataset } from "@/lib/api";
-import { AnalysisJobInput, AutomationJobInput, IntegrationJobInput, Job, JobCategory } from "@/types/jobs";
+import { fetchJobs, postIntegrationJob, createJobEventSource } from "@/lib/api";
+import { AnalysisJobInput, AutomationJobInput, IntegrationJobInput, Job } from "@/types/jobs";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
+import { SWRSubscriptionOptions } from "swr/subscription";
+import useSWRSubscription from "swr/subscription";
 
-interface JobStateResult {
-  integrationState: string;
-  analysisState: string;
-  automationState: string;
-  jobsAreRunning: boolean;
+
+type JobType = "integration" | "analysis" | "automation";
+type jobState = "running" | "failed" | "completed" | "paused" | "awaiting_approval" | "";
+
+
+const computeJobState = (jobs: {id: string, status: string}[]): jobState => {
+  if (!jobs) return "";
+  if (jobs.some(job => job.status === "running")) return "running";
+    if (jobs.some(job => job.status === "paused")) return "paused";
+  if (jobs.some(job => job.status === "awaiting_approval")) return "awaiting_approval";
+  if (jobs.some(job => job.status === "failed")) return "failed";
+  if (jobs.some(job => job.status === "completed")) return "completed";
+  return "";
 }
 
-const computeJobState = (jobs: Job[]): JobStateResult => {
-  const result: JobStateResult = {
-    integrationState: "",
-    analysisState: "",
-    automationState: "",
-    jobsAreRunning: false
-  }
+const emptyJobState: jobState = ""
 
-  if (!jobs) return result;
 
-  const getJobState = (jobs: Job[]) => {
-    if (jobs.some(job => job.status === "running")) return "running";
-    if (jobs.some(job => job.status === "failed")) return "failed";
-    if (jobs.some(job => job.status === "completed")) return "completed";
-    return "";
-  };
+export const useJobs = (jobType: JobType) => {
+  const { data: session } = useSession()
 
-  const categories: JobCategory[] = ["integration", "analysis", "automation"];
-  for (const category of categories) {
-    const categoryJobs = jobs.filter((job) => job.type === category);
-    result[`${category}State`] = getJobState(categoryJobs);
-  }
+  const { data: jobState, mutate: mutateJobState } = useSWR(["JobState", jobType], {fallbackData: emptyJobState})
 
-  result.jobsAreRunning = result.integrationState === "running" || result.analysisState === "running" || result.automationState === "running";
+  const { data: jobs, mutate: mutateJobs } = useSWR(
+    session ? ["jobs", jobType] : null, 
+    () => fetchJobs(session ? session.APIToken.accessToken : "", false, jobType), 
+    {fallbackData: [],
+      onSuccess: (jobs: Job[]) => {
+        const newJobState = computeJobState(jobs);
+        if (newJobState === "running" || newJobState === "paused" || newJobState === "awaiting_approval") {
+          mutateJobState(newJobState, {revalidate: false});
+        }
+      }
+    }
+  )
 
-  return result;
-}
+  useSWRSubscription(
+    session && jobState === "running" ? ["jobStream", jobType, jobs] : null,
+    (_, {next}: SWRSubscriptionOptions<Job[]>) => {
+      const eventSource = createJobEventSource(session ? session.APIToken.accessToken : "", jobType);
 
-const emptyJobState: JobStateResult = {
-  integrationState: "",
-  analysisState: "",
-  automationState: "",
-  jobsAreRunning: false
-}
+      eventSource.onmessage = (event) => {
+        const streamedJobs = JSON.parse(event.data);
+        next(null, () => {
 
-export const useJobs = () => {
-  const {data: session} = useSession();
-  const {data: jobs, mutate: mutateJobs, isLoading, error} = useSWR(session ? "jobs" : null, () => fetchJobs(session ? session.APIToken.accessToken : "", false));
-  const {data: jobState, mutate: mutateJobState} = useSWR(jobs ? "jobState" : null, {fallbackData: emptyJobState})
-  const {trigger: triggerJob} = useSWRMutation(session ? "jobs" : null, async (_, {arg}: {arg: IntegrationJobInput | AnalysisJobInput | AutomationJobInput}) => {
+          const jobsStopped = streamedJobs.filter((job: Job) => job.status !== "running");
+          const jobsStillRunning = streamedJobs.filter((job: Job) => job.status === "running");
+          const updatedJobs = jobs.map((job: Job) => jobsStopped.find((stoppedJob: Job) => stoppedJob.id === job.id) || job);
+
+          if (jobsStillRunning.length === 0) {
+            const newJobState = computeJobState(jobsStopped);
+            mutateJobState(newJobState, {revalidate: false});
+            if (newJobState == "completed" || newJobState == "failed") {
+              setTimeout(() => {
+                mutateJobState(emptyJobState, {revalidate: false});
+              }, 5000);
+            }
+          }
+
+          mutateJobs(updatedJobs, {revalidate: false});
+
+          // Return undefined since this is purely to update the jobs by listening to updates from the event source
+          return undefined;
+        });
+      }
+      eventSource.onerror = (event) => {
+        console.error("Job event source error", event);
+      }
+
+      return () => eventSource.close();
+    }
+  )
+
+  const {trigger: triggerJob} = useSWRMutation(
+    session ? ["jobs", jobType] : null, 
+    async (_: string[], {arg}: {arg: IntegrationJobInput | AnalysisJobInput | AutomationJobInput}) => {
+    // TODO: Implement analysis and automation job triggers
     if (arg.type === "integration") {
-      const newJob = await postDataset(
+      const newJob = await postIntegrationJob(
         session ? session.APIToken.accessToken : "", 
         arg.files, 
         arg.data_description,
@@ -63,44 +95,33 @@ export const useJobs = () => {
       }
       return [newJob];
     }
-    // TODO: Implement analysis and automation job triggers
   }, {
     onSuccess: () => {
-      mutateJobState({...jobState, jobsAreRunning: true, integrationState: "running"}, {revalidate: false});
+      mutateJobState("running", {revalidate: false});
     }
   });
 
-  const {data: runningJobs} = useSWR(jobs && jobState.jobsAreRunning ? "jobsToMonitor" : null, async () => {
-    if (!jobs) return [];
-    const runningJobIds = jobs.filter(job => job.status === "running").map(job => job.id);
-    if (runningJobIds.length === 0) return [];
-    const jobsUpdated = await fetchJobsBatch(session ? session.APIToken.accessToken : "", runningJobIds);
-    const jobsStopped = jobsUpdated.filter((job) => job.status !== "running");
-    const jobsStillRunning = jobsUpdated.filter((job) => job.status === "running");
-
-    // If there are no jobs still running, update the job state to reflect the result of the stopped jobs
-    if (jobsStillRunning.length === 0) {
-      const newJobState = computeJobState(jobsStopped);
-      mutateJobState(newJobState, {revalidate: false});
-
-      setTimeout(() => {
-        mutateJobState(emptyJobState, {revalidate: false});
-      }, 5000);
-    }
-
-    // If there are jobs that have stopped running, update the jobs list to reflect the new states
-    if (jobsStopped.length > 0) {
-      const updatedJobs = jobs.map(job => {
-        const updatedJob = jobsStopped.find(stoppedJob => stoppedJob.id === job.id);
-        return updatedJob || job;
+  const {trigger: updateJobs} = useSWRMutation(
+    session ? ["jobs", jobType] : null,
+    (_: string[], {arg}: {arg: {id: string, status: string}[]}) => {
+      // update all jobs with the IDs in arg to the jobs in arg
+      const updatedJobs = jobs.map((job: Job) => {
+        const updatedJob = arg.find((updatedJob: {id: string, status: string}) => updatedJob.id === job.id);
+        if (updatedJob) {
+          return {...job, status: updatedJob.status};
+        }
+        return job;
       });
-      mutateJobs(updatedJobs, {revalidate: false});
+      const newJobState = computeJobState(arg);
+      mutateJobState(newJobState, {revalidate: false});
+      if (newJobState !== "running" && newJobState !== "paused" && newJobState !== "awaiting_approval") {
+        setTimeout(() => {
+          mutateJobState(emptyJobState, {revalidate: false});
+        }, 5000);
+      }
+      return updatedJobs;
     }
+  );
 
-    return jobsStillRunning;
-  }, {
-    refreshInterval: 2000
-  });
-
-  return { jobs, triggerJob, isLoading, error, jobState, runningJobs };
+  return { jobs, triggerJob, updateJobs, jobState };
 };

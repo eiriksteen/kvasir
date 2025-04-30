@@ -24,7 +24,7 @@ export default async function Home() {
         />
         <TypedHeading
           strings={[
-            "State of the art AI/ML applications for all your data.",
+            "Agentic automation of big data analytics.",
           ]}
           typeSpeed={0.0001}
           loop={false}

@@ -2,12 +2,12 @@ from uuid import UUID
 from datetime import datetime
 from typing import Annotated, List
 from fastapi import APIRouter, Depends
-from .service import (
+from synesis_api.modules.data_provider.service import (
     get_time_series_data
 )
-from .schema import TimeSeriesData
-from ...auth.schema import User
-from ...auth.service import get_current_user
+from synesis_api.modules.data_provider.schema import TimeSeriesData
+from synesis_api.auth.schema import User
+from synesis_api.auth.service import get_current_user
 
 
 router = APIRouter()

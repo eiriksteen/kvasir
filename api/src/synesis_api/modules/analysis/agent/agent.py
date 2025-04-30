@@ -3,12 +3,12 @@ from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.providers.openai import OpenAIProvider
-from .tools import eda_cs_basic_tools, eda_cs_advanced_tools
-from .prompt import EDA_SYSTEM_PROMPT
-from .deps import EDADepsBasic, EDADepsAdvanced, EDADepsIndependent, EDADepsSummary
-from ....secrets import OPENAI_API_KEY, OPENAI_API_MODEL
-from ..schema import EDAResponse, EDAResponseWithCode
-from ....utils import run_code_in_container, copy_to_container
+from synesis_api.modules.analysis.agent.tools import eda_cs_basic_tools, eda_cs_advanced_tools
+from synesis_api.modules.analysis.agent.prompt import EDA_SYSTEM_PROMPT
+from synesis_api.modules.analysis.agent.deps import EDADepsBasic, EDADepsAdvanced, EDADepsIndependent, EDADepsSummary
+from synesis_api.secrets import OPENAI_API_KEY, OPENAI_API_MODEL
+from synesis_api.modules.analysis.schema import EDAResponse, EDAResponseWithCode
+from synesis_api.utils import run_code_in_container, copy_to_container
 
 provider = OpenAIProvider(api_key=OPENAI_API_KEY)
 

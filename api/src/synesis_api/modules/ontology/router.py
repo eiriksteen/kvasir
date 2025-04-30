@@ -1,14 +1,14 @@
 from uuid import UUID
 from typing import Annotated, List
 from fastapi import APIRouter, Depends
-from .service import (
+from synesis_api.modules.ontology.service import (
     get_user_time_series_datasets,
     get_user_datasets,
     get_time_series_in_dataset
 )
-from .schema import TimeSeriesDataset, Datasets, TimeSeries
-from ...auth.schema import User
-from ...auth.service import get_current_user
+from synesis_api.modules.ontology.schema import TimeSeriesDataset, Datasets, TimeSeries
+from synesis_api.auth.schema import User
+from synesis_api.auth.service import get_current_user
 
 
 router = APIRouter()
@@ -23,9 +23,10 @@ async def get_time_series_datasets(
 
 @router.get("/datasets", response_model=Datasets)
 async def get_datasets(
+    only_completed: bool = True,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> Datasets:
-    return await get_user_datasets(user.id)
+    return await get_user_datasets(user.id, only_completed)
 
 
 @router.get("/time-series/{dataset_id}", response_model=List[TimeSeries])

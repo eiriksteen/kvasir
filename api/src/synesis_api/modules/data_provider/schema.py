@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
-from ...base_schema import BaseSchema
+from synesis_api.base_schema import BaseSchema
 
 
 class TimeSeriesData(BaseSchema):

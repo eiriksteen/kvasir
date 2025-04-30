@@ -1,8 +1,10 @@
+import {EventSource} from 'eventsource'
 import { ChatMessageAPI, Conversation } from "@/types/chat";
 import { Datasets } from "@/types/datasets";
 import { Job } from "@/types/jobs";
-
+import { IntegrationAgentFeedback, IntegrationMessage } from "@/types/integration";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
 
 export async function fetchDatasets(token: string): Promise<Datasets> {
 
@@ -23,7 +25,7 @@ export async function fetchDatasets(token: string): Promise<Datasets> {
   return data;
 }
 
-export async function postDataset(token: string, files: File[], description: string, dataSource: string): Promise<Job> {
+export async function postIntegrationJob(token: string, files: File[], description: string, dataSource: string): Promise<Job> {
   const formData = new FormData();
   files.forEach(file => {
     formData.append("files", file);
@@ -49,8 +51,8 @@ export async function postDataset(token: string, files: File[], description: str
   return data;
 }
 
-export async function fetchJobs(token: string, onlyRunning: boolean = false): Promise<Job[]> {
-  const response = await fetch(`${API_URL}/jobs?only_running=${onlyRunning}`, {
+export async function fetchJobs(token: string, onlyRunning: boolean = false, type: string | null = null): Promise<Job[]> {
+  const response = await fetch(`${API_URL}/jobs?only_running=${onlyRunning}&type=${type}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -205,4 +207,91 @@ export async function postChatContextUpdate(token: string, conversationId: strin
   const data = await response.json();
   
   return data;
+}
+
+export function createIntegrationSocket(jobId: string): WebSocket {
+  const socket = new WebSocket(`${WS_URL}/integration/integration-agent-human-in-the-loop/${jobId}/ws`);
+  return socket;
+}
+
+export function createIntegrationEventSource(token: string, jobId: string): EventSource {
+  return new EventSource(`${API_URL}/integration/integration-agent-sse/${jobId}`,
+    {
+      fetch: (input, init) =>
+        fetch(input, {
+          ...init,
+          headers: {
+            ...init?.headers,
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+    }
+  );
+}
+
+export function createJobEventSource(token: string, jobType: string): EventSource {
+  return new EventSource(`${API_URL}/jobs-sse?job_type=${jobType}`, {
+    fetch: (input, init) =>
+      fetch(input, {
+        ...init,
+        headers: {
+          ...init?.headers,
+          Authorization: `Bearer ${token}`,
+        },
+      }),
+  });
+}
+
+export async function postIntegrationAgentFeedback(token: string, feedback: IntegrationAgentFeedback): Promise<IntegrationMessage> {
+
+  const response = await fetch(`${API_URL}/integration/integration-agent-feedback`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(feedback)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to post integration agent feedback', errorText);
+    throw new Error(`Failed to post integration agent feedback: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+} 
+
+export async function postIntegrationAgentApprove(token: string, jobId: string): Promise<Job> {
+  const response = await fetch(`${API_URL}/integration/integration-agent-approve/${jobId}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to approve integration agent', errorText);
+    throw new Error(`Failed to approve integration agent: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchIntegrationMessages(token: string, jobId: string): Promise<IntegrationMessage[]> {
+
+  const response = await fetch(`${API_URL}/integration/integration-messages/${jobId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch integration messages', errorText);
+    throw new Error(`Failed to fetch integration messages: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
 }

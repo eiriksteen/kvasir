@@ -1,6 +1,6 @@
 import uuid
 from sqlalchemy import Column, String, ForeignKey, Table, UUID
-from ...database.core import metadata
+from synesis_api.database.core import metadata
 
 
 model_job_result = Table(

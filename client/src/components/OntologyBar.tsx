@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Database, Plus, Check, Upload } from 'lucide-react';
+import { Database, Plus, Check } from 'lucide-react';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { Automation } from '@/types/automations';
 import { useAgentContext, useDatasets } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import IntegrationMenu from '@/components/IntegrationMenu';
 
 
 
@@ -78,7 +77,6 @@ export default function OntologyBar() {
 
     const [selectedAutomation, setSelectedAutomation] = useState<string | null>(null);
     const [showAutomations, setShowAutomations] = useState(false);
-    const [showAddDataset, setShowAddDataset] = useState(false);
     const {data: session} = useSession();
     const { 
         datasetsInContext, 
@@ -157,14 +155,6 @@ export default function OntologyBar() {
                             Click on a dataset to add it to the chat context. You can then ask for analysis or automation based on the selected datasets.
                         </p>
                     </div>
-                    
-                    <button
-                        onClick={() => setShowAddDataset(true)}
-                        className="w-full py-2 px-3 text-white rounded-md transition-colors flex items-center justify-center gap-2 text-sm border border-[#2a4170]"
-                    >
-                        <Upload size={14} />
-                        <span>Add Dataset</span>
-                    </button>
                 </div>
             </div>
 
@@ -192,14 +182,6 @@ export default function OntologyBar() {
                         ))}
                     </div>
                 </div>
-            )}
-
-            {showAddDataset && (
-                <IntegrationMenu
-                    isOpen={showAddDataset}
-                    onClose={() => setShowAddDataset(false)}
-                    onAdd={() => setShowAddDataset(false)}
-                />
             )}
         </div>
     );

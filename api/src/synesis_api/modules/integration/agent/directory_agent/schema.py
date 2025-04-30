@@ -1,6 +1,6 @@
 from uuid import UUID
 from typing import Literal
-from .....base_schema import BaseSchema
+from synesis_api.base_schema import BaseSchema
 
 
 class IntegrationAgentOutput(BaseSchema):
@@ -11,9 +11,16 @@ class IntegrationAgentOutput(BaseSchema):
     summary: str
     dataset_name: str
     dataset_id: UUID | None = None
+    state: Literal["completed"] = "completed"
 
 
 class IntegrationAgentTimeSeriesOutput(IntegrationAgentOutput):
     index_first_level: str
     index_second_level: str | None
     data_modality: Literal["time_series"] = "time_series"
+
+
+class IntegrationAgentPausedOutput(BaseSchema):
+    summary: str
+    questions: str
+    state: Literal["paused"] = "paused"

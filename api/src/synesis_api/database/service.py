@@ -6,7 +6,7 @@ from sqlalchemy import (
     Update,
 )
 from sqlalchemy.ext.asyncio import AsyncConnection
-from .core import engine
+from synesis_api.database.core import engine
 
 
 async def fetch_one(

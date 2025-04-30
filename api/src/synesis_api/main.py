@@ -1,13 +1,13 @@
-from .worker import celery
-from .modules.jobs.router import router as jobs_router
+from synesis_api.worker import celery
+from synesis_api.modules.jobs.router import router as jobs_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .auth.router import router as auth_router
-from .modules.integration.router import router as integration_router
-from .modules.chat.router import router as chat_router
-from .modules.analysis.router import router as eda_router
-from .modules.automation.router import router as automation_router
-from .modules.ontology.router import router as ontology_router
+from synesis_api.auth.router import router as auth_router
+from synesis_api.modules.integration.router import router as integration_router
+from synesis_api.modules.chat.router import router as chat_router
+from synesis_api.modules.analysis.router import router as eda_router
+from synesis_api.modules.automation.router import router as automation_router
+from synesis_api.modules.ontology.router import router as ontology_router
 
 
 app = FastAPI(

@@ -3,21 +3,21 @@ import asyncio
 import aiofiles
 import pandas as pd
 from io import StringIO
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from fastapi import HTTPException
 from celery import shared_task
 from celery.utils.log import get_task_logger
 from sqlalchemy import update
-from ...database.service import execute
-from .schema import EDAJobResultInDB
-from .agent import (eda_basic_agent, eda_advanced_agent, eda_independent_agent, eda_summary_agent,
-                    EDADepsBasic, EDADepsAdvanced, EDADepsIndependent, EDADepsSummary,
-                    BASIC_PROMPT, ADVANCED_PROMPT, INDEPENDENT_PROMPT, SUMMARIZE_EDA)
-from ..jobs.models import jobs
-from ..jobs.service import get_job_metadata
-from ...utils import save_markdown_as_html
-from ...aws.service import upload_object_s3, retrieve_object
+from synesis_api.database.service import execute
+from synesis_api.modules.analysis.schema import EDAJobResultInDB
+from synesis_api.modules.analysis.agent import (eda_basic_agent, eda_advanced_agent, eda_independent_agent, eda_summary_agent,
+                                                EDADepsBasic, EDADepsAdvanced, EDADepsIndependent, EDADepsSummary,
+                                                BASIC_PROMPT, ADVANCED_PROMPT, INDEPENDENT_PROMPT, SUMMARIZE_EDA)
+from synesis_api.modules.jobs.models import jobs
+from synesis_api.modules.jobs.service import get_job_metadata
+from synesis_api.utils import save_markdown_as_html
+from synesis_api.aws.service import upload_object_s3, retrieve_object
 
 logger = get_task_logger(__name__)
 
@@ -132,7 +132,7 @@ async def run_eda_agent(
     # update job to completed
     await execute(
         update(jobs).where(jobs.c.id == eda_job_id).values(
-            status="completed", completed_at=datetime.now()),
+            status="completed", completed_at=datetime.now(timezone.utc)),
         commit_after=True
     )
     logger.info("Job updated in DB")

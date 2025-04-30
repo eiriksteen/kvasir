@@ -3,16 +3,15 @@ import aiofiles
 from pathlib import Path
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
-from .schema import ModelJobResult
-from .service import (get_job_metadata,
-                      get_job_results,
-                      run_model_job)
-from ..jobs.schema import JobMetadata
-from ..jobs.service import create_job
-from ...auth.schema import User
-from ...auth.service import (create_api_key,
-                             get_current_user,
-                             user_owns_job)
+from synesis_api.modules.automation.schema import ModelJobResult
+from synesis_api.modules.automation.service import (get_job_results,
+                                                    run_model_job)
+from synesis_api.modules.jobs.schema import JobMetadata
+from synesis_api.modules.jobs.service import create_job, get_job_metadata
+from synesis_api.auth.schema import User
+from synesis_api.auth.service import (create_api_key,
+                                      get_current_user,
+                                      user_owns_job)
 
 
 router = APIRouter()
@@ -32,8 +31,7 @@ async def call_model_agent(
             status_code=404, detail="Could not find data analysis.")
 
     try:
-        api_key = await create_api_key(user)
-        model_job = await create_job(user.id, api_key.id, "modeling")
+        model_job = await create_job(user.id, "modeling")
     except:
         raise HTTPException(
             status_code=500, detail="Failed to create model job.")

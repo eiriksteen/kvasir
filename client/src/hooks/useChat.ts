@@ -31,7 +31,7 @@ export const useChat = (conversationId: string | null) => {
         let chunkNum = 0;
         for await (const chunk of stream) {
           if (chunkNum === 0) {
-             setMessages(prevMessages => [...prevMessages, {role: "assistant", content: chunk}]);
+            setMessages(prevMessages => [...prevMessages, {role: "assistant", content: chunk}]);
           }
           else {
             setMessages(prevMessages => {

@@ -1,10 +1,10 @@
 import uuid
 from sqlalchemy import Table, Column, String, DateTime, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, BYTEA
-from ...database.core import metadata
+from synesis_api.database.core import metadata
 
 
-chat_messages = Table(
+chat_message = Table(
     "chat_message",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
@@ -12,19 +12,21 @@ chat_messages = Table(
            ForeignKey("chat.conversation.id"), nullable=False),
     Column("role", String, nullable=False),
     Column("content", String, nullable=False),
-    Column("created_at", DateTime, nullable=False, default=func.now()),
+    Column("created_at", DateTime(timezone=True),
+           nullable=False, default=func.now()),
     schema="chat"
 )
 
 
-pydantic_messages = Table(
+pydantic_message = Table(
     "pydantic_message",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     Column("conversation_id", UUID(as_uuid=True),
            ForeignKey("chat.conversation.id"), nullable=False),
     Column("message_list", BYTEA, nullable=False),
-    Column("created_at", DateTime, nullable=False, default=func.now()),
+    Column("created_at", DateTime(timezone=True),
+           nullable=False, default=func.now()),
     schema="chat"
 )
 
@@ -45,7 +47,8 @@ context = Table(
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     Column("conversation_id", UUID(as_uuid=True),
            ForeignKey("chat.conversation.id"), nullable=False),
-    Column("created_at", DateTime, nullable=False, default=func.now()),
+    Column("created_at", DateTime(timezone=True),
+           nullable=False, default=func.now()),
     schema="chat"
 )
 

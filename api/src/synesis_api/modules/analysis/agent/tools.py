@@ -4,7 +4,7 @@ import statsmodels.api as sm
 from typing import List
 from sklearn.decomposition import PCA
 from pydantic_ai import RunContext, Tool
-from .deps import EDADepsBasic, EDADepsAdvanced
+from synesis_api.modules.analysis.agent.deps import EDADepsBasic, EDADepsAdvanced
 
 
 def check_missing_values(ctx: RunContext[EDADepsBasic]) -> str:

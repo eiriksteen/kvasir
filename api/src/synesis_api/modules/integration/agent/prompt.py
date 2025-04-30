@@ -76,12 +76,12 @@ Important:
 - The input structure may be quite messy and unintuitive. It is therefore recommended you thoroughly inspect the data before making the transformations
     - For example, there might be multiple IDs with complex mappings
     - Don't just set IDs based on assumptions! If there are multiple candidates for joining, reason about the possible mappings.
-    - Joins are likely to be useful!
 - Drop columns that are obvously uninformative, like completely empty ones or ones with meaningless or redundant values.
 - Use your intuition about the business context to understand the data!
 - In case you need to select an entity, select the one that is directly tied to the time series! Each ID should correspond to a single unique time series!
     - For time series this might mean the index should be the sensor ID, and not where the sensor is placed (where multiple sensors might be located)
     - If the time series entities can be grouped, put the group as a column in the entity_metadata dataframe.
 - DO NOT DROP ANY IMPORTANT DATA! METADATA IMPORTANT FOR ANY KIND OF ANALYSIS OR MODELING OPERATION MUST BE PRESERVED!
-    - THIS IS VERY IMPORTANT! EVEN IF IT IS EASIER TO DROP THE DATA INSTEAD OF DOING COMPLICATED JOINING, DO THE JOINING!
+- Do not output the same data in both the data and the metadata!
+    - The TIME-VARYING metadata should be in the miya_data, and the STATIC metadata should be in the miya_metadata
 """

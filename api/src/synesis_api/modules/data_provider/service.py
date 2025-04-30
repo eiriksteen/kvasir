@@ -1,16 +1,16 @@
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 from pathlib import Path
 from fastapi import HTTPException
-from .schema import TimeSeriesData
+from synesis_api.modules.data_provider.schema import TimeSeriesData
 
 
 async def get_time_series_data(
     time_series_id: UUID,
     user_id: UUID,
     start_timestamp: datetime = None,
-    end_timestamp: datetime = datetime.now(),
+    end_timestamp: datetime = datetime.now(timezone.utc),
     n_past_values: int = 1024
 ) -> TimeSeriesData:
 

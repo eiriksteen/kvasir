@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, ForeignKey, Table, UUID
-from ...database.core import metadata
+from synesis_api.database.core import metadata
 
 
 eda_jobs_results = Table(

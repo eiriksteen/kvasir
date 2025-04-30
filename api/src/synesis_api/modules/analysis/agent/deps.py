@@ -1,7 +1,7 @@
 import pandas as pd
 from pathlib import Path
 from dataclasses import dataclass
-from ...ontology.schema import Dataset
+from synesis_api.modules.ontology.schema import Dataset
 
 
 @dataclass

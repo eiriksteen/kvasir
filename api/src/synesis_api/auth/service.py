@@ -7,12 +7,12 @@ from sqlalchemy import Insert, Select, Delete
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status, Security, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
-from .schema import User, UserInDB, TokenData, UserAPIKey, UserCreate
-from .models import users, user_api_keys
-from ..modules.chat.models import conversations
-from ..modules.jobs.models import jobs
-from ..secrets import API_SECRET_KEY, API_SECRET_ALGORITHM
-from ..database.service import fetch_one, execute
+from synesis_api.auth.schema import User, UserInDB, TokenData, UserAPIKey, UserCreate
+from synesis_api.auth.models import users, user_api_keys
+from synesis_api.modules.chat.models import conversations
+from synesis_api.modules.jobs.models import jobs
+from synesis_api.secrets import API_SECRET_KEY, API_SECRET_ALGORITHM
+from synesis_api.database.service import fetch_one, execute
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

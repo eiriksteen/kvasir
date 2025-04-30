@@ -5,13 +5,13 @@ from celery import shared_task
 from celery.utils.log import get_task_logger
 from pathlib import Path
 from sqlalchemy import update
-from ...database.service import execute
-from ..jobs.service import get_job_metadata
-from ..jobs.models import jobs
-from .schema import ModelJobResultInDB
-from .agent.deps import ModelDeps
-from .agent.agent import model_agent
-from ...aws.service import upload_object_s3, retrieve_object
+from synesis_api.database.service import execute
+from synesis_api.modules.jobs.service import get_job_metadata
+from synesis_api.modules.jobs.models import jobs
+from synesis_api.modules.automation.schema import ModelJobResultInDB
+from synesis_api.modules.automation.agent.deps import ModelDeps
+from synesis_api.modules.automation.agent.agent import model_agent
+from synesis_api.aws.service import upload_object_s3, retrieve_object
 
 from fastapi import HTTPException
 

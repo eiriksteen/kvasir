@@ -1,5 +1,5 @@
 from celery import Celery
-from .secrets import CELERY_BROKER_URL, CELERY_BACKEND_URL
+from synesis_api.secrets import CELERY_BROKER_URL, CELERY_BACKEND_URL
 
 celery = Celery(
     "tasks",
