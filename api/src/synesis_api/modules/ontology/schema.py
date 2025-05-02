@@ -13,6 +13,13 @@ class Dataset(BaseSchema):
     updated_at: datetime = datetime.now(timezone.utc)
 
 
+class DatasetMetadata(BaseSchema):
+    dataset_id: uuid.UUID
+    num_columns: int
+    column_names: List[str]
+    column_types: List[str]
+
+
 class FeatureDatasetInDB(BaseSchema):
     id: uuid.UUID
     features: List[str]

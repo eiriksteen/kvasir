@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { X, List, FilePlus, Info } from 'lucide-react';
-import IntegrationOverview from './IntegrationOverview';
-import AddDataset from './AddDataset';
+import IntegrationOverview from '@/components/integration/IntegrationOverview';
+import AddDataset from '@/components/integration/AddDataset';
 
 interface IntegrationManagerProps {
   isOpen: boolean;

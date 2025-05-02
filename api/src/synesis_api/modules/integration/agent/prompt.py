@@ -43,45 +43,61 @@
 # """
 
 TIME_SERIES_TARGET_STRUCTURE = """
-The target structure depends on the format of the input time series data.
+# Data Structure Requirements
 
-If the dataset consists of multiple time series, where each series is associated with a sensor, object, or other entity, the structure is: 
-- A pandas multiindex where the first level is the entity and the second is the timestamp. The columns are the feature values.
-- The timestamp must be a datetime object
-- The shape would be (num_entities, num_timestamps, num_features)
-    - We expect the num_timesteps to possibly be varying per entity, which is ok 
+## Multi-Entity Time Series Structure
+- Format: pandas MultiIndex DataFrame
+- Index Levels (set index directly with pandas):
+  - Level 1: Entity (sensor, object, etc.)
+  - Level 2: Timestamp (datetime object for datetime data, integer for non-datetime)
+- Shape: (num_entities, num_timestamps, num_features)
+- Note: Varying timesteps per entity are acceptable
 
-If the dataset consists of a single time series (just one entity), the structure is:
-- A pandas DataFrame indexed by the timestamp and one column per feature
-- The timestamp must be a datetime object
-- The shape would be (num_timestamps, num_features)
+## Single Entity Time Series Structure
+- Format: pandas DataFrame
+- Index: Timestamp (must be datetime object, set index directly with pandas)
+- Shape: (num_timestamps, num_features)
 
-To generate the feature data, you may have to process and integrate some accompanying metadata.
-- For time-varying metadata:
-    - Turn categorical features into integers. 
-        - Output a mapping as a python dictionary from the categorical features to the integers, named "miya_mapping".
-    - Turn binary features into 0/1.
-        - Use an appropriate variable name so we easily understand what it means for the feature value to be 0 or 1
-    - Use pd.NA where the feature is not available.
-For static metadata corresponding to each entity:
-    - Output a pandas dataframe called "miya_metadata" with the entity as the index and the features as the columns
-        - The index of the metadata must be exactly the same as the index of the data, with the same name!
-    - Use pd.NA where the feature is not available
-    - For location features:
-        - If the location is a city, call it "city"
-        - If the location is a country, call it "country"
-        - Otherwise use what makes sense for the location, but ensure it is snake case
+# Metadata Processing Guidelines
 
-Important:
-- The input structure may be quite messy and unintuitive. It is therefore recommended you thoroughly inspect the data before making the transformations
-    - For example, there might be multiple IDs with complex mappings
-    - Don't just set IDs based on assumptions! If there are multiple candidates for joining, reason about the possible mappings.
-- Drop columns that are obvously uninformative, like completely empty ones or ones with meaningless or redundant values.
-- Use your intuition about the business context to understand the data!
-- In case you need to select an entity, select the one that is directly tied to the time series! Each ID should correspond to a single unique time series!
-    - For time series this might mean the index should be the sensor ID, and not where the sensor is placed (where multiple sensors might be located)
-    - If the time series entities can be grouped, put the group as a column in the entity_metadata dataframe.
-- DO NOT DROP ANY IMPORTANT DATA! METADATA IMPORTANT FOR ANY KIND OF ANALYSIS OR MODELING OPERATION MUST BE PRESERVED!
-- Do not output the same data in both the data and the metadata!
-    - The TIME-VARYING metadata should be in the miya_data, and the STATIC metadata should be in the miya_metadata
+## Time-Varying Metadata
+- Categorical Features:
+  - Convert to integers
+  - Output mapping as "miya_mapping" dictionary
+- Binary Features:
+  - Convert to 0/1
+  - Use descriptive variable names
+- Missing Values:
+  - Use pd.NA for unavailable features
+
+## Static Metadata
+- Format: pandas DataFrame named "miya_metadata"
+- Index: Entity (must match data index name exactly)
+- Columns: Static features
+- Missing Values: Use pd.NA
+- Location Features:
+  - City → "city"
+  - Country → "country"
+  - Other locations: Use snake_case
+
+# Critical Rules
+1. Data Preservation:
+   - DO NOT drop important data
+   - Preserve all metadata relevant for analysis/modeling
+   - Separate time-varying (miya_data) and static (miya_metadata) data
+
+2. Data Cleaning:
+   - Drop only obviously uninformative columns (empty or redundant)
+   - Maintain data integrity during transformations
+
+3. Entity Selection:
+   - Choose entities directly tied to time series
+   - Each ID must correspond to a unique time series
+   - For grouped entities, add group as column in entity_metadata
+
+4. Data Inspection:
+   - Thoroughly analyze input structure before transformation
+   - Handle complex ID mappings carefully
+   - Consider business context for data understanding
+   - Validate all assumptions about data relationships
 """

@@ -20,6 +20,17 @@ dataset = Table(
     schema="ontology"
 )
 
+dataset_metadata = Table(
+    "dataset_metadata",
+    metadata,
+    Column("dataset_id", UUID, ForeignKey(
+        "ontology.dataset.id"), primary_key=True),
+    Column("column_names", ARRAY(String), nullable=False),
+    Column("column_types", ARRAY(String), nullable=False),
+    Column("num_columns", Integer, nullable=False),
+    schema="ontology"
+)
+
 feature_dataset = Table(
     "feature_dataset",
     metadata,

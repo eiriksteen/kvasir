@@ -12,6 +12,7 @@ async def get_target_structure(ctx: RunContext[IntegrationAgentDeps], data_modal
     Get the target output structure of the data.
 
     Args:
+        ctx: The context
         data_modality: The modality of the data to get the structure for, one of ["time_series", "tabular", "image", "text"]
     """
     assert data_modality in ["time_series", "tabular", "image", "text"]
@@ -37,6 +38,7 @@ async def ping_human(ctx: RunContext[IntegrationAgentDeps], ping_timeout: float 
     Ping human. 
 
     Args:
+        ctx: The context
         ping_timeout: The timeout for the ping.
 
     Returns:
@@ -74,6 +76,7 @@ async def call_human_help(ctx: RunContext[IntegrationAgentDeps], help_message: s
     Call human help. 
 
     Args:
+        ctx: The context
         help_message: The message to send to the human.
         ping_timeout: The timeout for the ping.
         response_timeout: The timeout for the response.
@@ -115,6 +118,7 @@ async def execute_python_code(ctx: RunContext[IntegrationAgentDeps], python_code
     Execute a python code block.
 
     Args:
+        ctx: The context
         python_code: The python code to execute.
         explanation: Short explanation of the code and what you are trying to do.
     """
@@ -123,7 +127,7 @@ async def execute_python_code(ctx: RunContext[IntegrationAgentDeps], python_code
         "id": str(uuid.uuid4()),
         "type": "tool_call",
         "role": "assistant",
-        "content": f"Writing and testing python code. {explanation}...",
+        "content": explanation,
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
     await ctx.deps.redis_stream.xadd(str(ctx.deps.job_id), message)

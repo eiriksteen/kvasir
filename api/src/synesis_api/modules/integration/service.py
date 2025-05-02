@@ -55,7 +55,7 @@ async def run_integration_agent(
 
             logger.info(f"Integration agent run completed for job {job_id}")
 
-        agent_output = agent_run.result.data
+        agent_output = agent_run.result.output
         status = "awaiting_approval" if agent_output.state == "completed" else "paused"
 
         if status == "awaiting_approval":

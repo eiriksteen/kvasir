@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import JobsOverview from '@/components/JobsOverview';
-import IntegrationManager from '@/components/integrations/IntegrationManager';
+import IntegrationManager from '@/components/integration/IntegrationManager';
 import { Database, BarChart, Bot } from 'lucide-react';
 import { useState } from 'react';
 import { getStatusColor } from '../lib/utils';

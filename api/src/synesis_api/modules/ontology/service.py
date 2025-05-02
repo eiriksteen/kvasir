@@ -8,8 +8,15 @@ from pathlib import Path
 from aiofiles import open as aiofiles_open
 from sqlalchemy import select, insert, delete
 from fastapi import HTTPException
-from synesis_api.modules.ontology.models import time_series_dataset, dataset, time_series
-from synesis_api.modules.ontology.schema import TimeSeriesDataset, Datasets, TimeSeries, Dataset, TimeSeriesDatasetInDB
+from synesis_api.modules.ontology.models import time_series_dataset, dataset, time_series, dataset_metadata
+from synesis_api.modules.ontology.schema import (
+    TimeSeriesDataset,
+    Datasets,
+    TimeSeries,
+    Dataset,
+    TimeSeriesDatasetInDB,
+    DatasetMetadata
+)
 from synesis_api.modules.integration.models import integration_jobs_results
 from synesis_api.modules.jobs.models import jobs
 from synesis_api.database.service import fetch_all, fetch_one, execute
@@ -106,6 +113,26 @@ async def create_base_dataset(
     return dataset_id
 
 
+async def create_dataset_metadata(
+        dataset_id: uuid.UUID,
+        column_names: List[str],
+        column_types: List[str],
+        num_columns: int
+) -> None:
+
+    dataset_metadata_record = DatasetMetadata(
+        dataset_id=dataset_id,
+        column_names=column_names,
+        column_types=column_types,
+        num_columns=num_columns
+    )
+
+    await execute(
+        insert(dataset_metadata).values(dataset_metadata_record.model_dump()),
+        commit_after=True
+    )
+
+
 async def create_time_series_dataset(
         df: pd.DataFrame,
         dataset_id: uuid.UUID,
@@ -189,12 +216,13 @@ async def create_time_series_dataset(
 
 
 async def create_dataset(
-        df: pd.DataFrame,
-        data_description: str,
-        dataset_name: str,
-        data_modality: str,
-        user_id: uuid.UUID,
-        dataset_id: uuid.UUID | None = None
+    dataset_df: pd.DataFrame,
+    metadata_df: pd.DataFrame,
+    data_description: str,
+    dataset_name: str,
+    data_modality: str,
+    user_id: uuid.UUID,
+    dataset_id: uuid.UUID | None = None
 ) -> uuid.UUID:
 
     if data_modality != "time_series":
@@ -203,31 +231,43 @@ async def create_dataset(
             detail="Only time series data is supported at the moment"
         )
 
+    if dataset_id is None:
+        dataset_id = uuid.uuid4()
+
+    save_path = Path.cwd() / "integrated_data" / f"{user_id}" / f"{dataset_id}"
+    save_path.mkdir(parents=True, exist_ok=True)
+
+    try:
+        async with aiofiles_open(save_path / "dataset.csv", "wb") as out_file:
+            await out_file.write(dataset_df.reset_index().to_csv(index=False).encode("utf-8"))
+        async with aiofiles_open(save_path / "metadata.csv", "wb") as out_file:
+            await out_file.write(metadata_df.reset_index().to_csv(index=False).encode("utf-8"))
+    except OSError as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to write output file: {str(e)}")
+
     # Insert base dataset
-    dataset_id = await create_base_dataset(
+    await create_base_dataset(
         name=dataset_name,
         description=data_description,
         user_id=user_id,
         dataset_id=dataset_id
     )
 
-    save_path = Path.cwd() / "integrated_data" / f"{user_id}" / f"{dataset_id}"
-    save_path.mkdir(parents=True, exist_ok=True)
-
-    try:
-        async with aiofiles_open(save_path / "data.csv", "wb") as out_file:
-            await out_file.write(df.reset_index().to_csv(index=False).encode("utf-8"))
-    except OSError as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to write output file: {str(e)}")
+    await create_dataset_metadata(
+        dataset_id=dataset_id,
+        column_names=metadata_df.columns.tolist(),
+        column_types=[str(t) for t in metadata_df.dtypes.tolist()],
+        num_columns=len(metadata_df.columns)
+    )
 
     # Insert time series dataset and associated time series
     await create_time_series_dataset(
-        df=df,
+        df=dataset_df,
         dataset_id=dataset_id,
-        index_first_level=df.index.names[0],
-        index_second_level=df.index.names[1] if len(
-            df.index.names) > 1 else None
+        index_first_level=dataset_df.index.names[0],
+        index_second_level=dataset_df.index.names[1] if len(
+            dataset_df.index.names) > 1 else None
     )
 
     return dataset_id
@@ -246,6 +286,12 @@ async def delete_dataset(dataset_id: uuid.UUID, user_id: uuid.UUID):
 
     await execute(
         delete(time_series).where(time_series.c.dataset_id == dataset_id),
+        commit_after=True
+    )
+
+    await execute(
+        delete(dataset_metadata).where(
+            dataset_metadata.c.dataset_id == dataset_id),
         commit_after=True
     )
 

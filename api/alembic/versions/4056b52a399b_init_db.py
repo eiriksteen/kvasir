@@ -84,6 +84,18 @@ def upgrade() -> None:
                     sa.PrimaryKeyConstraint('id'),
                     schema='ontology'
                     )
+    op.create_table('dataset_metadata',
+                    sa.Column('dataset_id', sa.UUID(), nullable=False),
+                    sa.Column('column_names', postgresql.ARRAY(
+                        sa.String()), nullable=False),
+                    sa.Column('column_types', postgresql.ARRAY(
+                        sa.String()), nullable=False),
+                    sa.Column('num_columns', sa.Integer(), nullable=False),
+                    sa.ForeignKeyConstraint(
+                        ['dataset_id'], ['ontology.dataset.id'], ),
+                    sa.PrimaryKeyConstraint('dataset_id'),
+                    schema='ontology'
+                    )
     op.create_table('chat_message',
                     sa.Column('id', sa.UUID(), nullable=False),
                     sa.Column('conversation_id', sa.UUID(), nullable=False),
@@ -264,6 +276,7 @@ def downgrade() -> None:
     op.drop_table('model_job_result', schema='automation')
     op.drop_table('eda_jobs_results', schema='analysis')
     op.drop_table('jobs', schema='jobs')
+    op.drop_table('dataset_metadata', schema='ontology')
     op.drop_table('time_series_dataset', schema='ontology')
     op.drop_table('time_series', schema='ontology')
     op.drop_table('feature_dataset', schema='ontology')

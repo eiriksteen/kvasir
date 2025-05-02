@@ -250,10 +250,10 @@ async def integration_agent_sse(
 
     async def stream_job_updates():
 
-        messages = await get_integration_messages(job_id, include_cached=True)
+        # messages = await get_integration_messages(job_id, include_cached=True)
 
-        for message in messages:
-            yield f"data: {message.model_dump_json()}\n\n"
+        # for message in messages:
+        #     yield f"data: {message.model_dump_json()}\n\n"
 
         response = await cache.xread({str(job_id): "$"}, count=1, block=timeout*1000)
         start_time = time.time()
@@ -334,6 +334,7 @@ async def post_restructured_data(
 
     dataset_id = await create_dataset(
         data_df,
+        metadata_df,
         data_description,
         dataset_name,
         data_modality,
