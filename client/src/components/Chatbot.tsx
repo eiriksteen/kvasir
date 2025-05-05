@@ -11,6 +11,7 @@ import { redirect } from 'next/navigation';
 import { ChatMessage } from '@/types/chat';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
+import Popup from './popup';
 
 
 
@@ -49,6 +50,7 @@ function Chat({ conversationId }: ChatProps) {
   const [input, setInput] = useState('');
   const [width, setWidth] = useState(400);
   const [isDragging, setIsDragging] = useState(false);
+  const [showAnalysisPopup, setShowAnalysisPopup] = useState(false);
 
   const { messages, submitPrompt } = useChat(conversationId);
   const { datasetsInContext, removeDatasetFromContext, analysisesInContext, removeAnalysisFromContext } = useAgentContext();
@@ -87,44 +89,9 @@ function Chat({ conversationId }: ChatProps) {
     console.log(datasetsInContext);
     e.preventDefault();
     try {
+      setShowAnalysisPopup(true);
       const plan = await createAnalysisPlanner();
-      // Show success popup
-      const popup = document.createElement('div');
-      popup.style.position = 'fixed';
-      popup.style.bottom = '20px';
-      popup.style.right = '20px';
-      popup.style.backgroundColor = '#4CAF50';
-      popup.style.color = 'white';
-      popup.style.padding = '15px';
-      popup.style.borderRadius = '5px';
-      popup.style.zIndex = '1000';
-      popup.style.display = 'flex';
-      popup.style.alignItems = 'center';
-      popup.style.gap = '10px';
-
-      const message = document.createElement('span');
-      message.textContent = 'Analysis submitted';
-      popup.appendChild(message);
-
-      const closeButton = document.createElement('button');
-      closeButton.innerHTML = '&times;';
-      closeButton.style.background = 'none';
-      closeButton.style.border = 'none';
-      closeButton.style.color = 'white';
-      closeButton.style.fontSize = '20px';
-      closeButton.style.cursor = 'pointer';
-      closeButton.style.padding = '0 5px';
-      closeButton.onclick = () => document.body.removeChild(popup);
-      popup.appendChild(closeButton);
       
-      document.body.appendChild(popup);
-
-      // Remove popup after 5 seconds if not manually closed
-      const timeoutId = setTimeout(() => {
-        if (document.body.contains(popup)) {
-          document.body.removeChild(popup);
-        }
-      }, 2000);
     } catch (err) {
       setInput(err instanceof Error ? err.message : "An unknown error occurred");
     }
@@ -166,6 +133,13 @@ function Chat({ conversationId }: ChatProps) {
       className="absolute right-0 h-screen pt-12 text-white flex flex-col bg-[#1a1625]/95"
       style={{ width: `${width}px` }}
     >
+      {showAnalysisPopup && (
+        <Popup 
+          message="Analysis is being initialized..." 
+          onClose={() => setShowAnalysisPopup(false)}
+          type="analysis"
+        />
+      )}
       {/* Drag handle */}
       <div 
         ref={dragHandleRef}
