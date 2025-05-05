@@ -2,37 +2,34 @@ import uuid
 from typing import Annotated, List
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
-from .schema import AnalysisJobResultMetadata, AnalysisJobResultMetadataList, AnalysisPlannerRequest, AnalysisJobResult
+from .schema import AnalysisJobResultMetadata, AnalysisJobResultMetadataList, AnalysisRequest, AnalysisJobResult
 from ...auth.service import (create_api_key,
                              get_current_user,
                              user_owns_job)
 from .service import (
-    # run_analysis_execution_job,
     run_analysis_planner_job,
     get_analysis_job_results_from_db,
     get_user_analysis_metadata,
     create_pdf_from_results,
     get_dataset_ids_by_job_id,
-    run_simple_analysis_job
 )
 from ..jobs.service import create_job, get_job_metadata, update_job_status
 from ..jobs.schema import JobMetadata
 from ...auth.schema import User
 from ..ontology.service import get_user_datasets_by_ids
-from pydantic_ai.messages import ModelMessage
 router = APIRouter()
 
 @router.post("/run-analysis-planner", response_model=JobMetadata)
 async def run_analysis_planner(
-    analysis_planner_request: AnalysisPlannerRequest,
+    analysis_request: AnalysisRequest,
     user: Annotated[User, Depends(get_current_user)] = None,
 ) -> JobMetadata:
     
-    if analysis_planner_request.job_id is None and analysis_planner_request.prompt is None:
+    if analysis_request.job_id is None and analysis_request.prompt is None:
         raise HTTPException(
             status_code=400, detail="You need to provide a desired change.")
 
-    if analysis_planner_request.job_id is None:
+    if analysis_request.job_id is None:
         try:
             api_key = await create_api_key(user)
             analysis_job = await create_job(user.id, api_key.id, "analysis")
@@ -41,15 +38,15 @@ async def run_analysis_planner(
             raise HTTPException(
                 status_code=500, detail="Failed to create analysis job.")
     else:
-        analysis_job = await get_job_metadata(analysis_planner_request.job_id)
-        prev_job_results = await get_analysis_job_results(analysis_planner_request.job_id, user)
-        dataset_ids = await get_dataset_ids_by_job_id(analysis_planner_request.job_id)
-        # automation_ids = await get_automation_by_job_id(analysis_planner_request.job_id)
-        analysis_planner_request.dataset_ids = dataset_ids
-        # analysis_planner_request.automation_ids = automation_ids
-        await update_job_status(analysis_planner_request.job_id, "running")
+        analysis_job = await get_job_metadata(analysis_request.job_id)
+        prev_job_results = await get_analysis_job_results(analysis_request.job_id, user)
+        dataset_ids = await get_dataset_ids_by_job_id(analysis_request.job_id)
+        # automation_ids = await get_automation_by_job_id(analysis_request.job_id)
+        analysis_request.dataset_ids = dataset_ids
+        # analysis_request.automation_ids = automation_ids
+        await update_job_status(analysis_request.job_id, "running")
         
-    if len(analysis_planner_request.dataset_ids) == 0 and len(analysis_planner_request.automation_ids) == 0:
+    if len(analysis_request.dataset_ids) == 0 and len(analysis_request.automation_ids) == 0:
         raise HTTPException(
             status_code=400, detail="At least one dataset or automation is required.")
     
@@ -58,7 +55,7 @@ async def run_analysis_planner(
 
     # Get datasets and automations from database
     try: 
-        datasets = await get_user_datasets_by_ids(user.id, analysis_planner_request.dataset_ids)
+        datasets = await get_user_datasets_by_ids(user.id, analysis_request.dataset_ids)
     except:
         raise HTTPException(
             status_code=500, detail="Failed to get datasets.")
@@ -66,7 +63,7 @@ async def run_analysis_planner(
     # TODO: Get automations from database
 
     data_dir = Path("integrated_data") / f"{user.id}"
-    data_paths = [data_dir / f"{dataset_id}.csv" for dataset_id in analysis_planner_request.dataset_ids]
+    data_paths = [data_dir / f"{dataset_id}.csv" for dataset_id in analysis_request.dataset_ids]
     problem_description = "" # should come from Automation
     
     try:
@@ -75,7 +72,7 @@ async def run_analysis_planner(
             user.id,
             datasets.time_series,
             problem_description,
-            analysis_planner_request.prompt,
+            analysis_request.prompt,
             prev_job_results
         )
     except:
@@ -84,67 +81,6 @@ async def run_analysis_planner(
             status_code=500, detail="Failed to run analysis planner.")
     
     return analysis_job 
-
-@router.post("/run-simple-analysis", response_model=AnalysisJobResult)
-async def run_simple_analysis(
-    analysis_planner_request: AnalysisPlannerRequest,
-    user: Annotated[User, Depends(get_current_user)] = None,
-    message_history: List[ModelMessage] = None
-):
-    if analysis_planner_request.prompt is None:
-        raise HTTPException(
-            status_code=400, detail="You need to provide a desired change.")
-    
-    if len(analysis_planner_request.dataset_ids) == 0 and len(analysis_planner_request.automation_ids) == 0:
-        raise HTTPException(
-            status_code=400, detail="At least one dataset or automation is required.")
-    
-    if analysis_planner_request.job_id is not None:
-        raise HTTPException(
-            status_code=400, detail="A simple analysis cannot be done on an already existing analysis.")
-
-    # try:
-    #     api_key = await create_api_key(user)
-    #     analysis_job = await create_job(user.id, api_key.id, "analysis")
-    # except:
-    #     raise HTTPException(
-    #         status_code=500, detail="Failed to create analysis job.")
-    
-    # if len(automations) == 0:
-    #     problem_description = "No problem description provided."
-
-    # Get datasets and automations from database
-    yield "Loading dataset metadata..."
-    try: 
-        datasets = await get_user_datasets_by_ids(user.id, analysis_planner_request.dataset_ids)
-    except:
-        raise HTTPException(
-            status_code=500, detail="Failed to get datasets.")
-
-    # TODO: Get automations from database
-
-    data_dir = Path("integrated_data") / f"{user.id}"
-    data_paths = [Path(data_dir / f"{dataset_id}.csv") for dataset_id in analysis_planner_request.dataset_ids]
-    problem_description = "" # should come from Automation
-    try:
-        async for progress in run_simple_analysis_job(
-            # user.id,
-            datasets.time_series,
-            analysis_planner_request.prompt,
-            data_paths,
-            message_history
-        ):
-            yield progress
-    except:
-        yield "Something went wrong during execution of analysis."
-        raise HTTPException(
-            status_code=500, detail="Failed to run simple analysis.")
-
-    # analysis_result = await analysis_result.wait_result()
-    # if analysis_result.is_err:
-    #     raise HTTPException(
-    #         status_code=500, detail="Failed to run simple analysis.")
-    # return analysis_result.return_value
         
 
 # @router.post("/call-analysis-agent", response_model=JobMetadata)

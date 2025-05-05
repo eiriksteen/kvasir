@@ -1,7 +1,7 @@
 import pandas as pd
-from typing import Literal, AsyncGenerator
+from typing import Dict
 from pathlib import Path
-from pydantic_ai import Agent, RunContext, ModelRetry, Tool
+from pydantic_ai import Agent, RunContext, Tool
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -20,8 +20,42 @@ from .deps import EDADepsBasic, EDADepsAdvanced, EDADepsIndependent, EDADepsTota
 from synesis_api.secrets import OPENAI_API_KEY, OPENAI_API_MODEL
 from synesis_api.modules.analysis.schema import AnalysisJobResultMetadata, AnalysisJobResult, AnalysisPlan
 from synesis_api.utils import run_code_in_container
-import logging
 from synesis_api.modules.ontology.schema import Dataset
+from pydantic_ai.messages import SystemPromptPart, ModelRequest
+from typing import List
+from synesis_api.worker import logger
+from pydantic_ai.messages import ModelMessage
+from pydantic_ai.messages import (
+    FunctionToolCallEvent,
+    FunctionToolResultEvent,
+)
+from fastapi import HTTPException
+import aiofiles
+import uuid
+from io import StringIO
+from .tools import eda_cs_tools
+
+# Add dataset cache
+dataset_cache: Dict[str, pd.DataFrame] = {}
+
+async def load_dataset_from_cache_or_disk(dataset_id: uuid.UUID, user_id: uuid.UUID) -> pd.DataFrame:
+    """Load dataset from cache if available, otherwise load from disk and cache it."""
+    if dataset_id in dataset_cache:
+        logger.info(f"Loading dataset from cache: {dataset_id}")
+        return dataset_cache[dataset_id]
+    data_path = Path(f"integrated_data/{user_id}/{dataset_id}.csv")
+    try:
+        async with aiofiles.open(data_path, 'r', encoding="utf-8") as f:
+            content = await f.read()
+            df = pd.read_csv(StringIO(content))
+            dataset_cache[data_path] = df
+            logger.info(f"Cached dataset: {data_path}")
+            return df
+    except Exception as e:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"File in {data_path} not found: {str(e)}"
+        )
 
 class AnalysisPlannerAgent:
     def __init__(
@@ -125,7 +159,7 @@ class AnalysisExecutionAgent:
             )
             return sys_prompt
         
-        @self.agent.tool_plain
+        @self.agent.tool_plain()
         async def execute_python_code(python_code: str):
             """
             Execute a python code block.
@@ -154,48 +188,79 @@ class AnalysisExecutionAgent:
             async for node in agent_run:
                 nodes.append(node)
                 self.logger.info(f"Analysis execution agent state: {node}")
-        return agent_run.result.data
+        return agent_run.result
     
-            
-    async def simple_analysis_stream(
+
+    async def run_simple_analysis(
         self,
-        dfs: List[pd.DataFrame],
-        prompt: str,
-        data_paths: List[Path],
+        analysis_request: AnalysisRequest,
+        user: User,
         message_history: List[ModelMessage]
     ):
-        deps = AnalysisExecutionDeps(
-            df=dfs[0], # TODO: handle multiple datasets
+        if len(analysis_request.dataset_ids) == 0 and len(analysis_request.automation_ids) == 0:
+            raise HTTPException(
+                status_code=400, detail="At least one dataset or automation is required.")
+        
+        yield "Loading metadata..."
+        try: 
+            datasets = await get_user_datasets_by_ids(user.id, analysis_request.dataset_ids)
+        except:
+            raise HTTPException(
+                status_code=500, detail="Failed to get datasets.")
+
+        data_dir = Path("integrated_data") / f"{user.id}"
+        data_paths = [data_dir / f"{dataset_id}.csv" for dataset_id in analysis_request.dataset_ids]
+        problem_description = ""
+
+        dfs = [] # we should store column names in the dataset object
+        yield "Loading datasets and checking cache..."
+        try:
+            logger.info(f"Start loading datasets")
+            for dataset in datasets.time_series:
+                df = await load_dataset_from_cache_or_disk(dataset.id, dataset.user_id)
+                dfs.append(df)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error loading datasets: {str(e)}"
+            )
+        
+        analysis_deps = AnalysisExecutionDeps(
+            df=dfs[0],  # TODO: handle multiple datasets
             data_path=data_paths[0],
-            analysis_plan=None  # Explicitly set to None for simple analysis
+            analysis_plan=None
         )
 
-        # TODO: I do not like this approach. We need some sort of this solution as the message history already containst
-        # a system prompt. So it will never use the get_system_prompt function.
         system_prompt = SystemPromptPart(
             content= f"""
             {ANALYSIS_EXECUTION_SYSTEM_PROMPT}\n
-            Here is the analysis plan: {deps.analysis_plan}\n
-            If some inputs to the tools are missing or not working here are the column names: {deps.df.columns.tolist()}\n
-            If you crete code yourself, you can retrieve the data from the following path: /tmp/{deps.data_path.name}\n
+            Here is the analysis plan: {analysis_deps.analysis_plan}\n
+            If some inputs to the tools are missing or not working here are the column names: {analysis_deps.df.columns.tolist()}\n
+            If you crete code yourself, you can retrieve the data from the following path: /tmp/{analysis_deps.data_path.name}\n
             """
         )
         model_request = ModelRequest(parts=[system_prompt])
         message_history.append(model_request)
+        async with self.agent.iter(
+            analysis_request.prompt,
+            deps=analysis_deps,
+            message_history=message_history
+        ) as run:
+            async for node in run:
+                if Agent.is_call_tools_node(node):
+                    async with node.stream(run.ctx) as handle_stream:
+                        async for event in handle_stream:
+                            if isinstance(event, FunctionToolCallEvent):
+                                if event.part.tool_name == "execute_python_code":
+                                    yield f"Executing python code..."
+                                else:
+                                    yield f"Calling cached tool for analysis..."
+                            elif isinstance(event, FunctionToolResultEvent):
+                                yield "Tool results available..."
+                elif Agent.is_end_node(node):
+                    yield "Formatting result..."
+        yield run.result
 
-        prompt = prompt
-        async with self.agent.run_stream(
-            prompt,
-            message_history=message_history,
-            deps=deps
-        ) as result:
-            prev_text = ""
-            async for text in result.stream(debounce_by=0.1):
-                if text != prev_text:
-                    yield text
-                    prev_text = text
-
-            yield result
-    
-    
-    
+        
+analysis_planner_agent = AnalysisPlannerAgent()
+analysis_execution_agent = AnalysisExecutionAgent(eda_cs_tools)

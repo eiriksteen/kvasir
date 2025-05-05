@@ -5,7 +5,7 @@ from synesis_api.modules.ontology.schema import Datasets
 from synesis_api.modules.automation.schema import Automations
 import uuid
 from ...auth.schema import User
-
+from pydantic_ai.messages import ModelMessage
 class ChatbotOutput(BaseSchema):
     goal_description: str
     deliverable_description: str
@@ -55,6 +55,7 @@ class Context(BaseSchema):
 
 class ContextDeps(Context):
     user: User
+    message_history: List[ModelMessage]
 
 class ContextInDB(BaseSchema):
     id: uuid.UUID

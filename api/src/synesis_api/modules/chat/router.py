@@ -63,7 +63,7 @@ async def post_chat(
     async def stream_messages():
         messages = await get_messages_pydantic(conversation_id)
         orchestrator_output = await orchestrator_agent.run(prompt.content, message_history=messages)
-        handoff_agent = orchestrator_output.data.handoff_agent
+        handoff_agent = orchestrator_output.output.handoff_agent
     
         if handoff_agent == "chat":
             async with chatbot_agent.run_stream(prompt.content, message_history=messages) as result:
@@ -77,25 +77,26 @@ async def post_chat(
 
             context_deps = ContextDeps(
                 user=user,
-                **context.model_dump()
+                **context.model_dump(),
+                message_history=messages
             )
-            analysis_planner_request = AnalysisPlannerRequest(
+            analysis_request = AnalysisRequest(
                 dataset_ids=context_deps.dataset_ids,
                 automation_ids=context_deps.automation_ids,
                 prompt=prompt.content
             )
-            async for progress in run_simple_analysis(analysis_planner_request, context_deps.user, message_history=messages):
-                if isinstance(progress, AnalysisJobResult):
-                    yield progress.analysis + "\n\n"
-                    text = progress.analysis
-                    if progress.python_code is not None:
-                        yield "The python code that was executed:" + "\n\n"
-                        yield progress.python_code
-                elif isinstance(progress, StreamedRunResult):
-                    result = progress
-                    break
-                else:
-                    yield progress + "\n\n"
+            async for item in analysis_execution_agent.run_simple_analysis(analysis_request, context_deps.user, message_history=messages):
+                if isinstance(item, str):
+                    yield item
+                elif isinstance(item, AgentRunResult):
+                    new_messages = messages + item.all_messages()
+                    async with chatbot_agent.run_stream(prompt.content, message_history=new_messages) as result:
+                        prev_text = ""
+                        async for text in result.stream(debounce_by=0.01):
+                            if text != prev_text:
+                                yield text
+                                prev_text = text
+
         await insert_message_pydantic(conversation_id, result.new_messages_json())
 
         await create_message(conversation_id, "user", prompt.content)

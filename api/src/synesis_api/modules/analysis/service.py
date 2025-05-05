@@ -23,8 +23,6 @@ logger = get_task_logger(__name__)
 # Add dataset cache
 dataset_cache: Dict[str, pd.DataFrame] = {}
 
-analysis_planner_agent = AnalysisPlannerAgent()
-analysis_execution_agent = AnalysisExecutionAgent(eda_cs_tools)
 
 async def load_dataset_from_cache_or_disk(dataset_id: uuid.UUID, user_id: uuid.UUID) -> pd.DataFrame:
     """Load dataset from cache if available, otherwise load from disk and cache it."""
@@ -226,42 +224,6 @@ async def run_analysis_execution(
     #     raise e
 
     # return output_in_db
-
-async def run_simple_analysis_job(
-    datasets: List[Dataset],    
-    prompt: str,
-    data_paths: List[Path],
-    message_history: List[ModelMessage]
-):
-    dfs = [] # we should store column names in the dataset object
-    yield "Loading datasets and checking cache..."
-    try:
-        logger.info(f"Start loading datasets")
-        for dataset in datasets:
-            df = await load_dataset_from_cache_or_disk(dataset.id, dataset.user_id)
-            dfs.append(df)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error loading datasets: {str(e)}"
-        )
-    
-    try:
-        logger.info(f"Start running simple analysis")
-        yield "Running analysis..."
-        async for progress in analysis_execution_agent.simple_analysis_stream(
-            dfs,
-            prompt,
-            data_paths,
-            message_history
-        ):
-            yield progress
-        logger.info(f"Simple analysis completed")
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error running simple analysis: {str(e)}"
-        )
 
 
 @broker.task

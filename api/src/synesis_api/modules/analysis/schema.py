@@ -1,9 +1,9 @@
 from pydantic import BaseModel
 from uuid import UUID
-from datetime import datetime
-from typing import List
+from datetime import datetime, timezone
+from typing import List, Literal
 from ...base_schema import BaseSchema
-
+from pydantic_ai.models.openai import ModelMessage
 class AnalysisPlanStep(BaseSchema):
     step_name: str
     step_description: str
@@ -37,8 +37,9 @@ class AnalysisJobResultInDB(AnalysisJobResult):
 class AnalysisJobResultMetadataList(BaseSchema):
     analysis_job_results: List[AnalysisJobResultMetadata] = []
 
-class AnalysisPlannerRequest(BaseSchema):
+class AnalysisRequest(BaseSchema):
     job_id: UUID | None = None
     dataset_ids: List[UUID] = []
     automation_ids: List[UUID] = []
-    prompt: str | None = "Make a detailed analysis plan."
+    prompt: str | None = None
+

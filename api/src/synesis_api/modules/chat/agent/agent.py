@@ -1,5 +1,4 @@
 from pydantic_ai import Agent
-from pathlib import Path
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -30,25 +29,6 @@ summary_agent = Agent(
     model_settings=ModelSettings(temperature=0.1),
     result_type=ChatbotOutput,
 )
-
-@chatbot_agent.tool
-async def run_analysis_planner_job(
-    ctx: RunContext[ContextDeps],
-    prompt: str
-) -> str: # TODO: This must be moved to the analysis agent
-    """
-    Initiates a comprehensive analysis plan. This tool should be used when the analysis required for answering a question is complex and requires multiple steps.
-    Before you use this tool, you should tell the user that it might take some time to generate and run the code.
-    """
-    analysis_planner_request = AnalysisPlannerRequest(
-        job_id=ctx.deps.analysis_ids[0], # TODO: handle multiple analysis ids
-        dataset_ids=ctx.deps.dataset_ids,
-        automation_ids=ctx.deps.automation_ids,
-        prompt=prompt
-    )
-    
-    await run_analysis_planner(analysis_planner_request, ctx.deps.user)
-    return "Analysis planner job started. The analysis will be ready soon."
 
 
 
