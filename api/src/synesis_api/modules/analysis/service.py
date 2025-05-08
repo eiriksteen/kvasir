@@ -9,6 +9,8 @@ from ..jobs.service import update_job_status
 from ...utils import save_markdown_as_html
 from ...aws.service import upload_object_s3
 from ...worker import logger
+from ..jobs.service import delete_job_by_id
+from ..chat.models import analysis_context
 
 
 async def run_analysis_execution(
@@ -176,7 +178,7 @@ async def get_user_analysis_metadata(user_id: uuid.UUID) -> AnalysisJobResultMet
         automation_ids = []  # TODO: implement get_automation_ids_by_job_id
         results.append(AnalysisJobResultMetadataInDB(**d, dataset_ids=dataset_ids, automation_ids=automation_ids))
     
-    return AnalysisJobResultMetadataList(analysis_job_results=results)
+    return AnalysisJobResultMetadataList(analyses_job_results=results)
 
 
 async def get_analysis_job_results_from_db(job_id: uuid.UUID) -> AnalysisJobResultMetadataInDB:
@@ -209,11 +211,49 @@ async def get_user_analyses_by_ids(user_id: uuid.UUID, analysis_ids: List[uuid.U
         automation_ids = []  # TODO: implement get_automation_ids_by_job_id
         results.append(AnalysisJobResultMetadataInDB(**d, dataset_ids=dataset_ids, automation_ids=automation_ids))
     
-    return AnalysisJobResultMetadataList(analysis_job_results=results)
+    return AnalysisJobResultMetadataList(analyses_job_results=results)
 
 async def get_dataset_ids_by_job_id(job_id: uuid.UUID) -> List[uuid.UUID]:
     dataset_mappings = await fetch_all(
         select(analysis_jobs_datasets).where(analysis_jobs_datasets.c.job_id == job_id)
     )
     
-    return [mapping["dataset_id"] for mapping in dataset_mappings]    
+    return [mapping["dataset_id"] for mapping in dataset_mappings]  
+
+
+async def delete_analysis_job_results_from_db(job_id: uuid.UUID) -> uuid.UUID:
+    # TODO: use cascading delete
+
+    # Delete from child tables first
+    await execute(
+        delete(analysis_jobs_datasets).where(analysis_jobs_datasets.c.job_id == job_id),
+        commit_after=True
+    )
+    await execute(
+        delete(analysis_jobs_automations).where(analysis_jobs_automations.c.job_id == job_id),
+        commit_after=True
+    )
+    # Delete from analysis_context
+    await execute(
+        delete(analysis_context).where(analysis_context.c.analysis_id == job_id),
+        commit_after=True
+    )
+
+    # Delete from analysis_jobs_results
+    await execute(
+        delete(analysis_jobs_results).where(analysis_jobs_results.c.job_id == job_id),
+        commit_after=True
+    )
+
+    # Delete from jobs table
+    await delete_job_by_id(job_id)
+    return job_id
+
+    
+
+# async def delete_analysis_job_results_from_db(job_id: uuid.UUID) -> uuid.UUID:
+#     # Delete from jobs table - cascading will handle the rest
+#     await delete_job_by_id(job_id)
+#     return job_id
+    
+    

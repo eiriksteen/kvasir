@@ -42,7 +42,7 @@ class AnalysisJobResultInDB(AnalysisJobResult):
 
 
 class AnalysisJobResultMetadataList(BaseSchema):
-    analysis_job_results: List[AnalysisJobResultMetadata] = []
+    analyses_job_results: List[AnalysisJobResultMetadata] = []
 
 class AnalysisRequest(BaseSchema):
     dataset_ids: List[UUID] = []

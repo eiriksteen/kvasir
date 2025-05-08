@@ -19,6 +19,6 @@ export interface AnalysisJobResultMetadata {
     pdfCreated: boolean;
 }
 
-export interface Analysises {
-    analysisJobResults: AnalysisJobResultMetadata[];
+export interface Analyses {
+    analysesJobResults: AnalysisJobResultMetadata[];
 }

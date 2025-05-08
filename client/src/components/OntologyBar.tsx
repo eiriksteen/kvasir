@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Database, Plus, Check } from 'lucide-react';
+import { Database, Plus, Check, Upload, Trash2 } from 'lucide-react';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { Automation } from '@/types/automations';
 import { useAgentContext, useDatasets, useAnalysis } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
+import ConfirmationPopup from './confirmationPopup';
 
 
 function DatasetItem({ dataset, isInContext, onClick }: { dataset: TimeSeriesDataset; isInContext: boolean; onClick: () => void }) {
@@ -65,40 +66,71 @@ function AutomationItem({ automation, isSelected, onClick }: { automation: Autom
 }
 
 function AnalysisItem({ analysis, isSelected, onClick }: {analysis: AnalysisJobResultMetadata, isSelected: boolean, onClick: () => void }) {
+    const { deleteAnalysisJobResults } = useAnalysis();
+
+    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+
+    const handleDelete = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setShowDeleteConfirmation(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        await deleteAnalysisJobResults(analysis);
+        setShowDeleteConfirmation(false);
+    };
+
     return (
-        <div 
-            onClick={onClick}
-            className={`p-3 rounded-lg cursor-pointer hover:bg-[#1a2438] border-2 ${
-                isSelected ? 'bg-[#1a2438] border-blue-800' : 'bg-[#0e1a30]/80 border-[#1a2438]'
-            }`}
-        >
-            <div className="flex justify-between items-start">
-                <div className="flex flex-col gap-2">
-                    <div className="text-sm font-medium text-blue-300">Analysis Results</div>
-                    <div className="text-xs text-zinc-400">
-                        <div>Job ID: {analysis.jobId}</div>
-                        <div>Datasets: {analysis.numberOfDatasets}</div>
-                        <div>Automations: {analysis.numberOfAutomations}</div>
-                        <div>Created: {new Date(analysis.createdAt).toLocaleDateString()}</div>
-                        <div>PDF Created: {analysis.pdfCreated ? "Yes" : "No"}</div>
+        <>
+            <div 
+                onClick={onClick}
+                className={`p-3 rounded-lg cursor-pointer hover:bg-[#1a2438] border-2 ${
+                    isSelected ? 'bg-[#1a2438] border-blue-800' : 'bg-[#0e1a30]/80 border-[#1a2438]'
+                }`}
+            >
+                <div className="flex justify-between items-start">
+                    <div className="flex flex-col gap-2">
+                        <div className="text-sm font-medium text-blue-300">Analysis Results</div>
+                        <div className="text-xs text-zinc-400">
+                            <div>Job ID: {analysis.jobId}</div>
+                            <div>Datasets: {analysis.numberOfDatasets}</div>
+                            <div>Automations: {analysis.numberOfAutomations}</div>
+                            <div>Created: {new Date(analysis.createdAt).toLocaleDateString()}</div>
+                            <div>PDF Created: {analysis.pdfCreated ? "Yes" : "No"}</div>
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={handleDelete}
+                            className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-red-600/40 to-red-700/40 text-red-300 border-red-500/30 shadow-red-900/20 hover:from-red-600/60 hover:to-red-700/60 hover:text-red-200"
+                            title="Delete analysis"
+                        >
+                            <Trash2 size={14} />
+                        </button>
+                        <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onClick();
+                            }}
+                            className={`p-1.5 rounded-full border shadow-md ${
+                                isSelected
+                                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-500 shadow-blue-900/30'
+                                    : 'bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]'
+                            }`}
+                            title={isSelected ? "Remove from context" : "Add to chat context"}
+                        >
+                            {isSelected ? <Check size={14} /> : <Plus size={14} />}
+                        </button>
                     </div>
                 </div>
-                <button 
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onClick();
-                    }}
-                    className={`p-1.5 rounded-full border shadow-md ${
-                        isSelected
-                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-500 shadow-blue-900/30'
-                            : 'bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]'
-                    }`}
-                    title={isSelected ? "Remove from context" : "Add to chat context"}
-                >
-                    {isSelected ? <Check size={14} /> : <Plus size={14} />}
-                </button>
             </div>
-        </div>
+            <ConfirmationPopup
+                isOpen={showDeleteConfirmation}
+                message={`Are you sure you want to delete this analysis? This action cannot be undone.`}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setShowDeleteConfirmation(false)}
+            />
+        </>
     );
 }
 
@@ -216,14 +248,14 @@ export default function OntologyBar() {
                     <h2 className="text-sm font-mono uppercase tracking-wider text-purple-300 mb-4">Analysis</h2>
                     
                     <div className="space-y-2 flex-grow overflow-y-auto">
-                        {analysisJobResults?.analysisJobResults.length === 0 && (    
+                        {analysisJobResults?.analysesJobResults.length === 0 && (    
                             <div className="p-3 rounded-lg mb-3">
                                 <p className="text-xs text-zinc-400">
                                     No analysis found. 
                                 </p>
                             </div>
                         )}
-                        {analysisJobResults?.analysisJobResults.map((analysis: AnalysisJobResultMetadata) => (
+                        {analysisJobResults?.analysesJobResults.map((analysis: AnalysisJobResultMetadata) => (
                             <AnalysisItem
                                 key={analysis.jobId}
                                 analysis={analysis}

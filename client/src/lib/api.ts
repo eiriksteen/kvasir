@@ -1,5 +1,5 @@
 import {EventSource} from 'eventsource'
-import { AnalysisJobResultMetadata, Analysises } from "@/types/analysis";
+import { AnalysisJobResultMetadata, Analyses } from "@/types/analysis";
 import { ChatMessageAPI, Conversation } from "@/types/chat";
 import { Datasets, TimeSeriesDataset } from "@/types/datasets";
 import { Job } from "@/types/jobs";
@@ -76,6 +76,24 @@ export async function postAnalysisPlanner(token: string, datasetIds: string[], a
 }
 
 
+export async function deleteAnalysisJobResultsDB(token: string, jobId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/analysis/delete-analysis-job-results/${jobId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete analysis job results: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  console.log(data);
+  return data;
+}
+
 export async function postAnalysis(token: string, datasetIds: string[], automationIds: string[]): Promise<Job> {
   const response = await fetch(`${API_URL}/eda/call-eda-agent?dataset_ids=${datasetIds.join(",")}&automation_ids=${automationIds.join(",")}`, {
     method: 'POST',
@@ -93,7 +111,7 @@ export async function postAnalysis(token: string, datasetIds: string[], automati
   return data;
 }
 
-export async function fetchAnalysisJobResults(token: string): Promise<Analysises> {
+export async function fetchAnalysisJobResults(token: string): Promise<Analyses> {
   const response = await fetch(`${API_URL}/analysis/analysis-job-results`, {
     headers: {
       'Authorization': `Bearer ${token}`,

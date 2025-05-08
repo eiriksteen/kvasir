@@ -1,10 +1,9 @@
-import { fetchAnalysisJobResults, postAnalysisPlanner } from "@/lib/api";
+import { fetchAnalysisJobResults, deleteAnalysisJobResultsDB } from "@/lib/api";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from 'swr/mutation'
-import { Automation } from "@/types/automations";
-import { TimeSeriesDataset } from "@/types/datasets";
 import { useAgentContext } from "./useAgentContext";
+import { AnalysisJobResultMetadata } from "@/types/analysis";
 
 export const useAnalysis = () => {
     const { data: session } = useSession();
@@ -14,37 +13,29 @@ export const useAnalysis = () => {
     const { data: analysisJobResults, error, isLoading } = useSWR(session ? "analysisJobResults" : null, () => fetchAnalysisJobResults(session ? session.APIToken.accessToken : ""));
     const { data: currentAnalysisID } = useSWR("currentAnalysis", {fallbackData: null});
 
-    const { trigger: createAnalysisPlanner } = useSWRMutation("createAnalysisPlanner", () => postAnalysisPlanner(
-      session ? session.APIToken.accessToken : "", 
-      context.datasetsInContext ? context.datasetsInContext.map((dataset: TimeSeriesDataset) => dataset.id) : [], 
-      // context.automationsInContext ? context.automationsInContext.automations.map((automation: Automation) => automation.id) : [], 
-      [],
-      "Make a detailed analysis plan."), {
-      // populateCache: (newData) => {
-      //   if (analysises) {
-      //     mutateAnalysises([...analysises, newData]);
-      //   }
-      // }
-    });
-  
-    // const { trigger: createAnalysis } = useSWRMutation("createAnalysis", () => postAnalysisPlanner(session ? session.APIToken.accessToken : "", datasetsInContext ? datasetsInContext : []), {
-    //   populateCache: (newData) => {
-    //     if (analysises) {
-    //       mutateAnalysises([...analysises, newData]);
-    //     }
-    //     else{
-    //       mutateAnalysises([newData]);
-    //     }
-    //     return newData.id;
-    //   }
-    // });
+
+    const { trigger: deleteAnalysisJobResults } = useSWRMutation("deleteAnalysisJobResults", 
+      async (_, { arg }: { arg: AnalysisJobResultMetadata }) => {
+        await deleteAnalysisJobResultsDB(
+          session ? session.APIToken.accessToken : "",
+          arg.jobId
+        );
+        return arg;
+      }, {
+      populateCache: (newData: AnalysisJobResultMetadata) => {
+        if (analysisJobResults) {
+          return analysisJobResults.analysesJobResults.filter((analysis: AnalysisJobResultMetadata) => analysis.jobId !== newData.jobId);
+        }
+        return [];
+      } 
+    }); 
+
   
     return {
       currentAnalysisID,
       analysisJobResults,
+      deleteAnalysisJobResults,
       error,
       isLoading,
-      createAnalysisPlanner,
-      // createAnalysis,
     };
   }
