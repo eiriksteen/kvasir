@@ -69,6 +69,8 @@ async def post_chat(
                         yield text
                         prev_text = text
         elif handoff_agent == "analysis" or handoff_agent == "automation":
+            result = await analysis_agent.delegate("Which function to delegate this prompt to: " + prompt.content)
+            print(f"Delegate Result: {result}")
             context = await get_context_by_time_stamp(conversation_id, user.id, datetime.now())
             delegated_task = await analysis_agent.delegate("This is the current context: " + context.model_dump_json() + "Which function to delegate this prompt to: " + prompt.content)
 
