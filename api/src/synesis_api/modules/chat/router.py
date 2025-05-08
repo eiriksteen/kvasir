@@ -21,16 +21,12 @@ from synesis_api.modules.chat.service import (
 from synesis_api.modules.chat.agent.agent import chatbot_agent
 from synesis_api.auth.service import get_current_user, user_owns_conversation
 from synesis_api.auth.schema import User
-
-
-from synesis_api.modules.chat.agent.agent import chatbot_agent
-from synesis_api.auth.service import get_current_user, user_owns_conversation
-from synesis_api.auth.schema import User
 from synesis_api.modules.ontology.schema import Dataset
 from synesis_api.modules.analysis.service import get_user_analyses_by_ids
 from synesis_api.modules.orchestrator.agent.agent import orchestrator_agent
-from synesis_api.modules.analysis.router import run_simple_analysis
-from synesis_api.modules.analysis.schema import AnalysisPlannerRequest, AnalysisJobResult
+from synesis_api.modules.analysis.schema import AnalysisRequest
+from synesis_api.modules.analysis.agent.agent import analysis_agent
+from synesis_api.modules.analysis.tasks import run_analysis_planner_task, run_analysis_execution_task
 router = APIRouter()
 
 @router.post("/completions/analysis-planner/{conversation_id}")
@@ -73,29 +69,43 @@ async def post_chat(
                         yield text
                         prev_text = text
         elif handoff_agent == "analysis" or handoff_agent == "automation":
+            result = await analysis_agent.delegate("Which function to delegate this prompt to: " + prompt.content)
+            print(f"Delegate Result: {result}")
             context = await get_context_by_time_stamp(conversation_id, user.id, datetime.now())
 
-            context_deps = ContextDeps(
+            analysis_request = AnalysisRequest(
+                dataset_ids=context.dataset_ids,
+                automation_ids=context.automation_ids,
+                analysis_ids=context.analysis_ids,
+                prompt=prompt.content,
                 user=user,
-                **context.model_dump(),
                 message_history=messages
             )
-            analysis_request = AnalysisRequest(
-                dataset_ids=context_deps.dataset_ids,
-                automation_ids=context_deps.automation_ids,
-                prompt=prompt.content
-            )
-            async for item in analysis_execution_agent.run_simple_analysis(analysis_request, context_deps.user, message_history=messages):
-                if isinstance(item, str):
-                    yield item
-                elif isinstance(item, AgentRunResult):
-                    new_messages = messages + item.all_messages()
-                    async with chatbot_agent.run_stream(prompt.content, message_history=new_messages) as result:
-                        prev_text = ""
-                        async for text in result.stream(debounce_by=0.01):
-                            if text != prev_text:
-                                yield text
-                                prev_text = text
+
+            print(f"Analysis request: {analysis_request}")
+
+            if result == "run_simple_analysis": 
+                async for item in analysis_agent.run_simple_analysis(analysis_request):
+                    if isinstance(item, str):
+                        yield item
+                    elif isinstance(item, AgentRunResult):
+                        new_messages = messages + item.all_messages()
+                        async with chatbot_agent.run_stream(prompt.content, message_history=new_messages) as result:
+                            prev_text = ""
+                            async for text in result.stream(debounce_by=0.01):
+                                if text != prev_text:
+                                    yield text
+                                    prev_text = text
+            elif result == "run_analysis_planner":
+                yield "Running analysis planner. This may take a couple of minutes. The results will be shown in the analyis tab."
+                await run_analysis_planner_task.kiq(analysis_request)
+            elif result == "run_execution_agent":
+                yield "Running analysis execution. This may take a couple of minutes. The results will be shown in the analyis tab."
+                await run_analysis_execution_task.kiq(analysis_request)
+            else:
+                raise HTTPException(
+                    status_code=400, detail="Invalid handoff agent")
+            
 
         await insert_message_pydantic(conversation_id, result.new_messages_json())
 
@@ -183,7 +193,7 @@ async def update_context(
     automations = []
     analyses = await get_user_analyses_by_ids(user.id, new_analysis_ids)
 
-    updated_context = SystemPromptPart(
+    updated_context = SystemPromptPart( # TODO: this is a very bad way of doing this, this should only be called when the user actually prompts the agent, or else the context will be very cluttered.
         content=f"""
         <CONTEXT UPDATES>
         Current datasets in context: {datasets}

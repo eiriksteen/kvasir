@@ -7,7 +7,7 @@ from pydantic_ai import RunContext, Tool
 from synesis_api.modules.analysis.agent.deps import AnalysisExecutionDeps
 
 
-def check_missing_values(ctx: RunContext[AnalysisExecutionDeps]) -> str:
+def check_missing_values(ctx: RunContext[AnalysisDeps]) -> str:
     """
     Check for missing values in the df in the context.
 
@@ -23,7 +23,7 @@ def check_missing_values(ctx: RunContext[AnalysisExecutionDeps]) -> str:
     return "Missing values:" + missing_values.to_string()
 
 
-def correlation_matrix(ctx: RunContext[AnalysisExecutionDeps], cols: List[str], method: str = 'pearson') -> str:
+def correlation_matrix(ctx: RunContext[AnalysisDeps], cols: List[str], method: str = 'pearson') -> str:
     """
     Compute the correlation matrix for the df in the context.
 
@@ -47,7 +47,7 @@ def correlation_matrix(ctx: RunContext[AnalysisExecutionDeps], cols: List[str], 
     return "Correlation matrix:" + corr_matrix.to_string()
 
 
-def moments_of_distribution(ctx: RunContext[AnalysisExecutionDeps], column: str) -> str:
+def moments_of_distribution(ctx: RunContext[AnalysisDeps], column: str) -> str:
     """
     Compute the moments of distribution (mean, variance, skewness, kurtosis) for a specific column in the df in the context.
 
@@ -76,7 +76,7 @@ def moments_of_distribution(ctx: RunContext[AnalysisExecutionDeps], column: str)
             f'Kurtosis: {kurtosis}')
 
 
-def summary_statistics(ctx: RunContext[AnalysisExecutionDeps]) -> str:
+def summary_statistics(ctx: RunContext[AnalysisDeps]) -> str:
     """
     Compute summary statistics of the df in the context.
 
@@ -92,7 +92,7 @@ def summary_statistics(ctx: RunContext[AnalysisExecutionDeps]) -> str:
     return summary_stats.to_string()
 
 
-def summary_statistics_grouped(ctx: RunContext[AnalysisExecutionDeps], group_by: str):
+def summary_statistics_grouped(ctx: RunContext[AnalysisDeps], group_by: str):
     """
     Compute summary statistics for each group in the df in the context after grouping by the specified column.
 
@@ -110,7 +110,7 @@ def summary_statistics_grouped(ctx: RunContext[AnalysisExecutionDeps], group_by:
     return summary_stats.to_string()
 
 
-def check_outliers(ctx: RunContext[AnalysisExecutionDeps], column: str, method: str = 'iqr') -> str:
+def check_outliers(ctx: RunContext[AnalysisDeps], column: str, method: str = 'iqr') -> str:
     """
     Check for outliers in a specific column of the df in the context using the specified method.
 
@@ -147,7 +147,7 @@ def check_outliers(ctx: RunContext[AnalysisExecutionDeps], column: str, method: 
             f'Percentage of outliers in {column}: {percent_outliers:.2f}%')
 
 
-def regression(ctx: RunContext[AnalysisExecutionDeps], endo: str, exo: List[str]) -> str:
+def regression(ctx: RunContext[AnalysisDeps], endo: str, exo: List[str]) -> str:
     """
     Runs an ordinary least squares regression.
 
@@ -177,7 +177,7 @@ def regression(ctx: RunContext[AnalysisExecutionDeps], endo: str, exo: List[str]
     return summary.as_text()
 
 
-def anova(ctx: RunContext[AnalysisExecutionDeps], numerical_col: str, group_by: str) -> str:
+def anova(ctx: RunContext[AnalysisDeps], numerical_col: str, group_by: str) -> str:
     """
     Perform ANOVA (Analysis of Variance) to determine if there are statistically 
     significant differences between the means of groups defined by a categorical column.
@@ -208,7 +208,7 @@ def anova(ctx: RunContext[AnalysisExecutionDeps], numerical_col: str, group_by: 
     return anova_table.to_string()
 
 
-def pca_analysis(ctx: RunContext[AnalysisExecutionDeps], n_components: int = 2, cols: List[str] = None) -> str:
+def pca_analysis(ctx: RunContext[AnalysisDeps], n_components: int = 2, cols: List[str] = None) -> str:
     """
     Perform Principal Component Analysis (PCA) on the dataframe in the context.
 

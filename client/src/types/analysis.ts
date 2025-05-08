@@ -10,9 +10,11 @@ export interface AnalysisPlan {
 
 export interface AnalysisJobResultMetadata {
     jobId: string;
+    datasetIds: string[];
+    automationIds: string[];
+    analysisPlan: AnalysisPlan;
     numberOfDatasets: number;
     numberOfAutomations: number;
-    analysisPlan: AnalysisPlan;
     createdAt: string;
     pdfCreated: boolean;
 }

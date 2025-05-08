@@ -7,16 +7,5 @@ from typing import List, Literal
 
 
 @dataclass
-class AnalysisPlannerDeps:
-    datasets: List[Dataset]
-    column_names: str
-    problem_description: str
-    tools: List[str]
-
-
-@dataclass
-class AnalysisExecutionDeps:
-    df: pd.DataFrame
-    data_path: Path
-    analysis_plan: AnalysisPlan | None = None
-
+class AnalysisDeps:
+    df: pd.DataFrame | None = None

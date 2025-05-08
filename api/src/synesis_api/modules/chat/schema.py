@@ -53,10 +53,6 @@ class Context(BaseSchema):
     automation_ids: List[uuid.UUID] = []
     analysis_ids: List[uuid.UUID] = []
 
-class ContextDeps(Context):
-    user: User
-    message_history: List[ModelMessage]
-
 class ContextInDB(BaseSchema):
     id: uuid.UUID
     conversation_id: uuid.UUID

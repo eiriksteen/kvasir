@@ -7,7 +7,6 @@ from ...auth.service import (create_api_key,
                              get_current_user,
                              user_owns_job)
 from .service import (
-    run_analysis_planner_job,
     get_analysis_job_results_from_db,
     get_user_analysis_metadata,
     create_pdf_from_results,

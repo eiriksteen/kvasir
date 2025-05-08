@@ -1,9 +1,14 @@
-from pydantic import BaseModel
 from uuid import UUID
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Literal
 from ...base_schema import BaseSchema
-from pydantic_ai.models.openai import ModelMessage
+from ...auth.schema import User
+from pydantic_ai.messages import ModelMessage
+
+
+class DelegateResult(BaseSchema):
+    function_name: Literal["run_analysis_planner", "run_execution_agent", "run_simple_analysis"]
+
 class AnalysisPlanStep(BaseSchema):
     step_name: str
     step_description: str
@@ -17,6 +22,8 @@ class AnalysisJobResultMetadata(BaseSchema):
     job_id: UUID
     number_of_datasets: int
     number_of_automations: int
+    dataset_ids: List[UUID]
+    automation_ids: List[UUID]
     analysis_plan: AnalysisPlan
     created_at: datetime
     pdf_created: bool
@@ -38,8 +45,10 @@ class AnalysisJobResultMetadataList(BaseSchema):
     analysis_job_results: List[AnalysisJobResultMetadata] = []
 
 class AnalysisRequest(BaseSchema):
-    job_id: UUID | None = None
     dataset_ids: List[UUID] = []
+    analysis_ids: List[UUID] = []
     automation_ids: List[UUID] = []
     prompt: str | None = None
+    user: User
+    message_history: List[ModelMessage] = []
 

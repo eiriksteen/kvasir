@@ -84,18 +84,6 @@ function Chat({ conversationId }: ChatProps) {
       setInput('');
     }
   };
-
-  const initializeAnalysis = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    console.log(datasetsInContext);
-    e.preventDefault();
-    try {
-      setShowAnalysisPopup(true);
-      const plan = await createAnalysisPlanner();
-      
-    } catch (err) {
-      setInput(err instanceof Error ? err.message : "An unknown error occurred");
-    }
-  };
   
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -220,7 +208,7 @@ function Chat({ conversationId }: ChatProps) {
                 Describe my data
               </button>
               <button
-                onClick={initializeAnalysis}
+                onClick={() => submitPrompt("Plan a detailed analysis on the selected datasets.")}
                 className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 Run analysis on datasets
