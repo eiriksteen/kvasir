@@ -123,20 +123,6 @@ function AnalysisItem({ analysis, isSelected, onClick }: {analysis: AnalysisJobR
                         </button>
                     </div>
                 </div>
-                <button 
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onClick();
-                    }}
-                    className={`p-1.5 rounded-full border shadow-md ${
-                        isSelected
-                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-500 shadow-blue-900/30'
-                            : 'bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]'
-                    }`}
-                    title={isSelected ? "Remove from context" : "Add to chat context"}
-                >
-                    {isSelected ? <Check size={14} /> : <Plus size={14} />}
-                </button>
             </div>
             <ConfirmationPopup
                 isOpen={showDeleteConfirmation}
