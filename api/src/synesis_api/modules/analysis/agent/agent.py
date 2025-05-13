@@ -49,7 +49,8 @@ from ..service import (
     update_analysis_job_results_in_db
 )
 from ....auth.service import create_api_key
-from datetime import datetime
+from datetime import datetime, timezone
+from ....redis import get_redis
 
 # Add dataset cache
 dataset_cache: Dict[str, pd.DataFrame] = {}
@@ -72,49 +73,15 @@ async def load_dataset_from_cache_or_disk(dataset_id: uuid.UUID, user_id: uuid.U
             status_code=404, 
             detail=f"File in {data_path} not found: {str(e)}"
         )
-
-# class AnalysisPlannerAgent:
-#     def __init__(
-#         self
-#     ):
-#         self.logger = logger
-
-#         self.provider = OpenAIProvider(api_key=OPENAI_API_KEY)
-#         self.model = OpenAIModel(
-#             model_name=OPENAI_API_MODEL,
-#             provider=self.provider
-#         )
-#         self._initialize_agents()
-    
-#     def _initialize_agents(self):
-#         self.agent = Agent(
-#             self.model,
-#             result_type=AnalysisPlan,
-#             deps_type=AnalysisPlannerDeps,
-#             name="Analysis Planner Agent",
-#             model_settings=ModelSettings(temperature=0.1)
-#             )
-
-#         @self.agent.system_prompt
-#         def get_system_prompt(ctx: RunContext[AnalysisPlannerDeps]) -> str:
-#             sys_prompt = (
-#                 f"{ANALYSIS_PLANNER_SYSTEM_PROMPT}\n"
-#                 f"The problem description is as follows: {ctx.deps.problem_description}\n"
-#                 f"This is the following datasets: {[dataset.model_dump() for dataset in ctx.deps.datasets]}\n"
-#                 f"The column names for the different datasets are as follows: {ctx.deps.column_names}\n"
-#                 f"Here is a list of tools that you can use in your plan: {ctx.deps.tools}\n. Do not call the tools, just use them in your plan that you present to the user."
-#             )
-#             return sys_prompt
-    
     
 
-
-class AnalysisExecutionAgent:
+class AnalysisAgent:
     def __init__(
         self,
         # tools: List[Tool],
     ):
         self.logger = logger
+        self.redis_stream = get_redis()
         # self.tools = tools
 
         self.provider = OpenAIProvider(api_key=OPENAI_API_KEY)
@@ -148,17 +115,27 @@ class AnalysisExecutionAgent:
         #     )
         #     return sys_prompt
         
-        @self.agent.tool_plain()
-        async def execute_python_code(python_code: str):
-            """
-            Execute a python code block.
-            """
-            out, err = await run_code_in_container(python_code)
-            if err:
-                # Instead of retrying, return the error message
-                return f"Error executing code: {err}\n\nPlease fix the code and try again."
+        # @self.agent.tool_plain()
+        # async def execute_python_code(python_code: str):
+        #     """
+        #     Execute a python code block.
+        #     """
+        #     out, err = await run_code_in_container(python_code)
+        #     if err:
+        #         # Instead of retrying, return the error message
+        #         return f"Error executing code: {err}\n\nPlease fix the code and try again."
 
-            return out
+        #     return out
+        
+    async def post_message_to_redis(self, message: dict, job_id: uuid.UUID):
+        message = {
+            "id": str(message["id"]),
+            "job_id": str(message["job_id"]),
+            "type": message["type"],
+            "message": message["message"],
+            "created_at": message["created_at"].isoformat()
+        }
+        await self.redis_stream.xadd(str(job_id), message)
         
 
     async def delegate(self, prompt: str):
@@ -174,7 +151,7 @@ class AnalysisExecutionAgent:
         self,
         analysis_request: AnalysisRequest,
     ):
-        analysis_deps, message_history = await self._prepare_agent_run(analysis_request, "analysis_planner")
+        status_messages = []
 
         if len(analysis_request.analysis_ids) == 0:
             try: 
@@ -186,8 +163,31 @@ class AnalysisExecutionAgent:
                     status_code=500, detail="Failed to create analysis job.")
         else:
             analysis_job = await get_job_metadata(analysis_request.analysis_ids[0])
+        
+        status_message = {
+            "id": uuid.uuid4(),
+            "job_id": analysis_job.id,
+            "type": "tool_call",
+            "message": "Loading datasets...",
+            "created_at": datetime.now()
+        }
+        status_messages.append(status_message)
+        await self.post_message_to_redis(status_message, analysis_job.id)
+
+        analysis_deps, message_history = await self._prepare_agent_run(analysis_request, "analysis_planner")
 
         nodes = []
+
+        status_message = {
+            "id": uuid.uuid4(),
+            "job_id": analysis_job.id,
+            "type": "tool_call",
+            "message": "Starting analysis planner...",
+            "created_at": datetime.now()
+        }
+        status_messages.append(status_message)
+        await self.post_message_to_redis(status_message, analysis_job.id)
+        
         async with self.agent.iter(
             analysis_request.prompt,
             output_type=AnalysisPlan,
@@ -197,8 +197,41 @@ class AnalysisExecutionAgent:
             async for node in agent_run:
                 nodes.append(node)
                 self.logger.info(f"Analysis planner agent state: {node}")
+                
+                if Agent.is_call_tools_node(node):
+                    async with node.stream(agent_run.ctx) as handle_stream:
+                        async for event in handle_stream:
+                            if isinstance(event, FunctionToolCallEvent):
+                                status_message = {
+                                    "id": uuid.uuid4(),
+                                    "job_id": analysis_job.id,
+                                    "type": "tool_call",
+                                    "message": f"Calling {event.part.tool_name}...",
+                                    "created_at": datetime.now()
+                                }
+                                status_messages.append(status_message)
+                                await self.post_message_to_redis(status_message, analysis_job.id)
+                elif Agent.is_user_prompt_node(node):
+                    status_message = {
+                        "id": uuid.uuid4(),
+                        "job_id": analysis_job.id,
+                        "type": "user_prompt",
+                        "message": str(node.user_prompt),
+                        "created_at": datetime.now()
+                    }
+                    status_messages.append(status_message)
+                    await self.post_message_to_redis(status_message, analysis_job.id)
+                elif Agent.is_end_node(node):
+                    status_message = {
+                        "id": uuid.uuid4(),
+                        "job_id": analysis_job.id,
+                        "type": "analysis_result",
+                        "message": str(node),
+                        "created_at": datetime.now()
+                    }
+                    status_messages.append(status_message)
+                    await self.post_message_to_redis(status_message, analysis_job.id)
 
-        
         result = AnalysisJobResultMetadataInDB(
             job_id=analysis_job.id,
             number_of_datasets=len(analysis_request.dataset_ids),
@@ -209,6 +242,7 @@ class AnalysisExecutionAgent:
             created_at=datetime.now(),
             pdf_created=False,
             user_id=analysis_request.user.id,
+            status_messages=status_messages
         )
 
         if len(analysis_request.analysis_ids) == 0:
@@ -273,15 +307,15 @@ class AnalysisExecutionAgent:
             analyses = await get_user_analyses_by_ids(analysis_request.user.id, analysis_request.analysis_ids)
             logger.info(f"analyses: {analyses}")
 
-            for dataset_id in analyses.analysis_job_results[0].dataset_ids:
+            for dataset_id in analyses.analyses_job_results[0].dataset_ids:
                 if dataset_id not in analysis_request.dataset_ids:
                     analysis_request.dataset_ids.append(dataset_id)
 
-            for automation_id in analyses.analysis_job_results[0].automation_ids:
+            for automation_id in analyses.analyses_job_results[0].automation_ids:
                 if automation_id not in analysis_request.automation_ids:
                     analysis_request.automation_ids.append(automation_id)
 
-            for analysis in analyses.analysis_job_results:
+            for analysis in analyses.analyses_job_results:
                 await update_job_status(analysis.job_id, "running") # TODO: this should only be done when the analysis is actually running, what if the analysis in context should not be changed?
 
 
@@ -317,12 +351,12 @@ class AnalysisExecutionAgent:
                 content= f"""
                     {ANALYSIS_AGENT_SYSTEM_PROMPT}\n
                     Here are the column names: {analysis_deps.df.columns.tolist()}\n
-                    Here are some functions you can use to plan an analysis: {eda_cs_tools_str}\n
                     If you create code yourself, you can retrieve the data from the following path: /tmp/{data_paths[0].name}\n 
                     Here is the problem description: {problem_description}\n
                     Here are the analysis plans: {analyses.model_dump_json()}\n
                     Remember to not actually call the functions, just list them in your plan. The plan will be executed later.
                 """
+                    # Here are some functions you can use to plan an analysis: {eda_cs_tools_str}\n
             )
         else:
             system_prompt = SystemPromptPart(
@@ -335,10 +369,8 @@ class AnalysisExecutionAgent:
             )
         model_request = ModelRequest(parts=[system_prompt])
         message_history = analysis_request.message_history + [model_request]
-        print(f"message_history: {message_history}")
 
         return analysis_deps, message_history
         
         
-# analysis_planner_agent = AnalysisPlannerAgent()
-analysis_agent = AnalysisExecutionAgent()
+analysis_agent = AnalysisAgent()

@@ -4,6 +4,7 @@ from typing import List, Literal
 from ...base_schema import BaseSchema
 from ...auth.schema import User
 from pydantic_ai.messages import ModelMessage
+from datetime import timezone
 
 
 class DelegateResult(BaseSchema):
@@ -17,6 +18,12 @@ class AnalysisPlan(BaseSchema):
     analysis_overview: str
     analysis_plan: List[AnalysisPlanStep]
 
+class AnalysisStatusMessage(BaseSchema):
+    id: UUID
+    job_id: UUID
+    type: Literal["tool_call", "tool_result", "analysis_result", "user_prompt"]
+    message: str
+    created_at: datetime = datetime.now(timezone.utc)
 
 class AnalysisJobResultMetadata(BaseSchema):
     job_id: UUID
@@ -25,6 +32,7 @@ class AnalysisJobResultMetadata(BaseSchema):
     dataset_ids: List[UUID]
     automation_ids: List[UUID]
     analysis_plan: AnalysisPlan
+    status_messages: List[AnalysisStatusMessage]
     created_at: datetime
     pdf_created: bool
 
@@ -51,4 +59,3 @@ class AnalysisRequest(BaseSchema):
     prompt: str | None = None
     user: User
     message_history: List[ModelMessage] = []
-

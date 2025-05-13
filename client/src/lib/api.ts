@@ -309,6 +309,23 @@ export function createIntegrationEventSource(token: string, jobId: string): Even
   );
 }
 
+export function createAnalysisEventSource(token: string, jobId: string): EventSource {
+  console.log("Creating analysis event source for job", jobId);
+  console.log("Token", token);
+  return new EventSource(`${API_URL}/analysis/analysis-agent-sse/${jobId}`,
+    {
+      fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+        fetch(input, {
+          ...init,
+          headers: {
+            ...init?.headers,
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+    }
+  );
+}
+
 export function createJobEventSource(token: string, jobType: string): EventSource {
   return new EventSource(`${API_URL}/jobs-sse?job_type=${jobType}`, {
     fetch: (input, init) =>

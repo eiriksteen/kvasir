@@ -255,7 +255,9 @@ export default function OntologyBar() {
                                 </p>
                             </div>
                         )}
-                        {analysisJobResults?.analysesJobResults.map((analysis: AnalysisJobResultMetadata) => (
+                        {analysisJobResults?.analysesJobResults
+                            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                            .map((analysis: AnalysisJobResultMetadata) => (
                             <AnalysisItem
                                 key={analysis.jobId}
                                 analysis={analysis}

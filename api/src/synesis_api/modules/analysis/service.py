@@ -3,8 +3,8 @@ from fastapi import HTTPException
 from sqlalchemy import update, select, insert, delete
 from typing import List
 from ...database.service import execute, fetch_one, fetch_all
-from .models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations
-from .schema import AnalysisJobResultMetadataInDB, AnalysisJobResultInDB, AnalysisPlan, AnalysisJobResultMetadataList, AnalysisJobResult
+from .models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
+from .schema import AnalysisJobResultMetadataInDB, AnalysisJobResultInDB, AnalysisPlan, AnalysisJobResultMetadataList, AnalysisJobResult, AnalysisStatusMessage
 from ..jobs.service import update_job_status
 from ...utils import save_markdown_as_html
 from ...aws.service import upload_object_s3
@@ -106,6 +106,12 @@ async def create_pdf_from_results(job_results: AnalysisJobResultInDB, eda_job_id
 
 
 
+async def get_status_messages_by_job_id(job_id: uuid.UUID) -> List[AnalysisStatusMessage]:
+    messages = await fetch_all(
+        select(analysis_status_messages).where(analysis_status_messages.c.job_id == job_id)
+    )
+    return [AnalysisStatusMessage(**msg) for msg in messages]
+
 async def insert_analysis_job_results_into_db(job_results: AnalysisJobResultMetadataInDB) -> None:
     try:
         logger.info("Inserting analysis plan into DB")
@@ -120,8 +126,17 @@ async def insert_analysis_job_results_into_db(job_results: AnalysisJobResultMeta
                 commit_after=True
             )
 
-        # Create a dict without dataset_ids and automation_ids
-        db_data = job_results.model_dump(exclude={'dataset_ids', 'automation_ids'})
+        # Insert status messages
+        for status_message in job_results.status_messages:
+            await execute(
+                insert(analysis_status_messages).values(
+                    **status_message.model_dump()
+                ),
+                commit_after=True
+            )
+
+        # Create a dict without dataset_ids, automation_ids, and status_messages
+        db_data = job_results.model_dump(exclude={'dataset_ids', 'automation_ids', 'status_messages'})
         await execute(
             insert(analysis_jobs_results).values(
                 **db_data
@@ -143,8 +158,16 @@ async def update_analysis_job_results_in_db(job_results: AnalysisJobResultMetada
     try:
         logger.info("Updating analysis plan in DB")
         
-        # Create a dict without dataset_ids and automation_ids
-        db_data = job_results.model_dump(exclude={'dataset_ids', 'automation_ids'})
+        for status_message in job_results.status_messages:
+            await execute(
+                insert(analysis_status_messages).values(
+                    **status_message.model_dump()
+                ),
+                commit_after=True
+            )
+
+        # Create a dict without dataset_ids, automation_ids, and status_messages
+        db_data = job_results.model_dump(exclude={'dataset_ids', 'automation_ids', 'status_messages'})
         await execute(
             update(analysis_jobs_results)
             .where(analysis_jobs_results.c.job_id == job_results.job_id)
@@ -174,9 +197,9 @@ async def get_user_analysis_metadata(user_id: uuid.UUID) -> AnalysisJobResultMet
     results = []
     for d in data:
         dataset_ids = await get_dataset_ids_by_job_id(d["job_id"])
-        # automation_ids = await get_automation_ids_by_job_id(d["job_id"])
         automation_ids = []  # TODO: implement get_automation_ids_by_job_id
-        results.append(AnalysisJobResultMetadataInDB(**d, dataset_ids=dataset_ids, automation_ids=automation_ids))
+        status_messages = await get_status_messages_by_job_id(d["job_id"])
+        results.append(AnalysisJobResultMetadataInDB(**d, dataset_ids=dataset_ids, automation_ids=automation_ids, status_messages=status_messages))
     
     return AnalysisJobResultMetadataList(analyses_job_results=results)
 
@@ -193,10 +216,10 @@ async def get_analysis_job_results_from_db(job_id: uuid.UUID) -> AnalysisJobResu
         )
 
     dataset_ids = await get_dataset_ids_by_job_id(job_id)
-    # automation_ids = await get_automation_ids_by_job_id(job_id)
     automation_ids = []
+    status_messages = await get_status_messages_by_job_id(job_id)
 
-    return AnalysisJobResultMetadataInDB(**result, dataset_ids=dataset_ids, automation_ids=automation_ids)
+    return AnalysisJobResultMetadataInDB(**result, dataset_ids=dataset_ids, automation_ids=automation_ids, status_messages=status_messages)
 
 
 async def get_user_analyses_by_ids(user_id: uuid.UUID, analysis_ids: List[uuid.UUID]) -> AnalysisJobResultMetadataList:
@@ -207,9 +230,9 @@ async def get_user_analyses_by_ids(user_id: uuid.UUID, analysis_ids: List[uuid.U
     results = []
     for d in data:
         dataset_ids = await get_dataset_ids_by_job_id(d["job_id"])
-        # automation_ids = await get_automation_ids_by_job_id(d["job_id"])
         automation_ids = []  # TODO: implement get_automation_ids_by_job_id
-        results.append(AnalysisJobResultMetadataInDB(**d, dataset_ids=dataset_ids, automation_ids=automation_ids))
+        status_messages = await get_status_messages_by_job_id(d["job_id"])
+        results.append(AnalysisJobResultMetadataInDB(**d, dataset_ids=dataset_ids, automation_ids=automation_ids, status_messages=status_messages))
     
     return AnalysisJobResultMetadataList(analyses_job_results=results)
 
@@ -231,6 +254,11 @@ async def delete_analysis_job_results_from_db(job_id: uuid.UUID) -> uuid.UUID:
     )
     await execute(
         delete(analysis_jobs_automations).where(analysis_jobs_automations.c.job_id == job_id),
+        commit_after=True
+    )
+    # Delete status messages
+    await execute(
+        delete(analysis_status_messages).where(analysis_status_messages.c.job_id == job_id),
         commit_after=True
     )
     # Delete from analysis_context

@@ -1,7 +1,12 @@
 import uuid
+import json
+import time
 from typing import Annotated, List
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from ...redis import get_redis
+import redis
 from .schema import AnalysisJobResultMetadata, AnalysisJobResultMetadataList, AnalysisRequest, AnalysisJobResult
 from ...auth.service import (create_api_key,
                              get_current_user,
@@ -17,8 +22,48 @@ from ..jobs.service import create_job, get_job_metadata, update_job_status
 from ..jobs.schema import JobMetadata
 from ...auth.schema import User
 from ..ontology.service import get_user_datasets_by_ids
+
 router = APIRouter()
-        
+
+SSE_MAX_TIMEOUT = 300  # 5 minutes
+
+@router.get("/analysis-agent-sse/{job_id}")
+async def analysis_agent_sse(
+    job_id: uuid.UUID,
+    cache: Annotated[redis.Redis, Depends(get_redis)],
+    timeout: int = SSE_MAX_TIMEOUT,
+    # user: Annotated[User, Depends(get_current_user)] = None
+) -> StreamingResponse:
+    # print("user", user)
+
+    # if not user or not await user_owns_job(user.id, job_id):
+    #     raise HTTPException(
+    #         status_code=403, detail="You do not have permission to access this job")
+
+    timeout = min(timeout, SSE_MAX_TIMEOUT)
+
+    async def stream_job_updates():
+        response = await cache.xread({str(job_id): "$"}, count=1, block=timeout*1000)
+        start_time = time.time()
+        last_id = response[0][1][-1][0] if response else None
+
+        while True:
+            response = await cache.xread({str(job_id): last_id}, count=1)
+
+            if response:
+                start_time = time.time()
+                last_id = response[0][1][-1][0]
+                data = response[0][1][0][1]
+                print("data", data)
+
+                # Don't send pydantic_ai_state to human, but send all other messages
+                if data["type"] != "pydantic_ai_state":
+                    yield f"data: {json.dumps(data)}\n\n"
+
+            if start_time + timeout < time.time():
+                break
+
+    return StreamingResponse(stream_job_updates(), media_type="text/event-stream")
 
 @router.get("/analysis-job-status/{job_id}", response_model=JobMetadata)
 async def get_analysis_job_status(

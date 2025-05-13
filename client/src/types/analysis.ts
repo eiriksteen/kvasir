@@ -8,6 +8,14 @@ export interface AnalysisPlan {
     analysisPlan: AnalysisStep[];
 }
 
+export interface AnalysisStatusMessage {
+    id: string;
+    jobId: string;
+    type: 'tool_call' | 'tool_result' | 'analysis_result' | 'user_prompt';
+    message: string;
+    createdAt: string;
+}
+
 export interface AnalysisJobResultMetadata {
     jobId: string;
     datasetIds: string[];
@@ -17,6 +25,7 @@ export interface AnalysisJobResultMetadata {
     numberOfAutomations: number;
     createdAt: string;
     pdfCreated: boolean;
+    statusMessages: AnalysisStatusMessage[];
 }
 
 export interface Analyses {

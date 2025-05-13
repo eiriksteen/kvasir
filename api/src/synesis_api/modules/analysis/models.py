@@ -60,3 +60,18 @@ analysis_jobs_automations = Table(
            nullable=False),
     schema="analysis",
 )
+
+analysis_status_messages = Table(
+    "analysis_status_messages",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           primary_key=True,
+           default=uuid.uuid4),
+    Column("job_id", UUID(as_uuid=True),
+           ForeignKey("jobs.jobs.id"),
+           nullable=False),
+    Column("type", String, nullable=False),
+    Column("message", String, nullable=False),
+    Column("created_at", DateTime, nullable=False),
+    schema="analysis",
+)

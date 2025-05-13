@@ -1,18 +1,42 @@
-import { fetchAnalysisJobResults, deleteAnalysisJobResultsDB } from "@/lib/api";
+import { fetchAnalysisJobResults, deleteAnalysisJobResultsDB, createAnalysisEventSource } from "@/lib/api";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from 'swr/mutation'
+import useSWRSubscription, { SWRSubscriptionOptions } from 'swr/subscription'
 import { useAgentContext } from "./useAgentContext";
-import { AnalysisJobResultMetadata } from "@/types/analysis";
+import { AnalysisJobResultMetadata, AnalysisStatusMessage } from "@/types/analysis";
 
-export const useAnalysis = () => {
+export const useAnalysis = (jobId?: string) => {
     const { data: session } = useSession();
   
     const context = useAgentContext();
 
     const { data: analysisJobResults, error, isLoading } = useSWR(session ? "analysisJobResults" : null, () => fetchAnalysisJobResults(session ? session.APIToken.accessToken : ""));
-    const { data: currentAnalysisID } = useSWR("currentAnalysis", {fallbackData: null});
+    const { data: currentAnalysis, mutate: mutateCurrentAnalysis } = useSWR("currentAnalysis", {fallbackData: null});
+    const { data: streamedMessages, mutate: mutateStreamedMessages } = useSWR("streamedMessages", {fallbackData: []});
 
+    useSWRSubscription<AnalysisStatusMessage[]>(
+      session && jobId ? ["analysis-agent-stream", jobId] : null,
+      (_: string, { next }: SWRSubscriptionOptions<AnalysisStatusMessage[]>) => {
+        if (!session?.APIToken?.accessToken || !jobId) {
+          return;
+        }
+        const eventSource = createAnalysisEventSource(session.APIToken.accessToken, jobId);
+        eventSource.onmessage = (event) => {
+          const newMessage = JSON.parse(event.data) as AnalysisStatusMessage;
+          next(null, undefined);
+          
+          // Always update streamedMessages with new messages
+          mutateStreamedMessages((current: AnalysisStatusMessage[] | null) => {
+            const existingMessage = current?.find((m: AnalysisStatusMessage) => m.id === newMessage.id);
+            if (existingMessage) return current;
+            return [...(current || []), newMessage];
+          }, { revalidate: false });
+        };
+        return () => eventSource.close();
+      },         
+      { fallbackData: [] }
+    );
 
     const { trigger: deleteAnalysisJobResults } = useSWRMutation("deleteAnalysisJobResults", 
       async (_, { arg }: { arg: AnalysisJobResultMetadata }) => {
@@ -30,9 +54,25 @@ export const useAnalysis = () => {
       } 
     }); 
 
+    
+
+    // const { trigger: setCurrentAnalysis } = useSWRMutation(
+    //   "currentAnalysis",
+    //   async (_, { arg }: { arg: AnalysisJobResultMetadata | null }) => {
+    //     return arg;
+    //   }, {
+    //   populateCache: (newData: AnalysisJobResultMetadata | null) => {
+    //     return newData;
+    //   }
+    //   }
+    // );
+
+
   
     return {
-      currentAnalysisID,
+      currentAnalysis,
+      streamedMessages,
+      mutateCurrentAnalysis,
       analysisJobResults,
       deleteAnalysisJobResults,
       error,
