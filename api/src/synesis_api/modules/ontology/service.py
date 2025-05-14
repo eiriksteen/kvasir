@@ -10,25 +10,26 @@ from sqlalchemy import select, insert, delete
 from fastapi import HTTPException
 from synesis_api.modules.ontology.models import time_series_dataset, dataset, time_series, dataset_metadata
 from synesis_api.modules.ontology.schema import (
-    TimeSeriesDataset,
+    TimeSeriesDatasetInDB,
     Datasets,
     TimeSeries,
     Dataset,
-    TimeSeriesDatasetInDB,
-    DatasetMetadata
+    DatasetMetadata,
+    TimeSeriesInheritedDataset,
+    TabularInheritedDataset
 )
 from synesis_api.modules.integration.models import integration_jobs_results
 from synesis_api.modules.jobs.models import jobs
 from synesis_api.database.service import fetch_all, fetch_one, execute
 
 
-async def get_user_time_series_datasets(user_id: uuid.UUID) -> List[TimeSeriesDataset]:
+async def get_user_time_series_datasets(user_id: uuid.UUID) -> List[TimeSeriesInheritedDataset]:
     query = select(dataset, time_series_dataset).join(
         time_series_dataset, dataset.c.id == time_series_dataset.c.id
     ).where(dataset.c.user_id == user_id)
 
     datasets = await fetch_all(query)
-    return [TimeSeriesDataset(**dataset) for dataset in datasets]
+    return [TimeSeriesInheritedDataset(**dataset) for dataset in datasets]
 
 
 async def get_user_datasets(user_id: uuid.UUID, only_completed: bool = True) -> Datasets:
@@ -53,10 +54,10 @@ async def get_user_datasets_by_ids(user_id: uuid.UUID, dataset_ids: List[uuid.UU
     )
 
     time_series_datasets = await fetch_all(time_series_query)
-    return Datasets(time_series=[TimeSeriesDataset(**dataset) for dataset in time_series_datasets])
+    return Datasets(time_series=[TimeSeriesInheritedDataset(**dataset) for dataset in time_series_datasets])
 
 
-async def get_user_time_series_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID) -> TimeSeriesDataset:
+async def get_user_time_series_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID) -> TimeSeriesInheritedDataset:
     query = select(dataset, time_series_dataset).join(
         time_series_dataset, dataset.c.id == time_series_dataset.c.id
     ).where(
@@ -65,7 +66,7 @@ async def get_user_time_series_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID
     )
 
     dataset = await fetch_one(query)
-    return TimeSeriesDataset(**dataset)
+    return TimeSeriesInheritedDataset(**dataset)
 
 
 async def get_time_series_in_dataset(dataset_id: uuid.UUID) -> List[TimeSeries]:
@@ -163,6 +164,7 @@ async def create_time_series_dataset(
         id=dataset_id,
         num_series=num_series,
         num_features=len(df.columns),
+        features=list(df.columns),
         avg_num_timestamps=int(series_counts.mean()),
         max_num_timestamps=int(series_counts.max()),
         min_num_timestamps=int(series_counts.min()),
@@ -185,10 +187,7 @@ async def create_time_series_dataset(
 
             time_series_records.append(TimeSeries(
                 id=series_id,
-                description=f"Time series {series_id}",
-                features=list(df.columns),
                 num_timestamps=len(series_data),
-                num_features=len(df.columns),
                 start_timestamp=series_data.index.min(),
                 end_timestamp=series_data.index.max(),
                 dataset_id=dataset_id,
@@ -198,10 +197,7 @@ async def create_time_series_dataset(
         series_id = uuid.uuid4()
         time_series_records.append(TimeSeries(
             id=series_id,
-            description="Time series data",
-            features=list(df.columns),
             num_timestamps=len(df),
-            num_features=len(df.columns),
             start_timestamp=df.index.min(),
             end_timestamp=df.index.max(),
             dataset_id=dataset_id,

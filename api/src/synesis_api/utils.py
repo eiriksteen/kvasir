@@ -6,6 +6,40 @@ import markdown2
 from pathlib import Path
 from typing import Tuple, List
 import aiofiles
+from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.providers.google_gla import GoogleGLAProvider
+from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.gemini import GeminiModel
+from synesis_api.secrets import OPENAI_API_KEY, OPENAI_API_MODEL, ANTHROPIC_API_KEY, ANTHROPIC_API_MODEL, MODEL_TO_USE, GOOGLE_API_KEY, GOOGLE_API_MODEL
+
+
+def get_model():
+
+    if MODEL_TO_USE == "anthropic":
+        print("Using Anthropic")
+        provider = AnthropicProvider(api_key=ANTHROPIC_API_KEY)
+        model = AnthropicModel(
+            model_name=ANTHROPIC_API_MODEL,
+            provider=provider
+        )
+    elif MODEL_TO_USE == "google":
+        print("Using Google")
+        provider = GoogleGLAProvider(api_key=GOOGLE_API_KEY)
+        model = GeminiModel(
+            model_name=GOOGLE_API_MODEL,
+            provider=provider
+        )
+    else:
+        print("Using OpenAI")
+        provider = OpenAIProvider(api_key=OPENAI_API_KEY)
+        model = OpenAIModel(
+            model_name=OPENAI_API_MODEL,
+            provider=provider
+        )
+
+    return model
 
 
 async def save_markdown_as_html(markdown_content: str, output_path: str):

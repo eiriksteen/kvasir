@@ -1,8 +1,9 @@
-import {EventSource} from 'eventsource'
+import { EventSource } from 'eventsource';
 import { ChatMessageAPI, Conversation } from "@/types/chat";
-import { Datasets } from "@/types/datasets";
+import { Datasets, EntityMetadata, TimeSeriesData } from "@/types/datasets";
 import { Job } from "@/types/jobs";
 import { IntegrationAgentFeedback, IntegrationMessage } from "@/types/integration";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
 
@@ -291,6 +292,38 @@ export async function fetchIntegrationMessages(token: string, jobId: string): Pr
     const errorText = await response.text();
     console.error('Failed to fetch integration messages', errorText);
     throw new Error(`Failed to fetch integration messages: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchEntityMetadataAll(token: string, datasetId: string): Promise<EntityMetadata[]> {
+  const response = await fetch(`${API_URL}/data-provider/all-metadata/${datasetId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch entity metadata', errorText);
+    throw new Error(`Failed to fetch entity metadata: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchTimeSeriesData(token: string, entityId: string): Promise<TimeSeriesData> {
+  const response = await fetch(`${API_URL}/data-provider/time-series/${entityId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch time series data', errorText);
+    throw new Error(`Failed to fetch time series data: ${response.status} ${errorText}`);
   }
 
   return response.json();

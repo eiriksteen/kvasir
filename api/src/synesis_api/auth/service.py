@@ -11,6 +11,7 @@ from synesis_api.auth.schema import User, UserInDB, TokenData, UserAPIKey, UserC
 from synesis_api.auth.models import users, user_api_keys
 from synesis_api.modules.chat.models import conversations
 from synesis_api.modules.jobs.models import jobs
+from synesis_api.modules.ontology.models import dataset, time_series
 from synesis_api.secrets import API_SECRET_KEY, API_SECRET_ALGORITHM
 from synesis_api.database.service import fetch_one, execute
 
@@ -198,3 +199,16 @@ async def user_owns_job(user_id: uuid.UUID, job_id: uuid.UUID) -> bool:
 async def user_owns_conversation(user_id: uuid.UUID, conversation_id: uuid.UUID) -> bool:
     conversation = await fetch_one(Select(conversations).where(conversations.c.id == conversation_id, conversations.c.user_id == user_id))
     return conversation is not None
+
+
+async def user_owns_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID) -> bool:
+    d = await fetch_one(Select(dataset).where(dataset.c.id == dataset_id, dataset.c.user_id == user_id))
+    return d is not None
+
+
+async def user_owns_data_entity(user_id: uuid.UUID, data_entity_id: uuid.UUID) -> bool:
+    # currently only time series are supported
+    query = Select(time_series).join(dataset, time_series.c.dataset_id == dataset.c.id).where(
+        time_series.c.id == data_entity_id, dataset.c.user_id == user_id)
+    data_entity = await fetch_one(query)
+    return data_entity is not None

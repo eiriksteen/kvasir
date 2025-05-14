@@ -16,8 +16,8 @@ integration_jobs_results = Table(
     schema="integration"
 )
 
-integration_jobs_directory_inputs = Table(
-    "integration_jobs_directory_inputs",
+integration_jobs_local_inputs = Table(
+    "integration_jobs_local_inputs",
     metadata,
     Column("job_id", UUID(as_uuid=True),
            ForeignKey("jobs.jobs.id"),

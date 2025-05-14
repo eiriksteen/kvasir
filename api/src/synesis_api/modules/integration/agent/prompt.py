@@ -48,7 +48,7 @@ TIME_SERIES_TARGET_STRUCTURE = """
 ## Multi-Entity Time Series Structure
 - Format: pandas MultiIndex DataFrame
 - Index Levels (set index directly with pandas):
-  - Level 1: Entity (sensor, object, etc.)
+  - Level 1: Entity (sensor, object, etc.) - Must match metadata index name exactly!
   - Level 2: Timestamp (datetime object for datetime data, integer for non-datetime)
 - Shape: (num_entities, num_timestamps, num_features)
 - Note: Varying timesteps per entity are acceptable
@@ -72,7 +72,7 @@ TIME_SERIES_TARGET_STRUCTURE = """
 
 ## Static Metadata
 - Format: pandas DataFrame named "miya_metadata"
-- Index: Entity (must match data index name exactly)
+- Index: Entity - Must match data index name exactly, apply renaming if necessary!
 - Columns: Static features
 - Missing Values: Use pd.NA
 - Location Features:

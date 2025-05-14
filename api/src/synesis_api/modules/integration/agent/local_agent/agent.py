@@ -7,44 +7,19 @@ from datetime import datetime, timezone
 from typing import Union
 from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.settings import ModelSettings
-from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.providers.anthropic import AnthropicProvider
-from pydantic_ai.providers.google_gla import GoogleGLAProvider
-from pydantic_ai.models.anthropic import AnthropicModel
-from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.models.gemini import GeminiModel
-from synesis_api.modules.integration.agent.directory_agent.prompt import DIRECTORY_INTEGRATION_SYSTEM_PROMPT
-from synesis_api.modules.integration.agent.directory_agent.schema import IntegrationAgentTimeSeriesOutput, IntegrationAgentPausedOutput
+from synesis_api.modules.integration.agent.local_agent.prompt import LOCAL_INTEGRATION_SYSTEM_PROMPT
+from synesis_api.modules.integration.agent.local_agent.schema import IntegrationAgentTimeSeriesOutput, IntegrationAgentPausedOutput
 from synesis_api.modules.integration.agent.deps import IntegrationAgentDeps
 from synesis_api.modules.integration.agent.tools import get_target_structure, execute_python_code
 from synesis_api.modules.integration.schema import DataSubmissionResponse
-from synesis_api.utils import run_code_in_container, copy_to_container, extract_json_from_markdown, get_basic_df_info
-from synesis_api.secrets import OPENAI_API_KEY, OPENAI_API_MODEL, ANTHROPIC_API_KEY, ANTHROPIC_API_MODEL, MODEL_TO_USE, GOOGLE_API_KEY, GOOGLE_API_MODEL
+from synesis_api.utils import run_code_in_container, copy_to_container, extract_json_from_markdown, get_basic_df_info, get_model
 
 
-if MODEL_TO_USE == "anthropic":
-    provider = AnthropicProvider(api_key=ANTHROPIC_API_KEY)
-    model = AnthropicModel(
-        model_name=ANTHROPIC_API_MODEL,
-        provider=provider
-    )
-elif MODEL_TO_USE == "google":
-    provider = GoogleGLAProvider(api_key=GOOGLE_API_KEY)
-    model = GeminiModel(
-        model_name=GOOGLE_API_MODEL,
-        provider=provider
-    )
-else:
-    provider = OpenAIProvider(api_key=OPENAI_API_KEY)
-    model = OpenAIModel(
-        model_name=OPENAI_API_MODEL,
-        provider=provider
-    )
+model = get_model()
 
 
-directory_integration_agent = Agent(
+local_integration_agent = Agent(
     model,
-    # Currently only time series is supported
     result_type=Union[IntegrationAgentTimeSeriesOutput,
                       IntegrationAgentPausedOutput],
     model_settings=ModelSettings(temperature=0),
@@ -58,19 +33,19 @@ directory_integration_agent = Agent(
 
 
 @dataclass
-class DirectoryIntegrationDeps(IntegrationAgentDeps):
+class LocalIntegrationDeps(IntegrationAgentDeps):
     data_directory: Path
 
 
-@directory_integration_agent.system_prompt
-async def get_system_prompt(ctx: RunContext[DirectoryIntegrationDeps]) -> str:
+@local_integration_agent.system_prompt
+async def get_system_prompt(ctx: RunContext[LocalIntegrationDeps]) -> str:
     _, err = await copy_to_container(ctx.deps.data_directory, target_dir="/tmp")
 
     if err:
         raise ValueError(f"Error copying file to container: {err}")
 
     sys_prompt = (
-        f"{DIRECTORY_INTEGRATION_SYSTEM_PROMPT}\n\n"
+        f"{LOCAL_INTEGRATION_SYSTEM_PROMPT}\n\n"
         f"The data to integrate is located at: /tmp/{ctx.deps.data_directory.name}\n\n"
         f"The data description is: {ctx.deps.data_description}"
     )
@@ -78,8 +53,8 @@ async def get_system_prompt(ctx: RunContext[DirectoryIntegrationDeps]) -> str:
     return sys_prompt
 
 
-@directory_integration_agent.tool
-async def list_directory_contents(ctx: RunContext[DirectoryIntegrationDeps]):
+@local_integration_agent.tool
+async def list_directory_contents(ctx: RunContext[LocalIntegrationDeps]):
     """
     List the contents of the directory.
 
@@ -105,8 +80,8 @@ async def list_directory_contents(ctx: RunContext[DirectoryIntegrationDeps]):
     return "\n".join(relative_paths)
 
 
-@directory_integration_agent.tool
-async def get_csv_contents(ctx: RunContext[DirectoryIntegrationDeps], file_path: str):
+@local_integration_agent.tool
+async def get_csv_contents(ctx: RunContext[LocalIntegrationDeps], file_path: str):
     """
     Get the contents of a csv file. 
 
@@ -132,8 +107,8 @@ async def get_csv_contents(ctx: RunContext[DirectoryIntegrationDeps], file_path:
     return get_basic_df_info(df)
 
 
-@directory_integration_agent.tool
-async def get_json_contents(ctx: RunContext[DirectoryIntegrationDeps], file_path: str):
+@local_integration_agent.tool
+async def get_json_contents(ctx: RunContext[LocalIntegrationDeps], file_path: str):
     """
     Get the contents of a json file. 
 
@@ -160,8 +135,8 @@ async def get_json_contents(ctx: RunContext[DirectoryIntegrationDeps], file_path
     return data
 
 
-@directory_integration_agent.tool
-async def get_excel_contents(ctx: RunContext[DirectoryIntegrationDeps], file_path: str):
+@local_integration_agent.tool
+async def get_excel_contents(ctx: RunContext[LocalIntegrationDeps], file_path: str):
     """
     Get the contents of an xlsx file, including all sheet names and their contents.
     Returns a dictionary with sheet names as keys and basic info as values.
@@ -280,9 +255,9 @@ async def get_excel_contents(ctx: RunContext[DirectoryIntegrationDeps], file_pat
 #         raise ModelRetry(f"Error computing column overlap: {str(e)}")
 
 
-@directory_integration_agent.output_validator
+@local_integration_agent.output_validator
 async def validate_restructuring(
-        ctx: RunContext[DirectoryIntegrationDeps],
+        ctx: RunContext[LocalIntegrationDeps],
         result: Union[IntegrationAgentTimeSeriesOutput,
                       IntegrationAgentPausedOutput]
 ) -> Union[IntegrationAgentTimeSeriesOutput, IntegrationAgentPausedOutput]:

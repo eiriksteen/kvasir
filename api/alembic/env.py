@@ -6,7 +6,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from src.synesis_api.auth.models import users, user_api_keys
-from src.synesis_api.modules.integration.models import integration_jobs_results, integration_pydantic_message, integration_jobs_directory_inputs, integration_message
+from src.synesis_api.modules.integration.models import integration_jobs_results, integration_pydantic_message, integration_jobs_local_inputs, integration_message
 from src.synesis_api.modules.jobs.models import jobs
 from src.synesis_api.modules.ontology.models import time_series, time_series_dataset
 from src.synesis_api.modules.analysis.models import eda_jobs_results

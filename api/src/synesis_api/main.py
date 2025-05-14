@@ -8,6 +8,7 @@ from synesis_api.modules.chat.router import router as chat_router
 from synesis_api.modules.analysis.router import router as eda_router
 from synesis_api.modules.automation.router import router as automation_router
 from synesis_api.modules.ontology.router import router as ontology_router
+from synesis_api.modules.data_provider.router import router as data_provider_router
 
 
 app = FastAPI(
@@ -60,6 +61,11 @@ app.include_router(automation_router,
 app.include_router(jobs_router,
                    prefix="",
                    tags=["Jobs"])
+
+
+app.include_router(data_provider_router,
+                   prefix="/data-provider",
+                   tags=["Data Provider"])
 
 
 @app.get("/")

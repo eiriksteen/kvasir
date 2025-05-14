@@ -6,7 +6,7 @@ from synesis_api.modules.ontology.service import (
     get_user_datasets,
     get_time_series_in_dataset
 )
-from synesis_api.modules.ontology.schema import TimeSeriesDataset, Datasets, TimeSeries
+from synesis_api.modules.ontology.schema import TimeSeriesInheritedDataset, Datasets, TimeSeries
 from synesis_api.auth.schema import User
 from synesis_api.auth.service import get_current_user
 
@@ -14,10 +14,10 @@ from synesis_api.auth.service import get_current_user
 router = APIRouter()
 
 
-@router.get("/time-series-datasets", response_model=List[TimeSeriesDataset])
+@router.get("/time-series-datasets", response_model=List[TimeSeriesInheritedDataset])
 async def get_time_series_datasets(
     user: Annotated[User, Depends(get_current_user)] = None
-) -> List[TimeSeriesDataset]:
+) -> List[TimeSeriesInheritedDataset]:
     return await get_user_time_series_datasets(user.id)
 
 

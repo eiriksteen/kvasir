@@ -31,8 +31,8 @@ dataset_metadata = Table(
     schema="ontology"
 )
 
-feature_dataset = Table(
-    "feature_dataset",
+tabular_dataset = Table(
+    "tabular_dataset",
     metadata,
     Column("id", UUID, ForeignKey("ontology.dataset.id"), primary_key=True),
     Column("features", ARRAY(String), nullable=False),
@@ -45,10 +45,7 @@ time_series = Table(
     metadata,
     Column("id", UUID, primary_key=True, default=uuid.uuid4),
     Column("original_id", String, nullable=True),
-    Column("description", String, nullable=False),
-    Column("features", ARRAY(String), nullable=False),
     Column("num_timestamps", Integer, nullable=False),
-    Column("num_features", Integer, nullable=False),
     Column("start_timestamp", DateTime(timezone=True), nullable=False),
     Column("end_timestamp", DateTime(timezone=True), nullable=False),
     Column("dataset_id", UUID, ForeignKey(
@@ -56,13 +53,13 @@ time_series = Table(
     schema="ontology"
 )
 
-
 time_series_dataset = Table(
     "time_series_dataset",
     metadata,
     Column("id", UUID, ForeignKey("ontology.dataset.id"), primary_key=True),
     Column("num_series", Integer, nullable=False),
     Column("num_features", Integer, nullable=False),
+    Column("features", ARRAY(String), nullable=False),
     Column("index_first_level", String, nullable=False),
     Column("index_second_level", String, nullable=True),
     Column("avg_num_timestamps", Integer, nullable=False),

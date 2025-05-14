@@ -1,2 +1,2 @@
-from synesis_api.modules.integration.agent.directory_agent.agent import directory_integration_agent, DirectoryIntegrationDeps
+from synesis_api.modules.integration.agent.local_agent.agent import local_integration_agent, LocalIntegrationDeps
 from synesis_api.modules.integration.agent.prompt import TIME_SERIES_TARGET_STRUCTURE
