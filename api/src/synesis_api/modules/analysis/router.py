@@ -2,17 +2,17 @@ import uuid
 from typing import Annotated
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
-from .schema import EDAJobResult
-from ...auth.service import (create_api_key,
-                             get_current_user,
-                             user_owns_job)
-from .service import (
+from synesis_api.modules.analysis.schema import EDAJobResult
+from synesis_api.auth.service import (create_api_key,
+                                      get_current_user,
+                                      user_owns_job)
+from synesis_api.modules.analysis.service import (
     run_eda_job,
     get_job_results
 )
-from ..jobs.service import create_job, get_job_metadata
-from ..jobs.schema import JobMetadata
-from ...auth.schema import User
+from synesis_api.modules.jobs.service import create_job, get_job_metadata
+from synesis_api.modules.jobs.schema import JobMetadata
+from synesis_api.auth.schema import User
 
 
 router = APIRouter()
@@ -46,8 +46,7 @@ async def call_eda_agent(
     """
 
     try:
-        api_key = await create_api_key(user)
-        eda_job = await create_job(user.id, api_key.id, "eda")
+        eda_job = await create_job(user.id, "eda")
     except:
         raise HTTPException(
             status_code=500, detail="Failed to create EDA job.")

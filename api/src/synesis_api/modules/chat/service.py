@@ -1,11 +1,11 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import select
 from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
-from .schema import ChatMessage, PydanticMessage, Conversation, Context, Datasets, ContextInDB, DatasetContextInDB, AutomationContextInDB
-from .models import chat_messages, pydantic_messages, conversations, context, dataset_context, automation_context
-from ...database.service import fetch_all, execute, fetch_one
-from ..ontology.service import get_user_datasets_by_ids
+from synesis_api.modules.chat.schema import ChatMessage, PydanticMessage, Conversation, Context, Datasets, ContextInDB, DatasetContextInDB, AutomationContextInDB
+from synesis_api.modules.chat.models import chat_message, pydantic_message, conversations, context, dataset_context, automation_context
+from synesis_api.database.service import fetch_all, execute, fetch_one
+from synesis_api.modules.ontology.service import get_user_datasets_by_ids
 
 
 async def create_conversation(user_id: uuid.UUID) -> Conversation:
@@ -27,16 +27,16 @@ async def get_conversations(user_id: uuid.UUID) -> list[Conversation]:
 
 async def get_messages(conversation_id: uuid.UUID) -> list[ChatMessage]:
     messages = await fetch_all(
-        select(chat_messages).where(
-            chat_messages.c.conversation_id == conversation_id)
+        select(chat_message).where(
+            chat_message.c.conversation_id == conversation_id)
     )
     return [ChatMessage(**message) for message in messages]
 
 
-async def get_messages_pydantic(conversation_id: uuid.UUID) -> list[ChatMessage]:
+async def get_messages_pydantic(conversation_id: uuid.UUID) -> list[ModelMessage]:
     c = await fetch_all(
-        select(pydantic_messages).where(
-            pydantic_messages.c.conversation_id == conversation_id)
+        select(pydantic_message).where(
+            pydantic_message.c.conversation_id == conversation_id)
     )
     messages: list[ModelMessage] = []
     for message in c:
@@ -46,27 +46,27 @@ async def get_messages_pydantic(conversation_id: uuid.UUID) -> list[ChatMessage]
     return messages
 
 
-async def insert_message(conversation_id: uuid.UUID, role: str, content: str) -> ChatMessage:
+async def create_message(conversation_id: uuid.UUID, role: str, content: str) -> ChatMessage:
     message = ChatMessage(
         id=uuid.uuid4(),
         conversation_id=conversation_id,
         role=role,
         content=content,
-        created_at=datetime.now()
+        created_at=datetime.now(timezone.utc)
     )
-    await execute(chat_messages.insert().values(message.model_dump()), commit_after=True)
+    await execute(chat_message.insert().values(message.model_dump()), commit_after=True)
     return message
 
 
-async def insert_message_pydantic(conversation_id: uuid.UUID, messages: bytes) -> PydanticMessage:
-    pydantic_message = PydanticMessage(
+async def create_messages_pydantic(conversation_id: uuid.UUID, messages: bytes) -> PydanticMessage:
+    message = PydanticMessage(
         id=uuid.uuid4(),
         conversation_id=conversation_id,
         message_list=messages,
-        created_at=datetime.now()
+        created_at=datetime.now(timezone.utc)
     )
-    await execute(pydantic_messages.insert().values(pydantic_message.model_dump()), commit_after=True)
-    return pydantic_message
+    await execute(pydantic_message.insert().values(message.model_dump()), commit_after=True)
+    return message
 
 
 async def aggregate_context_from_db(context_record: ContextInDB) -> Context:
@@ -92,17 +92,16 @@ async def aggregate_context_from_db(context_record: ContextInDB) -> Context:
     )
 
 
-async def insert_context(
+async def create_context(
         user_id: uuid.UUID,
         conversation_id: uuid.UUID,
         dataset_ids: list[uuid.UUID],
         automation_ids: list[uuid.UUID]
 ) -> Context:
-
     context_record = ContextInDB(
         id=uuid.uuid4(),
         conversation_id=conversation_id,
-        created_at=datetime.now()
+        created_at=datetime.now(timezone.utc),
     )
 
     dataset_context_records = [

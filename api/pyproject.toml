@@ -48,7 +48,8 @@ dependencies = [
     "celery",
     "statsmodels",
     "markdown2",
-    "boto3"
+    "boto3",
+    "openpyxl"
 ]
 
 [tool.setuptools]

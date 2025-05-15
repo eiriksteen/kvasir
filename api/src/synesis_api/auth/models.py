@@ -1,7 +1,7 @@
 import uuid
 from sqlalchemy import Table, Column, String, Boolean, DateTime, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from ..database.core import metadata
+from synesis_api.database.core import metadata
 
 users = Table(
     "users",

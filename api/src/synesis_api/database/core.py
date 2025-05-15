@@ -1,7 +1,7 @@
 from typing import AsyncGenerator
 from sqlalchemy import MetaData
 from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
-from ..secrets import DATABASE_URL, DATABASE_POOL_SIZE, DATABASE_POOL_TTL, DATABASE_POOL_PRE_PING
+from synesis_api.secrets import DATABASE_URL, DATABASE_POOL_SIZE, DATABASE_POOL_TTL, DATABASE_POOL_PRE_PING
 
 
 engine = create_async_engine(

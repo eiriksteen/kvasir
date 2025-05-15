@@ -6,21 +6,21 @@ from fastapi.responses import StreamingResponse
 from typing import Annotated, List
 from pydantic_core import to_jsonable_python
 from pydantic_ai.messages import ModelRequest, SystemPromptPart
-from ..ontology.service import get_user_datasets_by_ids
-from .schema import ChatMessage, Conversation, Prompt, Context, ContextCreate
-from .service import (
+from synesis_api.modules.ontology.service import get_user_datasets_by_ids
+from synesis_api.modules.chat.schema import ChatMessage, Conversation, Prompt, Context, ContextCreate
+from synesis_api.modules.chat.service import (
     create_conversation,
     get_messages,
     get_messages_pydantic,
-    insert_message,
-    insert_message_pydantic,
+    create_message,
+    create_messages_pydantic,
     get_conversations,
-    insert_context,
+    create_context,
     get_context_by_time_stamp
 )
-from .agent.agent import chatbot_agent
-from ...auth.service import get_current_user, user_owns_conversation
-from ...auth.schema import User
+from synesis_api.modules.chat.agent.agent import chatbot_agent
+from synesis_api.auth.service import get_current_user, user_owns_conversation
+from synesis_api.auth.schema import User
 
 
 router = APIRouter()
@@ -47,10 +47,10 @@ async def post_chat(
                     yield text
                     prev_text = text
 
-            await insert_message_pydantic(conversation_id, result.new_messages_json())
+            await create_messages_pydantic(conversation_id, result.new_messages_json())
 
-        await insert_message(conversation_id, "user", prompt.content)
-        await insert_message(conversation_id, "assistant", text)
+        await create_message(conversation_id, "user", prompt.content)
+        await create_message(conversation_id, "assistant", text)
 
     return StreamingResponse(stream_messages(), media_type="text/plain")
 
@@ -104,10 +104,11 @@ async def update_context(
         new_dataset_ids = [id for id in context.dataset_ids]
         if current_context is not None:
             new_dataset_ids += [id for id in current_context.dataset_ids]
-        # new_automation_ids = # [a.id for a in context.automation_ids] + current_context.automation_ids
+        # [a.id for a in context.automation_ids] + current_context.automation_ids
+        new_automation_ids = []
     else:
         new_dataset_ids = [id for id in context.dataset_ids]
-        # new_automation_ids = [a.id for a in context.automation_ids]
+        new_automation_ids = []  # [a.id for a in context.automation_ids]
 
     datasets = await get_user_datasets_by_ids(user.id, new_dataset_ids)
     automations = []
@@ -125,7 +126,7 @@ async def update_context(
     messages_bytes = json.dumps(
         to_jsonable_python(new_messages)).encode("utf-8")
 
-    await insert_context(user.id, context.conversation_id, context.dataset_ids, context.automation_ids)
-    await insert_message_pydantic(context.conversation_id, messages_bytes)
+    await create_context(user.id, context.conversation_id, new_dataset_ids, new_automation_ids)
+    await create_messages_pydantic(context.conversation_id, messages_bytes)
 
     return context

@@ -1,6 +1,7 @@
 import uuid
 from sqlalchemy import Column, String, DateTime, ForeignKey, Table, UUID
-from ...database.core import metadata
+from synesis_api.database.core import metadata
+from datetime import timezone
 
 # Integration Job Metadata table
 jobs = Table(
@@ -13,11 +14,8 @@ jobs = Table(
            UUID(as_uuid=True),
            ForeignKey("auth.users.id"),
            nullable=False),
-    Column("api_key_id",
-           UUID(as_uuid=True),
-           ForeignKey("auth.user_api_keys.id"),
-           nullable=False),
-    Column("started_at", DateTime, nullable=False),
-    Column("completed_at", DateTime, nullable=True),
+    Column("started_at", DateTime(timezone=True), nullable=False),
+    Column("completed_at", DateTime(timezone=True), nullable=True),
+    Column("job_name", String, nullable=True),
     schema="jobs"
 )

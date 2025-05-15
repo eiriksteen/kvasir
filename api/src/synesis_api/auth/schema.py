@@ -1,7 +1,7 @@
 from uuid import UUID
 from datetime import datetime
 from pydantic import EmailStr
-from ..base_schema import BaseSchema
+from synesis_api.base_schema import BaseSchema
 
 
 class UserBase(BaseSchema):

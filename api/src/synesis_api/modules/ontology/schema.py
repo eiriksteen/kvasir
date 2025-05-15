@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
-from ...base_schema import BaseSchema
+from synesis_api.base_schema import BaseSchema
 
 
 class Dataset(BaseSchema):
@@ -9,8 +9,15 @@ class Dataset(BaseSchema):
     user_id: uuid.UUID
     name: str
     description: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = datetime.now(timezone.utc)
+    updated_at: datetime = datetime.now(timezone.utc)
+
+
+class DatasetMetadata(BaseSchema):
+    dataset_id: uuid.UUID
+    num_columns: int
+    column_names: List[str]
+    column_types: List[str]
 
 
 class FeatureDatasetInDB(BaseSchema):

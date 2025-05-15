@@ -36,8 +36,10 @@ def upgrade() -> None:
                     sa.Column('name', sa.String(), nullable=False),
                     sa.Column('disabled', sa.Boolean(), nullable=False),
                     sa.Column('hashed_password', sa.String(), nullable=False),
-                    sa.Column('created_at', sa.DateTime(), nullable=False),
-                    sa.Column('updated_at', sa.DateTime(), nullable=False),
+                    sa.Column('created_at', sa.DateTime(
+                        timezone=True), nullable=False),
+                    sa.Column('updated_at', sa.DateTime(
+                        timezone=True), nullable=False),
                     sa.PrimaryKeyConstraint('id'),
                     sa.UniqueConstraint('email'),
                     schema='auth'
@@ -53,8 +55,10 @@ def upgrade() -> None:
                     sa.Column('user_id', sa.UUID(), nullable=False),
                     sa.Column('key', sa.String(), nullable=False),
                     sa.Column('expires_at', sa.DateTime(), nullable=False),
-                    sa.Column('created_at', sa.DateTime(), nullable=True),
-                    sa.Column('updated_at', sa.DateTime(), nullable=True),
+                    sa.Column('created_at', sa.DateTime(
+                        timezone=True), nullable=True),
+                    sa.Column('updated_at', sa.DateTime(
+                        timezone=True), nullable=True),
                     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ),
                     sa.PrimaryKeyConstraint('id'),
                     sa.UniqueConstraint('key'),
@@ -72,10 +76,24 @@ def upgrade() -> None:
                     sa.Column('user_id', sa.UUID(), nullable=False),
                     sa.Column('description', sa.String(), nullable=False),
                     sa.Column('name', sa.String(), nullable=False),
-                    sa.Column('created_at', sa.DateTime(), nullable=False),
-                    sa.Column('updated_at', sa.DateTime(), nullable=False),
+                    sa.Column('created_at', sa.DateTime(
+                        timezone=True), nullable=False),
+                    sa.Column('updated_at', sa.DateTime(
+                        timezone=True), nullable=False),
                     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ),
                     sa.PrimaryKeyConstraint('id'),
+                    schema='ontology'
+                    )
+    op.create_table('dataset_metadata',
+                    sa.Column('dataset_id', sa.UUID(), nullable=False),
+                    sa.Column('column_names', postgresql.ARRAY(
+                        sa.String()), nullable=False),
+                    sa.Column('column_types', postgresql.ARRAY(
+                        sa.String()), nullable=False),
+                    sa.Column('num_columns', sa.Integer(), nullable=False),
+                    sa.ForeignKeyConstraint(
+                        ['dataset_id'], ['ontology.dataset.id'], ),
+                    sa.PrimaryKeyConstraint('dataset_id'),
                     schema='ontology'
                     )
     op.create_table('chat_message',
@@ -83,7 +101,8 @@ def upgrade() -> None:
                     sa.Column('conversation_id', sa.UUID(), nullable=False),
                     sa.Column('role', sa.String(), nullable=False),
                     sa.Column('content', sa.String(), nullable=False),
-                    sa.Column('created_at', sa.DateTime(), nullable=False),
+                    sa.Column('created_at', sa.DateTime(
+                        timezone=True), nullable=False),
                     sa.ForeignKeyConstraint(['conversation_id'], [
                         'chat.conversation.id'], ),
                     sa.PrimaryKeyConstraint('id'),
@@ -92,7 +111,8 @@ def upgrade() -> None:
     op.create_table('context',
                     sa.Column('id', sa.UUID(), nullable=False),
                     sa.Column('conversation_id', sa.UUID(), nullable=False),
-                    sa.Column('created_at', sa.DateTime(), nullable=False),
+                    sa.Column('created_at', sa.DateTime(
+                        timezone=True), nullable=False),
                     sa.ForeignKeyConstraint(['conversation_id'], [
                         'chat.conversation.id'], ),
                     sa.PrimaryKeyConstraint('id'),
@@ -101,7 +121,8 @@ def upgrade() -> None:
     op.create_table('pydantic_message',
                     sa.Column('id', sa.UUID(), nullable=False),
                     sa.Column('conversation_id', sa.UUID(), nullable=False),
-                    sa.Column('created_at', sa.DateTime(), nullable=False),
+                    sa.Column('created_at', sa.DateTime(
+                        timezone=True), nullable=False),
                     sa.Column('message_list', postgresql.BYTEA(),
                               nullable=False),
                     sa.ForeignKeyConstraint(['conversation_id'], [
@@ -127,8 +148,9 @@ def upgrade() -> None:
                     sa.Column('num_timestamps', sa.Integer(), nullable=False),
                     sa.Column('num_features', sa.Integer(), nullable=False),
                     sa.Column('start_timestamp',
-                              sa.DateTime(), nullable=False),
-                    sa.Column('end_timestamp', sa.DateTime(), nullable=False),
+                              sa.DateTime(timezone=True), nullable=False),
+                    sa.Column('end_timestamp', sa.DateTime(
+                        timezone=True), nullable=False),
                     sa.Column('dataset_id', sa.UUID(), nullable=False),
                     sa.ForeignKeyConstraint(
                         ['dataset_id'], ['ontology.dataset.id'], ),
@@ -158,11 +180,11 @@ def upgrade() -> None:
                     sa.Column('type', sa.String(), nullable=False),
                     sa.Column('status', sa.String(), nullable=False),
                     sa.Column('user_id', sa.UUID(), nullable=False),
-                    sa.Column('api_key_id', sa.UUID(), nullable=False),
-                    sa.Column('started_at', sa.DateTime(), nullable=False),
-                    sa.Column('completed_at', sa.DateTime(), nullable=True),
-                    sa.ForeignKeyConstraint(
-                        ['api_key_id'], ['auth.user_api_keys.id'], ),
+                    sa.Column('job_name', sa.String(), nullable=True),
+                    sa.Column('started_at', sa.DateTime(
+                        timezone=True), nullable=False),
+                    sa.Column('completed_at', sa.DateTime(
+                        timezone=True), nullable=True),
                     sa.ForeignKeyConstraint(['user_id'], ['auth.users.id'], ),
                     sa.PrimaryKeyConstraint('id'),
                     schema='jobs'
@@ -210,17 +232,51 @@ def upgrade() -> None:
                     sa.PrimaryKeyConstraint('job_id'),
                     schema='integration'
                     )
-    # ### end Alembic commands ###
+    op.create_table('integration_pydantic_message',
+                    sa.Column('id', sa.UUID(), nullable=False),
+                    sa.Column('job_id', sa.UUID(), nullable=False),
+                    sa.Column('message_list', postgresql.BYTEA(),
+                              nullable=False),
+                    sa.ForeignKeyConstraint(['job_id'], ['jobs.jobs.id'], ),
+                    sa.PrimaryKeyConstraint('id'),
+                    sa.Column('created_at', sa.DateTime(
+                        timezone=True), nullable=False),
+                    schema='integration'
+                    )
+    op.create_table('integration_jobs_directory_inputs',
+                    sa.Column('job_id', sa.UUID(), nullable=False),
+                    sa.Column('data_directory', sa.String(), nullable=False),
+                    sa.Column('data_description', sa.String(), nullable=False),
+                    sa.ForeignKeyConstraint(['job_id'], ['jobs.jobs.id'], ),
+                    sa.PrimaryKeyConstraint('job_id'),
+                    schema='integration'
+                    )
+    op.create_table('integration_message',
+                    sa.Column('id', sa.UUID(), nullable=False),
+                    sa.Column('job_id', sa.UUID(), nullable=False),
+                    sa.Column('type', sa.String(), nullable=False),
+                    sa.Column('content', sa.String(), nullable=False),
+                    sa.Column('role', sa.String(), nullable=False),
+                    sa.Column('created_at', sa.DateTime(
+                        timezone=True), nullable=False),
+                    sa.ForeignKeyConstraint(['job_id'], ['jobs.jobs.id'], ),
+                    sa.PrimaryKeyConstraint('id'),
+                    schema='integration'
+                    )
 
 
 def downgrade() -> None:
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('integration_jobs_results', schema='integration')
+    op.drop_table('integration_pydantic_message', schema='integration')
+    op.drop_table('integration_jobs_directory_inputs', schema='integration')
+    op.drop_table('integration_message', schema='integration')
     op.drop_table('dataset_context', schema='chat')
     op.drop_table('automation_context', schema='chat')
     op.drop_table('model_job_result', schema='automation')
     op.drop_table('eda_jobs_results', schema='analysis')
     op.drop_table('jobs', schema='jobs')
+    op.drop_table('dataset_metadata', schema='ontology')
     op.drop_table('time_series_dataset', schema='ontology')
     op.drop_table('time_series', schema='ontology')
     op.drop_table('feature_dataset', schema='ontology')

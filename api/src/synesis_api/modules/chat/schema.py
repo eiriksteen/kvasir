@@ -1,8 +1,8 @@
 from typing import Literal, List
-from datetime import datetime
-from ...base_schema import BaseSchema
-from ..ontology.schema import Datasets
-from ..automation.schema import Automations
+from datetime import datetime, timezone
+from synesis_api.base_schema import BaseSchema
+from synesis_api.modules.ontology.schema import Datasets
+from synesis_api.modules.automation.schema import Automations
 import uuid
 
 
@@ -17,7 +17,7 @@ class ChatMessage(BaseSchema):
     conversation_id: uuid.UUID
     role: Literal["user", "assistant"]
     content: str
-    created_at: datetime
+    created_at: datetime = datetime.now(timezone.utc)
 
 
 class Prompt(BaseSchema):
@@ -33,7 +33,7 @@ class PydanticMessage(BaseSchema):
     id: uuid.UUID
     conversation_id: uuid.UUID
     message_list: bytes
-    created_at: datetime
+    created_at: datetime = datetime.now(timezone.utc)
 
 
 class ContextCreate(BaseSchema):
@@ -45,7 +45,7 @@ class ContextCreate(BaseSchema):
 class Context(BaseSchema):
     id: uuid.UUID
     conversation_id: uuid.UUID
-    created_at: datetime
+    created_at: datetime = datetime.now(timezone.utc)
     dataset_ids: List[uuid.UUID] = []
     automation_ids: List[uuid.UUID] = []
 

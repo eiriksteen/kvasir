@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Response, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
-from .service import (
+from synesis_api.auth.service import (
     authenticate_user,
     create_token,
     create_user,
@@ -10,7 +10,7 @@ from .service import (
     decode_token,
     get_user_by_id
 )
-from .schema import User, UserCreate, UserWithToken
+from synesis_api.auth.schema import User, UserCreate, UserWithToken
 from synesis_api.secrets import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS, DEV
 from datetime import timedelta
 
