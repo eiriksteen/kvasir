@@ -69,9 +69,8 @@ async def post_chat(
                         yield text
                         prev_text = text
         elif handoff_agent == "analysis" or handoff_agent == "automation":
-            result = await analysis_agent.delegate("Which function to delegate this prompt to: " + prompt.content)
-            print(f"Delegate Result: {result}")
             context = await get_context_by_time_stamp(conversation_id, user.id, datetime.now())
+            delegated_task = await analysis_agent.delegate("This is the current context: " + context.model_dump_json() + "Which function to delegate this prompt to: " + prompt.content)
 
             analysis_request = AnalysisRequest(
                 dataset_ids=context.dataset_ids,
@@ -82,9 +81,7 @@ async def post_chat(
                 message_history=messages
             )
 
-            print(f"Analysis request: {analysis_request}")
-
-            if result == "run_simple_analysis": 
+            if delegated_task == "run_simple_analysis": 
                 async for item in analysis_agent.run_simple_analysis(analysis_request):
                     if isinstance(item, str):
                         yield item
@@ -96,10 +93,10 @@ async def post_chat(
                                 if text != prev_text:
                                     yield text
                                     prev_text = text
-            elif result == "run_analysis_planner":
+            elif delegated_task == "run_analysis_planner":
                 yield "Running analysis planner. This may take a couple of minutes. The results will be shown in the analyis tab."
                 await run_analysis_planner_task.kiq(analysis_request)
-            elif result == "run_execution_agent":
+            elif delegated_task == "run_execution_agent":
                 yield "Running analysis execution. This may take a couple of minutes. The results will be shown in the analyis tab."
                 await run_analysis_execution_task.kiq(analysis_request)
             else:

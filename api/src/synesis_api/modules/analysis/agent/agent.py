@@ -145,6 +145,7 @@ class AnalysisAgent:
             prompt, 
             output_type=DelegateResult
         )
+        print(f"Delegate Result: {result}")
         return result.output.function_name
 
     async def run_analysis_planner(

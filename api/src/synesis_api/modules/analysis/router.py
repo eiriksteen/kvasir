@@ -32,13 +32,12 @@ async def analysis_agent_sse(
     job_id: uuid.UUID,
     cache: Annotated[redis.Redis, Depends(get_redis)],
     timeout: int = SSE_MAX_TIMEOUT,
-    # user: Annotated[User, Depends(get_current_user)] = None
+    user: Annotated[User, Depends(get_current_user)] = None
 ) -> StreamingResponse:
-    # print("user", user)
 
-    # if not user or not await user_owns_job(user.id, job_id):
-    #     raise HTTPException(
-    #         status_code=403, detail="You do not have permission to access this job")
+    if not user or not await user_owns_job(user.id, job_id):
+            raise HTTPException(
+                status_code=403, detail="You do not have permission to access this job")
 
     timeout = min(timeout, SSE_MAX_TIMEOUT)
 
