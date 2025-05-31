@@ -49,7 +49,7 @@ dependencies = [
     "statsmodels",
     "markdown2",
     "boto3",
-    "openpyxl"
+    "openpyxl",
     "taskiq"
 ]
 

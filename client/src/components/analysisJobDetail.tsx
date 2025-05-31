@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { ArrowLeft, Info, X } from 'lucide-react';
 import { getStatusColor } from '../lib/utils';
 import { AnalysisStatusMessage } from '../types/analysis';

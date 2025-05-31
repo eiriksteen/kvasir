@@ -2,8 +2,8 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import select
 from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
-from synesis_api.modules.chat.schema import ChatMessage, PydanticMessage, Conversation, Context, Datasets, ContextInDB, DatasetContextInDB, AutomationContextInDB
-from synesis_api.modules.chat.models import chat_message, pydantic_message, conversations, context, dataset_context, automation_context
+from synesis_api.modules.chat.schema import ChatMessage, PydanticMessage, Conversation, Context, Datasets, ContextInDB, DatasetContextInDB, AutomationContextInDB, AnalysisContextInDB
+from synesis_api.modules.chat.models import chat_message, pydantic_message, conversations, context, dataset_context, automation_context, analysis_context
 from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.ontology.service import get_user_datasets_by_ids
 

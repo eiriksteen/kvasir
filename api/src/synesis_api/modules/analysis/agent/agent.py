@@ -1,36 +1,20 @@
 import pandas as pd
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 from pathlib import Path
-from pydantic_ai import Agent, RunContext, Tool
+from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.providers.openai import OpenAIProvider
-from synesis_api.modules.analysis.agent.tools import eda_cs_basic_tools, eda_cs_advanced_tools
-from synesis_api.modules.analysis.agent.prompt import EDA_SYSTEM_PROMPT
-from synesis_api.modules.analysis.agent.deps import EDADepsBasic, EDADepsAdvanced, EDADepsIndependent, EDADepsSummary
 from synesis_api.secrets import OPENAI_API_KEY, OPENAI_API_MODEL
-from synesis_api.modules.analysis.schema import EDAResponse, EDAResponseWithCode
 from synesis_api.utils import run_code_in_container, copy_to_container
-
-provider = OpenAIProvider(api_key=OPENAI_API_KEY)
-
-from .tools import eda_cs_basic_tools, eda_cs_advanced_tools #eda_ts_basic_tools, eda_ts_advanced_tools
-from .prompt import EDA_SYSTEM_PROMPT, BASIC_PROMPT, ADVANCED_PROMPT, INDEPENDENT_PROMPT, SUMMARIZE_EDA
-from .deps import EDADepsBasic, EDADepsAdvanced, EDADepsIndependent, EDADepsTotal
-from synesis_api.secrets import OPENAI_API_KEY, OPENAI_API_MODEL
-from synesis_api.modules.analysis.schema import AnalysisJobResultMetadata, AnalysisJobResult, AnalysisPlan
-from synesis_api.utils import run_code_in_container
 from pydantic_ai.messages import SystemPromptPart, ModelRequest
-from typing import List
 from .prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
 from .deps import AnalysisDeps
-from synesis_api.secrets import OPENAI_API_KEY, OPENAI_API_MODEL
 from synesis_api.modules.analysis.schema import AnalysisJobResult, AnalysisPlan, AnalysisRequest, DelegateResult, AnalysisJobResultMetadataInDB
-from synesis_api.utils import run_code_in_container, copy_file_to_container
 from synesis_api.modules.ontology.service import get_user_datasets_by_ids
 from synesis_api.worker import logger
-from pydantic_ai.messages import ModelMessage
 from pydantic_ai.messages import (
+    ModelMessage,
     FunctionToolCallEvent,
     FunctionToolResultEvent,
 )
@@ -38,29 +22,30 @@ from fastapi import HTTPException
 import aiofiles
 import uuid
 from io import StringIO
-from .tools import eda_cs_tools_str
-import json
-from ...jobs.service import get_job_metadata, update_job_status, create_job
-from ..service import (
-    get_dataset_ids_by_job_id,
-    get_analysis_job_results_from_db,
+from synesis_api.modules.jobs.service import get_job_metadata, update_job_status, create_job
+from synesis_api.modules.analysis.service import (
     get_user_analyses_by_ids,
     insert_analysis_job_results_into_db,
     update_analysis_job_results_in_db
 )
-from ....auth.service import create_api_key
-from datetime import datetime, timezone
-from ....redis import get_redis
+from synesis_api.auth.service import create_api_key
+from datetime import datetime
+from synesis_api.redis import get_redis
 
 # Add dataset cache
 dataset_cache: Dict[str, pd.DataFrame] = {}
+
+provider = OpenAIProvider(api_key=OPENAI_API_KEY)
 
 async def load_dataset_from_cache_or_disk(dataset_id: uuid.UUID, user_id: uuid.UUID) -> pd.DataFrame:
     """Load dataset from cache if available, otherwise load from disk and cache it."""
     if dataset_id in dataset_cache:
         logger.info(f"Loading dataset from cache: {dataset_id}")
         return dataset_cache[dataset_id]
-    data_path = Path(f"integrated_data/{user_id}/{dataset_id}.csv")
+    logger.info(f"Loading dataset from disk: {dataset_id}")
+    import os
+    logger.info(f"Current working directory: {os.getcwd()}")
+    data_path = Path(f"integrated_data/{user_id}/{dataset_id}/dataset.csv")
     try:
         async with aiofiles.open(data_path, 'r', encoding="utf-8") as f:
             content = await f.read()
@@ -152,13 +137,23 @@ class AnalysisAgent:
         self,
         analysis_request: AnalysisRequest,
     ):
+        analysis_deps, message_history = await self._prepare_agent_run(analysis_request, "analysis_planner")
         status_messages = []
+        job_id = uuid.uuid4()
 
         if len(analysis_request.analysis_ids) == 0:
             try: 
                 self.logger.info("Creating analysis job")
                 api_key = await create_api_key(analysis_request.user)
-                analysis_job = await create_job(analysis_request.user.id, api_key.id, "analysis")
+                job_name = await self.agent.run(
+                    f"The user prompt is: {analysis_request.prompt}. The user prompt is about to be performed, but the user has not given a name to the analysis job. Give a short name to the analysis job that is about to be performed. Do not make an analysis yet. Only give a name.", 
+                    message_history=message_history,
+                    output_type=str
+                )
+                print(f"Uncleaned Job name: {job_name}")
+                job_name = job_name.output.replace('"', '').replace("'", "").strip()
+                print(f"Cleaned Job name: {job_name}")
+                analysis_job = await create_job(analysis_request.user.id, "analysis", job_id, job_name)
             except Exception as e:
                 raise HTTPException(
                     status_code=500, detail="Failed to create analysis job.")
@@ -175,7 +170,7 @@ class AnalysisAgent:
         status_messages.append(status_message)
         await self.post_message_to_redis(status_message, analysis_job.id)
 
-        analysis_deps, message_history = await self._prepare_agent_run(analysis_request, "analysis_planner")
+        
 
         nodes = []
 

@@ -1,6 +1,6 @@
-from ...worker import broker
-from .schema import AnalysisRequest, AnalysisJobResultMetadataInDB
-from .agent.agent import analysis_agent
+from synesis_api.worker import broker
+from synesis_api.modules.analysis.schema import AnalysisRequest, AnalysisJobResultMetadataInDB
+from synesis_api.modules.analysis.agent.agent import analysis_agent
 
 
 @broker.task

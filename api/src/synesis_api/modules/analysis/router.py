@@ -1,27 +1,22 @@
 import uuid
 import json
 import time
-from typing import Annotated, List
-from pathlib import Path
+from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from synesis_api.redis import get_redis
 import redis
-from synesis_api.modules.analysis.schema import AnalysisJobResultMetadata, AnalysisJobResultMetadataList, AnalysisRequest, AnalysisJobResult
-from synesis_api.auth.service import (create_api_key,
-                             get_current_user,
-                             user_owns_job)
+from synesis_api.modules.analysis.schema import AnalysisJobResultMetadata, AnalysisJobResultMetadataList
+from synesis_api.auth.service import get_current_user, user_owns_job
 from synesis_api.modules.analysis.service import (
     get_analysis_job_results_from_db,
     get_user_analysis_metadata,
     create_pdf_from_results,
-    get_dataset_ids_by_job_id,
     delete_analysis_job_results_from_db
 )
-from ..jobs.service import create_job, get_job_metadata, update_job_status
-from ..jobs.schema import JobMetadata
-from ...auth.schema import User
-from ..ontology.service import get_user_datasets_by_ids
+from synesis_api.modules.jobs.service import get_job_metadata
+from synesis_api.modules.jobs.schema import JobMetadata
+from synesis_api.auth.schema import User
 
 router = APIRouter()
 

@@ -4,7 +4,7 @@ from sqlalchemy import update, select, insert, delete
 from typing import List
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
-from synesis_api.modules.analysis.schema import AnalysisJobResultMetadataInDB, AnalysisJobResultInDB, AnalysisPlan, AnalysisJobResultMetadataList, AnalysisJobResult, AnalysisStatusMessage
+from synesis_api.modules.analysis.schema import AnalysisJobResultMetadataInDB, AnalysisJobResultInDB, AnalysisPlan, AnalysisJobResultMetadataList, AnalysisStatusMessage
 from synesis_api.modules.jobs.service import update_job_status
 from synesis_api.utils import save_markdown_as_html
 from synesis_api.aws.service import upload_object_s3
@@ -12,8 +12,6 @@ from synesis_api.worker import logger
 from synesis_api.modules.jobs.service import delete_job_by_id
 from synesis_api.modules.chat.models import analysis_context
 
-# Add dataset cache
-dataset_cache: Dict[str, pd.DataFrame] = {}
 
 async def run_analysis_execution(
         job_id: uuid.UUID,
@@ -107,12 +105,12 @@ async def create_pdf_from_results(job_results: AnalysisJobResultInDB, eda_job_id
     # logger.info("Results uploaded to S3")
 
 
-
 async def get_status_messages_by_job_id(job_id: uuid.UUID) -> List[AnalysisStatusMessage]:
     messages = await fetch_all(
         select(analysis_status_messages).where(analysis_status_messages.c.job_id == job_id)
     )
     return [AnalysisStatusMessage(**msg) for msg in messages]
+
 
 async def insert_analysis_job_results_into_db(job_results: AnalysisJobResultMetadataInDB) -> None:
     try:
@@ -247,7 +245,6 @@ async def get_dataset_ids_by_job_id(job_id: uuid.UUID) -> List[uuid.UUID]:
 
 
 async def delete_analysis_job_results_from_db(job_id: uuid.UUID) -> uuid.UUID:
-    # TODO: use cascading delete
 
     # Delete from child tables first
     await execute(
@@ -279,11 +276,3 @@ async def delete_analysis_job_results_from_db(job_id: uuid.UUID) -> uuid.UUID:
     await delete_job_by_id(job_id)
     return job_id
 
-    
-
-# async def delete_analysis_job_results_from_db(job_id: uuid.UUID) -> uuid.UUID:
-#     # Delete from jobs table - cascading will handle the rest
-#     await delete_job_by_id(job_id)
-#     return job_id
-    
-    

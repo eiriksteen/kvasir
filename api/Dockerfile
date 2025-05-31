@@ -4,7 +4,8 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install .
+RUN pip install --upgrade pip && \
+    pip install -e .
 
 EXPOSE 8000
 

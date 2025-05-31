@@ -6,8 +6,8 @@ import OntologyBar from "@/components/OntologyBar";
 import Chatbot from "@/components/Chatbot";
 import UserHeader from "@/components/UserHeader";
 import DataVisualizer from "@/components/data-visualization/DataVisualizer";
+import MainView from "@/components/MainView";
 
-import MainView from "@/components/mainView";
 interface DashboardProps {
   session: Session;
 }

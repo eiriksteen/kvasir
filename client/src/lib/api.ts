@@ -129,8 +129,8 @@ export async function fetchAnalysisJobResults(token: string): Promise<Analyses> 
   return data;
 }
 
-export async function fetchJobs(token: string, onlyRunning: boolean = false): Promise<Job[]> {
-  const response = await fetch(`${API_URL}/jobs?only_running=${onlyRunning}`, {
+export async function fetchJobs(token: string, onlyRunning: boolean = false, type: string | null = null): Promise<Job[]> {
+  const response = await fetch(`${API_URL}/jobs?only_running=${onlyRunning}&type=${type}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

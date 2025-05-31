@@ -12,6 +12,7 @@ export const useContext = () => {
   const { currentConversationID } = useConversation();
   
   const { data: datasetsInContext } = useSWR("datasetsInContext", { fallbackData: [] });
+  console.log("datasetsInContext", datasetsInContext);
   const { data: automationsInContext } = useSWR("automationsInContext", { fallbackData: [] });
   const { data: analysisesInContext } = useSWR("analysisesInContext", { fallbackData: [] });
 

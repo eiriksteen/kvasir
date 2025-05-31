@@ -5,15 +5,15 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from src.synesis_api.auth.models import users, user_api_keys
-from src.synesis_api.modules.integration.models import integration_jobs_results, integration_pydantic_message, integration_jobs_directory_inputs, integration_message
-from src.synesis_api.modules.jobs.models import jobs
-from src.synesis_api.modules.ontology.models import time_series, time_series_dataset
-from src.synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
-from src.synesis_api.modules.chat.models import chat_messages, pydantic_messages, conversations
-from src.synesis_api.modules.automation.models import model_job_result, automation
-from src.synesis_api.database.core import metadata
-from src.synesis_api.secrets import DATABASE_URL
+from synesis_api.auth.models import users, user_api_keys
+from synesis_api.modules.integration.models import integration_jobs_results, integration_pydantic_message, integration_jobs_directory_inputs, integration_message
+from synesis_api.modules.jobs.models import jobs
+from synesis_api.modules.ontology.models import time_series, time_series_dataset
+from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
+from synesis_api.modules.chat.models import chat_message, pydantic_message, conversations
+from synesis_api.modules.automation.models import model_job_result, automation
+from synesis_api.database.core import metadata
+from synesis_api.secrets import DATABASE_URL
 
 from alembic import context
 
@@ -25,6 +25,28 @@ config = context.config
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# Explicitly reference all models to ensure they are included in the metadata
+__all__ = [
+    users,
+    user_api_keys,
+    integration_jobs_results,
+    integration_pydantic_message,
+    integration_jobs_directory_inputs,
+    integration_message,
+    jobs,
+    time_series,
+    time_series_dataset,
+    analysis_jobs_results,
+    analysis_jobs_datasets,
+    analysis_jobs_automations,
+    analysis_status_messages,
+    chat_message,
+    pydantic_message,
+    conversations,
+    model_job_result,
+    automation
+]
 
 # add your model's MetaData object here
 # for 'autogenerate' support

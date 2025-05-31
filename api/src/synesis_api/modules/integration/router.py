@@ -3,7 +3,6 @@ import json
 import time
 import redis
 import aiofiles
-import asyncio
 import redis
 import pandas as pd
 from datetime import datetime, timezone
@@ -15,7 +14,6 @@ from pydantic_core import to_jsonable_python
 from io import StringIO
 from pathlib import Path
 from synesis_api.modules.integration.service import (
-    run_integration_job,
     validate_restructured_data,
     get_job_results,
     get_integration_input,
@@ -25,6 +23,7 @@ from synesis_api.modules.integration.service import (
     delete_integration_result,
     get_dataset_id_from_job_id
 )
+from synesis_api.modules.integration.tasks import run_integration_job_task
 from synesis_api.modules.ontology.service import create_dataset, delete_dataset
 from synesis_api.modules.integration.schema import (
     DataSubmissionResponse,
@@ -41,7 +40,8 @@ from synesis_api.auth.service import (create_api_key,
                                       get_current_user,
                                       get_user_from_api_key,
                                       delete_api_key,
-                                      user_owns_job)
+                                      user_owns_job,
+                                      )
 from synesis_api.modules.jobs.service import create_job, get_job_metadata, update_job_status
 from synesis_api.redis import get_redis
 
@@ -93,7 +93,7 @@ async def call_integration_agent(
                 user.id,
                 "integration",
                 job_id=job_id,
-                job_name=job_name.data
+                job_name=job_name.output
             )
 
             await create_integration_input(IntegrationJobDirectoryInput(
@@ -102,17 +102,13 @@ async def call_integration_agent(
                 data_directory=str(data_directory)
             ), data_source)
 
-            task = run_integration_job.apply_async(
-                args=[job_id,
-                      api_key.key,
-                      str(data_directory),
-                      data_description,
-                      data_source]
+            await run_integration_job_task.kiq(
+                job_id,
+                api_key.key,
+                str(data_directory),
+                data_description,
+                data_source
             )
-
-            if task.status == "FAILURE":
-                raise HTTPException(
-                    status_code=500, detail="Failed to process the integration request")
 
             return integration_job
 
@@ -177,13 +173,14 @@ async def integration_agent_feedback(
 
         await update_job_status(feedback.job_id, "running")
 
-        task = run_integration_job.apply_async(
-            args=[feedback.job_id,
-                  api_key.key,
-                  str(integration_input.data_directory),
-                  integration_input.data_description,
-                  "directory"]
+        await run_integration_job_task.kiq(
+            feedback.job_id,
+            api_key.key,
+            str(integration_input.data_directory),
+            integration_input.data_description,
+            "directory"
         )
+
 
         # print(task)
         # if task.status == "FAILURE":
@@ -196,7 +193,6 @@ async def integration_agent_feedback(
 
     except Exception as e:
         if api_key:
-            await delete_job_by_id(integration_job.id)
             await delete_api_key(user)  # cannot delete api key here since it is referenced from job table
         raise HTTPException(
             status_code=500, detail=f"Failed to process the integration request: {str(e)}")

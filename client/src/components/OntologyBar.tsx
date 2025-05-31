@@ -8,8 +8,7 @@ import { useAgentContext, useDatasets, useAnalysis } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
-import ConfirmationPopup from './confirmationPopup';
-
+import ConfirmationPopup from './ConfirmationPopup';
 
 function DatasetItem({ dataset, isInContext, onClick }: { dataset: TimeSeriesDataset; isInContext: boolean; onClick: () => void }) {
     return (

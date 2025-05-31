@@ -6,6 +6,7 @@ from fastapi.responses import StreamingResponse
 from typing import Annotated, List, Literal
 from pydantic_core import to_jsonable_python
 from pydantic_ai.messages import ModelRequest, SystemPromptPart
+from pydantic_ai.agent import AgentRunResult
 from synesis_api.modules.ontology.service import get_user_datasets_by_ids
 from synesis_api.modules.chat.schema import ChatMessage, Conversation, Prompt, Context, ContextCreate
 from synesis_api.modules.chat.service import (
@@ -16,7 +17,7 @@ from synesis_api.modules.chat.service import (
     create_messages_pydantic,
     get_conversations,
     create_context,
-    get_context_by_time_stamp
+    get_context_by_time_stamp,
 )
 from synesis_api.modules.chat.agent.agent import chatbot_agent
 from synesis_api.auth.service import get_current_user, user_owns_conversation
@@ -28,20 +29,6 @@ from synesis_api.modules.analysis.schema import AnalysisRequest
 from synesis_api.modules.analysis.agent.agent import analysis_agent
 from synesis_api.modules.analysis.tasks import run_analysis_planner_task, run_analysis_execution_task
 router = APIRouter()
-
-@router.post("/completions/analysis-planner/{conversation_id}")
-async def post_chat(
-    conversation_id: uuid.UUID,
-    prompt: Prompt,
-    datasets: List[Dataset],
-    # automations: List[Automation],
-    user: Annotated[User, Depends(get_current_user)] = None
-):
-    if not await user_owns_conversation(user.id, conversation_id):
-        raise HTTPException(
-            status_code=403, detail="You do not have access to this conversation")
-    
-    # TODO: should all things that go through chat be handled here?
 
 
 @router.post("/completions/{conversation_id}")
@@ -60,7 +47,8 @@ async def post_chat(
         messages = await get_messages_pydantic(conversation_id)
         orchestrator_output = await orchestrator_agent.run(prompt.content, message_history=messages)
         handoff_agent = orchestrator_output.output.handoff_agent
-    
+
+        save_messages = True
         if handoff_agent == "chat":
             async with chatbot_agent.run_stream(prompt.content, message_history=messages) as result:
                 prev_text = ""
@@ -94,9 +82,11 @@ async def post_chat(
                                     yield text
                                     prev_text = text
             elif delegated_task == "run_analysis_planner":
+                save_messages = False
                 yield "Running analysis planner. This may take a couple of minutes. The results will be shown in the analyis tab."
                 await run_analysis_planner_task.kiq(analysis_request)
             elif delegated_task == "run_execution_agent":
+                save_messages = False
                 yield "Running analysis execution. This may take a couple of minutes. The results will be shown in the analyis tab."
                 await run_analysis_execution_task.kiq(analysis_request)
             else:
@@ -104,10 +94,10 @@ async def post_chat(
                     status_code=400, detail="Invalid handoff agent")
             
 
-        await insert_message_pydantic(conversation_id, result.new_messages_json())
-
-        await create_message(conversation_id, "user", prompt.content)
-        await create_message(conversation_id, "assistant", text)
+        if save_messages:
+            await create_messages_pydantic(conversation_id, result.new_messages_json())
+            await create_message(conversation_id, "user", prompt.content)
+            await create_message(conversation_id, "assistant", text)
 
     return StreamingResponse(stream_messages(), media_type="text/plain")
 
@@ -205,7 +195,7 @@ async def update_context(
     messages_bytes = json.dumps(
         to_jsonable_python(new_messages)).encode("utf-8")
 
-    await insert_context(user.id, context.conversation_id, new_dataset_ids, context.automation_ids, new_analysis_ids)
-    await insert_message_pydantic(context.conversation_id, messages_bytes)
+    await create_context(user.id, context.conversation_id, new_dataset_ids, context.automation_ids, new_analysis_ids)
+    await create_messages_pydantic(context.conversation_id, messages_bytes)
 
     return context

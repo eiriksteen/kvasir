@@ -10,6 +10,7 @@ from synesis_api.modules.automation.schema import ModelJobResultInDB
 from synesis_api.modules.automation.agent.deps import ModelDeps
 from synesis_api.modules.automation.agent.agent import model_agent
 from synesis_api.aws.service import upload_object_s3, retrieve_object
+from synesis_api.worker import logger
 
 from fastapi import HTTPException
 
@@ -60,17 +61,6 @@ async def run_model_agent(
 
     return output_in_db
 
-
-@broker.task
-async def run_model_job(
-    project_id: uuid.UUID,
-    data_path: str,
-    problem_description: str,
-    data_analysis: str
-):
-
-    return await run_model_agent(
-        project_id, data_path, problem_description, data_analysis)
 
 
 async def get_job_results(job_id: uuid.UUID) -> ModelJobResultInDB:
