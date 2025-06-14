@@ -3,6 +3,7 @@ import NextAuth, { AuthOptions } from "next-auth"
 import { User as UserType } from "@/types/next-auth"
 
 
+
 export const authOptions: AuthOptions = {
 
   providers: [

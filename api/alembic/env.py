@@ -5,15 +5,15 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from src.synesis_api.auth.models import users, user_api_keys
-from src.synesis_api.modules.integration.models import integration_jobs_results, integration_pydantic_message, integration_jobs_directory_inputs, integration_message
-from src.synesis_api.modules.jobs.models import jobs
-from src.synesis_api.modules.ontology.models import time_series, time_series_dataset
-from src.synesis_api.modules.analysis.models import eda_jobs_results
-from src.synesis_api.modules.chat.models import chat_message, pydantic_message, conversations
-from src.synesis_api.modules.automation.models import model_job_result, automation
-from src.synesis_api.database.core import metadata
-from src.synesis_api.secrets import DATABASE_URL
+from synesis_api.auth.models import users, user_api_keys
+from synesis_api.modules.integration.models import integration_jobs_results, integration_pydantic_message, integration_jobs_directory_inputs, integration_message
+from synesis_api.modules.jobs.models import jobs
+from synesis_api.modules.ontology.models import time_series, time_series_dataset
+from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
+from synesis_api.modules.chat.models import chat_message, pydantic_message, conversations
+from synesis_api.modules.automation.models import model_job_result, automation
+from synesis_api.database.core import metadata
+from synesis_api.secrets import DATABASE_URL
 
 from alembic import context
 
@@ -26,11 +26,39 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+# Explicitly reference all models to ensure they are included in the metadata
+__all__ = [
+    users,
+    user_api_keys,
+    integration_jobs_results,
+    integration_pydantic_message,
+    integration_jobs_directory_inputs,
+    integration_message,
+    jobs,
+    time_series,
+    time_series_dataset,
+    analysis_jobs_results,
+    analysis_jobs_datasets,
+    analysis_jobs_automations,
+    analysis_status_messages,
+    chat_message,
+    pydantic_message,
+    conversations,
+    model_job_result,
+    automation
+]
+
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 target_metadata = metadata
+
+def include_name(name, type_, parent_names):
+    if type_ == "schema":
+        return name in ["public", "auth", "integration", "jobs", "ontology", "analysis", "chat", "automation"]
+    else:
+        return True
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -58,6 +86,8 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_schemas=True,
+        include_name=include_name
     )
 
     with context.begin_transaction():
@@ -65,7 +95,12 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection, 
+        target_metadata=target_metadata,
+        include_schemas=True,
+        include_name=include_name
+    )
 
     with context.begin_transaction():
         context.run_migrations()

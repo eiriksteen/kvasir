@@ -1,15 +1,18 @@
 'use client';
 
+import { memo } from 'react';
 import { useState, useRef, useEffect } from 'react';
-import {memo} from 'react';
-import { Send, Database, X } from 'lucide-react';
+import { Send, Database, X, BarChart } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useChat, useConversation, useAgentContext } from '@/hooks';
+import { useChat, useConversation, useAgentContext, useAnalysis } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { ChatMessage } from '@/types/chat';
 import { TimeSeriesDataset } from '@/types/datasets';
+import { AnalysisJobResultMetadata } from '@/types/analysis';
+import Popup from './Popup';
+
 
 
 interface ChatProps {
@@ -41,15 +44,16 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
 // Add display name to the memo component
 ChatListItem.displayName = 'ChatListItem';
 
+
 function Chat({ conversationId }: ChatProps) {
   
   const [input, setInput] = useState('');
   const [width, setWidth] = useState(400);
   const [isDragging, setIsDragging] = useState(false);
+  const [showAnalysisPopup, setShowAnalysisPopup] = useState(false);
 
   const { messages, submitPrompt } = useChat(conversationId);
-  const { datasetsInContext, removeDatasetFromContext } = useAgentContext();
-  
+  const { datasetsInContext, removeDatasetFromContext, analysisesInContext, removeAnalysisFromContext } = useAgentContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
@@ -79,7 +83,7 @@ function Chat({ conversationId }: ChatProps) {
       setInput('');
     }
   };
-
+  
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
@@ -116,6 +120,13 @@ function Chat({ conversationId }: ChatProps) {
       className="absolute right-0 h-screen pt-12 text-white flex flex-col bg-[#1a1625]/95"
       style={{ width: `${width}px` }}
     >
+      {showAnalysisPopup && (
+        <Popup 
+          message="Analysis is being initialized..." 
+          onClose={() => setShowAnalysisPopup(false)}
+          type="analysis"
+        />
+      )}
       {/* Drag handle */}
       <div 
         ref={dragHandleRef}
@@ -126,32 +137,53 @@ function Chat({ conversationId }: ChatProps) {
 
       {!isCollapsed && (
         <>
-          
-          {/* Dataset context panel - only shown when datasets are available */}
-            <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-sm pl-1 pt-1 font-medium text-purple-300">Selected Datasets</h3>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {datasetsInContext.timeSeries.length > 0 ? (
-                  datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => (
+          {/* Combined context bar */}
+          <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-sm pl-1 pt-1 font-medium text-purple-300">Context</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {datasetsInContext.timeSeries.length === 0 && analysisesInContext.length === 0 ? (
+                <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select items from the left panel</h3>
+              ) : (
+                <>
+                  {/* Datasets */}
+                  {datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => (
                     <div 
                       key={dataset.id}
                       className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-blue-900/30 text-blue-300"
                     >
+                      <Database size={12} />
                       {dataset.name}
                       <button 
                         onClick={() => removeDatasetFromContext(dataset)}
                         className="text-zinc-400 hover:text-white"
                       >
                         <X size={12} />
-                    </button>
-                  </div>
-                ))
-                ) : ( <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select datasets from the left panel</h3>
-                )}
-              </div>
+                      </button>
+                    </div>
+                  ))}
+                  
+                  {/* Analyses */}
+                  {analysisesInContext.map((analysis: AnalysisJobResultMetadata) => (
+                    <div 
+                      key={analysis.jobId}
+                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-purple-900/30 text-purple-300"
+                    >
+                      <BarChart size={12} />
+                      Analysis {analysis.jobId.slice(0, 6)}
+                      <button 
+                        onClick={() => removeAnalysisFromContext(analysis)}
+                        className="text-zinc-400 hover:text-white"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
+          </div>
 
           {/* Quick action buttons */}
           <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
@@ -173,6 +205,12 @@ function Chat({ conversationId }: ChatProps) {
                 className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 Describe my data
+              </button>
+              <button
+                onClick={() => submitPrompt("Plan a detailed analysis on the selected datasets.")}
+                className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
+              >
+                Run analysis on datasets
               </button>
             </div>
           </div>
@@ -233,6 +271,7 @@ function Chat({ conversationId }: ChatProps) {
     </div>
   );
 }
+
 
 export default function Chatbot() {
 

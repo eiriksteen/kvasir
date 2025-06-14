@@ -1,117 +1,32 @@
-import pandas as pd
-from pydantic_ai import Agent, RunContext, ModelRetry
+from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.providers.openai import OpenAIProvider
-from synesis_api.modules.analysis.agent.tools import eda_cs_basic_tools, eda_cs_advanced_tools
-from synesis_api.modules.analysis.agent.prompt import EDA_SYSTEM_PROMPT
-from synesis_api.modules.analysis.agent.deps import EDADepsBasic, EDADepsAdvanced, EDADepsIndependent, EDADepsSummary
 from synesis_api.secrets import OPENAI_API_KEY, OPENAI_API_MODEL
-from synesis_api.modules.analysis.schema import EDAResponse, EDAResponseWithCode
-from synesis_api.utils import run_code_in_container, copy_to_container
+from synesis_api.utils import run_code_in_container
+from synesis_api.modules.analysis.agent.prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
+from dataclasses import dataclass
+import pandas as pd
+
+
+@dataclass
+class AnalysisDeps:
+    df: pd.DataFrame | None = None
+
+
 
 provider = OpenAIProvider(api_key=OPENAI_API_KEY)
-
 model = OpenAIModel(
     model_name=OPENAI_API_MODEL,
     provider=provider
 )
-
-eda_basic_agent = Agent(
+    
+analysis_agent = Agent(
     model,
-    result_type=EDAResponse,
-    system_prompt=EDA_SYSTEM_PROMPT,
-    deps_type=EDADepsBasic,
-    name="Basic EDA Agent",
-    model_settings=ModelSettings(
-        temperature=0.1
-    ),
-    tools=eda_cs_basic_tools
+    system_prompt=ANALYSIS_AGENT_SYSTEM_PROMPT,
+    deps_type=AnalysisDeps,
+    name="Analysis Execution Agent",
+    model_settings=ModelSettings(temperature=0.1),
+    tools=[run_code_in_container],
+    retries=3
 )
-
-eda_advanced_agent = Agent(
-    model,
-    result_type=EDAResponse,
-    deps_type=EDADepsAdvanced,
-    name="Advanced EDA Agent",
-    model_settings=ModelSettings(
-        temperature=0.1
-    ),
-    tools=eda_cs_advanced_tools
-)
-
-eda_independent_agent = Agent(
-    model,
-    result_type=EDAResponseWithCode,
-    deps_type=EDADepsIndependent,
-    name="Independent EDA Agent",
-    model_settings=ModelSettings(
-        temperature=0.1
-    ),
-)
-
-eda_summary_agent = Agent(
-    model,
-    result_type=EDAResponseWithCode,
-    deps_type=EDADepsSummary,
-    name="Summary EDA Agent",
-    model_settings=ModelSettings(
-        temperature=0.1
-    ),
-)
-
-
-@eda_advanced_agent.system_prompt
-def get_system_prompt(ctx: RunContext[EDADepsAdvanced]) -> str:
-    sys_prompt = (
-        f"{EDA_SYSTEM_PROMPT}\n"
-        f"The problem description is as follows: {ctx.deps.problem_description}\n"
-        f"The data description is as follows: {ctx.deps.data_description}\n"
-        f"The result from the basic data analysis: {ctx.deps.basic_data_analysis}"
-    )
-    return sys_prompt
-
-
-@eda_independent_agent.system_prompt
-async def get_system_prompt(ctx: RunContext[EDADepsIndependent]) -> str:
-    _, err = await copy_to_container(ctx.deps.data_path, target_dir="/tmp")
-
-    if err:
-        raise ValueError(f"Error copying file to container: {err}")
-
-    sys_prompt = (
-        f"{EDA_SYSTEM_PROMPT}\n"
-        f"The problem description is as follows: {ctx.deps.problem_description}\n"
-        f"The data description is as follows: {ctx.deps.data_description}\n"
-        f"The result from the basic data analysis: {ctx.deps.basic_data_analysis}\n"
-        f"The result from the advanced data analysis: {ctx.deps.advanced_data_analysis}\n"
-        f"The path to load the dataframe: /tmp/{ctx.deps.data_path.name}"
-    )
-    return sys_prompt
-
-
-@eda_independent_agent.tool_plain
-async def execute_python_code(python_code: str):
-    """
-    Execute a python code block.
-    """
-    out, err = await run_code_in_container(python_code)
-
-    if err:
-        raise ModelRetry(f"Error executing code: {err}")
-
-    return out
-
-
-@eda_summary_agent.system_prompt
-async def get_system_prompt(ctx: RunContext[EDADepsSummary]) -> str:
-    sys_prompt = (
-        f"{EDA_SYSTEM_PROMPT}\n"
-        f"The problem description is as follows: {ctx.deps.problem_description}\n"
-        f"The data description is as follows: {ctx.deps.data_description}\n"
-        f"The result from the basic data analysis: {ctx.deps.basic_data_analysis}\n"
-        f"The result from the advanced data analysis: {ctx.deps.advanced_data_analysis}\n"
-        f"The result from the independent data anlysis: {ctx.deps.independent_data_analysis}\n"
-        f"The code used in the independent data analysis: {ctx.deps.python_code}"
-    )
-    return sys_prompt

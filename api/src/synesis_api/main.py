@@ -1,4 +1,3 @@
-from synesis_api.worker import celery
 from synesis_api.modules.jobs.router import router as jobs_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -48,8 +47,8 @@ app.include_router(ontology_router,
 
 
 app.include_router(eda_router,
-                   prefix="/eda",
-                   tags=["Exploratory Data Analysis"])
+                   prefix="/analysis",
+                   tags=["Analysis"])
 
 
 app.include_router(automation_router,

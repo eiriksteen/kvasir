@@ -68,4 +68,5 @@ class TimeSeriesDataset(Dataset):
 class Datasets(BaseSchema):
     time_series: List[TimeSeriesDataset] = []
     tabular: List[FeatureDataset] = []
+    num_datasets: int = 0
     # TODO: add documents, feature-based, images, etc

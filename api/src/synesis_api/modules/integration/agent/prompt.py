@@ -48,7 +48,7 @@ TIME_SERIES_TARGET_STRUCTURE = """
 ## Multi-Entity Time Series Structure
 - Format: pandas MultiIndex DataFrame
 - Index Levels (set index directly with pandas):
-  - Level 1: Entity (sensor, object, etc.)
+  - Level 1: Entity (sensor, object, etc.), if you cannot identify an entity just use a dummy column for the first index.
   - Level 2: Timestamp (datetime object for datetime data, integer for non-datetime)
 - Shape: (num_entities, num_timestamps, num_features)
 - Note: Varying timesteps per entity are acceptable

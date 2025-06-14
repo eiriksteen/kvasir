@@ -1,101 +1,136 @@
 import uuid
+import json
+import time
 from typing import Annotated
-from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
-from synesis_api.modules.analysis.schema import EDAJobResult
-from synesis_api.auth.service import (create_api_key,
-                                      get_current_user,
-                                      user_owns_job)
+from fastapi.responses import StreamingResponse
+from synesis_api.redis import get_redis
+import redis
+from synesis_api.modules.analysis.schema import AnalysisJobResultMetadata, AnalysisJobResultMetadataList
+from synesis_api.auth.service import get_current_user, user_owns_job
 from synesis_api.modules.analysis.service import (
-    run_eda_job,
-    get_job_results
+    get_analysis_job_results_from_db,
+    get_user_analysis_metadata,
+    create_pdf_from_results,
+    delete_analysis_job_results_from_db
 )
-from synesis_api.modules.jobs.service import create_job, get_job_metadata
+from synesis_api.modules.jobs.service import get_job_metadata
 from synesis_api.modules.jobs.schema import JobMetadata
 from synesis_api.auth.schema import User
 
-
 router = APIRouter()
 
+SSE_MAX_TIMEOUT = 300  # 5 minutes
 
-@router.post("/call-eda-agent", response_model=JobMetadata)
-async def call_eda_agent(
-    # problem_id: uuid.UUID,
-    # data_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None,
+@router.get("/analysis-agent-sse/{job_id}")
+async def analysis_agent_sse(
+    job_id: uuid.UUID,
+    cache: Annotated[redis.Redis, Depends(get_redis)],
+    timeout: int = SSE_MAX_TIMEOUT,
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> StreamingResponse:
 
-):
-    # need a way to load the problem and data description based on a problem_id:
+    if not user or not await user_owns_job(user.id, job_id):
+            raise HTTPException(
+                status_code=403, detail="You do not have permission to access this job")
 
-    data_description = """
-        The Boston Housing Dataset is a widely used dataset in machine learning and statistics, providing information on various aspects of housing in the Boston area. The dataset contains the following columns:
-        CRIM – Crime rate per capita by town.
-        ZN – Proportion of residential land zoned for large-scale properties.
-        INDUS – Proportion of non-retail business acres per town.
-        CHAS – Charles River dummy variable (1 if the property borders the Charles River; 0 otherwise).
-        NOX – Nitrogen oxide concentration (parts per 10 million).
-        RM – Average number of rooms per dwelling.
-        AGE – Proportion of owner-occupied units built before 1940.
-        DIS – Weighted distance to employment centers.
-        RAD – Index of accessibility to radial highways.
-        TAX – Property tax rate per $10,000.
-        PTRATIO – Pupil-teacher ratio by town.
-        B – Proportion of residents of African American descent by town.
-        LSTAT – Percentage of lower status population.
-        MEDV – Median value of owner-occupied homes (target variable, in $1,000s).
-    """
+    timeout = min(timeout, SSE_MAX_TIMEOUT)
 
-    try:
-        eda_job = await create_job(user.id, "eda")
-    except:
-        raise HTTPException(
-            status_code=500, detail="Failed to create EDA job.")
+    async def stream_job_updates():
+        response = await cache.xread({str(job_id): "$"}, count=1, block=timeout*1000)
+        start_time = time.time()
+        last_id = response[0][1][-1][0] if response else None
 
-    # data_dir = Path("integrated_data") / f"{user.id}"
-    # data_path = data_dir / f"{data_id}.csv" # need a way of getting the data_id
+        while True:
+            response = await cache.xread({str(job_id): last_id}, count=1)
 
-    data_dir = Path("files") / "98ca0ae7-5221-4ec0-9bf3-092a0445695a"
-    data_path = data_dir / "0b1626e1-d671-47ad-9013-f6ea23b35763.csv"
-    project_description = "The goal of this project is to analyze and model the Boston Housing Dataset, with the aim of predicting house prices based on various features. This dataset contains information about different attributes of houses in the Boston area, such as crime rates, average number of rooms, and proximity to employment centers. The project explores the relationship between these attributes and the price of homes, allowing for both descriptive and predictive analytics."
-    try:
-        summary = run_eda_job.apply_async(
-            args=[eda_job.id, user.id, str(
-                data_path), data_description, project_description]
-        )
-    except:
-        raise HTTPException(status_code=500, detail="Failed to run EDA job.")
+            if response:
+                start_time = time.time()
+                last_id = response[0][1][-1][0]
+                data = response[0][1][0][1]
+                print("data", data)
 
-    return eda_job
+                # Don't send pydantic_ai_state to human, but send all other messages
+                if data["type"] != "pydantic_ai_state":
+                    yield f"data: {json.dumps(data)}\n\n"
 
+            if start_time + timeout < time.time():
+                break
 
-@router.get("/eda-job-status/{eda_id}", response_model=JobMetadata)
-async def get_eda_job_status(
-    eda_id: uuid.UUID,
+    return StreamingResponse(stream_job_updates(), media_type="text/event-stream")
+
+@router.get("/analysis-job-status/{job_id}", response_model=JobMetadata)
+async def get_analysis_job_status(
+    job_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> JobMetadata:
-    if not await user_owns_job(user.id, eda_id):
+    if not await user_owns_job(user.id, job_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job"
         )
 
-    job_meta_data = await get_job_metadata(eda_id)
+    job_meta_data = await get_job_metadata(job_id)
     return job_meta_data
 
 
-@router.get("/eda-job-results/{eda_id}", response_model=EDAJobResult)
-async def get_eda_job_results(
-    eda_id: uuid.UUID,
+@router.get("/analysis-job-results/{job_id}", response_model=AnalysisJobResultMetadata)
+async def get_analysis_job_results(
+    job_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None
-) -> EDAJobResult:
+) -> AnalysisJobResultMetadata:
 
-    if not await user_owns_job(user.id, eda_id):
+    if not await user_owns_job(user.id, job_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 
-    job_metadata = await get_job_metadata(eda_id)
+    job_metadata = await get_job_metadata(job_id)
     if job_metadata.status == "completed":
-        return await get_job_results(eda_id)
+        return await get_analysis_job_results_from_db(job_id)
 
     else:
         raise HTTPException(
-            status_code=500, detail="EDA job is still running")
+            status_code=500, detail="Analysis job is still running")
+    
+@router.get("/analysis-job-results", response_model=AnalysisJobResultMetadataList)
+async def get_analysis_job_results_list(
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> AnalysisJobResultMetadataList:
+    return await get_user_analysis_metadata(user.id)
+
+
+@router.post("/create-analysis-pdf/{job_id}", response_model=AnalysisJobResultMetadata)
+async def create_analysis_pdf(
+    job_id: uuid.UUID,
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> AnalysisJobResultMetadata:
+    if not await user_owns_job(user.id, job_id):
+        raise HTTPException(
+            status_code=403, detail="You do not have permission to access this job")
+    
+    job_metadata = await get_job_metadata(job_id)
+    
+    if job_metadata.status == "completed":
+        job_results = await get_analysis_job_results_from_db(job_id)
+        await create_pdf_from_results(job_results, job_id)
+    else:
+        raise HTTPException(
+            status_code=500, detail="Analysis job is still running")
+    return job_results
+    
+
+@router.get("/analysis-result", response_model=AnalysisJobResultMetadataList)
+async def get_analysis(
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> AnalysisJobResultMetadataList:
+    return await get_user_analysis_metadata(user.id)
+
+
+@router.delete("/delete-analysis-job-results/{job_id}", response_model=uuid.UUID)
+async def delete_analysis_job_results(
+    job_id: uuid.UUID,
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> uuid.UUID:
+    if not await user_owns_job(user.id, job_id):
+        raise HTTPException(
+            status_code=403, detail="You do not have permission to access this job")
+    return await delete_analysis_job_results_from_db(job_id)

@@ -1,8 +1,11 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { X, Info } from 'lucide-react';
 import { Job } from '../types/jobs';
 import { getStatusColor } from '../lib/utils';
+import { useState } from 'react';
+import AnalysisJobDetail from './AnalysisJobDetail';
+import { useAnalysis } from '@/hooks/useAnalysis';
 
 interface JobsOverviewProps {
   job_type: string;
@@ -12,6 +15,9 @@ interface JobsOverviewProps {
 }
 
 export default function JobsOverview({ job_type, isOpen, onClose, jobs }: JobsOverviewProps) {
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const { mutateCurrentAnalysis, analysisJobResults } = useAnalysis();
+
   if (!isOpen) return null;
 
   const formatDate = (dateString: string) => {
@@ -36,6 +42,31 @@ export default function JobsOverview({ job_type, isOpen, onClose, jobs }: JobsOv
     );
   };
 
+  const handleJobClick = (job: Job) => {
+    if (job_type.toLowerCase() === "analysis") {
+      mutateCurrentAnalysis(analysisJobResults?.analysesJobResults.find(analysis => analysis.jobId === job.id) || null);
+      setSelectedJob(job);
+    } else {
+      setSelectedJob(job);
+    }
+  };
+
+  const handleBack = () => {
+    setSelectedJob(null);
+  };
+
+  if (selectedJob) {
+    return (
+      <AnalysisJobDetail
+        jobId={selectedJob.id}
+        jobName={selectedJob.id}
+        jobStatus={selectedJob.status}
+        onBack={handleBack}
+        onClose={onClose}
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0" onClick={onClose}></div>
@@ -51,16 +82,30 @@ export default function JobsOverview({ job_type, isOpen, onClose, jobs }: JobsOv
         </div>
         
         <div className="p-4 max-h-[70vh] overflow-y-auto">
-          
           {jobs.length === 0 ? (
             <p className="text-gray-500 dark:text-gray-400">No {job_type} jobs found.</p>
           ) : (
             <ul className="space-y-3">
               {jobs.map((job) => (
-                <li key={job.id} className="border rounded-md p-3 dark:border-gray-700">
+                <li 
+                  key={job.id} 
+                  className="border rounded-md p-3 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => handleJobClick(job)}
+                >
                   <div className="flex justify-between items-center mb-2">
                     <span className="font-medium truncate">{job.id}</span>
-                    {getStatusBadge(job.status)}
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(job.status)}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleJobClick(job);
+                        }}
+                        className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+                      >
+                        <Info size={16} />
+                      </button>
+                    </div>
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     <div>Started: {formatDate(job.startedAt)}</div>

@@ -7,8 +7,7 @@ from pathlib import Path
 from typing import Tuple, List
 import aiofiles
 
-
-async def save_markdown_as_html(markdown_content: str, output_path: str):
+def save_markdown_as_html(markdown_content: str):
     # Convert markdown to HTML
     html_content = markdown2.markdown(markdown_content, extras=[
                                       "tables", "fenced-code-blocks"])
@@ -34,8 +33,7 @@ async def save_markdown_as_html(markdown_content: str, output_path: str):
     """
 
     # Save the HTML to a file
-    async with aiofiles.open(output_path, 'w', encoding='utf-8') as f:
-        await f.write(full_html)
+    return full_html
 
 
 def parse_code(python_code: str) -> str:

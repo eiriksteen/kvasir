@@ -4,14 +4,14 @@ from pathlib import Path
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from synesis_api.modules.automation.schema import ModelJobResult
-from synesis_api.modules.automation.service import (get_job_results,
-                                                    run_model_job)
+from synesis_api.modules.automation.service import (get_job_results)
 from synesis_api.modules.jobs.schema import JobMetadata
 from synesis_api.modules.jobs.service import create_job, get_job_metadata
 from synesis_api.auth.schema import User
 from synesis_api.auth.service import (create_api_key,
                                       get_current_user,
                                       user_owns_job)
+from synesis_api.modules.automation.tasks import run_model_job
 
 
 router = APIRouter()
@@ -41,10 +41,7 @@ async def call_model_agent(
     project_description = "The goal of this project is to analyze and model the Boston Housing Dataset, with the aim of predicting house prices based on various features. This dataset contains information about different attributes of houses in the Boston area, such as crime rates, average number of rooms, and proximity to employment centers. The project explores the relationship between these attributes and the price of homes, allowing for both descriptive and predictive analytics."
 
     try:
-        model = run_model_job.apply_async(
-            args=[model_job.id, str(data_path),
-                  project_description, data_analysis]
-        )
+        model = run_model_job.kiq(model_job.id, str(data_path), project_description, data_analysis)
 
     except:
         raise HTTPException(
