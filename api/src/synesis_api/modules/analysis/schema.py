@@ -59,3 +59,4 @@ class AnalysisRequest(BaseSchema):
     prompt: str | None = None
     user: User
     message_history: List[ModelMessage] = []
+    conversation_id: UUID

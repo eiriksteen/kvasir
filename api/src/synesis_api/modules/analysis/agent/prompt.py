@@ -36,8 +36,8 @@ The workflow for extensive analysis is as follows:
 
 General instructions:
 - Always print the outputs of the code and return the python code itself.
-- If you cannot find the right function to use, you should code the solution yourself and run it in a python container that you will be given access to. Only use this option if you cannot find a function that is relevant to the problem.
 - It is very important that you print the outputs of the code so you can return it to the user. USE A PRINT STATEMENT TO PRINT THE OUTPUT OF THE CODE. This is extremely important otherwise, the user will not be able to see the results of the code.
+- If you cannot find the right function to use, you should code the solution yourself and run it in a python container that you will be given access to. Only use this option if you cannot find a function that is relevant to the problem.
 
 You will be given the following inputs:
 1. A clearly defined problem statement outlining the objectives.

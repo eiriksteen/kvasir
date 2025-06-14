@@ -3,10 +3,10 @@ import uuid
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from typing import Annotated, List, Literal
+from typing import Annotated, List
 from pydantic_core import to_jsonable_python
-from pydantic_ai.messages import ModelRequest, SystemPromptPart
 from pydantic_ai.agent import AgentRunResult
+from pydantic_ai.messages import ModelRequest, SystemPromptPart
 from synesis_api.modules.ontology.service import get_user_datasets_by_ids
 from synesis_api.modules.chat.schema import ChatMessage, Conversation, Prompt, Context, ContextCreate
 from synesis_api.modules.chat.service import (
@@ -25,9 +25,9 @@ from synesis_api.auth.schema import User
 from synesis_api.modules.ontology.schema import Dataset
 from synesis_api.modules.analysis.service import get_user_analyses_by_ids
 from synesis_api.modules.orchestrator.agent.agent import orchestrator_agent
-from synesis_api.modules.analysis.schema import AnalysisRequest
-from synesis_api.modules.analysis.agent.agent import analysis_agent
-from synesis_api.modules.analysis.tasks import run_analysis_planner_task, run_analysis_execution_task
+from synesis_api.modules.analysis.schema import AnalysisRequest, DelegateResult
+from synesis_api.modules.analysis.agent import analysis_agent, analysis_agent_runner
+
 router = APIRouter()
 
 
@@ -56,9 +56,18 @@ async def post_chat(
                     if text != prev_text:
                         yield text
                         prev_text = text
+
+            new_messages = result.new_messages_json()
+
+            await create_messages_pydantic(conversation_id, new_messages)
+            await create_message(conversation_id, "user", prompt.content)
+            await create_message(conversation_id, "assistant", text)
+
         elif handoff_agent == "analysis" or handoff_agent == "automation":
             context = await get_context_by_time_stamp(conversation_id, user.id, datetime.now())
-            delegated_task = await analysis_agent.delegate("This is the current context: " + context.model_dump_json() + "Which function to delegate this prompt to: " + prompt.content)
+            delegation_prompt = f"This is the current context: {context.model_dump_json()}. This is the user prompt: {prompt}. You can delegate the task to one of the following functions: " + ", ".join([f"'{func}'" for func in ["run_analysis_planner", "run_execution_agent", "run_simple_analysis"]]) + ". Which function do you want to delegate the task to?"
+            delegated_task = await analysis_agent.run(delegation_prompt, output_type=DelegateResult)
+            delegated_task = delegated_task.output.function_name
 
             analysis_request = AnalysisRequest(
                 dataset_ids=context.dataset_ids,
@@ -66,38 +75,19 @@ async def post_chat(
                 analysis_ids=context.analysis_ids,
                 prompt=prompt.content,
                 user=user,
-                message_history=messages
+                message_history=messages,
+                conversation_id=conversation_id,
             )
 
-            if delegated_task == "run_simple_analysis": 
-                async for item in analysis_agent.run_simple_analysis(analysis_request):
-                    if isinstance(item, str):
-                        yield item
-                    elif isinstance(item, AgentRunResult):
-                        new_messages = messages + item.all_messages()
-                        async with chatbot_agent.run_stream(prompt.content, message_history=new_messages) as result:
-                            prev_text = ""
-                            async for text in result.stream(debounce_by=0.01):
-                                if text != prev_text:
-                                    yield text
-                                    prev_text = text
-            elif delegated_task == "run_analysis_planner":
-                save_messages = False
-                yield "Running analysis planner. This may take a couple of minutes. The results will be shown in the analyis tab."
-                await run_analysis_planner_task.kiq(analysis_request)
-            elif delegated_task == "run_execution_agent":
-                save_messages = False
-                yield "Running analysis execution. This may take a couple of minutes. The results will be shown in the analyis tab."
-                await run_analysis_execution_task.kiq(analysis_request)
-            else:
-                raise HTTPException(
-                    status_code=400, detail="Invalid handoff agent")
-            
+            async for item in analysis_agent_runner(analysis_request, delegated_task):
+                yield item
 
-        if save_messages:
-            await create_messages_pydantic(conversation_id, result.new_messages_json())
-            await create_message(conversation_id, "user", prompt.content)
-            await create_message(conversation_id, "assistant", text)
+
+        else:
+            raise HTTPException(
+                status_code=400, detail="Invalid handoff agent")
+        
+        
 
     return StreamingResponse(stream_messages(), media_type="text/plain")
 
