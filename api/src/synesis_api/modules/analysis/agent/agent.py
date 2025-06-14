@@ -4,8 +4,15 @@ from pydantic_ai.settings import ModelSettings
 from pydantic_ai.providers.openai import OpenAIProvider
 from synesis_api.secrets import OPENAI_API_KEY, OPENAI_API_MODEL
 from synesis_api.utils import run_code_in_container
-from .prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
-from .deps import AnalysisDeps
+from synesis_api.modules.analysis.agent.prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
+from dataclasses import dataclass
+import pandas as pd
+
+
+@dataclass
+class AnalysisDeps:
+    df: pd.DataFrame | None = None
+
 
 
 provider = OpenAIProvider(api_key=OPENAI_API_KEY)

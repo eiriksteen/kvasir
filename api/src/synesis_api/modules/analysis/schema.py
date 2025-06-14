@@ -2,13 +2,7 @@ from uuid import UUID
 from datetime import datetime
 from typing import List, Literal
 from synesis_api.base_schema import BaseSchema
-from synesis_api.auth.schema import User
-from pydantic_ai.messages import ModelMessage
 from datetime import timezone
-
-
-class DelegateResult(BaseSchema):
-    function_name: Literal["run_analysis_planner", "run_execution_agent", "run_simple_analysis"]
 
 class AnalysisPlanStep(BaseSchema):
     step_name: str
@@ -17,6 +11,7 @@ class AnalysisPlanStep(BaseSchema):
 class AnalysisPlan(BaseSchema):
     analysis_overview: str
     analysis_plan: List[AnalysisPlanStep]
+
 
 class AnalysisStatusMessage(BaseSchema):
     id: UUID
@@ -52,11 +47,4 @@ class AnalysisJobResultInDB(AnalysisJobResult):
 class AnalysisJobResultMetadataList(BaseSchema):
     analyses_job_results: List[AnalysisJobResultMetadata] = []
 
-class AnalysisRequest(BaseSchema):
-    dataset_ids: List[UUID] = []
-    analysis_ids: List[UUID] = []
-    automation_ids: List[UUID] = []
-    prompt: str | None = None
-    user: User
-    message_history: List[ModelMessage] = []
-    conversation_id: UUID
+

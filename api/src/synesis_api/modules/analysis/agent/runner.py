@@ -4,9 +4,9 @@ from pathlib import Path
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import SystemPromptPart, ModelRequest
-from .prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
-from .deps import AnalysisDeps
-from synesis_api.modules.analysis.schema import AnalysisJobResult, AnalysisPlan, AnalysisRequest, AnalysisJobResultMetadataInDB
+from synesis_api.modules.analysis.agent.prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
+from synesis_api.modules.analysis.agent.agent import analysis_agent, AnalysisDeps
+from synesis_api.modules.analysis.schema import AnalysisJobResult, AnalysisJobResultMetadataInDB, AnalysisPlan
 from synesis_api.modules.ontology.service import get_user_datasets_by_ids
 from synesis_api.worker import logger
 from pydantic_ai.messages import (
@@ -27,9 +27,11 @@ from synesis_api.modules.analysis.service import (
 from synesis_api.auth.service import create_api_key
 from datetime import datetime
 from synesis_api.redis import get_redis
-from synesis_api.modules.analysis.agent.agent import analysis_agent
 from synesis_api.modules.chat.service import create_messages_pydantic, create_message
 from synesis_api.worker import broker
+from synesis_api.base_schema import BaseSchema
+from synesis_api.auth.schema import User
+from uuid import UUID
 
 # Add dataset cache
 dataset_cache: Dict[str, pd.DataFrame] = {}
@@ -56,6 +58,20 @@ async def load_dataset_from_cache_or_disk(dataset_id: uuid.UUID, user_id: uuid.U
             status_code=404, 
             detail=f"File in {data_path} not found: {str(e)}"
         )
+    
+
+
+class AnalysisRequest(BaseSchema):
+    dataset_ids: List[UUID] = []
+    analysis_ids: List[UUID] = []
+    automation_ids: List[UUID] = []
+    prompt: str | None = None
+    user: User
+    message_history: List[ModelMessage] = []
+    conversation_id: UUID
+
+class DelegateResult(BaseSchema):
+    function_name: Literal["run_analysis_planner", "run_execution_agent", "run_simple_analysis"]
 
 
 class AnalysisAgentRunner:

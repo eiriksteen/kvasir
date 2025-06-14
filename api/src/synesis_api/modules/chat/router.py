@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from typing import Annotated, List
 from pydantic_core import to_jsonable_python
-from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import ModelRequest, SystemPromptPart
 from synesis_api.modules.ontology.service import get_user_datasets_by_ids
 from synesis_api.modules.chat.schema import ChatMessage, Conversation, Prompt, Context, ContextCreate
@@ -19,14 +18,12 @@ from synesis_api.modules.chat.service import (
     create_context,
     get_context_by_time_stamp,
 )
-from synesis_api.modules.chat.agent.agent import chatbot_agent
+from synesis_api.modules.chat.agent.agent import chatbot_agent, OrchestratorOutput
 from synesis_api.auth.service import get_current_user, user_owns_conversation
 from synesis_api.auth.schema import User
-from synesis_api.modules.ontology.schema import Dataset
 from synesis_api.modules.analysis.service import get_user_analyses_by_ids
-from synesis_api.modules.orchestrator.agent.agent import orchestrator_agent
-from synesis_api.modules.analysis.schema import AnalysisRequest, DelegateResult
-from synesis_api.modules.analysis.agent import analysis_agent, analysis_agent_runner
+from synesis_api.modules.analysis.agent.agent import analysis_agent
+from synesis_api.modules.analysis.agent.runner import analysis_agent_runner, AnalysisRequest, DelegateResult
 
 router = APIRouter()
 
@@ -45,10 +42,9 @@ async def post_chat(
 
     async def stream_messages():
         messages = await get_messages_pydantic(conversation_id)
-        orchestrator_output = await orchestrator_agent.run(prompt.content, message_history=messages)
+        orchestrator_output = await chatbot_agent.run("You need to decide which agent to handoff this prompt to: " + prompt.content + ". Choose between 'chat', 'analysis', or 'automation'.", message_history=messages, output_type=OrchestratorOutput)
         handoff_agent = orchestrator_output.output.handoff_agent
 
-        save_messages = True
         if handoff_agent == "chat":
             async with chatbot_agent.run_stream(prompt.content, message_history=messages) as result:
                 prev_text = ""
