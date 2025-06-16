@@ -8,7 +8,7 @@ from synesis_api.modules.analysis.agent.prompt import ANALYSIS_AGENT_SYSTEM_PROM
 from synesis_api.modules.analysis.agent.agent import analysis_agent, AnalysisDeps
 from synesis_api.modules.analysis.schema import AnalysisJobResult, AnalysisJobResultMetadataInDB, AnalysisPlan
 from synesis_api.modules.ontology.service import get_user_datasets_by_ids
-from synesis_api.worker import logger
+from src.synesis_api.worker import logger, broker
 from pydantic_ai.messages import (
     ModelMessage,
     FunctionToolCallEvent,
@@ -28,10 +28,11 @@ from synesis_api.auth.service import create_api_key
 from datetime import datetime
 from synesis_api.redis import get_redis
 from synesis_api.modules.chat.service import create_messages_pydantic, create_message
-from synesis_api.worker import broker
 from synesis_api.base_schema import BaseSchema
 from synesis_api.auth.schema import User
 from uuid import UUID
+from synesis_api.modules.project.service import update_project
+from synesis_api.modules.project.schema import ProjectUpdate
 
 # Add dataset cache
 dataset_cache: Dict[str, pd.DataFrame] = {}
@@ -62,6 +63,7 @@ async def load_dataset_from_cache_or_disk(dataset_id: uuid.UUID, user_id: uuid.U
 
 
 class AnalysisRequest(BaseSchema):
+    project_id: UUID
     dataset_ids: List[UUID] = []
     analysis_ids: List[UUID] = []
     automation_ids: List[UUID] = []
@@ -97,8 +99,6 @@ class AnalysisAgentRunner:
         analysis_request: AnalysisRequest,
     ):
         
-        import os
-        print(f"Working directory: {os.getcwd()}")
         analysis_deps, message_history = await self._prepare_agent_run(analysis_request, "analysis_planner")
         status_messages = []
         job_id = uuid.uuid4()
@@ -204,8 +204,10 @@ class AnalysisAgentRunner:
 
         if len(analysis_request.analysis_ids) == 0:
             await insert_analysis_job_results_into_db(result)
+            await update_project(analysis_request.project_id, ProjectUpdate(type="analysis", id=analysis_job.id, remove=False))
         else:
             await update_analysis_job_results_in_db(result)
+        
 
 
     async def run_analysis_execution(

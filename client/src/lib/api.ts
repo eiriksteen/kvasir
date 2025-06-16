@@ -1,6 +1,6 @@
 import {EventSource} from 'eventsource'
 import { AnalysisJobResultMetadata, Analyses } from "@/types/analysis";
-import { ChatMessageAPI, Conversation } from "@/types/chat";
+import { ChatMessageAPI, Conversation, Prompt } from "@/types/chat";
 import { Datasets, TimeSeriesDataset } from "@/types/datasets";
 import { Job } from "@/types/jobs";
 import { IntegrationAgentFeedback, IntegrationMessage } from "@/types/integration";
@@ -186,14 +186,14 @@ export async function fetchJob(token: string, jobId: string): Promise<Job> {
   return data;
 }
 
-export async function* streamChat(token: string, prompt: string, conversationId: string): AsyncGenerator<string> {
-  const response = await fetch(`${API_URL}/chat/completions/${conversationId}`, {
+export async function* streamChat(token: string, prompt: Prompt): AsyncGenerator<string> {
+  const response = await fetch(`${API_URL}/chat/completions/${prompt.context.conversationId}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ "content": prompt })
+    body: JSON.stringify(prompt)
   });
 
   const reader = response.body?.getReader();
@@ -263,32 +263,6 @@ export async function fetchConversations(token: string): Promise<Conversation[]>
   return data;
 }
 
-export async function postChatContextUpdate(token: string, conversationId: string, datasetIds: string[], automationIds: string[], analysisIds: string[], remove: boolean = false): Promise<string> {
-  const response = await fetch(`${API_URL}/chat/context`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      "conversation_id": conversationId,
-      "dataset_ids": datasetIds,
-      "automation_ids": automationIds,
-      "analysis_ids": analysisIds,
-      "remove": remove
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to update context', errorText);
-    throw new Error(`Failed to update context: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  
-  return data;
-}
 
 export function createIntegrationSocket(jobId: string): WebSocket {
   const socket = new WebSocket(`${WS_URL}/integration/integration-agent-human-in-the-loop/${jobId}/ws`);
@@ -311,8 +285,6 @@ export function createIntegrationEventSource(token: string, jobId: string): Even
 }
 
 export function createAnalysisEventSource(token: string, jobId: string): EventSource {
-  console.log("Creating analysis event source for job", jobId);
-  console.log("Token", token);
   return new EventSource(`${API_URL}/analysis/analysis-agent-sse/${jobId}`,
     {
       fetch: (input: RequestInfo | URL, init?: RequestInit) =>

@@ -311,8 +311,6 @@ async def post_restructured_data(
     job_id: str = Form(...),
     user: Annotated[User, Depends(get_user_from_api_key)] = None,
 ) -> DataSubmissionResponse:
-    print(f"job_id: {job_id}")
-    print("-"*100)
 
     try:
         job_id = uuid.UUID(job_id)

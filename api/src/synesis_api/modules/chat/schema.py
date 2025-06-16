@@ -1,11 +1,17 @@
 from typing import Literal, List
 from datetime import datetime, timezone
 from synesis_api.base_schema import BaseSchema
-from synesis_api.modules.ontology.schema import Datasets
-from synesis_api.modules.automation.schema import Automations
 import uuid
-from ...auth.schema import User
-from pydantic_ai.messages import ModelMessage
+
+
+class Context(BaseSchema):
+    project_id: uuid.UUID
+    conversation_id: uuid.UUID
+    dataset_ids: List[uuid.UUID] = []
+    automation_ids: List[uuid.UUID] = []
+    analysis_ids: List[uuid.UUID] = []
+    created_at: datetime = datetime.now(timezone.utc)
+
 class ChatbotOutput(BaseSchema):
     goal_description: str
     deliverable_description: str
@@ -21,6 +27,7 @@ class ChatMessage(BaseSchema):
 
 
 class Prompt(BaseSchema):
+    context: Context
     content: str
 
 
@@ -36,25 +43,10 @@ class PydanticMessage(BaseSchema):
     created_at: datetime = datetime.now(timezone.utc)
 
 
-class ContextCreate(BaseSchema):
-    conversation_id: uuid.UUID
-    dataset_ids: List[uuid.UUID] = []
-    automation_ids: List[uuid.UUID] = []
-    analysis_ids: List[uuid.UUID] = []
-    append: bool = True
-    remove: bool = False
-
-
-class Context(BaseSchema):
-    id: uuid.UUID
-    conversation_id: uuid.UUID
-    created_at: datetime = datetime.now(timezone.utc)
-    dataset_ids: List[uuid.UUID] = []
-    automation_ids: List[uuid.UUID] = []
-    analysis_ids: List[uuid.UUID] = []
-
 class ContextInDB(BaseSchema):
     id: uuid.UUID
+    user_id: uuid.UUID
+    project_id: uuid.UUID
     conversation_id: uuid.UUID
     created_at: datetime
 

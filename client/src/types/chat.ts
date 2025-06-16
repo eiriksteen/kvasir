@@ -22,3 +22,16 @@ export type ConversationWithMessages = {
     id: string;
     messages: ChatMessage[];
 }
+
+export type Context = {
+    projectId: string;
+    conversationId: string;
+    datasetIds: string[];
+    automationIds: string[];
+    analysisIds: string[];
+}
+
+export type Prompt = {
+    context: Context;
+    content: string;
+}

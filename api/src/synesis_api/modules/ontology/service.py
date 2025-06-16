@@ -158,8 +158,6 @@ async def create_time_series_dataset(
     # Calculate dataset statistics
     is_multi_series = df.index.nlevels > 1
     unique_series = df.index.get_level_values(0).unique()
-    print("The unique series are:")
-    print(unique_series)
 
     if is_multi_series:
         series_counts = df.groupby(level=0).size()
@@ -192,8 +190,6 @@ async def create_time_series_dataset(
         for original_id in unique_series:
             series_data = df.loc[original_id]
             series_id = uuid.uuid4()
-            print("The timestamps are:")
-            print(series_data.index)
             time_series_records.append(TimeSeries(
                 id=series_id,
                 description=f"Time series {series_id}",

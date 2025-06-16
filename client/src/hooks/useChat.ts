@@ -1,5 +1,5 @@
 import { streamChat, fetchMessages } from "@/lib/api";
-import { ChatMessage } from "@/types/chat";
+import { ChatMessage, Prompt } from "@/types/chat";
 import { useEffect, useState, useCallback } from "react";
 import { apiMessageToChatMessage } from "@/lib/utils";
 import { useSession } from "next-auth/react";
@@ -18,16 +18,16 @@ export const useChat = (conversationId: string | null) => {
     }
   }, [conversationId, session]);
 
-  const submitPrompt = useCallback((prompt: string) => {
+  const submitPrompt = useCallback((prompt: Prompt) => {
     if (session) {
       (async () => {
-        if (prompt === "" || !conversationId) {
+        if (prompt.content === "" || !conversationId) {
           return;
         }
 
-        setMessages(prevMessages => [...prevMessages, {role: "user", content: prompt}]);
+        setMessages(prevMessages => [...prevMessages, {role: "user", content: prompt.content}]);
         
-        const stream = streamChat(session.APIToken.accessToken, prompt, conversationId);
+        const stream = streamChat(session.APIToken.accessToken, prompt);
         let chunkNum = 0;
         for await (const chunk of stream) {
           if (chunkNum === 0) {

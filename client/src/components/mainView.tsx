@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { AnalysisJobResultMetadata, AnalysisStep } from '@/types/analysis';
 import { useAnalysis } from '@/hooks/useAnalysis';
-import { useContext } from '@/hooks/useContext';
+import { useAgentContext } from '@/hooks/useAgentContext';
 
 interface AnalysisPlanViewProps {
   analysis: AnalysisJobResultMetadata;
@@ -72,7 +72,7 @@ const AnalysisPlanView = ({ analysis }: AnalysisPlanViewProps) => {
 };
 
 export default function MainView() {
-  const { analysisesInContext } = useContext();
+  const { analysisesInContext } = useAgentContext();
 
   // Filter to only show analyses that are in the current context
   const analysesInContext = analysisesInContext?.filter((analysis: AnalysisJobResultMetadata) => 

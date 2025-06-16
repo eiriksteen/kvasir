@@ -8,10 +8,13 @@ import remarkGfm from 'remark-gfm';
 import { useChat, useConversation, useAgentContext, useAnalysis } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import { ChatMessage } from '@/types/chat';
+import { ChatMessage, Prompt } from '@/types/chat';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 import Popup from './Popup';
+import { useProject } from '@/hooks/useProject';
+
+
 
 
 
@@ -51,9 +54,11 @@ function Chat({ conversationId }: ChatProps) {
   const [width, setWidth] = useState(400);
   const [isDragging, setIsDragging] = useState(false);
   const [showAnalysisPopup, setShowAnalysisPopup] = useState(false);
-
+  
   const { messages, submitPrompt } = useChat(conversationId);
+  const { selectedProject } = useProject();
   const { datasetsInContext, removeDatasetFromContext, analysisesInContext, removeAnalysisFromContext } = useAgentContext();
+  const { data: session } = useSession();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
@@ -79,7 +84,17 @@ function Chat({ conversationId }: ChatProps) {
 
   const handleSubmit = () => {
     if (input.trim()) {
-      submitPrompt(input);
+      const prompt = {
+        context: {
+          projectId: selectedProject?.id,
+          conversationId: conversationId,
+          datasetIds: datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => dataset.id),
+          automationIds: [],
+          analysisIds: analysisesInContext.map((analysis: AnalysisJobResultMetadata) => analysis.jobId),
+        },
+        content: input
+      }
+      submitPrompt(prompt as Prompt);
       setInput('');
     }
   };
@@ -189,25 +204,61 @@ function Chat({ conversationId }: ChatProps) {
           <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => submitPrompt("What are some interesting AI/ML or data science use cases for this data?")}
+                onClick={() => submitPrompt({
+                  context: {
+                    projectId: selectedProject?.id,
+                    conversationId: conversationId,
+                    datasetIds: datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => dataset.id),
+                    automationIds: [],
+                    analysisIds: analysisesInContext.map((analysis: AnalysisJobResultMetadata) => analysis.jobId),
+                  },
+                  content: "What are some interesting AI/ML or data science use cases for this data?"
+                })}
                 className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 Suggest use cases
               </button>
               <button
-                onClick={() => submitPrompt("Who are you and what can you do?")}
+                onClick={() => submitPrompt({
+                  context: {
+                    projectId: selectedProject?.id,
+                    conversationId: conversationId,
+                    datasetIds: datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => dataset.id),
+                    automationIds: [],
+                    analysisIds: analysisesInContext.map((analysis: AnalysisJobResultMetadata) => analysis.jobId),
+                  },
+                  content: "Who are you and what can you do?"
+                })}
                 className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 What can you do?
               </button>
               <button
-                onClick={() => submitPrompt("Can you describe the structure and content of the selected datasets?")}
+                onClick={() => submitPrompt({
+                  context: {
+                    projectId: selectedProject?.id,
+                    conversationId: conversationId,
+                    datasetIds: datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => dataset.id),
+                    automationIds: [],
+                    analysisIds: analysisesInContext.map((analysis: AnalysisJobResultMetadata) => analysis.jobId),
+                  },
+                  content: "Can you describe the structure and content of the selected datasets?"
+                })}
                 className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 Describe my data
               </button>
               <button
-                onClick={() => submitPrompt("Plan a detailed analysis on the selected datasets.")}
+                onClick={() => submitPrompt({
+                  context: {
+                    projectId: selectedProject?.id,
+                    conversationId: conversationId,
+                    datasetIds: datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => dataset.id),
+                    automationIds: [],
+                    analysisIds: analysisesInContext.map((analysis: AnalysisJobResultMetadata) => analysis.jobId),
+                  },
+                  content: "Plan a detailed analysis on the selected datasets."
+                })}
                 className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 Run analysis on datasets
