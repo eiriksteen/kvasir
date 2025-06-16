@@ -12,6 +12,7 @@ from synesis_api.modules.ontology.models import time_series, time_series_dataset
 from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
 from synesis_api.modules.chat.models import chat_message, pydantic_message, conversations
 from synesis_api.modules.automation.models import model_job_result, automation
+from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_automation
 from synesis_api.database.core import metadata
 from synesis_api.secrets import DATABASE_URL
 
@@ -45,7 +46,11 @@ __all__ = [
     pydantic_message,
     conversations,
     model_job_result,
-    automation
+    automation,
+    project,
+    project_dataset,
+    project_analysis,
+    project_automation
 ]
 
 # add your model's MetaData object here
@@ -56,7 +61,7 @@ target_metadata = metadata
 
 def include_name(name, type_, parent_names):
     if type_ == "schema":
-        return name in ["public", "auth", "integration", "jobs", "ontology", "analysis", "chat", "automation"]
+        return name in ["public", "auth", "integration", "jobs", "ontology", "analysis", "chat", "automation", "project"]
     else:
         return True
 

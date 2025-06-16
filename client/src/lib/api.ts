@@ -4,6 +4,7 @@ import { ChatMessageAPI, Conversation } from "@/types/chat";
 import { Datasets, TimeSeriesDataset } from "@/types/datasets";
 import { Job } from "@/types/jobs";
 import { IntegrationAgentFeedback, IntegrationMessage } from "@/types/integration";
+import { Project, ProjectCreate, ProjectUpdate } from "@/types/project";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
 
@@ -388,6 +389,61 @@ export async function fetchIntegrationMessages(token: string, jobId: string): Pr
     const errorText = await response.text();
     console.error('Failed to fetch integration messages', errorText);
     throw new Error(`Failed to fetch integration messages: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchProjects(token: string): Promise<Project[]> {
+  const response = await fetch(`${API_URL}/project/get-user-projects`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch projects', errorText);
+    throw new Error(`Failed to fetch projects: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function createProject(token: string, projectData: ProjectCreate): Promise<Project> {
+  const response = await fetch(`${API_URL}/project/create-project`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(projectData)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to create project', errorText);
+    throw new Error(`Failed to create project: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function updateProject(token: string, projectId: string, projectData: ProjectUpdate): Promise<Project> {
+  const response = await fetch(`${API_URL}/project/update-project/${projectId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(projectData)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to update project', errorText);
+    throw new Error(`Failed to update project: ${response.status} ${errorText}`);
   }
 
   return response.json();

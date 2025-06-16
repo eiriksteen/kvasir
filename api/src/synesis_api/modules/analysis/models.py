@@ -31,7 +31,7 @@ analysis_jobs_datasets = Table(
            ForeignKey("jobs.jobs.id"),
            nullable=False),
     Column("dataset_id", UUID(as_uuid=True),
-           ForeignKey("ontology.dataset.id"),
+           ForeignKey("ontology.dataset.job_id"),
            nullable=False),
     schema="analysis",
 )

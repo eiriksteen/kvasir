@@ -329,7 +329,8 @@ async def validate_restructuring(
             f"dataset_name='{result.dataset_name}', " +
             f"index_first_level='{result.index_first_level}', " +
             f"index_second_level='{result.index_second_level}', " +
-            f"api_key='{ctx.deps.api_key}'))"
+            f"api_key='{ctx.deps.api_key}', " +
+            f"job_id='{ctx.deps.job_id}'))"
         )
 
         out, err = await run_code_in_container(submission_code)

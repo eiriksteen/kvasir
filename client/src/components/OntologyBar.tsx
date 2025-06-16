@@ -1,14 +1,19 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Database, Plus, Check, Upload, Trash2 } from 'lucide-react';
+import { Database, Plus, Check, Upload, Trash2, ChevronLeft, ChevronRight, FolderGit2, BarChart3, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { Automation } from '@/types/automations';
-import { useAgentContext, useDatasets, useAnalysis } from '@/hooks';
+import { useAgentContext, useDatasets, useAnalysis, useProject } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 import ConfirmationPopup from './ConfirmationPopup';
+import SelectProject from './SelectProject';
+import { Project } from '@/types/project';
+import IntegrationManager from './integration/IntegrationManager';
+
+type TabType = 'project' | 'datasets' | 'analysis' | 'automations';
 
 function DatasetItem({ dataset, isInContext, onClick }: { dataset: TimeSeriesDataset; isInContext: boolean; onClick: () => void }) {
     return (
@@ -33,7 +38,7 @@ function DatasetItem({ dataset, isInContext, onClick }: { dataset: TimeSeriesDat
                 
                 <button 
                     onClick={(e) => {
-                        e.stopPropagation(); // Prevent parent click
+                        e.stopPropagation();
                         onClick();
                     }}
                     className={`p-1.5 rounded-full border shadow-md ${
@@ -66,7 +71,6 @@ function AutomationItem({ automation, isSelected, onClick }: { automation: Autom
 
 function AnalysisItem({ analysis, isSelected, onClick }: {analysis: AnalysisJobResultMetadata, isSelected: boolean, onClick: () => void }) {
     const { deleteAnalysisJobResults } = useAnalysis();
-
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
     const handleDelete = (e: React.MouseEvent) => {
@@ -134,11 +138,16 @@ function AnalysisItem({ analysis, isSelected, onClick }: {analysis: AnalysisJobR
 }
 
 export default function OntologyBar() {
-    const [selectedAutomation, setSelectedAutomation] = useState<string | null>(null);
-    const [showAutomations, setShowAutomations] = useState(false);
-    const [showAnalysis, setShowAnalysis] = useState(false);
-    const [showAddDataset, setShowAddDataset] = useState(false);
-    const {data: session} = useSession();
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [showAddProject, setShowAddProject] = useState(false);
+    const [showIntegrationManager, setShowIntegrationManager] = useState(false);
+    const [expandedSections, setExpandedSections] = useState({
+        datasets: true,
+        analysis: true,
+        automations: true
+    });
+    const { data: session } = useSession();
+    const { selectedProject } = useProject();
     const { 
         datasetsInContext, 
         addDatasetToContext, 
@@ -152,21 +161,40 @@ export default function OntologyBar() {
         redirect("/login");
     }
 
-
     const { datasets } = useDatasets();
     const automations: Automation[] = [];
     const { analysisJobResults } = useAnalysis();
+    console.log("analysisJobResults", datasets);
 
+    // Filter entities based on project IDs
+    // const filteredDatasets = useMemo(() => {
+    //     if (!selectedProject || !datasets?.timeSeries) return [];
+    //     return datasets.timeSeries.filter(dataset => 
+    //         selectedProject.datasetIds.includes(dataset.id)
+    //     );
+    // }, [selectedProject, datasets]);
 
-    const filteredAutomations = useMemo(() => 
-        datasetsInContext.timeSeries.length > 0
-            ? automations.filter((automation: Automation) => 
-                datasetsInContext.timeSeries.some((dataset: TimeSeriesDataset) => automation.datasetIds.includes(dataset.id)))
-            : automations,
-        [datasetsInContext, automations]
-    );
+    const filteredAnalysis = useMemo(() => {
+        if (!selectedProject || !analysisJobResults?.analysesJobResults) return [];
+        return analysisJobResults.analysesJobResults
+            .filter(analysis => selectedProject.analysisIds.includes(analysis.jobId))
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }, [selectedProject, analysisJobResults]);
 
-        
+    const filteredAutomations = useMemo(() => {
+        if (!selectedProject || !automations) return [];
+        return automations.filter(automation => 
+            selectedProject.automationIds.includes(automation.id)
+        );
+    }, [selectedProject, automations]);
+
+    const toggleSection = (section: keyof typeof expandedSections) => {
+        setExpandedSections(prev => ({
+            ...prev,
+            [section]: !prev[section]
+        }));
+    };
+
     const handleDatasetToggle = (dataset: TimeSeriesDataset) => {
         const isActive = datasetsInContext.timeSeries.some((d: TimeSeriesDataset) => d.id === dataset.id);
         if (isActive) {
@@ -175,7 +203,6 @@ export default function OntologyBar() {
             addDatasetToContext(dataset);
         }
     };
-
 
     const isDatasetInContext = (datasetId: string) => 
         datasetsInContext.timeSeries.some((dataset: TimeSeriesDataset) => dataset.id === datasetId);
@@ -189,110 +216,205 @@ export default function OntologyBar() {
         }
     };
 
-    return (
-        <div className="relative flex pt-12 h-screen">
-            {/* Main Bar with Datasets */}
-            <div className="w-[300px] bg-gray-950 border-r border-[#101827] text-white p-4 flex flex-col">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-sm font-mono uppercase tracking-wider text-[#6b89c0]">Datasets</h2>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setShowAnalysis(!showAnalysis)}
-                            className="px-3 py-1 text-xs rounded-full text-white"
-                        >
-                            {showAnalysis ? 'Hide Analysis' : 'Show Analysis'}
-                        </button>
-                        <button
-                            onClick={() => setShowAutomations(!showAutomations)}
-                            className="px-3 py-1 text-xs rounded-full text-white"
-                        >
-                            {showAutomations ? 'Hide Automations' : 'Show Automations'}
-                        </button>
-                    </div>
+    const handleSelectProject = (project: Project) => {
+        setShowAddProject(false);
+    };
+
+    const renderContent = () => {
+        if (!selectedProject) {
+            return (
+                <div className="flex flex-col h-full items-center justify-center p-4">
+                    <p className="text-sm text-zinc-400 mb-4">No project selected</p>
+                    <button
+                        onClick={() => setShowAddProject(true)}
+                        className="w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-md hover:from-blue-500 hover:to-blue-600 transition-all shadow-md hover:shadow-lg border border-blue-500 flex items-center justify-center gap-2"
+                    >
+                        <Plus size={16} />
+                        <span>Select Project</span>
+                    </button>
                 </div>
-                
-                <div className="space-y-2 flex-grow overflow-y-auto">
-                    {datasets?.timeSeries.length === 0 && (
-                        <div className="p-3 rounded-lg mb-3">
-                            <p className="text-xs text-zinc-400">
-                                No datasets found. 
-                            </p>
+            );
+        }
+
+        return (
+            console.log("selectedProject", selectedProject),
+            <div className="flex flex-col h-full">
+                <button
+                    onClick={() => setShowAddProject(true)}
+                    className="w-full p-3 bg-[#111827] border-b border-[#1a2438] text-left hover:bg-[#1a2438] transition-colors"
+                >
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <FolderGit2 size={16} className="text-blue-400" />
+                            <span className="text-sm font-medium">{selectedProject.name}</span>
                         </div>
-                    )}
-                    {datasets?.timeSeries.map((dataset) => (
-                        <DatasetItem 
-                            key={dataset.id}
-                            dataset={dataset}
-                            isInContext={isDatasetInContext(dataset.id)}
-                            onClick={() => handleDatasetToggle(dataset)}
-                        />
-                    ))}
-                    
-                </div>
-                
-                {/* Footer section */}
-                <div className="mt-4">
-                    <div className="p-3 rounded-lg bg-[#111827] border border-[#1a2438] mb-3">
-                        <h3 className="text-xs font-medium text-[#6b89c0] mb-2">Working with Datasets</h3>
-                        <p className="text-xs text-zinc-400">
-                            Click on a dataset to add it to the chat context. You can then ask for analysis or automation based on the selected datasets.
-                        </p>
+                        <ChevronRight size={16} className="text-zinc-400" />
+                    </div>
+                </button>
+
+                <div className="flex-1 overflow-y-auto">
+                    {/* Datasets Section */}
+                    <div className="border-b border-[#1a2438]">
+                        <div className="flex items-center justify-between p-3">
+                            <button
+                                onClick={() => toggleSection('datasets')}
+                                className="flex items-center gap-2 hover:bg-[#1a2438] transition-colors p-2 rounded"
+                            >
+                                <Database size={16} className="text-blue-400" />
+                                <span className="text-sm font-medium">Datasets</span>
+                                {expandedSections.datasets ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </button>
+                            <button
+                                onClick={() => setShowIntegrationManager(true)}
+                                className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]"
+                                title="Add Dataset"
+                            >
+                                <Plus size={14} />
+                            </button>
+                        </div>
+                        {expandedSections.datasets && (
+                            <div className="p-3 space-y-2">
+                                {datasets?.timeSeries
+                                    .filter(dataset => selectedProject.datasetIds.includes(dataset.id))
+                                    .map((dataset) => (
+                                        <DatasetItem 
+                                            key={dataset.id}
+                                            dataset={dataset}
+                                            isInContext={isDatasetInContext(dataset.id)}
+                                            onClick={() => handleDatasetToggle(dataset)}
+                                        />
+                                    ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Analysis Section */}
+                    <div className="border-b border-[#1a2438]">
+                        <div className="flex items-center justify-between p-3">
+                            <button
+                                onClick={() => toggleSection('analysis')}
+                                className="flex items-center gap-2 hover:bg-[#1a2438] transition-colors p-2 rounded"
+                            >
+                                <BarChart3 size={16} className="text-blue-400" />
+                                <span className="text-sm font-medium">Analysis</span>
+                                {expandedSections.analysis ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </button>
+                            <button
+                                onClick={() => {/* TODO: Implement add analysis */}}
+                                className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]"
+                                title="Add Analysis"
+                            >
+                                <Plus size={14} />
+                            </button>
+                        </div>
+                        {expandedSections.analysis && (
+                            <div className="p-3 space-y-2">
+                                {filteredAnalysis.map((analysis) => (
+                                    <AnalysisItem
+                                        key={analysis.jobId}
+                                        analysis={analysis}
+                                        isSelected={analysisesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId)}
+                                        onClick={() => handleAnalysisToggle(analysis)}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Automations Section */}
+                    <div className="border-b border-[#1a2438]">
+                        <div className="flex items-center justify-between p-3">
+                            <button
+                                onClick={() => toggleSection('automations')}
+                                className="flex items-center gap-2 hover:bg-[#1a2438] transition-colors p-2 rounded"
+                            >
+                                <Zap size={16} className="text-blue-400" />
+                                <span className="text-sm font-medium">Automations</span>
+                                {expandedSections.automations ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </button>
+                            <button
+                                onClick={() => {/* TODO: Implement add automation */}}
+                                className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]"
+                                title="Add Automation"
+                            >
+                                <Plus size={14} />
+                            </button>
+                        </div>
+                        {expandedSections.automations && (
+                            <div className="p-3 space-y-2">
+                                {filteredAutomations.map((automation) => (
+                                    <AutomationItem
+                                        key={automation.id}
+                                        automation={automation}
+                                        isSelected={false}
+                                        onClick={() => {}}
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
+        );
+    };
 
-            {/* Analysis Side Panel */}
-            {showAnalysis && (
-                <div className="absolute left-[300px] top-12 w-[300px] h-[calc(100vh-3rem)] bg-[#1a1625]/95 text-white p-4 border-r border-purple-900/30">
-                    <h2 className="text-sm font-mono uppercase tracking-wider text-purple-300 mb-4">Analysis</h2>
-                    
-                    <div className="space-y-2 flex-grow overflow-y-auto">
-                        {analysisJobResults?.analysesJobResults.length === 0 && (    
-                            <div className="p-3 rounded-lg mb-3">
-                                <p className="text-xs text-zinc-400">
-                                    No analysis found. 
-                                </p>
-                            </div>
+    return (
+        <>
+            <div className={`relative flex flex-col h-full bg-gray-950 border-r border-[#101827] text-white transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-[300px]'}`}>
+                <button
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    className="absolute -right-3 top-1/2 transform -translate-y-1/2 bg-gray-950 border border-[#101827] rounded-full p-1 z-10"
+                >
+                    {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                </button>
+
+                {!isCollapsed && renderContent()}
+
+                {isCollapsed && (
+                    <div className="flex flex-col items-center pt-12 gap-4">
+                        <button
+                            onClick={() => setShowAddProject(true)}
+                            className={`p-2 rounded-lg ${!selectedProject ? 'bg-[#1a2438] text-blue-400' : 'text-zinc-400'}`}
+                            title="Select Project"
+                        >
+                            <FolderGit2 size={20} />
+                        </button>
+                        {selectedProject && (
+                            <>
+                                <button
+                                    className="p-2 rounded-lg text-zinc-400"
+                                    title="Datasets"
+                                >
+                                    <Database size={20} />
+                                </button>
+                                <button
+                                    className="p-2 rounded-lg text-zinc-400"
+                                    title="Analysis"
+                                >
+                                    <BarChart3 size={20} />
+                                </button>
+                                <button
+                                    className="p-2 rounded-lg text-zinc-400"
+                                    title="Automations"
+                                >
+                                    <Zap size={20} />
+                                </button>
+                            </>
                         )}
-                        {analysisJobResults?.analysesJobResults
-                            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                            .map((analysis: AnalysisJobResultMetadata) => (
-                            <AnalysisItem
-                                key={analysis.jobId}
-                                analysis={analysis}
-                                isSelected={analysisesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId)}
-                                onClick={() => handleAnalysisToggle(analysis)}
-                            />
-                        ))}
                     </div>
-                </div>
+                )}
+            </div>
+
+            {showAddProject && (
+                <SelectProject
+                    onSelect={handleSelectProject}
+                />
             )}
 
-            {/* Automations Side Panel */}
-            {showAutomations && (
-                <div className="absolute left-[300px] top-12 w-[300px] h-[calc(100vh-3rem)] bg-[#1a1625]/95 text-white p-4 border-r border-purple-900/30">
-                    <h2 className="text-sm font-mono uppercase tracking-wider text-purple-300 mb-4">Automations</h2>
-                    <div className="space-y-2">
-                        {filteredAutomations.length === 0 && (
-                            <div className="p-3 rounded-lg mb-3">
-                                <p className="text-xs text-zinc-400">
-                                    No automations found.
-                                </p>
-                            </div>
-                        )}
-                        {filteredAutomations.map((automation) => (
-                            <AutomationItem
-                                key={automation.id}
-                                automation={automation}
-                                isSelected={selectedAutomation === automation.id}
-                                onClick={() => setSelectedAutomation(
-                                    selectedAutomation === automation.id ? null : automation.id
-                                )}
-                            />
-                        ))}
-                    </div>
-                </div>
-            )}
-        </div>
+            <IntegrationManager
+                isOpen={showIntegrationManager}
+                onClose={() => setShowIntegrationManager(false)}
+            />
+        </>
     );
 }

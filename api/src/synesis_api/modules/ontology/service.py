@@ -24,7 +24,7 @@ from synesis_api.database.service import fetch_all, fetch_one, execute
 
 async def get_user_time_series_datasets(user_id: uuid.UUID) -> List[TimeSeriesDataset]:
     query = select(dataset, time_series_dataset).join(
-        time_series_dataset, dataset.c.id == time_series_dataset.c.id
+        time_series_dataset, dataset.c.job_id == time_series_dataset.c.id
     ).where(dataset.c.user_id == user_id)
 
     datasets = await fetch_all(query)
@@ -46,10 +46,10 @@ async def get_user_datasets(user_id: uuid.UUID, only_completed: bool = True) -> 
 
 async def get_user_datasets_by_ids(user_id: uuid.UUID, dataset_ids: List[uuid.UUID] = []) -> Datasets:
     time_series_query = select(dataset, time_series_dataset).join(
-        time_series_dataset, dataset.c.id == time_series_dataset.c.id
+        time_series_dataset, dataset.c.job_id == time_series_dataset.c.id
     ).where(
         dataset.c.user_id == user_id,
-        dataset.c.id.in_(dataset_ids)
+        dataset.c.job_id.in_(dataset_ids)
     )
 
     time_series_datasets = await fetch_all(time_series_query)
@@ -66,7 +66,7 @@ async def get_user_time_series_dataset_by_id(dataset_id: uuid.UUID, user_id: uui
 
 async def get_user_time_series_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID) -> TimeSeriesDataset:
     query = select(dataset, time_series_dataset).join(
-        time_series_dataset, dataset.c.id == time_series_dataset.c.id
+        time_series_dataset, dataset.c.job_id == time_series_dataset.c.id
     ).where(
         dataset.c.user_id == user_id,
         dataset.c.id == dataset_id
@@ -105,7 +105,7 @@ async def create_base_dataset(
         dataset_id = uuid.uuid4()
 
     dataset_record = Dataset(
-        id=dataset_id,
+        job_id=dataset_id,
         name=name,
         description=description,
         user_id=user_id,
@@ -158,6 +158,8 @@ async def create_time_series_dataset(
     # Calculate dataset statistics
     is_multi_series = df.index.nlevels > 1
     unique_series = df.index.get_level_values(0).unique()
+    print("The unique series are:")
+    print(unique_series)
 
     if is_multi_series:
         series_counts = df.groupby(level=0).size()
@@ -190,7 +192,8 @@ async def create_time_series_dataset(
         for original_id in unique_series:
             series_data = df.loc[original_id]
             series_id = uuid.uuid4()
-
+            print("The timestamps are:")
+            print(series_data.index)
             time_series_records.append(TimeSeries(
                 id=series_id,
                 description=f"Time series {series_id}",

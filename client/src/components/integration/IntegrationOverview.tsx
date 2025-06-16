@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 // import Link from 'next/link'; // Removed unused import
-import { Loader2, AlertTriangle, FilePlus } from 'lucide-react';
+import { Loader2, AlertTriangle, FilePlus, Plus, Minus } from 'lucide-react';
 import { useJobs } from '@/hooks'; // Import useJobs
 import { getStatusColor } from '@/lib/utils'; // Import getStatusColor
 import { Job } from '@/types/jobs';
 import IntegrationJobDetail from './IntegrationJobDetail';
+import { useProject } from '@/hooks/useProject';
 
 interface IntegrationOverviewProps {
   // Remove props related to jobs data and helpers
@@ -16,6 +17,7 @@ interface IntegrationOverviewProps {
 export default function IntegrationOverview({ setCurrentView }: IntegrationOverviewProps) {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const { jobs, isLoading, error } = useJobs('integration'); // Use useJobs hook here
+  const { selectedProject, updateSelectedProject } = useProject();
 
   // Define helper functions locally
   const formatDate = (dateString: string) => {
@@ -47,6 +49,28 @@ export default function IntegrationOverview({ setCurrentView }: IntegrationOverv
 
   const handleJobClick = (jobId: string) => {
     setSelectedJobId(jobId);
+  };
+
+  const handleAddToProject = async (e: React.MouseEvent, jobId: string) => {
+    e.stopPropagation();
+    if (!selectedProject) return;
+    
+    await updateSelectedProject({
+      type: "dataset",
+      id: jobId,
+      remove: false,
+    });
+  };
+
+  const handleRemoveFromProject = async (e: React.MouseEvent, jobId: string) => {
+    e.stopPropagation();
+    if (!selectedProject) return;
+    
+    await updateSelectedProject({
+      type: "dataset",
+      id: jobId,
+      remove: true,
+    });
   };
 
   const handleBack = () => {
@@ -94,24 +118,52 @@ export default function IntegrationOverview({ setCurrentView }: IntegrationOverv
           </div>
         ) : (
           <ul className="space-y-3">
-            {jobs.map((job: Job) => ( 
-              <li 
-                key={job.id} 
-                className="border-2 border-[#101827] bg-[#050a14] rounded-lg transition-colors hover:bg-[#0a101c] hover:border-[#1d2d50] cursor-pointer"
-                onClick={() => handleJobClick(job.id)}
-              >
+            {jobs.map((job: Job) => { 
+              const isInProject = selectedProject?.datasetIds.includes(job.id);
+              const showProjectButton = job.status === "completed" && selectedProject;
+              console.log("jobs", jobs);
+              return (
+                <li 
+                  key={job.id} 
+                  className="border-2 border-[#101827] bg-[#050a14] rounded-lg transition-colors hover:bg-[#0a101c] hover:border-[#1d2d50] cursor-pointer"
+                  onClick={() => handleJobClick(job.id)}
+                >
                  <div className="p-3">
                     <div className="flex justify-between items-center mb-1.5">
                       <span className="font-mono text-sm text-white-400 truncate mr-4" title={job.jobName}>{job.jobName}</span>
                       {getStatusBadge(job.status)}
                     </div>
-                    <div className="text-xs text-zinc-500 space-y-0.5">
-                      <span>Started: {formatDate(job.startedAt)}</span>
-                      {job.completedAt && <span className="block">Completed: {formatDate(job.completedAt)}</span>}
+                    <div className="flex justify-between items-center">
+                      <div className="text-xs text-zinc-500 space-y-0.5">
+                        <span>Started: {formatDate(job.startedAt)}</span>
+                        {job.completedAt && <span className="block">Completed: {formatDate(job.completedAt)}</span>}
+                      </div>
+                      {showProjectButton && (
+                        isInProject ? (
+                          <button
+                            onClick={(e) => handleRemoveFromProject(e, job.id)}
+                            className="px-3 py-1 rounded-md bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-sm flex items-center gap-1"
+                            title="Remove from project"
+                          >
+                            <Minus size={14} />
+                            Remove from project
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => handleAddToProject(e, job.id)}
+                            className="px-3 py-1 rounded-md bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-sm flex items-center gap-1"
+                            title="Add to project"
+                          >
+                            <Plus size={14} />
+                            Add to project
+                          </button>
+                        )
+                      )}
                     </div>
                  </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

@@ -58,7 +58,7 @@ dataset_context = Table(
     Column("context_id", UUID(as_uuid=True),
            ForeignKey("chat.context.id"), nullable=False),
     Column("dataset_id", UUID(as_uuid=True),
-           ForeignKey("ontology.dataset.id"), nullable=False),
+           ForeignKey("ontology.dataset.job_id"), nullable=False),
     PrimaryKeyConstraint("context_id", "dataset_id"),
     schema="chat"
 )

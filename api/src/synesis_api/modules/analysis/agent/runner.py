@@ -310,7 +310,7 @@ class AnalysisAgentRunner:
                     {ANALYSIS_AGENT_SYSTEM_PROMPT}\n
                     Here are the column names: {analysis_deps.df.columns.tolist()}\n
                     Here is the problem description: {problem_description}\n
-                    If you create code yourself, you can retrieve the data from the following path: /tmp/3eaa61fd-4ae2-4440-b579-0af1e84e7db4/DailyDelhiClimateTrain.csv\n 
+                    If you create code yourself, you can retrieve the data from the following path: /tmp/6535611e-4a8d-45a8-944b-ea71420616da/DailyDelhiClimateTrain.csv\n 
                     Here are the analysis plans: {analyses.model_dump_json()}\n
                     Remember to not actually call the functions, just list them in your plan. The plan will be executed later.
                 """
@@ -322,7 +322,7 @@ class AnalysisAgentRunner:
                 content= f"""
                     {ANALYSIS_AGENT_SYSTEM_PROMPT}\n
                     Here are the column names: {analysis_deps.df.columns.tolist()}\n
-                    If you create code yourself, you can retrieve the data from the following path: /tmp/3eaa61fd-4ae2-4440-b579-0af1e84e7db4/DailyDelhiClimateTrain.csv\n 
+                    If you create code yourself, you can retrieve the data from the following path: /tmp/6535611e-4a8d-45a8-944b-ea71420616da/DailyDelhiClimateTrain.csv\n 
                 """
                     # Here are some functions you can use to execute an analysis: {eda_cs_tools_str}\n
             )

@@ -308,8 +308,17 @@ async def post_restructured_data(
     data_modality: str = Form(...),
     index_first_level: str = Form(...),
     index_second_level: str | None = Form(None),
-    user: Annotated[User, Depends(get_user_from_api_key)] = None
+    job_id: str = Form(...),
+    user: Annotated[User, Depends(get_user_from_api_key)] = None,
 ) -> DataSubmissionResponse:
+    print(f"job_id: {job_id}")
+    print("-"*100)
+
+    try:
+        job_id = uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=400, detail="Invalid job_id format. Must be a valid UUID.")
 
     if data.content_type != "text/csv":
         raise HTTPException(
@@ -337,7 +346,8 @@ async def post_restructured_data(
         data_description,
         dataset_name,
         data_modality,
-        user.id
+        user.id,
+        job_id
     )
 
     await delete_api_key(user)

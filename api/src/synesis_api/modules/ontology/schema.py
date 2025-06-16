@@ -5,7 +5,7 @@ from synesis_api.base_schema import BaseSchema
 
 
 class Dataset(BaseSchema):
-    id: uuid.UUID
+    job_id: uuid.UUID
     user_id: uuid.UUID
     name: str
     description: str
