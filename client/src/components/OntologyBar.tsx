@@ -8,29 +8,78 @@ import { useAgentContext, useDatasets, useAnalysis, useProject } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
-import ConfirmationPopup from './ConfirmationPopup';
 import SelectProject from './SelectProject';
 import { Project } from '@/types/project';
 import IntegrationManager from './integration/IntegrationManager';
+import AddAnalysis from './AddAnalysis';
 
-type TabType = 'project' | 'datasets' | 'analysis' | 'automations';
+type ItemType = 'dataset' | 'analysis' | 'automation';
 
-function DatasetItem({ dataset, isInContext, onClick }: { dataset: TimeSeriesDataset; isInContext: boolean; onClick: () => void }) {
+interface ListItemProps {
+    item: TimeSeriesDataset | AnalysisJobResultMetadata | Automation;
+    type: ItemType;
+    isInContext: boolean;
+    onClick: () => void;
+}
+
+function ListItem({ item, type, isInContext, onClick }: ListItemProps) {
+    const getTheme = (type: ItemType) => {
+        switch (type) {
+            case 'dataset':
+                return {
+                    bg: isInContext ? 'bg-[#0a101c] border-[#2a4170]' : 'bg-[#050a14] border-[#101827]',
+                    hover: 'hover:bg-[#0a101c]',
+                    icon: <Database size={10} />,
+                    iconColor: 'text-blue-300',
+                    button: {
+                        bg: isInContext 
+                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-500 shadow-blue-900/30'
+                            : 'bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]'
+                    }
+                };
+            case 'analysis':
+                return {
+                    bg: isInContext ? 'bg-[#2a1c30] border-purple-800' : 'bg-[#1a1625]/80 border-[#271a30]',
+                    hover: 'hover:bg-[#2a1c30]',
+                    icon: <BarChart3 size={10} />,
+                    iconColor: 'text-purple-300',
+                    button: {
+                        bg: isInContext 
+                            ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white border-purple-500 shadow-purple-900/30'
+                            : 'bg-gradient-to-r from-[#1a1625] to-[#271a30] text-purple-300 hover:text-white hover:from-purple-600 hover:to-purple-700 border-[#271a30]'
+                    }
+                };
+            case 'automation':
+                return {
+                    bg: isInContext ? 'bg-[#2a1c30] border-purple-800' : 'bg-[#1a1625]/80 border-[#271a30]',
+                    hover: 'hover:bg-[#2a1c30]',
+                    icon: <Zap size={10} />,
+                    iconColor: 'text-purple-300',
+                    button: {
+                        bg: isInContext 
+                            ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white border-purple-500 shadow-purple-900/30'
+                            : 'bg-gradient-to-r from-[#1a1625] to-[#271a30] text-purple-300 hover:text-white hover:from-purple-600 hover:to-purple-700 border-[#271a30]'
+                    }
+                };
+        }
+    };
+
+    const theme = getTheme(type);
+    const name = 'name' in item ? item.name : `Analysis ${(item as AnalysisJobResultMetadata).jobId.slice(0, 6)}`;
+
     return (
         <div
             onClick={onClick}
-            className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-[#0a101c] border-2 ${
-                isInContext ? 'bg-[#0a101c] border-[#2a4170]' : 'bg-[#050a14] border-[#101827]'
-            }`}
+            className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${theme.hover} border-2 ${theme.bg}`}
         >
             <div className="flex justify-between items-center pr-2">
                 <div className="flex-1">
-                    <div className="text-sm font-medium">{dataset.name}</div>
+                    <div className="text-sm font-medium">{name}</div>
                     <div className="text-xs text-zinc-400 flex items-center gap-1.5">
-                        <span>Time Series</span>
+                        <span>{type.charAt(0).toUpperCase() + type.slice(1)}</span>
                         {isInContext && (
-                            <span className="bg-[#0e1a30] text-blue-300 text-xs px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                                <Database size={10} />
+                            <span className={`bg-[#0e1a30] ${theme.iconColor} text-xs px-1.5 py-0.5 rounded-full flex items-center gap-0.5`}>
+                                {theme.icon}
                             </span>
                         )}
                     </div>
@@ -41,11 +90,7 @@ function DatasetItem({ dataset, isInContext, onClick }: { dataset: TimeSeriesDat
                         e.stopPropagation();
                         onClick();
                     }}
-                    className={`p-1.5 rounded-full border shadow-md ${
-                        isInContext
-                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-500 shadow-blue-900/30'
-                            : 'bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]'
-                    }`}
+                    className={`p-1.5 rounded-full border shadow-md ${theme.button.bg}`}
                     title={isInContext ? "Remove from context" : "Add to chat context"}
                 >
                     {isInContext ? <Check size={14} /> : <Plus size={14} />}
@@ -55,92 +100,11 @@ function DatasetItem({ dataset, isInContext, onClick }: { dataset: TimeSeriesDat
     );
 }
 
-function AutomationItem({ automation, isSelected, onClick }: { automation: Automation; isSelected: boolean; onClick: () => void }) {
-    return (
-        <div
-            onClick={onClick}
-            className={`p-3 rounded-lg cursor-pointer hover:bg-[#2a1c30] border-2 ${
-                isSelected ? 'bg-[#2a1c30] border-purple-800' : 'bg-[#1a1625]/80 border-[#271a30]'
-            }`}
-        >
-            <div className="text-sm font-medium">{automation.name}</div>
-            <div className="text-xs text-zinc-400">{automation.description}</div>
-        </div>
-    );
-}
-
-function AnalysisItem({ analysis, isSelected, onClick }: {analysis: AnalysisJobResultMetadata, isSelected: boolean, onClick: () => void }) {
-    const { deleteAnalysisJobResults } = useAnalysis();
-    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-
-    const handleDelete = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setShowDeleteConfirmation(true);
-    };
-
-    const handleConfirmDelete = async () => {
-        await deleteAnalysisJobResults(analysis);
-        setShowDeleteConfirmation(false);
-    };
-
-    return (
-        <>
-            <div 
-                onClick={onClick}
-                className={`p-3 rounded-lg cursor-pointer hover:bg-[#1a2438] border-2 ${
-                    isSelected ? 'bg-[#1a2438] border-blue-800' : 'bg-[#0e1a30]/80 border-[#1a2438]'
-                }`}
-            >
-                <div className="flex justify-between items-start">
-                    <div className="flex flex-col gap-2">
-                        <div className="text-sm font-medium text-blue-300">Analysis Results</div>
-                        <div className="text-xs text-zinc-400">
-                            <div>Job ID: {analysis.jobId}</div>
-                            <div>Datasets: {analysis.numberOfDatasets}</div>
-                            <div>Automations: {analysis.numberOfAutomations}</div>
-                            <div>Created: {new Date(analysis.createdAt).toLocaleDateString()}</div>
-                            <div>PDF Created: {analysis.pdfCreated ? "Yes" : "No"}</div>
-                        </div>
-                    </div>
-                    <div className="flex gap-2">
-                        <button 
-                            onClick={handleDelete}
-                            className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-red-600/40 to-red-700/40 text-red-300 border-red-500/30 shadow-red-900/20 hover:from-red-600/60 hover:to-red-700/60 hover:text-red-200"
-                            title="Delete analysis"
-                        >
-                            <Trash2 size={14} />
-                        </button>
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onClick();
-                            }}
-                            className={`p-1.5 rounded-full border shadow-md ${
-                                isSelected
-                                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-500 shadow-blue-900/30'
-                                    : 'bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]'
-                            }`}
-                            title={isSelected ? "Remove from context" : "Add to chat context"}
-                        >
-                            {isSelected ? <Check size={14} /> : <Plus size={14} />}
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <ConfirmationPopup
-                isOpen={showDeleteConfirmation}
-                message={`Are you sure you want to delete this analysis? This action cannot be undone.`}
-                onConfirm={handleConfirmDelete}
-                onCancel={() => setShowDeleteConfirmation(false)}
-            />
-        </>
-    );
-}
-
 export default function OntologyBar() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [showAddProject, setShowAddProject] = useState(false);
     const [showIntegrationManager, setShowIntegrationManager] = useState(false);
+    const [showAddAnalysis, setShowAddAnalysis] = useState(false);
     const [expandedSections, setExpandedSections] = useState({
         datasets: true,
         analysis: true,
@@ -164,7 +128,6 @@ export default function OntologyBar() {
     const { datasets } = useDatasets();
     const automations: Automation[] = [];
     const { analysisJobResults } = useAnalysis();
-    console.log("analysisJobResults", datasets);
 
     // Filter entities based on project IDs
     // const filteredDatasets = useMemo(() => {
@@ -237,7 +200,6 @@ export default function OntologyBar() {
         }
 
         return (
-            console.log("selectedProject", selectedProject),
             <div className="flex flex-col h-full">
                 <button
                     onClick={() => setShowAddProject(true)}
@@ -277,9 +239,10 @@ export default function OntologyBar() {
                                 {datasets?.timeSeries
                                     .filter(dataset => selectedProject.datasetIds.includes(dataset.id))
                                     .map((dataset) => (
-                                        <DatasetItem 
+                                        <ListItem 
                                             key={dataset.id}
-                                            dataset={dataset}
+                                            item={dataset}
+                                            type="dataset"
                                             isInContext={isDatasetInContext(dataset.id)}
                                             onClick={() => handleDatasetToggle(dataset)}
                                         />
@@ -300,7 +263,7 @@ export default function OntologyBar() {
                                 {expandedSections.analysis ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                             </button>
                             <button
-                                onClick={() => {/* TODO: Implement add analysis */}}
+                                onClick={() => setShowAddAnalysis(true)}
                                 className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]"
                                 title="Add Analysis"
                             >
@@ -310,10 +273,11 @@ export default function OntologyBar() {
                         {expandedSections.analysis && (
                             <div className="p-3 space-y-2">
                                 {filteredAnalysis.map((analysis) => (
-                                    <AnalysisItem
+                                    <ListItem
                                         key={analysis.jobId}
-                                        analysis={analysis}
-                                        isSelected={analysisesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId)}
+                                        item={analysis}
+                                        type="analysis"
+                                        isInContext={analysisesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId)}
                                         onClick={() => handleAnalysisToggle(analysis)}
                                     />
                                 ))}
@@ -343,10 +307,11 @@ export default function OntologyBar() {
                         {expandedSections.automations && (
                             <div className="p-3 space-y-2">
                                 {filteredAutomations.map((automation) => (
-                                    <AutomationItem
+                                    <ListItem
                                         key={automation.id}
-                                        automation={automation}
-                                        isSelected={false}
+                                        item={automation}
+                                        type="automation"
+                                        isInContext={false}
                                         onClick={() => {}}
                                     />
                                 ))}
@@ -414,6 +379,11 @@ export default function OntologyBar() {
             <IntegrationManager
                 isOpen={showIntegrationManager}
                 onClose={() => setShowIntegrationManager(false)}
+            />
+
+            <AddAnalysis
+                isOpen={showAddAnalysis}
+                onClose={() => setShowAddAnalysis(false)}
             />
         </>
     );

@@ -121,7 +121,6 @@ export default function IntegrationOverview({ setCurrentView }: IntegrationOverv
             {jobs.map((job: Job) => { 
               const isInProject = selectedProject?.datasetIds.includes(job.id);
               const showProjectButton = job.status === "completed" && selectedProject;
-              console.log("jobs", jobs);
               return (
                 <li 
                   key={job.id} 

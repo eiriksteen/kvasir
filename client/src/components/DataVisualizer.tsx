@@ -1,6 +1,6 @@
 import { TimeSeriesDataset } from '@/types/datasets';
 import { useAgentContext } from '@/hooks'
-import { TimeSeriesVisualizerCompact, TimeSeriesVisualizerFull } from '@/components/TimeSeriesVisualizer';
+import { TimeSeriesVisualizerCompact, TimeSeriesVisualizerFull } from '@/components/data-visualization/TimeSeriesVisualizer';
 import { useState } from 'react';
 
 export default function DataVisualizer() {

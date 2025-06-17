@@ -45,7 +45,6 @@ async def post_chat(
         orchestrator_output = await chatbot_agent.run("You need to decide which agent to handoff this prompt to: " + prompt.content + ". Choose between 'chat', 'analysis', or 'automation'.", message_history=messages, output_type=OrchestratorOutput)
         handoff_agent = orchestrator_output.output.handoff_agent
         context_message = await get_context_message(user.id, prompt.context)
-        print(context_message)
 
         if handoff_agent == "chat":
             async with chatbot_agent.run_stream(prompt.content, message_history=messages) as result:

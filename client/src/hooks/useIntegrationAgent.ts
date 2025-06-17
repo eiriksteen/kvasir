@@ -79,7 +79,6 @@ export const useIntegrationAgent = (jobId: string) => {
   }, [jobId, session?.APIToken?.accessToken, updateJobs]);
 
 
-  // console.log(messages);
 
   return {messages, submitFeedback, submitApproval, isConnected: true};
 }

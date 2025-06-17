@@ -22,6 +22,7 @@ class AnalysisStatusMessage(BaseSchema):
 
 class AnalysisJobResultMetadata(BaseSchema):
     job_id: UUID
+    name: str
     number_of_datasets: int
     number_of_automations: int
     dataset_ids: List[UUID]

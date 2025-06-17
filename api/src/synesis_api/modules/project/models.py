@@ -21,7 +21,7 @@ project_dataset = Table(
     "project_dataset",
     metadata,
     Column("project_id", UUID(as_uuid=True), ForeignKey("project.project.id"), nullable=False),
-    Column("dataset_id", UUID(as_uuid=True), nullable=False),
+    Column("dataset_id", UUID(as_uuid=True), ForeignKey("ontology.dataset.job_id"), nullable=False),
     PrimaryKeyConstraint("project_id", "dataset_id"),
     schema="project"
 )
@@ -31,7 +31,7 @@ project_analysis = Table(
     "project_analysis",
     metadata,
     Column("project_id", UUID(as_uuid=True), ForeignKey("project.project.id"), nullable=False),
-    Column("analysis_id", UUID(as_uuid=True), nullable=False),
+    Column("analysis_id", UUID(as_uuid=True), ForeignKey("analysis.analysis_jobs_results.job_id"), nullable=False),
     PrimaryKeyConstraint("project_id", "analysis_id"),
     schema="project"
 )

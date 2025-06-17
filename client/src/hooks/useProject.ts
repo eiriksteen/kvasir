@@ -45,7 +45,6 @@ export const useProject = () => {
   const { trigger: updateExistingProject } = useSWRMutation(
     "projects",
     async (_, { arg }: { arg: { projectId: string; data: ProjectUpdate } }) => {
-      console.log("arg", arg);
       const updatedProject = await updateProject(
         session ? session.APIToken.accessToken : "",
         arg.projectId,

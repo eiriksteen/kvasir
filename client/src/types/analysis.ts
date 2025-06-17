@@ -18,6 +18,7 @@ export interface AnalysisStatusMessage {
 
 export interface AnalysisJobResultMetadata {
     jobId: string;
+    name: string;
     datasetIds: string[];
     automationIds: string[];
     analysisPlan: AnalysisPlan;
@@ -30,4 +31,13 @@ export interface AnalysisJobResultMetadata {
 
 export interface Analyses {
     analysesJobResults: AnalysisJobResultMetadata[];
+}
+
+export interface AnalysisRequest {
+    projectId: string;
+    datasetIds: string[];
+    analysisIds: string[];
+    automationIds: string[];
+    prompt: string | null;
+    conversationId: string;
 }

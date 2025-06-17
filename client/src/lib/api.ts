@@ -5,6 +5,7 @@ import { Datasets, TimeSeriesDataset } from "@/types/datasets";
 import { Job } from "@/types/jobs";
 import { IntegrationAgentFeedback, IntegrationMessage } from "@/types/integration";
 import { Project, ProjectCreate, ProjectUpdate } from "@/types/project";
+import { AnalysisRequest } from "@/types/analysis";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
 
@@ -53,18 +54,14 @@ export async function postIntegrationJob(token: string, files: File[], descripti
   return data;
 }
 
-export async function postAnalysisPlanner(token: string, datasetIds: string[], automationIds: string[], prompt: string | null = null): Promise<Job> { // TODO: add automations 
-  const response = await fetch(`${API_URL}/analysis/run-analysis-planner`, {
+export async function postAnalysisPlanner(token: string, analysisRequest: AnalysisRequest): Promise<Job> {
+  const response = await fetch(`${API_URL}/analysis/create-analysis`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      "dataset_ids": datasetIds,
-      "automation_ids": automationIds,
-      "prompt": prompt
-    })
+    body: JSON.stringify(analysisRequest)
   });
   
   if (!response.ok) {
@@ -91,7 +88,6 @@ export async function deleteAnalysisJobResultsDB(token: string, jobId: string): 
   }
 
   const data = await response.json();
-  console.log(data);
   return data;
 }
 

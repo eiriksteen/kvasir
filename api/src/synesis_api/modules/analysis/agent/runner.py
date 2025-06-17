@@ -113,9 +113,7 @@ class AnalysisAgentRunner:
                     message_history=message_history,
                     output_type=str
                 )
-                print(f"Uncleaned Job name: {job_name}")
                 job_name = job_name.output.replace('"', '').replace("'", "").strip()
-                print(f"Cleaned Job name: {job_name}")
                 analysis_job = await create_job(analysis_request.user.id, "analysis", job_id, job_name)
             except Exception as e:
                 raise HTTPException(
@@ -191,6 +189,7 @@ class AnalysisAgentRunner:
 
         result = AnalysisJobResultMetadataInDB(
             job_id=analysis_job.id,
+            name=job_name,
             number_of_datasets=len(analysis_request.dataset_ids),
             number_of_automations=len(analysis_request.automation_ids),
             dataset_ids=analysis_request.dataset_ids,
