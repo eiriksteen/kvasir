@@ -8,6 +8,7 @@ from synesis_api.modules.analysis.router import router as eda_router
 from synesis_api.modules.automation.router import router as automation_router
 from synesis_api.modules.ontology.router import router as ontology_router
 from synesis_api.modules.project.router import router as project_router
+from synesis_api.modules.node.router import router as node_router
 
 app = FastAPI(
     title="Synesis API",
@@ -63,6 +64,10 @@ app.include_router(jobs_router,
 app.include_router(project_router,
                    prefix="/project",
                    tags=["Project"])
+
+app.include_router(node_router,
+                   prefix="/node",
+                   tags=["Node"])
 
 
 @app.get("/")

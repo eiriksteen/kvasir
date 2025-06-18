@@ -1,11 +1,12 @@
 import {EventSource} from 'eventsource'
-import { AnalysisJobResultMetadata, Analyses } from "@/types/analysis";
+import { Analyses } from "@/types/analysis";
 import { ChatMessageAPI, Conversation, Prompt } from "@/types/chat";
-import { Datasets, TimeSeriesDataset } from "@/types/datasets";
+import { Datasets } from "@/types/datasets";
 import { Job } from "@/types/jobs";
 import { IntegrationAgentFeedback, IntegrationMessage } from "@/types/integration";
 import { Project, ProjectCreate, ProjectUpdate } from "@/types/project";
 import { AnalysisRequest } from "@/types/analysis";
+import { FrontendNode, FrontendNodeCreate } from "@/types/node";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
 
@@ -72,7 +73,6 @@ export async function postAnalysisPlanner(token: string, analysisRequest: Analys
   const data = await response.json();
   return data;
 }
-
 
 export async function deleteAnalysisJobResultsDB(token: string, jobId: string): Promise<void> {
   const response = await fetch(`${API_URL}/analysis/delete-analysis-job-results/${jobId}`, {
@@ -410,9 +410,62 @@ export async function updateProject(token: string, projectId: string, projectDat
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Failed to update project', errorText);
     throw new Error(`Failed to update project: ${response.status} ${errorText}`);
   }
 
   return response.json();
 }
+
+export async function fetchProjectNodes(token: string, projectId: string): Promise<FrontendNode[]> {
+  const response = await fetch(`${API_URL}/node/project/${projectId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch project nodes: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function updateNodePosition(token: string, node: FrontendNode): Promise<FrontendNode> {
+  const response = await fetch(`${API_URL}/node/update-node/${node.id}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(node)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update node position: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function createNode(token: string, node: FrontendNodeCreate): Promise<FrontendNode> {
+  const response = await fetch(`${API_URL}/node/create-node`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(node)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create node: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+

@@ -1,14 +1,15 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import {
     ReactFlow,
     Node,
-    Edge,
     Background,
     Controls,
     MiniMap,
+    EdgeTypes,
+    MarkerType,
+    Edge,
     useNodesState,
-    useEdgesState,
-    addEdge,
+    useEdgesState
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useProject } from '@/hooks/useProject';
@@ -16,46 +17,21 @@ import { useDatasets, useAnalysis } from '@/hooks';
 import DataVisualizer from './DataVisualizer';
 import AnalysisItemSmall from './analysis/AnalysisItem';
 import { X } from 'lucide-react';
+import { FrontendNode } from '@/types/node';
+import { useNode } from '@/hooks/useNode';
+import DatasetNode from './react-flow-components/DatasetNode';
+import AnalysisNode from './react-flow-components/AnalysisNode';
+import TransportEdge from './react-flow-components/TransportEdge';
 
-// Custom node types
 const nodeTypes = {
-  dataset: ({ data }: { data: { label: string; id: string; onClick: () => void } }) => (
-    <div 
-      className="px-4 py-2 shadow-md rounded-md bg-[#050a14] border-2 border-[#101827] cursor-pointer hover:bg-[#0a101c]"
-      onClick={data.onClick}
-    >
-      <div className="flex items-center">
-        <div className="rounded-full w-12 h-12 flex items-center justify-center bg-[#0e1a30]">
-          <svg className="w-6 h-6 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-          </svg>
-        </div>
-        <div className="ml-2">
-          <div className="text-lg font-bold text-white">{data.label}</div>
-          <div className="text-blue-300">Dataset</div>
-        </div>
-      </div>
-    </div>
-  ),
-  analysis: ({ data }: { data: { label: string; id: string; onClick: () => void } }) => (
-    <div 
-      className="px-4 py-2 shadow-md rounded-md bg-[#1a1625]/80 border-2 border-[#271a30] cursor-pointer hover:bg-[#2a1c30]"
-      onClick={data.onClick}
-    >
-      <div className="flex items-center">
-        <div className="rounded-full w-12 h-12 flex items-center justify-center bg-[#2a1c30]">
-          <svg className="w-6 h-6 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-        </div>
-        <div className="ml-2">
-          <div className="text-lg font-bold text-white">{data.label}</div>
-          <div className="text-purple-300">Analysis</div>
-        </div>
-      </div>
-    </div>
-  ),
+  dataset: DatasetNode,
+  analysis: AnalysisNode,
 };
+
+const edgeTypes: EdgeTypes = {
+  'custom-edge': TransportEdge,
+};
+
 
 const ProjectView: React.FC = () => {
   const { selectedProject } = useProject();
@@ -64,75 +40,103 @@ const ProjectView: React.FC = () => {
   const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
   const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
 
-  // Create nodes based on selected project's datasets and analyses
-  const initialNodes: Node[] = React.useMemo(() => {
+  const { frontendNodes, updatePosition } = useNode(selectedProject?.id || '');
+
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+
+  // Memoize nodes
+  const memoizedNodes = useMemo(() => {
     if (!selectedProject || !datasets?.timeSeries || !analysisJobResults?.analysesJobResults) {
       return [];
     }
-
-    const datasetNodes = selectedProject.datasetIds.map((datasetId: string, index: number) => {
-      const dataset = datasets.timeSeries.find(d => d.id === datasetId);
+    const datasetNodes = frontendNodes.map((frontendNode: FrontendNode) => {
+      const dataset = datasets.timeSeries.filter(d => selectedProject.datasetIds.includes(d.id)).find(d => d.id === frontendNode.datasetId);
       if (!dataset) return null;
-
       return {
-        id: datasetId,
+        id: frontendNode.id,
         type: 'dataset',
-        position: { x: 250, y: 100 + (index * 150) },
-        data: { 
+        position: { x: frontendNode.xPosition, y: frontendNode.yPosition },
+        data: {
           label: dataset.name,
-          id: datasetId,
-          onClick: () => setSelectedDataset(datasetId)
+          id: frontendNode.datasetId,
+          onClick: () => setSelectedDataset(frontendNode.datasetId)
         },
-      };
-    }).filter(Boolean);
-
-    const analysisNodes = selectedProject.analysisIds.map((analysisId: string, index: number) => {
-      const analysis = analysisJobResults.analysesJobResults.find(a => a.jobId === analysisId);
+      } as Node;
+    });
+    const analysisNodes = frontendNodes.map((frontendNode: FrontendNode) => {
+      const analysis = analysisJobResults.analysesJobResults.filter(a => selectedProject.analysisIds.includes(a.jobId)).find(a => a.jobId === frontendNode.analysisId);
       if (!analysis) return null;
-
       return {
-        id: analysisId,
+        id: frontendNode.id,
         type: 'analysis',
-        position: { x: 500, y: 100 + (index * 150) },
-        data: { 
-          label: analysis.name || `Analysis ${index + 1}`,
-          id: analysisId,
-          onClick: () => setSelectedAnalysis(analysisId)
+        position: { x: frontendNode.xPosition, y: frontendNode.yPosition },
+        data: {
+          label: analysis.name,
+          id: frontendNode.analysisId,
+          onClick: () => setSelectedAnalysis(frontendNode.analysisId)
         },
-      };
-    }).filter(Boolean);
+      } as Node;
+    });
+    return [...datasetNodes.filter(Boolean), ...analysisNodes.filter(Boolean)] as Node[];
+  }, [selectedProject, datasets, analysisJobResults, frontendNodes]);
 
-    return [...datasetNodes, ...analysisNodes];
-  }, [selectedProject, datasets, analysisJobResults]);
-
-  const initialEdges: Edge[] = React.useMemo(() => {
-    if (!selectedProject || !analysisJobResults?.analysesJobResults) return [];
-    
+  // Memoize edges
+  const memoizedEdges = useMemo(() => {
+    if (!selectedProject || !analysisJobResults?.analysesJobResults) {
+      return [];
+    }
     return analysisJobResults.analysesJobResults
       .filter(analysis => selectedProject.analysisIds.includes(analysis.jobId))
-      .flatMap(analysis => 
-        analysis.datasetIds.map(datasetId => ({
-          id: `e${datasetId}-${analysis.jobId}`,
-          source: datasetId,
-          target: analysis.jobId,
-        }))
-      );
-  }, [selectedProject, analysisJobResults]);
+      .flatMap(analysis =>
+        analysis.datasetIds.map(datasetId => {
+          const sourceNode = frontendNodes.find(fn => fn.datasetId === datasetId);
+          const targetNode = frontendNodes.find(fn => fn.analysisId === analysis.jobId);
+          if (!sourceNode?.id || !targetNode?.id) return null;
+          return {
+            id: String(`e${datasetId}->${analysis.jobId}`),
+            source: sourceNode.id,
+            target: targetNode.id,
+            type: 'default',
+            animated: true,
+            style: { stroke: '#6366f1', strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed },
+          } as Edge;
+        })
+      )
+      .filter(Boolean) as Edge[];
+  }, [selectedProject, frontendNodes, analysisJobResults]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-
-  // Update nodes when initialNodes changes
+  // Only update nodes when memoizedNodes changes
   useEffect(() => {
-    setNodes(initialNodes);
-  }, [initialNodes, setNodes]);
+    setNodes((prevNodes) => {
+      const prev = JSON.stringify(prevNodes);
+      const next = JSON.stringify(memoizedNodes);
+      return prev === next ? prevNodes : memoizedNodes;
+    });
+  }, [memoizedNodes, setNodes]);
 
-  // Update edges when initialEdges changes
+  // Only update edges when memoizedEdges changes
   useEffect(() => {
-    setEdges(initialEdges);
-  }, [initialEdges, setEdges]);
+    setEdges((prevEdges) => {
+      const prev = JSON.stringify(prevEdges);
+      const next = JSON.stringify(memoizedEdges);
+      return prev === next ? prevEdges : memoizedEdges;
+    });
+  }, [memoizedEdges, setEdges]);
 
-  const onConnect = useCallback((params: any) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
+
+  const handleNodeDragStop = useCallback((event: any, node: Node) => {
+    const frontendNode = frontendNodes.find(fn => fn.id === node.id);
+    if (frontendNode) {
+      updatePosition({
+        ...frontendNode,
+        xPosition: node.position.x,
+        yPosition: node.position.y,
+      });
+    }
+  }, [frontendNodes, updatePosition]);
+
 
   const renderModal = () => {
     if (selectedDataset) {
@@ -190,13 +194,14 @@ const ProjectView: React.FC = () => {
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
+        onNodeDragStop={handleNodeDragStop}
       >
         <Background />
-        {/* <Controls />
-        <MiniMap /> */}
+        <Controls />
+        <MiniMap />
       </ReactFlow>
       {renderModal()}
     </div>
