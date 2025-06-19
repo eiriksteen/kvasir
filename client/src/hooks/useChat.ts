@@ -101,8 +101,10 @@ export const useChat = () => {
       // Create user message with proper context
       const userMessage: ChatMessage = {
         role: "user", 
+        conversationId: conversationId,
         content: content,
-        context: context
+        context: context,
+        createdAt: new Date().toISOString()
       };
       
       mutateCurrentConversation((prev: Conversation) => ({
@@ -117,9 +119,11 @@ export const useChat = () => {
         if (chunkNum === 0) {
           // Create assistant message with proper context
           const assistantMessage: ChatMessage = {
+            conversationId: conversationId,
             role: "assistant", 
             content: chunk,
-            context: context
+            context: null,
+            createdAt: new Date().toISOString()
           };
           mutateCurrentConversation((prev: Conversation) => ({
             ...prev,
@@ -131,7 +135,7 @@ export const useChat = () => {
             ...prev,
             messages: prev.messages.map((msg, i) => 
               i === prev.messages.length - 1 
-                ? { role: "assistant", content: chunk, context: context }
+                ? { ...msg, content: chunk }
                 : msg
             )
           }));

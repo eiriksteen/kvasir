@@ -71,7 +71,7 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
       
       <div className="flex-1 overflow-y-auto">
         <div className="space-y-1 p-2">
-          {conversations.filter((conversation: Conversation) => conversation.projectId === selectedProject?.id).sort((a: Conversation, b: Conversation) => b.createdAt.localeCompare(a.createdAt)).map((conversation: Conversation) => (
+          {conversations.filter((conversation: Conversation) => conversation.projectId === selectedProject?.id).sort((a: Conversation, b: Conversation) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((conversation: Conversation) => (
             <button
               key={conversation.id}
               onClick={() => handleConversationClick(conversation.id)}

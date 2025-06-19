@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from typing import Annotated, List
-from synesis_api.modules.chat.schema import ChatMessage, Conversation, Prompt, Context, ConversationCreate, ConversationInDB
+from synesis_api.modules.chat.schema import ChatMessage, Conversation, Prompt, Context, ConversationCreate
 from synesis_api.modules.chat.service import (
     create_conversation,
     get_messages,
@@ -35,7 +35,9 @@ async def post_chat(
     
 
     if prompt.context:
-        contextInDB = await create_context(user.id, prompt.context)
+        context_in_db = await create_context(prompt.context)
+
+    await create_message(prompt.conversation_id, "user", prompt.content, context_in_db.id if context_in_db else None)
     
     async def stream_messages():
         messages = await get_messages_pydantic(prompt.conversation_id)
@@ -81,7 +83,7 @@ async def post_chat(
             raise HTTPException(
                 status_code=400, detail="Invalid handoff agent")
         
-        await create_message(prompt.conversation_id, "user", prompt.content, contextInDB.id if contextInDB else None)
+        
         
 
     return StreamingResponse(stream_messages(), media_type="text/plain")

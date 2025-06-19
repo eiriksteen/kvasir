@@ -8,8 +8,10 @@ export type ChatMessageAPI = {
 
 export type ChatMessage = {
     role: "user" | "assistant";
+    conversationId: string;
     content: string;
     context: Context | null;
+    createdAt: string;
 }
 
 export type Conversation = {

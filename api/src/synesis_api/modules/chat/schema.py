@@ -18,13 +18,21 @@ class Context(BaseSchema):
     analysis_ids: List[uuid.UUID] = []
 
 
+class ChatMessageInDB(BaseSchema):
+    id: uuid.UUID
+    conversation_id: uuid.UUID
+    role: Literal["user", "assistant"]
+    content: str
+    context_id: uuid.UUID
+    created_at: datetime = datetime.now(timezone.utc)
+
 class ChatMessage(BaseSchema):
     id: uuid.UUID
     conversation_id: uuid.UUID
     role: Literal["user", "assistant"]
     content: str
-    context_id: uuid.UUID | None = None
-    created_at: datetime = datetime.now(timezone.utc)
+    context: Context | None = None
+    created_at: datetime
 
 
 class Prompt(BaseSchema):

@@ -2,7 +2,7 @@
 
 import { memo } from 'react';
 import { useState, useRef, useEffect } from 'react';
-import { Send, Database, X, BarChart, History, Plus } from 'lucide-react';
+import { Send, Database, X, BarChart, History, Plus, Zap } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useChat, useAgentContext } from '@/hooks';
@@ -11,10 +11,21 @@ import { redirect } from 'next/navigation';
 import { ChatMessage } from '@/types/chat';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
+import { useDatasets } from '@/hooks/useDatasets';
+import { useAnalysis } from '@/hooks/useAnalysis';
 import Popup from './Popup';
 import { ChatHistory } from './ChatHistory';
 
 const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
+  const { datasets} = useDatasets();
+  const { analysisJobResults } = useAnalysis();
+
+  const hasContext = message.context && (
+    message.context.datasetIds?.length > 0 || 
+    message.context.analysisIds?.length > 0 || 
+    message.context.automationIds?.length > 0
+  );
+
   return (
     <div 
       className={`mb-4 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -26,6 +37,46 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
             : 'bg-blue-950/40 text-white rounded-tl-none border border-blue-800/50'
         }`}
       >
+        {/* Context bar */}
+        {hasContext && (
+          <div className="mb-2 pb-2 border-b border-current/20">
+            <div className="flex flex-wrap gap-1">
+              {/* Datasets */}
+              {message.context?.datasetIds?.map((datasetId: string) => (
+                <div 
+                  key={datasetId}
+                  className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-blue-900/50 text-blue-200"
+                >
+                  <Database size={10} />
+                  {datasets?.timeSeries.find((dataset: TimeSeriesDataset) => dataset.id === datasetId)?.name}
+                </div>
+              ))}
+              
+              {/* Analyses */}
+              {message.context?.analysisIds?.map((analysisId: string) => (
+                <div 
+                  key={analysisId}
+                  className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-purple-900/50 text-purple-200"
+                >
+                  <BarChart size={10} />
+                  {analysisJobResults?.analysesJobResults.find((analysis: AnalysisJobResultMetadata) => analysis.jobId === analysisId)?.name}
+                </div>
+              ))}
+              
+              {/* Automations */}
+              {message.context?.automationIds?.map((automationId: string) => (
+                <div 
+                  key={automationId}
+                  className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-orange-900/50 text-orange-200"
+                >
+                  <Zap size={10} />
+                  Automation {automationId.slice(0, 6)}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
         <div className="prose prose-invert max-w-none">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {message.content}
@@ -47,7 +98,7 @@ function Chat() {
   const [showAnalysisPopup, setShowAnalysisPopup] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(false);
   
-  const { submitPrompt, startNewConversation, conversations, currentConversation } = useChat();
+  const { submitPrompt, startNewConversation, currentConversation } = useChat();
   const { datasetsInContext, removeDatasetFromContext, analysisesInContext, removeAnalysisFromContext } = useAgentContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -281,9 +332,11 @@ function Chat() {
               </div>
             )}
             {/* Message list */}
-            {currentConversation?.messages.map((message: ChatMessage, index: number) => (
-              <ChatListItem key={index} message={message} />
-            ))}
+            {currentConversation?.messages
+              .sort((a: ChatMessage, b: ChatMessage) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+              .map((message: ChatMessage, index: number) => (
+                <ChatListItem key={index} message={message} />
+              ))}
             {/* Invisible element for scrolling to bottom */}
             <div ref={messagesEndRef} style={{ height: '1px' }} />
           </div>

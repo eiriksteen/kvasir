@@ -1,6 +1,6 @@
 import {EventSource} from 'eventsource'
 import { Analyses } from "@/types/analysis";
-import { ChatMessageAPI, Conversation, Prompt, ConversationCreate } from "@/types/chat";
+import { Conversation, Prompt, ConversationCreate } from "@/types/chat";
 import { Datasets } from "@/types/datasets";
 import { Job } from "@/types/jobs";
 import { IntegrationAgentFeedback, IntegrationMessage } from "@/types/integration";
@@ -204,23 +204,23 @@ export async function* streamChat(token: string, prompt: Prompt): AsyncGenerator
   }
 }
 
-export async function fetchMessages(token: string, conversationId: string): Promise<ChatMessageAPI[]> {
-  const response = await fetch(`${API_URL}/chat/conversation/${conversationId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-  });
+// export async function fetchMessages(token: string, conversationId: string): Promise<ChatMessageAPI[]> {
+//   const response = await fetch(`${API_URL}/chat/conversation/${conversationId}`, {
+//     headers: {
+//       'Authorization': `Bearer ${token}`,
+//       'Content-Type': 'application/json'
+//     },
+//   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to fetch messages', errorText);
-    throw new Error(`Failed to fetch messages: ${response.status} ${errorText}`);
-  }
+//   if (!response.ok) {
+//     const errorText = await response.text();
+//     console.error('Failed to fetch messages', errorText);
+//     throw new Error(`Failed to fetch messages: ${response.status} ${errorText}`);
+//   }
 
-  const data = await response.json();
-  return data;
-}
+//   const data = await response.json();
+//   return data;
+// }
 
 export async function postConversation(token: string, conversationData: ConversationCreate): Promise<Conversation> {
   const response = await fetch(`${API_URL}/chat/conversation`, {
