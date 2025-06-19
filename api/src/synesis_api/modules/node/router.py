@@ -9,6 +9,7 @@ from synesis_api.modules.node.service import (
     get_node,
     get_project_nodes,
     update_node_position,
+    delete_node,
 )
 from synesis_api.modules.project.service import get_project
 
@@ -70,3 +71,11 @@ async def update_node_position_endpoint(
         raise HTTPException(status_code=404, detail="Could not update node position")
     
     return updated_node
+
+@router.delete("/delete/{node_id}", response_model=UUID)
+async def delete_node_endpoint(
+    node_id: UUID,
+    user: User = Depends(get_current_user)
+) -> UUID:
+    await delete_node(node_id)
+    return node_id

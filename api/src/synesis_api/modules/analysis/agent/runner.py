@@ -33,6 +33,8 @@ from synesis_api.auth.schema import User
 from uuid import UUID
 from synesis_api.modules.project.service import update_project
 from synesis_api.modules.project.schema import ProjectUpdate
+from synesis_api.modules.node.router import create_node
+from synesis_api.modules.node.schema import FrontendNodeCreate
 
 # Add dataset cache
 dataset_cache: Dict[str, pd.DataFrame] = {}
@@ -204,6 +206,18 @@ class AnalysisAgentRunner:
         if len(analysis_request.analysis_ids) == 0:
             await insert_analysis_job_results_into_db(result)
             await update_project(analysis_request.project_id, ProjectUpdate(type="analysis", id=analysis_job.id, remove=False))
+
+            frontend_node = FrontendNodeCreate(
+                project_id=analysis_request.project_id,
+                x_position=300.0,
+                y_position=0.0,
+                type="analysis",
+                dataset_id=None,
+                analysis_id=analysis_job.id,
+                automation_id=None,
+            )
+            await create_node(frontend_node)
+            
         else:
             await update_analysis_job_results_in_db(result)
         

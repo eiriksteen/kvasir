@@ -16,8 +16,8 @@ interface IntegrationOverviewProps {
 
 export default function IntegrationOverview({ setCurrentView }: IntegrationOverviewProps) {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const { jobs, isLoading, error } = useJobs('integration'); // Use useJobs hook here
-  const { selectedProject, updateSelectedProject } = useProject();
+  const { jobs } = useJobs('integration'); // Use useJobs hook here
+  const { selectedProject, addDatasetToProject, removeDatasetFromProject } = useProject();
 
   // Define helper functions locally
   const formatDate = (dateString: string) => {
@@ -53,24 +53,12 @@ export default function IntegrationOverview({ setCurrentView }: IntegrationOverv
 
   const handleAddToProject = async (e: React.MouseEvent, jobId: string) => {
     e.stopPropagation();
-    if (!selectedProject) return;
-    
-    await updateSelectedProject({
-      type: "dataset",
-      id: jobId,
-      remove: false,
-    });
+    await addDatasetToProject(jobId);
   };
 
   const handleRemoveFromProject = async (e: React.MouseEvent, jobId: string) => {
     e.stopPropagation();
-    if (!selectedProject) return;
-    
-    await updateSelectedProject({
-      type: "dataset",
-      id: jobId,
-      remove: true,
-    });
+    await removeDatasetFromProject(jobId);
   };
 
   const handleBack = () => {
@@ -94,17 +82,7 @@ export default function IntegrationOverview({ setCurrentView }: IntegrationOverv
         <h3 className="text-md font-semibold text-zinc-200">Jobs Overview</h3>
       </div>
       <div className="flex-grow p-4 overflow-y-auto space-y-3">
-        {isLoading ? (
-          <div className="flex justify-center items-center h-full text-zinc-500">
-             <Loader2 size={20} className="animate-spin mr-2" /> Loading jobs...
-          </div>
-        ) : error ? (
-          <div className="text-center text-red-400 pt-10 flex flex-col items-center">
-             <AlertTriangle size={24} className="mb-2"/>
-             <p>Error loading jobs:</p>
-             <p className="text-sm text-red-500">{error.message}</p>
-          </div>
-        ) : jobs.length === 0 ? (
+        {jobs.length === 0 ? (
           <div className="text-center text-zinc-500 pt-16">
              <FilePlus size={32} className="mx-auto mb-3 opacity-50"/>
              <p className="font-medium text-zinc-400">No integration jobs found.</p>

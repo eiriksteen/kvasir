@@ -11,15 +11,6 @@ class Node(BaseSchema):
 class NodeInDB(Node):
     type: Literal["dataset", "analysis", "automation"]
 
-class DatasetNode(Node):
-    dataset_id: UUID
-
-class AnalysisNode(Node):
-    analysis_id: UUID
-
-class AutomationNode(Node):
-    automation_id: UUID
-
 class FrontendNode(BaseSchema):
     id: UUID
     project_id: UUID

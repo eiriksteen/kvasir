@@ -3,10 +3,10 @@ from uuid import UUID, uuid4
 from sqlalchemy import select, insert, update, delete
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.node.models import node, dataset_node, analysis_node, automation_node
-from synesis_api.modules.node.schema import Node, DatasetNode, AnalysisNode, AutomationNode, FrontendNode
+from synesis_api.modules.node.schema import FrontendNode, FrontendNodeCreate
 
 
-async def create_node(frontend_node: FrontendNode):
+async def create_node(frontend_node: FrontendNodeCreate):
 
     # First create the base node
     id = uuid4()
@@ -163,18 +163,20 @@ async def update_node_position(frontend_node: FrontendNode) -> Optional[Frontend
     return frontend_node
 
 
-# async def delete_node(node_id: UUID) -> bool:
-#     # Delete from the specific node type table first
-#     dataset_query = delete(dataset_node).where(dataset_node.c.id == node_id)
-#     analysis_query = delete(analysis_node).where(analysis_node.c.id == node_id)
-#     automation_query = delete(automation_node).where(automation_node.c.id == node_id)
+async def delete_node(node_id: UUID) -> bool:
+    # Delete from the specific node type table first
+    dataset_query = delete(dataset_node).where(dataset_node.c.id == node_id)
+    await execute(dataset_query, commit_after=True)
+
+    analysis_query = delete(analysis_node).where(analysis_node.c.id == node_id)
+    await execute(analysis_query, commit_after=True)
     
-#     await execute(dataset_query, commit_after=True)
-#     await execute(analysis_query, commit_after=True)
-#     await execute(automation_query, commit_after=True)
+    automation_query = delete(automation_node).where(automation_node.c.id == node_id)
+    await execute(automation_query, commit_after=True)
     
-#     # Then delete from the base node table
-#     query = delete(node).where(node.c.id == node_id)
-#     result = await execute(query, commit_after=True)
     
-#     return result.rowcount > 0
+    # Then delete from the base node table
+    query = delete(node).where(node.c.id == node_id)
+    result = await execute(query, commit_after=True)
+    
+    return result.rowcount > 0

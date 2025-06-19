@@ -468,4 +468,19 @@ export async function createNode(token: string, node: FrontendNodeCreate): Promi
   return response.json();
 }
 
+export async function deleteNode(token: string, nodeId: string): Promise<string> {
+  const response = await fetch(`${API_URL}/node/delete/${nodeId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete node: ${response.status} ${errorText}`);
+  }
+  return response.json();
+}
+
 

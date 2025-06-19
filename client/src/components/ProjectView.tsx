@@ -18,7 +18,6 @@ import DataVisualizer from './DataVisualizer';
 import AnalysisItemSmall from './analysis/AnalysisItem';
 import { X } from 'lucide-react';
 import { FrontendNode } from '@/types/node';
-import { useNode } from '@/hooks/useNode';
 import DatasetNode from './react-flow-components/DatasetNode';
 import AnalysisNode from './react-flow-components/AnalysisNode';
 import TransportEdge from './react-flow-components/TransportEdge';
@@ -34,16 +33,16 @@ const edgeTypes: EdgeTypes = {
 
 
 const ProjectView: React.FC = () => {
-  const { selectedProject } = useProject();
+  const { selectedProject, frontendNodes, updatePosition } = useProject();
   const { datasets } = useDatasets();
   const { analysisJobResults } = useAnalysis();
   const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
   const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
 
-  const { frontendNodes, updatePosition } = useNode(selectedProject?.id || '');
-
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+
+  console.log("frontendNodes in ProjectView", frontendNodes);
 
   // Memoize nodes
   const memoizedNodes = useMemo(() => {
