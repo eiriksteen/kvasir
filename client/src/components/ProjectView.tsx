@@ -15,7 +15,7 @@ import '@xyflow/react/dist/style.css';
 import { useProject } from '@/hooks/useProject';
 import { useDatasets, useAnalysis } from '@/hooks';
 import DataVisualizer from './DataVisualizer';
-import AnalysisItemSmall from './analysis/AnalysisItem';
+import AnalysisItem from './analysis/AnalysisItem';
 import { X } from 'lucide-react';
 import { FrontendNode } from '@/types/node';
 import DatasetNode from './react-flow-components/DatasetNode';
@@ -160,24 +160,13 @@ const ProjectView: React.FC = () => {
       if (!analysis) return null;
 
       return (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm ">
-          <div className="relative flex w-full max-w-5xl h-[80vh] bg-gray-950 border border-[#101827] rounded-lg shadow-2xl overflow-hidden">
-            <button
-              onClick={() => setSelectedAnalysis(null)}
-              className="absolute top-3 right-3 z-50 p-1 rounded-full text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-              title="Close (Esc)"
-            >
-              <X size={20} />
-            </button>
-            <div className="flex-1 flex flex-col overflow-hidden bg-[#1a2438] p-2">
-              <AnalysisItemSmall
-                analysis={analysis}
-                isSelected={false}
-                onClick={() => {}}
-              />
-            </div>
-          </div>
-        </div>
+        <AnalysisItem
+          analysis={analysis}
+          isSelected={false}
+          onClick={() => {}}
+          isModal={true}
+          onClose={() => setSelectedAnalysis(null)}
+        />
       );
     }
 

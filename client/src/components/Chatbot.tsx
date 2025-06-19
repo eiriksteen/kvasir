@@ -177,7 +177,7 @@ function Chat() {
 
   return (
     <div 
-      className="absolute right-0 h-screen pt-12 text-white flex flex-col bg-[#1a1625]/95"
+      className="absolute right-0 h-screen pt-1 text-white flex flex-col bg-[#1a1625]/95"
       style={{ width: `${width}px` }}
     >
       {showAnalysisPopup && (
@@ -237,11 +237,12 @@ function Chat() {
           <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-sm pl-1 pt-1 font-medium text-purple-300">Context</h3>
+              <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select items from the left panel</h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {datasetsInContext.timeSeries.length === 0 && analysisesInContext.length === 0 ? (
+              {/* {datasetsInContext.timeSeries.length === 0 && analysisesInContext.length === 0 ? (
                 <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select items from the left panel</h3>
-              ) : (
+              ) : ( */}
                 <>
                   {/* Datasets */}
                   {datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => (
@@ -277,11 +278,11 @@ function Chat() {
                     </div>
                   ))}
                 </>
-              )}
+              {/* )} */}
             </div>
           </div>
 
-          {/* Quick action buttons */}
+          {/* Quick action buttons
           <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
             <div className="flex flex-wrap gap-2">
               <button
@@ -309,7 +310,7 @@ function Chat() {
                 Run analysis on datasets
               </button>
             </div>
-          </div>
+          </div> */}
 
           {/* Messages container */}
           <div 

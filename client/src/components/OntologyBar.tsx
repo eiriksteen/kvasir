@@ -1,15 +1,13 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Database, Plus, Check, Upload, Trash2, ChevronLeft, ChevronRight, FolderGit2, BarChart3, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { Database, Plus, Check, ChevronLeft, ChevronRight, FolderGit2, BarChart3, Zap, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { Automation } from '@/types/automations';
 import { useAgentContext, useDatasets, useAnalysis, useProject } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
-import SelectProject from './SelectProject';
-import { Project } from '@/types/project';
 import IntegrationManager from './integration/IntegrationManager';
 import AddAnalysis from './AddAnalysis';
 
@@ -75,14 +73,6 @@ function ListItem({ item, type, isInContext, onClick }: ListItemProps) {
             <div className="flex justify-between items-center pr-2">
                 <div className="flex-1">
                     <div className="text-sm font-medium">{name}</div>
-                    <div className="text-xs text-zinc-400 flex items-center gap-1.5">
-                        <span>{type.charAt(0).toUpperCase() + type.slice(1)}</span>
-                        {isInContext && (
-                            <span className={`bg-[#0e1a30] ${theme.iconColor} text-xs px-1.5 py-0.5 rounded-full flex items-center gap-0.5`}>
-                                {theme.icon}
-                            </span>
-                        )}
-                    </div>
                 </div>
                 
                 <button 
@@ -93,7 +83,7 @@ function ListItem({ item, type, isInContext, onClick }: ListItemProps) {
                     className={`p-1.5 rounded-full border shadow-md ${theme.button.bg}`}
                     title={isInContext ? "Remove from context" : "Add to chat context"}
                 >
-                    {isInContext ? <Check size={14} /> : <Plus size={14} />}
+                    {isInContext ? <Check size={14} /> : <ChevronRight size={14} />}
                 </button>
             </div>
         </div>
@@ -102,7 +92,6 @@ function ListItem({ item, type, isInContext, onClick }: ListItemProps) {
 
 export default function OntologyBar() {
     const [isCollapsed, setIsCollapsed] = useState(false);
-    const [showAddProject, setShowAddProject] = useState(false);
     const [showIntegrationManager, setShowIntegrationManager] = useState(false);
     const [showAddAnalysis, setShowAddAnalysis] = useState(false);
     const [expandedSections, setExpandedSections] = useState({
@@ -128,14 +117,6 @@ export default function OntologyBar() {
     const { datasets } = useDatasets();
     const automations: Automation[] = [];
     const { analysisJobResults } = useAnalysis();
-
-    // Filter entities based on project IDs
-    // const filteredDatasets = useMemo(() => {
-    //     if (!selectedProject || !datasets?.timeSeries) return [];
-    //     return datasets.timeSeries.filter(dataset => 
-    //         selectedProject.datasetIds.includes(dataset.id)
-    //     );
-    // }, [selectedProject, datasets]);
 
     const filteredAnalysis = useMemo(() => {
         if (!selectedProject || !analysisJobResults?.analysesJobResults) return [];
@@ -179,63 +160,49 @@ export default function OntologyBar() {
         }
     };
 
-    const handleSelectProject = (project: Project) => {
-        setShowAddProject(false);
-    };
-
     const renderContent = () => {
         if (!selectedProject) {
             return (
                 <div className="flex flex-col h-full items-center justify-center p-4">
                     <p className="text-sm text-zinc-400 mb-4">No project selected</p>
-                    <button
-                        onClick={() => setShowAddProject(true)}
-                        className="w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-md hover:from-blue-500 hover:to-blue-600 transition-all shadow-md hover:shadow-lg border border-blue-500 flex items-center justify-center gap-2"
-                    >
-                        <Plus size={16} />
-                        <span>Select Project</span>
-                    </button>
+                    <p className="text-xs text-zinc-500 text-center">Use the exit button in the header to return to project selection</p>
                 </div>
             );
         }
 
         return (
             <div className="flex flex-col h-full">
-                <button
-                    onClick={() => setShowAddProject(true)}
-                    className="w-full p-3 bg-[#111827] border-b border-[#1a2438] text-left hover:bg-[#1a2438] transition-colors"
-                >
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <FolderGit2 size={16} className="text-blue-400" />
-                            <span className="text-sm font-medium">{selectedProject.name}</span>
-                        </div>
-                        <ChevronRight size={16} className="text-zinc-400" />
+                <div className="w-full p-3 bg-[#111827] border-b border-[#1a2438] text-left">
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{selectedProject.name}</span>
                     </div>
-                </button>
+                </div>
 
                 <div className="flex-1 overflow-y-auto">
                     {/* Datasets Section */}
                     <div className="border-b border-[#1a2438]">
-                        <div className="flex items-center justify-between p-3">
+                        <div className="flex items-center justify-between p-1 hover:bg-[#1a2438] transition-colors rounded">
                             <button
                                 onClick={() => toggleSection('datasets')}
-                                className="flex items-center gap-2 hover:bg-[#1a2438] transition-colors p-2 rounded"
+                                className="flex items-center gap-2 p-2 rounded flex-1"
                             >
-                                <Database size={16} className="text-blue-400" />
-                                <span className="text-sm font-medium">Datasets</span>
                                 {expandedSections.datasets ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                <span className="text-sm font-medium">Datasets</span>
                             </button>
                             <button
-                                onClick={() => setShowIntegrationManager(true)}
-                                className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]"
-                                title="Add Dataset"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowIntegrationManager(true);
+                                }}
+                                className="px-3 py-1.5 rounded-md border shadow-md bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170] text-xs font-medium flex items-center gap-1.5"
+                                title="Import Data"
                             >
-                                <Plus size={14} />
+                                <Download size={12} />
+                                <span>Import Data</span>
                             </button>
                         </div>
                         {expandedSections.datasets && (
-                            <div className="p-3 space-y-2">
+                            <div className="p-1 space-y-2">
                                 {datasets?.timeSeries
                                     .filter(dataset => selectedProject.datasetIds.includes(dataset.id))
                                     .map((dataset) => (
@@ -253,25 +220,28 @@ export default function OntologyBar() {
 
                     {/* Analysis Section */}
                     <div className="border-b border-[#1a2438]">
-                        <div className="flex items-center justify-between p-3">
+                        <div className="flex items-center justify-between p-1 hover:bg-[#1a2438] transition-colors rounded">
                             <button
                                 onClick={() => toggleSection('analysis')}
-                                className="flex items-center gap-2 hover:bg-[#1a2438] transition-colors p-2 rounded"
+                                className="flex items-center gap-2 p-2 rounded flex-1"
                             >
-                                <BarChart3 size={16} className="text-blue-400" />
-                                <span className="text-sm font-medium">Analysis</span>
                                 {expandedSections.analysis ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                <span className="text-sm font-medium">Analysis</span>
                             </button>
                             <button
-                                onClick={() => setShowAddAnalysis(true)}
-                                className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowAddAnalysis(true);
+                                }}
+                                className="px-3 py-1.5 rounded-md border shadow-md bg-gradient-to-r from-[#1a1625] to-[#271a30] text-purple-300 hover:text-white hover:from-purple-600 hover:to-purple-700 border-[#271a30] text-xs font-medium flex items-center gap-1.5"
                                 title="Add Analysis"
                             >
                                 <Plus size={14} />
+                                <span>Add Analysis</span>
                             </button>
                         </div>
                         {expandedSections.analysis && (
-                            <div className="p-3 space-y-2">
+                            <div className="p-1 space-y-2">
                                 {filteredAnalysis.map((analysis) => (
                                     <ListItem
                                         key={analysis.jobId}
@@ -287,25 +257,28 @@ export default function OntologyBar() {
 
                     {/* Automations Section */}
                     <div className="border-b border-[#1a2438]">
-                        <div className="flex items-center justify-between p-3">
+                        <div className="flex items-center justify-between p-1 hover:bg-[#1a2438] transition-colors rounded">
                             <button
                                 onClick={() => toggleSection('automations')}
-                                className="flex items-center gap-2 hover:bg-[#1a2438] transition-colors p-2 rounded"
+                                className="flex items-center gap-2 p-2 rounded flex-1"
                             >
-                                <Zap size={16} className="text-blue-400" />
-                                <span className="text-sm font-medium">Automations</span>
                                 {expandedSections.automations ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                <span className="text-sm font-medium">Automations</span>
                             </button>
                             <button
-                                onClick={() => {/* TODO: Implement add automation */}}
-                                className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    {/* TODO: Implement add automation */};
+                                }}
+                                className="px-3 py-1.5 rounded-md border shadow-md bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170] text-xs font-medium flex items-center gap-1.5"
                                 title="Add Automation"
                             >
                                 <Plus size={14} />
+                                <span>Add Automation</span>
                             </button>
                         </div>
                         {expandedSections.automations && (
-                            <div className="p-3 space-y-2">
+                            <div className="p-1 space-y-2">
                                 {filteredAutomations.map((automation) => (
                                     <ListItem
                                         key={automation.id}
@@ -338,43 +311,26 @@ export default function OntologyBar() {
                 {isCollapsed && (
                     <div className="flex flex-col items-center pt-12 gap-4">
                         <button
-                            onClick={() => setShowAddProject(true)}
-                            className={`p-2 rounded-lg ${!selectedProject ? 'bg-[#1a2438] text-blue-400' : 'text-zinc-400'}`}
-                            title="Select Project"
+                            className="p-2 rounded-lg text-zinc-400"
+                            title="Datasets"
                         >
-                            <FolderGit2 size={20} />
+                            <Database size={20} />
                         </button>
-                        {selectedProject && (
-                            <>
-                                <button
-                                    className="p-2 rounded-lg text-zinc-400"
-                                    title="Datasets"
-                                >
-                                    <Database size={20} />
-                                </button>
-                                <button
-                                    className="p-2 rounded-lg text-zinc-400"
-                                    title="Analysis"
-                                >
-                                    <BarChart3 size={20} />
-                                </button>
-                                <button
-                                    className="p-2 rounded-lg text-zinc-400"
-                                    title="Automations"
-                                >
-                                    <Zap size={20} />
-                                </button>
-                            </>
-                        )}
+                        <button
+                            className="p-2 rounded-lg text-zinc-400"
+                            title="Analysis"
+                        >
+                            <BarChart3 size={20} />
+                        </button>
+                        <button
+                            className="p-2 rounded-lg text-zinc-400"
+                            title="Automations"
+                        >
+                            <Zap size={20} />
+                        </button>
                     </div>
                 )}
             </div>
-
-            {showAddProject && (
-                <SelectProject
-                    onSelect={handleSelectProject}
-                />
-            )}
 
             <IntegrationManager
                 isOpen={showIntegrationManager}
