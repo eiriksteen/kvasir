@@ -42,8 +42,6 @@ const ProjectView: React.FC = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
-  console.log("frontendNodes in ProjectView", frontendNodes);
-
   // Memoize nodes
   const memoizedNodes = useMemo(() => {
     if (!selectedProject || !datasets?.timeSeries || !analysisJobResults?.analysesJobResults) {

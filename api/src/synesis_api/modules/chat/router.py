@@ -1,13 +1,9 @@
-import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from typing import Annotated, List
-from pydantic_core import to_jsonable_python
-from pydantic_ai.messages import ModelRequest, SystemPromptPart
-from synesis_api.modules.ontology.service import get_user_datasets_by_ids
-from synesis_api.modules.chat.schema import ChatMessage, Conversation, Prompt, Context
+from synesis_api.modules.chat.schema import ChatMessage, Conversation, Prompt, Context, ConversationCreate, ConversationInDB
 from synesis_api.modules.chat.service import (
     create_conversation,
     get_messages,
@@ -21,7 +17,6 @@ from synesis_api.modules.chat.service import (
 from synesis_api.modules.chat.agent.agent import chatbot_agent, OrchestratorOutput
 from synesis_api.auth.service import get_current_user, user_owns_conversation
 from synesis_api.auth.schema import User
-from synesis_api.modules.analysis.service import get_user_analyses_by_ids
 from synesis_api.modules.analysis.agent.agent import analysis_agent
 from synesis_api.modules.analysis.agent.runner import analysis_agent_runner, AnalysisRequest, DelegateResult
 
@@ -38,7 +33,8 @@ async def post_chat(
         raise HTTPException(
             status_code=403, detail="You do not have access to this conversation")
     
-    await create_context(user.id, prompt.context)
+    if prompt.context:
+        contextInDB = await create_context(user.id, prompt.context)
     
     async def stream_messages():
         messages = await get_messages_pydantic(prompt.context.conversation_id)
@@ -57,7 +53,7 @@ async def post_chat(
             new_messages = result.new_messages_json()
 
             await create_messages_pydantic(prompt.context.conversation_id, new_messages)
-            await create_message(prompt.context.conversation_id, "user", prompt.content)
+            
             await create_message(prompt.context.conversation_id, "assistant", text)
 
         elif handoff_agent == "analysis" or handoff_agent == "automation":
@@ -84,15 +80,39 @@ async def post_chat(
             raise HTTPException(
                 status_code=400, detail="Invalid handoff agent")
         
-        
+        await create_message(prompt.context.conversation_id, "user", prompt.content, contextInDB.id if contextInDB else None)
         
 
     return StreamingResponse(stream_messages(), media_type="text/plain")
 
 
 @router.post("/conversation")
-async def post_user_conversation(user: Annotated[User, Depends(get_current_user)] = None) -> Conversation:
-    conversation = await create_conversation(user.id)
+async def post_user_conversation(conversation_data: ConversationCreate, user: Annotated[User, Depends(get_current_user)] = None) -> Conversation:
+    name = await chatbot_agent.run(f"""The user wants to start a new conversation. The user has written this: {conversation_data.prompt.content}. 
+                                   What is the name of the conversation? Just give me the name of the conversation, no other text.
+                                   """, output_type=str)
+    name = name.output.replace('"', '').replace("'", "").strip()
+
+    conversation_id = uuid.uuid4()
+
+    conversation_in_db = await create_conversation(conversation_id, conversation_data.project_id, user.id, name)
+
+    print(conversation_in_db)
+    print("--------------------------------")
+    print(conversation_in_db.model_dump())
+    conversation = Conversation(
+        **conversation_in_db.model_dump(),
+        list_of_messages=[]
+    )
+
+    if conversation_data.prompt.context:
+        contextInDB = await create_context(user.id, conversation_data.prompt.context)
+        message = await create_message(conversation_id, "user", conversation_data.prompt.content, contextInDB.id if contextInDB else None)
+    else:
+        message = await create_message(conversation_id, "user", conversation_data.prompt.content)
+
+    conversation.list_of_messages.append(message)
+    
     return conversation
 
 

@@ -2,24 +2,20 @@
 
 import { memo } from 'react';
 import { useState, useRef, useEffect } from 'react';
-import { Send, Database, X, BarChart } from 'lucide-react';
+import { Send, Database, X, BarChart, History } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useChat, useConversation, useAgentContext, useAnalysis } from '@/hooks';
+import { useChat, useAgentContext } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import { ChatMessage, Prompt } from '@/types/chat';
+import { ChatMessage } from '@/types/chat';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 import Popup from './Popup';
-import { useProject } from '@/hooks/useProject';
-
-
-
-
+import { ChatHistory } from './ChatHistory';
 
 interface ChatProps {
-  conversationId: string;
+  conversationId: string | null;
 }
 
 const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
@@ -47,18 +43,16 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
 // Add display name to the memo component
 ChatListItem.displayName = 'ChatListItem';
 
-
 function Chat({ conversationId }: ChatProps) {
   
   const [input, setInput] = useState('');
   const [width, setWidth] = useState(400);
   const [isDragging, setIsDragging] = useState(false);
   const [showAnalysisPopup, setShowAnalysisPopup] = useState(false);
+  const [showChatHistory, setShowChatHistory] = useState(false);
   
-  const { messages, submitPrompt } = useChat(conversationId);
-  const { selectedProject } = useProject();
+  const { messages, submitPrompt, currentConversationID } = useChat();
   const { datasetsInContext, removeDatasetFromContext, analysisesInContext, removeAnalysisFromContext } = useAgentContext();
-  const { data: session } = useSession();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
@@ -84,17 +78,7 @@ function Chat({ conversationId }: ChatProps) {
 
   const handleSubmit = () => {
     if (input.trim()) {
-      const prompt = {
-        context: {
-          projectId: selectedProject?.id,
-          conversationId: conversationId,
-          datasetIds: datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => dataset.id),
-          automationIds: [],
-          analysisIds: analysisesInContext.map((analysis: AnalysisJobResultMetadata) => analysis.jobId),
-        },
-        content: input
-      }
-      submitPrompt(prompt as Prompt);
+      submitPrompt(input);
       setInput('');
     }
   };
@@ -128,6 +112,11 @@ function Chat({ conversationId }: ChatProps) {
     setIsDragging(true);
   };
 
+  const handleConversationSelect = () => {
+    // Close the history panel when a conversation is selected
+    setShowChatHistory(false);
+  };
+
   const isCollapsed = width <= MIN_WIDTH;
 
   return (
@@ -142,6 +131,7 @@ function Chat({ conversationId }: ChatProps) {
           type="analysis"
         />
       )}
+      
       {/* Drag handle */}
       <div 
         ref={dragHandleRef}
@@ -152,6 +142,30 @@ function Chat({ conversationId }: ChatProps) {
 
       {!isCollapsed && (
         <>
+          {/* Header with history button */}
+          <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3 flex justify-between items-center">
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-purple-300">Chat</h3>
+            </div>
+            <button
+              onClick={() => setShowChatHistory(!showChatHistory)}
+              className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-purple-300 hover:text-white"
+              title="Chat History"
+            >
+              <History size={18} />
+            </button>
+          </div>
+
+          {/* Chat History Panel */}
+          {showChatHistory && (
+            <div className="border-b border-purple-900/30 bg-[#1a1625]/90" style={{ height: '300px' }}>
+              <ChatHistory
+                selectedConversationId={currentConversationID}
+                onConversationSelect={handleConversationSelect}
+              />
+            </div>
+          )}
+
           {/* Combined context bar */}
           <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
             <div className="flex justify-between items-center mb-2">
@@ -204,61 +218,25 @@ function Chat({ conversationId }: ChatProps) {
           <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => submitPrompt({
-                  context: {
-                    projectId: selectedProject?.id,
-                    conversationId: conversationId,
-                    datasetIds: datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => dataset.id),
-                    automationIds: [],
-                    analysisIds: analysisesInContext.map((analysis: AnalysisJobResultMetadata) => analysis.jobId),
-                  },
-                  content: "What are some interesting AI/ML or data science use cases for this data?"
-                })}
+                onClick={() => submitPrompt("What are some interesting AI/ML or data science use cases for this data?")}
                 className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 Suggest use cases
               </button>
               <button
-                onClick={() => submitPrompt({
-                  context: {
-                    projectId: selectedProject?.id,
-                    conversationId: conversationId,
-                    datasetIds: datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => dataset.id),
-                    automationIds: [],
-                    analysisIds: analysisesInContext.map((analysis: AnalysisJobResultMetadata) => analysis.jobId),
-                  },
-                  content: "Who are you and what can you do?"
-                })}
+                onClick={() => submitPrompt("Who are you and what can you do?")}
                 className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 What can you do?
               </button>
               <button
-                onClick={() => submitPrompt({
-                  context: {
-                    projectId: selectedProject?.id,
-                    conversationId: conversationId,
-                    datasetIds: datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => dataset.id),
-                    automationIds: [],
-                    analysisIds: analysisesInContext.map((analysis: AnalysisJobResultMetadata) => analysis.jobId),
-                  },
-                  content: "Can you describe the structure and content of the selected datasets?"
-                })}
+                onClick={() => submitPrompt("Can you describe the structure and content of the selected datasets?")}
                 className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 Describe my data
               </button>
               <button
-                onClick={() => submitPrompt({
-                  context: {
-                    projectId: selectedProject?.id,
-                    conversationId: conversationId,
-                    datasetIds: datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => dataset.id),
-                    automationIds: [],
-                    analysisIds: analysisesInContext.map((analysis: AnalysisJobResultMetadata) => analysis.jobId),
-                  },
-                  content: "Plan a detailed analysis on the selected datasets."
-                })}
+                onClick={() => submitPrompt("Plan a detailed analysis on the selected datasets.")}
                 className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 Run analysis on datasets
@@ -323,22 +301,12 @@ function Chat({ conversationId }: ChatProps) {
   );
 }
 
-
 export default function Chatbot() {
-
   const {data: session} = useSession();
-  const { currentConversationID, createConversation } = useConversation();
+  const { currentConversationID } = useChat();
 
   if (!session) {
     redirect("/login");
-  }
-
-  useEffect(() => {
-    createConversation();
-  }, [createConversation]);
-
-  if (!currentConversationID) {
-    return <div>Loading...</div>;
   }
 
   return <Chat 

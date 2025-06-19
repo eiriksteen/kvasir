@@ -371,7 +371,6 @@ class AnalysisAgentRunner:
 
             await create_messages_pydantic(analysis_request.conversation_id, pydantic_messages_to_db)
         
-        await create_message(analysis_request.conversation_id, "user", analysis_request.prompt)
         await create_message(analysis_request.conversation_id, "assistant", text)
         
         

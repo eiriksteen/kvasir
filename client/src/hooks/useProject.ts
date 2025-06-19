@@ -116,7 +116,6 @@ export const useProject = () => {
     },
     {
       populateCache: ( newData: string ) => {
-        console.log("newData in populateCache in deleteNodeTrigger", newData);
         if (frontendNodes) {
           return frontendNodes.filter((node) => node.id !== newData);
         }

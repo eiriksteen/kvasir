@@ -4,18 +4,18 @@ from synesis_api.base_schema import BaseSchema
 import uuid
 
 
-class Context(BaseSchema):
-    project_id: uuid.UUID
-    conversation_id: uuid.UUID
-    dataset_ids: List[uuid.UUID] = []
-    automation_ids: List[uuid.UUID] = []
-    analysis_ids: List[uuid.UUID] = []
-    created_at: datetime = datetime.now(timezone.utc)
-
 class ChatbotOutput(BaseSchema):
     goal_description: str
     deliverable_description: str
     task_type: Literal["analysis", "automation"]
+
+
+class Context(BaseSchema):
+    id: uuid.UUID | None = None
+    project_id: uuid.UUID
+    dataset_ids: List[uuid.UUID] = []
+    automation_ids: List[uuid.UUID] = []
+    analysis_ids: List[uuid.UUID] = []
 
 
 class ChatMessage(BaseSchema):
@@ -23,18 +23,32 @@ class ChatMessage(BaseSchema):
     conversation_id: uuid.UUID
     role: Literal["user", "assistant"]
     content: str
+    context_id: uuid.UUID | None = None
     created_at: datetime = datetime.now(timezone.utc)
 
 
 class Prompt(BaseSchema):
-    context: Context
+    context: Context | None = None
     content: str
 
+class ConversationCreate(BaseSchema):
+    project_id: uuid.UUID
+    prompt: Prompt
+
+class ConversationInDB(BaseSchema):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    name: str
+    project_id: uuid.UUID
+    created_at: datetime = datetime.now(timezone.utc)
 
 class Conversation(BaseSchema):
     id: uuid.UUID
     user_id: uuid.UUID
-
+    project_id: uuid.UUID
+    name: str
+    created_at: datetime = datetime.now(timezone.utc)
+    list_of_messages: List[ChatMessage]
 
 class PydanticMessage(BaseSchema):
     id: uuid.UUID
@@ -45,10 +59,6 @@ class PydanticMessage(BaseSchema):
 
 class ContextInDB(BaseSchema):
     id: uuid.UUID
-    user_id: uuid.UUID
-    project_id: uuid.UUID
-    conversation_id: uuid.UUID
-    created_at: datetime
 
 
 class DatasetContextInDB(BaseSchema):

@@ -12,6 +12,8 @@ chat_message = Table(
            ForeignKey("chat.conversation.id"), nullable=False),
     Column("role", String, nullable=False),
     Column("content", String, nullable=False),
+    Column("context_id", UUID(as_uuid=True),
+           ForeignKey("chat.context.id"), nullable=True),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
     schema="chat"
@@ -37,6 +39,11 @@ conversations = Table(
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     Column("user_id", UUID(as_uuid=True),
            ForeignKey("auth.users.id"), nullable=False),
+    Column("project_id", UUID(as_uuid=True),
+           ForeignKey("project.project.id"), nullable=False),
+    Column("name", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           nullable=False, default=func.now()),
     schema="chat"
 )
 
@@ -45,14 +52,6 @@ context = Table(
     "context",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
-    Column("user_id", UUID(as_uuid=True),
-           ForeignKey("auth.users.id"), nullable=False),
-    Column("project_id", UUID(as_uuid=True),
-           ForeignKey("project.project.id"), nullable=False),
-    Column("conversation_id", UUID(as_uuid=True),
-           ForeignKey("chat.conversation.id"), nullable=False),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
     schema="chat"
 )
 

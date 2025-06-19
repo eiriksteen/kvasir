@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import select
 from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
-from synesis_api.modules.chat.schema import ChatMessage, PydanticMessage, Conversation, Context, ContextInDB, DatasetContextInDB, AutomationContextInDB, AnalysisContextInDB
+from synesis_api.modules.chat.schema import ChatMessage, PydanticMessage, Conversation, Context, ContextInDB, DatasetContextInDB, AutomationContextInDB, AnalysisContextInDB, ConversationInDB
 from synesis_api.modules.chat.models import chat_message, pydantic_message, conversations, context, dataset_context, automation_context, analysis_context
 from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.ontology.service import get_user_datasets_by_ids
@@ -10,10 +10,12 @@ from synesis_api.modules.analysis.service import get_user_analyses_by_ids
 from pydantic_ai.messages import SystemPromptPart
 
 
-async def create_conversation(user_id: uuid.UUID) -> Conversation:
-    conversation = Conversation(
-        id=uuid.uuid4(),
-        user_id=user_id
+async def create_conversation(conversation_id: uuid.UUID, project_id: uuid.UUID, user_id: uuid.UUID, name: str) -> ConversationInDB:
+    conversation = ConversationInDB(
+        id=conversation_id,
+        user_id=user_id,
+        project_id=project_id,
+        name=name,
     )
     await execute(conversations.insert().values(conversation.model_dump()), commit_after=True)
     return conversation
@@ -24,7 +26,20 @@ async def get_conversations(user_id: uuid.UUID) -> list[Conversation]:
         select(conversations).where(
             conversations.c.user_id == user_id)
     )
-    return [Conversation(**conversation) for conversation in user_conversations]
+    
+    conversation_list = []
+    for conversation_data in user_conversations:
+        # Get messages for this conversation
+        messages = await get_messages(conversation_data["id"])
+        
+        # Create Conversation object with messages
+        conversation = Conversation(
+            **conversation_data,
+            list_of_messages=messages
+        )
+        conversation_list.append(conversation)
+    
+    return conversation_list
 
 
 async def get_messages(conversation_id: uuid.UUID) -> list[ChatMessage]:
@@ -48,12 +63,13 @@ async def get_messages_pydantic(conversation_id: uuid.UUID) -> list[ModelMessage
     return messages
 
 
-async def create_message(conversation_id: uuid.UUID, role: str, content: str) -> ChatMessage:
+async def create_message(conversation_id: uuid.UUID, role: str, content: str, context_id: uuid.UUID | None = None) -> ChatMessage:
     message = ChatMessage(
         id=uuid.uuid4(),
         conversation_id=conversation_id,
         role=role,
         content=content,
+        context_id=context_id,
         created_at=datetime.now(timezone.utc)
     )
     await execute(chat_message.insert().values(message.model_dump()), commit_after=True)
@@ -76,8 +92,11 @@ async def create_context(
         user_id: uuid.UUID,
         context_data: Context
 ) -> Context:
+    context_id = uuid.uuid4()
+    context_data.id = context_id
+
     context_record = ContextInDB(
-        id=uuid.uuid4(),
+        id=context_id,
         user_id=user_id,
         project_id=context_data.project_id,
         conversation_id=context_data.conversation_id,
@@ -86,7 +105,7 @@ async def create_context(
 
     dataset_context_records = [
         DatasetContextInDB(
-            context_id=context_record.id,
+            context_id=context_id,
             dataset_id=dataset_id
         )
         for dataset_id in context_data.dataset_ids
@@ -94,7 +113,7 @@ async def create_context(
 
     automation_context_records = [
         AutomationContextInDB(
-            context_id=context_record.id,
+            context_id=context_id,
             automation_id=automation_id
         )
         for automation_id in context_data.automation_ids
@@ -102,7 +121,7 @@ async def create_context(
 
     analysis_context_records = [
         AnalysisContextInDB(
-            context_id=context_record.id,
+            context_id=context_id,
             analysis_id=analysis_id
         )
         for analysis_id in context_data.analysis_ids

@@ -1,6 +1,6 @@
 import {EventSource} from 'eventsource'
 import { Analyses } from "@/types/analysis";
-import { ChatMessageAPI, Conversation, Prompt } from "@/types/chat";
+import { ChatMessageAPI, Conversation, Prompt, ConversationCreate } from "@/types/chat";
 import { Datasets } from "@/types/datasets";
 import { Job } from "@/types/jobs";
 import { IntegrationAgentFeedback, IntegrationMessage } from "@/types/integration";
@@ -222,13 +222,14 @@ export async function fetchMessages(token: string, conversationId: string): Prom
   return data;
 }
 
-export async function postConversation(token: string): Promise<Conversation> {
+export async function postConversation(token: string, conversationData: ConversationCreate): Promise<Conversation> {
   const response = await fetch(`${API_URL}/chat/conversation`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
+    body: JSON.stringify(conversationData)
   });
 
   if (!response.ok) {

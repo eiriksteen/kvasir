@@ -1,7 +1,5 @@
 import { Automation } from "@/types/automations";
 import { Datasets, TimeSeriesDataset } from "@/types/datasets";
-import { useSession } from "next-auth/react";
-import { useConversation } from "@/hooks/useConversation";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { AnalysisJobResultMetadata } from "@/types/analysis";
