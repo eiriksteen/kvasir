@@ -28,12 +28,13 @@ class ChatMessage(BaseSchema):
 
 
 class Prompt(BaseSchema):
+    conversation_id: uuid.UUID
     context: Context | None = None
     content: str
 
 class ConversationCreate(BaseSchema):
     project_id: uuid.UUID
-    prompt: Prompt
+    content: str
 
 class ConversationInDB(BaseSchema):
     id: uuid.UUID
@@ -48,7 +49,7 @@ class Conversation(BaseSchema):
     project_id: uuid.UUID
     name: str
     created_at: datetime = datetime.now(timezone.utc)
-    list_of_messages: List[ChatMessage]
+    messages: List[ChatMessage]
 
 class PydanticMessage(BaseSchema):
     id: uuid.UUID
@@ -59,6 +60,7 @@ class PydanticMessage(BaseSchema):
 
 class ContextInDB(BaseSchema):
     id: uuid.UUID
+    project_id: uuid.UUID
 
 
 class DatasetContextInDB(BaseSchema):

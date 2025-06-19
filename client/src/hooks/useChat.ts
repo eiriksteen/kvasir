@@ -1,7 +1,6 @@
-import { streamChat, fetchMessages, fetchConversations, postConversation } from "@/lib/api";
-import { ChatMessage, Prompt, Conversation, Context } from "@/types/chat";
-import { useEffect, useState, useCallback } from "react";
-import { apiMessageToChatMessage } from "@/lib/utils";
+import { streamChat, fetchConversations, postConversation } from "@/lib/api";
+import { ChatMessage, Prompt, Conversation, Context, ConversationCreate } from "@/types/chat";
+import { useCallback } from "react";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from 'swr/mutation';
@@ -11,7 +10,6 @@ import { TimeSeriesDataset } from '@/types/datasets';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 
 export const useChat = () => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const {data: session} = useSession();
   const { datasetsInContext, analysisesInContext } = useAgentContext();
   const { selectedProject } = useProject();
@@ -26,66 +24,39 @@ export const useChat = () => {
     }
   );
 
-  // Current conversation ID management (moved from useConversation)
-  const { data: currentConversationID, mutate: mutateCurrentConversationID } = useSWR("currentConversation", {fallbackData: null});
+  const { data: currentConversation, mutate: mutateCurrentConversation } = useSWR("currentConversation", {fallbackData: null});
 
   // Create conversation functionality (moved from useConversation)
   const { trigger: createConversation } = useSWRMutation(
     "currentConversation", 
-    async () => {
+    async (_, { arg }: { arg: ConversationCreate }) => {
       if (!session) throw new Error("No session");
       
-      // Create a default prompt without context for new conversation
-      const defaultPrompt: Prompt = {
-        context: null, // No context for new conversation
-        content: ""
-      };
-
-      const newConversation = await postConversation(session.APIToken.accessToken, {
-        project_id: selectedProject?.id || "",
-        prompt: defaultPrompt
-      });
-      return newConversation.id;
+      const newConversation = await postConversation(session.APIToken.accessToken, arg);
+      return newConversation;
     },
     {
-      populateCache: (newConversationId) => {
+      populateCache: (newConversation) => {
         if (conversations) {
-          mutateConversations([...conversations, { id: newConversationId, name: "New Conversation", projectId: selectedProject?.id || "", messages: [], createdAt: new Date().toISOString() }]);
+          mutateConversations([...conversations, { id: newConversation.id, name: newConversation.name, projectId: selectedProject?.id || "", messages: [], createdAt: newConversation.createdAt }]);
         }
         else{
-          mutateConversations([{ id: newConversationId, name: "New Conversation", projectId: selectedProject?.id || "", messages: [], createdAt: new Date().toISOString() }]);
+          mutateConversations([{ id: newConversation.id, name: newConversation.name, projectId: selectedProject?.id || "", messages: [], createdAt: newConversation.createdAt }]);
         }
-        return newConversationId;
+        return newConversation;
       }
     }
   );
 
   // Function to switch to a different conversation
   const switchConversation = useCallback(async (conversationId: string) => {
-    if (session) {
-      // Update the current conversation ID
-      await mutateCurrentConversationID(conversationId);
-      
-      // Fetch messages for the new conversation
-      try {
-        const fetchedMessages = await fetchMessages(session.APIToken.accessToken, conversationId);
-        setMessages(fetchedMessages.map(apiMessageToChatMessage));
-      } catch (error) {
-        console.error('Failed to fetch messages for conversation:', error);
-        setMessages([]);
-      }
-    }
-  }, [session, mutateCurrentConversationID]);
+    await mutateCurrentConversation(conversations?.find(c => c.id === conversationId));
+  }, [mutateCurrentConversation, conversations]);
 
-  useEffect(() => {
-    if (session) {
-      if (currentConversationID) {
-        fetchMessages(session.APIToken.accessToken, currentConversationID).then((fetchedMessages) => {
-          setMessages(fetchedMessages.map(apiMessageToChatMessage));
-        });
-      }
-    }
-  }, [currentConversationID, session]);
+  // Function to start a new conversation
+  const startNewConversation = useCallback(async () => {
+    await mutateCurrentConversation(null);
+  }, [mutateCurrentConversation]);
 
   const submitPrompt = useCallback(async (content: string) => {
     if (session) {
@@ -93,31 +64,38 @@ export const useChat = () => {
         return;
       }
 
-      let conversationId = currentConversationID;
-      
+      let conversationId = currentConversation?.id;
+
       // Create a new conversation if none exists
       if (!conversationId) {
         try {
-          conversationId = await createConversation();
+          const conversationCreateObject: ConversationCreate = {
+            project_id: selectedProject?.id || "",
+            content: content
+          };
+          const conversation = await createConversation(conversationCreateObject);
+          await mutateCurrentConversation(conversation);
+          conversationId = conversation.id;
+
         } catch (error) {
           console.error('Failed to create conversation:', error);
           return;
         }
       }
 
-      // Create the context with the conversation ID and context data from hooks
+      // Create the context with the context data from hooks
       const context: Context = {
         projectId: selectedProject?.id || "",
-        conversationId: conversationId,
         datasetIds: datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => dataset.id),
         automationIds: [],
         analysisIds: analysisesInContext.map((analysis: AnalysisJobResultMetadata) => analysis.jobId),
       };
 
-      // Create the prompt
+      // Create the prompt with conversation_id
       const prompt: Prompt = {
-        context,
-        content
+        conversationId: conversationId,
+        context: context,
+        content: content
       };
 
       // Create user message with proper context
@@ -127,7 +105,11 @@ export const useChat = () => {
         context: context
       };
       
-      setMessages(prevMessages => [...prevMessages, userMessage]);
+      mutateCurrentConversation((prev: Conversation) => ({
+        ...prev,
+        messages: [...prev.messages, userMessage]
+      }));
+      
       
       const stream = streamChat(session.APIToken.accessToken, prompt);
       let chunkNum = 0;
@@ -139,33 +121,35 @@ export const useChat = () => {
             content: chunk,
             context: context
           };
-          setMessages(prevMessages => [...prevMessages, assistantMessage]);
+          mutateCurrentConversation((prev: Conversation) => ({
+            ...prev,
+            messages: [...prev.messages, assistantMessage]
+          }));
         }
         else {
-          setMessages(prevMessages => {
-            const updatedMessages = [...prevMessages];
-            updatedMessages[updatedMessages.length - 1] = {
-              role: "assistant", 
-              content: chunk,
-              context: context
-            };
-            return updatedMessages;
-          });
+          mutateCurrentConversation((prev: Conversation) => ({
+            ...prev,
+            messages: prev.messages.map((msg, i) => 
+              i === prev.messages.length - 1 
+                ? { role: "assistant", content: chunk, context: context }
+                : msg
+            )
+          }));
         }
         chunkNum++;
       }
     }
-  }, [session, currentConversationID, createConversation, selectedProject, datasetsInContext, analysisesInContext]);
+  }, [session, createConversation, selectedProject, datasetsInContext, analysisesInContext]);
 
   return { 
-    messages, 
+    currentConversation, 
     submitPrompt, 
     conversations: conversations || [], 
     conversationsError, 
     mutateConversations,
     isLoadingConversations: !conversations && !conversationsError,
-    currentConversationID,
     createConversation,
     switchConversation,
+    startNewConversation,
   };
 }; 

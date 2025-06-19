@@ -88,7 +88,7 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
                     {conversation.name}
                   </p>
                   <p className="text-xs text-zinc-500 truncate">
-                    ID: {conversation.id}
+                    Created at: {new Date(conversation.createdAt).toLocaleString()}
                   </p>
                 </div>
               </div>

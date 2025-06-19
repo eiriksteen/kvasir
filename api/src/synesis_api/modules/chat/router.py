@@ -23,21 +23,22 @@ from synesis_api.modules.analysis.agent.runner import analysis_agent_runner, Ana
 router = APIRouter()
 
 
-@router.post("/completions/{conversation_id}")
+@router.post("/completions")
 async def post_chat(
     prompt: Prompt,
     user: Annotated[User, Depends(get_current_user)] = None
 ):
 
-    if not await user_owns_conversation(user.id, prompt.context.conversation_id):
+    if not await user_owns_conversation(user.id, prompt.conversation_id):
         raise HTTPException(
             status_code=403, detail="You do not have access to this conversation")
     
+
     if prompt.context:
         contextInDB = await create_context(user.id, prompt.context)
     
     async def stream_messages():
-        messages = await get_messages_pydantic(prompt.context.conversation_id)
+        messages = await get_messages_pydantic(prompt.conversation_id)
         orchestrator_output = await chatbot_agent.run("You need to decide which agent to handoff this prompt to: " + prompt.content + ". Choose between 'chat', 'analysis', or 'automation'.", message_history=messages, output_type=OrchestratorOutput)
         handoff_agent = orchestrator_output.output.handoff_agent
         context_message = await get_context_message(user.id, prompt.context)
@@ -52,9 +53,9 @@ async def post_chat(
 
             new_messages = result.new_messages_json()
 
-            await create_messages_pydantic(prompt.context.conversation_id, new_messages)
+            await create_messages_pydantic(prompt.conversation_id, new_messages)
             
-            await create_message(prompt.context.conversation_id, "assistant", text)
+            await create_message(prompt.conversation_id, "assistant", text)
 
         elif handoff_agent == "analysis" or handoff_agent == "automation":
             delegation_prompt = f"This is the current context: {context_message}. This is the user prompt: {prompt.content}. You can delegate the task to one of the following functions: " + ", ".join([f"'{func}'" for func in ["run_analysis_planner", "run_execution_agent", "run_simple_analysis"]]) + ". Which function do you want to delegate the task to?"
@@ -69,7 +70,7 @@ async def post_chat(
                 prompt=prompt.content,
                 user=user,
                 message_history=messages,
-                conversation_id=prompt.context.conversation_id,
+                conversation_id=prompt.conversation_id,
             )
 
             async for item in analysis_agent_runner(analysis_request, delegated_task):
@@ -80,7 +81,7 @@ async def post_chat(
             raise HTTPException(
                 status_code=400, detail="Invalid handoff agent")
         
-        await create_message(prompt.context.conversation_id, "user", prompt.content, contextInDB.id if contextInDB else None)
+        await create_message(prompt.conversation_id, "user", prompt.content, contextInDB.id if contextInDB else None)
         
 
     return StreamingResponse(stream_messages(), media_type="text/plain")
@@ -88,7 +89,7 @@ async def post_chat(
 
 @router.post("/conversation")
 async def post_user_conversation(conversation_data: ConversationCreate, user: Annotated[User, Depends(get_current_user)] = None) -> Conversation:
-    name = await chatbot_agent.run(f"""The user wants to start a new conversation. The user has written this: {conversation_data.prompt.content}. 
+    name = await chatbot_agent.run(f"""The user wants to start a new conversation. The user has written this: {conversation_data.content}. 
                                    What is the name of the conversation? Just give me the name of the conversation, no other text.
                                    """, output_type=str)
     name = name.output.replace('"', '').replace("'", "").strip()
@@ -97,21 +98,10 @@ async def post_user_conversation(conversation_data: ConversationCreate, user: An
 
     conversation_in_db = await create_conversation(conversation_id, conversation_data.project_id, user.id, name)
 
-    print(conversation_in_db)
-    print("--------------------------------")
-    print(conversation_in_db.model_dump())
     conversation = Conversation(
         **conversation_in_db.model_dump(),
-        list_of_messages=[]
+        messages=[]
     )
-
-    if conversation_data.prompt.context:
-        contextInDB = await create_context(user.id, conversation_data.prompt.context)
-        message = await create_message(conversation_id, "user", conversation_data.prompt.content, contextInDB.id if contextInDB else None)
-    else:
-        message = await create_message(conversation_id, "user", conversation_data.prompt.content)
-
-    conversation.list_of_messages.append(message)
     
     return conversation
 

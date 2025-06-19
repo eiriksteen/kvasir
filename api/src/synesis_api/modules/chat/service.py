@@ -35,7 +35,7 @@ async def get_conversations(user_id: uuid.UUID) -> list[Conversation]:
         # Create Conversation object with messages
         conversation = Conversation(
             **conversation_data,
-            list_of_messages=messages
+            messages=messages
         )
         conversation_list.append(conversation)
     
@@ -93,14 +93,10 @@ async def create_context(
         context_data: Context
 ) -> Context:
     context_id = uuid.uuid4()
-    context_data.id = context_id
 
     context_record = ContextInDB(
         id=context_id,
-        user_id=user_id,
-        project_id=context_data.project_id,
-        conversation_id=context_data.conversation_id,
-        created_at=datetime.now(timezone.utc)
+        project_id=context_data.project_id
     )
 
     dataset_context_records = [

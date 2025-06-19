@@ -22,18 +22,18 @@ export type Conversation = {
 
 export type ConversationCreate = {
     project_id: string;
-    prompt: Prompt;
+    content: string;
 }
 
 export type Context = {
     projectId: string;
-    conversationId: string;
     datasetIds: string[];
     automationIds: string[];
     analysisIds: string[];
 }
 
 export type Prompt = {
+    conversationId: string;
     context: Context | null;
     content: string;
 }

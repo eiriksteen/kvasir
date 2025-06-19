@@ -183,7 +183,7 @@ export async function fetchJob(token: string, jobId: string): Promise<Job> {
 }
 
 export async function* streamChat(token: string, prompt: Prompt): AsyncGenerator<string> {
-  const response = await fetch(`${API_URL}/chat/completions/${prompt.context.conversationId}`, {
+  const response = await fetch(`${API_URL}/chat/completions`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,

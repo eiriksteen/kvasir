@@ -2,7 +2,7 @@
 
 import { memo } from 'react';
 import { useState, useRef, useEffect } from 'react';
-import { Send, Database, X, BarChart, History } from 'lucide-react';
+import { Send, Database, X, BarChart, History, Plus } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useChat, useAgentContext } from '@/hooks';
@@ -13,10 +13,6 @@ import { TimeSeriesDataset } from '@/types/datasets';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 import Popup from './Popup';
 import { ChatHistory } from './ChatHistory';
-
-interface ChatProps {
-  conversationId: string | null;
-}
 
 const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
   return (
@@ -43,7 +39,7 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
 // Add display name to the memo component
 ChatListItem.displayName = 'ChatListItem';
 
-function Chat({ conversationId }: ChatProps) {
+function Chat() {
   
   const [input, setInput] = useState('');
   const [width, setWidth] = useState(400);
@@ -51,7 +47,7 @@ function Chat({ conversationId }: ChatProps) {
   const [showAnalysisPopup, setShowAnalysisPopup] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(false);
   
-  const { messages, submitPrompt, currentConversationID } = useChat();
+  const { submitPrompt, startNewConversation, conversations, currentConversation } = useChat();
   const { datasetsInContext, removeDatasetFromContext, analysisesInContext, removeAnalysisFromContext } = useAgentContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -74,12 +70,21 @@ function Chat({ conversationId }: ChatProps) {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [messages]);
+  }, [currentConversation?.messages]);
 
   const handleSubmit = () => {
     if (input.trim()) {
       submitPrompt(input);
       setInput('');
+    }
+  };
+
+  const handleNewChat = async () => {
+    try {
+      await startNewConversation();
+      setShowChatHistory(false);
+    } catch (error) {
+      console.error('Failed to start new conversation:', error);
     }
   };
   
@@ -145,22 +150,33 @@ function Chat({ conversationId }: ChatProps) {
           {/* Header with history button */}
           <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3 flex justify-between items-center">
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-purple-300">Chat</h3>
+              <h3 className="text-sm font-medium text-purple-300">
+                {currentConversation?.name || "Chat"}
+              </h3>
             </div>
-            <button
-              onClick={() => setShowChatHistory(!showChatHistory)}
-              className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-purple-300 hover:text-white"
-              title="Chat History"
-            >
-              <History size={18} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleNewChat}
+                className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-purple-300 hover:text-white"
+                title="New Chat"
+              >
+                <Plus size={18} />
+              </button>
+              <button
+                onClick={() => setShowChatHistory(!showChatHistory)}
+                className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-purple-300 hover:text-white"
+                title="Chat History"
+              >
+                <History size={18} />
+              </button>
+            </div>
           </div>
 
           {/* Chat History Panel */}
           {showChatHistory && (
             <div className="border-b border-purple-900/30 bg-[#1a1625]/90" style={{ height: '300px' }}>
               <ChatHistory
-                selectedConversationId={currentConversationID}
+                selectedConversationId={currentConversation?.id || null}
                 onConversationSelect={handleConversationSelect}
               />
             </div>
@@ -250,13 +266,22 @@ function Chat({ conversationId }: ChatProps) {
             className="flex-1 overflow-y-auto p-4 pb-24 scrollbar-thin scrollbar-thumb-purple-700"
             style={{ scrollBehavior: 'smooth' }}
           >
-            {messages.length === 0 && (
+            {currentConversation?.messages.length === 0 && (
               <div className="flex h-full items-center justify-center text-zinc-500">
-                <p>Start a conversation</p>
+                <div className="text-center">
+                  <p className="mb-2">
+                    {currentConversation?.id ? 'Start a conversation' : 'Start a new conversation'}
+                  </p>
+                  {!currentConversation?.id && (
+                    <p className="text-sm text-zinc-600">
+                      Select a conversation from history or start chatting
+                    </p>
+                  )}
+                </div>
               </div>
             )}
             {/* Message list */}
-            {messages.map((message, index) => (
+            {currentConversation?.messages.map((message: ChatMessage, index: number) => (
               <ChatListItem key={index} message={message} />
             ))}
             {/* Invisible element for scrolling to bottom */}
@@ -303,12 +328,10 @@ function Chat({ conversationId }: ChatProps) {
 
 export default function Chatbot() {
   const {data: session} = useSession();
-  const { currentConversationID } = useChat();
 
   if (!session) {
     redirect("/login");
   }
 
-  return <Chat 
-    conversationId={currentConversationID} />;
+  return <Chat />;
 }
