@@ -1,5 +1,6 @@
 import ast
 from pydantic_ai import Agent, RunContext, ModelRetry
+from pydantic_ai.settings import ModelSettings
 from dataclasses import dataclass
 from typing import Literal, List
 from synesis_api.base_schema import BaseSchema
@@ -56,7 +57,8 @@ model_analysis_agent = Agent(
         get_output_structure
     ],
     prepare_tools=filter_tools_by_source,
-    retries=3
+    retries=3,
+    model_settings=ModelSettings(temperature=0),
 )
 
 

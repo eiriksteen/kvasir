@@ -50,21 +50,21 @@ async def keep_only_most_recent_script(
         updated_message = copy.deepcopy(message)
         parts_modified = False
 
-        if isinstance(message, ModelResponse):
-            for idx, part in enumerate(message.parts):
-                if isinstance(part, ToolCallPart):
-                    args_dict = json.loads(part.args) if isinstance(
-                        part.args, str) else part.args
-                    k = "script" if "script" in args_dict else "new_code" if "new_code" in args_dict else None
+        # if isinstance(message, ModelResponse):
+        #     for idx, part in enumerate(message.parts):
+        #         if isinstance(part, ToolCallPart):
+        #             args_dict = json.loads(part.args) if isinstance(
+        #                 part.args, str) else part.args
+        #             k = "script" if "script" in args_dict else "new_code" if "new_code" in args_dict else None
 
-                    if k:
-                        # Always omit tool call scripts since they've already been executed
-                        args_dict[k] = "[OLD CODE OMITTED]"
-                        part.args = json.dumps(args_dict)
-                        updated_message.parts[idx] = part
-                        parts_modified = True
+        #             if k:
+        #                 # Always omit tool call scripts since they've already been executed
+        #                 args_dict[k] = "[OLD CODE OMITTED]"
+        #                 part.args = json.dumps(args_dict)
+        #                 updated_message.parts[idx] = part
+        #                 parts_modified = True
 
-        elif isinstance(message, ModelRequest):
+        if isinstance(message, ModelRequest):
             for idx, part in enumerate(message.parts):
                 if isinstance(part, ToolReturnPart):
                     if "<begin_script>" in part.content and original_index < last_script_index:
@@ -109,10 +109,8 @@ summarizer_agent = Agent(
 async def summarize_message_history(
         ctx: RunContext[BaseDeps],
         messages: list[ModelMessage],
-        keep_pastk: int = 7
+        keep_pastk: int = 10
 ) -> list[ModelMessage]:
-
-    return messages
 
     tools_to_summarize = [
         "write_script",

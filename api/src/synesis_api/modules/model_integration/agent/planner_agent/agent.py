@@ -1,4 +1,5 @@
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.settings import ModelSettings
 from dataclasses import dataclass
 from typing import Literal
 from synesis_api.utils import get_model
@@ -39,7 +40,8 @@ planning_agent = Agent(
         get_repo_structure,
         get_file_content
     ],
-    prepare_tools=filter_tools_by_source
+    prepare_tools=filter_tools_by_source,
+    model_settings=ModelSettings(temperature=0),
 )
 
 

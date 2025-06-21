@@ -1,4 +1,5 @@
 from pydantic_ai import Agent, RunContext, ModelRetry
+from pydantic_ai.settings import ModelSettings
 from dataclasses import dataclass
 from typing import Literal
 from synesis_api.base_schema import BaseSchema
@@ -65,7 +66,9 @@ training_agent = Agent(
     prepare_tools=filter_tools_by_source,
     retries=5,
     history_processors=[keep_only_most_recent_script,
-                        summarize_message_history]
+                        # summarize_message_history
+                        ],
+    model_settings=ModelSettings(temperature=0),
 )
 
 
