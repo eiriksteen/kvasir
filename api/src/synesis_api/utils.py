@@ -1,38 +1,44 @@
-import asyncio
-import json
 import re
-import pandas as pd
-import markdown2
-from pathlib import Path
-from typing import Tuple, List
+import json
+import tempfile
 import aiofiles
+import markdown2
+import sys
+import asyncio
+import pandas as pd
+from pathlib import Path
+from typing import Tuple
+from pylint import lint
+from io import StringIO
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.anthropic import AnthropicProvider
-from pydantic_ai.providers.google_gla import GoogleGLAProvider
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.models.gemini import GeminiModel
-from synesis_api.secrets import OPENAI_API_KEY, OPENAI_API_MODEL, ANTHROPIC_API_KEY, ANTHROPIC_API_MODEL, MODEL_TO_USE, GOOGLE_API_KEY, GOOGLE_API_MODEL
+from pydantic_ai.models.google import GoogleModel
+from pydantic_ai.providers.google import GoogleProvider
+from synesis_api.secrets import (
+    OPENAI_API_KEY,
+    OPENAI_API_MODEL,
+    ANTHROPIC_API_KEY,
+    ANTHROPIC_API_MODEL,
+    MODEL_TO_USE,
+    GOOGLE_API_KEY,
+    GOOGLE_API_MODEL
+)
 
 
 def get_model():
 
     if MODEL_TO_USE == "anthropic":
-        print("Using Anthropic")
         provider = AnthropicProvider(api_key=ANTHROPIC_API_KEY)
         model = AnthropicModel(
             model_name=ANTHROPIC_API_MODEL,
             provider=provider
         )
     elif MODEL_TO_USE == "google":
-        print("Using Google")
-        provider = GoogleGLAProvider(api_key=GOOGLE_API_KEY)
-        model = GeminiModel(
-            model_name=GOOGLE_API_MODEL,
-            provider=provider
-        )
+        provider = GoogleProvider(api_key=GOOGLE_API_KEY)
+        model = GoogleModel(model_name=GOOGLE_API_MODEL, provider=provider)
     else:
-        print("Using OpenAI")
         provider = OpenAIProvider(api_key=OPENAI_API_KEY)
         model = OpenAIModel(
             model_name=OPENAI_API_MODEL,
@@ -80,7 +86,10 @@ def parse_code(python_code: str) -> str:
     return python_code.strip()
 
 
-async def run_code_in_container(python_code: str, container_name: str = "synesis-sandbox") -> Tuple[str, str]:
+async def run_python_code_in_container(
+        python_code: str,
+        container_name: str = "synesis-sandbox",
+        cwd: str | None = None) -> Tuple[str, str]:
     """
     Helper function that actually runs Python code inside a Docker container named `sandbox` (by default).
     This is an async version that uses asyncio.create_subprocess_exec for non-blocking execution.
@@ -90,7 +99,7 @@ async def run_code_in_container(python_code: str, container_name: str = "synesis
     cmd = [
         "docker", "exec", "-i",
         container_name,
-        "python", "-c", "import sys; exec(sys.stdin.read())"
+        "bash", "-c", f"{f'cd {cwd} &&' if cwd else ''} python -c 'import sys; exec(sys.stdin.read())'"
     ]
 
     process = await asyncio.create_subprocess_exec(
@@ -102,11 +111,38 @@ async def run_code_in_container(python_code: str, container_name: str = "synesis
 
     out, err = await process.communicate(python_code_parsed.encode('utf-8'))
 
-    # Decode the bytes output back to strings
     return out.decode('utf-8'), err.decode('utf-8')
 
 
-async def copy_to_container(
+async def run_shell_code_in_container(
+        shell_code: str,
+        container_name: str = "synesis-sandbox",
+        cwd: str | None = None) -> Tuple[str, str]:
+    """
+    Helper function that actually runs Shell code inside a Docker container named `sandbox` (by default).
+    This is an async version that uses asyncio.create_subprocess_exec for non-blocking execution.
+    """
+    cmd = [
+        "docker", "exec", "-i",
+        container_name,
+        "bash", "-c", f"{f'cd {cwd} &&' if cwd else ''} set -e; set -o pipefail;\n{shell_code}"
+    ]
+
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+
+    out, err = await process.communicate()
+
+    err = None if process.returncode == 0 else err.decode("utf-8")
+
+    return out.decode("utf-8"), err
+
+
+async def copy_file_to_container(
         file_path: Path,
         target_dir: str = "/tmp",
         container_name: str = "synesis-sandbox"):
@@ -115,6 +151,34 @@ async def copy_to_container(
     """
     cmd = [
         "docker", "cp", file_path, f"{container_name}:{target_dir}/{file_path.name}"
+    ]
+
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+
+    out, err = await process.communicate()
+
+    return out.decode("utf-8"), err.decode("utf-8")
+
+
+async def create_file_in_container_with_content(
+        file_path: Path,
+        content: str,
+        container_name: str = "synesis-sandbox"):
+    """
+    Create a file in the container with the given content.
+    Ensures the directory exists and creates the file before writing.
+    """
+    escaped_content = content.replace("'", "'\\''")
+
+    cmd = [
+        "docker", "exec", "-i",
+        container_name,
+        "bash", "-c", f"mkdir -p $(dirname {file_path}) && touch {file_path} && echo '{escaped_content}' > {file_path}"
     ]
 
     process = await asyncio.create_subprocess_exec(
@@ -242,3 +306,149 @@ def extract_json_from_markdown(string: str) -> dict:
     last_json_content = matches_list[-1].group(1).strip()
 
     return json.loads(last_json_content)
+
+
+def add_line_numbers_to_script(script: str) -> str:
+    """
+    Add right-aligned line numbers to a script.
+    """
+    script = script.strip()
+    lines = [line for line in script.splitlines()]
+    max_width = len(str(len(lines)))
+    return "\n".join(f"{str(i+1).rjust(max_width)}. {line}" for i, line in enumerate(lines))
+
+
+def remove_line_numbers_from_script(script: str) -> str:
+    """
+    Remove line numbers from a script.
+    """
+    lines = [line for line in script.splitlines()]
+    cleaned_lines = []
+    for line in lines:
+        cleaned_lines.append(re.sub(r'^\d+\.\s?', '', line.strip()))
+
+    return "\n".join(cleaned_lines)
+
+
+def replace_lines_in_script(
+        script: str,
+        line_number_start: int,
+        line_number_end: int,
+        new_code: str,
+        script_has_line_numbers: bool = False
+) -> str:
+    """
+    Replace lines in a script.
+
+    Args:
+        script: The script to modify
+        line_number_start: The starting line number (0-indexed)
+        line_number_end: The ending line number (0-indexed, inclusive)
+        new_code: The new code to insert
+        script_has_line_numbers: Whether the script has line numbers
+
+    Returns:
+        str: The modified script
+    """
+
+    if script_has_line_numbers:
+        script = remove_line_numbers_from_script(script)
+
+    script = script.strip()
+    lines = [line for line in script.splitlines()]
+    new_lines = [line for line in new_code.splitlines()]
+
+    lines[line_number_start-1:line_number_end] = new_lines
+    updated_script = "\n".join(lines)
+
+    if script_has_line_numbers:
+        updated_script = add_line_numbers_to_script(updated_script)
+
+    return updated_script
+
+
+def add_lines_to_script_at_line(
+        script: str,
+        new_code: str,
+        start_line: int,
+        script_has_line_numbers: bool = False) -> str:
+
+    if script_has_line_numbers:
+        script = remove_line_numbers_from_script(script)
+
+    script = script.strip()
+    script_lines = [line for line in script.splitlines()]
+    lines_to_add = [line for line in new_code.splitlines()]
+    start_line = max(0, min(start_line, len(script_lines))-1)
+
+    updated_lines = script_lines[:start_line] + \
+        lines_to_add + script_lines[start_line:]
+    updated_script = "\n".join(updated_lines)
+
+    if script_has_line_numbers:
+        updated_script = add_line_numbers_to_script(updated_script)
+
+    return updated_script
+
+
+def delete_lines_from_script(
+        script: str,
+        line_number_start: int,
+        line_number_end: int,
+        script_has_line_numbers: bool = False) -> str:
+
+    if script_has_line_numbers:
+        script = remove_line_numbers_from_script(script)
+
+    script = script.strip()
+    lines = [line for line in script.splitlines()]
+    line_number_start = max(0, min(line_number_start, len(lines))-1)
+    line_number_end = max(line_number_start, min(
+        line_number_end, len(lines) - 1))
+
+    updated_lines = lines[:line_number_start] + lines[line_number_end + 1:]
+    updated_script = "\n".join(updated_lines)
+
+    if script_has_line_numbers:
+        updated_script = add_line_numbers_to_script(updated_script)
+
+    return updated_script
+
+
+def parse_github_url(github_url: str) -> dict[str, str]:
+    """
+    Parse a GitHub URL and return the owner and repository name.
+    """
+    match = re.search(
+        r'github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?$', github_url)
+    if not match:
+        return "Invalid GitHub URL format"
+
+    owner, repo = match.groups()
+
+    return {
+        "owner": owner,
+        "repo": repo
+    }
+
+
+def run_pylint(code_string: str) -> str:
+    """
+    Lints a string of Python code and returns the Pylint output.
+    """
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".py") as temp_file:
+        temp_file.write(code_string)
+        temp_file_path = temp_file.name
+
+    old_stdout = sys.stdout
+    string_io = StringIO()
+    sys.stdout = string_io
+
+    try:
+        lint.Run([temp_file_path], exit=False)
+        pylint_output = string_io.getvalue()
+    finally:
+        sys.stdout = old_stdout
+        Path(temp_file_path).unlink()
+
+    return pylint_output

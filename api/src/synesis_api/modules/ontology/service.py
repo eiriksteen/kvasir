@@ -15,12 +15,22 @@ from synesis_api.modules.ontology.schema import (
     TimeSeries,
     Dataset,
     DatasetMetadata,
-    TimeSeriesInheritedDataset,
-    TabularInheritedDataset
+    TimeSeriesInheritedDataset
 )
 from synesis_api.modules.integration.models import integration_jobs_results
 from synesis_api.modules.jobs.models import jobs
 from synesis_api.database.service import fetch_all, fetch_one, execute
+
+
+async def get_time_series_dataset(dataset_id: uuid.UUID) -> TimeSeriesInheritedDataset:
+    query = select(dataset, time_series_dataset).where(
+        time_series_dataset.c.id == dataset_id
+    ).join(
+        time_series_dataset, dataset.c.id == time_series_dataset.c.id
+    )
+
+    dataset = await fetch_one(query)
+    return TimeSeriesInheritedDataset(**dataset)
 
 
 async def get_user_time_series_datasets(user_id: uuid.UUID) -> List[TimeSeriesInheritedDataset]:

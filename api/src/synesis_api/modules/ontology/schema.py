@@ -20,13 +20,13 @@ class DatasetMetadata(BaseSchema):
     column_types: List[str]
 
 
-class TabularDataset(BaseSchema):
+class TabularDatasetInDB(BaseSchema):
     id: uuid.UUID
     features: List[str]
     num_features: int
 
 
-class TabularInheritedDataset(Dataset, TabularDataset):
+class TabularInheritedDataset(Dataset, TabularDatasetInDB):
     pass
 
 

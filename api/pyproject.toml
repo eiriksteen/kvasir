@@ -49,7 +49,9 @@ dependencies = [
     "statsmodels",
     "markdown2",
     "boto3",
-    "openpyxl"
+    "openpyxl",
+    "docker",
+    "pylint"
 ]
 
 [tool.setuptools]
