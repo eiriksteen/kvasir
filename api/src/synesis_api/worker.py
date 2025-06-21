@@ -1,13 +1,15 @@
-from celery import Celery
-from synesis_api.secrets import CELERY_BROKER_URL, CELERY_BACKEND_URL
+import logging
+from taskiq_redis import RedisAsyncResultBackend, RedisStreamBroker
+from synesis_api.secrets import TASKIQ_BROKER_URL, TASKIQ_BACKEND_URL
 
-celery = Celery(
-    "tasks",
-    broker=CELERY_BROKER_URL,
-    backend=CELERY_BACKEND_URL,
-    include=[
-        "src.synesis_api.modules.integration.service",
-        "src.synesis_api.modules.analysis.service",
-        "src.synesis_api.modules.automation.service"
-    ]
+# Configure the logger
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
+logger = logging.getLogger("taskiq")
+
+result_backend = RedisAsyncResultBackend(redis_url=TASKIQ_BACKEND_URL)
+broker = RedisStreamBroker(
+    url=TASKIQ_BROKER_URL).with_result_backend(result_backend)

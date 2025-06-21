@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from fastapi import HTTPException
-from sqlalchemy import select, insert, update
+from sqlalchemy import select, insert, update, delete
 from synesis_api.modules.jobs.models import jobs
 from synesis_api.modules.jobs.schema import JobMetadataInDB
 from synesis_api.database.service import execute, fetch_one, fetch_all
@@ -86,3 +86,17 @@ async def update_job_status(job_id: uuid.UUID, status: str):
             ),
             commit_after=True
         )
+
+
+async def delete_job_by_id(job_id: uuid.UUID):
+    await execute(
+        delete(jobs).where(jobs.c.id == job_id),
+        commit_after=True
+    )
+
+
+async def delete_job_by_id(job_id: uuid.UUID):
+    await execute(
+        delete(jobs).where(jobs.c.id == job_id),
+        commit_after=True
+    )

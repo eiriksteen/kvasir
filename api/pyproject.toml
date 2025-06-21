@@ -51,7 +51,9 @@ dependencies = [
     "boto3",
     "openpyxl",
     "docker",
-    "pylint"
+    "pylint",
+    "taskiq",
+    "taskiq-redis"
 ]
 
 [tool.setuptools]

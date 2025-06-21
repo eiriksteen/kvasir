@@ -6,8 +6,8 @@ WORKDIR /app
 COPY . .
 
 # Install the package
-RUN pip install .
+RUN pip install --upgrade pip && \
+    pip install -e .
 
 # Command to run when container starts
-
 CMD ["tail", "-f", "/dev/null"]

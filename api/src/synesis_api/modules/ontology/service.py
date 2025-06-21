@@ -67,6 +67,15 @@ async def get_user_datasets_by_ids(user_id: uuid.UUID, dataset_ids: List[uuid.UU
     return Datasets(time_series=[TimeSeriesInheritedDataset(**dataset) for dataset in time_series_datasets])
 
 
+async def get_user_time_series_dataset_by_id(dataset_id: uuid.UUID, user_id: uuid.UUID) -> TimeSeriesDatasetInDB:
+    dataset = await fetch_one(
+        select(time_series_dataset).where(
+            time_series_dataset.c.user_id == user_id, time_series_dataset.c.id == dataset_id)
+    )
+
+    return TimeSeriesDatasetInDB(**dataset)
+
+
 async def get_user_time_series_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID) -> TimeSeriesInheritedDataset:
     query = select(dataset, time_series_dataset).join(
         time_series_dataset, dataset.c.id == time_series_dataset.c.id

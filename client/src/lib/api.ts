@@ -1,6 +1,7 @@
 import { EventSource } from 'eventsource';
 import { ChatMessageAPI, Conversation } from "@/types/chat";
 import { Datasets, EntityMetadata, TimeSeriesData } from "@/types/datasets";
+import { Analyses } from "@/types/analysis";
 import { Job } from "@/types/jobs";
 import { IntegrationAgentFeedback, IntegrationMessage } from "@/types/integration";
 
@@ -46,6 +47,83 @@ export async function postIntegrationJob(token: string, files: File[], descripti
     const errorText = await response.text();
     console.error('Failed to add dataset', errorText);
     throw new Error(`Failed to add dataset: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+export async function postAnalysisPlanner(token: string, datasetIds: string[], automationIds: string[], prompt: string | null = null): Promise<Job> { // TODO: add automations 
+  const response = await fetch(`${API_URL}/analysis/run-analysis-planner`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      "dataset_ids": datasetIds,
+      "automation_ids": automationIds,
+      "prompt": prompt
+    })
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to run analysis planner: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+
+export async function deleteAnalysisJobResultsDB(token: string, jobId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/analysis/delete-analysis-job-results/${jobId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete analysis job results: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  console.log(data);
+  return data;
+}
+
+export async function postAnalysis(token: string, datasetIds: string[], automationIds: string[]): Promise<Job> {
+  const response = await fetch(`${API_URL}/eda/call-eda-agent?dataset_ids=${datasetIds.join(",")}&automation_ids=${automationIds.join(",")}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to do analysis: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+export async function fetchAnalysisJobResults(token: string): Promise<Analyses> {
+  const response = await fetch(`${API_URL}/analysis/analysis-job-results`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('Failed to fetch analysis', errorText);
+    throw new Error(`Failed to fetch analysis: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
@@ -185,7 +263,7 @@ export async function fetchConversations(token: string): Promise<Conversation[]>
   return data;
 }
 
-export async function postChatContextUpdate(token: string, conversationId: string, datasetIds: string[], automationIds: string[]): Promise<string> {
+export async function postChatContextUpdate(token: string, conversationId: string, datasetIds: string[], automationIds: string[], analysisIds: string[], remove: boolean = false): Promise<string> {
   const response = await fetch(`${API_URL}/chat/context`, {
     method: 'POST',
     headers: {
@@ -195,7 +273,9 @@ export async function postChatContextUpdate(token: string, conversationId: strin
     body: JSON.stringify({
       "conversation_id": conversationId,
       "dataset_ids": datasetIds,
-      "automation_ids": automationIds
+      "automation_ids": automationIds,
+      "analysis_ids": analysisIds,
+      "remove": remove
     })
   });
 
@@ -219,6 +299,23 @@ export function createIntegrationEventSource(token: string, jobId: string): Even
   return new EventSource(`${API_URL}/integration/integration-agent-sse/${jobId}`,
     {
       fetch: (input, init) =>
+        fetch(input, {
+          ...init,
+          headers: {
+            ...init?.headers,
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+    }
+  );
+}
+
+export function createAnalysisEventSource(token: string, jobId: string): EventSource {
+  console.log("Creating analysis event source for job", jobId);
+  console.log("Token", token);
+  return new EventSource(`${API_URL}/analysis/analysis-agent-sse/${jobId}`,
+    {
+      fetch: (input: RequestInfo | URL, init?: RequestInit) =>
         fetch(input, {
           ...init,
           headers: {

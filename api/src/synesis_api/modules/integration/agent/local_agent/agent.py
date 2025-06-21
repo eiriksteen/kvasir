@@ -205,9 +205,11 @@ async def validate_restructuring(
         submission_code = (
             f"{result.python_code}\n" +
             "from sandbox.integration_tools import submit_restructured_data\n" +
+            "if miya_metadata is not None:\n" +
+            "    miya_metadata = miya_metadata.reset_index()\n" +
             "print(submit_restructured_data(" +
             f"miya_data.reset_index(), " +
-            f"miya_metadata.reset_index(), " +
+            f"miya_metadata, " +
             f"miya_mapping, " +
             f"data_modality='{result.data_modality}', " +
             f'data_description="""{result.data_description}""", ' +
