@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 # Import all models to ensure they register with metadata
 from synesis_api.auth.models import users, user_api_keys
-from synesis_api.modules.integration.models import integration_jobs_results, integration_pydantic_message, integration_jobs_local_inputs, integration_message
+from synesis_api.modules.data_integration.models import integration_jobs_results, integration_pydantic_message, integration_jobs_local_inputs, integration_message
 from synesis_api.modules.jobs.models import jobs
 from synesis_api.modules.ontology.models import time_series, time_series_dataset
 from synesis_api.modules.chat.models import chat_message, pydantic_message, conversations
