@@ -110,7 +110,7 @@ export default function ModelIntegrationManager() {
   const modalityOrder = ['time_series', 'computer_vision', 'nlp', 'tabular', 'audio'];
 
   return (
-    <div className="h-full flex flex-col bg-[#050a14]">
+    <div className="h-full flex flex-col bg-[#050a14] mt-12">
       <div className="flex items-center justify-between p-4 border-b border-[#101827] flex-shrink-0 bg-[#050a14]/50">
         <h3 className="text-md font-semibold text-zinc-200">Model Integrations</h3>
         <button

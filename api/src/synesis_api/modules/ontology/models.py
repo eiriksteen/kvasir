@@ -9,7 +9,9 @@ import uuid
 dataset = Table(
     "dataset",
     metadata,
-    Column("id", UUID, primary_key=True, default=uuid.uuid4),
+    Column("job_id", UUID(as_uuid=True),
+       ForeignKey("jobs.jobs.id"),
+       primary_key=True),
     Column("user_id", UUID, ForeignKey("auth.users.id"), nullable=False),
     Column("description", String, nullable=False),
     Column("name", String, nullable=False),
@@ -24,7 +26,7 @@ dataset_metadata = Table(
     "dataset_metadata",
     metadata,
     Column("dataset_id", UUID, ForeignKey(
-        "ontology.dataset.id"), primary_key=True),
+        "ontology.dataset.job_id"), primary_key=True),
     Column("column_names", ARRAY(String), nullable=False),
     Column("column_types", ARRAY(String), nullable=False),
     Column("num_columns", Integer, nullable=False),
@@ -34,7 +36,7 @@ dataset_metadata = Table(
 tabular_dataset = Table(
     "tabular_dataset",
     metadata,
-    Column("id", UUID, ForeignKey("ontology.dataset.id"), primary_key=True),
+    Column("id", UUID, ForeignKey("ontology.dataset.job_id"), primary_key=True),
     Column("features", ARRAY(String), nullable=False),
     Column("num_features", Integer, nullable=False),
     schema="ontology"
@@ -49,14 +51,14 @@ time_series = Table(
     Column("start_timestamp", DateTime(timezone=True), nullable=False),
     Column("end_timestamp", DateTime(timezone=True), nullable=False),
     Column("dataset_id", UUID, ForeignKey(
-        "ontology.dataset.id"), nullable=False),
+        "ontology.dataset.job_id"), nullable=False),
     schema="ontology"
 )
 
 time_series_dataset = Table(
     "time_series_dataset",
     metadata,
-    Column("id", UUID, ForeignKey("ontology.dataset.id"), primary_key=True),
+    Column("id", UUID, ForeignKey("ontology.dataset.job_id"), primary_key=True),
     Column("num_series", Integer, nullable=False),
     Column("num_features", Integer, nullable=False),
     Column("features", ARRAY(String), nullable=False),

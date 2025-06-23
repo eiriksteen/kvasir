@@ -2,38 +2,52 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import JobsOverview from '@/components/JobsOverview';
-import IntegrationManager from '@/components/integration/IntegrationManager';
-import { Database, BarChart, Bot } from 'lucide-react';
-import { useState } from 'react';
-import { getStatusColor } from '../lib/utils';
+import { Database, Bot, ChevronDown } from 'lucide-react';
 import { useSession } from "next-auth/react";
-import { useJobs } from '@/hooks';
+import { useProject } from '@/hooks';
 import { redirect } from 'next/navigation';
-
-
+import { useState, useRef, useEffect } from 'react';
+import { Project } from '@/types/project';
 
 export default function UserHeader() {
-
-	const [integrationJobsIsOpen, setIntegrationJobsIsOpen] = useState(false);
-	const [analysisJobsIsOpen, setAnalysisJobsIsOpen] = useState(false);
-	const [automationJobsIsOpen, setAutomationJobsIsOpen] = useState(false);
 	const { data: session } = useSession();
+	const { selectedProject, projects, setSelectedProject } = useProject();
+	const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+	const dropdownRef = useRef<HTMLDivElement>(null);
 
 	if (!session) {
 		redirect("/login");
 	}
 
-	// const { jobs: integrationJobs, jobState: integrationJobState } = useJobs("integration");
-	const { jobState: integrationJobState } = useJobs("integration");
-	const { jobs: analysisJobs, jobState: analysisJobState } = useJobs("analysis");
-	const { jobs: automationJobs, jobState: automationJobState } = useJobs("automation");
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+				setShowProjectDropdown(false);
+			}
+		};
+
+		document.addEventListener('mousedown', handleClickOutside);
+		return () => {
+			document.removeEventListener('mousedown', handleClickOutside);
+		};
+	}, []);
+
+	const handleProjectSelect = (project: Project) => {
+		setSelectedProject(project);
+		setShowProjectDropdown(false);
+	};
+
+	const handleBackToMenu = () => {
+		setSelectedProject(null);
+		setShowProjectDropdown(false);
+	};
 
 	return (
-		<>
-			<header className="fixed top-0 left-0 right-0 z-50 bg-black">
-				<div className="mx-auto px-4 sm:px-6 lg:px-6">
-					<div className="flex items-center justify-between h-12">
+		<header className="fixed top-0 left-0 right-0 z-50 bg-black">
+			<div className="mx-auto px-4 sm:px-6 lg:pr-3">
+				<div className="flex items-center justify-between h-12">
+					{/* Logo and project button on the left */}
+					<div className="flex items-center space-x-4">
 						<Link href="/">
 							<div className="relative w-[30px] h-[30px]">
 								<Image
@@ -46,45 +60,81 @@ export default function UserHeader() {
 							</div>
 						</Link>
 						
-						<div className="flex items-center space-x-4">
-							<button 
-								// className={`${getStatusColor(integrationJobState)} hover:opacity-80 ${integrationJobState.integrationState === 'running' ? 'animate-pulse-running' : ''}`}
-								// TODO: Fix className for integrationJobState - structure might differ now?
-								className={`${getStatusColor(integrationJobState)} hover:opacity-80 ${integrationJobState === 'running' ? 'animate-pulse-running' : ''}`} 
-								onClick={() => setIntegrationJobsIsOpen(true)}>
-								<Database size={20} />
-							</button>
-							<button 
-								className={`${getStatusColor(analysisJobState)} hover:opacity-80 ${analysisJobState === 'running' ? 'animate-pulse-running' : ''}`}
-								onClick={() => setAnalysisJobsIsOpen(true)}>
-								<BarChart size={20} />
-							</button>
-							<button 
-								className={`${getStatusColor(automationJobState)} hover:opacity-80 ${automationJobState === 'running' ? 'animate-pulse-running' : ''}`}
-								onClick={() => setAutomationJobsIsOpen(true)}>
-								<Bot size={20} />
-							</button>
-						</div>
+						{selectedProject && (
+							<div className="relative" ref={dropdownRef}>
+								<button
+									onClick={() => setShowProjectDropdown(!showProjectDropdown)}
+									className="text-zinc-400 hover:text-zinc-200 transition-colors px-3 py-1 rounded-md border border-zinc-700 hover:border-zinc-600 flex items-center space-x-1"
+									title="Select Project"
+								>
+									<span className="text-sm font-medium">
+										{selectedProject.name}
+									</span>
+									<ChevronDown size={14} className={`transition-transform ${showProjectDropdown ? 'rotate-180' : ''}`} />
+								</button>
+								
+								{/* Project Dropdown */}
+								{showProjectDropdown && (
+									<div className="absolute top-full left-0 mt-1 w-64 bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg z-50">
+										<div className="p-2">
+											{/* Back to Menu Button */}
+											<button
+												onClick={handleBackToMenu}
+												className="w-full text-left px-3 py-2 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-md transition-colors"
+											>
+												Back to Menu
+											</button>
+											
+											{/* Divider */}
+											<div className="border-t border-zinc-800 my-2"></div>
+											
+											{/* Projects List */}
+											<div className="max-h-48 overflow-y-auto">
+												{projects?.map((project) => (
+													<button
+														key={project.id}
+														onClick={() => handleProjectSelect(project)}
+														className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
+															project.id === selectedProject?.id
+																? 'bg-zinc-700 text-zinc-200'
+																: 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+														}`}
+													>
+														<div className="font-medium">{project.name}</div>
+														{project.description && (
+															<div className="text-xs text-zinc-500 mt-1 truncate">
+																{project.description}
+															</div>
+														)}
+													</button>
+												))}
+											</div>
+										</div>
+									</div>
+								)}
+							</div>
+						)}
+					</div>
+					
+					{/* Two buttons on the right */}
+					<div className="flex items-center gap-2">
+						<Link 
+							href="/integration"
+							className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-zinc-400 hover:text-zinc-200"
+							title="Manage Datasets"
+						>
+							<Database size={18} />
+						</Link>
+						<Link 
+							href="/model-integration"
+							className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-zinc-400 hover:text-zinc-200"
+							title="Model Integration"
+						>
+							<Bot size={18} />
+						</Link>
 					</div>
 				</div>
-			</header>
-			
-			<IntegrationManager 
-				isOpen={integrationJobsIsOpen}
-				onClose={() => setIntegrationJobsIsOpen(false)}
-			/>
-			<JobsOverview 
-				job_type="Analysis"
-				isOpen={analysisJobsIsOpen}
-				onClose={() => setAnalysisJobsIsOpen(false)}
-				jobs={analysisJobs || []}
-			/>
-			<JobsOverview 
-				job_type="Automation"
-				isOpen={automationJobsIsOpen}
-				onClose={() => setAutomationJobsIsOpen(false)}
-				jobs={automationJobs || []}
-			/>
-		</>
+			</div>
+		</header>
 	);
 } 

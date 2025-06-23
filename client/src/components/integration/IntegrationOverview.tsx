@@ -7,6 +7,7 @@ import { useJobs } from '@/hooks'; // Import useJobs
 import { getStatusColor } from '@/lib/utils'; // Import getStatusColor
 import { Job } from '@/types/jobs';
 import IntegrationJobDetail from './IntegrationJobDetail';
+// import { useProject } from '@/hooks/useProject';
 
 interface IntegrationOverviewProps {
   // Remove props related to jobs data and helpers
@@ -84,24 +85,28 @@ export default function IntegrationOverview({ setCurrentView }: IntegrationOverv
           </div>
         ) : (
           <ul className="space-y-3">
-            {jobs.map((job: Job) => ( 
-              <li 
-                key={job.id} 
-                className="border-2 border-[#101827] bg-[#050a14] rounded-lg transition-colors hover:bg-[#0a101c] hover:border-[#1d2d50] cursor-pointer"
-                onClick={() => handleJobClick(job.id)}
-              >
+            {jobs.map((job: Job) => { 
+              return (
+                <li 
+                  key={job.id} 
+                  className="border-2 border-[#101827] bg-[#050a14] rounded-lg transition-colors hover:bg-[#0a101c] hover:border-[#1d2d50] cursor-pointer"
+                  onClick={() => handleJobClick(job.id)}
+                >
                  <div className="p-3">
                     <div className="flex justify-between items-center mb-1.5">
                       <span className="font-mono text-sm text-white-400 truncate mr-4" title={job.jobName}>{job.jobName}</span>
                       {getStatusBadge(job.status)}
                     </div>
-                    <div className="text-xs text-zinc-500 space-y-0.5">
-                      <span>Started: {formatDate(job.startedAt)}</span>
-                      {job.completedAt && <span className="block">Completed: {formatDate(job.completedAt)}</span>}
+                    <div className="flex justify-between items-center">
+                      <div className="text-xs text-zinc-500 space-y-0.5">
+                        <span>Started: {formatDate(job.startedAt)}</span>
+                        {job.completedAt && <span className="block">Completed: {formatDate(job.completedAt)}</span>}
+                      </div>
                     </div>
                  </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

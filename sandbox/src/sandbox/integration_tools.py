@@ -14,7 +14,8 @@ def submit_restructured_data(
         data_modality: str,
         index_first_level: str,
         index_second_level: str | None,
-        api_key: str) -> dict:
+        api_key: str,
+        job_id: str) -> dict:
 
     url = f"{API_URL}/integration/restructured-data"
     header = {"X-API-Key": api_key}
@@ -44,7 +45,8 @@ def submit_restructured_data(
                 "dataset_name": dataset_name,
                 "data_modality": data_modality,
                 "index_first_level": index_first_level,
-                "index_second_level": index_second_level
+                "index_second_level": index_second_level,
+                "job_id": job_id
             },
             timeout=30
         )

@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 from pydantic_ai import ModelRetry, RunContext
 from synesis_api.utils import run_python_code_in_container
-from synesis_api.agents.data_integration.target_structures import TIME_SERIES_TARGET_STRUCTURE
+from synesis_api.agents.data_integration.output_structures import TIME_SERIES_TARGET_STRUCTURE
 from synesis_api.agents.data_integration.base_deps import IntegrationAgentDeps
 
 

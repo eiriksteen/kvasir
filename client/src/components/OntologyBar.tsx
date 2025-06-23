@@ -1,143 +1,106 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Database, Plus, Check, Trash2 } from 'lucide-react';
+import { Database, Plus, Check, ChevronLeft, ChevronRight, BarChart3, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { Automation } from '@/types/automations';
-import { useAgentContext, useDatasets, useAnalysis } from '@/hooks';
+import { useAgentContext, useDatasets, useAnalysis, useProject } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
-import ConfirmationPopup from '@/components/ConfirmationPopup';
+import IntegrationManager from './integration/IntegrationManager';
+import AddAnalysis from './AddAnalysis';
 
-function DatasetItem({ dataset, isInContext, onClick }: { dataset: TimeSeriesDataset; isInContext: boolean; onClick: () => void }) {
+type ItemType = 'dataset' | 'analysis' | 'automation';
+
+interface ListItemProps {
+    item: TimeSeriesDataset | AnalysisJobResultMetadata | Automation;
+    type: ItemType;
+    isInContext: boolean;
+    onClick: () => void;
+}
+
+function ListItem({ item, type, isInContext, onClick }: ListItemProps) {
+    const getTheme = (type: ItemType) => {
+        switch (type) {
+            case 'dataset':
+                return {
+                    bg: isInContext ? 'bg-[#0a101c] border-[#2a4170]' : 'bg-[#050a14] border-[#101827]',
+                    hover: 'hover:bg-[#0a101c]',
+                    icon: <Database size={10} />,
+                    iconColor: 'text-blue-300',
+                    button: {
+                        bg: isInContext 
+                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-500 shadow-blue-900/30'
+                            : 'bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]'
+                    }
+                };
+            case 'analysis':
+                return {
+                    bg: isInContext ? 'bg-[#1a0f2a] border-[#4a1d6b]' : 'bg-[#1a1625]/80 border-[#271a30]',
+                    hover: 'hover:bg-[#1a0f2a]',
+                    icon: <BarChart3 size={10} />,
+                    iconColor: 'text-purple-300',
+                    button: {
+                        bg: isInContext 
+                            ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white border-purple-500 shadow-purple-900/30'
+                            : 'bg-gradient-to-r from-[#1a1625] to-[#271a30] text-purple-300 hover:text-white hover:from-purple-600 hover:to-purple-700 border-[#4a1d6b]'
+                    }
+                };
+            case 'automation':
+                return {
+                    bg: isInContext ? 'bg-[#0a1a0f] border-[#1d4a2d]' : 'bg-[#1a1625]/80 border-[#271a30]',
+                    hover: 'hover:bg-[#0a1a0f]',
+                    icon: <Zap size={10} />,
+                    iconColor: 'text-emerald-300',
+                    button: {
+                        bg: isInContext 
+                            ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white border-emerald-500 shadow-emerald-900/30'
+                            : 'bg-gradient-to-r from-[#1a1625] to-[#271a30] text-emerald-300 hover:text-white hover:from-emerald-600 hover:to-emerald-700 border-[#1d4a2d]'
+                    }
+                };
+        }
+    };
+
+    const theme = getTheme(type);
+    const name = 'name' in item ? item.name : `Analysis ${(item as AnalysisJobResultMetadata).jobId.slice(0, 6)}`;
+
     return (
         <div
             onClick={onClick}
-            className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-[#0a101c] border-2 ${
-                isInContext ? 'bg-[#0a101c] border-[#2a4170]' : 'bg-[#050a14] border-[#101827]'
-            }`}
+            className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${theme.hover} border-2 ${theme.bg}`}
         >
             <div className="flex justify-between items-center pr-2">
                 <div className="flex-1">
-                    <div className="text-sm font-medium">{dataset.name}</div>
-                    <div className="text-xs text-zinc-400 flex items-center gap-1.5">
-                        <span>Time Series</span>
-                        {isInContext && (
-                            <span className="bg-[#0e1a30] text-blue-300 text-xs px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                                <Database size={10} />
-                            </span>
-                        )}
-                    </div>
+                    <div className="text-sm font-medium">{name}</div>
                 </div>
                 
                 <button 
                     onClick={(e) => {
-                        e.stopPropagation(); // Prevent parent click
+                        e.stopPropagation();
                         onClick();
                     }}
-                    className={`p-1.5 rounded-full border shadow-md ${
-                        isInContext
-                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-500 shadow-blue-900/30'
-                            : 'bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]'
-                    }`}
+                    className={`p-1.5 rounded-full border shadow-md ${theme.button.bg}`}
                     title={isInContext ? "Remove from context" : "Add to chat context"}
                 >
-                    {isInContext ? <Check size={14} /> : <Plus size={14} />}
+                    {isInContext ? <Check size={14} /> : <ChevronRight size={14} />}
                 </button>
             </div>
         </div>
     );
 }
 
-function AutomationItem({ automation, isSelected, onClick }: { automation: Automation; isSelected: boolean; onClick: () => void }) {
-    return (
-        <div
-            onClick={onClick}
-            className={`p-3 rounded-lg cursor-pointer hover:bg-[#2a1c30] border-2 ${
-                isSelected ? 'bg-[#2a1c30] border-purple-800' : 'bg-[#1a1625]/80 border-[#271a30]'
-            }`}
-        >
-            <div className="text-sm font-medium">{automation.name}</div>
-            <div className="text-xs text-zinc-400">{automation.description}</div>
-        </div>
-    );
-}
-
-function AnalysisItem({ analysis, isSelected, onClick }: {analysis: AnalysisJobResultMetadata, isSelected: boolean, onClick: () => void }) {
-    const { deleteAnalysisJobResults } = useAnalysis();
-
-    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-
-    const handleDelete = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setShowDeleteConfirmation(true);
-    };
-
-    const handleConfirmDelete = async () => {
-        await deleteAnalysisJobResults(analysis);
-        setShowDeleteConfirmation(false);
-    };
-
-    return (
-        <>
-            <div 
-                onClick={onClick}
-                className={`p-3 rounded-lg cursor-pointer hover:bg-[#1a2438] border-2 ${
-                    isSelected ? 'bg-[#1a2438] border-blue-800' : 'bg-[#0e1a30]/80 border-[#1a2438]'
-                }`}
-            >
-                <div className="flex justify-between items-start">
-                    <div className="flex flex-col gap-2">
-                        <div className="text-sm font-medium text-blue-300">Analysis Results</div>
-                        <div className="text-xs text-zinc-400">
-                            <div>Job ID: {analysis.jobId}</div>
-                            <div>Datasets: {analysis.numberOfDatasets}</div>
-                            <div>Automations: {analysis.numberOfAutomations}</div>
-                            <div>Created: {new Date(analysis.createdAt).toLocaleDateString()}</div>
-                            <div>PDF Created: {analysis.pdfCreated ? "Yes" : "No"}</div>
-                        </div>
-                    </div>
-                    <div className="flex gap-2">
-                        <button 
-                            onClick={handleDelete}
-                            className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-red-600/40 to-red-700/40 text-red-300 border-red-500/30 shadow-red-900/20 hover:from-red-600/60 hover:to-red-700/60 hover:text-red-200"
-                            title="Delete analysis"
-                        >
-                            <Trash2 size={14} />
-                        </button>
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onClick();
-                            }}
-                            className={`p-1.5 rounded-full border shadow-md ${
-                                isSelected
-                                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-500 shadow-blue-900/30'
-                                    : 'bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]'
-                            }`}
-                            title={isSelected ? "Remove from context" : "Add to chat context"}
-                        >
-                            {isSelected ? <Check size={14} /> : <Plus size={14} />}
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <ConfirmationPopup
-                isOpen={showDeleteConfirmation}
-                message={`Are you sure you want to delete this analysis? This action cannot be undone.`}
-                onConfirm={handleConfirmDelete}
-                onCancel={() => setShowDeleteConfirmation(false)}
-            />
-        </>
-    );
-}
-
 export default function OntologyBar() {
-    const [selectedAutomation, setSelectedAutomation] = useState<string | null>(null);
-    const [showAutomations, setShowAutomations] = useState(false);
-    const [showAnalysis, setShowAnalysis] = useState(false);
-    const {data: session} = useSession();
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [showIntegrationManager, setShowIntegrationManager] = useState(false);
+    const [showAddAnalysis, setShowAddAnalysis] = useState(false);
+    const [expandedSections, setExpandedSections] = useState({
+        datasets: true,
+        analysis: true,
+        automations: true
+    });
+    const { data: session } = useSession();
+    const { selectedProject } = useProject();
     const { 
         datasetsInContext, 
         addDatasetToContext, 
@@ -151,21 +114,31 @@ export default function OntologyBar() {
         redirect("/login");
     }
 
-
     const { datasets } = useDatasets();
     const automations: Automation[] = [];
     const { analysisJobResults } = useAnalysis();
 
+    const filteredAnalysis = useMemo(() => {
+        if (!selectedProject || !analysisJobResults?.analysesJobResults) return [];
+        return analysisJobResults.analysesJobResults
+            .filter(analysis => selectedProject.analysisIds.includes(analysis.jobId))
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }, [selectedProject, analysisJobResults]);
 
-    const filteredAutomations = useMemo(() => 
-        datasetsInContext.timeSeries.length > 0
-            ? automations.filter((automation: Automation) => 
-                datasetsInContext.timeSeries.some((dataset: TimeSeriesDataset) => automation.datasetIds.includes(dataset.id)))
-            : automations,
-        [datasetsInContext, automations]
-    );
+    const filteredAutomations = useMemo(() => {
+        if (!selectedProject || !automations) return [];
+        return automations.filter(automation => 
+            selectedProject.automationIds.includes(automation.id)
+        );
+    }, [selectedProject, automations]);
 
-        
+    const toggleSection = (section: keyof typeof expandedSections) => {
+        setExpandedSections(prev => ({
+            ...prev,
+            [section]: !prev[section]
+        }));
+    };
+
     const handleDatasetToggle = (dataset: TimeSeriesDataset) => {
         const isActive = datasetsInContext.timeSeries.some((d: TimeSeriesDataset) => d.id === dataset.id);
         if (isActive) {
@@ -174,7 +147,6 @@ export default function OntologyBar() {
             addDatasetToContext(dataset);
         }
     };
-
 
     const isDatasetInContext = (datasetId: string) => 
         datasetsInContext.timeSeries.some((dataset: TimeSeriesDataset) => dataset.id === datasetId);
@@ -188,110 +160,197 @@ export default function OntologyBar() {
         }
     };
 
-    return (
-        <div className="relative flex pt-12 h-screen">
-            {/* Main Bar with Datasets */}
-            <div className="w-[300px] bg-gray-950 border-r border-[#101827] text-white p-4 flex flex-col">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-sm font-mono uppercase tracking-wider text-[#6b89c0]">Datasets</h2>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setShowAnalysis(!showAnalysis)}
-                            className="px-3 py-1 text-xs rounded-full text-white"
-                        >
-                            {showAnalysis ? 'Hide Analysis' : 'Show Analysis'}
-                        </button>
-                        <button
-                            onClick={() => setShowAutomations(!showAutomations)}
-                            className="px-3 py-1 text-xs rounded-full text-white"
-                        >
-                            {showAutomations ? 'Hide Automations' : 'Show Automations'}
-                        </button>
-                    </div>
+    const renderContent = () => {
+        if (!selectedProject) {
+            return (
+                <div className="flex flex-col h-full items-center justify-center p-4">
+                    <p className="text-sm text-zinc-400 mb-4">No project selected</p>
+                    <p className="text-xs text-zinc-500 text-center">Use the exit button in the header to return to project selection</p>
                 </div>
-                
-                <div className="space-y-2 flex-grow overflow-y-auto">
-                    {datasets?.timeSeries.length === 0 && (
-                        <div className="p-3 rounded-lg mb-3">
-                            <p className="text-xs text-zinc-400">
-                                No datasets found. 
-                            </p>
+            );
+        }
+
+        return (
+            <div className="flex flex-col h-full">
+                {/* Header with collapse button */}
+                <div className="flex items-center justify-between p-3 border-b border-[#1a2438] bg-[#0a0a0a]">
+                    <span className="text-sm font-medium text-zinc-300">Ontology</span>
+                    <button
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-[#1a2438] transition-colors"
+                        title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                    >
+                        {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto">
+                    {/* Datasets Section */}
+                    <div className="border-b border-[#1a2438]">
+                        <div className="flex items-center justify-between p-1 pr-3 hover:bg-[#1a2438] transition-colors rounded">
+                            <button
+                                onClick={() => toggleSection('datasets')}
+                                className="flex items-center gap-2 p-2 rounded flex-1"
+                            >
+                                {expandedSections.datasets ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                <span className="text-sm font-medium text-blue-300">Datasets</span>
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowIntegrationManager(true);
+                                }}
+                                className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170] flex items-center justify-center"
+                                title="Import Data"
+                            >
+                                <Plus size={14} />
+                            </button>
                         </div>
-                    )}
-                    {datasets?.timeSeries.map((dataset) => (
-                        <DatasetItem 
-                            key={dataset.id}
-                            dataset={dataset}
-                            isInContext={isDatasetInContext(dataset.id)}
-                            onClick={() => handleDatasetToggle(dataset)}
-                        />
-                    ))}
-                    
-                </div>
-                
-                {/* Footer section */}
-                <div className="mt-4">
-                    <div className="p-3 rounded-lg bg-[#111827] border border-[#1a2438] mb-3">
-                        <h3 className="text-xs font-medium text-[#6b89c0] mb-2">Working with Datasets</h3>
-                        <p className="text-xs text-zinc-400">
-                            Click on a dataset to add it to the chat context. You can then ask for analysis or automation based on the selected datasets.
-                        </p>
+                        {expandedSections.datasets && (
+                            <div className="p-1 space-y-2">
+                                {datasets?.timeSeries
+                                    .filter(dataset => selectedProject.datasetIds.includes(dataset.id))
+                                    .map((dataset) => (
+                                        <ListItem 
+                                            key={dataset.id}
+                                            item={dataset}
+                                            type="dataset"
+                                            isInContext={isDatasetInContext(dataset.id)}
+                                            onClick={() => handleDatasetToggle(dataset)}
+                                        />
+                                    ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Analysis Section */}
+                    <div className="border-b border-[#1a2438]">
+                        <div className="flex items-center justify-between p-1 pr-3 hover:bg-[#1a2438] transition-colors rounded">
+                            <button
+                                onClick={() => toggleSection('analysis')}
+                                className="flex items-center gap-2 p-2 rounded flex-1"
+                            >
+                                {expandedSections.analysis ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                <span className="text-sm font-medium text-purple-300">Analysis</span>
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowAddAnalysis(true);
+                                }}
+                                className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-[#1a1625] to-[#271a30] text-purple-300 hover:text-white hover:from-purple-600 hover:to-purple-700 border-[#4a1d6b] flex items-center justify-center"
+                                title="Add Analysis"
+                            >
+                                <Plus size={14} />
+                            </button>
+                        </div>
+                        {expandedSections.analysis && (
+                            <div className="p-1 space-y-2">
+                                {filteredAnalysis.map((analysis) => (
+                                    <ListItem
+                                        key={analysis.jobId}
+                                        item={analysis}
+                                        type="analysis"
+                                        isInContext={analysisesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId)}
+                                        onClick={() => handleAnalysisToggle(analysis)}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Automations Section */}
+                    <div className="border-b border-[#1a2438]">
+                        <div className="flex items-center justify-between p-1 pr-3 hover:bg-[#1a2438] transition-colors rounded">
+                            <button
+                                onClick={() => toggleSection('automations')}
+                                className="flex items-center gap-2 p-2 rounded flex-1"
+                            >
+                                {expandedSections.automations ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                <span className="text-sm font-medium text-emerald-300">Automations</span>
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    {/* TODO: Implement add automation */};
+                                }}
+                                className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-[#1a1625] to-[#271a30] text-emerald-300 hover:text-white hover:from-emerald-600 hover:to-emerald-700 border-[#1d4a2d] flex items-center justify-center"
+                                title="Add Automation"
+                            >
+                                <Plus size={14} />
+                            </button>
+                        </div>
+                        {expandedSections.automations && (
+                            <div className="p-1 space-y-2">
+                                {filteredAutomations.map((automation) => (
+                                    <ListItem
+                                        key={automation.id}
+                                        item={automation}
+                                        type="automation"
+                                        isInContext={false}
+                                        onClick={() => {}}
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
+        );
+    };
 
-            {/* Analysis Side Panel */}
-            {showAnalysis && (
-                <div className="absolute left-[300px] top-12 w-[300px] h-[calc(100vh-3rem)] bg-[#1a1625]/95 text-white p-4 border-r border-purple-900/30">
-                    <h2 className="text-sm font-mono uppercase tracking-wider text-purple-300 mb-4">Analysis</h2>
-                    
-                    <div className="space-y-2 flex-grow overflow-y-auto">
-                        {analysisJobResults?.analysesJobResults.length === 0 && (    
-                            <div className="p-3 rounded-lg mb-3">
-                                <p className="text-xs text-zinc-400">
-                                    No analysis found. 
-                                </p>
-                            </div>
-                        )}
-                        {analysisJobResults?.analysesJobResults
-                            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                            .map((analysis: AnalysisJobResultMetadata) => (
-                            <AnalysisItem
-                                key={analysis.jobId}
-                                analysis={analysis}
-                                isSelected={analysisesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId)}
-                                onClick={() => handleAnalysisToggle(analysis)}
-                            />
-                        ))}
-                    </div>
-                </div>
-            )}
+    return (
+        <div className="mt-12">
+            <div className={`flex flex-col h-full bg-gray-950 border-r border-[#101827] text-white transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-[300px]'}`}>
+                {!isCollapsed && renderContent()}
 
-            {/* Automations Side Panel */}
-            {showAutomations && (
-                <div className="absolute left-[300px] top-12 w-[300px] h-[calc(100vh-3rem)] bg-[#1a1625]/95 text-white p-4 border-r border-purple-900/30">
-                    <h2 className="text-sm font-mono uppercase tracking-wider text-purple-300 mb-4">Automations</h2>
-                    <div className="space-y-2">
-                        {filteredAutomations.length === 0 && (
-                            <div className="p-3 rounded-lg mb-3">
-                                <p className="text-xs text-zinc-400">
-                                    No automations found.
-                                </p>
-                            </div>
-                        )}
-                        {filteredAutomations.map((automation) => (
-                            <AutomationItem
-                                key={automation.id}
-                                automation={automation}
-                                isSelected={selectedAutomation === automation.id}
-                                onClick={() => setSelectedAutomation(
-                                    selectedAutomation === automation.id ? null : automation.id
-                                )}
-                            />
-                        ))}
+                {isCollapsed && (
+                    <div className="flex flex-col h-full">
+                        {/* Header for collapsed state */}
+                        <div className="flex items-center justify-center p-3 border-b border-[#1a2438] bg-[#0a0a0a]">
+                            <button
+                                onClick={() => setIsCollapsed(!isCollapsed)}
+                                className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-[#1a2438] transition-colors"
+                                title="Expand sidebar"
+                            >
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
+                        
+                        {/* Collapsed content */}
+                        <div className="flex flex-col items-center pt-4 gap-3">
+                            <button
+                                className="p-2 rounded-lg text-blue-300 hover:text-blue-200 hover:bg-[#0a101c] transition-colors"
+                                title="Datasets"
+                            >
+                                <Database size={20} />
+                            </button>
+                            <button
+                                className="p-2 rounded-lg text-purple-300 hover:text-purple-200 hover:bg-[#1a0f2a] transition-colors"
+                                title="Analysis"
+                            >
+                                <BarChart3 size={20} />
+                            </button>
+                            <button
+                                className="p-2 rounded-lg text-emerald-300 hover:text-emerald-200 hover:bg-[#0a1a0f] transition-colors"
+                                title="Automations"
+                            >
+                                <Zap size={20} />
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
+
+            <IntegrationManager
+                isOpen={showIntegrationManager}
+                onClose={() => setShowIntegrationManager(false)}
+            />
+
+            <AddAnalysis
+                isOpen={showAddAnalysis}
+                onClose={() => setShowAddAnalysis(false)}
+            />
         </div>
     );
 }

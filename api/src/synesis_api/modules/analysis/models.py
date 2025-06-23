@@ -11,6 +11,7 @@ analysis_jobs_results = Table(
     Column("job_id", UUID(as_uuid=True),
        ForeignKey("jobs.jobs.id"),
        primary_key=True),
+    Column("name", String, nullable=False),
     Column("number_of_datasets", Integer, nullable=False),
     Column("number_of_automations", Integer, nullable=False),
     Column("analysis_plan", JSONB, nullable=False),
@@ -31,7 +32,7 @@ analysis_jobs_datasets = Table(
            ForeignKey("jobs.jobs.id"),
            nullable=False),
     Column("dataset_id", UUID(as_uuid=True),
-           ForeignKey("ontology.dataset.id"),
+           ForeignKey("ontology.dataset.job_id"),
            nullable=False),
     schema="analysis",
 )

@@ -2,24 +2,30 @@
 
 import { memo } from 'react';
 import { useState, useRef, useEffect } from 'react';
-import { Send, Database, X, BarChart } from 'lucide-react';
+import { Send, Database, X, BarChart, History, Plus, Zap } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useChat, useConversation, useAgentContext, useAnalysis } from '@/hooks';
+import { useChat, useAgentContext } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { ChatMessage } from '@/types/chat';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
+import { useDatasets } from '@/hooks/useDatasets';
+import { useAnalysis } from '@/hooks/useAnalysis';
 import Popup from './Popup';
-
-
-
-interface ChatProps {
-  conversationId: string;
-}
+import { ChatHistory } from './ChatHistory';
 
 const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
+  const { datasets} = useDatasets();
+  const { analysisJobResults } = useAnalysis();
+
+  const hasContext = message.context && (
+    message.context.datasetIds?.length > 0 || 
+    message.context.analysisIds?.length > 0 || 
+    message.context.automationIds?.length > 0
+  );
+
   return (
     <div 
       className={`mb-4 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -31,6 +37,46 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
             : 'bg-blue-950/40 text-white rounded-tl-none border border-blue-800/50'
         }`}
       >
+        {/* Context bar */}
+        {hasContext && (
+          <div className="mb-2 pb-2 border-b border-current/20">
+            <div className="flex flex-wrap gap-1">
+              {/* Datasets */}
+              {message.context?.datasetIds?.map((datasetId: string) => (
+                <div 
+                  key={datasetId}
+                  className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-blue-900/50 text-blue-200"
+                >
+                  <Database size={10} />
+                  {datasets?.timeSeries.find((dataset: TimeSeriesDataset) => dataset.id === datasetId)?.name}
+                </div>
+              ))}
+              
+              {/* Analyses */}
+              {message.context?.analysisIds?.map((analysisId: string) => (
+                <div 
+                  key={analysisId}
+                  className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-purple-900/50 text-purple-200"
+                >
+                  <BarChart size={10} />
+                  {analysisJobResults?.analysesJobResults.find((analysis: AnalysisJobResultMetadata) => analysis.jobId === analysisId)?.name}
+                </div>
+              ))}
+              
+              {/* Automations */}
+              {message.context?.automationIds?.map((automationId: string) => (
+                <div 
+                  key={automationId}
+                  className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-orange-900/50 text-orange-200"
+                >
+                  <Zap size={10} />
+                  Automation {automationId.slice(0, 6)}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
         <div className="prose prose-invert max-w-none">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {message.content}
@@ -44,15 +90,15 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
 // Add display name to the memo component
 ChatListItem.displayName = 'ChatListItem';
 
-
-function Chat({ conversationId }: ChatProps) {
+function Chat() {
   
   const [input, setInput] = useState('');
   const [width, setWidth] = useState(400);
   const [isDragging, setIsDragging] = useState(false);
   const [showAnalysisPopup, setShowAnalysisPopup] = useState(false);
-
-  const { messages, submitPrompt } = useChat(conversationId);
+  const [showChatHistory, setShowChatHistory] = useState(false);
+  
+  const { submitPrompt, startNewConversation, currentConversation } = useChat();
   const { datasetsInContext, removeDatasetFromContext, analysisesInContext, removeAnalysisFromContext } = useAgentContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -75,12 +121,21 @@ function Chat({ conversationId }: ChatProps) {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [messages]);
+  }, [currentConversation?.messages]);
 
   const handleSubmit = () => {
     if (input.trim()) {
       submitPrompt(input);
       setInput('');
+    }
+  };
+
+  const handleNewChat = async () => {
+    try {
+      await startNewConversation();
+      setShowChatHistory(false);
+    } catch (error) {
+      console.error('Failed to start new conversation:', error);
     }
   };
   
@@ -113,11 +168,16 @@ function Chat({ conversationId }: ChatProps) {
     setIsDragging(true);
   };
 
+  const handleConversationSelect = () => {
+    // Close the history panel when a conversation is selected
+    setShowChatHistory(false);
+  };
+
   const isCollapsed = width <= MIN_WIDTH;
 
   return (
     <div 
-      className="absolute right-0 h-screen pt-12 text-white flex flex-col bg-[#1a1625]/95"
+      className="absolute right-0 h-screen text-white flex flex-col bg-[#1a1625]/95 pt-12"
       style={{ width: `${width}px` }}
     >
       {showAnalysisPopup && (
@@ -127,6 +187,7 @@ function Chat({ conversationId }: ChatProps) {
           type="analysis"
         />
       )}
+      
       {/* Drag handle */}
       <div 
         ref={dragHandleRef}
@@ -137,15 +198,51 @@ function Chat({ conversationId }: ChatProps) {
 
       {!isCollapsed && (
         <>
+          {/* Header with history button */}
+          <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3 flex justify-between items-center">
+            <div className="flex-1 pl-1">
+              <h3 className="text-sm font-medium text-purple-300">
+                {currentConversation?.name || "Chat"}
+              </h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleNewChat}
+                className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-purple-300 hover:text-white"
+                title="New Chat"
+              >
+                <Plus size={18} />
+              </button>
+              <button
+                onClick={() => setShowChatHistory(!showChatHistory)}
+                className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-purple-300 hover:text-white"
+                title="Chat History"
+              >
+                <History size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Chat History Panel */}
+          {showChatHistory && (
+            <div className="border-b border-purple-900/30 bg-[#1a1625]/90" style={{ height: '300px' }}>
+              <ChatHistory
+                selectedConversationId={currentConversation?.id || null}
+                onConversationSelect={handleConversationSelect}
+              />
+            </div>
+          )}
+
           {/* Combined context bar */}
           <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-sm pl-1 pt-1 font-medium text-purple-300">Context</h3>
+              <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select items from the left panel</h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {datasetsInContext.timeSeries.length === 0 && analysisesInContext.length === 0 ? (
+              {/* {datasetsInContext.timeSeries.length === 0 && analysisesInContext.length === 0 ? (
                 <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select items from the left panel</h3>
-              ) : (
+              ) : ( */}
                 <>
                   {/* Datasets */}
                   {datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => (
@@ -181,11 +278,11 @@ function Chat({ conversationId }: ChatProps) {
                     </div>
                   ))}
                 </>
-              )}
+              {/* )} */}
             </div>
           </div>
 
-          {/* Quick action buttons */}
+          {/* Quick action buttons
           <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
             <div className="flex flex-wrap gap-2">
               <button
@@ -213,7 +310,7 @@ function Chat({ conversationId }: ChatProps) {
                 Run analysis on datasets
               </button>
             </div>
-          </div>
+          </div> */}
 
           {/* Messages container */}
           <div 
@@ -221,15 +318,26 @@ function Chat({ conversationId }: ChatProps) {
             className="flex-1 overflow-y-auto p-4 pb-24 scrollbar-thin scrollbar-thumb-purple-700"
             style={{ scrollBehavior: 'smooth' }}
           >
-            {messages.length === 0 && (
+            {currentConversation?.messages.length === 0 && (
               <div className="flex h-full items-center justify-center text-zinc-500">
-                <p>Start a conversation</p>
+                <div className="text-center">
+                  <p className="mb-2">
+                    {currentConversation?.id ? 'Start a conversation' : 'Start a new conversation'}
+                  </p>
+                  {!currentConversation?.id && (
+                    <p className="text-sm text-zinc-600">
+                      Select a conversation from history or start chatting
+                    </p>
+                  )}
+                </div>
               </div>
             )}
             {/* Message list */}
-            {messages.map((message, index) => (
-              <ChatListItem key={index} message={message} />
-            ))}
+            {currentConversation?.messages
+              .sort((a: ChatMessage, b: ChatMessage) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+              .map((message: ChatMessage, index: number) => (
+                <ChatListItem key={index} message={message} />
+              ))}
             {/* Invisible element for scrolling to bottom */}
             <div ref={messagesEndRef} style={{ height: '1px' }} />
           </div>
@@ -272,24 +380,12 @@ function Chat({ conversationId }: ChatProps) {
   );
 }
 
-
 export default function Chatbot() {
-
   const {data: session} = useSession();
-  const { currentConversationID, createConversation } = useConversation();
 
   if (!session) {
     redirect("/login");
   }
 
-  useEffect(() => {
-    createConversation();
-  }, [createConversation]);
-
-  if (!currentConversationID) {
-    return <div>Loading...</div>;
-  }
-
-  return <Chat 
-    conversationId={currentConversationID} />;
+  return <Chat />;
 }

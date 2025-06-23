@@ -15,6 +15,7 @@ export const getStatusColor = (status: string) => {
 export const apiMessageToChatMessage = (message: ChatMessageAPI): ChatMessage => {
 	return {
 		role: message.role,
-		content: message.content
+		content: message.content,
+		context: null
 	};
 };

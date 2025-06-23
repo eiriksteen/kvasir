@@ -8,7 +8,7 @@ from synesis_api.agents.analysis.prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
 from synesis_api.agents.analysis.agent import analysis_agent, AnalysisDeps
 from synesis_api.modules.analysis.schema import AnalysisJobResult, AnalysisJobResultMetadataInDB, AnalysisPlan
 from synesis_api.modules.ontology.service import get_user_datasets_by_ids
-from synesis_api.worker import logger
+from src.synesis_api.worker import logger, broker
 from pydantic_ai.messages import (
     ModelMessage,
     FunctionToolCallEvent,
@@ -28,10 +28,13 @@ from synesis_api.auth.service import create_api_key
 from datetime import datetime
 from synesis_api.redis import get_redis
 from synesis_api.modules.chat.service import create_messages_pydantic, create_message
-from synesis_api.worker import broker
 from synesis_api.base_schema import BaseSchema
 from synesis_api.auth.schema import User
 from uuid import UUID
+from synesis_api.modules.project.service import update_project
+from synesis_api.modules.project.schema import ProjectUpdate
+from synesis_api.modules.node.router import create_node
+from synesis_api.modules.node.schema import FrontendNodeCreate
 
 # Add dataset cache
 dataset_cache: Dict[str, pd.DataFrame] = {}
@@ -62,6 +65,7 @@ async def load_dataset_from_cache_or_disk(dataset_id: uuid.UUID, user_id: uuid.U
 
 
 class AnalysisRequest(BaseSchema):
+    project_id: UUID
     dataset_ids: List[UUID] = []
     analysis_ids: List[UUID] = []
     automation_ids: List[UUID] = []
@@ -97,8 +101,6 @@ class AnalysisAgentRunner:
         analysis_request: AnalysisRequest,
     ):
         
-        import os
-        print(f"Working directory: {os.getcwd()}")
         analysis_deps, message_history = await self._prepare_agent_run(analysis_request, "analysis_planner")
         status_messages = []
         job_id = uuid.uuid4()
@@ -113,9 +115,7 @@ class AnalysisAgentRunner:
                     message_history=message_history,
                     output_type=str
                 )
-                print(f"Uncleaned Job name: {job_name}")
                 job_name = job_name.output.replace('"', '').replace("'", "").strip()
-                print(f"Cleaned Job name: {job_name}")
                 analysis_job = await create_job(analysis_request.user.id, "analysis", job_id, job_name)
             except Exception as e:
                 raise HTTPException(
@@ -191,6 +191,7 @@ class AnalysisAgentRunner:
 
         result = AnalysisJobResultMetadataInDB(
             job_id=analysis_job.id,
+            name=job_name,
             number_of_datasets=len(analysis_request.dataset_ids),
             number_of_automations=len(analysis_request.automation_ids),
             dataset_ids=analysis_request.dataset_ids,
@@ -204,8 +205,22 @@ class AnalysisAgentRunner:
 
         if len(analysis_request.analysis_ids) == 0:
             await insert_analysis_job_results_into_db(result)
+            await update_project(analysis_request.project_id, ProjectUpdate(type="analysis", id=analysis_job.id, remove=False))
+
+            frontend_node = FrontendNodeCreate(
+                project_id=analysis_request.project_id,
+                x_position=300.0,
+                y_position=0.0,
+                type="analysis",
+                dataset_id=None,
+                analysis_id=analysis_job.id,
+                automation_id=None,
+            )
+            await create_node(frontend_node)
+            
         else:
             await update_analysis_job_results_in_db(result)
+        
 
 
     async def run_analysis_execution(
@@ -310,7 +325,7 @@ class AnalysisAgentRunner:
                     {ANALYSIS_AGENT_SYSTEM_PROMPT}\n
                     Here are the column names: {analysis_deps.df.columns.tolist()}\n
                     Here is the problem description: {problem_description}\n
-                    If you create code yourself, you can retrieve the data from the following path: /tmp/3eaa61fd-4ae2-4440-b579-0af1e84e7db4/DailyDelhiClimateTrain.csv\n 
+                    If you create code yourself, you can retrieve the data from the following path: /tmp/6535611e-4a8d-45a8-944b-ea71420616da/DailyDelhiClimateTrain.csv\n 
                     Here are the analysis plans: {analyses.model_dump_json()}\n
                     Remember to not actually call the functions, just list them in your plan. The plan will be executed later.
                 """
@@ -322,7 +337,7 @@ class AnalysisAgentRunner:
                 content= f"""
                     {ANALYSIS_AGENT_SYSTEM_PROMPT}\n
                     Here are the column names: {analysis_deps.df.columns.tolist()}\n
-                    If you create code yourself, you can retrieve the data from the following path: /tmp/3eaa61fd-4ae2-4440-b579-0af1e84e7db4/DailyDelhiClimateTrain.csv\n 
+                    If you create code yourself, you can retrieve the data from the following path: /tmp/6535611e-4a8d-45a8-944b-ea71420616da/DailyDelhiClimateTrain.csv\n 
                 """
                     # Here are some functions you can use to execute an analysis: {eda_cs_tools_str}\n
             )
@@ -356,7 +371,6 @@ class AnalysisAgentRunner:
 
             await create_messages_pydantic(analysis_request.conversation_id, pydantic_messages_to_db)
         
-        await create_message(analysis_request.conversation_id, "user", analysis_request.prompt)
         await create_message(analysis_request.conversation_id, "assistant", text)
         
         
