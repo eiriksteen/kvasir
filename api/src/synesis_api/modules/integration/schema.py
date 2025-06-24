@@ -48,7 +48,7 @@ class IntegrationMessage(BaseSchema):
     created_at: datetime = datetime.now(timezone.utc)
 
 
-class IntegrationJobDirectoryInput(BaseSchema):
+class IntegrationJobLocalInput(BaseSchema):
     job_id: UUID
     data_description: str
     data_directory: str

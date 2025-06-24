@@ -21,8 +21,18 @@ export interface Datasets {
 
 export interface TimeSeriesData {
   id: string;
+  originalId: string;
   timestamps: Date[];
   values: number[][];
-  missingValues: boolean[][];
   featureNames: string[];
+}
+
+export interface EntityMetadata {
+  datasetId: string;
+  entityId: string;
+  originalId: string;
+  originalIdName: string;
+  columnNames: string[];
+  columnTypes: string[];
+  values: string[] | number[] | boolean[] | null[];
 }

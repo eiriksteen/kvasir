@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { AnalysisJobResultMetadata, AnalysisStep } from '@/types/analysis';
-import { useAnalysis } from '@/hooks/useAnalysis';
 import { useContext } from '@/hooks/useContext';
 
 interface AnalysisPlanViewProps {

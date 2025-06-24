@@ -6,7 +6,7 @@ from synesis_api.modules.automation.agent.prompt import MODEL_SYSTEM_PROMPT
 from synesis_api.modules.automation.agent.deps import ModelDeps
 from synesis_api.secrets import OPENAI_API_KEY, OPENAI_API_MODEL
 from synesis_api.modules.automation.schema import ModelAgentOutput
-from synesis_api.utils import run_code_in_container, copy_to_container
+from synesis_api.utils import run_python_code_in_container, copy_file_to_container
 
 provider = OpenAIProvider(api_key=OPENAI_API_KEY)
 
@@ -28,7 +28,7 @@ model_agent = Agent(
 
 @model_agent.system_prompt
 async def get_system_prompt(ctx: RunContext[ModelDeps]) -> str:
-    _, err = await copy_to_container(ctx.deps.data_path, target_dir="/tmp")
+    _, err = await copy_file_to_container(ctx.deps.data_path, target_dir="/tmp")
 
     if err:
         raise ValueError(f"Error copying file to container: {err}")
@@ -47,7 +47,7 @@ async def execute_python_code(python_code: str):
     """
     Execute a python code block.
     """
-    out, err = await run_code_in_container(python_code)
+    out, err = await run_python_code_in_container(python_code)
 
     if err:
         raise ModelRetry(f"Error executing code: {err}")

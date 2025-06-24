@@ -30,7 +30,7 @@ from synesis_api.modules.integration.schema import (
     IntegrationJobResult,
     IntegrationAgentState,
     IntegrationAgentFeedback,
-    IntegrationJobDirectoryInput,
+    IntegrationJobLocalInput,
     IntegrationMessage
 )
 from synesis_api.modules.chat.agent import chatbot_agent
@@ -60,7 +60,7 @@ async def call_integration_agent(
     files: list[UploadFile],
     data_description: str = Form(...),
     data_source: str = Form(...),
-    user: Annotated[User, Depends(get_current_user)] = None
+    user: Annotated[User | None, Depends(get_current_user)] = None
 ) -> JobMetadata:
 
     job_id = uuid.uuid4()
@@ -69,7 +69,7 @@ async def call_integration_agent(
         raise HTTPException(
             status_code=401, detail="You must be logged in to call the integration agent")
 
-    if data_source == "directory":
+    if data_source == "local":
         data_directory = Path.cwd() / "data" / f"{user.id}" / f"{job_id}"
         data_directory.mkdir(parents=True, exist_ok=True)
         api_key = None
@@ -96,11 +96,13 @@ async def call_integration_agent(
                 job_name=job_name.output
             )
 
-            await create_integration_input(IntegrationJobDirectoryInput(
+            await create_integration_input(IntegrationJobLocalInput(
                 job_id=job_id,
                 data_description=data_description,
                 data_directory=str(data_directory)
             ), data_source)
+
+            print("running integration job task"*200)
 
             await run_integration_job_task.kiq(
                 job_id,
@@ -124,7 +126,7 @@ async def call_integration_agent(
 
     else:
         raise HTTPException(
-            status_code=400, detail="Invalid data source, currently only directory is supported")
+            status_code=400, detail="Invalid data source, currently only local is supported")
 
 
 @router.post("/integration-agent-feedback", response_model=JobMetadata)
@@ -181,19 +183,14 @@ async def integration_agent_feedback(
             "directory"
         )
 
-
-        # print(task)
-        # if task.status == "FAILURE":
-        #     raise HTTPException(
-        #         status_code=500, detail="Failed to process the integration request")
-
         integration_job.status = "running"
 
         return integration_job
 
     except Exception as e:
         if api_key:
-            await delete_api_key(user)  # cannot delete api key here since it is referenced from job table
+            # cannot delete api key here since it is referenced from job table
+            await delete_api_key(user)
         raise HTTPException(
             status_code=500, detail=f"Failed to process the integration request: {str(e)}")
 
@@ -248,11 +245,6 @@ async def integration_agent_sse(
     timeout = min(timeout, SSE_MAX_TIMEOUT)
 
     async def stream_job_updates():
-
-        # messages = await get_integration_messages(job_id, include_cached=True)
-
-        # for message in messages:
-        #     yield f"data: {message.model_dump_json()}\n\n"
 
         response = await cache.xread({str(job_id): "$"}, count=1, block=timeout*1000)
         start_time = time.time()

@@ -11,6 +11,5 @@ logging.basicConfig(
 logger = logging.getLogger("taskiq")
 
 result_backend = RedisAsyncResultBackend(redis_url=TASKIQ_BACKEND_URL)
-broker = RedisStreamBroker(url=TASKIQ_BROKER_URL).with_result_backend(result_backend) 
-
-
+broker = RedisStreamBroker(
+    url=TASKIQ_BROKER_URL).with_result_backend(result_backend)

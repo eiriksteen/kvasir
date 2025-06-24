@@ -4,19 +4,17 @@ import React, { useState, useRef, useEffect } from 'react'; // Import React hook
 import { Plus, Upload, Check, AlertTriangle, Loader2, HardDrive, Cloud } from 'lucide-react';
 import { useJobs } from '@/hooks'; // Import useJobs
 import { useSession } from 'next-auth/react'; // Import useSession
+import { IntegrationSource } from '@/types/jobs'; // Import IntegrationSource type
 
 interface AddDatasetProps {
   setCurrentView: (view: 'overview' | 'add') => void; // Keep setCurrentView
   // Remove other props that will now be state within this component
 }
 
-// Define DataSource type locally or import if defined elsewhere
-type DataSource = 'directory' | 'aws' | 'gcp' | 'azure';
-
 export default function AddDataset({ setCurrentView }: AddDatasetProps) {
   // Move state from IntegrationManager here
   const [files, setFiles] = useState<File[]>([]);
-  const [dataSource, setDataSource] = useState<DataSource>('directory');
+  const [dataSource, setDataSource] = useState<IntegrationSource>('local');
   const [description, setDescription] = useState('');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -60,7 +58,7 @@ export default function AddDataset({ setCurrentView }: AddDatasetProps) {
     setFiles([]); 
     setDescription('');
     setUploadError(null);
-    setDataSource('directory');
+    setDataSource('local');
     if(fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -70,7 +68,7 @@ export default function AddDataset({ setCurrentView }: AddDatasetProps) {
     e.preventDefault();
     
     if (files.length === 0) {
-      setUploadError(dataSource === 'directory' ? 'Please select a directory containing CSV files' : 'Please select files');
+      setUploadError(dataSource === 'local' ? 'Please select a directory containing CSV files' : 'Please select files');
       return;
     }
 
@@ -121,15 +119,15 @@ export default function AddDataset({ setCurrentView }: AddDatasetProps) {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                    <button
                        type="button"
-                       onClick={() => setDataSource('directory')}
+                       onClick={() => setDataSource('local')}
                        className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 text-center transition-colors duration-150 h-24 ${
-                           dataSource === 'directory'
+                           dataSource === 'local'
                            ? 'border-blue-600 bg-blue-900/20 text-blue-300 shadow-md'
                            : 'border-zinc-700 bg-[#0a101c]/50 text-zinc-400 hover:border-zinc-600 hover:bg-[#0a101c]'
                        }`}
                    >
                        <HardDrive size={24} className="mb-2" />
-                       <span className="text-xs font-medium">Local Directory</span>
+                       <span className="text-xs font-medium">Local</span>
                    </button>
                     <button
                        type="button"
@@ -179,10 +177,10 @@ export default function AddDataset({ setCurrentView }: AddDatasetProps) {
                 </div>
            </div>
 
-          {dataSource === 'directory' && (
+          {dataSource === 'local' && (
             <div>
                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-               Upload Directory (containing CSVs)
+               Upload Directory
                </label>
                <div
                   className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors duration-200
@@ -230,7 +228,7 @@ export default function AddDataset({ setCurrentView }: AddDatasetProps) {
           {(dataSource === 'aws' || dataSource === 'gcp' || dataSource === 'azure') && (
                <div className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-md text-center text-zinc-400">
                   <p className="font-medium">Configuration for {dataSource.toUpperCase()} is coming soon.</p>
-                  <p className="text-xs mt-1">Please select &apos;Local Directory&apos; for now.</p>
+                  <p className="text-xs mt-1">Please select &apos;Local&apos; for now.</p>
               </div>
           )}
 
@@ -258,7 +256,7 @@ export default function AddDataset({ setCurrentView }: AddDatasetProps) {
           <div className="flex justify-end pt-2">
             <button
               type="submit"
-              disabled={isUploading || dataSource !== 'directory' || files.length === 0 || !description.trim()}
+              disabled={isUploading || dataSource !== 'local' || files.length === 0 || !description.trim()}
               className="px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-md hover:from-blue-500 hover:to-blue-600 transition-all shadow-md hover:shadow-lg border border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:from-zinc-600 disabled:to-zinc-700 disabled:border-zinc-500 flex items-center"
             >
               {isUploading ? (

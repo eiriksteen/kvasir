@@ -20,25 +20,21 @@ class DatasetMetadata(BaseSchema):
     column_types: List[str]
 
 
-class FeatureDatasetInDB(BaseSchema):
+class TabularDatasetInDB(BaseSchema):
     id: uuid.UUID
     features: List[str]
     num_features: int
 
 
-class FeatureDataset(Dataset):
-    features: List[str]
-    num_features: int
+class TabularInheritedDataset(Dataset, TabularDatasetInDB):
+    pass
 
 
 class TimeSeries(BaseSchema):
     id: uuid.UUID
     dataset_id: uuid.UUID
     original_id: str | None
-    description: str
-    features: List[str]
     num_timestamps: int
-    num_features: int
     start_timestamp: datetime
     end_timestamp: datetime
 
@@ -47,6 +43,7 @@ class TimeSeriesDatasetInDB(BaseSchema):
     id: uuid.UUID
     num_series: int
     num_features: int
+    features: List[str]
     avg_num_timestamps: int
     max_num_timestamps: int
     min_num_timestamps: int
@@ -54,19 +51,11 @@ class TimeSeriesDatasetInDB(BaseSchema):
     index_second_level: str | None = None
 
 
-class TimeSeriesDataset(Dataset):
-    id: uuid.UUID
-    num_series: int
-    num_features: int
-    avg_num_timestamps: int
-    max_num_timestamps: int
-    min_num_timestamps: int
-    index_first_level: str
-    index_second_level: str | None = None
+class TimeSeriesInheritedDataset(Dataset, TimeSeriesDatasetInDB):
+    pass
 
 
 class Datasets(BaseSchema):
-    time_series: List[TimeSeriesDataset] = []
-    tabular: List[FeatureDataset] = []
-    num_datasets: int = 0
+    time_series: List[TimeSeriesInheritedDataset] = []
+    tabular: List[TabularInheritedDataset] = []
     # TODO: add documents, feature-based, images, etc

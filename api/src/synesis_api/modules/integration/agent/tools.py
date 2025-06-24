@@ -2,8 +2,8 @@ import time
 import uuid
 from datetime import datetime, timezone
 from pydantic_ai import ModelRetry, RunContext
-from synesis_api.utils import run_code_in_container
-from synesis_api.modules.integration.agent.prompt import TIME_SERIES_TARGET_STRUCTURE
+from synesis_api.utils import run_python_code_in_container
+from synesis_api.modules.integration.agent.target_structures import TIME_SERIES_TARGET_STRUCTURE
 from synesis_api.modules.integration.agent.deps import IntegrationAgentDeps
 
 
@@ -132,7 +132,7 @@ async def execute_python_code(ctx: RunContext[IntegrationAgentDeps], python_code
     }
     await ctx.deps.redis_stream.xadd(str(ctx.deps.job_id), message)
 
-    out, err = await run_code_in_container(python_code)
+    out, err = await run_python_code_in_container(python_code)
 
     if err:
         raise ModelRetry(f"Error executing code: {err}")

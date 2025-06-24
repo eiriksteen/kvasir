@@ -5,15 +5,16 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+# Import all models to ensure they register with metadata
 from synesis_api.auth.models import users, user_api_keys
-from synesis_api.modules.integration.models import integration_jobs_results, integration_pydantic_message, integration_jobs_directory_inputs, integration_message
+from synesis_api.modules.integration.models import integration_jobs_results, integration_pydantic_message, integration_jobs_local_inputs, integration_message
 from synesis_api.modules.jobs.models import jobs
 from synesis_api.modules.ontology.models import time_series, time_series_dataset
-from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
 from synesis_api.modules.chat.models import chat_message, pydantic_message, conversations
 from synesis_api.modules.automation.models import model_job_result, automation
-from synesis_api.database.core import metadata
+from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
 from synesis_api.secrets import DATABASE_URL
+from synesis_api.database.core import metadata
 
 from alembic import context
 
@@ -32,7 +33,7 @@ __all__ = [
     user_api_keys,
     integration_jobs_results,
     integration_pydantic_message,
-    integration_jobs_directory_inputs,
+    integration_jobs_local_inputs,
     integration_message,
     jobs,
     time_series,
@@ -54,6 +55,7 @@ __all__ = [
 # target_metadata = mymodel.Base.metadata
 target_metadata = metadata
 
+
 def include_name(name, type_, parent_names):
     if type_ == "schema":
         return name in ["public", "auth", "integration", "jobs", "ontology", "analysis", "chat", "automation"]
@@ -64,6 +66,7 @@ def include_name(name, type_, parent_names):
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
 
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
@@ -96,7 +99,7 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations(connection: Connection) -> None:
     context.configure(
-        connection=connection, 
+        connection=connection,
         target_metadata=target_metadata,
         include_schemas=True,
         include_name=include_name

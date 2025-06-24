@@ -18,7 +18,7 @@ export default async function Login() {
             <Link 
                 href="/register"
                 className="block text-center text-white hover:text-gray-300 mt-4 text-sm">
-                Don't have an account? Register here
+                Don&apos;t have an account? Register here
             </Link>
         </div>
     );

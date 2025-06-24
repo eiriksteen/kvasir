@@ -40,7 +40,6 @@ conversations = Table(
     schema="chat"
 )
 
-
 context = Table(
     "context",
     metadata,

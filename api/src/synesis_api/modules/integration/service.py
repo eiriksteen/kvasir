@@ -7,10 +7,10 @@ from celery.utils.log import get_task_logger
 from sqlalchemy import insert, select, delete
 from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
 from synesis_api.modules.jobs.service import update_job_status
-from synesis_api.modules.integration.schema import IntegrationJobResultInDB, IntegrationPydanticMessage, IntegrationJobDirectoryInput, IntegrationMessage
-from synesis_api.modules.integration.models import integration_jobs_results, integration_pydantic_message, integration_jobs_directory_inputs, integration_message
+from synesis_api.modules.integration.schema import IntegrationJobResultInDB, IntegrationPydanticMessage, IntegrationJobLocalInput, IntegrationMessage
+from synesis_api.modules.integration.models import integration_jobs_results, integration_pydantic_message, integration_jobs_local_inputs, integration_message
 from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_api.modules.integration.agent import DirectoryIntegrationDeps, directory_integration_agent
+from synesis_api.modules.integration.agent import LocalIntegrationDeps, local_integration_agent
 from synesis_api.redis import get_redis
 from synesis_api.worker import logger
 
@@ -29,9 +29,9 @@ async def run_integration_agent(
 
     try:
 
-        if data_source == "directory":
-            integration_agent = directory_integration_agent
-            deps = DirectoryIntegrationDeps(
+        if data_source == "local":
+            integration_agent = local_integration_agent
+            deps = LocalIntegrationDeps(
                 api_key=api_key,
                 data_directory=Path(data_directory),
                 data_description=data_description,
@@ -40,7 +40,7 @@ async def run_integration_agent(
             )
         else:
             raise ValueError(
-                "Invalid data source, currently only directory is supported")
+                "Invalid data source, currently only local is supported")
 
         message_history = await get_messages_pydantic(job_id)
 
@@ -238,32 +238,32 @@ async def get_messages_pydantic(job_id: uuid.UUID) -> list[ModelMessage]:
     return messages
 
 
-async def create_integration_input(input: IntegrationJobDirectoryInput, data_source: str):
+async def create_integration_input(input: IntegrationJobLocalInput, data_source: str):
 
-    if data_source == "directory":
+    if data_source == "local":
         await execute(
-            insert(integration_jobs_directory_inputs).values(
+            insert(integration_jobs_local_inputs).values(
                 input.model_dump()),
             commit_after=True
         )
     else:
         raise HTTPException(
             status_code=400,
-            detail="Invalid data source, currently only directory is supported"
+            detail="Invalid data source, currently only local is supported"
         )
 
 
-async def get_integration_input(job_id: uuid.UUID) -> IntegrationJobDirectoryInput:
+async def get_integration_input(job_id: uuid.UUID) -> IntegrationJobLocalInput:
 
-    # Currently only directory source is supported
+    # Currently only local source is supported
 
     input = await fetch_one(
-        select(integration_jobs_directory_inputs).where(
-            integration_jobs_directory_inputs.c.job_id == job_id),
+        select(integration_jobs_local_inputs).where(
+            integration_jobs_local_inputs.c.job_id == job_id),
         commit_after=True
     )
 
-    return IntegrationJobDirectoryInput(**input)
+    return IntegrationJobLocalInput(**input)
 
 
 async def get_dataset_id_from_job_id(job_id: uuid.UUID) -> uuid.UUID:

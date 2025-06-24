@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Database, Plus, Check, Upload, Trash2 } from 'lucide-react';
+import { Database, Plus, Check, Trash2 } from 'lucide-react';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { Automation } from '@/types/automations';
 import { useAgentContext, useDatasets, useAnalysis } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
-import ConfirmationPopup from './ConfirmationPopup';
+import ConfirmationPopup from '@/components/ConfirmationPopup';
 
 function DatasetItem({ dataset, isInContext, onClick }: { dataset: TimeSeriesDataset; isInContext: boolean; onClick: () => void }) {
     return (
@@ -137,7 +137,6 @@ export default function OntologyBar() {
     const [selectedAutomation, setSelectedAutomation] = useState<string | null>(null);
     const [showAutomations, setShowAutomations] = useState(false);
     const [showAnalysis, setShowAnalysis] = useState(false);
-    const [showAddDataset, setShowAddDataset] = useState(false);
     const {data: session} = useSession();
     const { 
         datasetsInContext, 

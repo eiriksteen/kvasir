@@ -9,7 +9,7 @@ export interface Job {
 
 export type JobCategory = "integration" | "analysis" | "automation";
 
-export type IntegrationSource = "directory" | "aws" | "azure" | "gcp";
+export type IntegrationSource = "local" | "aws" | "azure" | "gcp";
 
 export interface IntegrationJobInput {
   files: File[];
