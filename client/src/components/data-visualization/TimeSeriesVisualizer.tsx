@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { Database, BarChart2, Clock, Layers, Info, X, LineChart, ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useTimeSeriesDataset } from '@/hooks/useTimeSeriesDataset';
-import TimeSeriesEChart from './TimeSeriesEChart';
+import TimeSeriesEChart from '@/components/data-visualization/TimeSeriesEChart';
 
 interface TimeSeriesVisualizerProps {
   datasetId: string;
@@ -103,7 +103,7 @@ function FullView({ dataset, entities, onClose }: FullViewProps) {
   };
 
   return (
-    <div className="bg-[#050a14] rounded-lg p-3 border-2 border-[#101827] w-full h-[600px] flex flex-col overflow-hidden">
+    <div className="bg-[#050a14] rounded-lg p-3 border-2 border-[#101827] w-full h-full flex flex-col overflow-hidden">
       {/* Title always visible */}
       <div className="flex items-center gap-2 mb-2">
         <button

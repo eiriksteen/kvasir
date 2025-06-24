@@ -9,7 +9,9 @@ import uuid
 dataset = Table(
     "dataset",
     metadata,
-    Column("id", UUID, primary_key=True, default=uuid.uuid4),
+    Column("id", UUID(as_uuid=True),
+           ForeignKey("jobs.jobs.id"),
+           primary_key=True),
     Column("user_id", UUID, ForeignKey("auth.users.id"), nullable=False),
     Column("description", String, nullable=False),
     Column("name", String, nullable=False),

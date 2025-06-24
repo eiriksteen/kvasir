@@ -1,9 +1,9 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { ArrowLeft, Info, X } from 'lucide-react';
-import { getStatusColor } from '../lib/utils';
-import { AnalysisStatusMessage } from '../types/analysis';
+import { getStatusColor } from '@/lib/utils';
+import { AnalysisStatusMessage } from '@/types/analysis';
 import { useAnalysis } from '@/hooks/useAnalysis';
 
 interface AnalysisJobDetailProps {
@@ -19,11 +19,13 @@ export default function AnalysisJobDetail({ jobId, jobName, jobStatus, onBack, o
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Get the messages to display - combine currentAnalysis.statusMessages with streamedMessages if currentAnalysis exists
-  const messages = currentAnalysis?.jobId === jobId 
-    ? [...currentAnalysis.statusMessages, ...(streamedMessages || [])].filter((msg, index, self) => 
-        index === self.findIndex((m) => m.id === msg.id)
-      )
-    : streamedMessages || [];
+  const messages = useMemo(() => {
+    return currentAnalysis?.jobId === jobId 
+      ? [...currentAnalysis.statusMessages, ...(streamedMessages || [])].filter((msg, index, self) => 
+          index === self.findIndex((m) => m.id === msg.id)
+        )
+      : streamedMessages || [];
+  }, [currentAnalysis?.jobId, currentAnalysis?.statusMessages, streamedMessages, jobId]);
 
   // Scroll to bottom when messages update
   useEffect(() => {

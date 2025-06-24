@@ -1,33 +1,63 @@
 from typing import Literal, List
 from datetime import datetime, timezone
 from synesis_api.base_schema import BaseSchema
-from synesis_api.modules.ontology.schema import Datasets
-from synesis_api.modules.automation.schema import Automations
 import uuid
-from ...auth.schema import User
-from pydantic_ai.messages import ModelMessage
+
+
 class ChatbotOutput(BaseSchema):
     goal_description: str
     deliverable_description: str
     task_type: Literal["analysis", "automation"]
 
 
+class Context(BaseSchema):
+    id: uuid.UUID | None = None
+    project_id: uuid.UUID
+    dataset_ids: List[uuid.UUID] = []
+    automation_ids: List[uuid.UUID] = []
+    analysis_ids: List[uuid.UUID] = []
+
+
+class ChatMessageInDB(BaseSchema):
+    id: uuid.UUID
+    conversation_id: uuid.UUID
+    role: Literal["user", "assistant"]
+    content: str
+    context_id: uuid.UUID
+    created_at: datetime = datetime.now(timezone.utc)
+
 class ChatMessage(BaseSchema):
     id: uuid.UUID
     conversation_id: uuid.UUID
     role: Literal["user", "assistant"]
     content: str
-    created_at: datetime = datetime.now(timezone.utc)
+    context: Context | None = None
+    created_at: datetime
 
 
 class Prompt(BaseSchema):
+    conversation_id: uuid.UUID
+    context: Context | None = None
     content: str
 
+class ConversationCreate(BaseSchema):
+    project_id: uuid.UUID
+    content: str
+
+class ConversationInDB(BaseSchema):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    name: str
+    project_id: uuid.UUID
+    created_at: datetime = datetime.now(timezone.utc)
 
 class Conversation(BaseSchema):
     id: uuid.UUID
     user_id: uuid.UUID
-
+    project_id: uuid.UUID
+    name: str
+    created_at: datetime = datetime.now(timezone.utc)
+    messages: List[ChatMessage]
 
 class PydanticMessage(BaseSchema):
     id: uuid.UUID
@@ -36,27 +66,9 @@ class PydanticMessage(BaseSchema):
     created_at: datetime = datetime.now(timezone.utc)
 
 
-class ContextCreate(BaseSchema):
-    conversation_id: uuid.UUID
-    dataset_ids: List[uuid.UUID] = []
-    automation_ids: List[uuid.UUID] = []
-    analysis_ids: List[uuid.UUID] = []
-    append: bool = True
-    remove: bool = False
-
-
-class Context(BaseSchema):
-    id: uuid.UUID
-    conversation_id: uuid.UUID
-    created_at: datetime = datetime.now(timezone.utc)
-    dataset_ids: List[uuid.UUID] = []
-    automation_ids: List[uuid.UUID] = []
-    analysis_ids: List[uuid.UUID] = []
-
 class ContextInDB(BaseSchema):
     id: uuid.UUID
-    conversation_id: uuid.UUID
-    created_at: datetime
+    project_id: uuid.UUID
 
 
 class DatasetContextInDB(BaseSchema):

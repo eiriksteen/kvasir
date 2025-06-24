@@ -10,6 +10,8 @@ from synesis_api.modules.analysis.router import router as eda_router
 from synesis_api.modules.automation.router import router as automation_router
 from synesis_api.modules.ontology.router import router as ontology_router
 from synesis_api.modules.data_provider.router import router as data_provider_router
+from synesis_api.modules.project.router import router as project_router
+from synesis_api.modules.node.router import router as node_router
 
 
 @asynccontextmanager
@@ -17,7 +19,6 @@ async def lifespan(app: FastAPI):
     await broker.startup()
     yield
     await broker.shutdown()
-
 
 app = FastAPI(
     title="Synesis API",
@@ -70,6 +71,14 @@ app.include_router(automation_router,
 app.include_router(jobs_router,
                    prefix="",
                    tags=["Jobs"])
+
+app.include_router(project_router,
+                   prefix="/project",
+                   tags=["Project"])
+
+app.include_router(node_router,
+                   prefix="/node",
+                   tags=["Node"])
 
 
 app.include_router(data_provider_router,

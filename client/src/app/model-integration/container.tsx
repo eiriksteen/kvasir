@@ -2,7 +2,8 @@
 
 import { SessionProvider } from "next-auth/react";
 import { Session } from 'next-auth';
-import ModelIntegrationManager from "@/components/model-integration/ModelIntegrationManager";
+import UserHeader from "@/components/headers/UserHeader";
+import ModelIntegrationPageContent from "@/app/model-integration/page-content";
 
 interface ModelIntegrationProps {
   session: Session;
@@ -11,10 +12,11 @@ interface ModelIntegrationProps {
 export default function ModelIntegrationContainer({ session }: ModelIntegrationProps) {
   return (
     <SessionProvider session={session}>
-      <div className="flex flex-col h-full bg-zinc-950">
-        <main className="flex-1 h-[calc(100vh-4rem)]">
-          <ModelIntegrationManager />
-        </main>
+      <div>
+        <UserHeader projectId={undefined} />
+        <div className="flex h-[calc(100vh-3rem)]">
+          <ModelIntegrationPageContent />
+        </div>
       </div>
     </SessionProvider>
   );

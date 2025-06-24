@@ -1,10 +1,12 @@
 import { EventSource } from 'eventsource';
-import { ChatMessageAPI, Conversation } from "@/types/chat";
+import { Conversation, ConversationCreate, Prompt } from "@/types/chat";
 import { Datasets, EntityMetadata, TimeSeriesData } from "@/types/datasets";
 import { Analyses } from "@/types/analysis";
 import { Job } from "@/types/jobs";
 import { IntegrationAgentFeedback, IntegrationMessage } from "@/types/integration";
-
+import { Project, ProjectCreate, ProjectUpdate } from "@/types/project";
+import { AnalysisRequest } from "@/types/analysis";
+import { FrontendNode, FrontendNodeCreate } from "@/types/node";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
 
@@ -53,18 +55,14 @@ export async function postIntegrationJob(token: string, files: File[], descripti
   return data;
 }
 
-export async function postAnalysisPlanner(token: string, datasetIds: string[], automationIds: string[], prompt: string | null = null): Promise<Job> { // TODO: add automations 
-  const response = await fetch(`${API_URL}/analysis/run-analysis-planner`, {
+export async function postAnalysisPlanner(token: string, analysisRequest: AnalysisRequest): Promise<Job> {
+  const response = await fetch(`${API_URL}/analysis/create-analysis`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      "dataset_ids": datasetIds,
-      "automation_ids": automationIds,
-      "prompt": prompt
-    })
+    body: JSON.stringify(analysisRequest)
   });
   
   if (!response.ok) {
@@ -75,7 +73,6 @@ export async function postAnalysisPlanner(token: string, datasetIds: string[], a
   const data = await response.json();
   return data;
 }
-
 
 export async function deleteAnalysisJobResultsDB(token: string, jobId: string): Promise<void> {
   const response = await fetch(`${API_URL}/analysis/delete-analysis-job-results/${jobId}`, {
@@ -91,7 +88,6 @@ export async function deleteAnalysisJobResultsDB(token: string, jobId: string): 
   }
 
   const data = await response.json();
-  console.log(data);
   return data;
 }
 
@@ -186,14 +182,14 @@ export async function fetchJob(token: string, jobId: string): Promise<Job> {
   return data;
 }
 
-export async function* streamChat(token: string, prompt: string, conversationId: string): AsyncGenerator<string> {
-  const response = await fetch(`${API_URL}/chat/completions/${conversationId}`, {
+export async function* streamChat(token: string, prompt: Prompt): AsyncGenerator<string> {
+  const response = await fetch(`${API_URL}/chat/completions`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ "content": prompt })
+    body: JSON.stringify(prompt)
   });
 
   const reader = response.body?.getReader();
@@ -208,31 +204,15 @@ export async function* streamChat(token: string, prompt: string, conversationId:
   }
 }
 
-export async function fetchMessages(token: string, conversationId: string): Promise<ChatMessageAPI[]> {
-  const response = await fetch(`${API_URL}/chat/conversation/${conversationId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-  });
+export async function postConversation(token: string, conversationData: ConversationCreate): Promise<Conversation> {
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to fetch messages', errorText);
-    throw new Error(`Failed to fetch messages: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data;
-}
-
-export async function postConversation(token: string): Promise<Conversation> {
   const response = await fetch(`${API_URL}/chat/conversation`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
+    body: JSON.stringify(conversationData)
   });
 
   if (!response.ok) {
@@ -263,32 +243,6 @@ export async function fetchConversations(token: string): Promise<Conversation[]>
   return data;
 }
 
-export async function postChatContextUpdate(token: string, conversationId: string, datasetIds: string[], automationIds: string[], analysisIds: string[], remove: boolean = false): Promise<string> {
-  const response = await fetch(`${API_URL}/chat/context`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      "conversation_id": conversationId,
-      "dataset_ids": datasetIds,
-      "automation_ids": automationIds,
-      "analysis_ids": analysisIds,
-      "remove": remove
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to update context', errorText);
-    throw new Error(`Failed to update context: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  
-  return data;
-}
 
 export function createIntegrationSocket(jobId: string): WebSocket {
   const socket = new WebSocket(`${WS_URL}/integration/integration-agent-human-in-the-loop/${jobId}/ws`);
@@ -311,8 +265,6 @@ export function createIntegrationEventSource(token: string, jobId: string): Even
 }
 
 export function createAnalysisEventSource(token: string, jobId: string): EventSource {
-  console.log("Creating analysis event source for job", jobId);
-  console.log("Token", token);
   return new EventSource(`${API_URL}/analysis/analysis-agent-sse/${jobId}`,
     {
       fetch: (input: RequestInfo | URL, init?: RequestInit) =>
@@ -410,10 +362,65 @@ export async function fetchEntityMetadataAll(token: string, datasetId: string): 
   return response.json();
 }
 
-export async function fetchTimeSeriesData(token: string, entityId: string): Promise<TimeSeriesData> {
-  const response = await fetch(`${API_URL}/data-provider/time-series/${entityId}`, {
+export async function fetchProjects(token: string): Promise<Project[]> {
+  const response = await fetch(`${API_URL}/project/get-user-projects`, {
     headers: {
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch projects', errorText);
+    throw new Error(`Failed to fetch projects: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function createProject(token: string, projectData: ProjectCreate): Promise<Project> {
+  const response = await fetch(`${API_URL}/project/create-project`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(projectData)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to create project', errorText);
+    throw new Error(`Failed to create project: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function updateProject(token: string, projectId: string, projectData: ProjectUpdate): Promise<Project> {
+  const response = await fetch(`${API_URL}/project/update-project/${projectId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(projectData)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update project: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchProjectNodes(token: string, projectId: string): Promise<FrontendNode[]> {
+  const response = await fetch(`${API_URL}/node/project/${projectId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
     }
   });
 
@@ -425,3 +432,74 @@ export async function fetchTimeSeriesData(token: string, entityId: string): Prom
 
   return response.json();
 }
+
+
+export async function fetchTimeSeriesData(token: string, entityId: string): Promise<TimeSeriesData> {
+  console.log("fetching time series data for entityId", entityId);
+  const response = await fetch(`${API_URL}/data-provider/time-series/${entityId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch time series data', errorText);
+    throw new Error(`Failed to fetch project nodes: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function updateNodePosition(token: string, node: FrontendNode): Promise<FrontendNode> {
+  const response = await fetch(`${API_URL}/node/update-node/${node.id}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(node)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update node position: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function createNode(token: string, node: FrontendNodeCreate): Promise<FrontendNode> {
+  const response = await fetch(`${API_URL}/node/create-node`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(node)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create node: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function deleteNode(token: string, nodeId: string): Promise<string> {
+  const response = await fetch(`${API_URL}/node/delete/${nodeId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete node: ${response.status} ${errorText}`);
+  }
+  return response.json();
+}
+
+

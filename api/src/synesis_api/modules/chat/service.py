@@ -2,16 +2,20 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import select
 from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
-from synesis_api.modules.chat.schema import ChatMessage, PydanticMessage, Conversation, Context, Datasets, ContextInDB, DatasetContextInDB, AutomationContextInDB, AnalysisContextInDB
+from synesis_api.modules.chat.schema import ChatMessage, PydanticMessage, Conversation, Context, ContextInDB, DatasetContextInDB, AutomationContextInDB, AnalysisContextInDB, ConversationInDB
 from synesis_api.modules.chat.models import chat_message, pydantic_message, conversations, context, dataset_context, automation_context, analysis_context
 from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.ontology.service import get_user_datasets_by_ids
+from synesis_api.modules.analysis.service import get_user_analyses_by_ids
+from pydantic_ai.messages import SystemPromptPart
 
 
-async def create_conversation(user_id: uuid.UUID) -> Conversation:
-    conversation = Conversation(
-        id=uuid.uuid4(),
-        user_id=user_id
+async def create_conversation(conversation_id: uuid.UUID, project_id: uuid.UUID, user_id: uuid.UUID, name: str) -> ConversationInDB:
+    conversation = ConversationInDB(
+        id=conversation_id,
+        user_id=user_id,
+        project_id=project_id,
+        name=name,
     )
     await execute(conversations.insert().values(conversation.model_dump()), commit_after=True)
     return conversation
@@ -22,7 +26,20 @@ async def get_conversations(user_id: uuid.UUID) -> list[Conversation]:
         select(conversations).where(
             conversations.c.user_id == user_id)
     )
-    return [Conversation(**conversation) for conversation in user_conversations]
+    
+    conversation_list = []
+    for conversation_data in user_conversations:
+        # Get messages for this conversation
+        messages = await get_messages(conversation_data["id"])
+        
+        # Create Conversation object with messages
+        conversation = Conversation(
+            **conversation_data,
+            messages=messages
+        )
+        conversation_list.append(conversation)
+    
+    return conversation_list
 
 
 async def get_messages(conversation_id: uuid.UUID) -> list[ChatMessage]:
@@ -30,7 +47,64 @@ async def get_messages(conversation_id: uuid.UUID) -> list[ChatMessage]:
         select(chat_message).where(
             chat_message.c.conversation_id == conversation_id)
     )
-    return [ChatMessage(**message) for message in messages]
+    
+    chat_messages = []
+    for message_data in messages:
+        # Get the context data if context_id exists
+        context_obj = None
+        if message_data["context_id"]:
+            context_obj = await get_context_by_id(message_data["context_id"])
+        
+        # Create ChatMessage with full context
+        chat_message_obj = ChatMessage(
+            id=message_data["id"],
+            conversation_id=message_data["conversation_id"],
+            role=message_data["role"],
+            content=message_data["content"],
+            context=context_obj,
+            created_at=message_data["created_at"]
+        )
+        chat_messages.append(chat_message_obj)
+    
+    return chat_messages
+
+
+async def get_context_by_id(context_id: uuid.UUID) -> Context | None:
+    """Fetch a complete Context object by its ID"""
+    # Get the base context
+    context_data = await fetch_one(
+        select(context).where(context.c.id == context_id)
+    )
+    
+    if not context_data:
+        return None
+    
+    # Get related dataset IDs
+    dataset_contexts = await fetch_all(
+        select(dataset_context).where(dataset_context.c.context_id == context_id)
+    )
+    dataset_ids = [dc["dataset_id"] for dc in dataset_contexts]
+    
+    # Get related automation IDs
+    automation_contexts = await fetch_all(
+        select(automation_context).where(automation_context.c.context_id == context_id)
+    )
+    automation_ids = [ac["automation_id"] for ac in automation_contexts]
+    
+    # Get related analysis IDs
+    analysis_contexts = await fetch_all(
+        select(analysis_context).where(analysis_context.c.context_id == context_id)
+    )
+    analysis_ids = [ac["analysis_id"] for ac in analysis_contexts]
+    
+    # Construct the full Context object
+    return Context(
+        id=context_data["id"],
+        project_id=context_data["project_id"],
+        dataset_ids=dataset_ids,
+        automation_ids=automation_ids,
+        analysis_ids=analysis_ids
+    )
 
 
 async def get_messages_pydantic(conversation_id: uuid.UUID) -> list[ModelMessage]:
@@ -46,16 +120,34 @@ async def get_messages_pydantic(conversation_id: uuid.UUID) -> list[ModelMessage
     return messages
 
 
-async def create_message(conversation_id: uuid.UUID, role: str, content: str) -> ChatMessage:
-    message = ChatMessage(
-        id=uuid.uuid4(),
+async def create_message(conversation_id: uuid.UUID, role: str, content: str, context_id: uuid.UUID | None = None) -> ChatMessage:
+    # Create the message in database using ChatMessageInDB structure
+    message_id = uuid.uuid4()
+    message_data = {
+        "id": message_id,
+        "conversation_id": conversation_id,
+        "role": role,
+        "content": content,
+        "context_id": context_id,
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    await execute(chat_message.insert().values(message_data), commit_after=True)
+    
+    # Get the full context if context_id exists
+    context_obj = None
+    if context_id:
+        context_obj = await get_context_by_id(context_id)
+    
+    # Return the full ChatMessage with context
+    return ChatMessage(
+        id=message_id,
         conversation_id=conversation_id,
         role=role,
         content=content,
-        created_at=datetime.now(timezone.utc)
+        context=context_obj,
+        created_at=message_data["created_at"]
     )
-    await execute(chat_message.insert().values(message.model_dump()), commit_after=True)
-    return message
 
 
 async def create_messages_pydantic(conversation_id: uuid.UUID, messages: bytes) -> PydanticMessage:
@@ -69,76 +161,46 @@ async def create_messages_pydantic(conversation_id: uuid.UUID, messages: bytes) 
     return message
 
 
-async def aggregate_context_from_db(context_record: ContextInDB) -> Context:
-    dataset_ids = await fetch_all(
-        select(dataset_context).where(
-            dataset_context.c.context_id == context_record.id
-        )
-    )
-
-    automation_ids = await fetch_all(
-        select(automation_context).where(
-            automation_context.c.context_id == context_record.id
-        )
-    )
-
-    analysis_ids = await fetch_all(
-        select(analysis_context).where(
-            analysis_context.c.context_id == context_record.id
-        )
-    )
-
-    return Context(
-        id=context_record.id,
-        conversation_id=context_record.conversation_id,
-        created_at=context_record.created_at,
-        dataset_ids=tuple([record["dataset_id"] for record in dataset_ids]),
-        automation_ids=tuple([record["automation_id"] for record in automation_ids]),
-        analysis_ids=tuple([record["analysis_id"] for record in analysis_ids])
-    )
-
 
 async def create_context(
-        user_id: uuid.UUID,
-        conversation_id: uuid.UUID,
-        dataset_ids: list[uuid.UUID],
-        automation_ids: list[uuid.UUID],
-        analysis_ids: list[uuid.UUID]
+        context_data: Context
 ) -> Context:
+    context_id = uuid.uuid4()
+
     context_record = ContextInDB(
-        id=uuid.uuid4(),
-        conversation_id=conversation_id,
-        created_at=datetime.now(timezone.utc),
+        id=context_id,
+        project_id=context_data.project_id
     )
 
     dataset_context_records = [
         DatasetContextInDB(
-            context_id=context_record.id,
+            context_id=context_id,
             dataset_id=dataset_id
         )
-        for dataset_id in dataset_ids
+        for dataset_id in context_data.dataset_ids
     ]
 
     automation_context_records = [
         AutomationContextInDB(
-            context_id=context_record.id,
+            context_id=context_id,
             automation_id=automation_id
         )
-        for automation_id in automation_ids
+        for automation_id in context_data.automation_ids
     ]
 
     analysis_context_records = [
         AnalysisContextInDB(
-            context_id=context_record.id,
+            context_id=context_id,
             analysis_id=analysis_id
         )
-        for analysis_id in analysis_ids
+        for analysis_id in context_data.analysis_ids
     ]
 
     if len(dataset_context_records) == 0 and len(automation_context_records) == 0 and len(analysis_context_records) == 0:
         return None
     else:
         await execute(context.insert().values(context_record.model_dump()), commit_after=True)
+        
         if len(dataset_context_records) > 0:
             await execute(dataset_context.insert().values([record.model_dump() for record in dataset_context_records]), commit_after=True)
         if len(automation_context_records) > 0:
@@ -146,20 +208,22 @@ async def create_context(
         if len(analysis_context_records) > 0:
             await execute(analysis_context.insert().values([record.model_dump() for record in analysis_context_records]), commit_after=True)
 
-    return await aggregate_context_from_db(context_record)
+    return context_record
 
 
-async def get_context_by_time_stamp(conversation_id: uuid.UUID, user_id: uuid.UUID, time_stamp: datetime) -> Context:
+async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
+    datasets = await get_user_datasets_by_ids(user_id, context.dataset_ids)
+    automations = [] # await get_user_automations_by_ids(context.user_id, context.automation_ids)
+    analyses = await get_user_analyses_by_ids(user_id, context.analysis_ids)
 
-    context_record = await fetch_all(
-        select(context).where(
-            context.c.conversation_id == conversation_id,
-            context.c.created_at <= time_stamp
-        ).order_by(context.c.created_at.desc())
-    )
+    context_message = f"""
+        <CONTEXT UPDATES>
+        Current project in context: {context.project_id}
+        Current datasets in context: {datasets}
+        Current automations in context: {automations}
+        Current analyses in context: {analyses}
+        </CONTEXT UPDATES>
+        """
 
-    if len(context_record) == 0:
-        return None
-    else:
-        context_record = ContextInDB(**context_record[0])
-        return await aggregate_context_from_db(context_record)
+    return context_message
+

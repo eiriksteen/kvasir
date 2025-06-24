@@ -203,7 +203,6 @@ async def create_time_series_dataset(
         for original_id in unique_series:
             series_data = df.loc[original_id]
             series_id = uuid.uuid4()
-
             time_series_records.append(TimeSeries(
                 id=series_id,
                 num_timestamps=len(series_data),

@@ -1,8 +1,5 @@
-import { postChatContextUpdate } from "@/lib/api";
 import { Automation } from "@/types/automations";
 import { Datasets, TimeSeriesDataset } from "@/types/datasets";
-import { useSession } from "next-auth/react";
-import { useConversation } from "@/hooks/useConversation";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { AnalysisJobResultMetadata } from "@/types/analysis";
@@ -14,8 +11,6 @@ const emptyDatasetsInContext: Datasets = {
 const emptyAutomationsInContext = {}
 
 export const useAgentContext = () => {
-  const { data: session } = useSession();
-  const { currentConversationID } = useConversation();
   
   const { data: datasetsInContext } = useSWR("datasetsInContext", { fallbackData: emptyDatasetsInContext });
   const { data: automationsInContext } = useSWR("automationsInContext", { fallbackData: emptyAutomationsInContext });
@@ -23,13 +18,6 @@ export const useAgentContext = () => {
 
   const { trigger: addDatasetToContext } = useSWRMutation("datasetsInContext",
     async (_, { arg }: { arg: TimeSeriesDataset }) => {
-      await postChatContextUpdate(
-        session?.APIToken.accessToken || "",
-        currentConversationID || "",
-        [arg.id],
-        [],
-        []
-      );
       return arg;
     },
     {
@@ -39,14 +27,6 @@ export const useAgentContext = () => {
 
   const { trigger: removeDatasetFromContext } = useSWRMutation("datasetsInContext",
     async (_, { arg }: { arg: TimeSeriesDataset }) => {
-      await postChatContextUpdate(
-        session?.APIToken.accessToken || "",
-        currentConversationID || "",
-        [arg.id],
-        [],
-        [],
-        true
-      );
       return arg;
     },
     {
@@ -64,13 +44,6 @@ export const useAgentContext = () => {
 
   const { trigger: addAutomationToContext } = useSWRMutation("automationsInContext",
     async (_, { arg }: { arg: Automation }) => {
-      await postChatContextUpdate(
-        session?.APIToken.accessToken || "",
-        currentConversationID || "",
-        [],
-        [arg.id],
-        []
-      );
       return arg;
     },
     {
@@ -80,14 +53,6 @@ export const useAgentContext = () => {
 
   const { trigger: removeAutomationFromContext } = useSWRMutation("automationsInContext",
     async (_, { arg }: { arg: Automation }) => {
-      await postChatContextUpdate(
-        session?.APIToken.accessToken || "",
-        currentConversationID || "",
-        [],
-        [arg.id],
-        [],
-        true
-      );
       return arg;
     },
     {
@@ -105,13 +70,6 @@ export const useAgentContext = () => {
 
   const { trigger: addAnalysisToContext } = useSWRMutation("analysisesInContext",
     async (_, { arg }: { arg: AnalysisJobResultMetadata }) => {
-      await postChatContextUpdate(
-        session?.APIToken.accessToken || "",
-        currentConversationID || "",
-        [],
-        [],
-        [arg.jobId]
-      );
       return arg;
     },
     {
@@ -126,14 +84,6 @@ export const useAgentContext = () => {
 
   const { trigger: removeAnalysisFromContext } = useSWRMutation("analysisesInContext",
     async (_, { arg }: { arg: AnalysisJobResultMetadata }) => {
-      await postChatContextUpdate(
-        session?.APIToken.accessToken || "",
-        currentConversationID || "",
-        [],
-        [],
-        [arg.jobId],
-        true
-      );
       return arg;
     },
     {
