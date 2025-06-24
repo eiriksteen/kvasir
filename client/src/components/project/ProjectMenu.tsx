@@ -2,22 +2,20 @@
 
 import React, { useState } from 'react';
 import { AlertTriangle, Loader2, ChevronRight, FolderGit2, X, Plus } from 'lucide-react';
-import { useProject } from '@/hooks/useProject';
+import { useProjects } from '@/hooks/useProject';
 import { Project } from '@/types/project';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
-interface SelectProjectProps {
-  onSelect: (project: Project) => void;
-}
-
-export default function SelectProject({ onSelect }: SelectProjectProps) {
-  const { projects, isLoading, createNewProject, setSelectedProject } = useProject();
+export default function ProjectMenu() {
+  const { projects, isLoading, triggerCreateNewProject } = useProjects();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,9 +29,8 @@ export default function SelectProject({ onSelect }: SelectProjectProps) {
     setIsSubmitting(true);
 
     try {
-      const newProject = await createNewProject({ name, description });
-      setSelectedProject(newProject);
-      onSelect(newProject);
+      const newProject = await triggerCreateNewProject({ name, description });
+      router.push(`/projects/${newProject.id}`);
       setShowCreateModal(false);
       setName('');
       setDescription('');
@@ -45,8 +42,7 @@ export default function SelectProject({ onSelect }: SelectProjectProps) {
   };
 
   const handleProjectSelect = (project: Project) => {
-    setSelectedProject(project);
-    onSelect(project);
+    router.push(`/projects/${project.id}`);
   };
 
   if (isLoading) {
@@ -125,7 +121,7 @@ export default function SelectProject({ onSelect }: SelectProjectProps) {
             <div className="p-6 overflow-y-auto max-h-[60vh]">
               {projects && projects.length > 0 ? (
                 <div className="space-y-3">
-                  {projects.map((project) => (
+                  {projects.slice().reverse().map((project) => (
                     <button
                       key={project.id}
                       onClick={() => handleProjectSelect(project)}
@@ -241,4 +237,4 @@ export default function SelectProject({ onSelect }: SelectProjectProps) {
       )}
     </div>
   );
-}
+} 

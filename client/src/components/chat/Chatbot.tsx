@@ -1,20 +1,19 @@
 'use client';
 
-import { memo } from 'react';
-import { useState, useRef, useEffect } from 'react';
-import { Send, Database, X, BarChart, History, Plus, Zap } from 'lucide-react';
+import React, { useEffect, useRef, useState, memo } from 'react';
+import { Send, Plus, History, Database, X, BarChart, Zap } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useChat, useAgentContext } from '@/hooks';
-import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
+import { useChat } from '@/hooks/useChat';
+import { useAgentContext } from '@/hooks/useAgentContext';
+import { ChatHistory } from '@/components/chat/ChatHistory';
 import { ChatMessage } from '@/types/chat';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
+import { useSession } from 'next-auth/react';
+import { redirect } from 'next/navigation';
 import { useDatasets } from '@/hooks/useDatasets';
 import { useAnalysis } from '@/hooks/useAnalysis';
-import Popup from './Popup';
-import { ChatHistory } from './ChatHistory';
 
 const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
   const { datasets} = useDatasets();
@@ -77,7 +76,7 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
           </div>
         )}
         
-        <div className="prose prose-invert max-w-none">
+        <div className="text-sm leading-relaxed">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {message.content}
           </ReactMarkdown>
@@ -90,15 +89,14 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
 // Add display name to the memo component
 ChatListItem.displayName = 'ChatListItem';
 
-function Chat() {
+function Chat({ projectId }: { projectId: string }) {
   
   const [input, setInput] = useState('');
   const [width, setWidth] = useState(400);
   const [isDragging, setIsDragging] = useState(false);
-  const [showAnalysisPopup, setShowAnalysisPopup] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(false);
   
-  const { submitPrompt, startNewConversation, currentConversation } = useChat();
+  const { submitPrompt, startNewConversation, currentConversation } = useChat(projectId);
   const { datasetsInContext, removeDatasetFromContext, analysisesInContext, removeAnalysisFromContext } = useAgentContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -180,14 +178,6 @@ function Chat() {
       className="absolute right-0 h-screen text-white flex flex-col bg-[#1a1625]/95 pt-12"
       style={{ width: `${width}px` }}
     >
-      {showAnalysisPopup && (
-        <Popup 
-          message="Analysis is being initialized..." 
-          onClose={() => setShowAnalysisPopup(false)}
-          type="analysis"
-        />
-      )}
-      
       {/* Drag handle */}
       <div 
         ref={dragHandleRef}
@@ -199,7 +189,7 @@ function Chat() {
       {!isCollapsed && (
         <>
           {/* Header with history button */}
-          <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3 flex justify-between items-center">
+          <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3 flex justify-between items-center relative">
             <div className="flex-1 pl-1">
               <h3 className="text-sm font-medium text-purple-300">
                 {currentConversation?.name || "Chat"}
@@ -213,25 +203,23 @@ function Chat() {
               >
                 <Plus size={18} />
               </button>
-              <button
-                onClick={() => setShowChatHistory(!showChatHistory)}
-                className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-purple-300 hover:text-white"
-                title="Chat History"
-              >
-                <History size={18} />
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowChatHistory(!showChatHistory)}
+                  className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-purple-300 hover:text-white"
+                  title="Chat History"
+                >
+                  <History size={18} />
+                </button>
+                <ChatHistory
+                  selectedConversationId={currentConversation?.id || null}
+                  onConversationSelect={handleConversationSelect}
+                  projectId={projectId}
+                  isOpen={showChatHistory}
+                />
+              </div>
             </div>
           </div>
-
-          {/* Chat History Panel */}
-          {showChatHistory && (
-            <div className="border-b border-purple-900/30 bg-[#1a1625]/90" style={{ height: '300px' }}>
-              <ChatHistory
-                selectedConversationId={currentConversation?.id || null}
-                onConversationSelect={handleConversationSelect}
-              />
-            </div>
-          )}
 
           {/* Combined context bar */}
           <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
@@ -380,12 +368,12 @@ function Chat() {
   );
 }
 
-export default function Chatbot() {
+export default function Chatbot({ projectId }: { projectId: string }) {
   const {data: session} = useSession();
 
   if (!session) {
     redirect("/login");
   }
 
-  return <Chat />;
+  return <Chat projectId={projectId} />;
 }

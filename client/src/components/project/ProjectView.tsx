@@ -2,9 +2,8 @@ import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import {
     ReactFlow,
     Node,
-    Background,
-    Controls,
-    MiniMap,
+    // Controls,
+    // MiniMap,
     EdgeTypes,
     MarkerType,
     Edge,
@@ -14,9 +13,9 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useProject } from '@/hooks/useProject';
 import { useDatasets, useAnalysis } from '@/hooks';
-import DataVisualizer from '@/components/data-visualization/DataVisualizer';
+// import DataVisualizer from '@/components/data-visualization/DataVisualizer';
+import { TimeSeriesVisualizer } from '@/components/data-visualization/TimeSeriesVisualizer';
 import AnalysisItem from '@/components/analysis/AnalysisItem';
-import { X } from 'lucide-react';
 import { FrontendNode } from '@/types/node';
 import DatasetNode from '@/components/react-flow-components/DatasetNode';
 import AnalysisNode from '@/components/react-flow-components/AnalysisNode';
@@ -31,9 +30,12 @@ const edgeTypes: EdgeTypes = {
   'custom-edge': TransportEdge,
 };
 
+interface ProjectViewProps {
+  projectId: string;
+}
 
-const ProjectView: React.FC = () => {
-  const { selectedProject, frontendNodes, updatePosition } = useProject();
+const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
+  const { selectedProject, frontendNodes, updatePosition } = useProject(projectId);
   const { datasets } = useDatasets();
   const { analysisJobResults } = useAnalysis();
   const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
@@ -123,7 +125,7 @@ const ProjectView: React.FC = () => {
   }, [memoizedEdges, setEdges]);
 
 
-  const handleNodeDragStop = useCallback((event: any, node: Node) => {
+  const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
     const frontendNode = frontendNodes.find(fn => fn.id === node.id);
     if (frontendNode) {
       updatePosition({
@@ -138,18 +140,13 @@ const ProjectView: React.FC = () => {
   const renderModal = () => {
     if (selectedDataset) {
       return (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="relative flex w-full max-w-5xl h-[80vh] bg-gray-950 border border-[#101827] rounded-lg shadow-2xl overflow-hidden">
-            <button
-              onClick={() => setSelectedDataset(null)}
-              className="absolute top-3 right-3 z-50 p-1 rounded-full text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-              title="Close (Esc)"
-            >
-              <X size={20} />
-            </button>
-            <div className="flex-1 flex flex-col overflow-hidden bg-gray-950">
-              <DataVisualizer />
-            </div>
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-5xl h-full max-h-[80vh]">
+            <TimeSeriesVisualizer 
+              datasetId={selectedDataset} 
+              mode="full" 
+              onClose={() => setSelectedDataset(null)}
+            />
           </div>
         </div>
       );
@@ -184,10 +181,17 @@ const ProjectView: React.FC = () => {
         edgeTypes={edgeTypes}
         fitView
         onNodeDragStop={handleNodeDragStop}
+        className="reactflow-no-watermark"
       >
-        <Background />
-        <Controls />
-        <MiniMap />
+        {/* <Controls /> */}
+        {/* <MiniMap 
+          style={{
+            background: '#0a101c',
+            border: '1px solid #1d2d50'
+          }}
+          nodeColor="#6366f1"
+          maskColor="rgba(0, 0, 0, 0.1)"
+        /> */}
       </ReactFlow>
       {renderModal()}
     </div>

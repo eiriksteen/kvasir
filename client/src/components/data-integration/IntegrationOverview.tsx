@@ -10,8 +10,7 @@ import IntegrationJobDetail from './IntegrationJobDetail';
 // import { useProject } from '@/hooks/useProject';
 
 interface IntegrationOverviewProps {
-  // Remove props related to jobs data and helpers
-  setCurrentView: (view: 'overview' | 'add') => void;
+  setCurrentView: (view: 'overview' | 'add' | 'jobs') => void;
 }
 
 export default function IntegrationOverview({ setCurrentView }: IntegrationOverviewProps) {
@@ -67,7 +66,7 @@ export default function IntegrationOverview({ setCurrentView }: IntegrationOverv
 
   return (
     <>
-      <div className="flex items-center justify-between p-4 border-b border-[#101827] flex-shrink-0 bg-[#050a14]/50">
+      <div className="flex items-center justify-between p-4 border-b border-[#101827] flex-shrink-0">
         <h3 className="text-md font-semibold text-zinc-200">Jobs Overview</h3>
       </div>
       <div className="flex-grow p-4 overflow-y-auto space-y-3">

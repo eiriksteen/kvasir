@@ -33,7 +33,8 @@ async def get_project_by_id(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     if project.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to access this project")
+        raise HTTPException(
+            status_code=403, detail="Not authorized to access this project")
     return project
 
 
@@ -43,12 +44,14 @@ async def update_project_by_id(
     project_data: ProjectUpdate,
     user: User = Depends(get_current_user)
 ) -> Project:
+
     project = await get_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     if project.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to update this project")
-    
+        raise HTTPException(
+            status_code=403, detail="Not authorized to update this project")
+
     updated_project = await update_project(project_id, project_data)
     return updated_project
 
@@ -62,9 +65,10 @@ async def delete_project_by_id(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     if project.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this project")
-    
-    success = await delete_project(project_id)
+        raise HTTPException(
+            status_code=403, detail="Not authorized to delete this project")
+
+    await delete_project(project_id)
     return {"message": "Project deleted successfully"}
 
 

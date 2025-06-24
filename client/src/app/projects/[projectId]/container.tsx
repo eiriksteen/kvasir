@@ -3,29 +3,20 @@
 import { SessionProvider } from "next-auth/react";
 import { Session } from 'next-auth';
 import OntologyBar from "@/components/OntologyBar";
-import Chatbot from "@/components/Chatbot";
-import UserHeader from "@/components/UserHeader";
-import ProjectView from "@/components/ProjectView";
+import Chatbot from "@/components/chat/Chatbot";
+import UserHeader from "@/components/headers/UserHeader";
+import ProjectView from "@/components/project/ProjectView";
 import { useProject } from "@/hooks/useProject";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 // import MainView from "@/components/MainView";
 
 interface DashboardProps {
   session: Session;
+  projectId: string;
 }
 
-function DashboardContent() {
-  const { selectedProject } = useProject();
-  const router = useRouter();
+function DashboardContent({ projectId }: { projectId: string }) {
+  const { selectedProject } = useProject(projectId);
   
-  // If no project is selected, redirect to project selection
-  useEffect(() => {
-    if (!selectedProject) {
-      router.push('/select-project');
-    }
-  }, [selectedProject, router]);
-
   // If no project is selected, show loading or return null
   if (!selectedProject) {
     return (
@@ -41,24 +32,24 @@ function DashboardContent() {
   // If a project is selected, show the main dashboard
   return (
     <div className="flex flex-col h-full bg-zinc-950">
-      <UserHeader />
+      <UserHeader projectId={projectId}  />
       <div className="flex flex-1 h-[calc(100vh-3rem)]">
-        <OntologyBar />
+        <OntologyBar projectId={projectId} />
         <main className="flex-1 min-w-0 overflow-hidden">
-          <ProjectView />
+          <ProjectView projectId={projectId} />
         </main>
         <div className="w-[400px] shrink-0">
-          <Chatbot />
+          <Chatbot projectId={projectId} />
         </div>
       </div>
     </div>
   );
 }
 
-export default function DashboardContainer({ session }: DashboardProps) {
+export default function ProjectContainer({ projectId, session }: DashboardProps) {
   return (
     <SessionProvider session={session}>
-      <DashboardContent />
+      <DashboardContent projectId={projectId} />
     </SessionProvider>
   );
 } 

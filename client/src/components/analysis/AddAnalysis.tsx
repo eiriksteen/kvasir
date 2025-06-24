@@ -6,14 +6,15 @@ import { useProject } from '@/hooks/useProject';
 import { useDatasets } from '@/hooks';
 
 interface AddAnalysisProps {
+  projectId: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export default function AddAnalysis({ isOpen, onClose }: AddAnalysisProps) {
+export default function AddAnalysis({ projectId, isOpen, onClose }: AddAnalysisProps) {
   const [requirements, setRequirements] = useState('');
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
-  const { selectedProject } = useProject();
+  const { selectedProject } = useProject(projectId);
   const { datasets } = useDatasets();
 
   // Filter datasets based on selected project

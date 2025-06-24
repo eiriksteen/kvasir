@@ -7,7 +7,8 @@ node = Table(
     "node",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
-    Column("project_id", UUID(as_uuid=True), ForeignKey("project.project.id"), nullable=False),
+    Column("project_id", UUID(as_uuid=True), ForeignKey(
+        "project.project.id"), nullable=False),
     Column("x_position", Float, nullable=False),
     Column("y_position", Float, nullable=False),
     Column("type", String(255), nullable=False),
@@ -18,8 +19,10 @@ node = Table(
 dataset_node = Table(
     "dataset_node",
     metadata,
-    Column("id", UUID(as_uuid=True), ForeignKey("node.node.id"), primary_key=True),
-    Column("dataset_id", UUID(as_uuid=True), ForeignKey("ontology.dataset.job_id"), nullable=False),
+    Column("id", UUID(as_uuid=True), ForeignKey(
+        "node.node.id"), primary_key=True),
+    Column("dataset_id", UUID(as_uuid=True), ForeignKey(
+        "ontology.dataset.id"), nullable=False),
     schema="node"
 )
 
@@ -27,8 +30,10 @@ dataset_node = Table(
 analysis_node = Table(
     "analysis_node",
     metadata,
-    Column("id", UUID(as_uuid=True), ForeignKey("node.node.id"), primary_key=True),
-    Column("analysis_id", UUID(as_uuid=True), ForeignKey("analysis.analysis_jobs_results.job_id"), nullable=False),
+    Column("id", UUID(as_uuid=True), ForeignKey(
+        "node.node.id"), primary_key=True),
+    Column("analysis_id", UUID(as_uuid=True), ForeignKey(
+        "analysis.analysis_jobs_results.job_id"), nullable=False),
     schema="node"
 )
 
@@ -36,7 +41,9 @@ analysis_node = Table(
 automation_node = Table(
     "automation_node",
     metadata,
-    Column("id", UUID(as_uuid=True), ForeignKey("node.node.id"), primary_key=True),
-    Column("automation_id", UUID(as_uuid=True), ForeignKey("automation.automation.id"), nullable=False),
+    Column("id", UUID(as_uuid=True), ForeignKey(
+        "node.node.id"), primary_key=True),
+    Column("automation_id", UUID(as_uuid=True), ForeignKey(
+        "automation.automation.id"), nullable=False),
     schema="node"
 )

@@ -4,32 +4,38 @@ import { FrontendNode, FrontendNodeCreate } from "@/types/node";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
+import { useCallback, useMemo } from "react";
 
-export const useProject = () => {
+
+export const useProjects = () => {
   const { data: session } = useSession();
 
-  // Fetch all projects
-  const { data: projects, error, isLoading, mutate: mutateProjects } = useSWR(
+  const { data: projects, error, isLoading } = useSWR(
     session ? "projects" : null,
     () => fetchProjects(session ? session.APIToken.accessToken : ""),
     { fallbackData: [] }
   );
 
-  // Store selected project
-  const { data: selectedProject, mutate: mutateSelectedProject } = useSWR(
-    "selectedProject",
-    { fallbackData: null }
-  );
-
-  // Fetch nodes for the selected project
-  const { data: frontendNodes, error: nodesError, isLoading: nodesLoading, mutate: mutateNodes } = useSWR(
-    session && selectedProject ? ['projectNodes', selectedProject.id] : null,
-    () => fetchProjectNodes(session?.APIToken?.accessToken || '', selectedProject.id),
-    { fallbackData: [] }
-  );
+  const {trigger: triggerUpdateProject} = useSWRMutation(
+    "projects",
+    async (_, { arg }: { arg: { data: ProjectUpdate, projectId: string } }) => {
+      const updatedProject = await updateProject(
+        session ? session.APIToken.accessToken : "",
+        arg.projectId,
+        arg.data
+      );
+      
+      // return list of projects with updated project
+      return projects?.map((project) =>
+        project.id === updatedProject.id ? updatedProject : project
+      );
+      
+    },
+    { revalidate: false }
+  )
 
   // Create new project
-  const { trigger: createNewProject } = useSWRMutation(
+  const { trigger: triggerCreateNewProject } = useSWRMutation(
     "projects",
     async (_, { arg }: { arg: ProjectCreate }) => {
       const newProject = await createProject(
@@ -49,29 +55,21 @@ export const useProject = () => {
     }
   );
 
-  // Update project
-  const { trigger: updateSelectedProject } = useSWRMutation(
-    "projects",
-    async (_, { arg }: { arg: { data: ProjectUpdate } }) => {
-      const updatedProject = await updateProject(
-        session ? session.APIToken.accessToken : "",
-        selectedProject?.id || "",
-        arg.data
-      );
-      
-      return updatedProject;
-    },
-    {
-      populateCache: (newData: Project) => {
-        if (projects) {
-          return projects.map((project) =>
-            project.id === newData.id ? newData : project
-          );
-        }
-        return [newData];
-      },
-      revalidate: false
-    }
+  return { projects, error, isLoading, triggerUpdateProject, triggerCreateNewProject };
+}
+
+export const useProject = (projectId: string) => {
+  const { data: session } = useSession();
+  const { projects, triggerUpdateProject } = useProjects();
+
+  // Store selected project
+  const selectedProject = useMemo(() => projects.find(project => project.id === projectId), [projects, projectId]);
+
+  // Fetch nodes for the selected project
+  const { data: frontendNodes, error: nodesError, isLoading: nodesLoading, mutate: mutateNodes } = useSWR(
+    session && selectedProject ? ['projectNodes', selectedProject.id] : null,
+    () => fetchProjectNodes(session?.APIToken?.accessToken || '', projectId),
+    { fallbackData: [] }
   );
 
   // Update node position
@@ -125,26 +123,16 @@ export const useProject = () => {
     }
   );
 
-  // Set selected project
-  const setSelectedProject = (project: Project | null) => {
-    mutateSelectedProject(project, { revalidate: false });
-  };
-
   // Update selected project and sync with projects list
-  const updateBothSelectedAndProjectsList = async (data: ProjectUpdate) => {
+  const updateProjectAndNode = useCallback(async (data: ProjectUpdate) => {
     if (!selectedProject) return;
 
-    const updatedProject = await updateSelectedProject({
-      data
-    });
-
-    // Update both the selected project and the projects list
-    mutateSelectedProject(updatedProject, { revalidate: false });
+    await triggerUpdateProject({data, projectId: selectedProject.id});
     
     // Also refresh the nodes since the project data has changed
     // This ensures nodes are updated when datasets/analyses are added/removed from the project
     mutateNodes();
-  };
+  }, [selectedProject, triggerUpdateProject, mutateNodes]);
 
   // Add dataset to project and create corresponding node
   const addDatasetToProject = async (jobId: string) => {
@@ -162,7 +150,7 @@ export const useProject = () => {
     });
 
     // Then update the project to include the dataset
-    await updateBothSelectedAndProjectsList({
+    await updateProjectAndNode({
       type: "dataset",
       id: jobId,
       remove: false,
@@ -176,7 +164,7 @@ export const useProject = () => {
     if (!selectedProject) return;
 
     // First update the project to remove the dataset
-    await updateBothSelectedAndProjectsList({
+    await updateProjectAndNode({
       type: "dataset",
       id: jobId,
       remove: true,
@@ -193,11 +181,9 @@ export const useProject = () => {
     projects,
     selectedProject,
     frontendNodes,
-    error: error || nodesError,
-    isLoading: isLoading || nodesLoading,
-    createNewProject,
-    updateBothSelectedAndProjectsList,
-    setSelectedProject,
+    error: nodesError,
+    isLoading: nodesLoading,
+    updateProjectAndNode,
     updatePosition,
     createFrontendNode,
     deleteNodeTrigger,

@@ -1,5 +1,5 @@
 import { EventSource } from 'eventsource';
-import { ChatMessageAPI, Conversation } from "@/types/chat";
+import { Conversation, ConversationCreate, Prompt } from "@/types/chat";
 import { Datasets, EntityMetadata, TimeSeriesData } from "@/types/datasets";
 import { Analyses } from "@/types/analysis";
 import { Job } from "@/types/jobs";
@@ -205,6 +205,7 @@ export async function* streamChat(token: string, prompt: Prompt): AsyncGenerator
 }
 
 export async function postConversation(token: string, conversationData: ConversationCreate): Promise<Conversation> {
+
   const response = await fetch(`${API_URL}/chat/conversation`, {
     method: 'POST',
     headers: {
@@ -434,6 +435,7 @@ export async function fetchProjectNodes(token: string, projectId: string): Promi
 
 
 export async function fetchTimeSeriesData(token: string, entityId: string): Promise<TimeSeriesData> {
+  console.log("fetching time series data for entityId", entityId);
   const response = await fetch(`${API_URL}/data-provider/time-series/${entityId}`, {
     headers: {
       'Authorization': `Bearer ${token}`

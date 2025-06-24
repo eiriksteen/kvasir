@@ -7,8 +7,7 @@ import { useSession } from 'next-auth/react'; // Import useSession
 import { IntegrationSource } from '@/types/jobs'; // Import IntegrationSource type
 
 interface AddDatasetProps {
-  setCurrentView: (view: 'overview' | 'add') => void; // Keep setCurrentView
-  // Remove other props that will now be state within this component
+  setCurrentView: (view: 'overview' | 'add' | 'jobs') => void;
 }
 
 export default function AddDataset({ setCurrentView }: AddDatasetProps) {
@@ -107,8 +106,8 @@ export default function AddDataset({ setCurrentView }: AddDatasetProps) {
 
   return (
     <>
-      <div className="flex items-center justify-between p-4 border-b border-[#101827] flex-shrink-0 bg-[#050a14]/50">
-        <h3 className="text-md font-semibold text-zinc-200">Add New Dataset Integration</h3>
+      <div className="flex items-center justify-between p-4 border-b border-[#101827] flex-shrink-0">
+        <h3 className="text-md font-semibold text-zinc-200">Integrate New Dataset</h3>
       </div>
       <div className="flex-grow p-6 overflow-y-auto">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -183,7 +182,7 @@ export default function AddDataset({ setCurrentView }: AddDatasetProps) {
                Upload Directory
                </label>
                <div
-                  className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors duration-200
+                  className={`border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors duration-200 min-h-[240px] flex items-center justify-center
                     ${files.length > 0 ? 'border-blue-700/50 bg-blue-900/10' : 'border-zinc-700 hover:border-zinc-600 bg-[#0a101c]/30 hover:bg-[#0a101c]/60'}`}
                   onClick={() => fileInputRef.current?.click()}
                   onDragOver={handleDragOver}
@@ -265,7 +264,7 @@ export default function AddDataset({ setCurrentView }: AddDatasetProps) {
                  </>
               ) : (
                  <>
-                   <Plus size={16} className="mr-1.5" /> Upload & Integrate
+                   <Plus size={16} className="mr-1.5" /> Integrate Dataset
                  </>
               )}
             </button>

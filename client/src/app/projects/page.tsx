@@ -1,9 +1,9 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
-import IntegrationContainer from "@/app/integration/container";
+import SelectProjectContainer from "@/app/projects/container";
 
-export default async function IntegrationPage() {
+export default async function SelectProjectPage() {
   const session = await getServerSession(authOptions);
 
   if (!session) {
@@ -11,6 +11,6 @@ export default async function IntegrationPage() {
   }
 
   return (
-    <IntegrationContainer session={session} />
+    <SelectProjectContainer session={session} />
   );
 } 

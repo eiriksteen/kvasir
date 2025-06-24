@@ -1,19 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import IntegrationOverview from '@/components/integration/IntegrationOverview';
-import AddDataset from '@/components/integration/AddDataset';
-import { List, FilePlus, Info } from 'lucide-react';
+import DatasetsOverview from '@/components/data-integration/DatasetsOverview';
+import AddDataset from '@/components/data-integration/AddDataset';
+import IntegrationOverview from '@/components/data-integration/IntegrationOverview';
+import { Database, FilePlus, List, Info } from 'lucide-react';
 
-type View = 'overview' | 'add';
+type View = 'overview' | 'add' | 'jobs';
 
-export default function IntegrationPageContent() {
+export default function DatasetsPageContent() {
   const [currentView, setCurrentView] = useState<View>('overview');
 
   return (
-    <div className="flex h-full w-full bg-gray-950 mt-12">
+    <div className="flex h-full w-full bg-zinc-950 mt-12">
       <div className="w-60 flex-shrink-0 bg-[#050a14] border-r border-[#101827] p-4 flex flex-col">
-        <h2 className="text-sm font-mono uppercase tracking-wider text-[#6b89c0] mb-6">Integrations</h2>
+        <h2 className="text-sm font-mono uppercase tracking-wider text-[#6b89c0] mb-6">Datasets</h2>
         <nav className="space-y-2 flex-grow">
           <button
             onClick={() => setCurrentView('overview')}
@@ -23,8 +24,8 @@ export default function IntegrationPageContent() {
                 : 'text-zinc-400 bg-[#050a14] border-[#101827] hover:bg-[#0a101c] hover:border-[#1d2d50] hover:text-zinc-200'
             }`}
           >
-            <List size={16} className="mr-3" />
-            Overview
+            <Database size={16} className="mr-3" />
+            My Datasets
           </button>
           <button
             onClick={() => setCurrentView('add')}
@@ -35,7 +36,18 @@ export default function IntegrationPageContent() {
             }`}
           >
             <FilePlus size={16} className="mr-3" />
-            Add Dataset
+            Integrate Dataset
+          </button>
+          <button
+            onClick={() => setCurrentView('jobs')}
+            className={`w-full flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors border-2 ${
+              currentView === 'jobs' 
+                ? 'bg-[#0a101c] border-[#2a4170] text-white' 
+                : 'text-zinc-400 bg-[#050a14] border-[#101827] hover:bg-[#0a101c] hover:border-[#1d2d50] hover:text-zinc-200'
+            }`}
+          >
+            <List size={16} className="mr-3" />
+            Integration Jobs
           </button>
         </nav>
 
@@ -45,20 +57,26 @@ export default function IntegrationPageContent() {
             Tip
           </h3>
           <p className="text-xs text-zinc-400 leading-relaxed">
-            Select an integration job to view its progress and monitor everything the AI is doing.
+            View your datasets, integrate new data sources, or monitor integration job progress.
           </p>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden bg-gray-950">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {currentView === 'overview' && (
-          <IntegrationOverview
+          <DatasetsOverview
             setCurrentView={setCurrentView}
           />
         )}
 
         {currentView === 'add' && (
           <AddDataset
+            setCurrentView={setCurrentView}
+          />
+        )}
+
+        {currentView === 'jobs' && (
+          <IntegrationOverview
             setCurrentView={setCurrentView}
           />
         )}

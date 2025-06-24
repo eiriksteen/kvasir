@@ -9,10 +9,10 @@ import { useProject } from './useProject';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 
-export const useChat = () => {
+export const useChat = (projectId: string) => {
   const {data: session} = useSession();
   const { datasetsInContext, analysisesInContext } = useAgentContext();
-  const { selectedProject } = useProject();
+  const { selectedProject } = useProject(projectId);
 
   // Fetch conversations using SWR
   const { data: conversations, error: conversationsError, mutate: mutateConversations } = useSWR(
@@ -143,7 +143,7 @@ export const useChat = () => {
         chunkNum++;
       }
     }
-  }, [session, createConversation, selectedProject, datasetsInContext, analysisesInContext]);
+  }, [session, createConversation, selectedProject, datasetsInContext, analysisesInContext, currentConversation?.id, mutateCurrentConversation]);
 
   return { 
     currentConversation, 

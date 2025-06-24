@@ -1,10 +1,10 @@
 'use client';
 
 import { X, Info } from 'lucide-react';
-import { Job } from '../types/jobs';
-import { getStatusColor } from '../lib/utils';
+import { Job } from '@/types/jobs';
+import { getStatusColor } from '@/lib/utils';
 import { useState } from 'react';
-import AnalysisJobDetail from './AnalysisJobDetail';
+import AnalysisJobDetail from './analysis/AnalysisJobDetail';
 import { useAnalysis } from '@/hooks/useAnalysis';
 
 interface JobsOverviewProps {

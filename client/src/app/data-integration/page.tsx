@@ -1,9 +1,9 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
-import SelectProjectContainer from "@/app/select-project/container";
+import DatasetsContainer from "@/app/data-integration/container";
 
-export default async function SelectProjectPage() {
+export default async function DatasetsPage() {
   const session = await getServerSession(authOptions);
 
   if (!session) {
@@ -11,6 +11,6 @@ export default async function SelectProjectPage() {
   }
 
   return (
-    <SelectProjectContainer session={session} />
+    <DatasetsContainer session={session} />
   );
 } 

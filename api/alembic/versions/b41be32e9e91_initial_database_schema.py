@@ -234,7 +234,7 @@ def upgrade() -> None:
                     sa.Column('job_id', sa.UUID(), nullable=False),
                     sa.Column('dataset_id', sa.UUID(), nullable=False),
                     sa.ForeignKeyConstraint(
-                        ['dataset_id'], ['ontology.dataset.job_id'], ),
+                        ['dataset_id'], ['ontology.dataset.id'], ),
                     sa.ForeignKeyConstraint(['job_id'], ['jobs.jobs.id'], ),
                     sa.PrimaryKeyConstraint('id'),
                     schema='analysis'
@@ -280,7 +280,7 @@ def upgrade() -> None:
                     sa.ForeignKeyConstraint(
                         ['context_id'], ['chat.context.id'], ),
                     sa.ForeignKeyConstraint(
-                        ['dataset_id'], ['ontology.dataset.job_id'], ),
+                        ['dataset_id'], ['ontology.dataset.id'], ),
                     sa.PrimaryKeyConstraint('context_id', 'dataset_id'),
                     schema='chat'
                     )
@@ -318,7 +318,7 @@ def upgrade() -> None:
                     sa.Column('id', sa.UUID(), nullable=False),
                     sa.Column('dataset_id', sa.UUID(), nullable=False),
                     sa.ForeignKeyConstraint(
-                        ['dataset_id'], ['ontology.dataset.job_id'], ),
+                        ['dataset_id'], ['ontology.dataset.id'], ),
                     sa.ForeignKeyConstraint(['id'], ['node.node.id'], ),
                     sa.PrimaryKeyConstraint('id'),
                     schema='node'
@@ -331,7 +331,7 @@ def upgrade() -> None:
                         sa.String()), nullable=False),
                     sa.Column('num_columns', sa.Integer(), nullable=False),
                     sa.ForeignKeyConstraint(
-                        ['dataset_id'], ['ontology.dataset.job_id'], ),
+                        ['dataset_id'], ['ontology.dataset.id'], ),
                     sa.PrimaryKeyConstraint('dataset_id'),
                     schema='ontology'
                     )
@@ -341,7 +341,7 @@ def upgrade() -> None:
                         sa.String()), nullable=False),
                     sa.Column('num_features', sa.Integer(), nullable=False),
                     sa.ForeignKeyConstraint(
-                        ['id'], ['ontology.dataset.job_id'], ),
+                        ['id'], ['ontology.dataset.id'], ),
                     sa.PrimaryKeyConstraint('id'),
                     schema='ontology'
                     )
@@ -355,7 +355,7 @@ def upgrade() -> None:
                         timezone=True), nullable=False),
                     sa.Column('dataset_id', sa.UUID(), nullable=False),
                     sa.ForeignKeyConstraint(
-                        ['dataset_id'], ['ontology.dataset.job_id'], ),
+                        ['dataset_id'], ['ontology.dataset.id'], ),
                     sa.PrimaryKeyConstraint('id'),
                     schema='ontology'
                     )
@@ -376,7 +376,7 @@ def upgrade() -> None:
                     sa.Column('min_num_timestamps',
                               sa.Integer(), nullable=False),
                     sa.ForeignKeyConstraint(
-                        ['id'], ['ontology.dataset.job_id'], ),
+                        ['id'], ['ontology.dataset.id'], ),
                     sa.PrimaryKeyConstraint('id'),
                     schema='ontology'
                     )
@@ -394,7 +394,7 @@ def upgrade() -> None:
                     sa.Column('project_id', sa.UUID(), nullable=False),
                     sa.Column('dataset_id', sa.UUID(), nullable=False),
                     sa.ForeignKeyConstraint(
-                        ['dataset_id'], ['ontology.dataset.job_id'], ),
+                        ['dataset_id'], ['ontology.dataset.id'], ),
                     sa.ForeignKeyConstraint(
                         ['project_id'], ['project.project.id'], ),
                     sa.PrimaryKeyConstraint('project_id', 'dataset_id'),

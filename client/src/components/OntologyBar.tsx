@@ -1,15 +1,16 @@
 'use client';
+import React from 'react';
 
 import { useState, useMemo } from 'react';
-import { Database, Plus, Check, ChevronLeft, ChevronRight, BarChart3, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { Database, Plus, ChevronLeft, ChevronRight, BarChart3, Zap, TrendingUp } from 'lucide-react';
 import { TimeSeriesDataset } from '@/types/datasets';
 import { Automation } from '@/types/automations';
 import { useAgentContext, useDatasets, useAnalysis, useProject } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
-import IntegrationManager from './integration/IntegrationManager';
-import AddAnalysis from './AddAnalysis';
+import AddDatasetToProject from '@/components/data-integration/AddDatasetToProject';
+import AddAnalysis from '@/components/analysis/AddAnalysis';
 
 type ItemType = 'dataset' | 'analysis' | 'automation';
 
@@ -25,39 +26,27 @@ function ListItem({ item, type, isInContext, onClick }: ListItemProps) {
         switch (type) {
             case 'dataset':
                 return {
-                    bg: isInContext ? 'bg-[#0a101c] border-[#2a4170]' : 'bg-[#050a14] border-[#101827]',
-                    hover: 'hover:bg-[#0a101c]',
-                    icon: <Database size={10} />,
-                    iconColor: 'text-blue-300',
-                    button: {
-                        bg: isInContext 
-                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-500 shadow-blue-900/30'
-                            : 'bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170]'
-                    }
+                    bg: isInContext ? 'bg-blue-500/10' : 'hover:bg-blue-500/5',
+                    icon: <TrendingUp size={11} />,
+                    iconColor: 'text-blue-400',
+                    textColor: 'text-gray-200',
+                    hover: 'hover:bg-blue-500/8'
                 };
             case 'analysis':
                 return {
-                    bg: isInContext ? 'bg-[#1a0f2a] border-[#4a1d6b]' : 'bg-[#1a1625]/80 border-[#271a30]',
-                    hover: 'hover:bg-[#1a0f2a]',
-                    icon: <BarChart3 size={10} />,
-                    iconColor: 'text-purple-300',
-                    button: {
-                        bg: isInContext 
-                            ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white border-purple-500 shadow-purple-900/30'
-                            : 'bg-gradient-to-r from-[#1a1625] to-[#271a30] text-purple-300 hover:text-white hover:from-purple-600 hover:to-purple-700 border-[#4a1d6b]'
-                    }
+                    bg: isInContext ? 'bg-purple-500/10' : 'hover:bg-purple-500/5',
+                    icon: <BarChart3 size={11} />,
+                    iconColor: 'text-purple-400',
+                    textColor: 'text-gray-200',
+                    hover: 'hover:bg-purple-500/8'
                 };
             case 'automation':
                 return {
-                    bg: isInContext ? 'bg-[#0a1a0f] border-[#1d4a2d]' : 'bg-[#1a1625]/80 border-[#271a30]',
-                    hover: 'hover:bg-[#0a1a0f]',
-                    icon: <Zap size={10} />,
-                    iconColor: 'text-emerald-300',
-                    button: {
-                        bg: isInContext 
-                            ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white border-emerald-500 shadow-emerald-900/30'
-                            : 'bg-gradient-to-r from-[#1a1625] to-[#271a30] text-emerald-300 hover:text-white hover:from-emerald-600 hover:to-emerald-700 border-[#1d4a2d]'
-                    }
+                    bg: isInContext ? 'bg-orange-500/10' : 'hover:bg-orange-500/5',
+                    icon: <Zap size={11} />,
+                    iconColor: 'text-orange-400',
+                    textColor: 'text-gray-200',
+                    hover: 'hover:bg-orange-500/8'
                 };
         }
     };
@@ -68,31 +57,142 @@ function ListItem({ item, type, isInContext, onClick }: ListItemProps) {
     return (
         <div
             onClick={onClick}
-            className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${theme.hover} border-2 ${theme.bg}`}
+            className={`group relative flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer transition-all duration-150 ${theme.bg} ${theme.hover}`}
         >
-            <div className="flex justify-between items-center pr-2">
-                <div className="flex-1">
-                    <div className="text-sm font-medium">{name}</div>
-                </div>
-                
-                <button 
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onClick();
-                    }}
-                    className={`p-1.5 rounded-full border shadow-md ${theme.button.bg}`}
-                    title={isInContext ? "Remove from context" : "Add to chat context"}
-                >
-                    {isInContext ? <Check size={14} /> : <ChevronRight size={14} />}
-                </button>
+            <div className={`flex-shrink-0 ${theme.iconColor}`}>
+                {theme.icon}
             </div>
+            <span className={`truncate ${theme.textColor} font-mono text-xs`}>{name}</span>
         </div>
     );
 }
 
-export default function OntologyBar() {
+// Component for merged concept + plus icons
+function NewItemIcon({ type, size = 13 }: { type: ItemType; size?: number }) {
+    const badgeClass = "absolute top-[-8px] right-[-8px] rounded-full p-0.5 z-10";
+    const getIcon = () => {
+        switch (type) {
+            case 'dataset':
+                return (
+                    <div className="relative overflow-visible">
+                        <Database size={size} />
+                        <div className={badgeClass + " bg-blue-500 border border-blue-400/30"}>
+                            <Plus size={size * 0.35} className="text-white" />
+                        </div>
+                    </div>
+                );
+            case 'analysis':
+                return (
+                    <div className="relative overflow-visible">
+                        <BarChart3 size={size} />
+                        <div className={badgeClass + " bg-purple-500 border border-purple-400/30"}>
+                            <Plus size={size * 0.35} className="text-white" />
+                        </div>
+                    </div>
+                );
+            case 'automation':
+                return (
+                    <div className="relative overflow-visible">
+                        <Zap size={size} />
+                        <div className={badgeClass + " bg-orange-500 border border-orange-400/30"}>
+                            <Plus size={size * 0.35} className="text-white" />
+                        </div>
+                    </div>
+                );
+        }
+    };
+
+    return getIcon();
+}
+
+interface SectionHeaderProps {
+    title: string;
+    count: number;
+    color: 'blue' | 'purple' | 'orange';
+    onToggle: () => void;
+    onAdd: () => void;
+}
+
+function SectionHeader({ title, count, color, onToggle, onAdd }: SectionHeaderProps) {
+    const getColorClasses = (color: 'blue' | 'purple' | 'orange') => {
+        switch (color) {
+            case 'blue':
+                return {
+                    bg: 'bg-blue-500/20',
+                    border: 'border-blue-400/50',
+                    text: 'text-blue-300',
+                    icon: 'text-blue-300',
+                    hover: 'hover:bg-blue-500/30',
+                    buttonHover: 'hover:bg-blue-500/40',
+                    buttonBg: 'bg-blue-500/15',
+                };
+            case 'purple':
+                return {
+                    bg: 'bg-purple-500/20',
+                    border: 'border-purple-400/50',
+                    text: 'text-purple-300',
+                    icon: 'text-purple-300',
+                    hover: 'hover:bg-purple-500/30',
+                    buttonHover: 'hover:bg-purple-500/40',
+                    buttonBg: 'bg-purple-500/15',
+                };
+            case 'orange':
+                return {
+                    bg: 'bg-orange-500/20',
+                    border: 'border-orange-400/50',
+                    text: 'text-orange-300',
+                    icon: 'text-orange-300',
+                    hover: 'hover:bg-orange-500/30',
+                    buttonHover: 'hover:bg-orange-500/40',
+                    buttonBg: 'bg-orange-500/15',
+                };
+        }
+    };
+
+    const colors = getColorClasses(color);
+    const itemTypeMap: Record<string, ItemType> = {
+        'Datasets': 'dataset',
+        'Analysis': 'analysis',
+        'Automations': 'automation'
+    };
+    const itemType = itemTypeMap[title];
+
+    return (
+        <div 
+            className={`flex items-center justify-between px-3 py-2 cursor-pointer transition-colors ${colors.hover}`}
+            onClick={onToggle}
+        >
+            <div className="flex items-center gap-3">
+                <span className="text-xs font-mono text-gray-400 bg-gray-800/50 px-1.5 py-0.5 rounded">
+                    {count}
+                </span>
+                <span className={`text-xs font-semibold uppercase tracking-wider ${colors.text}`}>
+                    {title}
+                </span>
+            </div>
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onAdd();
+                }}
+                className={`p-1.5 rounded-md inline-flex items-center justify-center min-w-[32px] min-h-[32px] ${colors.buttonBg} border ${colors.border} transition-all duration-200 ${colors.buttonHover} hover:scale-105`}
+                title={`Add ${title.slice(0, -1)}`}
+            >
+                <div className={colors.icon}>
+                    <NewItemIcon type={itemType} />
+                </div>
+            </button>
+        </div>
+    );
+}
+
+interface OntologyBarProps {
+    projectId: string;
+}
+
+export default function OntologyBar({ projectId }: OntologyBarProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
-    const [showIntegrationManager, setShowIntegrationManager] = useState(false);
+    const [showAddDatasetToProject, setShowAddDatasetToProject] = useState(false);
     const [showAddAnalysis, setShowAddAnalysis] = useState(false);
     const [expandedSections, setExpandedSections] = useState({
         datasets: true,
@@ -100,7 +200,7 @@ export default function OntologyBar() {
         automations: true
     });
     const { data: session } = useSession();
-    const { selectedProject } = useProject();
+    const { selectedProject } = useProject(projectId);
     const { 
         datasetsInContext, 
         addDatasetToContext, 
@@ -164,50 +264,42 @@ export default function OntologyBar() {
         if (!selectedProject) {
             return (
                 <div className="flex flex-col h-full items-center justify-center p-4">
-                    <p className="text-sm text-zinc-400 mb-4">No project selected</p>
-                    <p className="text-xs text-zinc-500 text-center">Use the exit button in the header to return to project selection</p>
+                    <p className="text-sm text-gray-400 mb-2">No project selected</p>
+                    <p className="text-xs text-gray-500 text-center">Use the exit button in the header to return to project selection</p>
                 </div>
             );
         }
 
         return (
             <div className="flex flex-col h-full">
-                {/* Header with collapse button */}
-                <div className="flex items-center justify-between p-3 border-b border-[#1a2438] bg-[#0a0a0a]">
-                    <span className="text-sm font-medium text-zinc-300">Ontology</span>
+                {/* Header */}
+                <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800 bg-gray-900/50">
+                    <div className="flex flex-col">
+                        <h2 className="text-xs font-mono uppercase tracking-wider text-gray-400 mb-0.5">
+                            Ontology
+                        </h2>
+                    </div>
                     <button
                         onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-[#1a2438] transition-colors"
+                        className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
                         title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                     >
-                        {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                        {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                     </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto">
                     {/* Datasets Section */}
-                    <div className="border-b border-[#1a2438]">
-                        <div className="flex items-center justify-between p-1 pr-3 hover:bg-[#1a2438] transition-colors rounded">
-                            <button
-                                onClick={() => toggleSection('datasets')}
-                                className="flex items-center gap-2 p-2 rounded flex-1"
-                            >
-                                {expandedSections.datasets ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                <span className="text-sm font-medium text-blue-300">Datasets</span>
-                            </button>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowIntegrationManager(true);
-                                }}
-                                className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-[#1a2438] to-[#273349] text-blue-300 hover:text-white hover:from-blue-600 hover:to-blue-700 border-[#2a4170] flex items-center justify-center"
-                                title="Import Data"
-                            >
-                                <Plus size={14} />
-                            </button>
-                        </div>
+                    <div className="border-b border-gray-800">
+                        <SectionHeader
+                            title="Datasets"
+                            count={datasets?.timeSeries.filter(dataset => selectedProject.datasetIds.includes(dataset.id)).length || 0}
+                            color="blue"
+                            onToggle={() => toggleSection('datasets')}
+                            onAdd={() => setShowAddDatasetToProject(true)}
+                        />
                         {expandedSections.datasets && (
-                            <div className="p-1 space-y-2">
+                            <div className="bg-blue-500/5 border-l-2 border-blue-500/20">
                                 {datasets?.timeSeries
                                     .filter(dataset => selectedProject.datasetIds.includes(dataset.id))
                                     .map((dataset) => (
@@ -219,33 +311,27 @@ export default function OntologyBar() {
                                             onClick={() => handleDatasetToggle(dataset)}
                                         />
                                     ))}
+                                {datasets?.timeSeries.filter(dataset => selectedProject.datasetIds.includes(dataset.id)).length === 0 && (
+                                    <div className="px-3 py-4 text-center">
+                                        <Database size={16} className="text-blue-400/40 mx-auto mb-2" />
+                                        <p className="text-xs text-gray-500">No datasets</p>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
 
                     {/* Analysis Section */}
-                    <div className="border-b border-[#1a2438]">
-                        <div className="flex items-center justify-between p-1 pr-3 hover:bg-[#1a2438] transition-colors rounded">
-                            <button
-                                onClick={() => toggleSection('analysis')}
-                                className="flex items-center gap-2 p-2 rounded flex-1"
-                            >
-                                {expandedSections.analysis ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                <span className="text-sm font-medium text-purple-300">Analysis</span>
-                            </button>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowAddAnalysis(true);
-                                }}
-                                className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-[#1a1625] to-[#271a30] text-purple-300 hover:text-white hover:from-purple-600 hover:to-purple-700 border-[#4a1d6b] flex items-center justify-center"
-                                title="Add Analysis"
-                            >
-                                <Plus size={14} />
-                            </button>
-                        </div>
+                    <div className="border-b border-gray-800">
+                        <SectionHeader
+                            title="Analysis"
+                            count={filteredAnalysis.length}
+                            color="purple"
+                            onToggle={() => toggleSection('analysis')}
+                            onAdd={() => setShowAddAnalysis(true)}
+                        />
                         {expandedSections.analysis && (
-                            <div className="p-1 space-y-2">
+                            <div className="bg-purple-500/5 border-l-2 border-purple-500/20">
                                 {filteredAnalysis.map((analysis) => (
                                     <ListItem
                                         key={analysis.jobId}
@@ -255,33 +341,29 @@ export default function OntologyBar() {
                                         onClick={() => handleAnalysisToggle(analysis)}
                                     />
                                 ))}
+                                {filteredAnalysis.length === 0 && (
+                                    <div className="px-3 py-4 text-center">
+                                        <BarChart3 size={16} className="text-purple-400/40 mx-auto mb-2" />
+                                        <p className="text-xs text-gray-500">No analysis</p>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
 
                     {/* Automations Section */}
-                    <div className="border-b border-[#1a2438]">
-                        <div className="flex items-center justify-between p-1 pr-3 hover:bg-[#1a2438] transition-colors rounded">
-                            <button
-                                onClick={() => toggleSection('automations')}
-                                className="flex items-center gap-2 p-2 rounded flex-1"
-                            >
-                                {expandedSections.automations ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                <span className="text-sm font-medium text-emerald-300">Automations</span>
-                            </button>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    {/* TODO: Implement add automation */};
-                                }}
-                                className="p-1.5 rounded-full border shadow-md bg-gradient-to-r from-[#1a1625] to-[#271a30] text-emerald-300 hover:text-white hover:from-emerald-600 hover:to-emerald-700 border-[#1d4a2d] flex items-center justify-center"
-                                title="Add Automation"
-                            >
-                                <Plus size={14} />
-                            </button>
-                        </div>
+                    <div className="border-b border-gray-800">
+                        <SectionHeader
+                            title="Automations"
+                            count={filteredAutomations.length}
+                            color="orange"
+                            onToggle={() => toggleSection('automations')}
+                            onAdd={() => {
+                                {/* TODO: Implement add automation */};
+                            }}
+                        />
                         {expandedSections.automations && (
-                            <div className="p-1 space-y-2">
+                            <div className="bg-orange-500/5 border-l-2 border-orange-500/20">
                                 {filteredAutomations.map((automation) => (
                                     <ListItem
                                         key={automation.id}
@@ -291,6 +373,12 @@ export default function OntologyBar() {
                                         onClick={() => {}}
                                     />
                                 ))}
+                                {filteredAutomations.length === 0 && (
+                                    <div className="px-3 py-4 text-center">
+                                        <Zap size={16} className="text-orange-400/40 mx-auto mb-2" />
+                                        <p className="text-xs text-gray-500">No automations</p>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -301,55 +389,62 @@ export default function OntologyBar() {
 
     return (
         <div className="mt-12">
-            <div className={`flex flex-col h-full bg-gray-950 border-r border-[#101827] text-white transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-[300px]'}`}>
+            <div className={`flex flex-col h-full bg-gray-950 border-r border-gray-800 text-white transition-all duration-300 ${isCollapsed ? 'w-10' : 'w-[260px]'}`}>
                 {!isCollapsed && renderContent()}
 
                 {isCollapsed && (
                     <div className="flex flex-col h-full">
                         {/* Header for collapsed state */}
-                        <div className="flex items-center justify-center p-3 border-b border-[#1a2438] bg-[#0a0a0a]">
+                        <div className="flex items-center justify-center p-2 border-b border-gray-800 bg-gray-900/50">
                             <button
                                 onClick={() => setIsCollapsed(!isCollapsed)}
-                                className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-[#1a2438] transition-colors"
+                                className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
                                 title="Expand sidebar"
                             >
-                                <ChevronRight size={16} />
+                                <ChevronRight size={14} />
                             </button>
                         </div>
                         
                         {/* Collapsed content */}
-                        <div className="flex flex-col items-center pt-4 gap-3">
+                        <div className="flex flex-col items-center pt-3 gap-2">
                             <button
-                                className="p-2 rounded-lg text-blue-300 hover:text-blue-200 hover:bg-[#0a101c] transition-colors"
-                                title="Datasets"
+                                onClick={() => setShowAddDatasetToProject(true)}
+                                className="p-2 rounded-md text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/40 transition-all duration-200 hover:scale-105"
+                                title="Add Dataset to Project"
                             >
-                                <Database size={20} />
+                                <NewItemIcon type="dataset" size={14} />
                             </button>
                             <button
-                                className="p-2 rounded-lg text-purple-300 hover:text-purple-200 hover:bg-[#1a0f2a] transition-colors"
-                                title="Analysis"
+                                onClick={() => setShowAddAnalysis(true)}
+                                className="p-2 rounded-md text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500/40 transition-all duration-200 hover:scale-105"
+                                title="Add Analysis"
                             >
-                                <BarChart3 size={20} />
+                                <NewItemIcon type="analysis" size={14} />
                             </button>
                             <button
-                                className="p-2 rounded-lg text-emerald-300 hover:text-emerald-200 hover:bg-[#0a1a0f] transition-colors"
-                                title="Automations"
+                                onClick={() => {
+                                    {/* TODO: Implement add automation */};
+                                }}
+                                className="p-2 rounded-md text-orange-400 hover:text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 hover:border-orange-500/40 transition-all duration-200 hover:scale-105"
+                                title="Add Automation"
                             >
-                                <Zap size={20} />
+                                <NewItemIcon type="automation" size={14} />
                             </button>
                         </div>
                     </div>
                 )}
             </div>
 
-            <IntegrationManager
-                isOpen={showIntegrationManager}
-                onClose={() => setShowIntegrationManager(false)}
+            <AddDatasetToProject
+                isOpen={showAddDatasetToProject}
+                onClose={() => setShowAddDatasetToProject(false)}
+                projectId={projectId}
             />
 
             <AddAnalysis
                 isOpen={showAddAnalysis}
                 onClose={() => setShowAddAnalysis(false)}
+                projectId={projectId}
             />
         </div>
     );
