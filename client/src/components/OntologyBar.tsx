@@ -195,9 +195,9 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
     const [showAddDatasetToProject, setShowAddDatasetToProject] = useState(false);
     const [showAddAnalysis, setShowAddAnalysis] = useState(false);
     const [expandedSections, setExpandedSections] = useState({
-        datasets: true,
-        analysis: true,
-        automations: true
+        datasets: false,
+        analysis: false,
+        automations: false
     });
     const { data: session } = useSession();
     const { selectedProject } = useProject(projectId);
