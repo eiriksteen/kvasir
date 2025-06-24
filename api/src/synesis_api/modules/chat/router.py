@@ -18,12 +18,12 @@ from synesis_api.modules.chat.service import (
     create_context,
     get_context_by_time_stamp,
 )
-from synesis_api.modules.chat.agent.agent import chatbot_agent, OrchestratorOutput
+from synesis_api.agents.chat.agent import chatbot_agent, OrchestratorOutput
 from synesis_api.auth.service import get_current_user, user_owns_conversation
 from synesis_api.auth.schema import User
 from synesis_api.modules.analysis.service import get_user_analyses_by_ids
-from synesis_api.modules.analysis.agent.agent import analysis_agent
-from synesis_api.modules.analysis.agent.runner import analysis_agent_runner, AnalysisRequest, DelegateResult
+from synesis_api.agents.analysis.agent import analysis_agent
+from synesis_api.agents.analysis.runner import analysis_agent_runner, AnalysisRequest, DelegateResult
 
 router = APIRouter()
 

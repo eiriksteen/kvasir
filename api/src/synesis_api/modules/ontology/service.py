@@ -17,7 +17,7 @@ from synesis_api.modules.ontology.schema import (
     DatasetMetadata,
     TimeSeriesInheritedDataset
 )
-from synesis_api.modules.integration.models import integration_jobs_results
+from synesis_api.modules.data_integration.models import integration_jobs_results
 from synesis_api.modules.jobs.models import jobs
 from synesis_api.database.service import fetch_all, fetch_one, execute
 

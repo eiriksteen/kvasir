@@ -1,2 +1,0 @@
-from synesis_api.modules.integration.agent.local_agent.agent import local_integration_agent, LocalIntegrationDeps
-from synesis_api.modules.integration.agent.target_structures import TIME_SERIES_TARGET_STRUCTURE

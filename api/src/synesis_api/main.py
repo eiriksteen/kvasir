@@ -1,8 +1,10 @@
-from synesis_api.modules.jobs.router import router as jobs_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from synesis_api.modules.jobs.router import router as jobs_router
+from synesis_api.worker import broker
+from contextlib import asynccontextmanager
 from synesis_api.auth.router import router as auth_router
-from synesis_api.modules.integration.router import router as integration_router
+from synesis_api.modules.data_integration.router import router as integration_router
 from synesis_api.modules.chat.router import router as chat_router
 from synesis_api.modules.analysis.router import router as eda_router
 from synesis_api.modules.automation.router import router as automation_router
@@ -10,10 +12,18 @@ from synesis_api.modules.ontology.router import router as ontology_router
 from synesis_api.modules.data_provider.router import router as data_provider_router
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await broker.startup()
+    yield
+    await broker.shutdown()
+
+
 app = FastAPI(
     title="Synesis API",
     description="Synesis API",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Configure CORS

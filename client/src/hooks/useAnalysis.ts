@@ -3,13 +3,13 @@ import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from 'swr/mutation'
 import useSWRSubscription, { SWRSubscriptionOptions } from 'swr/subscription'
-import { useAgentContext } from "./useAgentContext";
+//import { useAgentContext } from "./useAgentContext";
 import { AnalysisJobResultMetadata, AnalysisStatusMessage } from "@/types/analysis";
 
 export const useAnalysis = (jobId?: string) => {
     const { data: session } = useSession();
   
-    const context = useAgentContext();
+    // const context = useAgentContext();
 
     const { data: analysisJobResults, error, isLoading } = useSWR(session ? "analysisJobResults" : null, () => fetchAnalysisJobResults(session ? session.APIToken.accessToken : ""));
     const { data: currentAnalysis, mutate: mutateCurrentAnalysis } = useSWR("currentAnalysis", {fallbackData: null});

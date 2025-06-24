@@ -7,8 +7,8 @@ from synesis_api.database.service import execute
 from synesis_api.modules.jobs.service import get_job_metadata
 from synesis_api.modules.jobs.models import jobs
 from synesis_api.modules.automation.schema import ModelJobResultInDB
-from synesis_api.modules.automation.agent.deps import ModelDeps
-from synesis_api.modules.automation.agent.agent import model_agent
+from synesis_api.agents.automation.deps import ModelDeps
+from synesis_api.agents.automation.agent import model_agent
 from synesis_api.aws.service import upload_object_s3, retrieve_object
 from synesis_api.worker import logger
 
