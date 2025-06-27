@@ -1,13 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-// import Link from 'next/link'; // Removed unused import
 import { FilePlus } from 'lucide-react';
-import { useJobs } from '@/hooks'; // Import useJobs
-import { getStatusColor } from '@/lib/utils'; // Import getStatusColor
+import { useJobs } from '@/hooks';
+import { getStatusColor } from '@/lib/utils';
 import { Job } from '@/types/jobs';
 import IntegrationJobDetail from './IntegrationJobDetail';
-// import { useProject } from '@/hooks/useProject';
 
 interface IntegrationOverviewProps {
   setCurrentView: (view: 'overview' | 'add' | 'jobs') => void;
@@ -15,9 +13,8 @@ interface IntegrationOverviewProps {
 
 export default function IntegrationOverview({ setCurrentView }: IntegrationOverviewProps) {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const { jobs} = useJobs('integration'); // Use useJobs hook here
+  const { jobs } = useJobs('integration'); 
 
-  // Define helper functions locally
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
   };

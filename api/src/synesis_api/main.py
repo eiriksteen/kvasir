@@ -7,11 +7,12 @@ from synesis_api.auth.router import router as auth_router
 from synesis_api.modules.data_integration.router import router as integration_router
 from synesis_api.modules.chat.router import router as chat_router
 from synesis_api.modules.analysis.router import router as eda_router
-from synesis_api.modules.automation.router import router as automation_router
 from synesis_api.modules.ontology.router import router as ontology_router
 from synesis_api.modules.data_provider.router import router as data_provider_router
 from synesis_api.modules.project.router import router as project_router
 from synesis_api.modules.node.router import router as node_router
+from synesis_api.modules.automation.router import router as automation_router
+from synesis_api.modules.model_integration.router import router as model_integration_router
 
 
 @asynccontextmanager
@@ -63,11 +64,6 @@ app.include_router(eda_router,
                    tags=["Analysis"])
 
 
-app.include_router(automation_router,
-                   prefix="/automation",
-                   tags=["AI Automation"])
-
-
 app.include_router(jobs_router,
                    prefix="",
                    tags=["Jobs"])
@@ -84,6 +80,15 @@ app.include_router(node_router,
 app.include_router(data_provider_router,
                    prefix="/data-provider",
                    tags=["Data Provider"])
+
+app.include_router(automation_router,
+                   prefix="/automation",
+                   tags=["Automation"])
+
+
+app.include_router(model_integration_router,
+                   prefix="/model-integration",
+                   tags=["Model Integration"])
 
 
 @app.get("/")

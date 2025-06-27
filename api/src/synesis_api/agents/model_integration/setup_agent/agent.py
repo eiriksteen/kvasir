@@ -88,10 +88,6 @@ async def validate_setup_output(
     if not ctx.deps.current_script:
         raise ModelRetry("No script written")
 
-    print("@"*20, "TESTING SETUP SCRIPT", "@"*20)
-    print(f"Python version: {result.python_version}")
-    print("@"*50)
-
     check_output, _ = await run_shell_code_in_container(
         f"pyenv versions | grep {result.python_version}",
         container_name=ctx.deps.container_name,
@@ -106,9 +102,6 @@ async def validate_setup_output(
         )
 
         if err:
-            print("@"*20, "ERROR INSTALLING PYTHON VERSION", "@"*20)
-            print(f"Error: {err}")
-            print("@"*50)
             raise ModelRetry(f"Error installing python version: {err}")
 
     _, err = await run_shell_code_in_container(
@@ -118,16 +111,9 @@ async def validate_setup_output(
     )
 
     if err:
-        print("@"*20, "ERROR SETTING GLOBAL PYTHON VERSION", "@"*20)
-        print(f"Error: {err}")
-        print("@"*50)
         raise ModelRetry(f"Error setting global python version: {err}")
 
     script = remove_line_numbers_from_script(ctx.deps.current_script)
-
-    print("RAW SCRIPT WITHOUT LINE NUMBERS")
-    print(script)
-    print("@"*50)
 
     _, err = await run_shell_code_in_container(
         script,
@@ -136,10 +122,6 @@ async def validate_setup_output(
     )
 
     if err:
-        print("@"*20, "ERROR EXECUTING SETUP SCRIPT", "@"*20)
-        print(f"Error: {err}")
-        print("@"*50)
-
         error_message = f"Error executing setup script: {err}"
         if ctx.retry > 3:
             error_message = f"{error_message}\n\n" \
@@ -147,8 +129,6 @@ async def validate_setup_output(
                 "install the latest stable versions of Python and all dependencies (the default versions)!"
 
         raise ModelRetry(error_message)
-
-    print("Setup script executed successfully")
 
     return SetupAgentOutputWithScript(
         **result.model_dump(),

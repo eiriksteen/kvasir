@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import List
 from synesis_api.base_schema import BaseSchema
+from synesis_api.modules.jobs.schema import JobMetadata
 
 
 class Dataset(BaseSchema):
@@ -27,7 +28,7 @@ class TabularDatasetInDB(BaseSchema):
 
 
 class TabularInheritedDataset(Dataset, TabularDatasetInDB):
-    pass
+    integration_jobs: List[JobMetadata] = []
 
 
 class TimeSeries(BaseSchema):
@@ -52,7 +53,7 @@ class TimeSeriesDatasetInDB(BaseSchema):
 
 
 class TimeSeriesInheritedDataset(Dataset, TimeSeriesDatasetInDB):
-    pass
+    integration_jobs: List[JobMetadata] = []
 
 
 class Datasets(BaseSchema):

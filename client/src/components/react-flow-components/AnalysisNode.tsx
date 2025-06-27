@@ -13,8 +13,8 @@ const AnalysisNode = ({ data }: { data: { label: string; id: string; onClick: ()
         </svg>
       </div>
       <div className="ml-2">
-        <div className="text-lg font-bold text-white">{data.label}</div>
-        <div className="text-purple-300">Analysis</div>
+        <div className="text-lg font-mono text-white">{data.label}</div>
+        <div className="text-purple-300 font-mono text-xs">Analysis</div>
       </div>
     </div>
     <Handle type="target" position={Position.Left} style={{ background: '#6366f1' }} />

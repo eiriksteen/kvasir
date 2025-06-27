@@ -1,3 +1,5 @@
+import { Job } from "@/types/jobs";
+
 export interface TimeSeriesDataset {
   id: string;
   userId: string;
@@ -12,7 +14,8 @@ export interface TimeSeriesDataset {
   indexSecondLevel?: string;
   createdAt: string;
   updatedAt: string;
-  type: "timeSeries";
+  type: "timeSeries"; 
+  integrationJobs: Job[];
 }
 
 export interface Datasets {

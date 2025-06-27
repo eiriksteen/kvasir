@@ -139,7 +139,7 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 							)}
 						</div>
 						<Link 
-							href="/data-integration"
+							href="/datasets"
 							className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-zinc-400 hover:text-zinc-200"
 							title="Manage Datasets"
 						>

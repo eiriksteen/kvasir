@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import ModelIntegrationOverview from '@/components/model-integration/ModelIntegrationOverview';
+import ModelsOverview from '@/components/model-integration/ModelsOverview';
 import AddModel from '@/components/model-integration/AddModel';
+import ModelIntegrationOverview from '@/components/model-integration/ModelIntegrationOverview';
 import { Brain, FilePlus, List, Info } from 'lucide-react';
 
 type View = 'overview' | 'add' | 'jobs';
@@ -63,7 +64,7 @@ export default function ModelIntegrationPageContent() {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {currentView === 'overview' && (
-          <ModelIntegrationOverview
+          <ModelsOverview
             setCurrentView={setCurrentView}
           />
         )}
@@ -75,9 +76,9 @@ export default function ModelIntegrationPageContent() {
         )}
 
         {currentView === 'jobs' && (
-          <div className="flex items-center justify-center h-full text-zinc-500">
-            <p>Integration Jobs view coming soon...</p>
-          </div>
+          <ModelIntegrationOverview
+            setCurrentView={setCurrentView}
+          />
         )}
       </div>
     </div>

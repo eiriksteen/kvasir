@@ -24,9 +24,10 @@ async def get_time_series_datasets(
 @router.get("/datasets", response_model=Datasets)
 async def get_datasets(
     only_completed: bool = True,
+    include_integration_jobs: bool = True,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> Datasets:
-    return await get_user_datasets(user.id, only_completed)
+    return await get_user_datasets(user.id, only_completed, include_integration_jobs)
 
 
 @router.get("/time-series/{dataset_id}", response_model=List[TimeSeries])

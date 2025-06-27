@@ -96,6 +96,6 @@ If there are issues, you'll receive feedback so you can make corrections.
 - CRITICAL: Your inference script must be designed to run seamlessly after the training script completes - ensure all imports, configurations, and data processing steps are compatible
 
 Required output:
-- inference_script
-- task_name (classification, regression, segmentation, forecasting, or other)
+- inference_script (use the tools to write the script, you won't output the script directly))
+- code_explanation
 """

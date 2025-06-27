@@ -77,7 +77,7 @@ export const authOptions: AuthOptions = {
             tokenExpiresAt: refreshedUser.tokenExpiresAt,
           };
         } catch (error) {
-
+          console.error("Error refreshing access token:", error);
           return {
             ...token,
             error: "RefreshAccessTokenError",

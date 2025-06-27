@@ -64,7 +64,7 @@ training_agent = Agent(
         delete_script_lines
     ],
     prepare_tools=filter_tools_by_source,
-    retries=5,
+    retries=10,
     history_processors=[keep_only_most_recent_script,
                         # summarize_message_history
                         ],
@@ -137,9 +137,6 @@ async def validate_training_output(
         f"train_model(miya_data, config, '{ctx.deps.integration_id}', miya_metadata, miya_labels, miya_segmentation_labels)\n"
     )
 
-    print("CALLING TRAINING TEST CODE")
-    print("@"*50)
-
     _, err = await run_python_code_in_container(
         test_code,
         container_name=ctx.deps.container_name,
@@ -147,12 +144,7 @@ async def validate_training_output(
     )
 
     if err:
-        print("@"*20, "ERROR EXECUTING TRAINING SCRIPT", "@"*20)
-        print(f"Error: {err}")
-        print("@"*50)
         raise ModelRetry(f"Error executing training script: {err}")
-
-    print("@"*20, "TRAINING SCRIPT EXECUTED SUCCESSFULLY", "@"*20)
 
     return TrainingAgentOutputWithScript(
         **result.model_dump(),

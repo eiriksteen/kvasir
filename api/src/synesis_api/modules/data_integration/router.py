@@ -3,13 +3,13 @@ import json
 import time
 import redis
 import pandas as pd
-from typing import Annotated
+from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, Form
 from fastapi.responses import StreamingResponse
 from io import StringIO
 from synesis_api.modules.data_integration.service import (
     validate_restructured_data,
-    get_job_results,
+    get_job_results_from_job_id,
     get_integration_messages
 )
 from synesis_api.modules.ontology.service import create_dataset
@@ -20,6 +20,8 @@ from synesis_api.modules.data_integration.schema import (
     IntegrationAgentFeedback,
     IntegrationMessage
 )
+from synesis_api.modules.automation.service import get_all_models_public_or_owned, get_model_joined, get_user_models, user_owns_model
+from synesis_api.modules.automation.schema import ModelJoined
 from synesis_api.modules.jobs.schema import JobMetadata
 from synesis_api.auth.schema import User
 from synesis_api.auth.service import (get_current_user,
@@ -247,7 +249,7 @@ async def get_integration_job_results(
     job_metadata = await get_job_metadata(job_id)
 
     if job_metadata.status == "completed":
-        return await get_job_results(job_id)
+        return await get_job_results_from_job_id(job_id)
     else:
         raise HTTPException(
             status_code=202, detail="Integration job is still running")

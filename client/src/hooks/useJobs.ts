@@ -1,5 +1,5 @@
-import { fetchJobs, postIntegrationJob, createJobEventSource } from "@/lib/api";
-import { AnalysisJobInput, AutomationJobInput, IntegrationJobInput, Job } from "@/types/jobs";
+import { fetchJobs, postIntegrationJob, createJobEventSource, postModelIntegrationJob } from "@/lib/api";
+import { AnalysisJobInput, AutomationJobInput, IntegrationJobInput, Job, ModelIntegrationJobInput } from "@/types/jobs";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
@@ -7,7 +7,7 @@ import { SWRSubscriptionOptions } from "swr/subscription";
 import useSWRSubscription from "swr/subscription";
 
 
-type JobType = "integration" | "analysis" | "automation";
+type JobType = "integration" | "analysis" | "automation" | "model_integration";
 type jobState = "running" | "failed" | "completed" | "paused" | "awaiting_approval" | "";
 
 
@@ -81,7 +81,7 @@ export const useJobs = (jobType: JobType) => {
 
   const {trigger: triggerJob} = useSWRMutation(
     session ? ["jobs", jobType] : null, 
-    async (_: string[], {arg}: {arg: IntegrationJobInput | AnalysisJobInput | AutomationJobInput}) => {
+    async (_: string[], {arg}: {arg: IntegrationJobInput | AnalysisJobInput | AutomationJobInput | ModelIntegrationJobInput}) => {
     // TODO: Implement analysis and automation job triggers
     if (arg.type === "integration") {
       const newJob = await postIntegrationJob(
@@ -89,6 +89,17 @@ export const useJobs = (jobType: JobType) => {
         arg.files, 
         arg.data_description,
         arg.data_source
+      );
+      if (jobs) {
+        return [...jobs, newJob];
+      }
+      return [newJob];
+    }
+    if (arg.type === "model_integration") {
+      const newJob = await postModelIntegrationJob(
+        session ? session.APIToken.accessToken : "", 
+        arg.model_id, 
+        arg.source
       );
       if (jobs) {
         return [...jobs, newJob];

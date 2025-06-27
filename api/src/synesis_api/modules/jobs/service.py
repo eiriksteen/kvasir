@@ -70,7 +70,7 @@ async def get_jobs(
     return [JobMetadataInDB(**job) for job in result]
 
 
-async def update_job_status(job_id: uuid.UUID, status: str):
+async def update_job_status(job_id: uuid.UUID, status: str) -> JobMetadataInDB:
     if status in ["completed", "failed"]:
         await execute(
             update(jobs).where(jobs.c.id == job_id).values(
@@ -86,6 +86,8 @@ async def update_job_status(job_id: uuid.UUID, status: str):
             ),
             commit_after=True
         )
+
+    return await get_job_metadata(job_id)
 
 
 async def delete_job_by_id(job_id: uuid.UUID):

@@ -11,10 +11,11 @@ from synesis_api.modules.data_integration.models import integration_jobs_results
 from synesis_api.modules.jobs.models import jobs
 from synesis_api.modules.ontology.models import time_series, time_series_dataset
 from synesis_api.modules.chat.models import chat_message, pydantic_message, conversations
-from synesis_api.modules.automation.models import model_job_result, automation
+from synesis_api.modules.automation.models import model, model_task, task, source, programming_language, programming_language_version, modality
 from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
 from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_automation
 from synesis_api.modules.node.models import node, dataset_node, analysis_node, automation_node
+from synesis_api.modules.model_integration.models import model_integration_jobs_results, model_integration_pydantic_message, model_integration_message
 from synesis_api.secrets import DATABASE_URL
 from synesis_api.database.core import metadata
 
@@ -47,8 +48,13 @@ __all__ = [
     chat_message,
     pydantic_message,
     conversations,
-    model_job_result,
-    automation,
+    model,
+    model_task,
+    task,
+    source,
+    programming_language,
+    programming_language_version,
+    modality,
     project,
     project_dataset,
     project_analysis,
@@ -56,7 +62,10 @@ __all__ = [
     node,
     dataset_node,
     analysis_node,
-    automation_node
+    automation_node,
+    model_integration_jobs_results,
+    model_integration_pydantic_message,
+    model_integration_message
 ]
 
 # add your model's MetaData object here
@@ -68,7 +77,7 @@ target_metadata = metadata
 
 def include_name(name, type_, parent_names):
     if type_ == "schema":
-        return name in ["public", "auth", "integration", "jobs", "ontology", "analysis", "chat", "automation", "project", "node"]
+        return name in ["public", "auth", "integration", "jobs", "ontology", "analysis", "chat", "automation", "project", "node", "model_integration"]
     else:
         return True
 

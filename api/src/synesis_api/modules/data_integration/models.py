@@ -2,7 +2,6 @@ import uuid
 from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, func
 from sqlalchemy.dialects.postgresql import BYTEA
 from synesis_api.database.core import metadata
-from datetime import timezone
 
 
 integration_jobs_results = Table(

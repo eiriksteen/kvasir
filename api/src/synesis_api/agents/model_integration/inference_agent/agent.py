@@ -42,10 +42,7 @@ class InferenceDeps(BaseDeps):
 
 
 class InferenceAgentOutput(BaseSchema):
-    task_name: Literal["classification",
-                       "regression",
-                       "segmentation",
-                       "forecasting"]
+    code_explanation: str
 
 
 class InferenceAgentOutputWithScript(InferenceAgentOutput):
@@ -68,7 +65,7 @@ inference_agent = Agent(
         delete_script_lines
     ],
     prepare_tools=filter_tools_by_source,
-    retries=5,
+    retries=10,
     history_processors=[keep_only_most_recent_script,
                         # summarize_message_history
                         ],
@@ -146,9 +143,6 @@ async def validate_inference_output(
         f"validate_inference_output(output)"
     )
 
-    print("CALLING INFERENCE TEST CODE")
-    print("@"*50)
-
     _, err = await run_python_code_in_container(
         test_code,
         container_name=ctx.deps.container_name,
@@ -156,12 +150,7 @@ async def validate_inference_output(
     )
 
     if err:
-        print("@"*20, "ERROR EXECUTING INFERENCE SCRIPT", "@"*20)
-        print(f"Error: {err}")
-        print("@"*50)
         raise ModelRetry(f"Error executing inference script: {err}")
-
-    print("Inference script executed successfully")
 
     return InferenceAgentOutputWithScript(
         **result.model_dump(),

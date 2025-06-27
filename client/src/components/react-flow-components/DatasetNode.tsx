@@ -13,8 +13,8 @@ const DatasetNode = ({ data }: { data: { label: string; id: string; onClick: () 
         </svg>
       </div>
       <div className="ml-2">
-        <div className="text-lg font-bold text-white">{data.label}</div>
-        <div className="text-blue-300">Dataset</div>
+        <div className="text-lg font-mono text-white">{data.label}</div>
+        <div className="text-blue-300 font-mono text-xs">Dataset</div>
       </div>
     </div>
     <Handle type="source" position={Position.Right} style={{ background: '#6366f1' }} />

@@ -120,7 +120,7 @@ function SectionHeader({ title, count, color, onToggle, onAdd }: SectionHeaderPr
                 return {
                     bg: 'bg-blue-500/20',
                     border: 'border-blue-400/50',
-                    text: 'text-blue-300',
+                    text: 'text-gray-300',
                     icon: 'text-blue-300',
                     hover: 'hover:bg-blue-500/30',
                     buttonHover: 'hover:bg-blue-500/40',
@@ -130,7 +130,7 @@ function SectionHeader({ title, count, color, onToggle, onAdd }: SectionHeaderPr
                 return {
                     bg: 'bg-purple-500/20',
                     border: 'border-purple-400/50',
-                    text: 'text-purple-300',
+                    text: 'text-gray-300',
                     icon: 'text-purple-300',
                     hover: 'hover:bg-purple-500/30',
                     buttonHover: 'hover:bg-purple-500/40',
@@ -140,7 +140,7 @@ function SectionHeader({ title, count, color, onToggle, onAdd }: SectionHeaderPr
                 return {
                     bg: 'bg-orange-500/20',
                     border: 'border-orange-400/50',
-                    text: 'text-orange-300',
+                    text: 'text-gray-300',
                     icon: 'text-orange-300',
                     hover: 'hover:bg-orange-500/30',
                     buttonHover: 'hover:bg-orange-500/40',
@@ -166,7 +166,7 @@ function SectionHeader({ title, count, color, onToggle, onAdd }: SectionHeaderPr
                 <span className="text-xs font-mono text-gray-400 bg-gray-800/50 px-1.5 py-0.5 rounded">
                     {count}
                 </span>
-                <span className={`text-xs font-semibold uppercase tracking-wider ${colors.text}`}>
+                <span className={`text-xs font-mono ${colors.text}`}>
                     {title}
                 </span>
             </div>

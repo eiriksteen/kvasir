@@ -7,12 +7,13 @@ import { IntegrationAgentFeedback, IntegrationMessage } from "@/types/integratio
 import { Project, ProjectCreate, ProjectUpdate } from "@/types/project";
 import { AnalysisRequest } from "@/types/analysis";
 import { FrontendNode, FrontendNodeCreate } from "@/types/node";
+import { Model, ModelIntegrationMessage } from '@/types/model-integration';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
 
 export async function fetchDatasets(token: string): Promise<Datasets> {
 
-  const response = await fetch(`${API_URL}/ontology/datasets`, {
+  const response = await fetch(`${API_URL}/ontology/datasets?include_integration_jobs=1`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -502,4 +503,89 @@ export async function deleteNode(token: string, nodeId: string): Promise<string>
   return response.json();
 }
 
+export async function fetchModels(token: string, only_owned: boolean = false): Promise<Model[]> {
 
+  const route = only_owned  ? "/automation/models/my" : "/automation/models";
+  const response = await fetch(`${API_URL}${route}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch models', errorText);
+    throw new Error(`Failed to fetch models: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchModelIntegrationMessages(token: string, jobId: string): Promise<ModelIntegrationMessage[]> {
+  const response = await fetch(`${API_URL}/model-integration/model-integration-messages/${jobId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch model integration messages', errorText);
+    throw new Error(`Failed to fetch model integration messages: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export function createModelIntegrationEventSource(token: string, jobId: string): EventSource {
+  return new EventSource(`${API_URL}/model-integration/model-integration-agent-sse/${jobId}`, {
+    fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+      fetch(input, {
+        ...init,
+        headers: {
+          ...init?.headers,
+          Authorization: `Bearer ${token}`,
+        },
+      }),
+  });
+}
+
+export async function postModelIntegrationJob(token: string, modelId: string, source: string): Promise<Job> {
+  const response = await fetch(`${API_URL}/model-integration/call-model-integration-agent`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model_id: modelId,
+      source: source
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to post model integration job', errorText);
+    throw new Error(`Failed to post model integration job: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function getIntegrationJobResults(token: string, jobId: string): Promise<{ job_id: string; dataset_id: string }> {
+  const response = await fetch(`${API_URL}/integration/integration-job-results/${jobId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to get integration job results', errorText);
+    throw new Error(`Failed to get integration job results: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}

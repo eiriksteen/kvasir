@@ -9,5 +9,7 @@ checkpoints
 *secrets*
 integrated_data
 files
+node_modules
 logs
 .venv/
+api/src/models/*

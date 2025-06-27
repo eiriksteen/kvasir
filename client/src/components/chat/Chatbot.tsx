@@ -33,7 +33,7 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
         className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-md backdrop-blur-sm ${
           message.role === 'user' 
             ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-tr-none' 
-            : 'bg-blue-950/40 text-white rounded-tl-none border border-blue-800/50'
+            : 'bg-gray-950/40 text-white rounded-tl-none border border-gray-800/50'
         }`}
       >
         {/* Context bar */}
@@ -175,7 +175,7 @@ function Chat({ projectId }: { projectId: string }) {
 
   return (
     <div 
-      className="absolute right-0 h-screen text-white flex flex-col bg-[#1a1625]/95 pt-12"
+      className="absolute right-0 h-screen text-white flex flex-col bg-gray-950/95 pt-12 border-l border-gray-800"
       style={{ width: `${width}px` }}
     >
       {/* Drag handle */}
@@ -189,16 +189,16 @@ function Chat({ projectId }: { projectId: string }) {
       {!isCollapsed && (
         <>
           {/* Header with history button */}
-          <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3 flex justify-between items-center relative">
+          <div className="border-b border-gray-800 bg-gray-900/50 p-3 flex justify-between items-center relative">
             <div className="flex-1 pl-1">
-              <h3 className="text-sm font-medium text-purple-300">
+              <h3 className="text-sm font-medium text-gray-300">
                 {currentConversation?.name || "Chat"}
               </h3>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleNewChat}
-                className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-purple-300 hover:text-white"
+                className="p-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 text-gray-300 hover:text-white"
                 title="New Chat"
               >
                 <Plus size={18} />
@@ -206,7 +206,7 @@ function Chat({ projectId }: { projectId: string }) {
               <div className="relative">
                 <button
                   onClick={() => setShowChatHistory(!showChatHistory)}
-                  className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-purple-300 hover:text-white"
+                  className="p-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 text-gray-300 hover:text-white"
                   title="Chat History"
                 >
                   <History size={18} />
@@ -222,9 +222,9 @@ function Chat({ projectId }: { projectId: string }) {
           </div>
 
           {/* Combined context bar */}
-          <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
+          <div className="border-b border-gray-800 bg-gray-900/50 p-3">
             <div className="flex justify-between items-center mb-2">
-              <h3 className="text-sm pl-1 pt-1 font-medium text-purple-300">Context</h3>
+              <h3 className="text-sm pl-1 pt-1 font-medium text-gray-300">Context</h3>
               <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select items from the left panel</h3>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -271,7 +271,7 @@ function Chat({ projectId }: { projectId: string }) {
           </div>
 
           {/* Quick action buttons
-          <div className="border-b border-purple-900/30 bg-[#1a1625]/90 p-3">
+          <div className="border-b border-gray-800 bg-gray-900/50 p-3">
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => submitPrompt("What are some interesting AI/ML or data science use cases for this data?")}
@@ -303,7 +303,7 @@ function Chat({ projectId }: { projectId: string }) {
           {/* Messages container */}
           <div 
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-4 pb-24 scrollbar-thin scrollbar-thumb-purple-700"
+            className="flex-1 overflow-y-auto p-4 pb-24 scrollbar-thin scrollbar-thumb-gray-700"
             style={{ scrollBehavior: 'smooth' }}
           >
             {currentConversation?.messages.length === 0 && (
@@ -331,8 +331,8 @@ function Chat({ projectId }: { projectId: string }) {
           </div>
 
           {/* Input area */}
-          <div className="absolute bottom-0 left-0 right-0 bg-[#1a1625]/90 backdrop-blur-sm p-4 border-t border-purple-900/20 z-10">
-            <div className="flex rounded-full bg-[#2a2030]/70 overflow-hidden shadow-inner">
+          <div className="absolute bottom-0 left-0 right-0 bg-gray-900/90 backdrop-blur-sm p-4 border-t border-gray-800/20 z-10">
+            <div className="flex rounded-full bg-gray-800/70 overflow-hidden shadow-inner">
               <input
                 type="text"
                 value={input}

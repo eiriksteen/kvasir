@@ -18,6 +18,12 @@ export interface IntegrationJobInput {
   type: "integration";
 }
 
+export interface ModelIntegrationJobInput {
+  model_id: string;
+  source: "github" | "pip";
+  type: "model_integration";
+}
+
 export interface AnalysisJobInput {
   job_id: string;
   type: "analysis";

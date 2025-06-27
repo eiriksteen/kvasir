@@ -1,14 +1,14 @@
-from typing import Dict, Tuple, List, Literal
 import pandas as pd
 from pathlib import Path
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import SystemPromptPart, ModelRequest
+from typing import Dict, Tuple, List, Literal
 from synesis_api.agents.analysis.prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
 from synesis_api.agents.analysis.agent import analysis_agent, AnalysisDeps
 from synesis_api.modules.analysis.schema import AnalysisJobResult, AnalysisJobResultMetadataInDB, AnalysisPlan
 from synesis_api.modules.ontology.service import get_user_datasets_by_ids
-from src.synesis_api.worker import logger, broker
+from synesis_api.worker import logger, broker
 from pydantic_ai.messages import (
     ModelMessage,
     FunctionToolCallEvent,
@@ -58,10 +58,9 @@ async def load_dataset_from_cache_or_disk(dataset_id: uuid.UUID, user_id: uuid.U
             return df
     except Exception as e:
         raise HTTPException(
-            status_code=404, 
+            status_code=404,
             detail=f"File in {data_path} not found: {str(e)}"
         )
-    
 
 
 class AnalysisRequest(BaseSchema):
@@ -74,8 +73,10 @@ class AnalysisRequest(BaseSchema):
     message_history: List[ModelMessage] = []
     conversation_id: UUID
 
+
 class DelegateResult(BaseSchema):
-    function_name: Literal["run_analysis_planner", "run_execution_agent", "run_simple_analysis"]
+    function_name: Literal["run_analysis_planner",
+                           "run_execution_agent", "run_simple_analysis"]
 
 
 class AnalysisAgentRunner:
@@ -100,29 +101,29 @@ class AnalysisAgentRunner:
         self,
         analysis_request: AnalysisRequest,
     ):
-        
+
         analysis_deps, message_history = await self._prepare_agent_run(analysis_request, "analysis_planner")
         status_messages = []
         job_id = uuid.uuid4()
 
-
         if len(analysis_request.analysis_ids) == 0:
-            try: 
+            try:
                 self.logger.info("Creating analysis job")
                 api_key = await create_api_key(analysis_request.user)
                 job_name = await self.agent.run(
-                    f"The user prompt is: {analysis_request.prompt}. The user prompt is about to be performed, but the user has not given a name to the analysis job. Give a short name to the analysis job that is about to be performed. Do not make an analysis yet. Only give a name.", 
+                    f"The user prompt is: {analysis_request.prompt}. The user prompt is about to be performed, but the user has not given a name to the analysis job. Give a short name to the analysis job that is about to be performed. Do not make an analysis yet. Only give a name.",
                     message_history=message_history,
                     output_type=str
                 )
-                job_name = job_name.output.replace('"', '').replace("'", "").strip()
+                job_name = job_name.output.replace(
+                    '"', '').replace("'", "").strip()
                 analysis_job = await create_job(analysis_request.user.id, "analysis", job_id, job_name)
             except Exception as e:
                 raise HTTPException(
                     status_code=500, detail="Failed to create analysis job.")
         else:
             analysis_job = await get_job_metadata(analysis_request.analysis_ids[0])
-        
+
         status_message = {
             "id": uuid.uuid4(),
             "job_id": analysis_job.id,
@@ -144,7 +145,7 @@ class AnalysisAgentRunner:
         }
         status_messages.append(status_message)
         await self.post_message_to_redis(status_message, analysis_job.id)
-        
+
         async with self.agent.iter(
             analysis_request.prompt,
             output_type=AnalysisPlan,
@@ -154,7 +155,7 @@ class AnalysisAgentRunner:
             async for node in agent_run:
                 nodes.append(node)
                 self.logger.info(f"Analysis planner agent state: {node}")
-                
+
                 if Agent.is_call_tools_node(node):
                     async with node.stream(agent_run.ctx) as handle_stream:
                         async for event in handle_stream:
@@ -217,11 +218,9 @@ class AnalysisAgentRunner:
                 automation_id=None,
             )
             await create_node(frontend_node)
-            
+
         else:
             await update_analysis_job_results_in_db(result)
-        
-
 
     async def run_analysis_execution(
         self,
@@ -238,14 +237,13 @@ class AnalysisAgentRunner:
                 nodes.append(node)
                 self.logger.info(f"Analysis execution agent state: {node}")
         return agent_run.result
-    
 
     async def run_simple_analysis(
         self,
         analysis_request: AnalysisRequest,
     ):
         analysis_deps, message_history = await self._prepare_agent_run(analysis_request, "simple_analysis")
-        
+
         async with self.agent.iter(
             analysis_request.prompt,
             output_type=AnalysisJobResult,
@@ -273,8 +271,9 @@ class AnalysisAgentRunner:
             if len(analysis_request.dataset_ids) == 0 and len(analysis_request.automation_ids) == 0:
                 raise HTTPException(
                     status_code=400, detail="At least one dataset or automation is required.")
-        
-        logger.info(f"analysis_request.analysis_ids: {analysis_request.analysis_ids}")
+
+        logger.info(
+            f"analysis_request.analysis_ids: {analysis_request.analysis_ids}")
         logger.info(f"type: {analysis_type}")
         if len(analysis_request.analysis_ids) > 0 and analysis_type == "analysis_planner":
             analyses = await get_user_analyses_by_ids(analysis_request.user.id, analysis_request.analysis_ids)
@@ -289,20 +288,21 @@ class AnalysisAgentRunner:
                     analysis_request.automation_ids.append(automation_id)
 
             for analysis in analyses.analyses_job_results:
-                await update_job_status(analysis.job_id, "running") # TODO: this should only be done when the analysis is actually running, what if the analysis in context should not be changed?
+                # TODO: this should only be done when the analysis is actually running, what if the analysis in context should not be changed?
+                await update_job_status(analysis.job_id, "running")
 
-
-        try: 
+        try:
             datasets = await get_user_datasets_by_ids(analysis_request.user.id, analysis_request.dataset_ids)
         except:
             raise HTTPException(
                 status_code=500, detail="Failed to get datasets.")
-        
+
         data_dir = Path("integrated_data") / f"{analysis_request.user.id}"
-        data_paths = [data_dir / f"{dataset_id}.csv" for dataset_id in analysis_request.dataset_ids]
+        data_paths = [
+            data_dir / f"{dataset_id}.csv" for dataset_id in analysis_request.dataset_ids]
         problem_description = ""
 
-        dfs = [] # we should store column names in the dataset object
+        dfs = []  # we should store column names in the dataset object
         try:
             logger.info(f"Start loading datasets")
             for dataset in datasets.time_series:
@@ -313,15 +313,15 @@ class AnalysisAgentRunner:
                 status_code=500,
                 detail=f"Error loading datasets: {str(e)}"
             )
-        
+
         analysis_deps = AnalysisDeps(
             df=dfs[0],  # TODO: handle multiple datasets
         )
 
         # TODO: add more to this system prompt when you make functionality for multiple datasets
-        if len(analysis_request.analysis_ids) > 0 and analysis_type == "analysis_planner": 
+        if len(analysis_request.analysis_ids) > 0 and analysis_type == "analysis_planner":
             system_prompt = SystemPromptPart(
-                content= f"""
+                content=f"""
                     {ANALYSIS_AGENT_SYSTEM_PROMPT}\n
                     Here are the column names: {analysis_deps.df.columns.tolist()}\n
                     Here is the problem description: {problem_description}\n
@@ -329,23 +329,23 @@ class AnalysisAgentRunner:
                     Here are the analysis plans: {analyses.model_dump_json()}\n
                     Remember to not actually call the functions, just list them in your plan. The plan will be executed later.
                 """
-                    # If you create code yourself, you can retrieve the data from the following path: /tmp/{data_paths[0].name}\n  #TODO: THE DATA IS SAVED IN A STUPID WAY NOW
-                    # Here are some functions you can use to plan an analysis: {eda_cs_tools_str}\n
+                # If you create code yourself, you can retrieve the data from the following path: /tmp/{data_paths[0].name}\n  #TODO: THE DATA IS SAVED IN A STUPID WAY NOW
+                # Here are some functions you can use to plan an analysis: {eda_cs_tools_str}\n
             )
         else:
             system_prompt = SystemPromptPart(
-                content= f"""
+                content=f"""
                     {ANALYSIS_AGENT_SYSTEM_PROMPT}\n
                     Here are the column names: {analysis_deps.df.columns.tolist()}\n
                     If you create code yourself, you can retrieve the data from the following path: /tmp/6535611e-4a8d-45a8-944b-ea71420616da/DailyDelhiClimateTrain.csv\n 
                 """
-                    # Here are some functions you can use to execute an analysis: {eda_cs_tools_str}\n
+                # Here are some functions you can use to execute an analysis: {eda_cs_tools_str}\n
             )
         model_request = ModelRequest(parts=[system_prompt])
         message_history = analysis_request.message_history + [model_request]
 
         return analysis_deps, message_history
-    
+
     async def __call__(self, analysis_request: AnalysisRequest, analysis_type: Literal["run_analysis_planner", "run_execution_agent", "run_simple_analysis"]):
         if analysis_type == "run_analysis_planner":
             text = "Running analysis planner. This may take a couple of minutes. The results will be shown in the analyis tab."
@@ -370,17 +370,19 @@ class AnalysisAgentRunner:
                                 prev_text = text
 
             await create_messages_pydantic(analysis_request.conversation_id, pydantic_messages_to_db)
-        
+
         await create_message(analysis_request.conversation_id, "assistant", text)
-        
-        
+
+
 analysis_agent_runner = AnalysisAgentRunner()
+
 
 @broker.task
 async def run_analysis_planner_task(
     analysis_request: AnalysisRequest,
 ) -> AnalysisJobResultMetadataInDB:
     await analysis_agent_runner.run_analysis_planner(analysis_request)
+
 
 @broker.task
 async def run_analysis_execution_task(

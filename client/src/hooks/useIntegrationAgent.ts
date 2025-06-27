@@ -14,7 +14,7 @@ export const useIntegrationAgent = (jobId: string) => {
   const { data: messages, mutate: mutateMessages } = useSWR<IntegrationMessage[]>(
     session ? ["integration-messages", jobId] : null,
     () => fetchIntegrationMessages(session ? session?.APIToken?.accessToken : "", jobId),
-    {fallbackData: []}
+    { fallbackData: [] }
   );
 
   // TODO: Add some kind of streaming pause when awaiting user input

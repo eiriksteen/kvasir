@@ -17,6 +17,8 @@ from synesis_api.modules.ontology.schema import (
     DatasetMetadata,
     TimeSeriesInheritedDataset
 )
+from synesis_api.modules.jobs.schema import JobMetadata
+from synesis_api.modules.data_integration.service import get_job_results_from_dataset_id
 from synesis_api.modules.data_integration.models import integration_jobs_results
 from synesis_api.modules.jobs.models import jobs
 from synesis_api.database.service import fetch_all, fetch_one, execute
@@ -42,7 +44,7 @@ async def get_user_time_series_datasets(user_id: uuid.UUID) -> List[TimeSeriesIn
     return [TimeSeriesInheritedDataset(**dataset) for dataset in datasets]
 
 
-async def get_user_datasets(user_id: uuid.UUID, only_completed: bool = True) -> Datasets:
+async def get_user_datasets(user_id: uuid.UUID, only_completed: bool = True, include_integration_jobs: bool = False) -> Datasets:
     time_series = await get_user_time_series_datasets(user_id)
     if only_completed:
         completed_ids_query = select(integration_jobs_results.c.dataset_id).join(
@@ -52,10 +54,20 @@ async def get_user_datasets(user_id: uuid.UUID, only_completed: bool = True) -> 
         completed_ids = [row["dataset_id"] for row in completed_ids]
         time_series = [
             ts for ts in time_series if ts.id in completed_ids]
+    if include_integration_jobs:
+        # Get integration jobs for all user datasets
+        integration_jobs_by_dataset = await get_integration_jobs_for_user_datasets(user_id)
+
+        # Populate integration_jobs for each time series dataset
+        for ts_dataset in time_series:
+            dataset_jobs = integration_jobs_by_dataset.get(ts_dataset.id, [])
+            ts_dataset.integration_jobs = [
+                JobMetadata(**job) for job in dataset_jobs]
+
     return Datasets(time_series=time_series)
 
 
-async def get_user_datasets_by_ids(user_id: uuid.UUID, dataset_ids: List[uuid.UUID] = []) -> Datasets:
+async def get_user_datasets_by_ids(user_id: uuid.UUID, dataset_ids: List[uuid.UUID] = [], include_integration_jobs: bool = False) -> Datasets:
     time_series_query = select(dataset, time_series_dataset).join(
         time_series_dataset, dataset.c.id == time_series_dataset.c.id
     ).where(
@@ -64,7 +76,20 @@ async def get_user_datasets_by_ids(user_id: uuid.UUID, dataset_ids: List[uuid.UU
     )
 
     time_series_datasets = await fetch_all(time_series_query)
-    return Datasets(time_series=[TimeSeriesInheritedDataset(**dataset) for dataset in time_series_datasets])
+    time_series = [TimeSeriesInheritedDataset(
+        **dataset) for dataset in time_series_datasets]
+
+    if include_integration_jobs:
+        # Get integration jobs for the specified datasets
+        integration_jobs_by_dataset = await get_integration_jobs_for_user_datasets(user_id)
+
+        # Populate integration_jobs for each time series dataset
+        for ts_dataset in time_series:
+            dataset_jobs = integration_jobs_by_dataset.get(ts_dataset.id, [])
+            ts_dataset.integration_jobs = [
+                JobMetadata(**job) for job in dataset_jobs]
+
+    return Datasets(time_series=time_series)
 
 
 async def get_user_time_series_dataset_by_id(dataset_id: uuid.UUID, user_id: uuid.UUID) -> TimeSeriesDatasetInDB:
@@ -76,7 +101,7 @@ async def get_user_time_series_dataset_by_id(dataset_id: uuid.UUID, user_id: uui
     return TimeSeriesDatasetInDB(**dataset)
 
 
-async def get_user_time_series_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID) -> TimeSeriesInheritedDataset:
+async def get_user_time_series_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID, include_integration_jobs: bool = False) -> TimeSeriesInheritedDataset:
     query = select(dataset, time_series_dataset).join(
         time_series_dataset, dataset.c.id == time_series_dataset.c.id
     ).where(
@@ -85,7 +110,16 @@ async def get_user_time_series_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID
     )
 
     dataset = await fetch_one(query)
-    return TimeSeriesInheritedDataset(**dataset)
+    time_series_dataset_obj = TimeSeriesInheritedDataset(**dataset)
+
+    if include_integration_jobs:
+        # Get integration jobs for this specific dataset
+        integration_jobs_by_dataset = await get_integration_jobs_for_user_datasets(user_id)
+        dataset_jobs = integration_jobs_by_dataset.get(dataset_id, [])
+        time_series_dataset_obj.integration_jobs = [
+            JobMetadata(**job) for job in dataset_jobs]
+
+    return time_series_dataset_obj
 
 
 async def get_time_series_in_dataset(dataset_id: uuid.UUID) -> List[TimeSeries]:
@@ -319,3 +353,50 @@ async def delete_dataset(dataset_id: uuid.UUID, user_id: uuid.UUID):
         delete(dataset).where(dataset.c.id == dataset_id),
         commit_after=True
     )
+
+
+async def get_integration_jobs_for_user_datasets(user_id: uuid.UUID) -> dict[uuid.UUID, List[dict]]:
+    """
+    Get all integration jobs for datasets owned by a user.
+
+    Args:
+        user_id: The ID of the user
+
+    Returns:
+        A dictionary mapping dataset_id to a list of job metadata dictionaries
+    """
+    query = select(
+        integration_jobs_results.c.dataset_id,
+        jobs.c.id,
+        jobs.c.type,
+        jobs.c.status,
+        jobs.c.job_name,
+        jobs.c.started_at,
+        jobs.c.completed_at
+    ).join(
+        jobs, jobs.c.id == integration_jobs_results.c.job_id
+    ).join(
+        dataset, dataset.c.id == integration_jobs_results.c.dataset_id
+    ).where(
+        dataset.c.user_id == user_id
+    )
+
+    results = await fetch_all(query)
+
+    # Group jobs by dataset_id
+    jobs_by_dataset = {}
+    for row in results:
+        dataset_id = row["dataset_id"]
+        if dataset_id not in jobs_by_dataset:
+            jobs_by_dataset[dataset_id] = []
+
+        jobs_by_dataset[dataset_id].append({
+            "id": row["id"],
+            "type": row["type"],
+            "status": row["status"],
+            "job_name": row["job_name"],
+            "started_at": row["started_at"],
+            "completed_at": row["completed_at"]
+        })
+
+    return jobs_by_dataset

@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pydantic_ai.messages import UserPromptPart, ModelRequest
 from pydantic_core import to_jsonable_python
 from synesis_api.modules.jobs.service import create_job, get_job_metadata, update_job_status
+from synesis_api.modules.jobs.schema import JobMetadata
 from synesis_api.modules.data_integration.schema import IntegrationJobLocalInput, IntegrationJobResultInDB, IntegrationAgentFeedback
 from synesis_api.modules.data_integration.service import (
     create_integration_input,
@@ -141,7 +142,7 @@ class LocalDataIntegrationRunner:
     def get_dataset_id(self) -> uuid.UUID:
         return self.dataset_id
 
-    async def resume_job_from_feedback(self, feedback: str, redis_stream: redis.Redis):
+    async def resume_job_from_feedback(self, feedback: str, redis_stream: redis.Redis) -> JobMetadata:
 
         if self.dataset_id is None:
             raise ValueError(
@@ -160,7 +161,7 @@ class LocalDataIntegrationRunner:
                 await delete_dataset(dataset_id, self.user.id)
                 await delete_integration_result(self.dataset_id)
 
-            resume_prompt = UserPromptPart(content=feedback.content)
+            resume_prompt = UserPromptPart(content=feedback)
             new_messages = [ModelRequest(parts=[resume_prompt])]
             messages_bytes = json.dumps(
                 to_jsonable_python(new_messages)).encode("utf-8")
@@ -187,7 +188,7 @@ class LocalDataIntegrationRunner:
                 api_key.key,
                 str(integration_input.data_directory),
                 integration_input.data_description,
-                "directory"
+                "local"
             )
 
             integration_job.status = "running"

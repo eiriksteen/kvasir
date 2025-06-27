@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Check, AlertTriangle, Loader2, Github, Package, Brain, Zap } from 'lucide-react';
+import { useJobs } from '@/hooks/useJobs';
 
 interface AddModelProps {
   setCurrentView: (view: 'overview' | 'add' | 'jobs') => void;
@@ -14,6 +15,7 @@ export default function AddModel({ setCurrentView }: AddModelProps) {
   const [url, setUrl] = useState('');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const { triggerJob } = useJobs('model_integration');
 
   const resetForm = () => {
     setUrl('');
@@ -33,10 +35,12 @@ export default function AddModel({ setCurrentView }: AddModelProps) {
     setIsUploading(true);
 
     try {
-      // Mock API call - replace with actual integration
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await triggerJob({
+        model_id: url,
+        source: modelSource,
+        type: 'model_integration'
+      });
       
-      // Mock success
       resetForm();
       setCurrentView('overview');
     } catch (err) {

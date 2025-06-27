@@ -1,19 +1,14 @@
 import uuid
 import pandas as pd
-from pathlib import Path
 from datetime import datetime, timezone
+from typing import List
 from fastapi import HTTPException
-from celery.utils.log import get_task_logger
 from sqlalchemy import insert, select, delete
 from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
-from synesis_api.modules.jobs.service import update_job_status
 from synesis_api.modules.data_integration.schema import IntegrationJobResultInDB, IntegrationPydanticMessage, IntegrationJobLocalInput, IntegrationMessage
 from synesis_api.modules.data_integration.models import integration_jobs_results, integration_pydantic_message, integration_jobs_local_inputs, integration_message
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.redis import get_redis
-from synesis_api.worker import logger
-
-# logger = get_task_logger(__name__)
 
 
 async def create_integration_result(result: IntegrationJobResultInDB):
@@ -110,7 +105,7 @@ def validate_restructured_data(
     return data, metadata, mapping_dict
 
 
-async def get_job_results(job_id: uuid.UUID) -> IntegrationJobResultInDB:
+async def get_job_results_from_job_id(job_id: uuid.UUID) -> IntegrationJobResultInDB:
     # get results from integration_jobs_results
     results = await fetch_one(
         select(integration_jobs_results).where(
@@ -119,6 +114,17 @@ async def get_job_results(job_id: uuid.UUID) -> IntegrationJobResultInDB:
     )
 
     return IntegrationJobResultInDB(**results)
+
+
+async def get_job_results_from_dataset_id(dataset_id: uuid.UUID) -> List[IntegrationJobResultInDB]:
+    # get results from integration_jobs_results
+    results = await fetch_all(
+        select(integration_jobs_results).where(
+            integration_jobs_results.c.dataset_id == dataset_id),
+        commit_after=True
+    )
+
+    return [IntegrationJobResultInDB(**result) for result in results]
 
 
 async def create_messages_pydantic(job_id: uuid.UUID, messages: bytes) -> IntegrationPydanticMessage:

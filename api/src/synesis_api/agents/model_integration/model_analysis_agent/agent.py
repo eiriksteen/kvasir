@@ -86,11 +86,6 @@ async def validate_model_analysis_output(
         RepoAnalysisAgentOutput: The validated repo analysis output.
     """
 
-    print("CALLING VALIDATE MODEL ANALYSIS OUTPUT")
-    print(f"Modality: {result.modality}")
-    print(f"Supported tasks: {result.supported_tasks}")
-    print("@"*50)
-
     supported_modalities = get_supported_modalities()
     if result.modality not in supported_modalities:
         raise ModelRetry(
@@ -126,9 +121,6 @@ async def validate_model_analysis_output(
     )
 
     if err:
-        print("@"*20, "ERROR RUNNING CONFIG CODE", "@"*20)
-        print(f"Error: {err}")
-        print("@"*50)
         raise ModelRetry(f"Error running config code: {err}")
 
     return result

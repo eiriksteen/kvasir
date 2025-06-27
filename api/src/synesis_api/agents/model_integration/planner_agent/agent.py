@@ -64,7 +64,4 @@ def get_planner_planning_system_prompt(ctx: RunContext[PlannerDeps]) -> str:
 
 @planning_agent.output_validator
 async def validate_planner_output(_: RunContext[PlannerDeps], result: str) -> str:
-    print("PLANNER OUTPUT:")
-    print(result)
-    print("-"*50)
     return result
