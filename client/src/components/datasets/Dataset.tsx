@@ -5,6 +5,8 @@ import DatasetCompact from './DatasetCompact';
 import { useState } from 'react';
 import DatasetFull from './DatasetFull';
 import { useTimeSeriesDatasetMetadata, useTimeSeriesEntityMetadata } from '@/hooks/useTimeSeriesDataset';
+import { Handle, Position } from '@xyflow/react';
+import { createPortal } from 'react-dom';
 
 interface DatasetProps {
   datasetId: string;
@@ -21,15 +23,19 @@ export default function Dataset({ datasetId, gradientClass, defaultView }: Datas
   if (!dataset) return null;
 
   return (
-    <>
+    <div>
     {currentView === 'mini' && <DatasetMini dataset={dataset} gradientClass={gradientClass} onClick={() => setCurrentView('full')}/>}
     {currentView === 'compact' && <DatasetCompact dataset={dataset} gradientClass={gradientClass} onClick={() => setCurrentView('full')}/>}
-    {currentView === 'full' && <DatasetFull 
-    dataset={dataset} 
-    entities={entities} 
-    gradientClass={gradientClass} 
-    onClose={() => setCurrentView(defaultView)} 
-    />}
-    </>
+    {currentView === 'full' && createPortal(
+      <DatasetFull 
+        dataset={dataset} 
+        entities={entities} 
+        gradientClass={gradientClass} 
+        onClose={() => setCurrentView(defaultView)} 
+      />,
+      document.body
+    )}
+    <Handle type="source" position={Position.Right} style={{ background: '#6366f1' }} />
+    </div>
   );
 } 

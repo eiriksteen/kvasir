@@ -35,7 +35,7 @@ export default function DatasetCompact({ dataset, gradientClass, onClick }: Data
 
   return (
         <div
-            className={`relative border-2 border-[#101827] bg-[#050a14] rounded-lg p-6 transition-colors flex flex-col group ${
+            className={`relative border-2 border-[#101827] bg-[#050a14] rounded-lg p-6 transition-colors flex flex-col group h-full ${
               isDisabled 
                 ? 'cursor-default opacity-60' 
                 : 'cursor-pointer hover:bg-[#0a101c] hover:border-[#1d2d50]'
@@ -55,7 +55,7 @@ export default function DatasetCompact({ dataset, gradientClass, onClick }: Data
               </div>
             )}
             
-            <div className="relative flex-grow">
+            <div className="relative flex-grow flex flex-col">
             <div className="flex items-start gap-3">
                 <h4 className="font-mono text-gray-200 text-base" title={dataset.name}>
                 {dataset.name}
@@ -64,7 +64,7 @@ export default function DatasetCompact({ dataset, gradientClass, onClick }: Data
                 Time Series
                 </span>
             </div>
-            <p className="text-sm text-zinc-400 mt-2 line-clamp-2" title={dataset.description}>
+            <p className="text-sm text-zinc-400 mt-2 line-clamp-2 flex-grow" title={dataset.description}>
                 {dataset.description}
             </p>
             </div>

@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { X, Database, Plus, Calendar, BarChart3, Clock } from 'lucide-react';
+import { X, Database, Plus } from 'lucide-react';
 import { useDatasets } from '@/hooks/useDatasets';
 import { useProject } from '@/hooks/useProject';
 import { TimeSeriesDataset } from '@/types/datasets';
+import DatasetCompact from '../datasets/DatasetCompact';
 
-interface AddDatasetToProjectProps {
+interface AddDatasetToProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
@@ -44,7 +45,7 @@ const getDatasetGradient = (index: number) => {
   return gradients[index % gradients.length];
 };
 
-export default function AddDatasetToProject({ isOpen, onClose, projectId }: AddDatasetToProjectProps) {
+export default function AddDatasetToProjectModal({ isOpen, onClose, projectId }: AddDatasetToProjectModalProps) {
   const { datasets } = useDatasets();
   const { selectedProject, addDatasetToProject } = useProject(projectId);
   const [isAdding, setIsAdding] = useState<string | null>(null);
@@ -96,22 +97,6 @@ export default function AddDatasetToProject({ isOpen, onClose, projectId }: AddD
     }
   };
 
-  // Helper function to format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  // Helper function to format numbers with commas
-  const formatNumber = (num: number) => {
-    return num.toLocaleString();
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -143,24 +128,13 @@ export default function AddDatasetToProject({ isOpen, onClose, projectId }: AddD
                 <p className="text-sm mt-2">All your datasets are already in this project</p>
               </div>
             ) : (
-              <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-fr">
                 {availableDatasets.map((dataset: TimeSeriesDataset, index: number) => { 
                   const gradientClass = getDatasetGradient(index);
                   const isCurrentlyAdding = isAdding === dataset.id;
                   
                   return (
-                    <li 
-                      key={dataset.id} 
-                      onClick={() => handleAddDataset(dataset)}
-                      className={`relative border-2 border-[#101827] bg-[#050a14] rounded-lg p-4 transition-all duration-200 cursor-pointer flex flex-col group ${
-                        isCurrentlyAdding 
-                          ? 'border-blue-500 bg-blue-900/20 cursor-not-allowed' 
-                          : 'hover:bg-[#0a101c] hover:border-[#1d2d50] hover:scale-[1.02]'
-                      }`}
-                    >
-                      {/* Subtle gradient overlay */}
-                      <div className={`absolute inset-0 bg-gradient-to-br ${gradientClass} opacity-5 rounded-lg pointer-events-none`} />
-                      
+                    <div key={dataset.id} className="relative group h-full">
                       {/* Add indicator */}
                       <div className="absolute top-3 right-3 z-10">
                         {isCurrentlyAdding ? (
@@ -172,47 +146,22 @@ export default function AddDatasetToProject({ isOpen, onClose, projectId }: AddD
                         )}
                       </div>
                       
-                      <div className="relative flex-grow">
-                        <div className="flex items-start gap-2">
-                          <h4 className="font-medium text-white text-base" title={dataset.name}>
-                            {dataset.name}
-                          </h4>
-                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-900/30 border border-blue-700/50 text-blue-300 flex-shrink-0">
-                            Time Series
-                          </span>
-                        </div>
-                        <p className="text-xs text-zinc-400 mt-2 line-clamp-2" title={dataset.description}>
-                          {dataset.description || 'No description available'}
-                        </p>
-                      </div>
-                      
-                      <div className="relative mt-4 pt-3 border-t border-[#1a2233] flex flex-col gap-2 text-xs text-zinc-500">
-                        <div className="flex items-center gap-2">
-                          <BarChart3 size={12} className="flex-shrink-0" />
-                          <span>{formatNumber(dataset.numSeries)} series</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Database size={12} className="flex-shrink-0" />
-                          <span>{formatNumber(dataset.numFeatures)} feature(s)</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Clock size={12} className="flex-shrink-0" />
-                          <span>~{formatNumber(dataset.avgNumTimestamps)} timestamps</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar size={12} className="flex-shrink-0" />
-                          <span>Created {formatDate(dataset.createdAt)}</span>
-                        </div>
+                      <div className="h-full">
+                        <DatasetCompact
+                          dataset={dataset}
+                          gradientClass={gradientClass}
+                          onClick={isCurrentlyAdding ? undefined : () => handleAddDataset(dataset)}
+                        />
                       </div>
                       
                       {/* Click hint */}
                       {!isCurrentlyAdding && (
                         <div className="absolute inset-0 bg-blue-600/0 group-hover:bg-blue-600/5 rounded-lg transition-colors pointer-events-none" />
                       )}
-                    </li>
+                    </div>
                   );
                 })}
-              </ul>
+              </div>
             )}
           </div>
         </div>

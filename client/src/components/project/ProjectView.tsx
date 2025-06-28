@@ -14,15 +14,23 @@ import '@xyflow/react/dist/style.css';
 import { useProject } from '@/hooks/useProject';
 import { useDatasets, useAnalysis } from '@/hooks';
 // import DataVisualizer from '@/components/data-visualization/DataVisualizer';
-import { TimeSeriesVisualizer } from '@/components/data-visualization/TimeSeriesVisualizer';
 import AnalysisItem from '@/components/analysis/AnalysisItem';
 import { FrontendNode } from '@/types/node';
-import DatasetNode from '@/components/react-flow-components/DatasetNode';
+import Dataset from '@/components/datasets/Dataset';
 import AnalysisNode from '@/components/react-flow-components/AnalysisNode';
 import TransportEdge from '@/components/react-flow-components/TransportEdge';
 
+// Wrapper component to adapt ReactFlow node props to Dataset component props
+const DatasetNodeWrapper = ({ data }: { data: { label: string; id: string; onClick: () => void } }) => (
+  <Dataset 
+    datasetId={data.id} 
+    gradientClass="from-blue-500 to-purple-600" 
+    defaultView="mini" 
+  />
+);
+
 const nodeTypes = {
-  dataset: DatasetNode,
+  dataset: DatasetNodeWrapper,
   analysis: AnalysisNode,
 };
 
@@ -38,11 +46,12 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   const { selectedProject, frontendNodes, updatePosition } = useProject(projectId);
   const { datasets } = useDatasets();
   const { analysisJobResults } = useAnalysis();
-  const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
   const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+
+  console.log("frontendNodes", frontendNodes);
 
   // Memoize nodes
   const memoizedNodes = useMemo(() => {
@@ -59,7 +68,6 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         data: {
           label: dataset.name,
           id: frontendNode.datasetId,
-          onClick: () => setSelectedDataset(frontendNode.datasetId)
         },
       } as Node;
     });
@@ -79,6 +87,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     });
     return [...datasetNodes.filter(Boolean), ...analysisNodes.filter(Boolean)] as Node[];
   }, [selectedProject, datasets, analysisJobResults, frontendNodes]);
+
+  console.log("memoizedNodes", memoizedNodes);
 
   // Memoize edges
   const memoizedEdges = useMemo(() => {
@@ -138,19 +148,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
 
   const renderModal = () => {
-    if (selectedDataset) {
-      return (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-5xl h-full max-h-[80vh]">
-            <TimeSeriesVisualizer 
-              datasetId={selectedDataset} 
-              mode="full" 
-              onClose={() => setSelectedDataset(null)}
-            />
-          </div>
-        </div>
-      );
-    }
+
+    // Dataset modal is opened inside the Dataset component
 
     if (selectedAnalysis) {
       const analysis = analysisJobResults?.analysesJobResults.find(a => a.jobId === selectedAnalysis);
@@ -169,6 +168,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
     return null;
   };
+
+  console.log("nodes", nodes);
 
   return (
     <div className="w-full h-screen">

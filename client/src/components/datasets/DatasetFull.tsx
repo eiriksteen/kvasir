@@ -1,7 +1,7 @@
 import { TimeSeriesDataset, EntityMetadata } from '@/types/datasets';
 import { format } from 'date-fns';
-import { Info, X, ArrowLeft } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { X, ArrowLeft } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
 import TimeSeriesEChart from '@/components/data-visualization/TimeSeriesEChart';
 import DatasetOverview from './DatasetOverview';
 import DatasetDataView from './DatasetDataView';
@@ -31,16 +31,18 @@ export default function DatasetFull({ dataset, entities, onClose, gradientClass 
   }, []);
 
   // Handle escape key to close modal
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+  const handleEscape = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+    }
   }, [onClose]);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleEscape, true);
+    return () => document.removeEventListener('keydown', handleEscape, true);
+  }, [handleEscape]);
 
   if (!dataset) return null;
 
@@ -99,16 +101,7 @@ export default function DatasetFull({ dataset, entities, onClose, gradientClass 
             >
               <ArrowLeft size={20} />
             </button>
-            <h2 className="text-sm font-mono text-gray-200">{dataset.name}</h2>
-            {!isBeingCreated && (
-              <button
-                onClick={() => setCurrentView(currentView === 'overview' ? 'data' : 'overview')}
-                className="text-zinc-400 hover:text-zinc-300 transition-colors"
-                title={currentView === 'overview' ? "Show data" : "Show overview"}
-              >
-                <Info size={18} />
-              </button>
-            )}
+            <h2 className="text-base font-mono text-gray-200">{dataset.name}</h2>
             <div className="flex-1" />
             
             {/* Navigation Tabs */}

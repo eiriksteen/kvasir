@@ -6,7 +6,7 @@ from synesis_api.modules.node.models import node, dataset_node, analysis_node, a
 from synesis_api.modules.node.schema import FrontendNode, FrontendNodeCreate
 
 
-async def create_node(frontend_node: FrontendNodeCreate):
+async def create_node(frontend_node: FrontendNodeCreate) -> FrontendNode:
 
     # First create the base node
     id = uuid4()
@@ -17,9 +17,9 @@ async def create_node(frontend_node: FrontendNodeCreate):
         y_position=frontend_node.y_position,
         type=frontend_node.type
     )
-    
+
     await execute(node_query, commit_after=True)
-    
+
     # Then create the specific node type
     if frontend_node.type == "dataset":
         specific_node_query = insert(dataset_node).values(
@@ -36,17 +36,29 @@ async def create_node(frontend_node: FrontendNodeCreate):
             id=id,
             automation_id=frontend_node.automation_id
         )
-    
+
     await execute(specific_node_query, commit_after=True)
+
+    # Return the created FrontendNode
+    return FrontendNode(
+        id=id,
+        project_id=frontend_node.project_id,
+        x_position=frontend_node.x_position,
+        y_position=frontend_node.y_position,
+        type=frontend_node.type,
+        dataset_id=frontend_node.dataset_id,
+        analysis_id=frontend_node.analysis_id,
+        automation_id=frontend_node.automation_id
+    )
 
 
 async def get_node(node_id: UUID) -> Optional[FrontendNode]:
     query = select(node).where(node.c.id == node_id)
     node_row = await fetch_one(query)
-    
+
     if not node_row:
         return None
-        
+
     # Check if it's a dataset node
     dataset_query = select(dataset_node).where(dataset_node.c.id == node_id)
     dataset_row = await fetch_one(dataset_query)
@@ -61,7 +73,7 @@ async def get_node(node_id: UUID) -> Optional[FrontendNode]:
             analysis_id=None,
             automation_id=None
         )
-    
+
     # Check if it's an analysis node
     analysis_query = select(analysis_node).where(analysis_node.c.id == node_id)
     analysis_row = await fetch_one(analysis_query)
@@ -76,9 +88,10 @@ async def get_node(node_id: UUID) -> Optional[FrontendNode]:
             analysis_id=analysis_row["analysis_id"],
             automation_id=None
         )
-    
+
     # Check if it's an automation node
-    automation_query = select(automation_node).where(automation_node.c.id == node_id)
+    automation_query = select(automation_node).where(
+        automation_node.c.id == node_id)
     automation_row = await fetch_one(automation_query)
     if automation_row:
         return FrontendNode(
@@ -91,18 +104,20 @@ async def get_node(node_id: UUID) -> Optional[FrontendNode]:
             analysis_id=None,
             automation_id=automation_row["automation_id"]
         )
-    
+
     return None
+
 
 async def get_project_nodes(project_id: UUID) -> List[FrontendNode]:
     # Get all nodes for the project
     query = select(node).where(node.c.project_id == project_id)
     nodes = await fetch_all(query)
-    
+
     result = []
     for node_row in nodes:
         # Check each node type
-        dataset_query = select(dataset_node).where(dataset_node.c.id == node_row["id"])
+        dataset_query = select(dataset_node).where(
+            dataset_node.c.id == node_row["id"])
         dataset_row = await fetch_one(dataset_query)
         if dataset_row:
             result.append(FrontendNode(
@@ -116,8 +131,9 @@ async def get_project_nodes(project_id: UUID) -> List[FrontendNode]:
                 automation_id=None
             ))
             continue
-            
-        analysis_query = select(analysis_node).where(analysis_node.c.id == node_row["id"])
+
+        analysis_query = select(analysis_node).where(
+            analysis_node.c.id == node_row["id"])
         analysis_row = await fetch_one(analysis_query)
         if analysis_row:
             result.append(FrontendNode(
@@ -125,14 +141,15 @@ async def get_project_nodes(project_id: UUID) -> List[FrontendNode]:
                 project_id=node_row["project_id"],
                 x_position=node_row["x_position"],
                 y_position=node_row["y_position"],
-                type="analysis", 
+                type="analysis",
                 dataset_id=None,
                 analysis_id=analysis_row["analysis_id"],
                 automation_id=None
             ))
             continue
-            
-        automation_query = select(automation_node).where(automation_node.c.id == node_row["id"])
+
+        automation_query = select(automation_node).where(
+            automation_node.c.id == node_row["id"])
         automation_row = await fetch_one(automation_query)
         if automation_row:
             result.append(FrontendNode(
@@ -146,7 +163,7 @@ async def get_project_nodes(project_id: UUID) -> List[FrontendNode]:
                 automation_id=automation_row["automation_id"]
             ))
             continue
-    
+
     return result
 
 
@@ -155,11 +172,11 @@ async def update_node_position(frontend_node: FrontendNode) -> Optional[Frontend
         x_position=frontend_node.x_position,
         y_position=frontend_node.y_position
     ).returning(node)
-    
+
     node_row = await fetch_one(query, commit_after=True)
     if not node_row:
         return None
-        
+
     return frontend_node
 
 
@@ -170,13 +187,13 @@ async def delete_node(node_id: UUID) -> bool:
 
     analysis_query = delete(analysis_node).where(analysis_node.c.id == node_id)
     await execute(analysis_query, commit_after=True)
-    
-    automation_query = delete(automation_node).where(automation_node.c.id == node_id)
+
+    automation_query = delete(automation_node).where(
+        automation_node.c.id == node_id)
     await execute(automation_query, commit_after=True)
-    
-    
+
     # Then delete from the base node table
     query = delete(node).where(node.c.id == node_id)
     result = await execute(query, commit_after=True)
-    
+
     return result.rowcount > 0

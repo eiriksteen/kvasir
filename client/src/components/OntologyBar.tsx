@@ -9,7 +9,7 @@ import { useAgentContext, useDatasets, useAnalysis, useProject } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
-import AddDatasetToProject from '@/components/data-integration/AddDatasetToProject';
+import AddDatasetToProjectModal from '@/components/project/AddDatasetToProjectModal';
 import AddAnalysis from '@/components/analysis/AddAnalysis';
 
 type ItemType = 'dataset' | 'analysis' | 'automation';
@@ -208,7 +208,7 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
         analysisesInContext,
         addAnalysisToContext,
         removeAnalysisFromContext
-    } = useAgentContext();
+    } = useAgentContext();  
 
     if (!session) {
         redirect("/login");
@@ -435,7 +435,7 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
                 )}
             </div>
 
-            <AddDatasetToProject
+            <AddDatasetToProjectModal
                 isOpen={showAddDatasetToProject}
                 onClose={() => setShowAddDatasetToProject(false)}
                 projectId={projectId}

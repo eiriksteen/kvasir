@@ -31,7 +31,10 @@ export const useProjects = () => {
       );
       
     },
-    { revalidate: false }
+    { 
+      populateCache: (updatedProjects) => updatedProjects,
+      revalidate: false 
+    }
   )
 
   // Create new project
@@ -74,7 +77,7 @@ export const useProject = (projectId: string) => {
 
   // Update node position
   const { trigger: updatePosition } = useSWRMutation(
-    'updateNodePosition',
+    session && selectedProject ? ['projectNodes', selectedProject.id] : null,
     async (_, { arg }: { arg: FrontendNode }) => {
       const node = frontendNodes?.find(n => n.id === arg.id);
       if (!node) return frontendNodes;
@@ -94,13 +97,14 @@ export const useProject = (projectId: string) => {
 
   // Create node
   const { trigger: createFrontendNode } = useSWRMutation(
-    'createNode',
+    session && selectedProject ? ['projectNodes', selectedProject.id] : null,
     async (_, { arg }: { arg: FrontendNodeCreate }) => {
-      return await createNode(session?.APIToken?.accessToken || '', arg);
+      const res = await createNode(session?.APIToken?.accessToken || '', arg);
+      return res;
     },
     {
       populateCache: (newNode) => {
-        return [...frontendNodes, newNode];
+        return [...(frontendNodes || []), newNode];
       },
       revalidate: false
     }
@@ -108,7 +112,7 @@ export const useProject = (projectId: string) => {
 
   // Delete node
   const { trigger: deleteNodeTrigger } = useSWRMutation(
-    'deleteNode',
+    session && selectedProject ? ['projectNodes', selectedProject.id] : null,
     async (_, { arg }: { arg: string } ) => {
       return await deleteNode(session?.APIToken?.accessToken || '', arg);
     },
@@ -123,26 +127,44 @@ export const useProject = (projectId: string) => {
     }
   );
 
-  // Update selected project and sync with projects list
   const updateProjectAndNode = useCallback(async (data: ProjectUpdate) => {
     if (!selectedProject) return;
 
     await triggerUpdateProject({data, projectId: selectedProject.id});
     
-    // Also refresh the nodes since the project data has changed
-    // This ensures nodes are updated when datasets/analyses are added/removed from the project
     mutateNodes();
   }, [selectedProject, triggerUpdateProject, mutateNodes]);
 
-  // Add dataset to project and create corresponding node
+  const calculateDatasetPosition = useCallback(() => {
+    if (!frontendNodes) {
+      return { x: -300, y: 0 };
+    }
+
+    const datasetNodes = frontendNodes.filter(node => node.type === "dataset");
+
+    if (datasetNodes.length === 0) {
+      return { x: -300, y: 0 };
+    }
+
+    const baseX = -300;
+    const verticalSpacing = 75; 
+
+    const yPositions = datasetNodes.map(node => node.yPosition);
+    const highestY = Math.max(...yPositions);
+
+    return { x: baseX, y: highestY + verticalSpacing };
+  }, [frontendNodes]);
+
   const addDatasetToProject = async (jobId: string) => {
     if (!selectedProject) return;
+
+    const position = calculateDatasetPosition();
 
     // First create the node for the dataset
     await createFrontendNode({
       projectId: selectedProject.id,
-      xPosition: -300.0,
-      yPosition: 0.0,
+      xPosition: position.x,
+      yPosition: position.y,
       type: "dataset",
       datasetId: jobId,
       analysisId: null,
@@ -155,8 +177,6 @@ export const useProject = (projectId: string) => {
       id: jobId,
       remove: false,
     });
-
-    
   };
 
   // Remove dataset from project and delete corresponding node
@@ -189,5 +209,6 @@ export const useProject = (projectId: string) => {
     deleteNodeTrigger,
     addDatasetToProject,
     removeDatasetFromProject,
+    calculateDatasetPosition,
   };
 };
