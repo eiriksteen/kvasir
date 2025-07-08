@@ -146,9 +146,9 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 							<Database size={18} />
 						</Link>
 						<Link 
-							href="/model-integration"
+							href="/models"
 							className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-zinc-400 hover:text-zinc-200"
-							title="Model Integration"
+							title="Models"
 						>
 							<Bot size={18} />
 						</Link>

@@ -134,6 +134,7 @@ async def validate_inference_output(
     )
 
     script = remove_line_numbers_from_script(ctx.deps.current_script)
+
     test_code = (
         f"{script}\n\n"
         f"{synthetic_data_code}\n\n"

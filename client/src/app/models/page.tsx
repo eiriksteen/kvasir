@@ -1,9 +1,9 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
-import ModelIntegrationContainer from "@/app/model-integration/container";
+import ModelsContainer from "@/app/models/container";
 
-export default async function ModelIntegrationPage() {
+export default async function ModelsPage() {
   const session = await getServerSession(authOptions);
 
   if (!session) {
@@ -11,6 +11,6 @@ export default async function ModelIntegrationPage() {
   }
 
   return (
-    <ModelIntegrationContainer session={session} />
+    <ModelsContainer session={session} />
   );
-}
+} 

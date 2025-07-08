@@ -43,7 +43,7 @@ export const useIntegrationAgent = (jobId: string) => {
   const submitFeedback = useCallback(async (content: string) => {
     if (session?.APIToken?.accessToken) {
       const feedback : IntegrationAgentFeedback = {
-        job_id: jobId,
+        jobId: jobId,
         content: content
       }
       try {

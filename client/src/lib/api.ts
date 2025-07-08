@@ -35,8 +35,8 @@ export async function postIntegrationJob(token: string, files: File[], descripti
   files.forEach(file => {
     formData.append("files", file);
   });
-  formData.append("data_description", description);
-  formData.append("data_source", dataSource);
+  formData.append("dataDescription", description);
+  formData.append("dataSource", dataSource);
 
   const response = await fetch(`${API_URL}/integration/call-integration-agent`, {
     method: 'POST',
@@ -505,7 +505,7 @@ export async function deleteNode(token: string, nodeId: string): Promise<string>
 
 export async function fetchModels(token: string, only_owned: boolean = false): Promise<Model[]> {
 
-  const route = only_owned  ? "/automation/models/my" : "/automation/models";
+  const route = only_owned  ? "/automation/models/my?include_integration_jobs=1" : "/automation/models?include_integration_jobs=1";
   const response = await fetch(`${API_URL}${route}`, {
     headers: {
       'Authorization': `Bearer ${token}`
@@ -558,7 +558,7 @@ export async function postModelIntegrationJob(token: string, modelId: string, so
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model_id: modelId,
+      modelId: modelId,
       source: source
     })
   });
@@ -572,7 +572,7 @@ export async function postModelIntegrationJob(token: string, modelId: string, so
   return response.json();
 }
 
-export async function getIntegrationJobResults(token: string, jobId: string): Promise<{ job_id: string; dataset_id: string }> {
+export async function getIntegrationJobResults(token: string, jobId: string): Promise<{ jobId: string; datasetId: string }> {
   const response = await fetch(`${API_URL}/integration/integration-job-results/${jobId}`, {
     method: 'GET',
     headers: {

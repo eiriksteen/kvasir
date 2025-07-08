@@ -13,23 +13,23 @@ export type IntegrationSource = "local" | "aws" | "azure" | "gcp";
 
 export interface IntegrationJobInput {
   files: File[];
-  data_description: string;
-  data_source: IntegrationSource;
+  dataDescription: string;
+  dataSource: IntegrationSource;
   type: "integration";
 }
 
 export interface ModelIntegrationJobInput {
-  model_id: string;
+  modelId: string;
   source: "github" | "pip";
   type: "model_integration";
 }
 
 export interface AnalysisJobInput {
-  job_id: string;
+  jobId: string;
   type: "analysis";
 }
 
 export interface AutomationJobInput {
-  job_id: string;
+  jobId: string;
   type: "automation";
 }

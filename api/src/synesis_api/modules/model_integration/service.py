@@ -1,4 +1,5 @@
 import uuid
+import json
 from datetime import datetime, timezone
 from sqlalchemy import insert, select, delete
 from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
@@ -6,6 +7,78 @@ from synesis_api.modules.model_integration.schema import ModelIntegrationJobResu
 from synesis_api.modules.model_integration.models import model_integration_jobs_results, model_integration_pydantic_message, model_integration_message
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.redis import get_redis
+
+
+def _get_stage_output_cache_key(model_id: str, source: str, stage: str) -> str:
+    """Generate cache key for a specific stage output"""
+    return f"model_integration:{model_id}:{source}:{stage}"
+
+
+def _get_message_history_cache_key(model_id: str, source: str) -> str:
+    """Generate cache key for message history"""
+    return f"model_integration:{model_id}:{source}:message_history"
+
+
+async def save_stage_output_to_cache(
+    model_id: str,
+    source: str,
+    stage: str,
+    output_data: dict,
+    message_history: bytes | None = None,
+    ttl: int = 86400  # 24 hours default TTL
+) -> None:
+    """Save stage output to Redis cache"""
+    cache = get_redis()
+    cache_key = _get_stage_output_cache_key(model_id, source, stage)
+    message_history_cache_key = _get_message_history_cache_key(
+        model_id, source)
+
+    # Add timestamp for cache invalidation
+    output_with_metadata = {
+        "output": output_data,
+        "cached_at": datetime.now(timezone.utc).isoformat(),
+        "model_id": model_id,
+        "source": source,
+        "stage": stage
+    }
+
+    await cache.setex(
+        cache_key,
+        ttl,
+        json.dumps(output_with_metadata)
+    )
+
+    if message_history:
+        await cache.setex(
+            message_history_cache_key,
+            ttl,
+            message_history
+        )
+
+
+async def get_stage_output_from_cache(
+    model_id: str,
+    source: str,
+    stage: str
+) -> dict | None:
+    """Retrieve stage output from Redis cache"""
+    cache = get_redis()
+    cache_key = _get_stage_output_cache_key(model_id, source, stage)
+
+    cached_data = await cache.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    return None
+
+
+async def get_message_history_from_cache(model_id: str, source: str) -> list[ModelMessage] | None:
+    """Retrieve message history from Redis cache"""
+    cache = get_redis()
+    cache_key = _get_message_history_cache_key(model_id, source)
+    cached_data = await cache.get(cache_key)
+    if cached_data:
+        return ModelMessagesTypeAdapter.validate_json(cached_data)
+    return None
 
 
 async def create_model_integration_result(job_id: uuid.UUID, model_id: uuid.UUID):
@@ -89,7 +162,7 @@ async def create_model_integration_messages(job_id: uuid.UUID, messages: list[di
                 id=message["id"],
                 job_id=job_id,
                 stage=message["stage"],
-                created_at=message["timestamp"],
+                created_at=message["created_at"],
                 content=message["content"],
                 type=message["type"],
                 current_task=message.get("current_task")
@@ -128,9 +201,13 @@ async def get_model_integration_messages(job_id: uuid.UUID, include_cached: bool
 
         if response:
             cached_messages = [ModelIntegrationMessage(
-                **item[1],
-                job_id=job_id,
-                created_at=datetime.fromisoformat(item[1]["timestamp"])
+                id=item[1]["id"],
+                job_id=item[1]["job_id"],
+                content=item[1]["content"],
+                stage=item[1]["stage"],
+                type=item[1]["type"],
+                current_task=item[1]["current_task"],
+                created_at=datetime.fromisoformat(item[1]["created_at"])
             ) for item in response[0][1] if item[1]["type"] != "pydantic_ai_state"]
 
             if max_timestamp:

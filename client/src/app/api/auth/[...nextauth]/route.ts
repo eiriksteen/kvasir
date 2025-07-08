@@ -60,7 +60,6 @@ export const authOptions: AuthOptions = {
       if (tokenExpiresAt && tokenExpiresAt < now) {
 
         try {
-
           const response = await fetch(process.env.API_URL + "/auth/refresh", {
             method: "POST",
             credentials: "include", // Important for cookies

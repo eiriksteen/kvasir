@@ -31,7 +31,11 @@ class ModelIntegrationMessage(BaseSchema):
     id: UUID
     job_id: UUID
     content: str
-    stage: Literal["setup", "analysis", "planning", "training", "inference"]
+    stage: Literal["setup",
+                   "model_analysis",
+                   "implementation_planning",
+                   "training",
+                   "inference"]
     type: Literal["tool_call", "result"]
     current_task: Optional[Literal["classification",
                                    "regression",

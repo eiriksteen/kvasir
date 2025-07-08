@@ -2,7 +2,7 @@ export type ChatMessageAPI = {
     id: string;
     role: "user" | "assistant";
     content: string;
-    created_at: string;
+    createdAt: string;
     conversationId: string;
 }
 
@@ -23,7 +23,7 @@ export type Conversation = {
 }
 
 export type ConversationCreate = {
-    project_id: string;
+    projectId: string;
     content: string;
 }
 

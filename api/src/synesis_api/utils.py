@@ -47,6 +47,7 @@ def get_model():
 
     return model
 
+
 def save_markdown_as_html(markdown_content: str):
     # Convert markdown to HTML
     html_content = markdown2.markdown(markdown_content, extras=[
@@ -89,7 +90,7 @@ async def run_python_code_in_container(
         container_name: str = "synesis-sandbox",
         cwd: str | None = None) -> Tuple[str, str]:
     """
-    Helper function that actually runs Python code inside a Docker container named `sandbox` (by default).
+    Helper function that runs Python code inside a Docker container named `sandbox` (by default).
     This is an async version that uses asyncio.create_subprocess_exec for non-blocking execution.
     """
     python_code_parsed = parse_code(python_code)

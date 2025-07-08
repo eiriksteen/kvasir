@@ -353,14 +353,6 @@ function Chat({ projectId }: { projectId: string }) {
                 <Send size={20} />
               </button>
             </div>
-            
-            {/* Dataset indicator */}
-            <div className="mt-2 flex items-center gap-2 pl-2">
-              <div className="text-xs text-zinc-500 flex items-center gap-1">
-                <Database size={12} />
-                <span>{datasetsInContext.length} dataset{datasetsInContext.length !== 1 ? 's' : ''} in context</span>
-              </div>
-            </div>
           </div>
         </>
       )}

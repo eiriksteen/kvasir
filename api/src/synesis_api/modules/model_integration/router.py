@@ -14,7 +14,8 @@ from synesis_api.modules.model_integration.schema import (
     ModelIntegrationMessage,
     ModelIntegrationJobInput
 )
-from synesis_api.agents.model_integration.runner import run_model_integration_task
+# from synesis_api.agents.model_integration.runner import run_model_integration_task
+from synesis_api.agents.model_integration_alt.runner import run_model_integration_task
 from synesis_api.modules.jobs.schema import JobMetadata
 from synesis_api.auth.schema import User
 from synesis_api.auth.service import get_current_user, user_owns_job

@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from sqlalchemy import select, join, insert, or_
 from synesis_api.database.service import fetch_all, fetch_one, execute
@@ -7,6 +8,9 @@ from synesis_api.modules.automation.models import (
     programming_language, task, model_task
 )
 from synesis_api.modules.automation.schema import ModelJoined, Modality, Source, ProgrammingLanguageVersion, Task, ProgrammingLanguage
+from synesis_api.modules.jobs.schema import JobMetadata
+from synesis_api.modules.jobs.models import jobs
+from synesis_api.modules.model_integration.models import model_integration_jobs_results
 
 
 async def get_or_create_modalities(names: List[str], descriptions: Optional[List[str]] = None) -> List[Modality]:
@@ -30,19 +34,16 @@ async def get_or_create_modalities(names: List[str], descriptions: Optional[List
             modalities.append(Modality(**existing_by_name[name]))
         else:
             modality_id = uuid.uuid4()
-            await execute(
-                insert(modality).values(
-                    id=modality_id,
-                    name=name,
-                    description=description
-                ),
-                commit_after=True
-            )
-            modalities.append(Modality(
+
+            modality_obj = Modality(
                 id=modality_id,
                 name=name,
-                description=description
-            ))
+                description=description,
+                created_at=datetime.now(timezone.utc)
+            )
+
+            await execute(insert(modality).values(**modality_obj.model_dump()), commit_after=True)
+            modalities.append(modality_obj)
 
     return modalities
 
@@ -67,20 +68,14 @@ async def get_or_create_tasks(names: List[str], descriptions: Optional[List[str]
         if name in existing_by_name:
             tasks.append(Task(**existing_by_name[name]))
         else:
-            task_id = uuid.uuid4()
-            await execute(
-                insert(task).values(
-                    id=task_id,
-                    name=name,
-                    description=description
-                ),
-                commit_after=True
-            )
-            tasks.append(Task(
-                id=task_id,
+            task_obj = Task(
+                id=uuid.uuid4(),
                 name=name,
-                description=description
-            ))
+                description=description,
+                created_at=datetime.now(timezone.utc)
+            )
+            await execute(insert(task).values(**task_obj.model_dump()), commit_after=True)
+            tasks.append(task_obj)
 
     return tasks
 
@@ -105,20 +100,14 @@ async def get_or_create_sources(names: List[str], descriptions: Optional[List[st
         if name in existing_by_name:
             sources.append(Source(**existing_by_name[name]))
         else:
-            source_id = uuid.uuid4()
-            await execute(
-                insert(source).values(
-                    id=source_id,
-                    name=name,
-                    description=description
-                ),
-                commit_after=True
-            )
-            sources.append(Source(
-                id=source_id,
+            source_obj = Source(
+                id=uuid.uuid4(),
                 name=name,
-                description=description
-            ))
+                description=description,
+                created_at=datetime.now(timezone.utc)
+            )
+            await execute(insert(source).values(**source_obj.model_dump()), commit_after=True)
+            sources.append(source_obj)
 
     return sources
 
@@ -146,20 +135,14 @@ async def get_or_create_programming_languages(names: List[str], descriptions: Op
             programming_languages.append(
                 ProgrammingLanguage(**existing_by_name[name]))
         else:
-            programming_language_id = uuid.uuid4()
-            await execute(
-                insert(programming_language).values(
-                    id=programming_language_id,
-                    name=name,
-                    description=description
-                ),
-                commit_after=True
-            )
-            programming_languages.append(ProgrammingLanguage(
-                id=programming_language_id,
+            programming_language_obj = ProgrammingLanguage(
+                id=uuid.uuid4(),
                 name=name,
-                description=description
-            ))
+                description=description,
+                created_at=datetime.now(timezone.utc)
+            )
+            await execute(insert(programming_language).values(**programming_language_obj.model_dump()), commit_after=True)
+            programming_languages.append(programming_language_obj)
 
     return programming_languages
 
@@ -198,20 +181,20 @@ async def get_or_create_programming_language_versions(
             programming_language_versions.append(
                 ProgrammingLanguageVersion(**existing_by_key[key]))
         else:
-            version_id = uuid.uuid4()
+
+            programming_language_version_obj = ProgrammingLanguageVersion(
+                id=uuid.uuid4(),
+                programming_language_id=programming_language_id,
+                version=version,
+                created_at=datetime.now(timezone.utc)
+            )
             await execute(
                 insert(programming_language_version).values(
-                    id=version_id,
-                    programming_language_id=programming_language_id,
-                    version=version
-                ),
+                    **programming_language_version_obj.model_dump()),
                 commit_after=True
             )
-            programming_language_versions.append(ProgrammingLanguageVersion(
-                id=version_id,
-                programming_language_id=programming_language_id,
-                version=version
-            ))
+            programming_language_versions.append(
+                programming_language_version_obj)
 
     return programming_language_versions
 
@@ -229,7 +212,7 @@ async def insert_model(
     config_script_path: str,
     input_description: str,
     output_description: str,
-    config_parameters: Dict[str, Any],
+    config_parameters: List[str],
     tasks: List[str],
     inference_script_paths: List[str],
     training_script_paths: List[str],
@@ -250,7 +233,7 @@ async def insert_model(
         config_script_path: Path to config script
         input_description: Description of model inputs
         output_description: Description of model outputs
-        config_parameters: Configuration parameters as JSON
+        config_parameters: List of configuration parameter names
         task_ids: List of task IDs this model supports
         inference_script_paths: Dict mapping task_id to inference script path
         training_script_paths: Dict mapping task_id to training script path
@@ -336,7 +319,54 @@ async def user_owns_model(user_id: uuid.UUID, model_id: uuid.UUID) -> bool:
     return model_record is not None
 
 
-async def get_user_models(user_id: uuid.UUID) -> List[ModelJoined]:
+async def get_integration_jobs_for_user_models(user_id: uuid.UUID) -> dict[uuid.UUID, List[dict]]:
+    """
+    Get all integration jobs for models owned by a user.
+
+    Args:
+        user_id: The ID of the user
+
+    Returns:
+        A dictionary mapping model_id to a list of job metadata dictionaries
+    """
+    query = select(
+        model_integration_jobs_results.c.model_id,
+        jobs.c.id,
+        jobs.c.type,
+        jobs.c.status,
+        jobs.c.job_name,
+        jobs.c.started_at,
+        jobs.c.completed_at
+    ).join(
+        jobs, jobs.c.id == model_integration_jobs_results.c.job_id
+    ).join(
+        model, model.c.id == model_integration_jobs_results.c.model_id
+    ).where(
+        model.c.owner_id == user_id
+    )
+
+    results = await fetch_all(query)
+
+    # Group jobs by model_id
+    jobs_by_model = {}
+    for row in results:
+        model_id = row["model_id"]
+        if model_id not in jobs_by_model:
+            jobs_by_model[model_id] = []
+
+        jobs_by_model[model_id].append({
+            "id": row["id"],
+            "type": row["type"],
+            "status": row["status"],
+            "job_name": row["job_name"],
+            "started_at": row["started_at"],
+            "completed_at": row["completed_at"]
+        })
+
+    return jobs_by_model
+
+
+async def get_user_models(user_id: uuid.UUID, include_integration_jobs: bool = False) -> List[ModelJoined]:
     """Get all models owned by a specific user"""
 
     # Join all the necessary tables and filter by owner
@@ -348,6 +378,9 @@ async def get_user_models(user_id: uuid.UUID) -> List[ModelJoined]:
             source.c.name.label("source_name"),
             source.c.description.label("source_description"),
             source.c.created_at.label("source_created_at"),
+            programming_language_version.c.id.label("pl_version_id"),
+            programming_language_version.c.programming_language_id.label(
+                "pl_id"),
             programming_language_version.c.version.label("pl_version"),
             programming_language_version.c.created_at.label(
                 "pl_version_created_at"),
@@ -395,8 +428,8 @@ async def get_user_models(user_id: uuid.UUID) -> List[ModelJoined]:
         )
 
         programming_language_version_obj = ProgrammingLanguageVersion(
-            id=result["programming_language_version_id"],
-            programming_language_id=result["programming_language_id"],
+            id=result["pl_version_id"],
+            programming_language_id=result["pl_id"],
             version=result["pl_version"],
             created_at=result["pl_version_created_at"]
         )
@@ -411,10 +444,20 @@ async def get_user_models(user_id: uuid.UUID) -> List[ModelJoined]:
 
         models_joined.append(model_joined)
 
+    if include_integration_jobs:
+        # Get integration jobs for all user models
+        integration_jobs_by_model = await get_integration_jobs_for_user_models(user_id)
+
+        # Populate integration_jobs for each model
+        for model_joined in models_joined:
+            model_jobs = integration_jobs_by_model.get(model_joined.id, [])
+            model_joined.integration_jobs = [
+                JobMetadata(**job) for job in model_jobs]
+
     return models_joined
 
 
-async def get_model_joined(model_id: uuid.UUID) -> ModelJoined:
+async def get_model_joined(model_id: uuid.UUID, include_integration_jobs: bool = False) -> ModelJoined:
     """Get a single ModelJoined by model_id"""
 
     # Join all the necessary tables
@@ -426,6 +469,9 @@ async def get_model_joined(model_id: uuid.UUID) -> ModelJoined:
             source.c.name.label("source_name"),
             source.c.description.label("source_description"),
             source.c.created_at.label("source_created_at"),
+            programming_language_version.c.id.label("pl_version_id"),
+            programming_language_version.c.programming_language_id.label(
+                "pl_id"),
             programming_language_version.c.version.label("pl_version"),
             programming_language_version.c.created_at.label(
                 "pl_version_created_at"),
@@ -474,13 +520,13 @@ async def get_model_joined(model_id: uuid.UUID) -> ModelJoined:
     )
 
     programming_language_version_obj = ProgrammingLanguageVersion(
-        id=result["programming_language_version_id"],
-        programming_language_id=result["programming_language_id"],
+        id=result["pl_version_id"],
+        programming_language_id=result["pl_id"],
         version=result["pl_version"],
         created_at=result["pl_version_created_at"]
     )
 
-    return ModelJoined(
+    model_joined = ModelJoined(
         **result,
         modality=modality_obj,
         source=source_obj,
@@ -488,8 +534,17 @@ async def get_model_joined(model_id: uuid.UUID) -> ModelJoined:
         tasks=tasks
     )
 
+    if include_integration_jobs:
+        # Get integration jobs for this specific model
+        integration_jobs_by_model = await get_integration_jobs_for_user_models(result["owner_id"])
+        model_jobs = integration_jobs_by_model.get(model_id, [])
+        model_joined.integration_jobs = [
+            JobMetadata(**job) for job in model_jobs]
 
-async def get_all_models_public_or_owned(user_id: uuid.UUID) -> List[ModelJoined]:
+    return model_joined
+
+
+async def get_all_models_public_or_owned(user_id: uuid.UUID, include_integration_jobs: bool = False) -> List[ModelJoined]:
     """Get all ModelJoined objects"""
 
     # Join all the necessary tables
@@ -501,6 +556,9 @@ async def get_all_models_public_or_owned(user_id: uuid.UUID) -> List[ModelJoined
             source.c.name.label("source_name"),
             source.c.description.label("source_description"),
             source.c.created_at.label("source_created_at"),
+            programming_language_version.c.id.label("pl_version_id"),
+            programming_language_version.c.programming_language_id.label(
+                "pl_id"),
             programming_language_version.c.version.label("pl_version"),
             programming_language_version.c.created_at.label(
                 "pl_version_created_at"),
@@ -553,8 +611,8 @@ async def get_all_models_public_or_owned(user_id: uuid.UUID) -> List[ModelJoined
         )
 
         programming_language_version_obj = ProgrammingLanguageVersion(
-            id=result["programming_language_version_id"],
-            programming_language_id=result["programming_language_id"],
+            id=result["pl_version_id"],
+            programming_language_id=result["pl_id"],
             version=result["pl_version"],
             created_at=result["pl_version_created_at"]
         )
@@ -568,5 +626,15 @@ async def get_all_models_public_or_owned(user_id: uuid.UUID) -> List[ModelJoined
         )
 
         models_joined.append(model_joined)
+
+    if include_integration_jobs:
+        # Get integration jobs for all user models
+        integration_jobs_by_model = await get_integration_jobs_for_user_models(user_id)
+
+        # Populate integration_jobs for each model
+        for model_joined in models_joined:
+            model_jobs = integration_jobs_by_model.get(model_joined.id, [])
+            model_joined.integration_jobs = [
+                JobMetadata(**job) for job in model_jobs]
 
     return models_joined

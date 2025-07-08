@@ -87,8 +87,8 @@ export const useJobs = (jobType: JobType) => {
       const newJob = await postIntegrationJob(
         session ? session.APIToken.accessToken : "", 
         arg.files, 
-        arg.data_description,
-        arg.data_source
+        arg.dataDescription,
+        arg.dataSource
       );
       if (jobs) {
         return [...jobs, newJob];
@@ -98,7 +98,7 @@ export const useJobs = (jobType: JobType) => {
     if (arg.type === "model_integration") {
       const newJob = await postModelIntegrationJob(
         session ? session.APIToken.accessToken : "", 
-        arg.model_id, 
+        arg.modelId, 
         arg.source
       );
       if (jobs) {

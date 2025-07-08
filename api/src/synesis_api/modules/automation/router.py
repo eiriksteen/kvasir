@@ -17,11 +17,12 @@ router = APIRouter()
 
 @router.get("/models", response_model=List[ModelJoined])
 async def get_all_models(
-    user: Annotated[User, Depends(get_current_user)] = None
+    user: Annotated[User, Depends(get_current_user)] = None,
+    include_integration_jobs: bool = False
 ) -> List[ModelJoined]:
     """Get all automation models with joined data"""
     try:
-        return await get_all_models_public_or_owned(user.id)
+        return await get_all_models_public_or_owned(user.id, include_integration_jobs=include_integration_jobs)
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -31,11 +32,14 @@ async def get_all_models(
 
 @router.get("/models/my", response_model=List[ModelJoined])
 async def get_my_models(
-    user: Annotated[User, Depends(get_current_user)] = None
+    user: Annotated[User, Depends(get_current_user)] = None,
+    include_integration_jobs: bool = False
 ) -> List[ModelJoined]:
     """Get all automation models owned by the current user"""
     try:
-        return await get_user_models(user.id)
+        results = await get_user_models(user.id, include_integration_jobs=include_integration_jobs)
+        print(results)
+        return results
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -46,7 +50,8 @@ async def get_my_models(
 @router.get("/models/{model_id}", response_model=ModelJoined)
 async def get_model(
     model_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None
+    user: Annotated[User, Depends(get_current_user)] = None,
+    include_integration_jobs: bool = False
 ) -> ModelJoined:
     """Get a specific automation model with joined data by ID"""
 
@@ -57,7 +62,7 @@ async def get_model(
         )
 
     try:
-        return await get_model_joined(model_id)
+        return await get_model_joined(model_id, include_integration_jobs=include_integration_jobs)
     except ValueError as e:
         raise HTTPException(
             status_code=404,

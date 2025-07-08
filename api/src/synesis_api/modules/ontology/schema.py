@@ -28,7 +28,7 @@ class TabularDatasetInDB(BaseSchema):
 
 
 class TabularInheritedDataset(Dataset, TabularDatasetInDB):
-    integration_jobs: List[JobMetadata] = []
+    integration_jobs: List[JobMetadata] | None = None
 
 
 class TimeSeries(BaseSchema):
@@ -53,7 +53,7 @@ class TimeSeriesDatasetInDB(BaseSchema):
 
 
 class TimeSeriesInheritedDataset(Dataset, TimeSeriesDatasetInDB):
-    integration_jobs: List[JobMetadata] = []
+    integration_jobs: List[JobMetadata] | None = None
 
 
 class Datasets(BaseSchema):

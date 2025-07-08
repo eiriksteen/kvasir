@@ -130,3 +130,14 @@ class BaseConfig:
     learning_rate: float
     weight_decay: float
 """
+
+
+def get_input_structure(modality: str) -> str:
+    if modality == "time_series":
+        return TIME_SERIES_INPUT_STRUCTURE
+    else:
+        raise ValueError(f"Invalid modality: {modality}")
+
+
+def get_config_definition_code() -> str:
+    return BASE_CONFIG_DEFINITION_CODE

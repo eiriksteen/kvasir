@@ -70,7 +70,7 @@ export const useChat = (projectId: string) => {
       if (!conversationId) {
         try {
           const conversationCreateObject: ConversationCreate = {
-            project_id: selectedProject?.id || "",
+            projectId: selectedProject?.id || "",
             content: content
           };
           const conversation = await createConversation(conversationCreateObject);

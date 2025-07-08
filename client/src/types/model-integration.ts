@@ -1,3 +1,5 @@
+import { Job } from "@/types/jobs";
+
 export interface Modality {
   id: string;
   name: string;
@@ -8,51 +10,52 @@ export interface Task {
   id: string;
   name: string;
   description?: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface Source {
   id: string;
   name: string;
   description?: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface ProgrammingLanguage {
   id: string;
   name: string;
   description?: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface ProgrammingLanguageVersion {
   id: string;
-  programming_language_id: string;
+  programmingLanguageId: string;
   version: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface Model {
   id: string;
   name: string;
   description: string;
-  input_description: string;
-  output_description: string;
-  config_parameters: string[];
-  created_at: string;
+  inputDescription: string;
+  outputDescription: string;
+  configParameters: string[];
+  createdAt: string;
   public: boolean;
   modality: Modality;
   source: Source;
-  programming_language_version: ProgrammingLanguageVersion;
+  programmingLanguageVersion: ProgrammingLanguageVersion;
   tasks: Task[];
+  integrationJobs: Job[];
 }
 
 export interface ModelIntegrationMessage {
   id: string;
-  job_id: string;
+  jobId: string;
   content: string;
   stage: 'setup' | 'analysis' | 'planning' | 'training' | 'inference';
   type: 'tool_call' | 'result';
-  current_task?: 'classification' | 'regression' | 'segmentation' | 'forecasting';
-  created_at: string;
+  currentTask?: 'classification' | 'regression' | 'segmentation' | 'forecasting';
+  createdAt: string;
 } 

@@ -1,19 +1,19 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { TimeSeriesDataset } from '@/types/datasets';
 import { Loader2, Pause, Check, X } from 'lucide-react';
-import { useDatasetIsBeingCreated } from '@/hooks/useDatasets';
+import { useModelIsBeingCreated } from '@/hooks/useModels';
+import { Model } from '@/types/model-integration';
 
-interface DatasetMiniProps {
-  dataset: TimeSeriesDataset;
+interface ModelMiniProps {
+  model: Model;
   gradientClass: string | undefined;
   onClick?: () => void;
   // if null, click is disabled
   // also remove hovering effect to make it look like a disabled button
 }
 
-export default function DatasetMini({ dataset, gradientClass, onClick }: DatasetMiniProps) {
-  const {isBeingCreated, creationJobState} = useDatasetIsBeingCreated(dataset);
+export default function ModelMini({ model, gradientClass, onClick }: ModelMiniProps) {
+  const {isBeingCreated, creationJobState} = useModelIsBeingCreated(model);
   const isDisabled = !onClick;
   
   return (
@@ -32,8 +32,8 @@ export default function DatasetMini({ dataset, gradientClass, onClick }: Dataset
         </svg>
       </div>
       <div className="ml-2">
-        <div className="text-lg font-mono text-gray-200">{dataset.name}</div>
-        <div className="text-blue-300 font-mono text-xs">Dataset</div>
+        <div className="text-lg font-mono text-gray-200">{model.name}</div>
+        <div className="text-blue-300 font-mono text-xs">Model</div>
       </div>
     </div>
     {isBeingCreated && (

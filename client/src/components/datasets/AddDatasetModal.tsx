@@ -106,8 +106,8 @@ export default function AddDatasetModal({ onClose, gradientClass }: AddDatasetMo
     try {
       await triggerJob({
         files: files, 
-        data_description: description,
-        data_source: dataSource, 
+        dataDescription: description,
+        dataSource: dataSource, 
         type: "integration"
       });
       resetForm(); 
