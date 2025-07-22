@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 # Import all models to ensure they register with metadata
 from synesis_api.auth.models import users, user_api_keys
-from synesis_api.modules.data_integration.models import integration_jobs_results, integration_pydantic_message, integration_jobs_local_inputs, integration_message
-from synesis_api.modules.jobs.models import jobs
-from synesis_api.modules.ontology.models import time_series, time_series_dataset
+from synesis_api.modules.data_integration.models import data_integration_job_result, data_integration_pydantic_message, data_integration_job_local_input, data_integration_message
+from synesis_api.modules.jobs.models import job
+from synesis_api.modules.data_objects.models import time_series, time_series_dataset
 from synesis_api.modules.chat.models import chat_message, pydantic_message, conversations
 from synesis_api.modules.automation.models import model, model_task, task, source, programming_language, programming_language_version, modality
 from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
@@ -34,11 +34,11 @@ if config.config_file_name is not None:
 __all__ = [
     users,
     user_api_keys,
-    integration_jobs_results,
-    integration_pydantic_message,
-    integration_jobs_local_inputs,
-    integration_message,
-    jobs,
+    data_integration_job_result,
+    data_integration_pydantic_message,
+    data_integration_job_local_input,
+    data_integration_message,
+    job,
     time_series,
     time_series_dataset,
     analysis_jobs_results,

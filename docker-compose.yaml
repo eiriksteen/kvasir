@@ -17,8 +17,8 @@ services:
   # Python Code Sandbox service
   sandbox:
     build:
-      context: ./sandbox
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: sandbox/Dockerfile
     container_name: synesis-sandbox
 
   redis:

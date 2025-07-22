@@ -262,6 +262,18 @@ def get_supported_tasks(modality: str) -> List[str]:
             f"Modality {modality} not (yet) supported, choose from {TIME_SERIES_SUPPORTED_TASKS}")
 
 
+def get_output_structure(modality: str, task_name: str) -> str:
+    if modality == "time_series":
+        if task_name == "classification":
+            return TIME_SERIES_CLASSIFICATION_OUTPUT_STRUCTURE
+        elif task_name == "forecasting":
+            return TIME_SERIES_FORECASTING_OUTPUT_STRUCTURE
+        elif task_name == "segmentation":
+            return TIME_SERIES_SEGMENTATION_OUTPUT_STRUCTURE
+    else:
+        raise ValueError(f"Modality {modality} not (yet) supported")
+
+
 def get_validation_code(modality: str, task_name: str) -> str:
     if modality == "time_series":
         if task_name == "classification":

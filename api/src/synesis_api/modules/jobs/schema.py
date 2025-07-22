@@ -1,10 +1,10 @@
 from datetime import datetime, timezone
 from uuid import UUID
-from typing import Literal, List
+from typing import Literal, Optional
 from synesis_api.base_schema import BaseSchema
 
 
-class JobMetadata(BaseSchema):
+class Job(BaseSchema):
     id: UUID
     type: str
     status: Literal["pending",
@@ -13,10 +13,11 @@ class JobMetadata(BaseSchema):
                     "failed",
                     "paused",
                     "awaiting_approval"]
-    job_name: str | None = None
+    conversation_id: Optional[UUID] = None
+    job_name: Optional[str] = None
     started_at: datetime = datetime.now(timezone.utc)
-    completed_at: datetime | None = None
+    completed_at: Optional[datetime] = None
 
 
-class JobMetadataInDB(JobMetadata):
+class JobInDB(Job):
     user_id: UUID

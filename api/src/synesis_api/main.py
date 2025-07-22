@@ -4,11 +4,11 @@ from synesis_api.modules.jobs.router import router as jobs_router
 from synesis_api.worker import broker
 from contextlib import asynccontextmanager
 from synesis_api.auth.router import router as auth_router
-from synesis_api.modules.data_integration.router import router as integration_router
+from synesis_api.modules.data_integration.router import data_integration_router
 from synesis_api.modules.chat.router import router as chat_router
 from synesis_api.modules.analysis.router import router as eda_router
-from synesis_api.modules.ontology.router import router as ontology_router
-from synesis_api.modules.data_provider.router import router as data_provider_router
+from synesis_api.modules.data_objects.router import router as ontology_router
+from synesis_api.modules.data_warehouse.router import router as data_warehouse_router
 from synesis_api.modules.project.router import router as project_router
 from synesis_api.modules.node.router import router as node_router
 from synesis_api.modules.automation.router import router as automation_router
@@ -49,14 +49,14 @@ app.include_router(auth_router,
                    tags=["Authentication"])
 
 
-app.include_router(integration_router,
-                   prefix="/integration",
-                   tags=["Integration"])
+app.include_router(data_integration_router,
+                   prefix="/data-integration",
+                   tags=["Data Integration"])
 
 
 app.include_router(ontology_router,
-                   prefix="/ontology",
-                   tags=["Ontology"])
+                   prefix="/data-objects",
+                   tags=["Data Objects"])
 
 
 app.include_router(eda_router,
@@ -77,9 +77,9 @@ app.include_router(node_router,
                    tags=["Node"])
 
 
-app.include_router(data_provider_router,
-                   prefix="/data-provider",
-                   tags=["Data Provider"])
+app.include_router(data_warehouse_router,
+                   prefix="/data-warehouse",
+                   tags=["Data Warehouse"])
 
 app.include_router(automation_router,
                    prefix="/automation",

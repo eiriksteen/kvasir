@@ -10,8 +10,12 @@ chat_message = Table(
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     Column("conversation_id", UUID(as_uuid=True),
            ForeignKey("chat.conversation.id"), nullable=False),
+    # User, agent
     Column("role", String, nullable=False),
     Column("content", String, nullable=False),
+    Column("job_id", UUID(as_uuid=True), nullable=True),
+    # tool_call, result, error, chat
+    Column("type", String, nullable=True),
     Column("context_id", UUID(as_uuid=True),
            ForeignKey("chat.context.id"), nullable=True),
     Column("created_at", DateTime(timezone=True),
@@ -33,7 +37,7 @@ pydantic_message = Table(
 )
 
 
-conversations = Table(
+conversation = Table(
     "conversation",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
@@ -47,6 +51,23 @@ conversations = Table(
     schema="chat"
 )
 
+
+# Conversation mode stores whether the conversation is in chat, data integration, analysis, or automation mode
+# This is so we know whether to launch the agent or update it with the new message
+# The mode may change over time, and the most recent created_at mode is the one that is active
+conversation_mode = Table(
+    "conversation_mode",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
+    Column("conversation_id", UUID(as_uuid=True),
+           ForeignKey("chat.conversation.id"), nullable=False),
+    Column("mode", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           nullable=False, default=func.now()),
+    schema="chat"
+)
+
+
 context = Table(
     "context",
     metadata,
@@ -56,16 +77,18 @@ context = Table(
     schema="chat"
 )
 
+
 dataset_context = Table(
     "dataset_context",
     metadata,
     Column("context_id", UUID(as_uuid=True),
            ForeignKey("chat.context.id"), nullable=False),
     Column("dataset_id", UUID(as_uuid=True),
-           ForeignKey("ontology.dataset.id"), nullable=False),
+           ForeignKey("data_objects.dataset.id"), nullable=False),
     PrimaryKeyConstraint("context_id", "dataset_id"),
     schema="chat"
 )
+
 
 automation_context = Table(
     "automation_context",
@@ -77,6 +100,7 @@ automation_context = Table(
     PrimaryKeyConstraint("context_id", "automation_id"),
     schema="chat"
 )
+
 
 analysis_context = Table(
     "analysis_context",

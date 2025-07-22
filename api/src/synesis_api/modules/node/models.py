@@ -22,7 +22,7 @@ dataset_node = Table(
     Column("id", UUID(as_uuid=True), ForeignKey(
         "node.node.id"), primary_key=True),
     Column("dataset_id", UUID(as_uuid=True), ForeignKey(
-        "ontology.dataset.id"), nullable=False),
+        "data_objects.dataset.id"), nullable=False),
     schema="node"
 )
 

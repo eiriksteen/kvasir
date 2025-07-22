@@ -52,8 +52,7 @@ export const authOptions: AuthOptions = {
         };
         return token;
       }
-
-
+      
       const tokenExpiresAt = new Date(token.APIToken?.tokenExpiresAt);
       const now = new Date();
       

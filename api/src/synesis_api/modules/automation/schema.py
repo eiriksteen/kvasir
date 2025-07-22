@@ -1,8 +1,8 @@
 from uuid import UUID
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Literal
 from synesis_api.base_schema import BaseSchema
-from synesis_api.modules.ontology.schema import JobMetadata
+from synesis_api.modules.jobs.schema import Job
 
 
 class Modality(BaseSchema):
@@ -20,14 +20,15 @@ class Task(BaseSchema):
 
 class Source(BaseSchema):
     id: UUID
-    name: str
+    name: Literal["github", "pip", "source_code"]
     description: Optional[str]
     created_at: datetime
 
 
 class ProgrammingLanguage(BaseSchema):
     id: UUID
-    name: str
+    # Only python for now
+    name: Literal["python"]
     description: Optional[str]
     created_at: datetime
 
@@ -71,9 +72,9 @@ class ModelTaskInDB(ModelTask):
     training_script_path: str
 
 
-class ModelJoined(Model):
+class ModelComplete(Model):
     modality: Modality
     source: Source
     programming_language_version: ProgrammingLanguageVersion
-    integration_jobs: List[JobMetadata] | None = None
+    integration_jobs: List[Job] | None = None
     tasks: List[Task]

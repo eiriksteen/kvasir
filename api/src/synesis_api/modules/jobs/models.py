@@ -4,10 +4,12 @@ from synesis_api.database.core import metadata
 from datetime import timezone
 
 # Integration Job Metadata table
-jobs = Table(
-    "jobs",
+job = Table(
+    "job",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
+    Column("conversation_id", UUID(as_uuid=True),
+           ForeignKey("chat.conversation.id"), nullable=True),
     Column("type", String, nullable=False),
     Column("status", String, nullable=False),
     Column("user_id",

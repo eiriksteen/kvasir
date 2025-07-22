@@ -1,9 +1,7 @@
-import re
-import json
 import copy
 from pydantic_ai import RunContext, Agent
 from pydantic_ai.messages import ModelMessage, ModelResponse, ModelRequest, ToolCallPart, ToolReturnPart, SystemPromptPart, RetryPromptPart
-from synesis_api.agents.model_integration.base_deps import BaseDeps
+from synesis_api.agents.model_integration.deps import ModelIntegrationDeps
 from synesis_api.utils import get_model
 
 
@@ -31,7 +29,7 @@ def get_last_script_message_index(messages: list[ModelMessage]) -> int:
 
 
 async def keep_only_most_recent_script(
-        ctx: RunContext[BaseDeps],
+    ctx: RunContext[ModelIntegrationDeps],
         messages: list[ModelMessage]) -> list[ModelMessage]:
     """
     Keep only the most recent script in the history.
@@ -69,7 +67,7 @@ async def keep_only_most_recent_script(
                 if isinstance(part, ToolReturnPart):
                     if "<begin_script>" in part.content and original_index < last_script_index:
                         # This is an older script, omit it
-                        part.content = "Successfully updated the script. The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
+                        part.content = "Successfully updated the script. The script is not automatically run and validated, you must call the result submission tool to submit the script for validation and feedback."
                         updated_message.parts[idx] = part
                         parts_modified = True
 
@@ -107,7 +105,7 @@ summarizer_agent = Agent(
 
 
 async def summarize_message_history(
-        ctx: RunContext[BaseDeps],
+    ctx: RunContext[ModelIntegrationDeps],
         messages: list[ModelMessage],
         keep_pastk: int = 10
 ) -> list[ModelMessage]:

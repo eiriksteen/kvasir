@@ -1,16 +1,17 @@
 import uuid
+import json
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from sqlalchemy import select, join, insert, or_
 from synesis_api.database.service import fetch_all, fetch_one, execute
 from synesis_api.modules.automation.models import (
     model, modality, source, programming_language_version,
-    programming_language, task, model_task
+    programming_language, task, model_task, function
 )
-from synesis_api.modules.automation.schema import ModelJoined, Modality, Source, ProgrammingLanguageVersion, Task, ProgrammingLanguage
-from synesis_api.modules.jobs.schema import JobMetadata
-from synesis_api.modules.jobs.models import jobs
-from synesis_api.modules.model_integration.models import model_integration_jobs_results
+from synesis_api.modules.automation.schema import ModelComplete, Modality, Source, ProgrammingLanguageVersion, Task, ProgrammingLanguage
+from synesis_api.modules.jobs.schema import Job
+from synesis_api.modules.jobs.models import job
+from synesis_api.modules.model_integration.models import model_integration_job_result
 
 
 async def get_or_create_modalities(names: List[str], descriptions: Optional[List[str]] = None) -> List[Modality]:
@@ -217,7 +218,7 @@ async def insert_model(
     inference_script_paths: List[str],
     training_script_paths: List[str],
     model_id: Optional[uuid.UUID] = None
-) -> ModelJoined:
+) -> ModelComplete:
     """
     Insert a new model with all related entities.
 
@@ -297,7 +298,7 @@ async def insert_model(
         )
 
     # Return the complete ModelJoined object
-    return await get_model_joined(model_id)
+    return await get_model_complete(model_id)
 
 
 async def model_is_public(model_id: uuid.UUID) -> bool:
@@ -330,17 +331,17 @@ async def get_integration_jobs_for_user_models(user_id: uuid.UUID) -> dict[uuid.
         A dictionary mapping model_id to a list of job metadata dictionaries
     """
     query = select(
-        model_integration_jobs_results.c.model_id,
-        jobs.c.id,
-        jobs.c.type,
-        jobs.c.status,
-        jobs.c.job_name,
-        jobs.c.started_at,
-        jobs.c.completed_at
+        model_integration_job_result.c.model_id,
+        job.c.id,
+        job.c.type,
+        job.c.status,
+        job.c.job_name,
+        job.c.started_at,
+        job.c.completed_at
     ).join(
-        jobs, jobs.c.id == model_integration_jobs_results.c.job_id
+        job, job.c.id == model_integration_job_result.c.job_id
     ).join(
-        model, model.c.id == model_integration_jobs_results.c.model_id
+        model, model.c.id == model_integration_job_result.c.model_id
     ).where(
         model.c.owner_id == user_id
     )
@@ -366,7 +367,7 @@ async def get_integration_jobs_for_user_models(user_id: uuid.UUID) -> dict[uuid.
     return jobs_by_model
 
 
-async def get_user_models(user_id: uuid.UUID, include_integration_jobs: bool = False) -> List[ModelJoined]:
+async def get_user_models(user_id: uuid.UUID, include_integration_jobs: bool = False) -> List[ModelComplete]:
     """Get all models owned by a specific user"""
 
     # Join all the necessary tables and filter by owner
@@ -434,13 +435,16 @@ async def get_user_models(user_id: uuid.UUID, include_integration_jobs: bool = F
             created_at=result["pl_version_created_at"]
         )
 
-        model_joined = ModelJoined(
+        model_joined = ModelComplete(
             **result,
             modality=modality_obj,
             source=source_obj,
             programming_language_version=programming_language_version_obj,
             tasks=tasks
         )
+        # parse config_parameters from str to list of strings
+        model_joined.config_parameters = json.loads(
+            f"[{model_joined.config_parameters[0]}]".replace("'", '"'))
 
         models_joined.append(model_joined)
 
@@ -452,13 +456,13 @@ async def get_user_models(user_id: uuid.UUID, include_integration_jobs: bool = F
         for model_joined in models_joined:
             model_jobs = integration_jobs_by_model.get(model_joined.id, [])
             model_joined.integration_jobs = [
-                JobMetadata(**job) for job in model_jobs]
+                Job(**job) for job in model_jobs]
 
     return models_joined
 
 
-async def get_model_joined(model_id: uuid.UUID, include_integration_jobs: bool = False) -> ModelJoined:
-    """Get a single ModelJoined by model_id"""
+async def get_model_complete(model_id: uuid.UUID, include_integration_jobs: bool = False) -> ModelComplete:
+    """Get a single ModelComplete by model_id"""
 
     # Join all the necessary tables
     query = (
@@ -526,7 +530,7 @@ async def get_model_joined(model_id: uuid.UUID, include_integration_jobs: bool =
         created_at=result["pl_version_created_at"]
     )
 
-    model_joined = ModelJoined(
+    model_joined = ModelComplete(
         **result,
         modality=modality_obj,
         source=source_obj,
@@ -534,18 +538,22 @@ async def get_model_joined(model_id: uuid.UUID, include_integration_jobs: bool =
         tasks=tasks
     )
 
+    # parse config_parameters from str to list of strings
+    model_joined.config_parameters = json.loads(
+        f"[{model_joined.config_parameters[0]}]".replace("'", '"'))
+
     if include_integration_jobs:
         # Get integration jobs for this specific model
         integration_jobs_by_model = await get_integration_jobs_for_user_models(result["owner_id"])
         model_jobs = integration_jobs_by_model.get(model_id, [])
         model_joined.integration_jobs = [
-            JobMetadata(**job) for job in model_jobs]
+            Job(**job) for job in model_jobs]
 
     return model_joined
 
 
-async def get_all_models_public_or_owned(user_id: uuid.UUID, include_integration_jobs: bool = False) -> List[ModelJoined]:
-    """Get all ModelJoined objects"""
+async def get_all_models_public_or_owned(user_id: uuid.UUID, include_integration_jobs: bool = False) -> List[ModelComplete]:
+    """Get all ModelComplete objects"""
 
     # Join all the necessary tables
     query = (
@@ -617,13 +625,17 @@ async def get_all_models_public_or_owned(user_id: uuid.UUID, include_integration
             created_at=result["pl_version_created_at"]
         )
 
-        model_joined = ModelJoined(
+        model_joined = ModelComplete(
             **result,
             modality=modality_obj,
             source=source_obj,
             programming_language_version=programming_language_version_obj,
             tasks=tasks
         )
+
+        # parse config_parameters from str to list of strings
+        model_joined.config_parameters = json.loads(
+            f"[{model_joined.config_parameters[0]}]".replace("'", '"'))
 
         models_joined.append(model_joined)
 
@@ -635,6 +647,6 @@ async def get_all_models_public_or_owned(user_id: uuid.UUID, include_integration
         for model_joined in models_joined:
             model_jobs = integration_jobs_by_model.get(model_joined.id, [])
             model_joined.integration_jobs = [
-                JobMetadata(**job) for job in model_jobs]
+                Job(**job) for job in model_jobs]
 
     return models_joined

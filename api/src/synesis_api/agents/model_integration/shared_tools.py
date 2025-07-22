@@ -17,10 +17,10 @@ from synesis_api.agents.model_integration.output_structures import (
     TIME_SERIES_FORECASTING_OUTPUT_STRUCTURE,
     TIME_SERIES_SEGMENTATION_OUTPUT_STRUCTURE
 )
-from synesis_api.agents.model_integration.base_deps import BaseDeps
+from synesis_api.agents.model_integration.deps import ModelIntegrationDeps
 
 
-async def get_repo_info(ctx: RunContext[BaseDeps], github_url: str, reasoning: str) -> str:
+async def get_repo_info(ctx: RunContext[ModelIntegrationDeps], github_url: str, reasoning: str) -> str:
     """
     Get repository information including size and description using GitHub API.
 
@@ -64,7 +64,7 @@ async def get_repo_info(ctx: RunContext[BaseDeps], github_url: str, reasoning: s
     )
 
 
-async def get_repo_structure(ctx: RunContext[BaseDeps], github_url: str, reasoning: str) -> str:
+async def get_repo_structure(ctx: RunContext[ModelIntegrationDeps], github_url: str, reasoning: str) -> str:
     """
     Get the directory structure of a GitHub repository.
 
@@ -119,7 +119,7 @@ async def get_repo_structure(ctx: RunContext[BaseDeps], github_url: str, reasoni
     return "\n".join(structure)
 
 
-async def get_file_content(ctx: RunContext[BaseDeps], github_url: str, file_path: str, reasoning: str) -> str:
+async def get_file_content(ctx: RunContext[ModelIntegrationDeps], github_url: str, file_path: str, reasoning: str) -> str:
     """
     Get the content of a specific file from the GitHub repository.
 
@@ -165,7 +165,7 @@ async def get_file_content(ctx: RunContext[BaseDeps], github_url: str, file_path
     return response.text
 
 
-def write_script(ctx: RunContext[BaseDeps], script: str, reasoning: str) -> str:
+def write_script(ctx: RunContext[ModelIntegrationDeps], script: str, reasoning: str) -> str:
     """
     Write the script solving the current task to a file. 
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -196,7 +196,7 @@ def write_script(ctx: RunContext[BaseDeps], script: str, reasoning: str) -> str:
     return out
 
 
-def replace_script_lines(ctx: RunContext[BaseDeps], line_number_start: int, line_number_end: int, new_code: str, reasoning: str) -> str:
+def replace_script_lines(ctx: RunContext[ModelIntegrationDeps], line_number_start: int, line_number_end: int, new_code: str, reasoning: str) -> str:
     """
     Replace lines in the current script with new code.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -241,7 +241,7 @@ def replace_script_lines(ctx: RunContext[BaseDeps], line_number_start: int, line
     return out
 
 
-def add_script_lines(ctx: RunContext[BaseDeps], new_code: str, start_line: int, reasoning: str) -> str:
+def add_script_lines(ctx: RunContext[ModelIntegrationDeps], new_code: str, start_line: int, reasoning: str) -> str:
     """
     Add lines to the current script at the given line number.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -283,7 +283,7 @@ def add_script_lines(ctx: RunContext[BaseDeps], new_code: str, start_line: int, 
     return out
 
 
-def delete_script_lines(ctx: RunContext[BaseDeps], line_number_start: int, line_number_end: int, reasoning: str) -> str:
+def delete_script_lines(ctx: RunContext[ModelIntegrationDeps], line_number_start: int, line_number_end: int, reasoning: str) -> str:
     """
     Delete lines from the current script at the given line numbers.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.

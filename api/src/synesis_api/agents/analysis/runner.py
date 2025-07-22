@@ -7,7 +7,7 @@ from typing import Dict, Tuple, List, Literal
 from synesis_api.agents.analysis.prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
 from synesis_api.agents.analysis.agent import analysis_agent, AnalysisDeps
 from synesis_api.modules.analysis.schema import AnalysisJobResult, AnalysisJobResultMetadataInDB, AnalysisPlan
-from synesis_api.modules.ontology.service import get_user_datasets_by_ids
+from synesis_api.modules.data_objects.service import get_user_datasets_by_ids
 from synesis_api.worker import logger, broker
 from pydantic_ai.messages import (
     ModelMessage,
@@ -18,7 +18,7 @@ from fastapi import HTTPException
 import aiofiles
 import uuid
 from io import StringIO
-from synesis_api.modules.jobs.service import get_job_metadata, update_job_status, create_job
+from synesis_api.modules.jobs.service import get_job, update_job_status, create_job
 from synesis_api.modules.analysis.service import (
     get_user_analyses_by_ids,
     insert_analysis_job_results_into_db,
@@ -76,7 +76,8 @@ class AnalysisRequest(BaseSchema):
 
 class DelegateResult(BaseSchema):
     function_name: Literal["run_analysis_planner",
-                           "run_execution_agent", "run_simple_analysis"]
+                           "run_execution_agent",
+                           "run_simple_analysis"]
 
 
 class AnalysisAgentRunner:
@@ -109,7 +110,7 @@ class AnalysisAgentRunner:
         if len(analysis_request.analysis_ids) == 0:
             try:
                 self.logger.info("Creating analysis job")
-                api_key = await create_api_key(analysis_request.user)
+                # api_key = await create_api_key(analysis_request.user)
                 job_name = await self.agent.run(
                     f"The user prompt is: {analysis_request.prompt}. The user prompt is about to be performed, but the user has not given a name to the analysis job. Give a short name to the analysis job that is about to be performed. Do not make an analysis yet. Only give a name.",
                     message_history=message_history,
@@ -120,9 +121,9 @@ class AnalysisAgentRunner:
                 analysis_job = await create_job(analysis_request.user.id, "analysis", job_id, job_name)
             except Exception as e:
                 raise HTTPException(
-                    status_code=500, detail="Failed to create analysis job.")
+                    status_code=500, detail=f"Failed to create analysis job: {str(e)}")
         else:
-            analysis_job = await get_job_metadata(analysis_request.analysis_ids[0])
+            analysis_job = await get_job(analysis_request.analysis_ids[0])
 
         status_message = {
             "id": uuid.uuid4(),
@@ -169,6 +170,7 @@ class AnalysisAgentRunner:
                                 }
                                 status_messages.append(status_message)
                                 await self.post_message_to_redis(status_message, analysis_job.id)
+
                 elif Agent.is_user_prompt_node(node):
                     status_message = {
                         "id": uuid.uuid4(),
@@ -179,6 +181,7 @@ class AnalysisAgentRunner:
                     }
                     status_messages.append(status_message)
                     await self.post_message_to_redis(status_message, analysis_job.id)
+
                 elif Agent.is_end_node(node):
                     status_message = {
                         "id": uuid.uuid4(),
@@ -229,7 +232,7 @@ class AnalysisAgentRunner:
         analysis_deps, message_history = await self._prepare_agent_run(analysis_request, "analysis_execution")
         nodes = []
         async with self.agent.iter(
-            "Execute the analysis plan, by calling the tools in the order they are given in the plan.",
+            "Execute the analysis. If you have been given a plan, execute the analysis plan by calling the tools in the order they are given in the plan.",
             deps=analysis_deps,
             message_history=message_history
         ) as agent_run:
@@ -346,46 +349,58 @@ class AnalysisAgentRunner:
 
         return analysis_deps, message_history
 
-    async def __call__(self, analysis_request: AnalysisRequest, analysis_type: Literal["run_analysis_planner", "run_execution_agent", "run_simple_analysis"]):
-        if analysis_type == "run_analysis_planner":
-            text = "Running analysis planner. This may take a couple of minutes. The results will be shown in the analyis tab."
-            yield text
-            await run_analysis_planner_task.kiq(analysis_request)
-        elif analysis_type == "run_execution_agent":
-            text = "Running analysis execution. This may take a couple of minutes. The results will be shown in the analyis tab."
-            yield text
-            await run_analysis_execution_task.kiq(analysis_request)
-        elif analysis_type == "run_simple_analysis":
-            async for item in self.run_simple_analysis(analysis_request):
-                if isinstance(item, str):
-                    yield item
-                elif isinstance(item, AgentRunResult):
-                    new_messages = item.new_messages()
-                    pydantic_messages_to_db = item.new_messages_json()
-                    async with self.agent.run_stream("Give the answer to the previous prompt in a clear and concise manner.", message_history=new_messages, output_type=str) as result:
-                        prev_text = ""
-                        async for text in result.stream(debounce_by=0.01):
-                            if text != prev_text:
-                                yield text
-                                prev_text = text
-
-            await create_messages_pydantic(analysis_request.conversation_id, pydantic_messages_to_db)
-
+    async def __call__(self, analysis_request: AnalysisRequest, analysis_type: Literal["run_analysis_planner", "run_execution_agent"]):
         await create_message(analysis_request.conversation_id, "assistant", text)
 
-
-analysis_agent_runner = AnalysisAgentRunner()
+        if analysis_type == "run_analysis_planner":
+            text = "Running analysis planner. This may take a couple of minutes. The results will be shown in the analysis tab."
+            yield text
+            await self.run_analysis_planner(analysis_request)
+        elif analysis_type == "run_execution_agent":
+            text = "Running analysis execution. This may take a couple of minutes. The results will be shown in the analysis tab."
+            yield text
+            await self.run_analysis_execution(analysis_request)
 
 
 @broker.task
-async def run_analysis_planner_task(
-    analysis_request: AnalysisRequest,
+async def run_analysis_task(
+    project_id: uuid.UUID,
+    dataset_ids: List[uuid.UUID],
+    automation_ids: List[uuid.UUID],
+    analysis_ids: List[uuid.UUID],
+    prompt: str,
+    context_message: str,
+    user_id: uuid.UUID,
+    conversation_id: uuid.UUID
 ) -> AnalysisJobResultMetadataInDB:
-    await analysis_agent_runner.run_analysis_planner(analysis_request)
+
+    delegation_prompt = (f"This is the current context: {context_message}. "
+                         f"This is the user prompt: {prompt}. "
+                         "You can delegate the task to one of the following functions: "
+                         "[run_analysis_planner, run_execution_agent, run_simple_analysis]. "
+                         "Which function do you want to delegate the task to?")
+    delegated_task = await analysis_agent.run(delegation_prompt, output_type=DelegateResult)
+    delegated_task = delegated_task.output.function_name
+
+    analysis_request = AnalysisRequest(
+        project_id=project_id,
+        dataset_ids=dataset_ids,
+        automation_ids=automation_ids,
+        analysis_ids=analysis_ids,
+        prompt=prompt,
+        user_id=user_id,
+        conversation_id=conversation_id
+    )
+
+    runner = AnalysisAgentRunner()
+
+    await runner(analysis_request, delegated_task)
 
 
-@broker.task
-async def run_analysis_execution_task(
-    analysis_request: AnalysisRequest,
-) -> AnalysisJobResultMetadataInDB:
-    return await analysis_agent_runner.run_analysis_execution(analysis_request)
+# @broker.task
+# async def run_analysis_task(
+#     analysis_request: AnalysisRequest,
+#     analysis_type: Literal["run_analysis_planner", "run_execution_agent"]
+# ) -> AnalysisJobResultMetadataInDB:
+#     runner = AnalysisAgentRunner()
+#     await runner(analysis_request, analysis_type)

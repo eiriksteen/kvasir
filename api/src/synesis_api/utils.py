@@ -1,13 +1,12 @@
 import re
 import json
 import tempfile
-import aiofiles
 import markdown2
 import sys
 import asyncio
 import pandas as pd
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Optional
 from pylint import lint
 from io import StringIO
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -25,6 +24,7 @@ from synesis_api.secrets import (
     GOOGLE_API_KEY,
     GOOGLE_API_MODEL
 )
+from datetime import datetime
 
 
 def get_model():
@@ -110,7 +110,33 @@ async def run_python_code_in_container(
 
     out, err = await process.communicate(python_code_parsed.encode('utf-8'))
 
-    return out.decode('utf-8'), err.decode('utf-8')
+    return out.decode("utf-8"), err.decode("utf-8")
+
+
+async def run_python_function_in_container(
+        base_script: str,
+        function_name: str,
+        input_variables: list[str],
+        container_name: str = "synesis-sandbox",
+        source_module: Optional[str] = None,
+        print_output: bool = False,
+        async_function: bool = False
+):
+    """
+    Run a Python function in the container. 
+    Wrote this function to avoid writing raw code inside strings all over.
+    """
+
+    raw_code = (
+        f"from {source_module} import {function_name}\n\n" if source_module else ""
+        f"{base_script}\n\n"
+        f"output = {'await' if async_function else ''} {function_name}({', '.join(input_variables)})"
+        f"print(output)" if print_output else ""
+    )
+
+    out, err = await run_python_code_in_container(raw_code, container_name)
+
+    return out, err
 
 
 async def run_shell_code_in_container(
@@ -141,15 +167,38 @@ async def run_shell_code_in_container(
     return out.decode("utf-8"), err
 
 
-async def copy_file_to_container(
-        file_path: Path,
+async def copy_file_or_directory_to_container(
+        path: Path,
         target_dir: str = "/tmp",
         container_name: str = "synesis-sandbox"):
     """
     Copy a file or directory to the container.
     """
     cmd = [
-        "docker", "cp", file_path, f"{container_name}:{target_dir}/{file_path.name}"
+        "docker", "cp", path, f"{container_name}:{target_dir}/{path.name}"
+    ]
+
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+
+    out, err = await process.communicate()
+
+    return out.decode("utf-8"), err.decode("utf-8")
+
+
+async def copy_file_from_container(
+        file_path: Path,
+        target_dir: str = "/tmp",
+        container_name: str = "synesis-sandbox"):
+    """
+    Copy a file or directory from the container.
+    """
+    cmd = [
+        "docker", "cp", f"{container_name}:{file_path}", target_dir
     ]
 
     process = await asyncio.create_subprocess_exec(
@@ -451,3 +500,95 @@ def run_pylint(code_string: str) -> str:
         Path(temp_file_path).unlink()
 
     return pylint_output
+
+
+def determine_sampling_frequency(timestamps: list[datetime]) -> str:
+
+    if not timestamps or len(timestamps) < 2:
+        raise ValueError(
+            "At least 2 timestamps are required to determine sampling frequency")
+
+    # Sort timestamps to ensure proper order
+    sorted_timestamps = sorted(timestamps)
+
+    # Calculate time differences between consecutive timestamps
+    time_diffs = []
+    for i in range(1, len(sorted_timestamps)):
+        diff = sorted_timestamps[i] - sorted_timestamps[i-1]
+        time_diffs.append(diff.total_seconds())
+
+    # Check if all differences are the same (regular sampling)
+    if len(set(time_diffs)) == 1:
+        # Regular sampling - determine the frequency
+        avg_diff_seconds = time_diffs[0]
+
+        # Convert to different time units and find the most appropriate
+        if avg_diff_seconds < 60:  # Less than 1 minute
+            return "irr"  # Irregular for sub-minute intervals
+        elif avg_diff_seconds < 3600:  # Less than 1 hour
+            minutes = avg_diff_seconds / 60
+            if minutes.is_integer():
+                return "m"
+            else:
+                return "irr"
+        elif avg_diff_seconds < 86400:  # Less than 1 day
+            hours = avg_diff_seconds / 3600
+            if hours.is_integer():
+                return "h"
+            else:
+                return "irr"
+        elif avg_diff_seconds < 604800:  # Less than 1 week
+            days = avg_diff_seconds / 86400
+            if days.is_integer():
+                return "d"
+            else:
+                return "irr"
+        elif avg_diff_seconds < 31536000:  # Less than 1 year
+            weeks = avg_diff_seconds / 604800
+            if weeks.is_integer():
+                return "w"
+            else:
+                return "irr"
+        else:  # 1 year or more
+            years = avg_diff_seconds / 31536000
+            if years.is_integer():
+                return "y"
+            else:
+                return "irr"
+    else:
+        # Irregular sampling
+        return "irr"
+
+
+def determine_timezone(timestamps: list[datetime]) -> str:
+
+    if not timestamps:
+        raise ValueError(
+            "At least 1 timestamp is required to determine timezone")
+
+    # Extract timezone info from each timestamp
+    timezones = set()
+    for ts in timestamps:
+        if ts.tzinfo is None:
+            # If timestamp is naive, assume UTC
+            timezones.add("UTC")
+        else:
+            # Get timezone name
+            tz_name = ts.tzinfo.tzname(ts)
+            if tz_name is None:
+                # Fallback to timezone offset
+                offset = ts.tzinfo.utcoffset(ts)
+                if offset is not None:
+                    hours = int(offset.total_seconds() / 3600)
+                    tz_name = f"UTC{hours:+03d}:00"
+                else:
+                    tz_name = "UTC"
+            timezones.add(tz_name)
+
+    # Check if all timestamps have the same timezone
+    if len(timezones) > 1:
+        raise ValueError(
+            f"Multiple timezones detected in timestamps: {timezones}")
+
+    # Return the single timezone
+    return list(timezones)[0]

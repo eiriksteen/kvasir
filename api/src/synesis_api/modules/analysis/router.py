@@ -14,13 +14,14 @@ from synesis_api.modules.analysis.service import (
     create_pdf_from_results,
     delete_analysis_job_results_from_db
 )
-from synesis_api.modules.jobs.service import get_job_metadata
-from synesis_api.modules.jobs.schema import JobMetadata
+from synesis_api.modules.jobs.service import get_job
+from synesis_api.modules.jobs.schema import Job
 from synesis_api.auth.schema import User
 
 router = APIRouter()
 
 SSE_MAX_TIMEOUT = 300  # 5 minutes
+
 
 @router.get("/analysis-agent-sse/{job_id}")
 async def analysis_agent_sse(
@@ -31,8 +32,8 @@ async def analysis_agent_sse(
 ) -> StreamingResponse:
 
     if not user or not await user_owns_job(user.id, job_id):
-            raise HTTPException(
-                status_code=403, detail="You do not have permission to access this job")
+        raise HTTPException(
+            status_code=403, detail="You do not have permission to access this job")
 
     timeout = min(timeout, SSE_MAX_TIMEOUT)
 
@@ -59,17 +60,18 @@ async def analysis_agent_sse(
 
     return StreamingResponse(stream_job_updates(), media_type="text/event-stream")
 
-@router.get("/analysis-job-status/{job_id}", response_model=JobMetadata)
+
+@router.get("/analysis-job-status/{job_id}", response_model=Job)
 async def get_analysis_job_status(
     job_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None
-) -> JobMetadata:
+) -> Job:
     if not await user_owns_job(user.id, job_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job"
         )
 
-    job_meta_data = await get_job_metadata(job_id)
+    job_meta_data = await get_job(job_id)
     return job_meta_data
 
 
@@ -83,14 +85,15 @@ async def get_analysis_job_results(
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 
-    job_metadata = await get_job_metadata(job_id)
+    job_metadata = await get_job(job_id)
     if job_metadata.status == "completed":
         return await get_analysis_job_results_from_db(job_id)
 
     else:
         raise HTTPException(
             status_code=500, detail="Analysis job is still running")
-    
+
+
 @router.get("/analysis-job-results", response_model=AnalysisJobResultMetadataList)
 async def get_analysis_job_results_list(
     user: Annotated[User, Depends(get_current_user)] = None
@@ -106,9 +109,9 @@ async def create_analysis_pdf(
     if not await user_owns_job(user.id, job_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
-    
-    job_metadata = await get_job_metadata(job_id)
-    
+
+    job_metadata = await get_job(job_id)
+
     if job_metadata.status == "completed":
         job_results = await get_analysis_job_results_from_db(job_id)
         await create_pdf_from_results(job_results, job_id)
@@ -116,7 +119,7 @@ async def create_analysis_pdf(
         raise HTTPException(
             status_code=500, detail="Analysis job is still running")
     return job_results
-    
+
 
 @router.get("/analysis-result", response_model=AnalysisJobResultMetadataList)
 async def get_analysis(

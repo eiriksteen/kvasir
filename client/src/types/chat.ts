@@ -1,13 +1,8 @@
-export type ChatMessageAPI = {
-    id: string;
-    role: "user" | "assistant";
-    content: string;
-    createdAt: string;
-    conversationId: string;
-}
 
 export type ChatMessage = {
-    role: "user" | "assistant";
+    role: "user" | "agent";
+    type: "tool_call" | "result" | "error" | "chat";
+    jobId: string | null;
     conversationId: string;
     content: string;
     context: Context | null;

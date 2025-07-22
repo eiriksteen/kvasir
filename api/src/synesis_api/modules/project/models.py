@@ -26,7 +26,7 @@ project_dataset = Table(
     Column("project_id", UUID(as_uuid=True), ForeignKey(
         "project.project.id"), nullable=False),
     Column("dataset_id", UUID(as_uuid=True), ForeignKey(
-        "ontology.dataset.id"), nullable=False),
+        "data_objects.dataset.id"), nullable=False),
     PrimaryKeyConstraint("project_id", "dataset_id"),
     schema="project"
 )

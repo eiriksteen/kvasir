@@ -3,7 +3,6 @@ import { Conversation, ConversationCreate, Prompt } from "@/types/chat";
 import { Datasets, EntityMetadata, TimeSeriesData } from "@/types/datasets";
 import { Analyses } from "@/types/analysis";
 import { Job } from "@/types/jobs";
-import { IntegrationAgentFeedback, IntegrationMessage } from "@/types/integration";
 import { Project, ProjectCreate, ProjectUpdate } from "@/types/project";
 import { AnalysisRequest } from "@/types/analysis";
 import { FrontendNode, FrontendNodeCreate } from "@/types/node";
@@ -13,7 +12,7 @@ const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
 
 export async function fetchDatasets(token: string): Promise<Datasets> {
 
-  const response = await fetch(`${API_URL}/ontology/datasets?include_integration_jobs=1`, {
+  const response = await fetch(`${API_URL}/data-objects/datasets?include_integration_jobs=1`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -35,10 +34,11 @@ export async function postIntegrationJob(token: string, files: File[], descripti
   files.forEach(file => {
     formData.append("files", file);
   });
-  formData.append("dataDescription", description);
-  formData.append("dataSource", dataSource);
+  // For json, we can use camelCase since the base schema in the backend converts it to snake case, but this is for form data so we need to use snake case here
+  formData.append("data_description", description);
+  formData.append("data_source", dataSource);
 
-  const response = await fetch(`${API_URL}/integration/call-integration-agent`, {
+  const response = await fetch(`${API_URL}/data-integration/call-integration-agent`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -246,7 +246,7 @@ export async function fetchConversations(token: string): Promise<Conversation[]>
 
 
 export function createIntegrationSocket(jobId: string): WebSocket {
-  const socket = new WebSocket(`${WS_URL}/integration/integration-agent-human-in-the-loop/${jobId}/ws`);
+  const socket = new WebSocket(`${WS_URL}/data-integration/integration-agent-human-in-the-loop/${jobId}/ws`);
   return socket;
 }
 
@@ -295,7 +295,7 @@ export function createJobEventSource(token: string, jobType: string): EventSourc
 
 export async function postIntegrationAgentFeedback(token: string, feedback: IntegrationAgentFeedback): Promise<IntegrationMessage> {
 
-  const response = await fetch(`${API_URL}/integration/integration-agent-feedback`, {
+  const response = await fetch(`${API_URL}/data-integration/integration-agent-feedback`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -314,7 +314,7 @@ export async function postIntegrationAgentFeedback(token: string, feedback: Inte
 } 
 
 export async function postIntegrationAgentApprove(token: string, jobId: string): Promise<Job> {
-  const response = await fetch(`${API_URL}/integration/integration-agent-approve/${jobId}`, {
+  const response = await fetch(`${API_URL}/data-integration/integration-agent-approve/${jobId}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -332,7 +332,7 @@ export async function postIntegrationAgentApprove(token: string, jobId: string):
 
 export async function fetchIntegrationMessages(token: string, jobId: string): Promise<IntegrationMessage[]> {
 
-  const response = await fetch(`${API_URL}/integration/integration-messages/${jobId}`, {
+  const response = await fetch(`${API_URL}/data-integration/integration-messages/${jobId}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -348,7 +348,7 @@ export async function fetchIntegrationMessages(token: string, jobId: string): Pr
 }
 
 export async function fetchEntityMetadataAll(token: string, datasetId: string): Promise<EntityMetadata[]> {
-  const response = await fetch(`${API_URL}/data-provider/all-metadata/${datasetId}`, {
+  const response = await fetch(`${API_URL}/data-warehouse/all-metadata/${datasetId}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -437,7 +437,7 @@ export async function fetchProjectNodes(token: string, projectId: string): Promi
 
 export async function fetchTimeSeriesData(token: string, entityId: string): Promise<TimeSeriesData> {
   console.log("fetching time series data for entityId", entityId);
-  const response = await fetch(`${API_URL}/data-provider/time-series/${entityId}`, {
+  const response = await fetch(`${API_URL}/data-warehouse/time-series/${entityId}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -573,7 +573,7 @@ export async function postModelIntegrationJob(token: string, modelId: string, so
 }
 
 export async function getIntegrationJobResults(token: string, jobId: string): Promise<{ jobId: string; datasetId: string }> {
-  const response = await fetch(`${API_URL}/integration/integration-job-results/${jobId}`, {
+  const response = await fetch(`${API_URL}/data-integration/integration-job-results/${jobId}`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`

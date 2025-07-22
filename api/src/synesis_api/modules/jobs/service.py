@@ -2,21 +2,23 @@ import uuid
 from datetime import datetime, timezone
 from fastapi import HTTPException
 from sqlalchemy import select, insert, update, delete
-from synesis_api.modules.jobs.models import jobs
-from synesis_api.modules.jobs.schema import JobMetadataInDB
+from synesis_api.modules.jobs.models import job
+from synesis_api.modules.jobs.schema import JobInDB
 from synesis_api.database.service import execute, fetch_one, fetch_all
-from typing import List
+from typing import List, Optional
 
 
 async def create_job(
     user_id: uuid.UUID,
     job_type: str,
-    job_id: uuid.UUID | None = None,
-    job_name: str | None = None
-) -> JobMetadataInDB:
+    conversation_id: Optional[uuid.UUID] = None,
+    job_id: Optional[uuid.UUID] = None,
+    job_name: Optional[str] = None,
+) -> JobInDB:
 
-    job = JobMetadataInDB(
+    job = JobInDB(
         id=job_id if job_id else uuid.uuid4(),
+        conversation_id=conversation_id,
         type=job_type,
         user_id=user_id,
         status="running",
@@ -25,16 +27,16 @@ async def create_job(
     )
 
     await execute(
-        insert(jobs).values(job.model_dump()),
+        insert(job).values(job.model_dump()),
         commit_after=True
     )
 
     return job
 
 
-async def get_job_metadata(job_id: uuid.UUID) -> JobMetadataInDB:
+async def get_job(job_id: uuid.UUID) -> JobInDB:
     job = await fetch_one(
-        select(jobs).where(jobs.c.id == job_id),
+        select(job).where(job.c.id == job_id),
         commit_after=True
     )
 
@@ -43,37 +45,46 @@ async def get_job_metadata(job_id: uuid.UUID) -> JobMetadataInDB:
             status_code=404, detail="Job not found"
         )
 
-    return JobMetadataInDB(**job)
+    return JobInDB(**job)
+
+
+async def get_jobs_by_conversation_id(conversation_id: uuid.UUID) -> List[JobInDB]:
+    jobs = await fetch_all(
+        select(job).where(job.c.conversation_id == conversation_id),
+        commit_after=True
+    )
+
+    return [JobInDB(**job) for job in jobs]
 
 
 async def get_jobs(
         user_id: uuid.UUID,
         job_ids: List[uuid.UUID] | None = None,
         only_running: bool = False,
-        type: str | None = None) -> List[JobMetadataInDB]:
+        type: str | None = None) -> List[JobInDB]:
 
-    query = select(jobs).where(jobs.c.user_id == user_id)
+    query = select(job).where(job.c.user_id == user_id)
     if job_ids is not None:
         if len(job_ids) > 0:
-            query = query.where(jobs.c.id.in_(job_ids))
+            query = query.where(job.c.id.in_(job_ids))
         else:
             raise HTTPException(
                 status_code=400, detail="Job IDs must be non-empty")
     if only_running:
-        query = query.where(jobs.c.status == "running")
+        query = query.where(job.c.status == "running")
     if type is not None:
-        query = query.where(jobs.c.type == type)
-    query = query.order_by(jobs.c.started_at.desc())
+        query = query.where(job.c.type == type)
+    query = query.order_by(job.c.started_at.desc())
 
     result = await fetch_all(query)
 
-    return [JobMetadataInDB(**job) for job in result]
+    return [JobInDB(**job) for job in result]
 
 
-async def update_job_status(job_id: uuid.UUID, status: str) -> JobMetadataInDB:
+async def update_job_status(job_id: uuid.UUID, status: str) -> JobInDB:
     if status in ["completed", "failed"]:
         await execute(
-            update(jobs).where(jobs.c.id == job_id).values(
+            update(job).where(job.c.id == job_id).values(
                 status=status,
                 completed_at=datetime.now(timezone.utc)
             ),
@@ -81,24 +92,24 @@ async def update_job_status(job_id: uuid.UUID, status: str) -> JobMetadataInDB:
         )
     else:
         await execute(
-            update(jobs).where(jobs.c.id == job_id).values(
+            update(job).where(job.c.id == job_id).values(
                 status=status
             ),
             commit_after=True
         )
 
-    return await get_job_metadata(job_id)
+    return await get_job(job_id)
 
 
 async def delete_job_by_id(job_id: uuid.UUID):
     await execute(
-        delete(jobs).where(jobs.c.id == job_id),
+        delete(job).where(job.c.id == job_id),
         commit_after=True
     )
 
 
 async def delete_job_by_id(job_id: uuid.UUID):
     await execute(
-        delete(jobs).where(jobs.c.id == job_id),
+        delete(job).where(job.c.id == job_id),
         commit_after=True
     )

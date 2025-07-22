@@ -1,12 +1,21 @@
-export type IntegrationMessage = {
+export type LocalDirectoryFile = {
   id: string;
-  jobId: string;
-  content: string;
-  role: string;
-  type: string;
+  fileName: string;
+  filePath: string;
+  fileType: string;
+  description: string;
 };
 
-export type IntegrationAgentFeedback = {
+export type LocalDirectoryDataSource = {
+  id: string;
+  directoryName: string;
+  savePath: string;
+  description: string;
+  files: LocalDirectoryFile[];
+};
+
+export type IntegrationJobResult = {
   jobId: string;
-  content: string;
+  datasetId: string;
+  codeExplanation: string;
 };
