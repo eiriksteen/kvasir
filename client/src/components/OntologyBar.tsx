@@ -3,8 +3,8 @@ import React from 'react';
 
 import { useState, useMemo } from 'react';
 import { Database, Plus, ChevronLeft, ChevronRight, BarChart3, Zap, TrendingUp } from 'lucide-react';
-import { TimeSeriesDataset } from '@/types/datasets';
-import { Automation } from '@/types/automations';
+import { Dataset } from '@/types/data-objects';
+import { Automation } from '@/types/automation';
 import { useAgentContext, useDatasets, useAnalysis, useProject } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
@@ -15,7 +15,7 @@ import AddAnalysis from '@/components/analysis/AddAnalysis';
 type ItemType = 'dataset' | 'analysis' | 'automation';
 
 interface ListItemProps {
-    item: TimeSeriesDataset | AnalysisJobResultMetadata | Automation;
+    item: Dataset | AnalysisJobResultMetadata | Automation;
     type: ItemType;
     isInContext: boolean;
     onClick: () => void;
@@ -239,8 +239,8 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
         }));
     };
 
-    const handleDatasetToggle = (dataset: TimeSeriesDataset) => {
-        const isActive = datasetsInContext.timeSeries.some((d: TimeSeriesDataset) => d.id === dataset.id);
+    const handleDatasetToggle = (dataset: Dataset) => {
+        const isActive = datasetsInContext.timeSeries.some((d: Dataset) => d.id === dataset.id);
         if (isActive) {
             removeDatasetFromContext(dataset);
         } else {
@@ -249,7 +249,7 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
     };
 
     const isDatasetInContext = (datasetId: string) => 
-        datasetsInContext.timeSeries.some((dataset: TimeSeriesDataset) => dataset.id === datasetId);
+        datasetsInContext.timeSeries.some((dataset: Dataset) => dataset.id === datasetId);
 
     const handleAnalysisToggle = (analysis: AnalysisJobResultMetadata) => {
         const isActive = analysisesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId);
@@ -293,15 +293,14 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
                     <div className="border-b border-gray-800">
                         <SectionHeader
                             title="Datasets"
-                            count={datasets?.timeSeries.filter(dataset => selectedProject.datasetIds.includes(dataset.id)).length || 0}
+                            count={datasets?.filter(dataset => selectedProject.datasetIds.includes(dataset.id)).length || 0}
                             color="blue"
                             onToggle={() => toggleSection('datasets')}
                             onAdd={() => setShowAddDatasetToProject(true)}
                         />
                         {expandedSections.datasets && (
                             <div className="bg-blue-500/5 border-l-2 border-blue-500/20">
-                                {datasets?.timeSeries
-                                    .filter(dataset => selectedProject.datasetIds.includes(dataset.id))
+                                {datasets?.filter(dataset => selectedProject.datasetIds.includes(dataset.id))
                                     .map((dataset) => (
                                         <ListItem 
                                             key={dataset.id}
@@ -311,7 +310,7 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
                                             onClick={() => handleDatasetToggle(dataset)}
                                         />
                                     ))}
-                                {datasets?.timeSeries.filter(dataset => selectedProject.datasetIds.includes(dataset.id)).length === 0 && (
+                                {datasets?.filter(dataset => selectedProject.datasetIds.includes(dataset.id)).length === 0 && (
                                     <div className="px-3 py-4 text-center">
                                         <Database size={16} className="text-blue-400/40 mx-auto mb-2" />
                                         <p className="text-xs text-gray-500">No datasets</p>

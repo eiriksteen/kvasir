@@ -14,6 +14,8 @@ model_integration_job_input = Table(
     Column("source", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
+    Column("updated_at", DateTime(timezone=True),
+           nullable=False, default=func.now(), onupdate=func.now()),
     schema="model_integration"
 )
 

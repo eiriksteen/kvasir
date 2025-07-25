@@ -17,7 +17,7 @@ from synesis_api.modules.chat.schema import (
 from synesis_api.modules.chat.models import (
     chat_message,
     pydantic_message,
-    conversations,
+    conversation,
     context,
     dataset_context,
     automation_context, analysis_context, conversation_mode)
@@ -27,20 +27,20 @@ from synesis_api.modules.analysis.service import get_user_analyses_by_ids
 
 
 async def create_conversation(conversation_id: uuid.UUID, project_id: uuid.UUID, user_id: uuid.UUID, name: str) -> ConversationInDB:
-    conversation = ConversationInDB(
+    conversation_record = ConversationInDB(
         id=conversation_id,
         user_id=user_id,
         project_id=project_id,
         name=name,
     )
-    await execute(conversations.insert().values(conversation.model_dump()), commit_after=True)
-    return conversation
+    await execute(conversation.insert().values(conversation_record.model_dump()), commit_after=True)
+    return conversation_record
 
 
 async def get_conversations(user_id: uuid.UUID) -> list[Conversation]:
     user_conversations = await fetch_all(
-        select(conversations).where(
-            conversations.c.user_id == user_id)
+        select(conversation).where(
+            conversation.c.user_id == user_id)
     )
 
     conversation_list = []
@@ -49,11 +49,11 @@ async def get_conversations(user_id: uuid.UUID) -> list[Conversation]:
         messages = await get_messages(conversation_data["id"])
 
         # Create Conversation object with messages
-        conversation = Conversation(
+        conversation_record = Conversation(
             **conversation_data,
             messages=messages
         )
-        conversation_list.append(conversation)
+        conversation_list.append(conversation_record)
 
     return conversation_list
 

@@ -14,7 +14,7 @@ class Job(BaseSchema):
                     "paused",
                     "awaiting_approval"]
     conversation_id: Optional[UUID] = None
-    job_name: Optional[str] = None
+    job_name: str
     started_at: datetime = datetime.now(timezone.utc)
     completed_at: Optional[datetime] = None
 

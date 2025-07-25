@@ -7,15 +7,30 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 # Import all models to ensure they register with metadata
 from synesis_api.auth.models import users, user_api_keys
-from synesis_api.modules.data_integration.models import data_integration_job_result, data_integration_pydantic_message, data_integration_job_local_input, data_integration_message
+from synesis_api.modules.data_integration.models import (
+    data_source, file_data_source,
+    data_integration_job_input, data_source_in_integration_job, data_integration_job_result,
+    data_source_group, data_source_in_group, subgroup
+)
 from synesis_api.modules.jobs.models import job
-from synesis_api.modules.data_objects.models import time_series, time_series_dataset
-from synesis_api.modules.chat.models import chat_message, pydantic_message, conversations
-from synesis_api.modules.automation.models import model, model_task, task, source, programming_language, programming_language_version, modality
+from synesis_api.modules.data_objects.models import (
+    dataset, data_object, object_group, derived_object_source,
+    feature, feature_in_group, time_series, time_series_aggregation,
+    time_series_aggregation_input
+)
+from synesis_api.modules.chat.models import (
+    chat_message, pydantic_message, conversation, conversation_mode,
+    context, dataset_context, automation_context, analysis_context
+)
+from synesis_api.modules.automation.models import (
+    automation, function, function_input_structure, function_output_structure,
+    data_object_computed_from_function, modality, task, source,
+    programming_language, programming_language_version, model, model_task
+)
 from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
 from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_automation
 from synesis_api.modules.node.models import node, dataset_node, analysis_node, automation_node
-from synesis_api.modules.model_integration.models import model_integration_jobs_results, model_integration_pydantic_message, model_integration_message
+from synesis_api.modules.model_integration.models import model_integration_job_result, model_integration_job_input
 from synesis_api.secrets import DATABASE_URL
 from synesis_api.database.core import metadata
 
@@ -34,27 +49,48 @@ if config.config_file_name is not None:
 __all__ = [
     users,
     user_api_keys,
+    data_source,
+    file_data_source,
+    data_integration_job_input,
+    data_source_in_integration_job,
     data_integration_job_result,
-    data_integration_pydantic_message,
-    data_integration_job_local_input,
-    data_integration_message,
+    data_source_group,
+    data_source_in_group,
+    subgroup,
     job,
+    dataset,
+    data_object,
+    object_group,
+    derived_object_source,
+    feature,
+    feature_in_group,
     time_series,
-    time_series_dataset,
+    time_series_aggregation,
+    time_series_aggregation_input,
     analysis_jobs_results,
     analysis_jobs_datasets,
     analysis_jobs_automations,
     analysis_status_messages,
     chat_message,
     pydantic_message,
-    conversations,
-    model,
-    model_task,
+    conversation,
+    conversation_mode,
+    context,
+    dataset_context,
+    automation_context,
+    analysis_context,
+    automation,
+    function,
+    function_input_structure,
+    function_output_structure,
+    data_object_computed_from_function,
+    modality,
     task,
     source,
     programming_language,
     programming_language_version,
-    modality,
+    model,
+    model_task,
     project,
     project_dataset,
     project_analysis,
@@ -63,9 +99,8 @@ __all__ = [
     dataset_node,
     analysis_node,
     automation_node,
-    model_integration_jobs_results,
-    model_integration_pydantic_message,
-    model_integration_message
+    model_integration_job_result,
+    model_integration_job_input
 ]
 
 # add your model's MetaData object here
@@ -77,7 +112,7 @@ target_metadata = metadata
 
 def include_name(name, type_, parent_names):
     if type_ == "schema":
-        return name in ["public", "auth", "integration", "jobs", "ontology", "analysis", "chat", "automation", "project", "node", "model_integration"]
+        return name in ["public", "auth", "data_integration", "jobs", "data_objects", "analysis", "chat", "automation", "project", "node", "model_integration"]
     else:
         return True
 

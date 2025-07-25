@@ -274,7 +274,7 @@ def get_basic_df_info(df: pd.DataFrame):
     return f"Shape: {shape}\nSample Data: {sample_data}\nInfo: {info}\nDescription: {description}"
 
 
-def get_df_info(df: pd.DataFrame, max_cols: int = 10):
+def get_df_info(df: pd.DataFrame, max_cols: int = 25):
     """
     Returns a string containing basic information about the DataFrame, including the shape, sample data, info, description, and correlation matrix.
 

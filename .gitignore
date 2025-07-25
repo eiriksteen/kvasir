@@ -12,4 +12,5 @@ files
 node_modules
 logs
 .venv/
-api/src/models/*
+api/src/models
+local_directory_data_sources

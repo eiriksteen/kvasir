@@ -6,7 +6,7 @@ import useSWR from "swr";
 import useSWRMutation from 'swr/mutation';
 import { useAgentContext } from './useAgentContext';
 import { useProject } from './useProject';
-import { TimeSeriesDataset } from '@/types/datasets';
+import { Dataset } from '@/types/data-objects';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 
 export const useChat = (projectId: string) => {
@@ -86,7 +86,7 @@ export const useChat = (projectId: string) => {
       // Create the context with the context data from hooks
       const context: Context = {
         projectId: selectedProject?.id || "",
-        datasetIds: datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => dataset.id),
+        datasetIds: datasetsInContext.timeSeries.map((dataset: Dataset) => dataset.id),
         automationIds: [],
         analysisIds: analysisesInContext.map((analysis: AnalysisJobResultMetadata) => analysis.jobId),
       };
@@ -104,7 +104,9 @@ export const useChat = (projectId: string) => {
         conversationId: conversationId,
         content: content,
         context: context,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        type: "chat",
+        jobId: null
       };
       
       mutateCurrentConversation((prev: Conversation) => ({
@@ -120,10 +122,12 @@ export const useChat = (projectId: string) => {
           // Create assistant message with proper context
           const assistantMessage: ChatMessage = {
             conversationId: conversationId,
-            role: "assistant", 
+            role: "agent", 
             content: chunk,
             context: null,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            type: "chat",
+            jobId: null
           };
           mutateCurrentConversation((prev: Conversation) => ({
             ...prev,

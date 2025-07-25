@@ -25,7 +25,7 @@ from synesis_api.modules.analysis.service import get_user_analyses_by_ids
 from synesis_api.agents.analysis.agent import analysis_agent
 from synesis_api.agents.analysis.runner import run_analysis_task
 from synesis_api.modules.jobs.service import create_job, get_job
-from synesis_api.agents.data_integration.local_agent.runner import run_data_integration_task
+from synesis_api.agents.data_integration.dataset_agent.runner import run_dataset_integration_task
 from synesis_api.redis import get_redis
 from synesis_api.secrets import SSE_MAX_TIMEOUT
 
@@ -74,9 +74,9 @@ async def post_chat(
                 "The name should be short and concise. Output just the name!"
             )
 
-            job = await create_job(user.id, "integration", job_id=job_id, job_name=dataset_name.output)
+            job = await create_job(user.id, "data_integration", job_id=job_id, job_name=dataset_name.output)
 
-            await run_data_integration_task.kiq(
+            await run_dataset_integration_task.kiq(
                 user_id=user.id,
                 conversation_id=prompt.conversation_id,
                 job_id=job.id,

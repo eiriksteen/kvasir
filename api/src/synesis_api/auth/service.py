@@ -9,7 +9,7 @@ from fastapi import Depends, HTTPException, status, Security, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from synesis_api.auth.schema import User, UserInDB, TokenData, UserAPIKey, UserCreate
 from synesis_api.auth.models import users, user_api_keys
-from synesis_api.modules.chat.models import conversations
+from synesis_api.modules.chat.models import conversation
 from synesis_api.modules.jobs.models import job
 from synesis_api.modules.data_objects.models import dataset
 from synesis_api.secrets import API_SECRET_KEY, API_SECRET_ALGORITHM
@@ -197,7 +197,7 @@ async def user_owns_job(user_id: uuid.UUID, job_id: uuid.UUID) -> bool:
 
 
 async def user_owns_conversation(user_id: uuid.UUID, conversation_id: uuid.UUID) -> bool:
-    conversation = await fetch_one(Select(conversations).where(conversations.c.id == conversation_id, conversations.c.user_id == user_id))
+    conversation = await fetch_one(Select(conversation).where(conversation.c.id == conversation_id, conversation.c.user_id == user_id))
     return conversation is not None
 
 

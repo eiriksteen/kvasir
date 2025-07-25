@@ -1,5 +1,5 @@
-import { fetchJobs, postIntegrationJob, createJobEventSource, postModelIntegrationJob } from "@/lib/api";
-import { AnalysisJobInput, AutomationJobInput, IntegrationJobInput, Job, ModelIntegrationJobInput } from "@/types/jobs";
+import { fetchJobs, createJobEventSource } from "@/lib/api";
+import { Job } from "@/types/jobs";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
@@ -79,38 +79,38 @@ export const useJobs = (jobType: JobType) => {
     }
   )
 
-  const {trigger: triggerJob} = useSWRMutation(
-    session ? ["jobs", jobType] : null, 
-    async (_: string[], {arg}: {arg: IntegrationJobInput | AnalysisJobInput | AutomationJobInput | ModelIntegrationJobInput}) => {
-    // TODO: Implement analysis and automation job triggers
-    if (arg.type === "integration") {
-      const newJob = await postIntegrationJob(
-        session ? session.APIToken.accessToken : "", 
-        arg.files, 
-        arg.dataDescription,
-        arg.dataSource
-      );
-      if (jobs) {
-        return [...jobs, newJob];
-      }
-      return [newJob];
-    }
-    if (arg.type === "model_integration") {
-      const newJob = await postModelIntegrationJob(
-        session ? session.APIToken.accessToken : "", 
-        arg.modelId, 
-        arg.source
-      );
-      if (jobs) {
-        return [...jobs, newJob];
-      }
-      return [newJob];
-    }
-  }, {
-    onSuccess: () => {
-      mutateJobState("running", {revalidate: false});
-    }
-  });
+  // const {trigger: triggerJob} = useSWRMutation(
+  //   session ? ["jobs", jobType] : null, 
+  //   async (_: string[], {arg}: {arg: IntegrationJobInput | AnalysisJobInput | AutomationJobInput | ModelIntegrationJobInput}) => {
+  //   // TODO: Implement analysis and automation job triggers
+  //   if (arg.type === "integration") {
+  //     const newJob = await postIntegrationJob(
+  //       session ? session.APIToken.accessToken : "", 
+  //       arg.files, 
+  //       arg.dataDescription,
+  //       arg.dataSource
+  //     );
+  //     if (jobs) {
+  //       return [...jobs, newJob];
+  //     }
+  //     return [newJob];
+  //   }
+  //   if (arg.type === "model_integration") {
+  //     const newJob = await postModelIntegrationJob(
+  //       session ? session.APIToken.accessToken : "", 
+  //       arg.modelId, 
+  //       arg.source
+  //     );
+  //     if (jobs) {
+  //       return [...jobs, newJob];
+  //     }
+  //     return [newJob];
+  //   }
+  // }, {
+  //   onSuccess: () => {
+  //     mutateJobState("running", {revalidate: false});
+  //   }
+  // });
 
   const {trigger: updateJobs} = useSWRMutation(
     session ? ["jobs", jobType] : null,
@@ -134,5 +134,5 @@ export const useJobs = (jobType: JobType) => {
     }
   );
 
-  return { jobs, triggerJob, updateJobs, jobState };
+  return { jobs, updateJobs, jobState };
 };

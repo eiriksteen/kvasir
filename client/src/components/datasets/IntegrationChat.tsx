@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useIntegrationAgent } from '@/hooks/useIntegrationAgent';
-import { IntegrationMessage } from '@/types/integration';
+import { IntegrationMessage } from '@/types/data-integration';
 import { Job } from '@/types/jobs';
 import { getStatusColor } from '@/lib/utils';
 import { Loader2, Send, Check, ThumbsDown, Wifi, WifiOff } from 'lucide-react';

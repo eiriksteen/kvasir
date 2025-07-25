@@ -44,8 +44,6 @@ class FeatureInDB(BaseSchema):
     type: Literal["numerical", "categorical"]
     subtype: Literal["continuous", "discrete"]
     scale: Literal["ratio", "interval", "ordinal", "nominal"]
-    source: Literal["data", "metadata"]
-    category_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -54,8 +52,13 @@ class FeatureInGroupInDB(BaseSchema):
     group_id: uuid.UUID
     feature_name: str
     source: Literal["data", "metadata"]
+    category_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
+
+
+class FeatureWithSource(FeatureInDB):
+    source: Literal["data", "metadata"]
 
 
 class ObjectGroupInDB(BaseSchema):
@@ -71,7 +74,7 @@ class ObjectGroupInDB(BaseSchema):
 
 
 class ObjectGroupWithFeatures(ObjectGroupInDB):
-    features: List[FeatureInGroupInDB]
+    features: List[FeatureWithSource]
 
 
 class TimeSeriesInDB(BaseSchema):
@@ -107,17 +110,11 @@ class TimeSeriesAggregationInputInDB(BaseSchema):
     updated_at: datetime
 
 
-class TimeSeriesAggregationInputFull(DataObjectInDB, TimeSeriesAggregationInputInDB):
-    pass
-
-
 # Schemas for the API
 
 
 class ObjectGroupWithObjectList(ObjectGroupWithFeatures):
-    objects: List[Union[TimeSeriesFull,
-                        TimeSeriesAggregationFull,
-                        TimeSeriesAggregationInputFull]]
+    objects: List[Union[TimeSeriesFull, TimeSeriesAggregationFull]]
 
 
 class DatasetWithObjectGroups(DatasetInDB):

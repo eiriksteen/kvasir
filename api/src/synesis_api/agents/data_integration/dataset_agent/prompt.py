@@ -1,6 +1,6 @@
 from synesis_api.secrets import MODALITIES
 
-LOCAL_INTEGRATION_SYSTEM_PROMPT = f"""
+DATASET_INTEGRATION_SYSTEM_PROMPT = f"""
 You are an agent that specializes in data integration and transformation, focusing on restructuring data from directory-based sources into standardized formats for AI applications. 
 Your responsibility is to integrate data from given directories and create a Miya dataset.
 

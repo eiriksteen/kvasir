@@ -1,4 +1,4 @@
-import { Automation } from "@/types/automations";
+import { Automation } from "@/types/automation";
 import { Datasets, TimeSeriesDataset } from "@/types/datasets";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";

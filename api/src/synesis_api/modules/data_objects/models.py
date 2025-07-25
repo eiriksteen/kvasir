@@ -1,9 +1,14 @@
+import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Table, UUID, CheckConstraint, Boolean
 from sqlalchemy.dialects.postgresql import JSONB
 from synesis_api.database.core import metadata
 from synesis_data_structures.time_series.definitions import get_first_level_structure_ids
-import uuid
+
+# Build the constraint string with proper quotes
+structure_ids = get_first_level_structure_ids()
+structure_constraint = "structure_type IN (" + \
+    ", ".join(f"'{id}'" for id in structure_ids) + ")"
 
 
 # TODO: Add fields for data quality (e.g. missing values, outliers, etc.)
@@ -43,10 +48,6 @@ data_object = Table(
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
-    # Enforce all keys of additional_variables are valid feature names in the feature_information table
-    # This implies we must update feature_information before creating a data object (with additional variables defined)
-    CheckConstraint(
-        "additional_variables ?| (SELECT array_agg(name) FROM data_objects.feature)"),
     schema="data_objects",
 )
 
@@ -72,8 +73,7 @@ object_group = Table(
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
     # Ensure the structure type is a valid first level structure id
-    CheckConstraint(
-        f"structure_type IN ({', '.join(get_first_level_structure_ids())})"),
+    CheckConstraint(structure_constraint),
     schema="data_objects"
 )
 
@@ -108,10 +108,6 @@ feature = Table(
     Column("subtype", String, nullable=False),
     # One of ratio, interval, ordinal, nominal
     Column("scale", String, nullable=False),
-    # One of data, metadata
-    Column("source", String, nullable=False),
-    # For categorical features, the integer the label is mapped to in the actual data
-    Column("category_id", Integer, nullable=True),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
@@ -129,6 +125,8 @@ feature_in_group = Table(
         "data_objects.feature.name"), primary_key=True, nullable=False),
     # data or metadata
     Column("source", String, nullable=False),
+    # For categorical features, the integer the label is mapped to in the actual data
+    Column("category_id", Integer, nullable=True),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),

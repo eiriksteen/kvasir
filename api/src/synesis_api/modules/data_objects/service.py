@@ -24,12 +24,12 @@ from synesis_api.modules.data_objects.schema import (
     TimeSeriesAggregationInDB,
     FeatureInDB,
     FeatureInGroupInDB,
+    FeatureWithSource,
     TimeSeriesAggregationInputInDB,
     DatasetWithObjectGroups,
     DatasetWithObjectGroupsAndLists,
     TimeSeriesFull,
     TimeSeriesAggregationFull,
-    TimeSeriesAggregationInputFull,
     ObjectGroupWithObjectList,
 )
 from synesis_api.modules.jobs.models import job
@@ -49,6 +49,44 @@ from synesis_data_structures.time_series.definitions import (
 )
 from synesis_api.modules.data_warehouse.service import save_dataframe_to_local_storage
 from synesis_api.utils import determine_sampling_frequency, determine_timezone
+
+
+async def create_features(
+    names: List[str],
+    units: List[str],
+    descriptions: List[str],
+    types: List[str],
+    subtypes: List[str],
+    scales: List[str],
+) -> List[FeatureInDB]:
+
+    features_records = [FeatureInDB(
+        name=name,
+        unit=unit,
+        description=description,
+        type=type,
+        subtype=subtype,
+        scale=scale,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
+    ) for name, unit, description, type, subtype, scale in zip(names, units, descriptions, types, subtypes, scales)]
+
+    # Check if features already exist
+    existing_features_query = select(feature).where(
+        feature.c.name.in_(names)
+    )
+    existing_features_result = await fetch_all(existing_features_query)
+    existing_feature_names = [feature["name"]
+                              for feature in existing_features_result]
+
+    new_features = [
+        feature for feature in features_records if feature.name not in existing_feature_names]
+
+    if len(new_features) > 0:
+        new_features_dump = [feature.model_dump() for feature in new_features]
+        await execute(insert(feature).values(new_features_dump), commit_after=True)
+
+    return new_features
 
 
 async def create_dataset(
@@ -120,9 +158,23 @@ async def create_dataset(
 
             if has_feature_information:
                 features_info: pd.DataFrame = dataframes[FEATURE_INFORMATION_SECOND_LEVEL_ID]
-                features_records = [FeatureInDB(**record, created_at=datetime.now(
-                    timezone.utc), updated_at=datetime.now(timezone.utc)) for record in features_info.to_dict(orient="records")]
-                await execute(insert(feature).values(features_records), commit_after=True)
+                # features_records = [FeatureInDB(**record, created_at=datetime.now(
+                #     timezone.utc), updated_at=datetime.now(timezone.utc)) for record in features_info.to_dict(orient="records")]
+
+                await create_features(
+                    names=[record["name"]
+                           for record in features_info.to_dict(orient="records")],
+                    units=[record["unit"]
+                           for record in features_info.to_dict(orient="records")],
+                    descriptions=[record["description"]
+                                  for record in features_info.to_dict(orient="records")],
+                    types=[record["type"]
+                           for record in features_info.to_dict(orient="records")],
+                    subtypes=[record["subtype"]
+                              for record in features_info.to_dict(orient="records")],
+                    scales=[record["scale"]
+                            for record in features_info.to_dict(orient="records")],
+                )
 
                 feature_in_group_records = []
                 for feature_name, feature_row in features_info.iterrows():
@@ -130,6 +182,7 @@ async def create_dataset(
                         group_id=object_group_record.id,
                         feature_name=feature_name,
                         source=feature_row['source'],
+                        category_id=feature_row['category_id'],
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc)
                     ))
@@ -564,12 +617,26 @@ async def get_user_datasets_by_ids(
 async def _get_object_group_with_objects(group: ObjectGroupInDB) -> ObjectGroupWithObjectList:
     """Helper function to get an object group with its objects"""
 
-    # Get features for this group
-    features_query = select(feature_in_group).where(
+    # Get features for this group by joining feature and feature_in_group tables
+    features_query = select(
+        feature.c.name,
+        feature.c.unit,
+        feature.c.description,
+        feature.c.type,
+        feature.c.subtype,
+        feature.c.scale,
+        feature_in_group.c.source,
+        feature.c.category_id,
+        feature.c.created_at,
+        feature.c.updated_at
+    ).join(
+        feature_in_group,
+        feature.c.name == feature_in_group.c.feature_name
+    ).where(
         feature_in_group.c.group_id == group.id
     )
     features_result = await fetch_all(features_query)
-    features = [FeatureInGroupInDB(**feature) for feature in features_result]
+    features = [FeatureWithSource(**feature) for feature in features_result]
 
     # Get all data objects in this group
     objects_query = select(data_object).where(
@@ -603,304 +670,31 @@ async def _get_object_group_with_objects(group: ObjectGroupInDB) -> ObjectGroupW
                     **obj.model_dump(), **aggregation_obj.model_dump())
                 objects.append(full_obj)
 
-        elif obj.structure_type == "time_series_aggregation_input":
-            # Get time series aggregation input specific data
-            input_query = select(time_series_aggregation_input).where(
-                time_series_aggregation_input.c.id == obj.id)
-            input_result = await fetch_one(input_query)
-            if input_result:
-                input_obj = TimeSeriesAggregationInputInDB(**input_result)
-                full_obj = TimeSeriesAggregationInputFull(
-                    **obj.model_dump(), **input_obj.model_dump())
-                objects.append(full_obj)
-
     return ObjectGroupWithObjectList(**group.model_dump(), features=features, objects=objects)
 
 
 async def _get_object_group_with_features(group: ObjectGroupInDB) -> ObjectGroupWithFeatures:
     """Helper function to get an object group with its features"""
 
-    # Get features for this group
-    features_query = select(feature_in_group).where(
+    # Get features for this group by joining feature and feature_in_group tables
+    features_query = select(
+        feature.c.name,
+        feature.c.unit,
+        feature.c.description,
+        feature.c.type,
+        feature.c.subtype,
+        feature.c.scale,
+        feature_in_group.c.source,
+        feature.c.category_id,
+        feature.c.created_at,
+        feature.c.updated_at
+    ).join(
+        feature_in_group,
+        feature.c.name == feature_in_group.c.feature_name
+    ).where(
         feature_in_group.c.group_id == group.id
     )
     features_result = await fetch_all(features_query)
-    features = [FeatureInGroupInDB(**feature) for feature in features_result]
+    features = [FeatureWithSource(**feature) for feature in features_result]
 
     return ObjectGroupWithFeatures(**group.model_dump(), features=features)
-
-
-# async def get_dataset(dataset_id: uuid.UUID) -> Dataset:
-#     """Get a base dataset by ID"""
-#     query = select(dataset).where(dataset.c.id == dataset_id)
-#     result = await fetch_one(query)
-#     if not result:
-#         raise HTTPException(status_code=404, detail="Dataset not found")
-#     return Dataset(**result)
-
-
-# async def get_time_series_in_collection(collection_id: uuid.UUID) -> List[TimeSeries]:
-#     """Get all time series in a specific collection"""
-#     query = select(time_series).where(
-#         time_series.c.collection_id == collection_id)
-#     series = await fetch_all(query)
-#     return [TimeSeries(**s) for s in series]
-
-
-# async def get_collections_in_dataset(dataset_id: uuid.UUID) -> List[CollectionInDB]:
-#     """Get all collections in a dataset"""
-#     query = select(collection).where(collection.c.dataset_id == dataset_id)
-#     collections = await fetch_all(query)
-#     return [CollectionInDB(**c) for c in collections]
-
-
-# async def compute_time_series_collection_stats(collection_id: uuid.UUID) -> dict:
-#     """Compute statistics for a time series collection based on its time series"""
-#     # Get all time series in the collection
-#     time_series_list = await get_time_series_in_collection(collection_id)
-
-#     if not time_series_list:
-#         return {
-#             "num_series": 0,
-#             "num_features": 0,
-#             "features": [],
-#             "avg_num_timestamps": 0,
-#             "max_num_timestamps": 0,
-#             "min_num_timestamps": 0,
-#             "index_first_level": "",
-#             "index_second_level": None
-#         }
-
-#     # Compute statistics
-#     num_series = len(time_series_list)
-#     timestamps = [ts.num_timestamps for ts in time_series_list]
-#     avg_num_timestamps = sum(timestamps) // num_series if num_series > 0 else 0
-#     max_num_timestamps = max(timestamps) if timestamps else 0
-#     min_num_timestamps = min(timestamps) if timestamps else 0
-
-#     # Extract features from the first time series (assuming all have same structure)
-#     features = []
-#     num_features = 0
-
-#     if time_series_list:
-#         first_series = time_series_list[0]
-#         if first_series.variables:
-#             features = list(first_series.variables.keys())
-#             num_features = len(features)
-
-#     return {
-#         "num_series": num_series,
-#         "num_features": num_features,
-#         "features": features,
-#         "avg_num_timestamps": avg_num_timestamps,
-#         "max_num_timestamps": max_num_timestamps,
-#         "min_num_timestamps": min_num_timestamps,
-#         "index_first_level": "entity_id",
-#         "index_second_level": "timestamp"
-#     }
-
-
-# async def get_time_series_collection(collection_id: uuid.UUID) -> TimeSeriesCollection:
-#     """Get a time series collection with computed fields"""
-#     # Get the collection
-#     collection_query = select(collection).where(
-#         collection.c.id == collection_id)
-#     collection_result = await fetch_one(collection_query)
-#     if not collection_result:
-#         raise HTTPException(status_code=404, detail="Collection not found")
-
-#     # Compute statistics
-#     stats = await compute_time_series_collection_stats(collection_id)
-
-#     return TimeSeriesCollection(
-#         collection_id=collection_id,
-#         dataset_id=collection_result["dataset_id"],
-#         **stats
-#     )
-
-
-# async def get_time_series_collection_with_entity_metadata(collection_id: uuid.UUID) -> TimeSeriesCollectionWithEntityMetadata:
-#     """Get a time series collection with computed fields and time series data"""
-#     # Get the collection
-#     collection_query = select(collection).where(
-#         collection.c.id == collection_id)
-#     collection_result = await fetch_one(collection_query)
-#     if not collection_result:
-#         raise HTTPException(status_code=404, detail="Collection not found")
-
-#     # Get time series in the collection
-#     time_series_list = await get_time_series_in_collection(collection_id)
-
-#     # Compute statistics
-#     stats = await compute_time_series_collection_stats(collection_id)
-
-#     return TimeSeriesCollectionWithEntityMetadata(
-#         collection_id=collection_id,
-#         dataset_id=collection_result["dataset_id"],
-#         time_series=time_series_list,
-#         **stats
-#     )
-
-
-# async def get_dataset_with_collections(dataset_id: uuid.UUID, include_integration_jobs: bool = False) -> Dataset:
-#     """Get a dataset with all its collections"""
-#     # Get the base dataset
-#     dataset_obj = await get_dataset(dataset_id)
-
-#     # Get all collections in the dataset
-#     collections_in_db = await get_collections_in_dataset(dataset_id)
-
-#     # Convert to TimeSeriesCollection objects with computed fields
-#     collections = []
-#     for collection_in_db in collections_in_db:
-#         collection_obj = await get_time_series_collection(collection_in_db.id)
-#         collections.append(collection_obj)
-
-#     # Create the result object
-#     result = Dataset(
-#         **dataset_obj.model_dump(),
-#         time_series_collections=collections
-#     )
-
-#     # Add integration jobs if requested
-#     if include_integration_jobs:
-#         integration_jobs_by_dataset = await get_integration_jobs_for_user_datasets(dataset_obj.user_id)
-#         dataset_jobs = integration_jobs_by_dataset.get(dataset_id, [])
-#         result.integration_jobs = [JobMetadata(**job) for job in dataset_jobs]
-
-#     return result
-
-
-# async def get_dataset_with_entity_metadata(dataset_id: uuid.UUID, include_integration_jobs: bool = False) -> DatasetWithEntityMetadata:
-#     """Get a dataset with all its collections and time series metadata"""
-#     # Get the base dataset
-#     dataset_obj = await get_dataset(dataset_id)
-
-#     # Get all collections in the dataset
-#     collections_in_db = await get_collections_in_dataset(dataset_id)
-
-#     # Convert to TimeSeriesCollectionWithEntityMetadata objects
-#     collections = []
-#     for collection_in_db in collections_in_db:
-#         collection_obj = await get_time_series_collection_with_entity_metadata(collection_in_db.id)
-#         collections.append(collection_obj)
-
-#     # Create the result object
-#     result = DatasetWithEntityMetadata(
-#         **dataset_obj.model_dump(),
-#         time_series_collections=collections
-#     )
-
-#     # Add integration jobs if requested
-#     if include_integration_jobs:
-#         integration_jobs_by_dataset = await get_integration_jobs_for_user_datasets(dataset_obj.user_id)
-#         dataset_jobs = integration_jobs_by_dataset.get(dataset_id, [])
-#         result.integration_jobs = [JobMetadata(**job) for job in dataset_jobs]
-
-#     return result
-
-
-# async def get_user_datasets(user_id: uuid.UUID, only_completed: bool = True, include_integration_jobs: bool = False) -> Datasets:
-#     """Get all datasets for a user"""
-#     # Get all datasets for the user
-#     query = select(dataset).where(dataset.c.user_id == user_id)
-#     datasets = await fetch_all(query)
-
-#     # Filter by completion status if requested
-#     if only_completed:
-#         completed_ids_query = select(data_integration_job_result.c.dataset_id).join(
-#             jobs, jobs.c.id == data_integration_job_result.c.job_id
-#         ).where(jobs.c.status == "completed")
-#         completed_ids = await fetch_all(completed_ids_query)
-#         completed_ids = [row["dataset_id"] for row in completed_ids]
-#         datasets = [d for d in datasets if d["id"] in completed_ids]
-
-#     # Convert to Dataset objects
-#     dataset_objects = []
-#     for dataset_data in datasets:
-#         dataset_obj = await get_dataset_with_collections(
-#             dataset_data["id"],
-#             include_integration_jobs
-#         )
-#         dataset_objects.append(dataset_obj)
-
-#     return Datasets(datasets=dataset_objects)
-
-
-# async def get_user_datasets_with_entity_metadata(user_id: uuid.UUID, only_completed: bool = True, include_integration_jobs: bool = False) -> DatasetsWithEntityMetadata:
-#     """Get all datasets for a user with entity metadata"""
-#     # Get all datasets for the user
-#     query = select(dataset).where(dataset.c.user_id == user_id)
-#     datasets = await fetch_all(query)
-
-#     # Filter by completion status if requested
-#     if only_completed:
-#         completed_ids_query = select(data_integration_job_result.c.dataset_id).join(
-#             jobs, jobs.c.id == data_integration_job_result.c.job_id
-#         ).where(jobs.c.status == "completed")
-#         completed_ids = await fetch_all(completed_ids_query)
-#         completed_ids = [row["dataset_id"] for row in completed_ids]
-#         datasets = [d for d in datasets if d["id"] in completed_ids]
-
-#     # Convert to DatasetWithEntityMetadata objects
-#     dataset_objects = []
-#     for dataset_data in datasets:
-#         dataset_obj = await get_dataset_with_entity_metadata(
-#             dataset_data["id"],
-#             include_integration_jobs
-#         )
-#         dataset_objects.append(dataset_obj)
-
-#     return DatasetsWithEntityMetadata(datasets=dataset_objects)
-
-
-# async def get_user_datasets_by_ids(user_id: uuid.UUID, dataset_ids: List[uuid.UUID] = [], include_integration_jobs: bool = False) -> Datasets:
-#     """Get specific datasets for a user by IDs"""
-#     if not dataset_ids:
-#         return Datasets(datasets=[])
-
-#     query = select(dataset).where(
-#         and_(
-#             dataset.c.user_id == user_id,
-#             dataset.c.id.in_(dataset_ids)
-#         )
-#     )
-#     datasets = await fetch_all(query)
-
-#     # Convert to Dataset objects
-#     dataset_objects = []
-#     for dataset_data in datasets:
-#         dataset_obj = await get_dataset_with_collections(
-#             dataset_data["id"],
-#             include_integration_jobs
-#         )
-#         dataset_objects.append(dataset_obj)
-
-#     return Datasets(datasets=dataset_objects)
-
-
-# async def get_integration_jobs_for_user_datasets(user_id: uuid.UUID) -> dict[uuid.UUID, List[dict]]:
-#     """Get integration jobs for all datasets of a user"""
-#     # Get all datasets for the user
-#     query = select(dataset).where(dataset.c.user_id == user_id)
-#     user_datasets = await fetch_all(query)
-#     dataset_ids = [d["id"] for d in user_datasets]
-
-#     if not dataset_ids:
-#         return {}
-
-#     # Get integration jobs for these datasets
-#     jobs_query = select(data_integration_job_result).where(
-#         data_integration_job_result.c.dataset_id.in_(dataset_ids)
-#     )
-#     jobs = await fetch_all(jobs_query)
-
-#     # Group by dataset_id
-#     jobs_by_dataset = {}
-#     for job in jobs:
-#         dataset_id = job["dataset_id"]
-#         if dataset_id not in jobs_by_dataset:
-#             jobs_by_dataset[dataset_id] = []
-#         jobs_by_dataset[dataset_id].append(job)
-
-#     return jobs_by_dataset

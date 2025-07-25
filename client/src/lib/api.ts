@@ -1,18 +1,20 @@
 import { EventSource } from 'eventsource';
 import { Conversation, ConversationCreate, Prompt } from "@/types/chat";
-import { Datasets, EntityMetadata, TimeSeriesData } from "@/types/datasets";
+import { Dataset, DatasetWithObjectLists } from "@/types/data-objects";
 import { Analyses } from "@/types/analysis";
 import { Job } from "@/types/jobs";
 import { Project, ProjectCreate, ProjectUpdate } from "@/types/project";
 import { AnalysisRequest } from "@/types/analysis";
 import { FrontendNode, FrontendNodeCreate } from "@/types/node";
-import { Model, ModelIntegrationMessage } from '@/types/model-integration';
+import { Model } from "@/types/automation";
+import { DataSource, FileDataSource } from '@/types/data-integration';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
 
-export async function fetchDatasets(token: string): Promise<Datasets> {
+export async function fetchDatasets(token: string): Promise<Dataset[]> {
 
-  const response = await fetch(`${API_URL}/data-objects/datasets?include_integration_jobs=1`, {
+  const response = await fetch(`${API_URL}/data-objects/datasets?include_integration_jobs=1&include_object_lists=0`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -29,27 +31,18 @@ export async function fetchDatasets(token: string): Promise<Datasets> {
   return data;
 }
 
-export async function postIntegrationJob(token: string, files: File[], description: string, dataSource: string): Promise<Job> {
-  const formData = new FormData();
-  files.forEach(file => {
-    formData.append("files", file);
-  });
-  // For json, we can use camelCase since the base schema in the backend converts it to snake case, but this is for form data so we need to use snake case here
-  formData.append("data_description", description);
-  formData.append("data_source", dataSource);
-
-  const response = await fetch(`${API_URL}/data-integration/call-integration-agent`, {
-    method: 'POST',
+export async function fetchDatasetsWithObjectLists(token: string): Promise<DatasetWithObjectLists[]> {
+  const response = await fetch(`${API_URL}/data-objects/datasets?include_integration_jobs=1&include_object_lists=1`, {
     headers: {
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
     },
-    body: formData
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Failed to add dataset', errorText);
-    throw new Error(`Failed to add dataset: ${response.status} ${errorText}`);
+    console.error('Failed to fetch datasets with object lists', errorText);
+    throw new Error(`Failed to fetch datasets with object lists: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
@@ -244,27 +237,6 @@ export async function fetchConversations(token: string): Promise<Conversation[]>
   return data;
 }
 
-
-export function createIntegrationSocket(jobId: string): WebSocket {
-  const socket = new WebSocket(`${WS_URL}/data-integration/integration-agent-human-in-the-loop/${jobId}/ws`);
-  return socket;
-}
-
-export function createIntegrationEventSource(token: string, jobId: string): EventSource {
-  return new EventSource(`${API_URL}/integration/integration-agent-sse/${jobId}`,
-    {
-      fetch: (input, init) =>
-        fetch(input, {
-          ...init,
-          headers: {
-            ...init?.headers,
-            Authorization: `Bearer ${token}`,
-          },
-        }),
-    }
-  );
-}
-
 export function createAnalysisEventSource(token: string, jobId: string): EventSource {
   return new EventSource(`${API_URL}/analysis/analysis-agent-sse/${jobId}`,
     {
@@ -293,75 +265,6 @@ export function createJobEventSource(token: string, jobType: string): EventSourc
   });
 }
 
-export async function postIntegrationAgentFeedback(token: string, feedback: IntegrationAgentFeedback): Promise<IntegrationMessage> {
-
-  const response = await fetch(`${API_URL}/data-integration/integration-agent-feedback`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(feedback)
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to post integration agent feedback', errorText);
-    throw new Error(`Failed to post integration agent feedback: ${response.status} ${errorText}`);
-  }
-
-  return response.json();
-} 
-
-export async function postIntegrationAgentApprove(token: string, jobId: string): Promise<Job> {
-  const response = await fetch(`${API_URL}/data-integration/integration-agent-approve/${jobId}`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to approve integration agent', errorText);
-    throw new Error(`Failed to approve integration agent: ${response.status} ${errorText}`);
-  }
-
-  return response.json();
-}
-
-export async function fetchIntegrationMessages(token: string, jobId: string): Promise<IntegrationMessage[]> {
-
-  const response = await fetch(`${API_URL}/data-integration/integration-messages/${jobId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to fetch integration messages', errorText);
-    throw new Error(`Failed to fetch integration messages: ${response.status} ${errorText}`);
-  }
-
-  return response.json();
-}
-
-export async function fetchEntityMetadataAll(token: string, datasetId: string): Promise<EntityMetadata[]> {
-  const response = await fetch(`${API_URL}/data-warehouse/all-metadata/${datasetId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to fetch entity metadata', errorText);
-    throw new Error(`Failed to fetch entity metadata: ${response.status} ${errorText}`);
-  }
-
-  return response.json();
-}
 
 export async function fetchProjects(token: string): Promise<Project[]> {
   const response = await fetch(`${API_URL}/project/get-user-projects`, {
@@ -429,24 +332,6 @@ export async function fetchProjectNodes(token: string, projectId: string): Promi
     const errorText = await response.text();
     console.error('Failed to fetch time series data', errorText);
     throw new Error(`Failed to fetch time series data: ${response.status} ${errorText}`);
-  }
-
-  return response.json();
-}
-
-
-export async function fetchTimeSeriesData(token: string, entityId: string): Promise<TimeSeriesData> {
-  console.log("fetching time series data for entityId", entityId);
-  const response = await fetch(`${API_URL}/data-warehouse/time-series/${entityId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to fetch time series data', errorText);
-    throw new Error(`Failed to fetch project nodes: ${response.status} ${errorText}`);
   }
 
   return response.json();
@@ -521,58 +406,7 @@ export async function fetchModels(token: string, only_owned: boolean = false): P
   return response.json();
 }
 
-export async function fetchModelIntegrationMessages(token: string, jobId: string): Promise<ModelIntegrationMessage[]> {
-  const response = await fetch(`${API_URL}/model-integration/model-integration-messages/${jobId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to fetch model integration messages', errorText);
-    throw new Error(`Failed to fetch model integration messages: ${response.status} ${errorText}`);
-  }
-
-  return response.json();
-}
-
-export function createModelIntegrationEventSource(token: string, jobId: string): EventSource {
-  return new EventSource(`${API_URL}/model-integration/model-integration-agent-sse/${jobId}`, {
-    fetch: (input: RequestInfo | URL, init?: RequestInit) =>
-      fetch(input, {
-        ...init,
-        headers: {
-          ...init?.headers,
-          Authorization: `Bearer ${token}`,
-        },
-      }),
-  });
-}
-
-export async function postModelIntegrationJob(token: string, modelId: string, source: string): Promise<Job> {
-  const response = await fetch(`${API_URL}/model-integration/call-model-integration-agent`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      modelId: modelId,
-      source: source
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to post model integration job', errorText);
-    throw new Error(`Failed to post model integration job: ${response.status} ${errorText}`);
-  }
-
-  return response.json();
-}
-
-export async function getIntegrationJobResults(token: string, jobId: string): Promise<{ jobId: string; datasetId: string }> {
+export async function getDataIntegrationJobResults(token: string, jobId: string): Promise<{ jobId: string; datasetId: string }> {
   const response = await fetch(`${API_URL}/data-integration/integration-job-results/${jobId}`, {
     method: 'GET',
     headers: {
@@ -588,4 +422,42 @@ export async function getIntegrationJobResults(token: string, jobId: string): Pr
 
   const data = await response.json();
   return data;
+}
+
+export async function fetchDataSources(token: string): Promise<DataSource[]> {
+  const response = await fetch(`${API_URL}/data-integration/data-sources`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch data sources', errorText);
+    throw new Error(`Failed to fetch data sources: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function createFileDataSource(token: string, files: File[]): Promise<FileDataSource> {
+  const formData = new FormData();
+  files.forEach(file => formData.append('files', file));
+
+  const response = await fetch(`${API_URL}/data-integration/file-data-sources`, {
+    // FormData post with files
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to create file data source', errorText);
+    throw new Error(`Failed to create file data source: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
 }

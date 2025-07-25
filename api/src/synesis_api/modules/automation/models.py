@@ -5,6 +5,11 @@ from sqlalchemy.dialects.postgresql import JSONB
 from synesis_api.database.core import metadata
 from synesis_data_structures.time_series.definitions import get_first_level_structure_ids
 
+# Build the constraint string with proper quotes
+structure_ids = get_first_level_structure_ids()
+structure_constraint = "structure_id IN (" + \
+    ", ".join(f"'{id}'" for id in structure_ids) + ")"
+
 
 automation = Table(
     "automation",
@@ -55,8 +60,7 @@ function_input_structure = Table(
     Column("description", String, nullable=True),
     Column("type", String, nullable=False),
     Column("required", Boolean, nullable=False),
-    CheckConstraint(
-        f"structure_id IN ({', '.join(get_first_level_structure_ids())})"),
+    CheckConstraint(structure_constraint),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
@@ -79,8 +83,7 @@ function_output_structure = Table(
     Column("name", String, nullable=False),
     Column("description", String, nullable=True),
     Column("type", String, nullable=False),
-    CheckConstraint(
-        f"structure_id IN ({', '.join(get_first_level_structure_ids())})"),
+    CheckConstraint(structure_constraint),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
@@ -119,6 +122,11 @@ modality = Table(
            primary_key=True),
     Column("name", String, nullable=False),
     Column("description", String, nullable=True),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
     schema="automation"
 )
 
@@ -133,6 +141,9 @@ task = Table(
     Column("description", String, nullable=True),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
     schema="automation"
 )
 
@@ -161,6 +172,9 @@ programming_language = Table(
     Column("description", String, nullable=True),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
     schema="automation"
 )
 
@@ -211,6 +225,9 @@ model = Table(
     Column("config_parameters", JSONB, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
     schema="automation"
 )
 
@@ -238,5 +255,8 @@ model_task = Table(
            nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
     schema="automation"
 )

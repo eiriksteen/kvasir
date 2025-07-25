@@ -1,8 +1,16 @@
 import pandas as pd
+import aiofiles
 from uuid import UUID
 from pathlib import Path
 from typing import Literal
-from synesis_api.secrets import DATASETS_SAVE_PATH, DATA_INTEGRATION_SCRIPTS_PATH, AUTOMATION_SCRIPTS_PATH, ANALYSIS_SCRIPTS_PATH
+from fastapi import UploadFile
+from synesis_api.secrets import (
+    DATASETS_SAVE_PATH,
+    DATA_INTEGRATION_SCRIPTS_SAVE_DIR,
+    AUTOMATION_SCRIPTS_SAVE_DIR,
+    ANALYSIS_SCRIPTS_SAVE_DIR,
+    RAW_FILES_SAVE_DIR
+)
 
 
 def save_dataframe_to_local_storage(
@@ -32,15 +40,34 @@ def save_script_to_local_storage(
 ) -> Path:
 
     if kind == "data_integration":
-        path = DATA_INTEGRATION_SCRIPTS_PATH / \
+        path = DATA_INTEGRATION_SCRIPTS_SAVE_DIR / \
             f"{user_id}" / f"{job_id}" / filename
     elif kind == "automation":
-        path = AUTOMATION_SCRIPTS_PATH / \
+        path = AUTOMATION_SCRIPTS_SAVE_DIR / \
             f"{user_id}" / f"{job_id}" / filename
     elif kind == "analysis":
-        path = ANALYSIS_SCRIPTS_PATH / \
+        path = ANALYSIS_SCRIPTS_SAVE_DIR / \
             f"{user_id}" / f"{job_id}" / filename
 
     path.write_text(script)
 
     return path
+
+
+async def save_raw_file_to_local_storage(
+    user_id: UUID,
+    file_id: UUID,
+    file: UploadFile
+) -> Path:
+
+    file_path = RAW_FILES_SAVE_DIR / \
+        f"{user_id}" / \
+        f"{file_id}" / \
+        f"{file.filename}"
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    async with aiofiles.open(file_path, mode="wb") as f:
+        await f.write(await file.read())
+
+    return file_path
