@@ -1,163 +1,122 @@
-import { streamChat, fetchConversations, postConversation } from "@/lib/api";
-import { ChatMessage, Prompt, Conversation, Context, ConversationCreate } from "@/types/chat";
+import useSWR from "swr";
+import { fetchConversationWithMessages } from "@/lib/api";
+import { ChatMessage, Prompt, ConversationWithMessages, Context } from "@/types/chat";
 import { useCallback } from "react";
 import { useSession } from "next-auth/react";
-import useSWR from "swr";
-import useSWRMutation from 'swr/mutation';
 import { useAgentContext } from './useAgentContext';
-import { useProject } from './useProject';
 import { Dataset } from '@/types/data-objects';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
+import { fetchEventSource } from '@microsoft/fetch-event-source';
+import { v4 as uuidv4 } from 'uuid';
+import { UUID } from "crypto";
+import { DataSource } from "@/types/data-integration";
+import { useConversations } from "./useConversations";
 
-export const useChat = (projectId: string) => {
-  const {data: session} = useSession();
-  const { datasetsInContext, analysisesInContext } = useAgentContext();
-  const { selectedProject } = useProject(projectId);
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-  // Fetch conversations using SWR
-  const { data: conversations, error: conversationsError, mutate: mutateConversations } = useSWR(
-    session ? ['conversations', session.APIToken.accessToken] : null,
-    () => fetchConversations(session!.APIToken.accessToken),
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: true,
-    }
+export const useChat = (projectId: UUID) => {
+  const { data: session } = useSession();
+  const { createConversation } = useConversations();
+  const { dataSourcesInContext, datasetsInContext, analysisesInContext } = useAgentContext();
+  const { data: conversationId, mutate: setConversationId } = useSWR("conversationId", { fallbackData: null });
+
+  const { data: conversation, error, isLoading, mutate: mutateConversation } = useSWR(
+    session && conversationId ? `conversation-${conversationId}` : null, 
+    () => fetchConversationWithMessages(session ? session.APIToken.accessToken : "", conversationId),
   );
-
-  const { data: currentConversation, mutate: mutateCurrentConversation } = useSWR("currentConversation", {fallbackData: null});
-
-  // Create conversation functionality (moved from useConversation)
-  const { trigger: createConversation } = useSWRMutation(
-    "currentConversation", 
-    async (_, { arg }: { arg: ConversationCreate }) => {
-      if (!session) throw new Error("No session");
-      
-      const newConversation = await postConversation(session.APIToken.accessToken, arg);
-      return newConversation;
-    },
-    {
-      populateCache: (newConversation) => {
-        if (conversations) {
-          mutateConversations([...conversations, { id: newConversation.id, name: newConversation.name, projectId: selectedProject?.id || "", messages: [], createdAt: newConversation.createdAt }]);
-        }
-        else{
-          mutateConversations([{ id: newConversation.id, name: newConversation.name, projectId: selectedProject?.id || "", messages: [], createdAt: newConversation.createdAt }]);
-        }
-        return newConversation;
-      }
-    }
-  );
-
-  // Function to switch to a different conversation
-  const switchConversation = useCallback(async (conversationId: string) => {
-    await mutateCurrentConversation(conversations?.find(c => c.id === conversationId));
-  }, [mutateCurrentConversation, conversations]);
-
-  // Function to start a new conversation
-  const startNewConversation = useCallback(async () => {
-    await mutateCurrentConversation(null);
-  }, [mutateCurrentConversation]);
 
   const submitPrompt = useCallback(async (content: string) => {
+    let convId = conversationId;
+
+    if (!convId) {
+      const newConversation = await createConversation({ projectId: projectId, content: content });
+      setConversationId(newConversation.id);
+      convId = newConversation.id;
+    }
+
     if (session) {
       if (content === "") {
         return;
       }
 
-      let conversationId = currentConversation?.id;
-
-      // Create a new conversation if none exists
-      if (!conversationId) {
-        try {
-          const conversationCreateObject: ConversationCreate = {
-            projectId: selectedProject?.id || "",
-            content: content
-          };
-          const conversation = await createConversation(conversationCreateObject);
-          await mutateCurrentConversation(conversation);
-          conversationId = conversation.id;
-
-        } catch (error) {
-          console.error('Failed to create conversation:', error);
-          return;
-        }
-      }
-
       // Create the context with the context data from hooks
       const context: Context = {
-        projectId: selectedProject?.id || "",
-        datasetIds: datasetsInContext.timeSeries.map((dataset: Dataset) => dataset.id),
+        dataSourceIds: dataSourcesInContext?.map((dataSource: DataSource) => dataSource.id) || [],
+        datasetIds: datasetsInContext?.map((dataset: Dataset) => dataset.id) || [],
         automationIds: [],
-        analysisIds: analysisesInContext.map((analysis: AnalysisJobResultMetadata) => analysis.jobId),
-      };
-
-      // Create the prompt with conversation_id
-      const prompt: Prompt = {
-        conversationId: conversationId,
-        context: context,
-        content: content
+        analysisIds: analysisesInContext?.map((analysis: AnalysisJobResultMetadata) => analysis.jobId) || [],
       };
 
       // Create user message with proper context
       const userMessage: ChatMessage = {
+        // Placeholder id, the backend will create the actual id
+        id: uuidv4() as UUID,
         role: "user", 
-        conversationId: conversationId,
+        conversationId: convId,
         content: content,
         context: context,
         createdAt: new Date().toISOString(),
         type: "chat",
         jobId: null
       };
+
+      // Create the prompt with conversation_id
+      const prompt: Prompt = {
+        messageId: userMessage.id,
+        conversationId: convId,
+        context: context,
+        content: content
+      };
       
-      mutateCurrentConversation((prev: Conversation) => ({
-        ...prev,
-        messages: [...prev.messages, userMessage]
-      }));
+      mutateConversation((prev: ConversationWithMessages | undefined) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          messages: [...prev.messages, userMessage]
+        };
+      });
+
+      console.log(JSON.stringify(prompt))
+
+      await fetchEventSource(`${API_URL}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.APIToken.accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(prompt),
+          onmessage(ev) {
+              const data: ChatMessage = JSON.parse(ev.data);
+              mutateConversation((prev: ConversationWithMessages | undefined) => {
+                if (!prev) return prev;
+                // If message with the same id already exists, update it, else add it
+                const existingMessage = prev.messages.find((msg) => msg.id === data.id);
+                if (existingMessage) {
+                  return {
+                    ...prev,
+                    messages: prev.messages.map((msg) => msg.id === data.id ? data : msg)
+                  };
+                }
+                else {
+                  return {
+                    ...prev,
+                    messages: [...prev.messages, data]
+                  };
+                }
+              });
+          }
+
+      });
       
-      
-      const stream = streamChat(session.APIToken.accessToken, prompt);
-      let chunkNum = 0;
-      for await (const chunk of stream) {
-        if (chunkNum === 0) {
-          // Create assistant message with proper context
-          const assistantMessage: ChatMessage = {
-            conversationId: conversationId,
-            role: "agent", 
-            content: chunk,
-            context: null,
-            createdAt: new Date().toISOString(),
-            type: "chat",
-            jobId: null
-          };
-          mutateCurrentConversation((prev: Conversation) => ({
-            ...prev,
-            messages: [...prev.messages, assistantMessage]
-          }));
-        }
-        else {
-          mutateCurrentConversation((prev: Conversation) => ({
-            ...prev,
-            messages: prev.messages.map((msg, i) => 
-              i === prev.messages.length - 1 
-                ? { ...msg, content: chunk }
-                : msg
-            )
-          }));
-        }
-        chunkNum++;
-      }
     }
-  }, [session, createConversation, selectedProject, datasetsInContext, analysisesInContext, currentConversation?.id, mutateCurrentConversation]);
+  }, [session, dataSourcesInContext, datasetsInContext, analysisesInContext, conversationId, mutateConversation, setConversationId, createConversation, projectId]);
 
   return { 
-    currentConversation, 
+    conversationId,
+    setConversationId,
+    conversation, 
     submitPrompt, 
-    conversations: conversations || [], 
-    conversationsError, 
-    mutateConversations,
-    isLoadingConversations: !conversations && !conversationsError,
-    createConversation,
-    switchConversation,
-    startNewConversation,
+    isLoading,
+    isError: error,
   };
 }; 

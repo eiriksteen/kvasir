@@ -14,11 +14,23 @@ import '@xyflow/react/dist/style.css';
 import { useProject } from '@/hooks/useProject';
 import { useDatasets, useAnalysis } from '@/hooks';
 // import DataVisualizer from '@/components/data-visualization/DataVisualizer';
-import AnalysisItem from '@/components/analysis/AnalysisItem';
+// import AnalysisItem from '@/components/analysis/AnalysisItem';
 import { FrontendNode } from '@/types/node';
 import Dataset from '@/components/datasets/Dataset';
 import AnalysisNode from '@/components/react-flow-components/AnalysisNode';
 import TransportEdge from '@/components/react-flow-components/TransportEdge';
+import { useDataSources } from '@/hooks/useDataSources';
+import DataSourceBox from '../data-sources/DataSourceBox';
+import { DataSource } from '@/types/data-integration';
+import FileInfoModal from '@/components/data-sources/FileInfoModal';
+
+const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradientClass: string; onClick: () => void } }) => (
+  <DataSourceBox 
+    dataSource={data.dataSource} 
+    gradientClass={data.gradientClass} 
+    onClick={data.onClick} 
+  />
+);
 
 // Wrapper component to adapt ReactFlow node props to Dataset component props
 const DatasetNodeWrapper = ({ data }: { data: { label: string; id: string; onClick: () => void } }) => (
@@ -32,6 +44,7 @@ const DatasetNodeWrapper = ({ data }: { data: { label: string; id: string; onCli
 const nodeTypes = {
   dataset: DatasetNodeWrapper,
   analysis: AnalysisNode,
+  dataSource: DataSourceNodeWrapper,
 };
 
 const edgeTypes: EdgeTypes = {
@@ -44,22 +57,39 @@ interface ProjectViewProps {
 
 const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   const { selectedProject, frontendNodes, updatePosition } = useProject(projectId);
+  const { dataSources } = useDataSources();
   const { datasets } = useDatasets();
   const { analysisJobResults } = useAnalysis();
-  const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
+  // const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
+  const [selectedDataSource, setSelectedDataSource] = useState<DataSource | null>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
-  console.log("frontendNodes", frontendNodes);
-
   // Memoize nodes
   const memoizedNodes = useMemo(() => {
-    if (!selectedProject || !datasets?.timeSeries || !analysisJobResults?.analysesJobResults) {
+    if (!selectedProject || !datasets || !analysisJobResults?.analysesJobResults || !dataSources) {
       return [];
     }
+
+    const dataSourceNodes = frontendNodes.map((frontendNode: FrontendNode) => {
+      const dataSource = dataSources.filter(d => selectedProject.dataSourceIds.includes(d.id)).find(d => d.id === frontendNode.dataSourceId);
+      if (!dataSource) return null;
+      return {
+        id: frontendNode.id,
+        type: 'dataSource',
+        position: { x: frontendNode.xPosition, y: frontendNode.yPosition },
+        data: {
+          label: dataSource.name,
+          id: frontendNode.dataSourceId,
+          dataSource: dataSource,
+          onClick: () => setSelectedDataSource(dataSource)
+        },
+      } as Node;
+    });
+
     const datasetNodes = frontendNodes.map((frontendNode: FrontendNode) => {
-      const dataset = datasets.timeSeries.filter(d => selectedProject.datasetIds.includes(d.id)).find(d => d.id === frontendNode.datasetId);
+      const dataset = datasets.filter(d => selectedProject.datasetIds.includes(d.id)).find(d => d.id === frontendNode.datasetId);
       if (!dataset) return null;
       return {
         id: frontendNode.id,
@@ -71,6 +101,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         },
       } as Node;
     });
+
     const analysisNodes = frontendNodes.map((frontendNode: FrontendNode) => {
       const analysis = analysisJobResults.analysesJobResults.filter(a => selectedProject.analysisIds.includes(a.jobId)).find(a => a.jobId === frontendNode.analysisId);
       if (!analysis) return null;
@@ -81,14 +112,14 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         data: {
           label: analysis.name,
           id: frontendNode.analysisId,
-          onClick: () => setSelectedAnalysis(frontendNode.analysisId)
+          // onClick: () => setSelectedAnalysis(frontendNode.analysisId)
         },
       } as Node;
     });
-    return [...datasetNodes.filter(Boolean), ...analysisNodes.filter(Boolean)] as Node[];
-  }, [selectedProject, datasets, analysisJobResults, frontendNodes]);
 
-  console.log("memoizedNodes", memoizedNodes);
+    return [...datasetNodes.filter(Boolean), ...analysisNodes.filter(Boolean), ...dataSourceNodes.filter(Boolean)] as Node[];
+
+  }, [selectedProject, datasets, analysisJobResults, frontendNodes, dataSources]);
 
   // Memoize edges
   const memoizedEdges = useMemo(() => {
@@ -147,29 +178,27 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   }, [frontendNodes, updatePosition]);
 
 
-  const renderModal = () => {
+  // const renderModal = () => {
 
-    // Dataset modal is opened inside the Dataset component
+  //   // Dataset modal is opened inside the Dataset component
 
-    if (selectedAnalysis) {
-      const analysis = analysisJobResults?.analysesJobResults.find(a => a.jobId === selectedAnalysis);
-      if (!analysis) return null;
+  //   if (selectedAnalysis) {
+  //     const analysis = analysisJobResults?.analysesJobResults.find(a => a.jobId === selectedAnalysis);
+  //     if (!analysis) return null;
 
-      return (
-        <AnalysisItem
-          analysis={analysis}
-          isSelected={false}
-          onClick={() => {}}
-          isModal={true}
-          onClose={() => setSelectedAnalysis(null)}
-        />
-      );
-    }
+  //     return (
+  //       <AnalysisItem
+  //         analysis={analysis}
+  //         isSelected={false}
+  //         onClick={() => {}}
+  //         isModal={true}
+  //         onClose={() => setSelectedAnalysis(null)}
+  //       />
+  //     );
+  //   }
 
-    return null;
-  };
-
-  console.log("nodes", nodes);
+  //   return null;
+  // };
 
   return (
     <div className="w-full h-screen">
@@ -194,7 +223,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           maskColor="rgba(0, 0, 0, 0.1)"
         /> */}
       </ReactFlow>
-      {renderModal()}
+      {/* {renderModal()} */}
+      {selectedDataSource && <FileInfoModal dataSource={selectedDataSource} setSelectedDataSource={setSelectedDataSource} />}
     </div>
   );
 };

@@ -1,9 +1,9 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
-import DatasetsContainer from "@/app/datasets/container";
+import SourcesContainer from "@/app/data-sources/page-content";
 
-export default async function DatasetsPage() {
+export default async function SourcesPage() {
   const session = await getServerSession(authOptions);
 
   if (!session) {
@@ -11,6 +11,6 @@ export default async function DatasetsPage() {
   }
 
   return (
-    <DatasetsContainer session={session} />
+    <SourcesContainer session={session} />
   );
 } 

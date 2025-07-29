@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { SupportedSource } from "@/types/data-integration";
-import AddDataSourceModal from "./AddDataSourceModal";
-import { sourceTypes } from './sourceTypes';
+import AddDataSourceModal from "@/app/data-sources/_components/AddDataSourceModal";
+import { getSourceTypeIcon, sourceTypes } from '@/lib/data-sources/sourceTypes';
 
 
 // Add Data Source Modal
-export default function AddDataSource() {
+export default function AddDataSourceMenu() {
   const [selectedSourceType, setSelectedSourceType] = useState<SupportedSource | null>(null);   
 
 
@@ -39,7 +39,7 @@ export default function AddDataSource() {
                         }`}
                         title={sourceTypes[sourceType].available ? `${sourceType} coming soon` : `${sourceType} coming soon`}
                     >
-                            {sourceTypes[sourceType].icon}
+                            {getSourceTypeIcon(sourceType, 32)}
                         <span className="text-sm font-medium mt-3">{sourceType}</span>
                         {!sourceTypes[sourceType].available && (
                         <span className="absolute bottom-2 right-2 text-[10px] bg-zinc-700 text-zinc-400 px-1.5 py-0.5 rounded">Coming Soon</span>

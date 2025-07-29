@@ -53,8 +53,6 @@ export default function ModelsPageContent() {
 
   const creationJobs: Job[] = useMemo(() => {
     // all jobs in the model jobs that are the only ones running (integrationJobs have len = 1), and the jobs in integrationJobs that do not belong to any model
-    console.log(models);
-    console.log(integrationJobs);
     const modelJobs = (models?.filter(
       model => model.integrationJobs.length === 1 && model.integrationJobs[0].status !== 'completed') || []).map(model => model.integrationJobs[0]);
     const notInModelJobs = integrationJobs?.filter(job => !modelJobs.some(modelJob => modelJob.id === job.id)) || [];

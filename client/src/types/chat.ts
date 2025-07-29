@@ -1,36 +1,48 @@
+import { UUID } from "crypto";
 
 export type ChatMessage = {
+    id: UUID;
     role: "user" | "agent";
     type: "tool_call" | "result" | "error" | "chat";
-    jobId: string | null;
-    conversationId: string;
+    jobId: UUID | null;
+    conversationId: UUID;
     content: string;
     context: Context | null;
     createdAt: string;
 }
 
 export type Conversation = {
-    id: string;
+    id: UUID;
     name: string;
-    projectId: string;
+    projectId: UUID;
+    createdAt: string;
+    mode: "chat" | "data_integration" | "analysis" | "automation";
+}
+
+export type ConversationWithMessages = {
+    id: UUID;
+    name: string;
+    projectId: UUID;
     messages: ChatMessage[];
+    mode: "chat" | "data_integration" | "analysis" | "automation";
     createdAt: string;
 }
 
 export type ConversationCreate = {
-    projectId: string;
+    projectId: UUID;
     content: string;
 }
 
 export type Context = {
-    projectId: string;
-    datasetIds: string[];
-    automationIds: string[];
-    analysisIds: string[];
+    dataSourceIds: UUID[];
+    datasetIds: UUID[];
+    automationIds: UUID[];
+    analysisIds: UUID[];
 }
 
 export type Prompt = {
-    conversationId: string;
+    messageId: UUID;
+    conversationId: UUID;
     context: Context | null;
     content: string;
 }

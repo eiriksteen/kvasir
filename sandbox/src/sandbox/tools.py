@@ -4,7 +4,7 @@ from io import BytesIO
 from .secrets import API_URL
 
 
-def submit_dataset_to_api(dataset_dict: dict) -> dict:
+def submit_dataset_to_api(dataset_dict: dict, api_key: str) -> dict:
     """
     Submit a dataset dictionary to the API to create a final dataset.
 
@@ -15,6 +15,7 @@ def submit_dataset_to_api(dataset_dict: dict) -> dict:
         dict: Response from the API
     """
     url = f"{API_URL}/ontology/dataset"
+    headers = {"X-API-Key": api_key}
 
     # Prepare metadata
     metadata = {
@@ -105,7 +106,8 @@ def submit_dataset_to_api(dataset_dict: dict) -> dict:
             url,
             files=files,
             data={"metadata": json.dumps(metadata)},
-            timeout=60
+            timeout=60,
+            headers=headers
         )
 
         if response.status_code != 200:

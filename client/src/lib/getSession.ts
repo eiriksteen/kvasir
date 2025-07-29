@@ -8,7 +8,7 @@ export async function getSession() : Promise<Session | null> {
     const session = await getServerSession(authOptions);
 
     if (session?.error === "RefreshAccessTokenError") {
-        console.log("Error refreshing access token:", session.error);
+        console.error("Error refreshing access token:", session.error);
         return null;
     }
     else if (session?.error) {

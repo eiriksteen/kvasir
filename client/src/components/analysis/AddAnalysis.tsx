@@ -53,8 +53,6 @@ export default function AddAnalysis({ projectId, isOpen, onClose }: AddAnalysisP
 
   const handleSubmit = () => {
     // TODO: Implement analysis submission
-    console.log('Requirements:', requirements);
-    console.log('Selected datasets:', selectedDatasets);
   };
 
   if (!isOpen) return null;

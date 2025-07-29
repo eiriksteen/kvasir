@@ -1,22 +1,19 @@
 import json
 import uuid
-import pandas as pd
 from typing import List
 from pathlib import Path
 from dataclasses import dataclass
 from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.settings import ModelSettings
-from synesis_api.agents.data_integration.dataset_agent.prompt import DATASET_INTEGRATION_SYSTEM_PROMPT
+from synesis_api.agents.data_integration.data_integration_agent.prompt import DATASET_INTEGRATION_SYSTEM_PROMPT
 from synesis_api.agents.data_integration.shared_tools import (
     execute_python_code,
     get_csv_contents,
     get_json_contents,
     get_excel_contents
 )
-from synesis_api.agents.data_integration.dataset_agent.utils import list_directory_contents, resolve_path_from_directory_name
 from synesis_api.utils import (
     copy_file_or_directory_to_container,
-    get_basic_df_info,
     get_model,
     run_python_function_in_container
 )
@@ -25,30 +22,29 @@ from synesis_api.base_schema import BaseSchema
 
 
 @dataclass
-class DatasetAgentDeps:
-    job_id: uuid.UUID
-    data_description: str
-    data_directories: List[Path]
+class DataIntegrationAgentDeps:
+    data_source_descriptions: List[str]
+    file_paths: List[Path]
     api_key: str
+    # No target data description as this will be provided in the user prompt
 
 
-class DatasetAgentOutput(BaseSchema):
-    data_directories: List[Path]
+class DataIntegrationAgentOutput(BaseSchema):
     summary: str
     code_explanation: str
     code: str
 
 
-class DatasetAgentOutputWithDatasetId(DatasetAgentOutput):
+class DataIntegrationAgentOutputWithDatasetId(DataIntegrationAgentOutput):
     dataset_id: uuid.UUID
 
 
 model = get_model()
 
 
-dataset_integration_agent = Agent(
+data_integration_agent = Agent(
     model,
-    output_type=DatasetAgentOutput,
+    output_type=DataIntegrationAgentOutput,
     model_settings=ModelSettings(temperature=0),
     tools=[
         execute_python_code,
@@ -62,31 +58,32 @@ dataset_integration_agent = Agent(
 )
 
 
-@dataset_integration_agent.system_prompt
-async def get_system_prompt(ctx: RunContext[DatasetAgentDeps]) -> str:
+@data_integration_agent.system_prompt
+async def get_system_prompt(ctx: RunContext[DataIntegrationAgentDeps]) -> str:
 
-    for data_directory in ctx.deps.data_directories:
-        _, err = await copy_file_or_directory_to_container(data_directory, target_dir="/tmp")
+    for file_path in ctx.deps.file_paths:
+        _, err = await copy_file_or_directory_to_container(file_path, container_save_path=Path("/tmp") / file_path.name)
 
     if err:
         raise ValueError(f"Error copying file to container: {err}")
 
     sys_prompt = (
         f"{DATASET_INTEGRATION_SYSTEM_PROMPT}\n\n"
-        f"The data description is: {ctx.deps.data_description}"
-        "Content of the directories to integrate from:\n\n"
+        f"The data sources are:\n\n"
         "\n\n".join(
-            [f"Directory name: {data_directory.name}\nContents: {list_directory_contents(data_directory)}" for data_directory in ctx.deps.data_directories])
+            [f"Filename: {file_path.name}\nData description: {data_description}"
+             for file_path, data_description in zip(ctx.deps.file_paths, ctx.deps.data_source_descriptions)]) + "\n\n"
+        f"The target data description is: {ctx.deps.target_data_description}"
     )
 
     return sys_prompt
 
 
-@dataset_integration_agent.output_validator
+@data_integration_agent.output_validator
 async def validate_data_integration(
-        _: RunContext[DatasetAgentDeps],
-        result: DatasetAgentOutput
-) -> DatasetAgentOutputWithDatasetId:
+        ctx: RunContext[DataIntegrationAgentDeps],
+        result: DataIntegrationAgentOutput
+) -> DataIntegrationAgentOutputWithDatasetId:
     """
     Submit the restructured data to the database.
 
@@ -98,7 +95,7 @@ async def validate_data_integration(
     out, err = await run_python_function_in_container(
         base_script=result.code,
         function_name="submit_dataset_to_api",
-        input_variables=["dataset_dict"],
+        input_variables=["dataset_dict", f"'{ctx.deps.api_key}'"],
         source_module="sandbox.tools",
         print_output=True
     )
@@ -108,7 +105,7 @@ async def validate_data_integration(
 
     output_obj = json.loads(out)
 
-    return DatasetAgentOutputWithDatasetId(
+    return DataIntegrationAgentOutputWithDatasetId(
         **result.model_dump(),
         dataset_id=output_obj["id"]
     )

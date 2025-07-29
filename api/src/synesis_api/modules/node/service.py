@@ -2,7 +2,7 @@ from typing import List, Optional
 from uuid import UUID, uuid4
 from sqlalchemy import select, insert, update, delete
 from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_api.modules.node.models import node, dataset_node, analysis_node, automation_node
+from synesis_api.modules.node.models import node, data_source_node, dataset_node, analysis_node, automation_node
 from synesis_api.modules.node.schema import FrontendNode, FrontendNodeCreate
 
 
@@ -21,7 +21,12 @@ async def create_node(frontend_node: FrontendNodeCreate) -> FrontendNode:
     await execute(node_query, commit_after=True)
 
     # Then create the specific node type
-    if frontend_node.type == "dataset":
+    if frontend_node.type == "data_source":
+        specific_node_query = insert(data_source_node).values(
+            id=id,
+            data_source_id=frontend_node.data_source_id
+        )
+    elif frontend_node.type == "dataset":
         specific_node_query = insert(dataset_node).values(
             id=id,
             dataset_id=frontend_node.dataset_id
@@ -46,6 +51,7 @@ async def create_node(frontend_node: FrontendNodeCreate) -> FrontendNode:
         x_position=frontend_node.x_position,
         y_position=frontend_node.y_position,
         type=frontend_node.type,
+        data_source_id=frontend_node.data_source_id,
         dataset_id=frontend_node.dataset_id,
         analysis_id=frontend_node.analysis_id,
         automation_id=frontend_node.automation_id
@@ -58,6 +64,23 @@ async def get_node(node_id: UUID) -> Optional[FrontendNode]:
 
     if not node_row:
         return None
+
+    # Check if it's a data source node
+    data_source_query = select(data_source_node).where(
+        data_source_node.c.id == node_id)
+    data_source_row = await fetch_one(data_source_query)
+    if data_source_row:
+        return FrontendNode(
+            id=node_row["id"],
+            project_id=node_row["project_id"],
+            x_position=node_row["x_position"],
+            y_position=node_row["y_position"],
+            type="data_source",
+            data_source_id=data_source_row["data_source_id"],
+            dataset_id=None,
+            analysis_id=None,
+            automation_id=None
+        )
 
     # Check if it's a dataset node
     dataset_query = select(dataset_node).where(dataset_node.c.id == node_id)
@@ -116,6 +139,23 @@ async def get_project_nodes(project_id: UUID) -> List[FrontendNode]:
     result = []
     for node_row in nodes:
         # Check each node type
+        data_source_query = select(data_source_node).where(
+            data_source_node.c.id == node_row["id"])
+        data_source_row = await fetch_one(data_source_query)
+        if data_source_row:
+            result.append(FrontendNode(
+                id=node_row["id"],
+                project_id=node_row["project_id"],
+                x_position=node_row["x_position"],
+                y_position=node_row["y_position"],
+                type="data_source",
+                data_source_id=data_source_row["data_source_id"],
+                dataset_id=None,
+                analysis_id=None,
+                automation_id=None
+            ))
+            continue
+
         dataset_query = select(dataset_node).where(
             dataset_node.c.id == node_row["id"])
         dataset_row = await fetch_one(dataset_query)
@@ -182,6 +222,10 @@ async def update_node_position(frontend_node: FrontendNode) -> Optional[Frontend
 
 async def delete_node(node_id: UUID) -> bool:
     # Delete from the specific node type table first
+    data_source_query = delete(data_source_node).where(
+        data_source_node.c.id == node_id)
+    await execute(data_source_query, commit_after=True)
+
     dataset_query = delete(dataset_node).where(dataset_node.c.id == node_id)
     await execute(dataset_query, commit_after=True)
 

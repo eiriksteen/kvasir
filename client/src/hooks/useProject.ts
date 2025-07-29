@@ -140,7 +140,7 @@ export const useProject = (projectId: string) => {
       return { x: -300, y: 0 };
     }
 
-    const datasetNodes = frontendNodes.filter(node => node.type === "dataset");
+    const datasetNodes = frontendNodes.filter(node => node.type === "data_source");
 
     if (datasetNodes.length === 0) {
       return { x: -300, y: 0 };
@@ -155,7 +155,7 @@ export const useProject = (projectId: string) => {
     return { x: baseX, y: highestY + verticalSpacing };
   }, [frontendNodes]);
 
-  const addDatasetToProject = async (jobId: string) => {
+  const addDataSourceToProject = async (sourceId: string) => {
     if (!selectedProject) return;
 
     const position = calculateDatasetPosition();
@@ -165,33 +165,34 @@ export const useProject = (projectId: string) => {
       projectId: selectedProject.id,
       xPosition: position.x,
       yPosition: position.y,
-      type: "dataset",
-      datasetId: jobId,
+      type: "data_source",
+      dataSourceId: sourceId,
+      datasetId: null,
       analysisId: null,
       automationId: null,
     });
 
     // Then update the project to include the dataset
     await updateProjectAndNode({
-      type: "dataset",
-      id: jobId,
+      type: "data_source",
+      id: sourceId,
       remove: false,
     });
   };
 
   // Remove dataset from project and delete corresponding node
-  const removeDatasetFromProject = async (jobId: string) => {
+  const removeDataSourceFromProject = async (sourceId: string) => {
     if (!selectedProject) return;
 
     // First update the project to remove the dataset
     await updateProjectAndNode({
-      type: "dataset",
-      id: jobId,
+      type: "data_source",
+      id: sourceId,
       remove: true,
     });
 
     // Then find and delete the corresponding node
-    const nodeToDelete = frontendNodes?.find(node => node.datasetId === jobId);
+    const nodeToDelete = frontendNodes?.find(node => node.dataSourceId === sourceId);
     if (nodeToDelete) {
       await deleteNodeTrigger(nodeToDelete.id);
     }
@@ -207,8 +208,8 @@ export const useProject = (projectId: string) => {
     updatePosition,
     createFrontendNode,
     deleteNodeTrigger,
-    addDatasetToProject,
-    removeDatasetFromProject,
+    addDataSourceToProject,
+    removeDataSourceFromProject,
     calculateDatasetPosition,
   };
 };

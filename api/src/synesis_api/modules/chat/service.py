@@ -1,19 +1,20 @@
 import uuid
 from datetime import datetime, timezone
 from typing import Literal, Optional
-from sqlalchemy import select
+from sqlalchemy import select, func
 from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
 from synesis_api.modules.chat.schema import (
     ChatMessage,
-    PydanticMessage,
-    Conversation,
+    PydanticMessageInDB,
+    ConversationWithMessages,
     Context,
     ContextInDB,
     DatasetContextInDB,
     AutomationContextInDB,
     AnalysisContextInDB,
     ConversationInDB,
-    ConversationModeInDB)
+    ConversationModeInDB,
+    Conversation)
 from synesis_api.modules.chat.models import (
     chat_message,
     pydantic_message,
@@ -34,51 +35,171 @@ async def create_conversation(conversation_id: uuid.UUID, project_id: uuid.UUID,
         name=name,
     )
     await execute(conversation.insert().values(conversation_record.model_dump()), commit_after=True)
+
+    await enter_conversation_mode(conversation_id, "chat")
+
     return conversation_record
 
 
 async def get_conversations(user_id: uuid.UUID) -> list[Conversation]:
-    user_conversations = await fetch_all(
-        select(conversation).where(
-            conversation.c.user_id == user_id)
+    # Use a subquery to get the latest mode for each conversation
+    latest_modes = (
+        select(
+            conversation_mode.c.conversation_id,
+            conversation_mode.c.mode,
+            func.row_number().over(
+                partition_by=conversation_mode.c.conversation_id,
+                order_by=conversation_mode.c.created_at.desc()
+            ).label('rn')
+        )
+        .subquery()
     )
 
-    conversation_list = []
-    for conversation_data in user_conversations:
-        # Get messages for this conversation
-        messages = await get_messages(conversation_data["id"])
+    # Join conversations with their latest modes
+    query = (
+        select(conversation, latest_modes.c.mode)
+        .outerjoin(latest_modes, conversation.c.id == latest_modes.c.conversation_id)
+        .where(
+            conversation.c.user_id == user_id,
+            (latest_modes.c.rn == 1) | (latest_modes.c.rn.is_(None))
+        )
+    )
 
-        # Create Conversation object with messages
+    results = await fetch_all(query)
+
+    conversation_list = []
+    for result in results:
+        conversation_data = {k: v for k,
+                             v in result.items() if k in conversation.columns}
+        mode = result.get('mode', 'chat')  # Default to 'chat' if no mode found
+
         conversation_record = Conversation(
             **conversation_data,
-            messages=messages
+            mode=mode
         )
         conversation_list.append(conversation_record)
 
     return conversation_list
 
 
-async def get_messages(conversation_id: uuid.UUID) -> list[ChatMessage]:
-    messages = await fetch_all(
-        select(chat_message).where(
-            chat_message.c.conversation_id == conversation_id)
+async def get_conversation(conversation_id: uuid.UUID) -> ConversationWithMessages:
+    """Get a single conversation with its messages"""
+    # Get conversation with latest mode
+    latest_mode = (
+        select(
+            conversation_mode.c.mode,
+            conversation_mode.c.conversation_id,
+            func.row_number().over(
+                partition_by=conversation_mode.c.conversation_id,
+                order_by=conversation_mode.c.created_at.desc()
+            ).label('rn')
+        )
+        .where(conversation_mode.c.conversation_id == conversation_id)
+        .subquery()
     )
 
+    query = (
+        select(conversation, latest_mode.c.mode)
+        .outerjoin(latest_mode, conversation.c.id == latest_mode.c.conversation_id)
+        .where(
+            conversation.c.id == conversation_id,
+            (latest_mode.c.rn == 1) | (latest_mode.c.rn.is_(None))
+        )
+    )
+
+    result = await fetch_one(query)
+
+    if not result:
+        return None
+
+    conversation_data = {k: v for k,
+                         v in result.items() if k in conversation.columns}
+    mode = result.get('mode', 'chat')
+
+    # Get messages for this conversation
+    messages = await get_messages(conversation_id)
+
+    # Create ConversationWithMessages object
+    conversation_record = ConversationWithMessages(
+        **conversation_data,
+        messages=messages,
+        mode=mode
+    )
+
+    return conversation_record
+
+
+async def get_messages(conversation_id: uuid.UUID) -> list[ChatMessage]:
+    # Get all messages with their contexts in a single query
+    query = (
+        select(
+            chat_message,
+            context.c.id.label('ctx_id'),
+        )
+        .outerjoin(context, chat_message.c.context_id == context.c.id)
+        .where(chat_message.c.conversation_id == conversation_id)
+        .order_by(chat_message.c.created_at)
+    )
+
+    messages_with_contexts = await fetch_all(query)
+
+    # Get all context IDs to fetch related data in bulk
+    context_ids = {msg['ctx_id']
+                   for msg in messages_with_contexts if msg['ctx_id'] is not None}
+
+    # Fetch all related context data in bulk
+    context_data = {}
+    if context_ids:
+        # Get dataset contexts
+        dataset_contexts = await fetch_all(
+            select(dataset_context).where(
+                dataset_context.c.context_id.in_(context_ids))
+        )
+
+        # Get automation contexts
+        automation_contexts = await fetch_all(
+            select(automation_context).where(
+                automation_context.c.context_id.in_(context_ids))
+        )
+
+        # Get analysis contexts
+        analysis_contexts = await fetch_all(
+            select(analysis_context).where(
+                analysis_context.c.context_id.in_(context_ids))
+        )
+
+        # Group by context_id
+        for ctx_id in context_ids:
+            dataset_ids = [dc['dataset_id']
+                           for dc in dataset_contexts if dc['context_id'] == ctx_id]
+            automation_ids = [ac['automation_id']
+                              for ac in automation_contexts if ac['context_id'] == ctx_id]
+            analysis_ids = [ac['analysis_id']
+                            for ac in analysis_contexts if ac['context_id'] == ctx_id]
+
+            context_data[ctx_id] = Context(
+                id=ctx_id,
+                dataset_ids=dataset_ids,
+                automation_ids=automation_ids,
+                analysis_ids=analysis_ids
+            )
+
     chat_messages = []
-    for message_data in messages:
+    for message_data in messages_with_contexts:
         # Get the context data if context_id exists
-        context_obj = None
-        if message_data["context_id"]:
-            context_obj = await get_context_by_id(message_data["context_id"])
+        context_obj = context_data.get(
+            message_data['ctx_id']) if message_data['ctx_id'] else None
 
         # Create ChatMessage with full context
         chat_message_obj = ChatMessage(
-            id=message_data["id"],
-            conversation_id=message_data["conversation_id"],
-            role=message_data["role"],
-            content=message_data["content"],
+            id=message_data['id'],
+            conversation_id=message_data['conversation_id'],
+            role=message_data['role'],
+            type=message_data['type'],
+            job_id=message_data['job_id'],
+            content=message_data['content'],
             context=context_obj,
-            created_at=message_data["created_at"]
+            created_at=message_data['created_at']
         )
         chat_messages.append(chat_message_obj)
 
@@ -119,7 +240,6 @@ async def get_context_by_id(context_id: uuid.UUID) -> Context | None:
     # Construct the full Context object
     return Context(
         id=context_data["id"],
-        project_id=context_data["project_id"],
         dataset_ids=dataset_ids,
         automation_ids=automation_ids,
         analysis_ids=analysis_ids
@@ -145,9 +265,13 @@ async def create_message(
         content: str,
         type: Literal["tool_call", "result", "error", "chat"],
         job_id: Optional[uuid.UUID] = None,
-        context_id: Optional[uuid.UUID] = None) -> ChatMessage:
+        context_id: Optional[uuid.UUID] = None,
+        message_id: Optional[uuid.UUID] = None,
+) -> ChatMessage:
     # Create the message in database using ChatMessageInDB structure
-    message_id = uuid.uuid4()
+    if message_id is None:
+        message_id = uuid.uuid4()
+
     message_data = {
         "id": message_id,
         "conversation_id": conversation_id,
@@ -171,14 +295,16 @@ async def create_message(
         id=message_id,
         conversation_id=conversation_id,
         role=role,
+        type=type,
+        job_id=job_id,
         content=content,
         context=context_obj,
         created_at=message_data["created_at"]
     )
 
 
-async def create_messages_pydantic(conversation_id: uuid.UUID, messages: bytes) -> PydanticMessage:
-    message = PydanticMessage(
+async def create_messages_pydantic(conversation_id: uuid.UUID, messages: bytes) -> PydanticMessageInDB:
+    message = PydanticMessageInDB(
         id=uuid.uuid4(),
         conversation_id=conversation_id,
         message_list=messages,
@@ -195,7 +321,6 @@ async def create_context(
 
     context_record = ContextInDB(
         id=context_id,
-        project_id=context_data.project_id
     )
 
     dataset_context_records = [
@@ -245,7 +370,6 @@ async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
 
     context_message = f"""
         <CONTEXT UPDATES>
-        Current project in context: {context.project_id}
         Current datasets in context: {datasets}
         Current automations in context: {automations}
         Current analyses in context: {analyses}
@@ -270,10 +394,18 @@ async def enter_conversation_mode(conversation_id: uuid.UUID, mode: Literal["cha
 
 
 async def get_current_conversation_mode(conversation_id: uuid.UUID) -> ConversationModeInDB:
-
+    """Get the current mode for a conversation (most recent mode)"""
     conversation_mode_record = await fetch_one(
         select(conversation_mode).where(
-            conversation_mode.c.conversation_id == conversation_id).order_by(
-                conversation_mode.c.created_at.desc())
+            conversation_mode.c.conversation_id == conversation_id
+        ).order_by(conversation_mode.c.created_at.desc())
     )
+
+    conversation_mode_record = ConversationModeInDB(
+        id=conversation_mode_record["id"],
+        conversation_id=conversation_mode_record["conversation_id"],
+        mode=conversation_mode_record["mode"],
+        created_at=conversation_mode_record["created_at"]
+    )
+
     return conversation_mode_record

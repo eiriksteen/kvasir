@@ -169,13 +169,13 @@ async def run_shell_code_in_container(
 
 async def copy_file_or_directory_to_container(
         path: Path,
-        target_dir: str = "/tmp",
+        container_save_path: Path,
         container_name: str = "synesis-sandbox"):
     """
     Copy a file or directory to the container.
     """
     cmd = [
-        "docker", "cp", path, f"{container_name}:{target_dir}/{path.name}"
+        "docker", "cp", path, f"{container_name}:{container_save_path.as_posix()}"
     ]
 
     process = await asyncio.create_subprocess_exec(

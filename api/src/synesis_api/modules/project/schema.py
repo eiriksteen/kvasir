@@ -11,6 +11,7 @@ class Project(BaseSchema):
     description: str
     created_at: datetime = datetime.now(timezone.utc)
     updated_at: datetime = datetime.now(timezone.utc)
+    data_source_ids: List[UUID] = []
     dataset_ids: List[UUID] = []
     analysis_ids: List[UUID] = []
     automation_ids: List[UUID] = []
@@ -24,6 +25,9 @@ class ProjectCreate(BaseSchema):
 class ProjectUpdate(BaseSchema):
     name: str | None = None
     description: str | None = None
-    type: Literal["dataset", "analysis", "automation"] | None = None
+    type: Literal["data_source",
+                  "dataset",
+                  "analysis",
+                  "automation"] | None = None
     id: UUID | None = None
     remove: bool | None = None

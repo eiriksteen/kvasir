@@ -1,24 +1,8 @@
 import { DataSource } from "@/types/data-integration";
-import SourceTypeIcon from "./SourceTypeIcon";
-import FileInfoModal from "./FileInfoModal";
+import FileInfoModal from "@/components/data-sources/FileInfoModal";
 import { useState } from "react";
+import DataSourceListItem from "@/components/data-sources/DataSourceListItem";
 
-function DataSourceItem({ dataSource, isFirst }: { dataSource: DataSource; isFirst: boolean }) {
-
-  return (
-    <div className={`group flex items-center gap-2 p-2 bg-gray-900/50 border-b border-gray-800 hover:bg-gray-800/50 transition-all duration-200 cursor-pointer ${isFirst ? 'border-t' : ''}`}>
-      <SourceTypeIcon type={dataSource.type} />
-      <div className="flex items-center gap-3 min-w-0">
-        <h3 className="text-sm font-medium text-gray-200 truncate">
-          {dataSource.name}
-        </h3>
-        <span className="text-xs font-mono text-gray-500 bg-gray-800 px-2 py-1 rounded flex-shrink-0">
-          {dataSource.type}
-        </span>
-      </div>
-    </div>
-  );
-}
 
 export default function DataSourceList({ dataSources, isLoading, error }: { dataSources: DataSource[], isLoading: boolean, error: Error | null }) {
   const [selectedDataSource, setSelectedDataSource] = useState<DataSource | null>(null);
@@ -35,7 +19,7 @@ export default function DataSourceList({ dataSources, isLoading, error }: { data
             <div className="grid gap-0 max-h-[70vh] overflow-y-auto">
             {dataSources.map((dataSource, index) => (
                 <div key={dataSource.id} onClick={() => setSelectedDataSource(dataSource)}>
-                    <DataSourceItem dataSource={dataSource} isFirst={index === 0} />
+                    <DataSourceListItem dataSource={dataSource} isFirst={index === 0} />
                 </div>
             ))}
             </div>

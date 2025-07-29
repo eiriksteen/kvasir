@@ -2,7 +2,7 @@ from typing import List
 from uuid import UUID
 from sqlalchemy import select, delete, insert, update
 from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_automation
+from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_automation, project_data_source
 from synesis_api.modules.project.schema import Project, ProjectCreate, ProjectUpdate
 
 
@@ -34,6 +34,8 @@ async def get_project(project_id: UUID) -> Project | None:
         return None
 
     # Get related IDs
+    data_source_query = select(project_data_source.c.data_source_id).where(
+        project_data_source.c.project_id == project_id)
     dataset_query = select(project_dataset.c.dataset_id).where(
         project_dataset.c.project_id == project_id)
     analysis_query = select(project_analysis.c.analysis_id).where(
@@ -41,6 +43,7 @@ async def get_project(project_id: UUID) -> Project | None:
     automation_query = select(project_automation.c.automation_id).where(
         project_automation.c.project_id == project_id)
 
+    data_source_result = await fetch_all(data_source_query)
     dataset_result = await fetch_all(dataset_query)
     analysis_result = await fetch_all(analysis_query)
     automation_result = await fetch_all(automation_query)
@@ -52,6 +55,7 @@ async def get_project(project_id: UUID) -> Project | None:
         description=project_row["description"],
         created_at=project_row["created_at"],
         updated_at=project_row["updated_at"],
+        data_source_ids=[row["data_source_id"] for row in data_source_result],
         dataset_ids=[row["dataset_id"] for row in dataset_result],
         analysis_ids=[row["analysis_id"] for row in analysis_result],
         automation_ids=[row["automation_id"] for row in automation_result]
@@ -73,7 +77,24 @@ async def update_project(project_id: UUID, project_data: ProjectUpdate) -> Proje
 
     # Update related ID if provided
     if project_data.type is not None and project_data.id is not None:
-        if project_data.type == "dataset":
+        if project_data.type == "data_source":
+            if project_data.remove:
+                await execute(
+                    delete(project_data_source).where(
+                        project_data_source.c.project_id == project_id,
+                        project_data_source.c.data_source_id == project_data.id
+                    ),
+                    commit_after=True
+                )
+            else:
+                await execute(
+                    insert(project_data_source).values(
+                        project_id=project_id,
+                        data_source_id=project_data.id
+                    ),
+                    commit_after=True
+                )
+        elif project_data.type == "dataset":
             if project_data.remove:
                 # Delete existing relationship if it exists
                 await execute(

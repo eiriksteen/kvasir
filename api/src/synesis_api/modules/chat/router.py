@@ -2,10 +2,19 @@ import uuid
 import time
 import json
 import redis
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse, RedirectResponse
 from typing import Annotated, List
-from synesis_api.modules.chat.schema import ChatMessage, Conversation, Prompt, Context, ConversationCreate, ChatMessageInDB
+from synesis_api.modules.chat.schema import (
+    ChatMessage,
+    ConversationWithMessages,
+    UserChatMessageCreate,
+    Context,
+    ConversationCreate,
+    ChatMessageInDB,
+    Conversation
+)
 from synesis_api.modules.chat.service import (
     create_conversation,
     get_messages,
@@ -13,6 +22,7 @@ from synesis_api.modules.chat.service import (
     create_message,
     create_messages_pydantic,
     get_conversations,
+    get_conversation,
     create_context,
     get_context_message,
     get_current_conversation_mode,
@@ -25,7 +35,7 @@ from synesis_api.modules.analysis.service import get_user_analyses_by_ids
 from synesis_api.agents.analysis.agent import analysis_agent
 from synesis_api.agents.analysis.runner import run_analysis_task
 from synesis_api.modules.jobs.service import create_job, get_job
-from synesis_api.agents.data_integration.dataset_agent.runner import run_dataset_integration_task
+from synesis_api.agents.data_integration.data_integration_agent.runner import run_data_integration_task
 from synesis_api.redis import get_redis
 from synesis_api.secrets import SSE_MAX_TIMEOUT
 
@@ -35,7 +45,7 @@ router = APIRouter()
 
 @router.post("/completions")
 async def post_chat(
-    prompt: Prompt,
+    prompt: UserChatMessageCreate,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> StreamingResponse:
 
@@ -43,15 +53,22 @@ async def post_chat(
         raise HTTPException(
             status_code=403, detail="You do not have access to this conversation")
 
+    context_in_db = None
     if prompt.context:
         context_in_db = await create_context(prompt.context)
 
-    await create_message(prompt.conversation_id, "user", prompt.content, "chat", context_in_db.id if context_in_db else None)
+    await create_message(
+        prompt.conversation_id,
+        "user",
+        prompt.content,
+        "chat",
+        context_id=context_in_db.id if context_in_db else None,
+        # Should probably define message_id here in the backend instead, but would need a more complex handshake implementation (which we can do later)
+        message_id=prompt.message_id
+    )
 
     conversation_mode = await get_current_conversation_mode(prompt.conversation_id)
-
     messages = await get_messages_pydantic(prompt.conversation_id)
-    # context_message = await get_context_message(user.id, prompt.context)
 
     if conversation_mode.mode == "chat":
         orchestrator_output = await chatbot_agent.run(
@@ -76,11 +93,11 @@ async def post_chat(
 
             job = await create_job(user.id, "data_integration", job_id=job_id, job_name=dataset_name.output)
 
-            await run_dataset_integration_task.kiq(
+            await run_data_integration_task.kiq(
                 user_id=user.id,
                 conversation_id=prompt.conversation_id,
                 job_id=job.id,
-                data_directory_ids=prompt.context.data_source_ids,
+                data_source_ids=prompt.context.data_source_ids,
                 prompt_content=prompt.content
             )
 
@@ -92,17 +109,31 @@ async def post_chat(
                 if conversation_mode.mode != "chat":
                     await enter_conversation_mode(prompt.conversation_id, "chat")
 
+                message_id = uuid.uuid4()
+
+                message = ChatMessageInDB(
+                    id=message_id,
+                    conversation_id=prompt.conversation_id,
+                    role="agent",
+                    content="",
+                    type="chat",
+                    job_id=None,
+                    context_id=context_in_db.id if context_in_db else None,
+                    created_at=datetime.now(timezone.utc)
+                )
+
                 async with chatbot_agent.run_stream(prompt.content, message_history=messages) as result:
                     prev_text = ""
                     async for text in result.stream(debounce_by=0.01):
                         if text != prev_text:
-                            yield text
+                            message.content = text
+                            yield f"data: {message.model_dump_json()}\n\n"
                             prev_text = text
 
                 new_messages = result.new_messages_json()
 
                 await create_messages_pydantic(prompt.conversation_id, new_messages)
-                await create_message(prompt.conversation_id, "assistant", text, "chat")
+                await create_message(prompt.conversation_id, "agent", message.content, "chat", context_id=message.context_id, message_id=message.id)
 
             return StreamingResponse(stream_chat_response(), media_type="text/event-stream")
 
@@ -112,7 +143,7 @@ async def post_chat(
 
     else:
         raise HTTPException(
-            status_code=501, detail="Interrupting agents is not implemented yet. Please create a new chat conversation to run another agent.")
+            status_code=501, detail="Interrupting agents is not implemented yet (this agent is not in chat mode). Please create a new chat conversation to run another agent.")
 
 
 # Separate the completion route from the response route
@@ -140,6 +171,8 @@ async def get_response(
     elif job.status == "completed":
         return RedirectResponse(url=f"/response/{job_id}")
 
+    # Default timeout of 30 seconds
+    timeout = 30
     timeout = min(timeout, SSE_MAX_TIMEOUT)
 
     async def stream_job_updates():
@@ -168,7 +201,8 @@ async def get_response(
 @router.post("/conversation")
 async def post_user_conversation(conversation_data: ConversationCreate, user: Annotated[User, Depends(get_current_user)] = None) -> Conversation:
     name = await chatbot_agent.run(f"""The user wants to start a new conversation. The user has written this: {conversation_data.content}. 
-                                   What is the name of the conversation? Just give me the name of the conversation, no other text.
+                                   What is the name of the conversation? Just give me the name of the conversation, no other text. 
+                                   NB: Do not output a response to the prompt, that is done elsewhere! Just produce a suitable topic name given the prompt.
                                    """, output_type=str)
     name = name.output.replace('"', '').replace("'", "").strip()
 
@@ -176,37 +210,34 @@ async def post_user_conversation(conversation_data: ConversationCreate, user: An
 
     conversation_in_db = await create_conversation(conversation_id, conversation_data.project_id, user.id, name)
 
-    conversation = Conversation(
+    conversation = ConversationWithMessages(
         **conversation_in_db.model_dump(),
-        messages=[]
+        messages=[],
+        mode="chat"
     )
 
     return conversation
 
 
+# Includes messages
 @router.get("/conversation/{conversation_id}")
 async def get_user_conversation(
         conversation_id: uuid.UUID,
-        user: Annotated[User, Depends(get_current_user)] = None) -> List[ChatMessage]:
+        user: Annotated[User, Depends(get_current_user)] = None) -> ConversationWithMessages:
     if not await user_owns_conversation(user.id, conversation_id):
         raise HTTPException(
             status_code=403, detail="You do not have access to this conversation")
 
-    messages = await get_messages(conversation_id)
-    return messages
+    conversation = await get_conversation(conversation_id)
+    if not conversation:
+        raise HTTPException(
+            status_code=404, detail="Conversation not found")
+
+    return conversation
 
 
+# Excludes messages (to reduce overfetching)
 @router.get("/conversations")
 async def get_user_conversations(user: Annotated[User, Depends(get_current_user)] = None) -> List[Conversation]:
     conversations = await get_conversations(user.id)
     return conversations
-
-
-@router.get("/context/{conversation_id}")
-async def get_context(conversation_id: uuid.UUID, user: Annotated[User, Depends(get_current_user)] = None) -> Context:
-    if not await user_owns_conversation(user.id, conversation_id):
-        raise HTTPException(
-            status_code=403, detail="You do not have access to this conversation")
-
-    context = await get_context(conversation_id, user.id)
-    return context

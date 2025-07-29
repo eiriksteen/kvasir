@@ -5,6 +5,7 @@ export interface Project {
     description: string;
     createdAt: string;
     updatedAt: string;
+    dataSourceIds: string[];
     datasetIds: string[];
     analysisIds: string[];
     automationIds: string[];
@@ -18,7 +19,7 @@ export interface ProjectCreate {
 export interface ProjectUpdate {
     name?: string;
     description?: string;
-    type?: "dataset" | "analysis" | "automation";
+    type?: "data_source" | "dataset" | "analysis" | "automation";
     id?: string;
     remove?: boolean;
 }

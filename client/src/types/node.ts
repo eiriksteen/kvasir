@@ -1,4 +1,4 @@
-export type NodeType = "dataset" | "analysis" | "automation";
+export type NodeType = "data_source" | "dataset" | "analysis" | "automation";
 
 export interface FrontendNode {
   id: string;
@@ -6,6 +6,7 @@ export interface FrontendNode {
   xPosition: number;
   yPosition: number;
   type: NodeType;
+  dataSourceId: string | null;
   datasetId: string | null;
   analysisId: string | null; 
   automationId: string | null;
@@ -16,6 +17,7 @@ export interface FrontendNodeCreate {
   xPosition: number;
   yPosition: number;
   type: NodeType;
+  dataSourceId: string | null;
   datasetId: string | null;
   analysisId: string | null; 
   automationId: string | null;

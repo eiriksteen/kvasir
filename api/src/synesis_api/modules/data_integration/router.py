@@ -14,7 +14,7 @@ from synesis_api.modules.data_integration.schema import (
 from synesis_api.auth.schema import User
 from synesis_api.auth.service import get_current_user, user_owns_job
 from synesis_api.modules.jobs.service import get_job
-from synesis_api.agents.data_integration.data_source_agent.runner import run_data_source_analysis_task
+from synesis_api.agents.data_integration.data_source_analysis_agent.runner import run_data_source_analysis_task
 
 
 data_integration_router = APIRouter()

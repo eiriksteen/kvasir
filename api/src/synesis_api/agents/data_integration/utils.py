@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import List
 
 
 def list_directory_contents(data_directory: Path):
@@ -33,3 +34,18 @@ def resolve_path_from_directory_name(directory_name: str, search_path: Path) -> 
 
     raise ValueError(
         f"Directory name {directory_name} not found in {search_path}")
+
+
+def get_path_from_filename(filename: str, paths: List[Path]) -> Path:
+    """
+    Get the directory from the filename by searching through all directory names in the search_path.
+
+    Args:
+        filename: The name of the filename.
+        dirs: The list of directories to search through.
+    """
+
+    matches = [p for p in paths if filename == p.name]
+    assert len(
+        matches) == 1, f"Multiple or no files found with name {filename} in {paths}"
+    return matches[0]

@@ -192,15 +192,15 @@ async def get_user_from_api_key(api_key: str = Security(api_key_header)) -> User
 
 
 async def user_owns_job(user_id: uuid.UUID, job_id: uuid.UUID) -> bool:
-    job = await fetch_one(Select(job).where(job.c.id == job_id, job.c.user_id == user_id))
-    return job is not None
+    job_record = await fetch_one(Select(job).where(job.c.id == job_id, job.c.user_id == user_id))
+    return job_record is not None
 
 
 async def user_owns_conversation(user_id: uuid.UUID, conversation_id: uuid.UUID) -> bool:
-    conversation = await fetch_one(Select(conversation).where(conversation.c.id == conversation_id, conversation.c.user_id == user_id))
-    return conversation is not None
+    conversation_record = await fetch_one(Select(conversation).where(conversation.c.id == conversation_id, conversation.c.user_id == user_id))
+    return conversation_record is not None
 
 
 async def user_owns_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID) -> bool:
-    dataset = await fetch_one(Select(dataset).where(dataset.c.id == dataset_id, dataset.c.user_id == user_id))
-    return dataset is not None
+    dataset_record = await fetch_one(Select(dataset).where(dataset.c.id == dataset_id, dataset.c.user_id == user_id))
+    return dataset_record is not None

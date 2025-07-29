@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Database, Bot, ChevronDown } from 'lucide-react';
+import { Database, ChevronDown } from 'lucide-react';
 import { useSession } from "next-auth/react";
 import { useProjects, useProject } from '@/hooks';
 import { redirect, useRouter } from 'next/navigation';
@@ -55,7 +55,7 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 					{/* Logo and Project Title on the left */}
 					<div className="flex items-center space-x-4">
 						<Link href="/projects">
-							<div className="relative w-[30px] h-[30px]">
+							<div className="relative w-[25px] h-[25px]">
 								<Image
 									src="/miyaicon.png"
 									alt="Miya logo"
@@ -139,18 +139,11 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 							)}
 						</div>
 						<Link 
-							href="/datasets"
+							href="/data-sources"
 							className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-zinc-400 hover:text-zinc-200"
-							title="Manage Datasets"
+							title="Manage Data Sources"
 						>
 							<Database size={18} />
-						</Link>
-						<Link 
-							href="/models"
-							className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-zinc-400 hover:text-zinc-200"
-							title="Models"
-						>
-							<Bot size={18} />
 						</Link>
 					</div>
 				</div>

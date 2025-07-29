@@ -2,7 +2,7 @@ import uuid
 import pandas as pd
 from pathlib import Path
 from typing import List, Optional
-from synesis_api.agents.data_integration.data_source_agent.agent import data_source_agent, DataSourceAgentDeps, DataSourceAgentOutput
+from synesis_api.agents.data_integration.data_source_analysis_agent.agent import data_source_analysis_agent, DataSourceAnalysisAgentDeps, DataSourceAnalysisAgentOutput
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import FunctionToolCallEvent
@@ -14,7 +14,7 @@ from synesis_api.utils import get_df_info
 class DataSourceAnalysisRunner:
 
     def __init__(self, user_id: str, source_ids: List[uuid.UUID], file_paths: List[Path]):
-        self.data_source_agent = data_source_agent
+        self.data_source_agent = data_source_analysis_agent
         self.user_id = user_id
         self.source_ids = source_ids
         self.logger = logger
@@ -22,9 +22,9 @@ class DataSourceAnalysisRunner:
 
     async def _run_agent(
             self,
-            deps: DataSourceAgentDeps,
+            deps: DataSourceAnalysisAgentDeps,
             user_prompt: Optional[str] = None,
-    ) -> AgentRunResult[DataSourceAgentOutput]:
+    ) -> AgentRunResult[DataSourceAnalysisAgentOutput]:
 
         async with self.data_source_agent.iter(
                 user_prompt=user_prompt,
@@ -53,7 +53,7 @@ class DataSourceAnalysisRunner:
 
         return get_df_info(df)
 
-    async def _save_results(self, result: DataSourceAgentOutput):
+    async def _save_results(self, result: DataSourceAnalysisAgentOutput):
 
         content_previews = [self._create_content_preview(
             file_path) for file_path in self.file_paths]
@@ -79,24 +79,9 @@ class DataSourceAnalysisRunner:
                 feature.scale for feature in data_source.features] for data_source in result.data_sources],
         )
 
-    async def __call__(self) -> DataSourceAgentOutput:
+    async def __call__(self) -> DataSourceAnalysisAgentOutput:
 
-        base_paths = [file_path.parent for file_path in self.file_paths]
-
-        # Assert that all base paths are the same
-        assert len(set(str(base_path) for base_path in base_paths)
-                   ) == 1, "All base paths must be the same (for now)"
-
-        file_names = [file_path.name for file_path in self.file_paths]
-
-        print("@"*20)
-        print(base_paths)
-        print(file_names)
-
-        deps = DataSourceAgentDeps(
-            base_path=base_paths[0],
-            file_names=file_names,
-        )
+        deps = DataSourceAnalysisAgentDeps(file_paths=self.file_paths)
 
         result = await self._run_agent(deps)
 

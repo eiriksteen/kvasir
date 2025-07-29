@@ -15,6 +15,16 @@ node = Table(
     schema="node"
 )
 
+data_source_node = Table(
+    "data_source_node",
+    metadata,
+    Column("id", UUID(as_uuid=True), ForeignKey(
+        "node.node.id"), primary_key=True),
+    Column("data_source_id", UUID(as_uuid=True), ForeignKey(
+        "data_integration.data_source.id"), nullable=False),
+    schema="node"
+)
+
 # Dataset node table
 dataset_node = Table(
     "dataset_node",

@@ -8,12 +8,14 @@ import { useChat } from '@/hooks/useChat';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { ChatHistory } from '@/components/chat/ChatHistory';
 import { ChatMessage } from '@/types/chat';
-import { TimeSeriesDataset } from '@/types/datasets';
+import { Dataset } from '@/types/data-objects';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useDatasets } from '@/hooks/useDatasets';
 import { useAnalysis } from '@/hooks/useAnalysis';
+import { DataSource } from '@/types/data-integration';
+import { UUID } from 'crypto';
 
 const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
   const { datasets} = useDatasets();
@@ -47,7 +49,7 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
                   className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-blue-900/50 text-blue-200"
                 >
                   <Database size={10} />
-                  {datasets?.timeSeries.find((dataset: TimeSeriesDataset) => dataset.id === datasetId)?.name}
+                  {datasets?.find((dataset: Dataset) => dataset.id === datasetId)?.name}
                 </div>
               ))}
               
@@ -89,15 +91,24 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
 // Add display name to the memo component
 ChatListItem.displayName = 'ChatListItem';
 
-function Chat({ projectId }: { projectId: string }) {
+function Chat({ projectId }: { projectId: UUID }) {
   
   const [input, setInput] = useState('');
   const [width, setWidth] = useState(400);
   const [isDragging, setIsDragging] = useState(false);
-  const [showChatHistory, setShowChatHistory] = useState(false);
-  
-  const { submitPrompt, startNewConversation, currentConversation } = useChat(projectId);
-  const { datasetsInContext, removeDatasetFromContext, analysisesInContext, removeAnalysisFromContext } = useAgentContext();
+  const [showChatHistory, setShowChatHistory] = useState(false);  
+
+  const { submitPrompt, conversation, conversationId } = useChat(projectId);
+
+  const { 
+    dataSourcesInContext, 
+    removeDataSourceFromContext, 
+    datasetsInContext, 
+    removeDatasetFromContext, 
+    analysisesInContext, 
+    removeAnalysisFromContext,
+  } = useAgentContext();
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
@@ -119,23 +130,7 @@ function Chat({ projectId }: { projectId: string }) {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [currentConversation?.messages]);
-
-  const handleSubmit = () => {
-    if (input.trim()) {
-      submitPrompt(input);
-      setInput('');
-    }
-  };
-
-  const handleNewChat = async () => {
-    try {
-      await startNewConversation();
-      setShowChatHistory(false);
-    } catch (error) {
-      console.error('Failed to start new conversation:', error);
-    }
-  };
+  }, [conversation?.messages]);
   
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -166,6 +161,11 @@ function Chat({ projectId }: { projectId: string }) {
     setIsDragging(true);
   };
 
+  const handleSubmitPrompt = async () => {
+    await submitPrompt(input);
+    setInput('');
+  };
+
   const handleConversationSelect = () => {
     // Close the history panel when a conversation is selected
     setShowChatHistory(false);
@@ -192,12 +192,12 @@ function Chat({ projectId }: { projectId: string }) {
           <div className="border-b border-gray-800 bg-gray-900/50 p-3 flex justify-between items-center relative">
             <div className="flex-1 pl-1">
               <h3 className="text-sm font-medium text-gray-300">
-                {currentConversation?.name || "Chat"}
+                {conversation?.name || "Chat"}
               </h3>
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={handleNewChat}
+                onClick={() => {}}
                 className="p-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 text-gray-300 hover:text-white"
                 title="New Chat"
               >
@@ -211,12 +211,12 @@ function Chat({ projectId }: { projectId: string }) {
                 >
                   <History size={18} />
                 </button>
-                <ChatHistory
-                  selectedConversationId={currentConversation?.id || null}
-                  onConversationSelect={handleConversationSelect}
-                  projectId={projectId}
-                  isOpen={showChatHistory}
-                />
+                {showChatHistory && (
+                  <ChatHistory
+                    projectId={projectId}
+                    onClose={handleConversationSelect}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -232,8 +232,25 @@ function Chat({ projectId }: { projectId: string }) {
                 <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select items from the left panel</h3>
               ) : ( */}
                 <>
+                  {/* Data Sources */}
+                  {dataSourcesInContext.map((dataSource: DataSource) => (
+                    <div 
+                      key={dataSource.id}
+                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-emerald-900/30 text-emerald-300"
+                    >
+                      <Database size={12} />
+                      {dataSource.name}
+                      <button 
+                        onClick={() => removeDataSourceFromContext(dataSource)}
+                        className="text-zinc-400 hover:text-white"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+
                   {/* Datasets */}
-                  {datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => (
+                  {datasetsInContext.map((dataset: Dataset) => (
                     <div 
                       key={dataset.id}
                       className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-blue-900/30 text-blue-300"
@@ -270,49 +287,19 @@ function Chat({ projectId }: { projectId: string }) {
             </div>
           </div>
 
-          {/* Quick action buttons
-          <div className="border-b border-gray-800 bg-gray-900/50 p-3">
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => submitPrompt("What are some interesting AI/ML or data science use cases for this data?")}
-                className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
-              >
-                Suggest use cases
-              </button>
-              <button
-                onClick={() => submitPrompt("Who are you and what can you do?")}
-                className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
-              >
-                What can you do?
-              </button>
-              <button
-                onClick={() => submitPrompt("Can you describe the structure and content of the selected datasets?")}
-                className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
-              >
-                Describe my data
-              </button>
-              <button
-                onClick={() => submitPrompt("Plan a detailed analysis on the selected datasets.")}
-                className="px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white transition-all duration-200 shadow-sm hover:shadow-md"
-              >
-                Run analysis on datasets
-              </button>
-            </div>
-          </div> */}
-
           {/* Messages container */}
           <div 
             ref={messagesContainerRef}
             className="flex-1 overflow-y-auto p-4 pb-24 scrollbar-thin scrollbar-thumb-gray-700"
             style={{ scrollBehavior: 'smooth' }}
           >
-            {currentConversation?.messages.length === 0 && (
+            {conversation?.messages.length === 0 && (
               <div className="flex h-full items-center justify-center text-zinc-500">
                 <div className="text-center">
                   <p className="mb-2">
-                    {currentConversation?.id ? 'Start a conversation' : 'Start a new conversation'}
+                    {conversationId ? 'Start a conversation' : 'Start a new conversation'}
                   </p>
-                  {!currentConversation?.id && (
+                  {!conversationId && (
                     <p className="text-sm text-zinc-600">
                       Select a conversation from history or start chatting
                     </p>
@@ -321,7 +308,7 @@ function Chat({ projectId }: { projectId: string }) {
               </div>
             )}
             {/* Message list */}
-            {currentConversation?.messages
+            {conversation?.messages
               .sort((a: ChatMessage, b: ChatMessage) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
               .map((message: ChatMessage, index: number) => (
                 <ChatListItem key={index} message={message} />
@@ -337,12 +324,12 @@ function Chat({ projectId }: { projectId: string }) {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmitPrompt()}
                 placeholder="Ask a question..."
                 className="flex-1 bg-transparent px-4 py-3 outline-none text-white"
               />
               <button 
-                onClick={handleSubmit}
+                onClick={handleSubmitPrompt}
                 className={`px-4 transition-all duration-300 ${
                   input.trim() 
                     ? 'text-blue-400 hover:text-blue-300'
@@ -360,7 +347,7 @@ function Chat({ projectId }: { projectId: string }) {
   );
 }
 
-export default function Chatbot({ projectId }: { projectId: string }) {
+export default function Chatbot({ projectId }: { projectId: UUID }) {
   const {data: session} = useSession();
 
   if (!session) {

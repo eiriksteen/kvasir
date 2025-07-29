@@ -72,8 +72,18 @@ context = Table(
     "context",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
-    Column("project_id", UUID(as_uuid=True),
-           ForeignKey("project.project.id"), nullable=False),
+    schema="chat"
+)
+
+
+data_source_context = Table(
+    "data_source_context",
+    metadata,
+    Column("context_id", UUID(as_uuid=True),
+           ForeignKey("chat.context.id"), nullable=False),
+    Column("data_source_id", UUID(as_uuid=True),
+           ForeignKey("data_integration.data_source.id"), nullable=False),
+    PrimaryKeyConstraint("context_id", "data_source_id"),
     schema="chat"
 )
 

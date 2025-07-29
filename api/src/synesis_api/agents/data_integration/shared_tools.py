@@ -3,6 +3,7 @@ import pandas as pd
 from pathlib import Path
 from pydantic_ai import ModelRetry, RunContext
 from synesis_api.utils import run_python_code_in_container, get_basic_df_info
+from synesis_api.agents.data_integration.utils import get_path_from_filename
 
 
 async def execute_python_code(python_code: str):
@@ -31,15 +32,12 @@ async def get_csv_contents(ctx: RunContext, file_name: str):
         file_name: The name of the csv file. Not the full (absolute) path, just the filename!
     """
 
-    print("THE PATH IS: ", ctx.deps.base_path)
-    print("THE FILE NAME IS: ", file_name)
+    assert hasattr(ctx.deps, "file_paths")
+    path = get_path_from_filename(Path(file_name).name, ctx.deps.file_paths)
 
-    if Path(file_name).suffix != ".csv":
+    if path.suffix != ".csv":
         raise ModelRetry("The file must be a csv file.")
 
-    assert hasattr(ctx.deps, "base_path")
-    path = ctx.deps.base_path / Path(file_name).name
-    print("THE PATH IS: ", path)
     df = pd.read_csv(path)
 
     return get_basic_df_info(df)
@@ -54,11 +52,12 @@ async def get_json_contents(ctx: RunContext, file_name: str):
         file_name: The name of the json file. Not the full (absolute) path, just the filename!
     """
 
-    if Path(file_name).suffix != ".json":
+    assert hasattr(ctx.deps, "file_paths")
+    path = get_path_from_filename(Path(file_name).name, ctx.deps.file_paths)
+
+    if path.suffix != ".json":
         raise ModelRetry("The file must be a json file.")
 
-    assert hasattr(ctx.deps, "base_path")
-    path = ctx.deps.base_path / Path(file_name).name
     with open(path, "r") as f:
         data = json.load(f)
 
@@ -75,11 +74,12 @@ async def get_excel_contents(ctx: RunContext, file_name: str):
         file_name: The name of the xlsx file. Not the full (absolute) path, just the filename!
     """
 
-    if Path(file_name).suffix != ".xlsx":
+    assert hasattr(ctx.deps, "file_paths")
+    path = get_path_from_filename(Path(file_name).name, ctx.deps.file_paths)
+
+    if path.suffix != ".xlsx":
         raise ModelRetry("The file must be an xlsx file.")
 
-    assert hasattr(ctx.deps, "base_path")
-    path = ctx.deps.base_path / Path(file_name).name
     excel_file = pd.ExcelFile(path)
     result = {}
 

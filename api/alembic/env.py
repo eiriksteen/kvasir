@@ -28,7 +28,7 @@ from synesis_api.modules.automation.models import (
     programming_language, programming_language_version, model, model_task
 )
 from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
-from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_automation
+from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_automation, project_data_source
 from synesis_api.modules.node.models import node, dataset_node, analysis_node, automation_node
 from synesis_api.modules.model_integration.models import model_integration_job_result, model_integration_job_input
 from synesis_api.secrets import DATABASE_URL
@@ -95,6 +95,7 @@ __all__ = [
     project_dataset,
     project_analysis,
     project_automation,
+    project_data_source,
     node,
     dataset_node,
     analysis_node,

@@ -2,20 +2,22 @@
 import React from 'react';
 
 import { useState, useMemo } from 'react';
-import { Database, Plus, ChevronLeft, ChevronRight, BarChart3, Zap, TrendingUp } from 'lucide-react';
+import { Database, Plus, ChevronLeft, ChevronRight, BarChart3, Zap, Folder } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { Automation } from '@/types/automation';
 import { useAgentContext, useDatasets, useAnalysis, useProject } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
-import AddDatasetToProjectModal from '@/components/project/AddDatasetToProjectModal';
+import AddDataSourceToProjectModal from '@/components/project/AddDataSourceToProjectModal';
 import AddAnalysis from '@/components/analysis/AddAnalysis';
+import { useDataSources } from '@/hooks/useDataSources';
+import { DataSource } from '@/types/data-integration';
 
-type ItemType = 'dataset' | 'analysis' | 'automation';
+type ItemType = 'dataset' | 'analysis' | 'automation' | 'data_source';
 
 interface ListItemProps {
-    item: Dataset | AnalysisJobResultMetadata | Automation;
+    item: Dataset | AnalysisJobResultMetadata | Automation | DataSource;
     type: ItemType;
     isInContext: boolean;
     onClick: () => void;
@@ -24,10 +26,18 @@ interface ListItemProps {
 function ListItem({ item, type, isInContext, onClick }: ListItemProps) {
     const getTheme = (type: ItemType) => {
         switch (type) {
+            case 'data_source':
+                return {
+                    bg: isInContext ? 'bg-emerald-500/10' : 'hover:bg-emerald-500/5',
+                    icon: <Database size={11} />,
+                    iconColor: 'text-emerald-400',
+                    textColor: 'text-gray-200',
+                    hover: 'hover:bg-emerald-500/8'
+                };
             case 'dataset':
                 return {
                     bg: isInContext ? 'bg-blue-500/10' : 'hover:bg-blue-500/5',
-                    icon: <TrendingUp size={11} />,
+                    icon: <Folder size={11} />,
                     iconColor: 'text-blue-400',
                     textColor: 'text-gray-200',
                     hover: 'hover:bg-blue-500/8'
@@ -72,10 +82,19 @@ function NewItemIcon({ type, size = 13 }: { type: ItemType; size?: number }) {
     const badgeClass = "absolute top-[-8px] right-[-8px] rounded-full p-0.5 z-10";
     const getIcon = () => {
         switch (type) {
-            case 'dataset':
+            case 'data_source':
                 return (
                     <div className="relative overflow-visible">
                         <Database size={size} />
+                        <div className={badgeClass + " bg-emerald-500 border border-emerald-400/30"}>
+                            <Plus size={size * 0.35} className="text-white" />
+                        </div>
+                    </div>
+                );
+            case 'dataset':
+                return (
+                    <div className="relative overflow-visible">
+                        <Folder size={size} />
                         <div className={badgeClass + " bg-blue-500 border border-blue-400/30"}>
                             <Plus size={size * 0.35} className="text-white" />
                         </div>
@@ -108,13 +127,13 @@ function NewItemIcon({ type, size = 13 }: { type: ItemType; size?: number }) {
 interface SectionHeaderProps {
     title: string;
     count: number;
-    color: 'blue' | 'purple' | 'orange';
+    color: 'blue' | 'purple' | 'orange' | 'emerald';
     onToggle: () => void;
     onAdd: () => void;
 }
 
 function SectionHeader({ title, count, color, onToggle, onAdd }: SectionHeaderProps) {
-    const getColorClasses = (color: 'blue' | 'purple' | 'orange') => {
+    const getColorClasses = (color: 'blue' | 'purple' | 'orange' | 'emerald') => {
         switch (color) {
             case 'blue':
                 return {
@@ -146,6 +165,16 @@ function SectionHeader({ title, count, color, onToggle, onAdd }: SectionHeaderPr
                     buttonHover: 'hover:bg-orange-500/40',
                     buttonBg: 'bg-orange-500/15',
                 };
+            case 'emerald':
+                return {
+                    bg: 'bg-emerald-500/20',
+                    border: 'border-emerald-400/50',
+                    text: 'text-gray-300',
+                    icon: 'text-emerald-300',
+                    hover: 'hover:bg-emerald-500/30',
+                    buttonHover: 'hover:bg-emerald-500/40',
+                    buttonBg: 'bg-emerald-500/15',
+                };
         }
     };
 
@@ -153,7 +182,8 @@ function SectionHeader({ title, count, color, onToggle, onAdd }: SectionHeaderPr
     const itemTypeMap: Record<string, ItemType> = {
         'Datasets': 'dataset',
         'Analysis': 'analysis',
-        'Automations': 'automation'
+        'Automations': 'automation',
+        'Data Sources': 'data_source'
     };
     const itemType = itemTypeMap[title];
 
@@ -192,16 +222,20 @@ interface OntologyBarProps {
 
 export default function OntologyBar({ projectId }: OntologyBarProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
-    const [showAddDatasetToProject, setShowAddDatasetToProject] = useState(false);
+    const [showAddDataSourceToProject, setShowAddDataSourceToProject] = useState(false);
     const [showAddAnalysis, setShowAddAnalysis] = useState(false);
     const [expandedSections, setExpandedSections] = useState({
         datasets: false,
         analysis: false,
-        automations: false
+        automations: false,
+        data_sources: false
     });
     const { data: session } = useSession();
     const { selectedProject } = useProject(projectId);
     const { 
+        dataSourcesInContext,
+        addDataSourceToContext,
+        removeDataSourceFromContext,
         datasetsInContext, 
         addDatasetToContext, 
         removeDatasetFromContext,
@@ -215,8 +249,23 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
     }
 
     const { datasets } = useDatasets();
+    const { dataSources } = useDataSources();
     const automations: Automation[] = [];
     const { analysisJobResults } = useAnalysis();
+
+    const filteredDataSources = useMemo(() => {
+        if (!selectedProject || !dataSources) return [];
+        return dataSources.filter(dataSource => 
+            selectedProject.dataSourceIds.includes(dataSource.id)
+        );
+    }, [selectedProject, dataSources]);
+
+    const filteredDatasets = useMemo(() => {
+        if (!selectedProject || !datasets) return [];
+        return datasets.filter(dataset => 
+            selectedProject.datasetIds.includes(dataset.id)
+        );
+    }, [selectedProject, datasets]);
 
     const filteredAnalysis = useMemo(() => {
         if (!selectedProject || !analysisJobResults?.analysesJobResults) return [];
@@ -232,6 +281,7 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
         );
     }, [selectedProject, automations]);
 
+
     const toggleSection = (section: keyof typeof expandedSections) => {
         setExpandedSections(prev => ({
             ...prev,
@@ -239,17 +289,23 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
         }));
     };
 
+    const handleDataSourceToggle = (dataSource: DataSource) => {
+        const isActive = dataSourcesInContext.some((d: DataSource) => d.id === dataSource.id);
+        if (isActive) {
+            removeDataSourceFromContext(dataSource);
+        } else {
+            addDataSourceToContext(dataSource);
+        }
+    };
+
     const handleDatasetToggle = (dataset: Dataset) => {
-        const isActive = datasetsInContext.timeSeries.some((d: Dataset) => d.id === dataset.id);
+        const isActive = datasetsInContext.some((d: Dataset) => d.id === dataset.id);
         if (isActive) {
             removeDatasetFromContext(dataset);
         } else {
             addDatasetToContext(dataset);
         }
     };
-
-    const isDatasetInContext = (datasetId: string) => 
-        datasetsInContext.timeSeries.some((dataset: Dataset) => dataset.id === datasetId);
 
     const handleAnalysisToggle = (analysis: AnalysisJobResultMetadata) => {
         const isActive = analysisesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId);
@@ -272,47 +328,63 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
 
         return (
             <div className="flex flex-col h-full">
-                {/* Header */}
-                <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800 bg-gray-900/50">
-                    <div className="flex flex-col">
-                        <h2 className="text-xs font-mono uppercase tracking-wider text-gray-400 mb-0.5">
-                            Ontology
-                        </h2>
-                    </div>
-                    <button
-                        onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
-                        title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                    >
-                        {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-                    </button>
-                </div>
 
                 <div className="flex-1 overflow-y-auto">
+
+                    {/* Data Sources Section */}
+                    <div className="border-b border-gray-800">
+                        <SectionHeader
+                            title="Data Sources"
+                            count={filteredDataSources?.length || 0}
+                            color="emerald"
+                            onToggle={() => toggleSection('data_sources')}
+                            onAdd={() => setShowAddDataSourceToProject(true)}
+                        />
+                        {expandedSections.data_sources && (
+                            <div className="bg-emerald-500/5 border-l-2 border-emerald-500/20">
+                                {filteredDataSources?.map((dataSource) => (
+                                    <ListItem
+                                        key={dataSource.id}
+                                        item={dataSource}
+                                        type="data_source"
+                                        isInContext={dataSourcesInContext.some((d: DataSource) => d.id === dataSource.id)}
+                                        onClick={() => handleDataSourceToggle(dataSource)}
+                                    />
+                                ))}
+                                {filteredDataSources?.length === 0 && (
+                                    <div className="px-3 py-4 text-center">
+                                        <Database size={16} className="text-emerald-400/40 mx-auto mb-2" />
+                                        <p className="text-xs text-gray-500">No data sources</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
                     {/* Datasets Section */}
                     <div className="border-b border-gray-800">
                         <SectionHeader
                             title="Datasets"
-                            count={datasets?.filter(dataset => selectedProject.datasetIds.includes(dataset.id)).length || 0}
+                            count={filteredDatasets?.length || 0}
                             color="blue"
                             onToggle={() => toggleSection('datasets')}
-                            onAdd={() => setShowAddDatasetToProject(true)}
+                            onAdd={() => {}}
                         />
                         {expandedSections.datasets && (
                             <div className="bg-blue-500/5 border-l-2 border-blue-500/20">
-                                {datasets?.filter(dataset => selectedProject.datasetIds.includes(dataset.id))
+                                {filteredDatasets
                                     .map((dataset) => (
                                         <ListItem 
                                             key={dataset.id}
                                             item={dataset}
                                             type="dataset"
-                                            isInContext={isDatasetInContext(dataset.id)}
+                                            isInContext={datasetsInContext.some((d: Dataset) => d.id === dataset.id)}
                                             onClick={() => handleDatasetToggle(dataset)}
                                         />
                                     ))}
-                                {datasets?.filter(dataset => selectedProject.datasetIds.includes(dataset.id)).length === 0 && (
+                                {filteredDatasets.length === 0 && (
                                     <div className="px-3 py-4 text-center">
-                                        <Database size={16} className="text-blue-400/40 mx-auto mb-2" />
+                                        <Folder size={16} className="text-blue-400/40 mx-auto mb-2" />
                                         <p className="text-xs text-gray-500">No datasets</p>
                                     </div>
                                 )}
@@ -382,6 +454,15 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
                         )}
                     </div>
                 </div>
+                    <div className="flex items-center justify-end px-3 py-2">
+                    <button
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-gray-800 bg-gray-900/50 border border-gray-800"
+                        title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                    >
+                        {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+                    </button>
+                </div>
             </div>
         );
     };
@@ -393,21 +474,17 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
 
                 {isCollapsed && (
                     <div className="flex flex-col h-full">
-                        {/* Header for collapsed state */}
-                        <div className="flex items-center justify-center p-2 border-b border-gray-800 bg-gray-900/50">
-                            <button
-                                onClick={() => setIsCollapsed(!isCollapsed)}
-                                className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
-                                title="Expand sidebar"
-                            >
-                                <ChevronRight size={14} />
-                            </button>
-                        </div>
-                        
                         {/* Collapsed content */}
                         <div className="flex flex-col items-center pt-3 gap-2">
                             <button
-                                onClick={() => setShowAddDatasetToProject(true)}
+                                onClick={() => setShowAddDataSourceToProject(true)}
+                                className="p-2 rounded-md text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/40 transition-all duration-200 hover:scale-105"
+                                title="Add Data Source"
+                            >
+                                <NewItemIcon type="data_source" size={14} />
+                            </button>
+                            <button
+                                onClick={() => {}}
                                 className="p-2 rounded-md text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/40 transition-all duration-200 hover:scale-105"
                                 title="Add Dataset to Project"
                             >
@@ -430,13 +507,24 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
                                 <NewItemIcon type="automation" size={14} />
                             </button>
                         </div>
+                        
+                        {/* Collapse/expand button at bottom */}
+                        <div className="flex items-center justify-center px-3 py-2 mt-auto">
+                            <button
+                                onClick={() => setIsCollapsed(!isCollapsed)}
+                                className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-gray-800 bg-gray-900/50 border border-gray-800"
+                                title="Expand sidebar"
+                            >
+                                <ChevronRight size={14} />
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
 
-            <AddDatasetToProjectModal
-                isOpen={showAddDatasetToProject}
-                onClose={() => setShowAddDatasetToProject(false)}
+            <AddDataSourceToProjectModal
+                isOpen={showAddDataSourceToProject}
+                onClose={() => setShowAddDataSourceToProject(false)}
                 projectId={projectId}
             />
 
@@ -445,6 +533,7 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
                 onClose={() => setShowAddAnalysis(false)}
                 projectId={projectId}
             />
+
         </div>
     );
 }

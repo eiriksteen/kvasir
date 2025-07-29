@@ -23,14 +23,14 @@ from synesis_api.modules.chat.service import (
     create_messages_pydantic,
     get_messages_pydantic
 )
-from synesis_api.agents.data_integration.dataset_agent.agent import dataset_integration_agent, DatasetAgentDeps, DatasetAgentOutputWithDatasetId
+from synesis_api.agents.data_integration.data_integration_agent.agent import data_integration_agent, DataIntegrationAgentDeps, DataIntegrationAgentOutputWithDatasetId
 from synesis_api.agents.chat.agent import chatbot_agent
 from synesis_api.worker import broker, logger
 from synesis_api.redis import get_redis
 from synesis_api.modules.data_warehouse.service import save_script_to_local_storage
 
 
-class DatasetIntegrationRunner:
+class DataIntegrationRunner:
 
     def __init__(
             self,
@@ -38,7 +38,7 @@ class DatasetIntegrationRunner:
             conversation_id: uuid.UUID,
             job_id: uuid.UUID | None = None):
 
-        self.dataset_agent = dataset_integration_agent
+        self.data_integration_agent = data_integration_agent
         self.user_id = user_id
         self.conversation_id = conversation_id
         self.job_id = job_id
@@ -116,7 +116,6 @@ class DatasetIntegrationRunner:
             integration_input = await get_local_integration_input(dataset_id)
             paths = [
                 data_source.file_path for data_source in integration_input.data_sources]
-            target_data_description = integration_input.target_dataset_description
             await update_job_status(dataset_id, "running")
 
         else:
@@ -125,8 +124,9 @@ class DatasetIntegrationRunner:
             data_sources = await get_data_sources_by_ids(data_source_ids)
             paths = [
                 data_source.file_path for data_source in data_sources]
+            descriptions = [
+                data_source.description for data_source in data_sources]
             assert data_sources is not None, "No data sources found for the given IDs"
-            target_data_description = prompt_content
 
             if self.job_id is None:
                 self.job_id = uuid.uuid4()
@@ -141,18 +141,15 @@ class DatasetIntegrationRunner:
             await create_local_integration_input(self.job_id, prompt_content, data_source_ids)
 
         try:
-
-            deps = DatasetAgentDeps(
-                data_directories=[
-                    Path(path) for path in paths],
-                data_description=target_data_description,
-                job_id=integration_input.job_id,
+            deps = DataIntegrationAgentDeps(
+                file_paths=[Path(path) for path in paths],
+                data_source_descriptions=descriptions,
                 api_key=api_key
             )
 
             message_history = await get_messages_pydantic(self.job_id)
 
-            async with dataset_integration_agent.iter(
+            async with data_integration_agent.iter(
                     prompt_content,
                     deps=deps,
                     message_history=message_history) as run:
@@ -170,7 +167,7 @@ class DatasetIntegrationRunner:
             logger.info(
                 f"Integration agent run completed for job {self.job_id}")
 
-            agent_output: DatasetAgentOutputWithDatasetId = run.result.output
+            agent_output: DataIntegrationAgentOutputWithDatasetId = run.result.output
 
             python_code_path = save_script_to_local_storage(
                 self.user_id,
@@ -224,14 +221,14 @@ class DatasetIntegrationRunner:
 
 
 @broker.task(retry_on_error=False)
-async def run_dataset_integration_task(
+async def run_data_integration_task(
         user_id: uuid.UUID,
         conversation_id: uuid.UUID,
         job_id: uuid.UUID,
         data_source_ids: List[uuid.UUID],
         prompt_content: str):
 
-    runner = DatasetIntegrationRunner(
+    runner = DataIntegrationRunner(
         user_id,
         conversation_id,
         job_id
@@ -243,12 +240,12 @@ async def run_dataset_integration_task(
 
 
 @broker.task(retry_on_error=False)
-async def resume_dataset_integration_task(
+async def resume_data_integration_task(
         user_id: uuid.UUID,
         job_id: uuid.UUID,
         prompt_content: str):
 
-    runner = DatasetIntegrationRunner(
+    runner = DataIntegrationRunner(
         user_id,
         job_id
     )

@@ -3,41 +3,36 @@ import { useChat } from '@/hooks/useChat';
 import { Conversation } from '@/types/chat';
 import { MessageSquare, Loader2, AlertCircle } from 'lucide-react';
 import { useProject } from '@/hooks/useProject';
+import { useConversations } from '@/hooks/useConversations';
+import { UUID } from 'crypto';
 
 interface ChatHistoryProps {
-  selectedConversationId: string | null;
-  onConversationSelect: (conversationId: string) => void;
-  projectId: string;
-  isOpen: boolean;
+  onClose: () => void;
+  projectId: UUID;
 }
 
 export const ChatHistory: React.FC<ChatHistoryProps> = ({
-  selectedConversationId,
-  onConversationSelect,
+  onClose,
   projectId,
-  isOpen
 }) => {
+
+  const { conversations, isLoading, isError } = useConversations();
+  
   const { 
-    conversations, 
-    conversationsError, 
-    isLoadingConversations,
-    switchConversation
+    conversationId,
+    setConversationId
   } = useChat(projectId);
 
   const { selectedProject } = useProject(projectId);
 
   const handleConversationClick = async (conversationId: string) => {
     try {
-      await switchConversation(conversationId);
-      onConversationSelect(conversationId);
+      await setConversationId(conversationId);
+      onClose();
     } catch (error) {
       console.error('Failed to switch conversation:', error);
     }
   };
-
-  if (!isOpen) {
-    return null;
-  }
 
   const projectConversations = conversations?.filter((conversation: Conversation) => 
     conversation.projectId === selectedProject?.id
@@ -48,35 +43,35 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
   return (
     <div className="absolute top-full right-0 mt-1 w-64 bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg z-50">
       <div className="p-2">
-        {isLoadingConversations && (
+        {isLoading && (
           <div className="flex items-center justify-center p-4">
             <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
             <span className="ml-2 text-zinc-400 text-sm">Loading...</span>
           </div>
         )}
 
-        {conversationsError && (
+        {isError && (
           <div className="flex items-center justify-center p-4">
             <AlertCircle className="h-4 w-4 text-red-400" />
             <span className="ml-2 text-red-400 text-sm">Failed to load</span>
           </div>
         )}
 
-        {!isLoadingConversations && !conversationsError && projectConversations.length === 0 && (
+        {!isLoading && !isError && projectConversations.length === 0 && (
           <div className="text-center p-4 text-zinc-500">
             <MessageSquare className="h-6 w-6 mx-auto mb-2 opacity-50" />
             <p className="text-sm">No conversations yet</p>
           </div>
         )}
 
-        {!isLoadingConversations && !conversationsError && projectConversations.length > 0 && (
+        {!isLoading && !isError && projectConversations.length > 0 && (
           <div className="max-h-48 overflow-y-auto">
             {projectConversations.map((conversation: Conversation) => (
               <button
                 key={conversation.id}
                 onClick={() => handleConversationClick(conversation.id)}
                 className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
-                  selectedConversationId === conversation.id
+                  conversationId === conversation.id
                     ? 'bg-zinc-700 text-zinc-200'
                     : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
                 }`}

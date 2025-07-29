@@ -1,5 +1,5 @@
 import { EventSource } from 'eventsource';
-import { Conversation, ConversationCreate, Prompt } from "@/types/chat";
+import { ConversationWithMessages, ConversationCreate, Prompt, Conversation } from "@/types/chat";
 import { Dataset, DatasetWithObjectLists } from "@/types/data-objects";
 import { Analyses } from "@/types/analysis";
 import { Job } from "@/types/jobs";
@@ -10,7 +10,6 @@ import { Model } from "@/types/automation";
 import { DataSource, FileDataSource } from '@/types/data-integration';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
 
 export async function fetchDatasets(token: string): Promise<Dataset[]> {
 
@@ -236,6 +235,27 @@ export async function fetchConversations(token: string): Promise<Conversation[]>
   const data = await response.json();
   return data;
 }
+
+
+export async function fetchConversationWithMessages(token: string, conversationId: string): Promise<ConversationWithMessages> {
+  const response = await fetch(`${API_URL}/chat/conversation/${conversationId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch conversation with messages', errorText);
+    throw new Error(`Failed to fetch conversation with messages: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+
 
 export function createAnalysisEventSource(token: string, jobId: string): EventSource {
   return new EventSource(`${API_URL}/analysis/analysis-agent-sse/${jobId}`,

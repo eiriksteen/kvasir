@@ -4,8 +4,8 @@ import { SessionProvider } from "next-auth/react";
 import { Session } from 'next-auth';
 import UserHeader from "@/components/headers/UserHeader";
 import { useDataSources } from "@/hooks/useDataSources";
-import AddDataSource from "./AddDataSource";
-import DataSourceList from "./DataSourceList";
+import AddDataSourceMenu from "@/app/data-sources/_components/AddDataSourceMenu";
+import DataSourceList from "@/app/data-sources/_components/DataSourceList";
 
 interface SourcesContainerProps {
   session: Session;
@@ -33,7 +33,7 @@ function SourcesPageContent() {
         <div className="flex-grow p-6 overflow-y-auto">
           <div className="grid grid-cols-2 gap-4">
             <DataSourceList dataSources={dataSources || []} isLoading={isLoading} error={error || null} />
-            <AddDataSource />
+            <AddDataSourceMenu />
           </div>
         </div>
       </div>
