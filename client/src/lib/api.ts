@@ -8,6 +8,7 @@ import { AnalysisRequest } from "@/types/analysis";
 import { FrontendNode, FrontendNodeCreate } from "@/types/node";
 import { Model } from "@/types/automation";
 import { DataSource, FileDataSource } from '@/types/data-integration';
+import { SSE } from 'sse.js';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -237,6 +238,18 @@ export async function fetchConversations(token: string): Promise<Conversation[]>
 }
 
 
+export function createChatEventSource(token: string, prompt: Prompt): SSE {
+  return new SSE(`${API_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    payload: JSON.stringify(prompt)
+  });
+}
+
+
 export async function fetchConversationWithMessages(token: string, conversationId: string): Promise<ConversationWithMessages> {
   const response = await fetch(`${API_URL}/chat/conversation/${conversationId}`, {
     headers: {
@@ -254,7 +267,6 @@ export async function fetchConversationWithMessages(token: string, conversationI
   const data = await response.json();
   return data;
 }
-
 
 
 export function createAnalysisEventSource(token: string, jobId: string): EventSource {

@@ -78,7 +78,7 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
           </div>
         )}
         
-        <div className="text-sm leading-relaxed">
+        <div className={`text-sm leading-relaxed ${message.role === 'agent' ? 'animate-fade-in' : ''}`}>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {message.content}
           </ReactMarkdown>
@@ -98,7 +98,7 @@ function Chat({ projectId }: { projectId: UUID }) {
   const [isDragging, setIsDragging] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(false);  
 
-  const { submitPrompt, conversation, conversationId } = useChat(projectId);
+  const { submitPrompt, conversation, setConversationId } = useChat(projectId);
 
   const { 
     dataSourcesInContext, 
@@ -162,8 +162,8 @@ function Chat({ projectId }: { projectId: UUID }) {
   };
 
   const handleSubmitPrompt = async () => {
-    await submitPrompt(input);
     setInput('');
+    await submitPrompt(input);
   };
 
   const handleConversationSelect = () => {
@@ -197,7 +197,7 @@ function Chat({ projectId }: { projectId: UUID }) {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => {}}
+                onClick={() => setConversationId(null)}
                 className="p-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 text-gray-300 hover:text-white"
                 title="New Chat"
               >
@@ -297,9 +297,9 @@ function Chat({ projectId }: { projectId: UUID }) {
               <div className="flex h-full items-center justify-center text-zinc-500">
                 <div className="text-center">
                   <p className="mb-2">
-                    {conversationId ? 'Start a conversation' : 'Start a new conversation'}
+                    {conversation?.id ? 'Start a conversation' : 'Start a new conversation'}
                   </p>
-                  {!conversationId && (
+                  {!conversation?.id && (
                     <p className="text-sm text-zinc-600">
                       Select a conversation from history or start chatting
                     </p>

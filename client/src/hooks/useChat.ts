@@ -6,31 +6,68 @@ import { useSession } from "next-auth/react";
 import { useAgentContext } from './useAgentContext';
 import { Dataset } from '@/types/data-objects';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
-import { fetchEventSource } from '@microsoft/fetch-event-source';
 import { v4 as uuidv4 } from 'uuid';
 import { UUID } from "crypto";
 import { DataSource } from "@/types/data-integration";
 import { useConversations } from "./useConversations";
+import { createChatEventSource } from "@/lib/api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+function createPreliminaryConversation(projectId: UUID, content: string) {
+
+  const conversation: ConversationWithMessages = {
+    id: uuidv4() as UUID,
+    name: "New Conversation",
+    createdAt: new Date().toISOString(),
+    mode: "chat",
+    projectId: projectId,
+    messages: [],
+  }
+
+  const userMessage: ChatMessage = {
+    id: uuidv4() as UUID,
+    role: "user",
+    conversationId: conversation.id,
+    content: content,
+    context: null,
+    createdAt: new Date().toISOString(),
+    type: "chat",
+    jobId: null
+  }
+
+  conversation.messages.push(userMessage);
+
+  return conversation;
+}
+
 
 export const useChat = (projectId: UUID) => {
   const { data: session } = useSession();
   const { createConversation } = useConversations();
   const { dataSourcesInContext, datasetsInContext, analysisesInContext } = useAgentContext();
-  const { data: conversationId, mutate: setConversationId } = useSWR("conversationId", { fallbackData: null });
+  const { data: conversation, error, isLoading, mutate: mutateConversation } = useSWR(`conversation-${projectId}`);
 
-  const { data: conversation, error, isLoading, mutate: mutateConversation } = useSWR(
-    session && conversationId ? `conversation-${conversationId}` : null, 
-    () => fetchConversationWithMessages(session ? session.APIToken.accessToken : "", conversationId),
-  );
+  const setConversationId = useCallback(async (convId: UUID | null) => {
+    if (convId) {
+      const newConversation = await fetchConversationWithMessages(session ? session.APIToken.accessToken : "", convId);
+      mutateConversation(newConversation, {revalidate: false});
+    }
+    else {
+      mutateConversation(undefined, {revalidate: false});
+    }
+  }, [session, mutateConversation]);
 
   const submitPrompt = useCallback(async (content: string) => {
-    let convId = conversationId;
+    let convId = conversation?.id;
+    const isNewConversation = !convId;
 
-    if (!convId) {
+    if (isNewConversation) {
+      // Ensures immediate UI update
+      const preliminaryConversation = createPreliminaryConversation(projectId, content);
+      mutateConversation(preliminaryConversation, {revalidate: false});
+
       const newConversation = await createConversation({ projectId: projectId, content: content });
-      setConversationId(newConversation.id);
+      await setConversationId(newConversation.id);
       convId = newConversation.id;
     }
 
@@ -70,49 +107,40 @@ export const useChat = (projectId: UUID) => {
       
       mutateConversation((prev: ConversationWithMessages | undefined) => {
         if (!prev) return prev;
-        return {
-          ...prev,
-          messages: [...prev.messages, userMessage]
+        else {
+          return {
+            ...prev,
+            messages: [...prev.messages, userMessage]
+          };
+        }
+      });
+
+      const eventSource = createChatEventSource(session.APIToken.accessToken, prompt);
+
+      eventSource.onmessage = (ev) => {
+          const data: ChatMessage = JSON.parse(ev.data);
+          mutateConversation((prev: ConversationWithMessages | undefined) => {
+            if (!prev) return prev;
+            // If message with the same id already exists, update it, else add it
+            const existingMessage = prev.messages.find((msg) => msg.id === data.id);
+            if (existingMessage) {
+              return {
+                ...prev,
+                messages: prev.messages.map((msg) => msg.id === data.id ? data : msg)
+              };
+            }
+            else {
+              return {
+                ...prev,
+                messages: [...prev.messages, data]
+              };
+            }
+          });
         };
-      });
-
-      console.log(JSON.stringify(prompt))
-
-      await fetchEventSource(`${API_URL}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.APIToken.accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(prompt),
-          onmessage(ev) {
-              const data: ChatMessage = JSON.parse(ev.data);
-              mutateConversation((prev: ConversationWithMessages | undefined) => {
-                if (!prev) return prev;
-                // If message with the same id already exists, update it, else add it
-                const existingMessage = prev.messages.find((msg) => msg.id === data.id);
-                if (existingMessage) {
-                  return {
-                    ...prev,
-                    messages: prev.messages.map((msg) => msg.id === data.id ? data : msg)
-                  };
-                }
-                else {
-                  return {
-                    ...prev,
-                    messages: [...prev.messages, data]
-                  };
-                }
-              });
-          }
-
-      });
-      
     }
-  }, [session, dataSourcesInContext, datasetsInContext, analysisesInContext, conversationId, mutateConversation, setConversationId, createConversation, projectId]);
+  }, [session, dataSourcesInContext, datasetsInContext, analysisesInContext, conversation, mutateConversation, setConversationId, createConversation, projectId]);
 
   return { 
-    conversationId,
     setConversationId,
     conversation, 
     submitPrompt, 

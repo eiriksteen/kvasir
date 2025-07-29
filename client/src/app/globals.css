@@ -52,3 +52,20 @@ body {
 .reactflow-no-watermark .react-flow__attribution {
   display: none !important;
 }
+
+
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 1.0s ease-out;
+}

@@ -19,13 +19,13 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
   const { conversations, isLoading, isError } = useConversations();
   
   const { 
-    conversationId,
+    conversation,
     setConversationId
   } = useChat(projectId);
 
   const { selectedProject } = useProject(projectId);
 
-  const handleConversationClick = async (conversationId: string) => {
+  const handleConversationClick = async (conversationId: UUID) => {
     try {
       await setConversationId(conversationId);
       onClose();
@@ -66,12 +66,12 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
 
         {!isLoading && !isError && projectConversations.length > 0 && (
           <div className="max-h-48 overflow-y-auto">
-            {projectConversations.map((conversation: Conversation) => (
+            {projectConversations.map((projectConversation: Conversation) => (
               <button
-                key={conversation.id}
-                onClick={() => handleConversationClick(conversation.id)}
+                key={projectConversation.id}
+                onClick={() => handleConversationClick(projectConversation.id)}
                 className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
-                  conversationId === conversation.id
+                  conversation?.id === projectConversation.id
                     ? 'bg-zinc-700 text-zinc-200'
                     : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
                 }`}
@@ -80,10 +80,10 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
                   <MessageSquare className="h-4 w-4 flex-shrink-0 opacity-70" />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">
-                      {conversation.name}
+                      {projectConversation.name}
                     </div>
                     <div className="text-xs text-zinc-500 mt-1 truncate">
-                      {new Date(conversation.createdAt).toLocaleDateString()}
+                      {new Date(projectConversation.createdAt).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
