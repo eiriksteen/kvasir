@@ -7,6 +7,7 @@ from pydantic_ai.messages import UserPromptPart, ModelRequest, FunctionToolCallE
 from pydantic_ai.agent import Agent
 from pydantic_core import to_jsonable_python
 from synesis_api.modules.jobs.service import create_job, update_job_status, get_job
+from synesis_api.modules.project.service import add_entity_to_project
 from synesis_api.modules.data_integration.service import (
     create_local_integration_input,
     create_integration_result,
@@ -21,13 +22,15 @@ from synesis_api.modules.chat.service import (
     get_current_conversation_mode,
     enter_conversation_mode,
     create_messages_pydantic,
-    get_messages_pydantic
+    get_messages_pydantic,
+    create_message
 )
 from synesis_api.agents.data_integration.data_integration_agent.agent import data_integration_agent, DataIntegrationAgentDeps, DataIntegrationAgentOutputWithDatasetId
 from synesis_api.agents.chat.agent import chatbot_agent
 from synesis_api.worker import broker, logger
 from synesis_api.redis import get_redis
 from synesis_api.modules.data_warehouse.service import save_script_to_local_storage
+from synesis_api.modules.project.schema import AddEntityToProject
 
 
 class DataIntegrationRunner:
@@ -36,16 +39,23 @@ class DataIntegrationRunner:
             self,
             user_id: str,
             conversation_id: uuid.UUID,
+            project_id: uuid.UUID,
             job_id: uuid.UUID | None = None):
 
         self.data_integration_agent = data_integration_agent
         self.user_id = user_id
         self.conversation_id = conversation_id
+        self.project_id = project_id
         self.job_id = job_id
         self.dataset_name = None
         self.redis_stream = get_redis()
 
-    async def _log_message_to_redis(self, content: str, message_type: Literal["tool_call", "result", "error", "chat"]):
+    async def _log_message_to_redis(
+            self,
+            content: str,
+            message_type: Literal["tool_call", "result", "error", "chat"],
+            write_to_db: bool = True
+    ):
         """Log a message to Redis stream"""
         message = {
             "id": str(uuid.uuid4()),
@@ -57,6 +67,9 @@ class DataIntegrationRunner:
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         await self.redis_stream.xadd(str(self.job_id), message)
+
+        if write_to_db:
+            await create_message(self.conversation_id, "agent", content, message_type, job_id=self.job_id)
 
     async def get_dataset_name(self) -> str:
         if self.dataset_name is None:
@@ -86,6 +99,7 @@ class DataIntegrationRunner:
         redis_stream = get_redis()
         api_key = (await create_api_key(self.user_id)).key
         conversation_mode = await get_current_conversation_mode(self.conversation_id)
+        await self._log_message_to_redis("Understood, starting data integration!", "chat", write_to_db=True)
 
         if resume:
             assert self.job_id is not None, "Job ID must be provided when resuming a job"
@@ -161,11 +175,10 @@ class DataIntegrationRunner:
                                     message = f'[Tools] The LLM calls tool={event.part.tool_name!r} with args={event.part.args}'
                                     logger.info(
                                         f"Integration agent tool call: {message}")
-                                    await self._log_message_to_redis(message, "tool_call")
-
-            await self._log_message_to_redis(f"Integration agent run completed!", "result")
-            logger.info(
-                f"Integration agent run completed for job {self.job_id}")
+                                    # print(event.part.args)
+                                    explanation = event.part.args[
+                                        "explanation"] if "explanation" in event.part.args else "Understanding dataset requirements"
+                                    await self._log_message_to_redis(explanation, "tool_call", write_to_db=True)
 
             agent_output: DataIntegrationAgentOutputWithDatasetId = run.result.output
 
@@ -177,39 +190,22 @@ class DataIntegrationRunner:
                 "data_integration"
             )
 
-            streamed_nodes = await redis_stream.xread({str(self.job_id): 0}, count=None)
-            integration_messages = []
-
-            for item in streamed_nodes[0][1]:
-                if item[1]["type"] in ["tool_call",
-                                       "help_call",
-                                       "help_response",
-                                       "feedback",
-                                       "intervention",
-                                       "summary"]:
-                    message = item[1].copy()
-                    message["timestamp"] = datetime.fromisoformat(
-                        message["timestamp"]).replace(tzinfo=timezone.utc)
-
-                    if len(message_history) == 0 or message["timestamp"] > message_history[-1].parts[-1].timestamp:
-                        integration_messages.append(message)
-
-            await create_integration_result(self.job_id, agent_output.dataset_id, agent_output.code_explanation, python_code_path)
-            await create_messages_pydantic(self.job_id, run.result.new_messages_json())
+            await create_integration_result(self.job_id, agent_output.dataset_id, agent_output.code_explanation, str(python_code_path))
+            await create_messages_pydantic(self.conversation_id, run.result.new_messages_json())
             await update_job_status(self.job_id, "awaiting_approval")
             await enter_conversation_mode(self.conversation_id, "chat")
+            await add_entity_to_project(self.project_id, AddEntityToProject(entity_type="dataset", entity_id=agent_output.dataset_id))
+            await self._log_message_to_redis(f"Integration agent run completed!", "result", write_to_db=True)
+
+            logger.info(
+                f"Integration agent run completed for job {self.job_id}")
 
         except Exception as e:
-            await self._log_message_to_redis(f"Error running integration agent: {e}", "error")
+            await self._log_message_to_redis(f"Error running integration agent: {e}", "error", write_to_db=True)
             logger.error(f"Error running integration agent: {e}")
-
+            await create_messages_pydantic(self.conversation_id, run.result.new_messages_json())
             await update_job_status(self.job_id, "failed")
             await enter_conversation_mode(self.conversation_id, "chat")
-
-            if data_sources is not None:
-                for data_source in data_sources:
-                    if Path(data_source.file_path).exists():
-                        Path(data_source.file_path).unlink()
 
             if api_key:
                 await delete_api_key(self.user_id)
@@ -224,6 +220,7 @@ class DataIntegrationRunner:
 async def run_data_integration_task(
         user_id: uuid.UUID,
         conversation_id: uuid.UUID,
+        project_id: uuid.UUID,
         job_id: uuid.UUID,
         data_source_ids: List[uuid.UUID],
         prompt_content: str):
@@ -231,6 +228,7 @@ async def run_data_integration_task(
     runner = DataIntegrationRunner(
         user_id,
         conversation_id,
+        project_id,
         job_id
     )
 

@@ -118,6 +118,7 @@ class ContextCreate(BaseSchema):
 class UserChatMessageCreate(BaseSchema):
     message_id: uuid.UUID
     conversation_id: uuid.UUID
+    project_id: uuid.UUID
     content: str
     context: Optional[ContextCreate] = None
 

@@ -60,7 +60,7 @@ The structure supports varying time series lengths per entity, making it flexibl
 - Second level ID identifying this dataframe: {FEATURE_INFORMATION_SECOND_LEVEL_ID}
 - Format: pandas DataFrame
 - Index Structure: Single-level index
-  - Index: Feature name
+  - Index: Feature name, name of the index should just be "name"
 - Content (columns):
   - unit: Measurement unit as string (just put "count" if the feature is numerical discrete)
   - description: Description of the measurement unit

@@ -119,23 +119,22 @@ async def create_user(user_create: UserCreate) -> UserInDB:
                     email=user_create.email,
                     name=user_create.name,
                     hashed_password=hashed_password,
-                    created_at=datetime.now(timezone.utc).replace(tzinfo=None),
-                    updated_at=datetime.now(timezone.utc).replace(tzinfo=None))
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc))
     await execute(Insert(users).values(user.model_dump()), commit_after=True)
     return user
 
 
-async def create_api_key(user: UserInDB) -> UserAPIKey:
-    expiration_time = (datetime.now(timezone.utc) +
-                       timedelta(minutes=15)).replace(tzinfo=None)
+async def create_api_key(user_id: uuid.UUID) -> UserAPIKey:
+    expiration_time = datetime.now(timezone.utc) + timedelta(minutes=15)
 
     key_id = uuid.uuid4()
     api_key = UserAPIKey(id=key_id,
-                         user_id=user.id,
+                         user_id=user_id,
                          key=uuid.uuid4().hex,
                          expires_at=expiration_time)
     await execute(Insert(user_api_keys).values(id=key_id,
-                                               user_id=user.id,
+                                               user_id=user_id,
                                                key=api_key.key,
                                                expires_at=expiration_time), commit_after=True)
     return api_key
@@ -150,7 +149,7 @@ async def get_api_key(user: UserInDB) -> UserAPIKey:
 
     api_key = UserAPIKey(**api_key)
 
-    if api_key.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
+    if api_key.expires_at < datetime.now(timezone.utc):
         await delete_api_key(user)
         raise HTTPException(status_code=401, detail="API key has expired")
 
@@ -173,7 +172,7 @@ async def get_user_from_api_key(api_key: str = Security(api_key_header)) -> User
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if api_key_data["expires_at"] < datetime.now(timezone.utc).replace(tzinfo=None):
+    if api_key_data["expires_at"] < datetime.now(timezone.utc):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="API key has expired",
@@ -189,6 +188,21 @@ async def get_user_from_api_key(api_key: str = Security(api_key_header)) -> User
         )
 
     return UserInDB(**user)
+
+
+async def get_user_from_jwt_or_api_key(token: Annotated[str, Depends(oauth2_scheme)], api_key: str = Security(api_key_header)) -> UserInDB:
+
+    print("RUNNING GET USER FROM JWT OR API KEY")
+    print("TOKEN IS", token)
+    print("API KEY IS", api_key)
+
+    if token:
+        return await get_current_user(token)
+    elif api_key:
+        return await get_user_from_api_key(api_key)
+    else:
+        raise HTTPException(
+            status_code=401, detail="No authentication provided")
 
 
 async def user_owns_job(user_id: uuid.UUID, job_id: uuid.UUID) -> bool:

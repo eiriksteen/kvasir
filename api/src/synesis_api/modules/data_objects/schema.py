@@ -20,10 +20,10 @@ class DatasetInDB(BaseSchema):
 
 class DataObjectInDB(BaseSchema):
     id: uuid.UUID
+    name: str
     group_id: Optional[uuid.UUID] = None
     original_id: Optional[str] = None
-    name: str
-    description: str
+    description: Optional[str] = None
     additional_variables: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime

@@ -25,7 +25,8 @@ Notes on data structures
 - Use the additional_variables field to store metadata and other unique quantities not covered by the fundamental structures
 - The data structures to use will depend on the user's description of the requested dataset
   - For example, if the user has stored some time series, classification labels, and data indicating which points are anomalous in some of the series, the relevant structures will be time_series, time_series_aggregation, and time_series_mask
-
+- Important: We divide in first and second level structure ids. The first level structure id is the id of the data structure, and the second level structure id is the id of the dataframe in the data structure.
+  - For example, the time_series (first level structure id) structure is composed of the dataframes time_series_data (second level structure id), time_series_entity_metadata (second level structure id), and more.
 
 # STAGE 1: Directory Analysis
 When in the analysis stage, thoroughly examine the directory structure:

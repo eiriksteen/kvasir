@@ -31,8 +31,8 @@ from synesis_api.modules.chat.service import create_messages_pydantic, create_me
 from synesis_api.base_schema import BaseSchema
 from synesis_api.auth.schema import User
 from uuid import UUID
-from synesis_api.modules.project.service import update_project
-from synesis_api.modules.project.schema import ProjectUpdate
+from synesis_api.modules.project.service import add_entity_to_project
+# from synesis_api.modules.project.schema import ProjectUpdate
 from synesis_api.modules.node.router import create_node
 from synesis_api.modules.node.schema import FrontendNodeCreate
 
@@ -209,7 +209,7 @@ class AnalysisAgentRunner:
 
         if len(analysis_request.analysis_ids) == 0:
             await insert_analysis_job_results_into_db(result)
-            await update_project(analysis_request.project_id, ProjectUpdate(type="analysis", id=analysis_job.id, remove=False))
+            await add_entity_to_project(analysis_request.project_id, "analysis", analysis_job.id)
 
             frontend_node = FrontendNodeCreate(
                 project_id=analysis_request.project_id,

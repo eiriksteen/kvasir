@@ -7,7 +7,15 @@ from typing import Literal
 
 
 class OrchestratorOutput(BaseSchema):
-    handoff_agent: Literal["chat", "analysis", "automation"]
+    handoff_agent: Literal["chat",
+                           "analysis",
+                           "automation",
+                           "data_integration"]
+
+
+class JobStartOutput(BaseSchema):
+    job_name: str
+    job_start_message: str
 
 
 model = get_model()

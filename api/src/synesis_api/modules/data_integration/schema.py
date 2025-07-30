@@ -52,6 +52,7 @@ class DataIntegrationJobInputInDB(BaseSchema):
     job_id: UUID
     target_dataset_description: str
     created_at: datetime
+    updated_at: datetime
 
 
 class DataSourceInIntegrationJobInDB(BaseSchema):

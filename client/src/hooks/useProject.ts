@@ -1,10 +1,11 @@
-import { fetchProjects, createProject, updateProject, fetchProjectNodes, updateNodePosition, createNode, deleteNode } from "@/lib/api";
-import { Project, ProjectCreate, ProjectUpdate } from "@/types/project";
+import { fetchProjects, createProject, updateProjectDetails, fetchProjectNodes, updateNodePosition, createNode, deleteNode, addEntityToProject, removeEntityFromProject } from "@/lib/api";
+import { Project, ProjectCreate, ProjectDetailsUpdate } from "@/types/project";
 import { FrontendNode, FrontendNodeCreate } from "@/types/node";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { useCallback, useMemo } from "react";
+import { UUID } from "crypto";
 
 
 export const useProjects = () => {
@@ -18,8 +19,8 @@ export const useProjects = () => {
 
   const {trigger: triggerUpdateProject} = useSWRMutation(
     "projects",
-    async (_, { arg }: { arg: { data: ProjectUpdate, projectId: string } }) => {
-      const updatedProject = await updateProject(
+    async (_, { arg }: { arg: { data: ProjectDetailsUpdate, projectId: string } }) => {
+      const updatedProject = await updateProjectDetails(
         session ? session.APIToken.accessToken : "",
         arg.projectId,
         arg.data
@@ -127,7 +128,7 @@ export const useProject = (projectId: string) => {
     }
   );
 
-  const updateProjectAndNode = useCallback(async (data: ProjectUpdate) => {
+  const updateProjectAndNode = useCallback(async (data: ProjectDetailsUpdate) => {
     if (!selectedProject) return;
 
     await triggerUpdateProject({data, projectId: selectedProject.id});
@@ -135,7 +136,7 @@ export const useProject = (projectId: string) => {
     mutateNodes();
   }, [selectedProject, triggerUpdateProject, mutateNodes]);
 
-  const calculateDatasetPosition = useCallback(() => {
+  const calculateNodePosition = useCallback(() => {
     if (!frontendNodes) {
       return { x: -300, y: 0 };
     }
@@ -155,44 +156,60 @@ export const useProject = (projectId: string) => {
     return { x: baseX, y: highestY + verticalSpacing };
   }, [frontendNodes]);
 
-  const addDataSourceToProject = async (sourceId: string) => {
+
+
+  // Unified function to add any entity to project
+  const addEntity = async (entityType: "data_source" | "dataset" | "analysis" | "automation", entityId: string) => {
     if (!selectedProject) return;
 
-    const position = calculateDatasetPosition();
+    const position = calculateNodePosition();
 
-    // First create the node for the dataset
+    // Create the node for the entity
     await createFrontendNode({
       projectId: selectedProject.id,
       xPosition: position.x,
       yPosition: position.y,
-      type: "data_source",
-      dataSourceId: sourceId,
-      datasetId: null,
-      analysisId: null,
-      automationId: null,
+      type: entityType,
+      dataSourceId: entityType === "data_source" ? entityId : null,
+      datasetId: entityType === "dataset" ? entityId : null,
+      analysisId: entityType === "analysis" ? entityId : null,
+      automationId: entityType === "automation" ? entityId : null,
     });
 
-    // Then update the project to include the dataset
-    await updateProjectAndNode({
-      type: "data_source",
-      id: sourceId,
-      remove: false,
+    // Update the project to include the entity
+    await addEntityToProject(session?.APIToken?.accessToken || '', selectedProject.id, {
+      entityType,
+      entityId: entityId as UUID,
     });
   };
 
-  // Remove dataset from project and delete corresponding node
-  const removeDataSourceFromProject = async (sourceId: string) => {
+  // Unified function to remove any entity from project
+  const removeEntity = async (entityType: "data_source" | "dataset" | "analysis" | "automation", entityId: string) => {
     if (!selectedProject) return;
 
-    // First update the project to remove the dataset
-    await updateProjectAndNode({
-      type: "data_source",
-      id: sourceId,
-      remove: true,
+    // Update the project to remove the entity
+    await removeEntityFromProject(session?.APIToken?.accessToken || '', selectedProject.id, {
+      entityType,
+      entityId: entityId as UUID,
     });
 
-    // Then find and delete the corresponding node
-    const nodeToDelete = frontendNodes?.find(node => node.dataSourceId === sourceId);
+    // Find and delete the corresponding node
+    let nodeToDelete;
+    switch (entityType) {
+      case "data_source":
+        nodeToDelete = frontendNodes?.find(node => node.dataSourceId === entityId);
+        break;
+      case "dataset":
+        nodeToDelete = frontendNodes?.find(node => node.datasetId === entityId);
+        break;
+      case "analysis":
+        nodeToDelete = frontendNodes?.find(node => node.analysisId === entityId);
+        break;
+      case "automation":
+        nodeToDelete = frontendNodes?.find(node => node.automationId === entityId);
+        break;
+    }
+    
     if (nodeToDelete) {
       await deleteNodeTrigger(nodeToDelete.id);
     }
@@ -208,8 +225,8 @@ export const useProject = (projectId: string) => {
     updatePosition,
     createFrontendNode,
     deleteNodeTrigger,
-    addDataSourceToProject,
-    removeDataSourceFromProject,
-    calculateDatasetPosition,
+    addEntity,
+    removeEntity,
+    calculateDatasetPosition: calculateNodePosition,
   };
 };

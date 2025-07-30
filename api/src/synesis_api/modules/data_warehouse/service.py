@@ -40,15 +40,17 @@ def save_script_to_local_storage(
 ) -> Path:
 
     if kind == "data_integration":
-        path = DATA_INTEGRATION_SCRIPTS_SAVE_DIR / \
-            f"{user_id}" / f"{job_id}" / filename
+        parent_dir = DATA_INTEGRATION_SCRIPTS_SAVE_DIR / \
+            f"{user_id}" / f"{job_id}"
     elif kind == "automation":
-        path = AUTOMATION_SCRIPTS_SAVE_DIR / \
-            f"{user_id}" / f"{job_id}" / filename
+        parent_dir = AUTOMATION_SCRIPTS_SAVE_DIR / \
+            f"{user_id}" / f"{job_id}"
     elif kind == "analysis":
-        path = ANALYSIS_SCRIPTS_SAVE_DIR / \
-            f"{user_id}" / f"{job_id}" / filename
+        parent_dir = ANALYSIS_SCRIPTS_SAVE_DIR / \
+            f"{user_id}" / f"{job_id}"
 
+    parent_dir.mkdir(parents=True, exist_ok=True)
+    path = parent_dir / filename
     path.write_text(script)
 
     return path

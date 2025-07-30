@@ -4,7 +4,7 @@ import json
 import redis
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse, RedirectResponse
+from fastapi.responses import StreamingResponse, RedirectResponse, Response
 from typing import Annotated, List
 from synesis_api.modules.chat.schema import (
     ChatMessage,
@@ -28,7 +28,7 @@ from synesis_api.modules.chat.service import (
     get_current_conversation_mode,
     enter_conversation_mode,
 )
-from synesis_api.agents.chat.agent import chatbot_agent, OrchestratorOutput
+from synesis_api.agents.chat.agent import chatbot_agent, OrchestratorOutput, JobStartOutput
 from synesis_api.auth.service import get_current_user, user_owns_conversation, user_owns_job
 from synesis_api.auth.schema import User
 from synesis_api.modules.analysis.service import get_user_analyses_by_ids
@@ -64,18 +64,19 @@ async def post_chat(
         "chat",
         context_id=context_in_db.id if context_in_db else None,
         # Should probably define message_id here in the backend instead, but would need a more complex handshake implementation (which we can do later)
-        message_id=prompt.message_id
+        id=prompt.message_id
     )
 
     conversation_mode = await get_current_conversation_mode(prompt.conversation_id)
     messages = await get_messages_pydantic(prompt.conversation_id)
 
     if conversation_mode.mode == "chat":
-        orchestrator_output = await chatbot_agent.run(
+        orchestrator_run = await chatbot_agent.run(
             f"You need to decide which agent to handoff this prompt to: {prompt.content}. "
             "Choose between 'chat', 'analysis', 'data_integration' or 'automation'.",
             message_history=messages, output_type=OrchestratorOutput)
-        handoff_agent = orchestrator_output.output.handoff_agent
+
+        handoff_agent = orchestrator_run.output.handoff_agent
 
         if handoff_agent == "analysis":
 
@@ -86,22 +87,29 @@ async def post_chat(
 
             job_id = uuid.uuid4()
 
-            dataset_name = await chatbot_agent.run(
+            job_name = await chatbot_agent.run(
                 f"Give me a nice human-readable name for a dataset with the following description: '{prompt.content}'. "
                 "The name should be short and concise. Output just the name!"
             )
 
-            job = await create_job(user.id, "data_integration", job_id=job_id, job_name=dataset_name.output)
+            job = await create_job(
+                user.id,
+                "data_integration",
+                conversation_id=prompt.conversation_id,
+                job_id=job_id,
+                job_name=job_name.output
+            )
 
             await run_data_integration_task.kiq(
                 user_id=user.id,
                 conversation_id=prompt.conversation_id,
+                project_id=prompt.project_id,
                 job_id=job.id,
                 data_source_ids=prompt.context.data_source_ids,
                 prompt_content=prompt.content
             )
 
-            return RedirectResponse(url=f"/response/{job_id}")
+            return RedirectResponse(url=f"/chat/response/{job_id}", status_code=303)
 
         elif handoff_agent == "chat":
 
@@ -133,7 +141,7 @@ async def post_chat(
                 new_messages = result.new_messages_json()
 
                 await create_messages_pydantic(prompt.conversation_id, new_messages)
-                await create_message(prompt.conversation_id, "agent", message.content, "chat", context_id=message.context_id, message_id=message.id)
+                await create_message(prompt.conversation_id, "agent", message.content, "chat", context_id=message.context_id, id=message.id)
 
             return StreamingResponse(stream_chat_response(), media_type="text/event-stream")
 
@@ -169,14 +177,13 @@ async def get_response(
             status_code=404, detail="Job not found")
 
     elif job.status == "completed":
-        return RedirectResponse(url=f"/response/{job_id}")
+        return Response(content="Job is completed, see conversation for results.", media_type="text/plain")
 
     # Default timeout of 30 seconds
     timeout = 30
     timeout = min(timeout, SSE_MAX_TIMEOUT)
 
     async def stream_job_updates():
-
         response = await cache.xread({str(job_id): "$"}, count=1, block=timeout*1000)
         start_time = time.time()
         last_id = response[0][1][-1][0] if response else None
@@ -189,7 +196,6 @@ async def get_response(
                 last_id = response[0][1][-1][0]
                 data = response[0][1][0][1]
                 data_validated = ChatMessageInDB(**data)
-                await create_message(**data_validated.model_dump())
                 yield f"data: {data_validated.model_dump_json()}\n\n"
 
             if start_time + timeout < time.time():

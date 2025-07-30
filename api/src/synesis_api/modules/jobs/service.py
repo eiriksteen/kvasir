@@ -16,7 +16,7 @@ async def create_job(
     job_name: Optional[str] = None,
 ) -> JobInDB:
 
-    job = JobInDB(
+    job_record = JobInDB(
         id=job_id if job_id else uuid.uuid4(),
         conversation_id=conversation_id,
         type=job_type,
@@ -27,34 +27,32 @@ async def create_job(
     )
 
     await execute(
-        insert(job).values(job.model_dump()),
+        insert(job).values(job_record.model_dump()),
         commit_after=True
     )
 
-    return job
+    return job_record
 
 
 async def get_job(job_id: uuid.UUID) -> JobInDB:
-    job = await fetch_one(
+    job_record = await fetch_one(
         select(job).where(job.c.id == job_id),
-        commit_after=True
     )
 
-    if job is None:
+    if job_record is None:
         raise HTTPException(
             status_code=404, detail="Job not found"
         )
 
-    return JobInDB(**job)
+    return JobInDB(**job_record)
 
 
 async def get_jobs_by_conversation_id(conversation_id: uuid.UUID) -> List[JobInDB]:
-    jobs = await fetch_all(
+    job_records = await fetch_all(
         select(job).where(job.c.conversation_id == conversation_id),
-        commit_after=True
     )
 
-    return [JobInDB(**job) for job in jobs]
+    return [JobInDB(**job_record) for job_record in job_records]
 
 
 async def get_jobs(
@@ -76,9 +74,9 @@ async def get_jobs(
         query = query.where(job.c.type == type)
     query = query.order_by(job.c.started_at.desc())
 
-    result = await fetch_all(query)
+    job_records = await fetch_all(query)
 
-    return [JobInDB(**job) for job in result]
+    return [JobInDB(**job_record) for job_record in job_records]
 
 
 async def update_job_status(job_id: uuid.UUID, status: str) -> JobInDB:
@@ -99,13 +97,6 @@ async def update_job_status(job_id: uuid.UUID, status: str) -> JobInDB:
         )
 
     return await get_job(job_id)
-
-
-async def delete_job_by_id(job_id: uuid.UUID):
-    await execute(
-        delete(job).where(job.c.id == job_id),
-        commit_after=True
-    )
 
 
 async def delete_job_by_id(job_id: uuid.UUID):

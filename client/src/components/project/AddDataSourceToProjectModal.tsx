@@ -15,7 +15,7 @@ interface AddDataSourceToProjectModalProps {
 
 export default function AddDataSourceToProjectModal({ isOpen, onClose, projectId }: AddDataSourceToProjectModalProps) {
   const { dataSources, isLoading, error } = useDataSources();
-  const { selectedProject, addDataSourceToProject } = useProject(projectId);
+  const { selectedProject, addEntity } = useProject(projectId);
   const [isAdding, setIsAdding] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,7 +55,7 @@ export default function AddDataSourceToProjectModal({ isOpen, onClose, projectId
     
     setIsAdding(dataSource.id);
     try {
-      await addDataSourceToProject(dataSource.id);
+      await addEntity("data_source", dataSource.id);
       // Close the modal after successful addition
       onClose();
     } catch (error) {

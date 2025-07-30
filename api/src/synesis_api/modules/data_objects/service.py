@@ -2,6 +2,7 @@ import uuid
 import pandas as pd
 from typing import List, Union
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from sqlalchemy import insert, select, and_
 from fastapi import UploadFile, HTTPException
 from synesis_api.modules.data_objects.models import (
@@ -107,7 +108,7 @@ async def create_dataset(
         updated_at=datetime.now(timezone.utc)
     )
 
-    await execute(insert(dataset).values(dataset_record), commit_after=True)
+    await execute(insert(dataset).values(dataset_record.model_dump()), commit_after=True)
 
     for (groups, role) in zip(
         ([dataset_create.primary_object_group],
@@ -127,7 +128,7 @@ async def create_dataset(
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc)
             )
-            await execute(insert(object_group).values(object_group_record), commit_after=True)
+            await execute(insert(object_group).values(object_group_record.model_dump()), commit_after=True)
 
             # To create the data objects, we must read and deserialize the parquet files from the uploaded file buffers
             parquet_dict = {}
@@ -147,9 +148,7 @@ async def create_dataset(
                 parquet_dict[dataframe_create.structure_type] = file_content
 
             dataframes = deserialize_parquet_to_dataframes(
-                parquet_dict,
-                group.structure_type
-            )
+                parquet_dict, group.structure_type)
 
             # Check what data structures are present
             has_feature_information = FEATURE_INFORMATION_SECOND_LEVEL_ID in dataframes
@@ -157,9 +156,8 @@ async def create_dataset(
             is_time_series_aggregation_structure = TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID in dataframes
 
             if has_feature_information:
-                features_info: pd.DataFrame = dataframes[FEATURE_INFORMATION_SECOND_LEVEL_ID]
-                # features_records = [FeatureInDB(**record, created_at=datetime.now(
-                #     timezone.utc), updated_at=datetime.now(timezone.utc)) for record in features_info.to_dict(orient="records")]
+                features_info = dataframes[FEATURE_INFORMATION_SECOND_LEVEL_ID].reset_index(
+                )
 
                 await create_features(
                     names=[record["name"]
@@ -176,18 +174,18 @@ async def create_dataset(
                             for record in features_info.to_dict(orient="records")],
                 )
 
-                feature_in_group_records = []
-                for feature_name, feature_row in features_info.iterrows():
-                    feature_in_group_records.append(FeatureInGroupInDB(
+                feature_in_group_dumps = []
+                for record in features_info.to_dict(orient="records"):
+                    feature_in_group_dumps.append(FeatureInGroupInDB(
                         group_id=object_group_record.id,
-                        feature_name=feature_name,
-                        source=feature_row['source'],
-                        category_id=feature_row['category_id'],
+                        feature_name=record["name"],
+                        source=record['source'],
+                        category_id=record['category_id'] if 'category_id' in record else None,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc)
-                    ))
+                    ).model_dump())
 
-                await execute(insert(feature_in_group).values(feature_in_group_records), commit_after=True)
+                await execute(insert(feature_in_group).values(feature_in_group_dumps), commit_after=True)
 
             original_entity_id_to_generated_id = {}
             if is_time_series_structure:
@@ -204,7 +202,7 @@ async def create_dataset(
 
                     object_record = DataObjectInDB(
                         id=uuid.uuid4(),
-                        original_id=original_id,
+                        original_id=str(original_id),
                         name=f"Time series {original_id_name}: {original_id}",
                         description=None,
                         group_id=object_group_record.id,
@@ -214,25 +212,36 @@ async def create_dataset(
                         updated_at=datetime.now(timezone.utc)
                     )
 
-                    await execute(insert(data_object).values(object_record), commit_after=True)
+                    await execute(insert(data_object).values(object_record.model_dump()), commit_after=True)
 
                     # Determine sampling frequency and timezone from the series timestamps
                     timestamps = series.index.tolist()
                     sampling_freq = determine_sampling_frequency(timestamps)
                     tz = determine_timezone(timestamps)
 
+                    # Apply timezone to start and end timestamps
+                    start_timestamp: datetime = series.index[0]
+                    end_timestamp: datetime = series.index[-1]
+
+                    if start_timestamp.tzinfo is None:
+                        start_timestamp = start_timestamp.replace(
+                            tzinfo=ZoneInfo(tz))
+                    if end_timestamp.tzinfo is None:
+                        end_timestamp = end_timestamp.replace(
+                            tzinfo=ZoneInfo(tz))
+
                     time_series_record = TimeSeriesInDB(
                         id=object_record.id,
                         num_timestamps=len(series),
-                        start_timestamp=series.index[0],
-                        end_timestamp=series.index[-1],
+                        start_timestamp=start_timestamp,
+                        end_timestamp=end_timestamp,
                         sampling_frequency=sampling_freq,
                         timezone=tz
                     )
 
                     original_entity_id_to_generated_id[original_entity_id] = time_series_record.id
 
-                    await execute(insert(time_series).values(time_series_record), commit_after=True)
+                    await execute(insert(time_series).values(time_series_record.model_dump()), commit_after=True)
 
             elif is_time_series_aggregation_structure:
                 raw_data_second_level_structure_id = TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID
@@ -261,7 +270,7 @@ async def create_dataset(
                         updated_at=datetime.now(timezone.utc)
                     )
 
-                    await execute(insert(data_object).values(object_record), commit_after=True)
+                    await execute(insert(data_object).values(object_record.model_dump()), commit_after=True)
 
                     # Determine if this is a multi-series computation based on the number of unique time series in the input
                     unique_time_series_ids = aggregation_input['time_series_id'].unique(
@@ -274,22 +283,21 @@ async def create_dataset(
                         is_multi_series_computation=is_multi_series_computation,
                     )
 
-                    await execute(insert(time_series_aggregation).values(time_series_aggregation_record), commit_after=True)
+                    await execute(insert(time_series_aggregation).values(time_series_aggregation_record.model_dump()), commit_after=True)
 
-                    time_series_aggregation_input_records = [TimeSeriesAggregationInputInDB(id=uuid.uuid4(),
-                                                                                            aggregation_id=object_record.id,
-                                                                                            input_feature_name=record[
-                                                                                                "input_feature_name"],
-                                                                                            start_timestamp=record[
-                                                                                                "start_timestamp"],
-                                                                                            end_timestamp=record["end_timestamp"],
-                                                                                            time_series_id=original_entity_id_to_generated_id[
-                                                                                                record["time_series_id"]],
-                                                                                            created_at=datetime.now(
-                                                                                                timezone.utc), updated_at=datetime.now(timezone.utc))
-                                                             for record in aggregation_input.to_dict(orient="records")]
+                    time_series_aggregation_input_dumps = [TimeSeriesAggregationInputInDB(id=uuid.uuid4(),
+                                                                                          aggregation_id=object_record.id,
+                                                                                          input_feature_name=record[
+                                                                                              "input_feature_name"],
+                                                                                          start_timestamp=record[
+                                                                                              "start_timestamp"],
+                                                                                          end_timestamp=record["end_timestamp"],
+                                                                                          time_series_id=original_entity_id_to_generated_id[
+                                                                                              record["time_series_id"]],
+                                                                                          created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc)).model_dump()
+                                                           for record in aggregation_input.to_dict(orient="records")]
 
-                    await execute(insert(time_series_aggregation_input).values(time_series_aggregation_input_records), commit_after=True)
+                    await execute(insert(time_series_aggregation_input).values(time_series_aggregation_input_dumps), commit_after=True)
 
             else:
                 raise ValueError(
@@ -626,7 +634,7 @@ async def _get_object_group_with_objects(group: ObjectGroupInDB) -> ObjectGroupW
         feature.c.subtype,
         feature.c.scale,
         feature_in_group.c.source,
-        feature.c.category_id,
+        feature_in_group.c.category_id,
         feature.c.created_at,
         feature.c.updated_at
     ).join(
@@ -685,7 +693,7 @@ async def _get_object_group_with_features(group: ObjectGroupInDB) -> ObjectGroup
         feature.c.subtype,
         feature.c.scale,
         feature_in_group.c.source,
-        feature.c.category_id,
+        feature_in_group.c.category_id,
         feature.c.created_at,
         feature.c.updated_at
     ).join(

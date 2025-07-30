@@ -68,13 +68,15 @@ async def get_system_prompt(ctx: RunContext[DataIntegrationAgentDeps]) -> str:
         raise ValueError(f"Error copying file to container: {err}")
 
     sys_prompt = (
-        f"{DATASET_INTEGRATION_SYSTEM_PROMPT}\n\n"
-        f"The data sources are:\n\n"
+        f"{DATASET_INTEGRATION_SYSTEM_PROMPT}\n\n" +
+        f"The data sources are:\n\n" +
         "\n\n".join(
-            [f"Filename: {file_path.name}\nData description: {data_description}"
-             for file_path, data_description in zip(ctx.deps.file_paths, ctx.deps.data_source_descriptions)]) + "\n\n"
-        f"The target data description is: {ctx.deps.target_data_description}"
+            [f"Filename: {file_path.name}\nFile path: /tmp/{file_path.name}\nData description: {data_description}"
+             for file_path, data_description in zip(ctx.deps.file_paths, ctx.deps.data_source_descriptions)]) + "\n\n" +
+        f"The target data description is provided by the user in the prompt. Remember to use the full file path in your code!"
     )
+
+    print("SYSTEM PROMPT IS", sys_prompt)
 
     return sys_prompt
 
@@ -92,6 +94,15 @@ async def validate_data_integration(
         result: The result of the integration agent.
     """
 
+    if not result.code.strip():
+        raise ModelRetry("You didn't provide any code!")
+
+    elif "dataset_dict" not in result.code:
+        raise ModelRetry(
+            "You didn't provide the dataset_dict variable in your code!")
+
+    print("THE CODE IS", result.code)
+
     out, err = await run_python_function_in_container(
         base_script=result.code,
         function_name="submit_dataset_to_api",
@@ -99,6 +110,9 @@ async def validate_data_integration(
         source_module="sandbox.tools",
         print_output=True
     )
+
+    print("OUT IS", out)
+    print("ERR IS", err)
 
     if err:
         raise ModelRetry(f"Error submitting dataset to API: {err}")

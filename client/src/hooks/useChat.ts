@@ -44,7 +44,7 @@ function createPreliminaryConversation(projectId: UUID, content: string) {
 export const useChat = (projectId: UUID) => {
   const { data: session } = useSession();
   const { createConversation } = useConversations();
-  const { dataSourcesInContext, datasetsInContext, analysisesInContext } = useAgentContext();
+  const { dataSourcesInContext, datasetsInContext, analysesInContext } = useAgentContext();
   const { data: conversation, error, isLoading, mutate: mutateConversation } = useSWR(`conversation-${projectId}`);
 
   const setConversationId = useCallback(async (convId: UUID | null) => {
@@ -81,7 +81,7 @@ export const useChat = (projectId: UUID) => {
         dataSourceIds: dataSourcesInContext?.map((dataSource: DataSource) => dataSource.id) || [],
         datasetIds: datasetsInContext?.map((dataset: Dataset) => dataset.id) || [],
         automationIds: [],
-        analysisIds: analysisesInContext?.map((analysis: AnalysisJobResultMetadata) => analysis.jobId) || [],
+        analysisIds: analysesInContext?.map((analysis: AnalysisJobResultMetadata) => analysis.jobId) || [],
       };
 
       // Create user message with proper context
@@ -101,6 +101,7 @@ export const useChat = (projectId: UUID) => {
       const prompt: Prompt = {
         messageId: userMessage.id,
         conversationId: convId,
+        projectId: projectId,
         context: context,
         content: content
       };
@@ -138,7 +139,7 @@ export const useChat = (projectId: UUID) => {
           });
         };
     }
-  }, [session, dataSourcesInContext, datasetsInContext, analysisesInContext, conversation, mutateConversation, setConversationId, createConversation, projectId]);
+  }, [session, dataSourcesInContext, datasetsInContext, analysesInContext, conversation, mutateConversation, setConversationId, createConversation, projectId]);
 
   return { 
     setConversationId,

@@ -19,7 +19,7 @@ from synesis_api.modules.data_objects.models import (
     time_series_aggregation_input
 )
 from synesis_api.modules.chat.models import (
-    chat_message, pydantic_message, conversation, conversation_mode,
+    chat_message, chat_pydantic_message, conversation, conversation_mode,
     context, dataset_context, automation_context, analysis_context
 )
 from synesis_api.modules.automation.models import (
@@ -72,7 +72,7 @@ __all__ = [
     analysis_jobs_automations,
     analysis_status_messages,
     chat_message,
-    pydantic_message,
+    chat_pydantic_message,
     conversation,
     conversation_mode,
     context,

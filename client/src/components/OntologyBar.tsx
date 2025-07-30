@@ -239,7 +239,7 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
         datasetsInContext, 
         addDatasetToContext, 
         removeDatasetFromContext,
-        analysisesInContext,
+        analysesInContext,
         addAnalysisToContext,
         removeAnalysisFromContext
     } = useAgentContext();  
@@ -252,6 +252,8 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
     const { dataSources } = useDataSources();
     const automations: Automation[] = [];
     const { analysisJobResults } = useAnalysis();
+
+    // console.log(datasets)
 
     const filteredDataSources = useMemo(() => {
         if (!selectedProject || !dataSources) return [];
@@ -308,7 +310,7 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
     };
 
     const handleAnalysisToggle = (analysis: AnalysisJobResultMetadata) => {
-        const isActive = analysisesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId);
+        const isActive = analysesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId);
         if (isActive) {
             removeAnalysisFromContext(analysis);
         } else {
@@ -408,7 +410,7 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
                                         key={analysis.jobId}
                                         item={analysis}
                                         type="analysis"
-                                        isInContext={analysisesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId)}
+                                        isInContext={analysesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId)}
                                         onClick={() => handleAnalysisToggle(analysis)}
                                     />
                                 ))}
@@ -429,9 +431,7 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
                             count={filteredAutomations.length}
                             color="orange"
                             onToggle={() => toggleSection('automations')}
-                            onAdd={() => {
-                                {/* TODO: Implement add automation */};
-                            }}
+                            onAdd={() => {}}
                         />
                         {expandedSections.automations && (
                             <div className="bg-orange-500/5 border-l-2 border-orange-500/20">
@@ -498,9 +498,7 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
                                 <NewItemIcon type="analysis" size={14} />
                             </button>
                             <button
-                                onClick={() => {
-                                    {/* TODO: Implement add automation */};
-                                }}
+                                onClick={() => {}}
                                 className="p-2 rounded-md text-orange-400 hover:text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 hover:border-orange-500/40 transition-all duration-200 hover:scale-105"
                                 title="Add Automation"
                             >

@@ -43,6 +43,7 @@ export type Context = {
 export type Prompt = {
     messageId: UUID;
     conversationId: UUID;
+    projectId: UUID;
     context: Context | null;
     content: string;
 }

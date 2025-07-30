@@ -24,8 +24,8 @@ chat_message = Table(
 )
 
 
-pydantic_message = Table(
-    "pydantic_message",
+chat_pydantic_message = Table(
+    "chat_pydantic_message",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     Column("conversation_id", UUID(as_uuid=True),

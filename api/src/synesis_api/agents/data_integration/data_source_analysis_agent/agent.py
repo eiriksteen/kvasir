@@ -73,10 +73,10 @@ async def get_system_prompt(ctx: RunContext[DataSourceAnalysisAgentDeps]) -> str
         raise ValueError(f"Error copying file to container: {err}")
 
     sys_prompt = (
-        f"{DATA_SOURCE_AGENT_SYSTEM_PROMPT}\n\n"
-        "The file paths to analyze are:\n\n"
+        f"{DATA_SOURCE_AGENT_SYSTEM_PROMPT}\n\n" +
+        "The file paths to analyze are:\n\n" +
         "\n\n".join(
-            [f"File name: /tmp/{file_path.name}" for file_path in ctx.deps.file_paths])
+            [f"File path: /tmp/{file_path.name}" for file_path in ctx.deps.file_paths])
     )
 
     return sys_prompt

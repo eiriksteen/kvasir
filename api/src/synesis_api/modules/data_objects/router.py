@@ -15,7 +15,7 @@ from synesis_api.modules.data_objects.schema import (
     DatasetInDB
 )
 from synesis_api.auth.schema import User
-from synesis_api.auth.service import get_current_user, user_owns_dataset
+from synesis_api.auth.service import get_current_user, user_owns_dataset, get_user_from_api_key
 
 
 router = APIRouter()
@@ -25,7 +25,7 @@ router = APIRouter()
 async def submit_dataset(
     files: list[UploadFile],
     metadata: str = Form(...),
-    user: Annotated[User, Depends(get_current_user)] = None
+    user: Annotated[User, Depends(get_user_from_api_key)] = None
 ) -> DatasetInDB:
 
     metadata_parsed = DatasetCreate(**json.loads(metadata))

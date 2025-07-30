@@ -27,19 +27,56 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
     message.context.automationIds?.length > 0
   );
 
-  return (
-    <div 
-      className={`mb-4 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-    >
-      <div 
-        className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-md backdrop-blur-sm ${
+  // Different styling based on message type
+  const getMessageStyles = () => {
+    if (message.type === 'chat') {
+      return {
+        container: `max-w-[80%] rounded-2xl px-4 py-3 shadow-md backdrop-blur-sm ${
           message.role === 'user' 
             ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-tr-none' 
             : 'bg-gray-950/40 text-white rounded-tl-none border border-gray-800/50'
-        }`}
-      >
-        {/* Context bar */}
-        {hasContext && (
+        }`,
+        content: `text-sm leading-relaxed ${message.role === 'agent' ? 'animate-fade-in' : ''}`
+      };
+    } else {
+      // For tool_call, result, error - sleek styling without boxes
+      const baseContainer = 'max-w-[80%] px-2 py-1';
+      const baseContent = 'text-xs leading-relaxed animate-fade-in';
+      
+      switch (message.type) {
+        case 'tool_call':
+          return {
+            container: `${baseContainer} text-gray-400`,
+            content: baseContent
+          };
+        case 'result':
+          return {
+            container: `${baseContainer} bg-gradient-to-r from-blue-600 via-purple-600 to-orange-700 bg-clip-text text-transparent`,
+            content: baseContent
+          };
+        case 'error':
+          return {
+            container: `${baseContainer} text-red-400`,
+            content: baseContent
+          };
+        default:
+          return {
+            container: `${baseContainer} text-gray-400`,
+            content: baseContent
+          };
+      }
+    }
+  };
+
+  const styles = getMessageStyles();
+
+  return (
+    <div 
+      className={`mb-2 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+    >
+      <div className={styles.container}>
+        {/* Context bar - only show for chat messages */}
+        {hasContext && message.type === 'chat' && (
           <div className="mb-2 pb-2 border-b border-current/20">
             <div className="flex flex-wrap gap-1">
               {/* Datasets */}
@@ -78,7 +115,7 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
           </div>
         )}
         
-        <div className={`text-sm leading-relaxed ${message.role === 'agent' ? 'animate-fade-in' : ''}`}>
+        <div className={styles.content}>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {message.content}
           </ReactMarkdown>
@@ -105,7 +142,7 @@ function Chat({ projectId }: { projectId: UUID }) {
     removeDataSourceFromContext, 
     datasetsInContext, 
     removeDatasetFromContext, 
-    analysisesInContext, 
+    analysesInContext, 
     removeAnalysisFromContext,
   } = useAgentContext();
 
@@ -267,7 +304,7 @@ function Chat({ projectId }: { projectId: UUID }) {
                   ))}
                   
                   {/* Analyses */}
-                  {analysisesInContext.map((analysis: AnalysisJobResultMetadata) => (
+                  {analysesInContext.map((analysis: AnalysisJobResultMetadata) => (
                     <div 
                       key={analysis.jobId}
                       className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-purple-900/30 text-purple-300"

@@ -78,7 +78,7 @@ export default function FileInfoModal({
               </div>
               <div className="grid grid-cols-2 gap-4">
                 {dataSource.description && (
-                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 space-y-2">
+                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 space-y-2 max-h-[20vh] overflow-y-auto">
                     <div className="flex items-center gap-2">
                       <FileDescription size={16} className="text-green-400" />
                       <h3 className="text-sm text-zinc-200">Content Description</h3>
@@ -87,7 +87,7 @@ export default function FileInfoModal({
                   </div>
                 )}
                 {dataSource.qualityDescription && (
-                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 space-y-2">
+                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 space-y-2 max-h-[20vh] overflow-y-auto">
                     <div className="flex items-center gap-2">
                       <Shield size={16} className="text-yellow-400" />
                       <h3 className="text-sm text-zinc-200">Quality Description</h3>
@@ -102,7 +102,7 @@ export default function FileInfoModal({
                     <List size={16} className="text-purple-400" />
                     <h3 className="text-sm text-zinc-200">Features</h3>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-[20vh] overflow-y-auto">
                     {dataSource.features.map((feature) => (
                       <div key={feature.name} className="">
                         <p className="text-sm text-zinc-400">{feature.name}: {feature.description}</p>

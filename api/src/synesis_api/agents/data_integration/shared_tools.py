@@ -6,14 +6,20 @@ from synesis_api.utils import run_python_code_in_container, get_basic_df_info
 from synesis_api.agents.data_integration.utils import get_path_from_filename
 
 
-async def execute_python_code(python_code: str):
+async def execute_python_code(python_code: str, explanation: str):
     """
     Execute a python code block.
 
     Args:
         ctx: The context
         python_code: The python code to execute.
+        explanation: Explanation of what you are doing and why - very concisely.
     """
+
+    # To avoid unused variable warning
+    # Explanation is logged to redis
+    # We could log here, but right now it is done in the runner
+    _ = explanation
 
     out, err = await run_python_code_in_container(python_code)
 
@@ -23,16 +29,22 @@ async def execute_python_code(python_code: str):
     return out
 
 
-async def get_csv_contents(ctx: RunContext, file_name: str):
+async def get_csv_contents(ctx: RunContext, file_name: str, explanation: str):
     """
     Get the contents of a csv file. 
 
     Args:
         ctx: The context
         file_name: The name of the csv file. Not the full (absolute) path, just the filename!
+        explanation: Explanation of what you are doing and why - very concisely.
     """
 
-    assert hasattr(ctx.deps, "file_paths")
+    # To avoid unused variable warning
+    # Explanation is logged to redis
+    # We could log here, but right now it is done in the runner
+    _ = explanation
+
+    assert hasattr(ctx.deps, "file_paths"), "file_paths not found in context"
     path = get_path_from_filename(Path(file_name).name, ctx.deps.file_paths)
 
     if path.suffix != ".csv":
@@ -43,16 +55,22 @@ async def get_csv_contents(ctx: RunContext, file_name: str):
     return get_basic_df_info(df)
 
 
-async def get_json_contents(ctx: RunContext, file_name: str):
+async def get_json_contents(ctx: RunContext, file_name: str, explanation: str):
     """
     Get the contents of a json file. 
 
     Args:
         ctx: The context
         file_name: The name of the json file. Not the full (absolute) path, just the filename!
+        explanation: Explanation of what you are doing and why - very concisely.
     """
 
-    assert hasattr(ctx.deps, "file_paths")
+    # To avoid unused variable warning
+    # Explanation is logged to redis
+    # We could log here, but right now it is done in the runner
+    _ = explanation
+
+    assert hasattr(ctx.deps, "file_paths"), "file_paths not found in context"
     path = get_path_from_filename(Path(file_name).name, ctx.deps.file_paths)
 
     if path.suffix != ".json":
@@ -64,7 +82,7 @@ async def get_json_contents(ctx: RunContext, file_name: str):
     return data
 
 
-async def get_excel_contents(ctx: RunContext, file_name: str):
+async def get_excel_contents(ctx: RunContext, file_name: str, explanation: str):
     """
     Get the contents of an xlsx file, including all sheet names and their contents.
     Returns a dictionary with sheet names as keys and basic info as values.
@@ -72,9 +90,15 @@ async def get_excel_contents(ctx: RunContext, file_name: str):
     Args:
         ctx: The context
         file_name: The name of the xlsx file. Not the full (absolute) path, just the filename!
+        explanation: Explanation of what you are doing and why - very concisely.
     """
 
-    assert hasattr(ctx.deps, "file_paths")
+    # To avoid unused variable warning
+    # Explanation is logged to redis
+    # We could log here, but right now it is done in the runner
+    _ = explanation
+
+    assert hasattr(ctx.deps, "file_paths"), "file_paths not found in context"
     path = get_path_from_filename(Path(file_name).name, ctx.deps.file_paths)
 
     if path.suffix != ".xlsx":

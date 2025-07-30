@@ -17,7 +17,7 @@ from synesis_api.modules.chat.schema import (
     Conversation)
 from synesis_api.modules.chat.models import (
     chat_message,
-    pydantic_message,
+    chat_pydantic_message,
     conversation,
     context,
     dataset_context,
@@ -248,8 +248,8 @@ async def get_context_by_id(context_id: uuid.UUID) -> Context | None:
 
 async def get_messages_pydantic(conversation_id: uuid.UUID) -> list[ModelMessage]:
     c = await fetch_all(
-        select(pydantic_message).where(
-            pydantic_message.c.conversation_id == conversation_id)
+        select(chat_pydantic_message).where(
+            chat_pydantic_message.c.conversation_id == conversation_id)
     )
     messages: list[ModelMessage] = []
     for message in c:
@@ -261,26 +261,25 @@ async def get_messages_pydantic(conversation_id: uuid.UUID) -> list[ModelMessage
 
 async def create_message(
         conversation_id: uuid.UUID,
-        role: str,
+        role: Literal["user", "agent"],
         content: str,
         type: Literal["tool_call", "result", "error", "chat"],
         job_id: Optional[uuid.UUID] = None,
         context_id: Optional[uuid.UUID] = None,
-        message_id: Optional[uuid.UUID] = None,
+        id: Optional[uuid.UUID] = None,
+        created_at: Optional[datetime] = None,
 ) -> ChatMessage:
     # Create the message in database using ChatMessageInDB structure
-    if message_id is None:
-        message_id = uuid.uuid4()
 
     message_data = {
-        "id": message_id,
+        "id": id if id else uuid.uuid4(),
         "conversation_id": conversation_id,
         "role": role,
         "content": content,
         "type": type,
         "job_id": job_id,
         "context_id": context_id,
-        "created_at": datetime.now(timezone.utc)
+        "created_at": created_at if created_at else datetime.now(timezone.utc)
     }
 
     await execute(chat_message.insert().values(message_data), commit_after=True)
@@ -292,7 +291,7 @@ async def create_message(
 
     # Return the full ChatMessage with context
     return ChatMessage(
-        id=message_id,
+        id=message_data["id"],
         conversation_id=conversation_id,
         role=role,
         type=type,
@@ -310,7 +309,7 @@ async def create_messages_pydantic(conversation_id: uuid.UUID, messages: bytes) 
         message_list=messages,
         created_at=datetime.now(timezone.utc)
     )
-    await execute(pydantic_message.insert().values(message.model_dump()), commit_after=True)
+    await execute(chat_pydantic_message.insert().values(message.model_dump()), commit_after=True)
     return message
 
 

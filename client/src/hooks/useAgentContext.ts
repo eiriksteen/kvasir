@@ -18,7 +18,7 @@ export const useAgentContext = () => {
   const { data: dataSourcesInContext } = useSWR("dataSourcesInContext", { fallbackData: emptyDataSourcesInContext });
   const { data: datasetsInContext } = useSWR("datasetsInContext", { fallbackData: emptyDatasetsInContext });
   const { data: automationsInContext } = useSWR("automationsInContext", { fallbackData: emptyAutomationsInContext });
-  const { data: analysisesInContext } = useSWR("analysisesInContext", { fallbackData: emptyAnalysisesInContext });
+  const { data: analysesInContext } = useSWR("analysisesInContext", { fallbackData: emptyAnalysisesInContext });
 
 
   const { trigger: addDataSourceToContext } = useSWRMutation("dataSourcesInContext",
@@ -96,8 +96,8 @@ export const useAgentContext = () => {
     },
     {
       populateCache: (newData: AnalysisJobResultMetadata) => {
-        if (analysisesInContext) {
-          return [...analysisesInContext, newData];
+        if (analysesInContext) {
+          return [...analysesInContext, newData];
         }
         return [newData];
       }
@@ -110,21 +110,26 @@ export const useAgentContext = () => {
     },
     {
       populateCache: (newData: AnalysisJobResultMetadata) => {
-        if (analysisesInContext) {
-          return analysisesInContext.filter((a: AnalysisJobResultMetadata) => a.jobId !== newData.jobId);
+        if (analysesInContext) {
+          return analysesInContext.filter((a: AnalysisJobResultMetadata) => a.jobId !== newData.jobId);
         }
         return [];
       }
     }
   );
 
+  console.log("dataSourcesInContext", dataSourcesInContext);
+  console.log("datasetsInContext", datasetsInContext);
+  console.log("automationsInContext", automationsInContext);
+  console.log("analysesInContext", analysesInContext);
+
   return {
     dataSourcesInContext,
-    addDataSourceToContext,
-    removeDataSourceFromContext,
     datasetsInContext,
     automationsInContext,
-    analysisesInContext,
+    analysesInContext,
+    addDataSourceToContext,
+    removeDataSourceFromContext,
     addDatasetToContext,
     removeDatasetFromContext,
     addAutomationToContext,

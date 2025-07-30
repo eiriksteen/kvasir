@@ -373,7 +373,9 @@ async def create_local_integration_input(job_id: uuid.UUID, target_data_descript
     # Create the job input record
     job_input = DataIntegrationJobInputInDB(
         job_id=job_id,
-        target_dataset_description=target_data_description
+        target_dataset_description=target_data_description,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
     )
 
     await execute(
@@ -385,7 +387,8 @@ async def create_local_integration_input(job_id: uuid.UUID, target_data_descript
     data_source_associations = [
         DataSourceInIntegrationJobInDB(
             job_id=job_id,
-            data_source_id=data_source_id
+            data_source_id=data_source_id,
+            created_at=datetime.now(timezone.utc),
         ).model_dump() for data_source_id in data_source_ids
     ]
 

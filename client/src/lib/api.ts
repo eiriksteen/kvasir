@@ -3,7 +3,7 @@ import { ConversationWithMessages, ConversationCreate, Prompt, Conversation } fr
 import { Dataset, DatasetWithObjectLists } from "@/types/data-objects";
 import { Analyses } from "@/types/analysis";
 import { Job } from "@/types/jobs";
-import { Project, ProjectCreate, ProjectUpdate } from "@/types/project";
+import { Project, ProjectCreate, AddEntityToProject, RemoveEntityFromProject, ProjectDetailsUpdate } from "@/types/project";
 import { AnalysisRequest } from "@/types/analysis";
 import { FrontendNode, FrontendNodeCreate } from "@/types/node";
 import { Model } from "@/types/automation";
@@ -334,7 +334,7 @@ export async function createProject(token: string, projectData: ProjectCreate): 
   return response.json();
 }
 
-export async function updateProject(token: string, projectId: string, projectData: ProjectUpdate): Promise<Project> {
+export async function updateProjectDetails(token: string, projectId: string, projectData: ProjectDetailsUpdate): Promise<Project> {
   const response = await fetch(`${API_URL}/project/update-project/${projectId}`, {
     method: 'PUT',
     headers: {
@@ -346,7 +346,43 @@ export async function updateProject(token: string, projectId: string, projectDat
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to update project: ${response.status} ${errorText}`);
+    throw new Error(`Failed to update project details: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function addEntityToProject(token: string, projectId: string, entityData: AddEntityToProject): Promise<Project> {
+  const response = await fetch(`${API_URL}/project/add-entity/${projectId}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(entityData)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to add entity to project: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+export async function removeEntityFromProject(token: string, projectId: string, entityData: RemoveEntityFromProject): Promise<Project> {
+  const response = await fetch(`${API_URL}/project/remove-entity/${projectId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(entityData)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to remove entity from project: ${response.status} ${errorText}`);
   }
 
   return response.json();

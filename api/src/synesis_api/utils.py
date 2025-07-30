@@ -127,12 +127,10 @@ async def run_python_function_in_container(
     Wrote this function to avoid writing raw code inside strings all over.
     """
 
-    raw_code = (
-        f"from {source_module} import {function_name}\n\n" if source_module else ""
-        f"{base_script}\n\n"
-        f"output = {'await' if async_function else ''} {function_name}({', '.join(input_variables)})"
-        f"print(output)" if print_output else ""
-    )
+    raw_code = f"from {source_module} import {function_name}\n\n" if source_module else ""
+    raw_code += f"{base_script}\n\n"
+    raw_code += f"output = {'await' if async_function else ''} {function_name}({', '.join(input_variables)})\n"
+    raw_code += f"print(output)" if print_output else ""
 
     out, err = await run_python_code_in_container(raw_code, container_name)
 

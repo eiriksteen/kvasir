@@ -14,7 +14,7 @@ def submit_dataset_to_api(dataset_dict: dict, api_key: str) -> dict:
     Returns:
         dict: Response from the API
     """
-    url = f"{API_URL}/ontology/dataset"
+    url = f"{API_URL}/data-objects/dataset"
     headers = {"X-API-Key": api_key}
 
     # Prepare metadata
@@ -114,7 +114,7 @@ def submit_dataset_to_api(dataset_dict: dict, api_key: str) -> dict:
             raise ValueError(
                 f"API request failed with status {response.status_code}: {response.text}")
 
-        return response.json()
+        return response.text
 
     except Exception as e:
         raise ValueError(f"Failed to submit dataset to API: {str(e)}")

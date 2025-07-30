@@ -100,10 +100,12 @@ def deserialize_parquet_to_dataframes(parquet_data: Dict[str, bytes], first_leve
     expected_second_level_ids = get_second_level_ids_for_structure(
         first_level_id)
 
-    # Validate that all expected second level IDs are present
-    missing_ids = set(expected_second_level_ids) - set(parquet_data.keys())
-    if missing_ids:
-        raise ValueError(f"Missing required second level IDs: {missing_ids}")
+    parquet_keys_are_subset_of_expected_second_level_ids = set(
+        parquet_data.keys()) <= set(expected_second_level_ids)
+
+    if not parquet_keys_are_subset_of_expected_second_level_ids:
+        raise ValueError(
+            f"Second level IDs in parquet data are not a subset of expected second level IDs, expected: {expected_second_level_ids}, got: {parquet_data.keys()}")
 
     # Deserialize each parquet bytes to DataFrame using in-memory buffer
     dataframes = {}
