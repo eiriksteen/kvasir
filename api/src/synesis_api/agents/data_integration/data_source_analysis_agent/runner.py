@@ -7,7 +7,7 @@ from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import FunctionToolCallEvent
 from synesis_api.worker import broker, logger
-from synesis_api.modules.data_integration.service import fill_tabular_file_data_sources_details
+from synesis_api.modules.data_sources.service import fill_tabular_file_data_sources_details
 from synesis_api.utils import get_df_info
 
 

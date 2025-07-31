@@ -18,16 +18,14 @@ from fastapi import HTTPException
 import aiofiles
 import uuid
 from io import StringIO
-from synesis_api.modules.jobs.service import get_job, update_job_status, create_job
+from synesis_api.modules.runs.service import get_run, update_run_status, create_run, create_run_message_pydantic
 from synesis_api.modules.analysis.service import (
     get_user_analyses_by_ids,
     insert_analysis_job_results_into_db,
     update_analysis_job_results_in_db
 )
-from synesis_api.auth.service import create_api_key
 from datetime import datetime
 from synesis_api.redis import get_redis
-from synesis_api.modules.chat.service import create_messages_pydantic, create_message
 from synesis_api.base_schema import BaseSchema
 from synesis_api.auth.schema import User
 from uuid import UUID
@@ -118,12 +116,12 @@ class AnalysisAgentRunner:
                 )
                 job_name = job_name.output.replace(
                     '"', '').replace("'", "").strip()
-                analysis_job = await create_job(analysis_request.user.id, "analysis", job_id, job_name)
+                analysis_job = await create_run(analysis_request.user.id, "analysis", job_id, job_name)
             except Exception as e:
                 raise HTTPException(
                     status_code=500, detail=f"Failed to create analysis job: {str(e)}")
         else:
-            analysis_job = await get_job(analysis_request.analysis_ids[0])
+            analysis_job = await get_run(analysis_request.analysis_ids[0])
 
         status_message = {
             "id": uuid.uuid4(),
@@ -292,7 +290,7 @@ class AnalysisAgentRunner:
 
             for analysis in analyses.analyses_job_results:
                 # TODO: this should only be done when the analysis is actually running, what if the analysis in context should not be changed?
-                await update_job_status(analysis.job_id, "running")
+                await update_run_status(analysis.job_id, "running")
 
         try:
             datasets = await get_user_datasets_by_ids(analysis_request.user.id, analysis_request.dataset_ids)
@@ -350,7 +348,7 @@ class AnalysisAgentRunner:
         return analysis_deps, message_history
 
     async def __call__(self, analysis_request: AnalysisRequest, analysis_type: Literal["run_analysis_planner", "run_execution_agent"]):
-        await create_message(analysis_request.conversation_id, "assistant", text)
+        await create_run_message_pydantic(analysis_request.conversation_id, text)
 
         if analysis_type == "run_analysis_planner":
             text = "Running analysis planner. This may take a couple of minutes. The results will be shown in the analysis tab."

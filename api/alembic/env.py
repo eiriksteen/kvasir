@@ -7,20 +7,26 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 # Import all models to ensure they register with metadata
 from synesis_api.auth.models import users, user_api_keys
-from synesis_api.modules.data_integration.models import (
+from synesis_api.modules.data_sources.models import (
     data_source, file_data_source,
-    data_integration_job_input, data_source_in_integration_job, data_integration_job_result,
-    data_source_group, data_source_in_group, subgroup
+    data_source_group, data_source_in_group, subgroup,
+    feature_in_tabular_file
 )
-from synesis_api.modules.jobs.models import job
+from synesis_api.modules.runs.models import (
+    run, run_message, run_pydantic_message,
+    data_integration_run_input, data_integration_run_result,
+    model_integration_run_input, model_integration_run_result,
+    data_source_in_run
+)
 from synesis_api.modules.data_objects.models import (
     dataset, data_object, object_group, derived_object_source,
     feature, feature_in_group, time_series, time_series_aggregation,
     time_series_aggregation_input
 )
-from synesis_api.modules.chat.models import (
-    chat_message, chat_pydantic_message, conversation, conversation_mode,
-    context, dataset_context, automation_context, analysis_context
+from synesis_api.modules.orchestrator.models import (
+    chat_message, chat_pydantic_message, conversation,
+    context, dataset_context, automation_context, analysis_context,
+    data_source_context, run_in_conversation
 )
 from synesis_api.modules.automation.models import (
     automation, function, function_input_structure, function_output_structure,
@@ -30,7 +36,6 @@ from synesis_api.modules.automation.models import (
 from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
 from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_automation, project_data_source
 from synesis_api.modules.node.models import node, dataset_node, analysis_node, automation_node
-from synesis_api.modules.model_integration.models import model_integration_job_result, model_integration_job_input
 from synesis_api.secrets import DATABASE_URL
 from synesis_api.database.core import metadata
 
@@ -51,13 +56,18 @@ __all__ = [
     user_api_keys,
     data_source,
     file_data_source,
-    data_integration_job_input,
-    data_source_in_integration_job,
-    data_integration_job_result,
+    run,
+    run_message,
+    run_pydantic_message,
+    data_integration_run_input,
+    data_integration_run_result,
+    model_integration_run_input,
+    model_integration_run_result,
+    data_source_in_run,
     data_source_group,
     data_source_in_group,
     subgroup,
-    job,
+    feature_in_tabular_file,
     dataset,
     data_object,
     object_group,
@@ -74,11 +84,12 @@ __all__ = [
     chat_message,
     chat_pydantic_message,
     conversation,
-    conversation_mode,
     context,
     dataset_context,
     automation_context,
     analysis_context,
+    data_source_context,
+    run_in_conversation,
     automation,
     function,
     function_input_structure,
@@ -100,8 +111,6 @@ __all__ = [
     dataset_node,
     analysis_node,
     automation_node,
-    model_integration_job_result,
-    model_integration_job_input
 ]
 
 # add your model's MetaData object here
@@ -113,7 +122,7 @@ target_metadata = metadata
 
 def include_name(name, type_, parent_names):
     if type_ == "schema":
-        return name in ["public", "auth", "data_integration", "jobs", "data_objects", "analysis", "chat", "automation", "project", "node", "model_integration"]
+        return name in ["public", "auth", "data_sources", "runs", "data_objects", "analysis", "orchestrator", "automation", "project", "node"]
     else:
         return True
 
@@ -134,8 +143,7 @@ def run_migrations_offline() -> None:
     here as well.  By skipping the Engine creation
     we don't even need a DBAPI to be available.
 
-    Calls to context.execute() here emit the given string to the
-    script output.
+    Calls to context.execute() here emit the given string to the script output.
 
     """
     url = config.get_main_option("sqlalchemy.url")

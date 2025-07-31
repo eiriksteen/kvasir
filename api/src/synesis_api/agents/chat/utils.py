@@ -1,7 +1,7 @@
 import uuid
 from pydantic_ai.messages import ModelMessage, ModelRequest, UserPromptPart, ModelResponse, TextPart
 from pydantic_ai.exceptions import UnexpectedModelBehavior
-from synesis_api.modules.chat.schema import ChatMessage
+from synesis_api.modules.orchestrator.schema import ChatMessage
 
 
 def to_chat_message(m: ModelMessage, id: uuid.UUID, conversation_id: uuid.UUID) -> ChatMessage:

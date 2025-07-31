@@ -1,28 +1,11 @@
 from typing import Literal, List, Optional
 from datetime import datetime, timezone
 from synesis_api.base_schema import BaseSchema
+from synesis_api.modules.runs.schema import RunInDB, RunMessageInDB
 import uuid
 
 
 # DB Models
-
-
-class ChatMessageInDB(BaseSchema):
-    id: uuid.UUID
-    content: str
-    conversation_id: uuid.UUID
-    role: Literal["user", "agent"]
-    type: Literal["tool_call", "result", "error", "chat"]
-    job_id: Optional[uuid.UUID] = None
-    context_id: Optional[uuid.UUID] = None
-    created_at: datetime = datetime.now(timezone.utc)
-
-
-class PydanticMessageInDB(BaseSchema):
-    id: uuid.UUID
-    conversation_id: uuid.UUID
-    message_list: bytes
-    created_at: datetime = datetime.now(timezone.utc)
 
 
 class ConversationInDB(BaseSchema):
@@ -33,10 +16,26 @@ class ConversationInDB(BaseSchema):
     created_at: datetime = datetime.now(timezone.utc)
 
 
-class ConversationModeInDB(BaseSchema):
+class RunInConversationInDB(BaseSchema):
+    conversation_id: uuid.UUID
+    run_id: uuid.UUID
+    context_id: uuid.UUID
+    created_at: datetime = datetime.now(timezone.utc)
+
+
+class ChatMessageInDB(BaseSchema):
+    id: uuid.UUID
+    content: str
+    conversation_id: uuid.UUID
+    role: Literal["user", "assistant"]
+    context_id: Optional[uuid.UUID] = None
+    created_at: datetime = datetime.now(timezone.utc)
+
+
+class ChatPydanticMessageInDB(BaseSchema):
     id: uuid.UUID
     conversation_id: uuid.UUID
-    mode: Literal["chat", "data_integration", "analysis", "automation"]
+    message_list: bytes
     created_at: datetime = datetime.now(timezone.utc)
 
 
@@ -75,34 +74,25 @@ class Context(BaseSchema):
     analysis_ids: List[uuid.UUID] = []
 
 
-class ChatMessage(BaseSchema):
-    id: uuid.UUID
-    content: str
-    conversation_id: uuid.UUID
-    role: Literal["user", "agent"]
-    type: Literal["tool_call", "result", "error", "chat"]
-    job_id: Optional[uuid.UUID] = None
+class ChatMessage(ChatMessageInDB):
     context: Optional[Context] = None
-    created_at: datetime
 
 
-class Conversation(BaseSchema):
-    id: uuid.UUID
-    user_id: uuid.UUID
-    project_id: uuid.UUID
-    name: str
-    created_at: datetime = datetime.now(timezone.utc)
-    mode: Literal["chat", "data_integration", "analysis", "automation"]
+class Run(RunInDB):
+    context: Optional[Context] = None
 
 
-class ConversationWithMessages(BaseSchema):
-    id: uuid.UUID
-    user_id: uuid.UUID
-    project_id: uuid.UUID
-    name: str
-    created_at: datetime = datetime.now(timezone.utc)
-    mode: Literal["chat", "data_integration", "analysis", "automation"]
-    messages: List[ChatMessage]
+class Conversation(ConversationInDB):
+    runs: List[Run] = []
+
+
+class RunWithMessages(Run):
+    messages: List[RunMessageInDB] = []
+
+
+class ConversationWithMessages(ConversationInDB):
+    chat_messages: List[ChatMessage] = []
+    runs: List[RunWithMessages] = []
 
 
 # Create Models

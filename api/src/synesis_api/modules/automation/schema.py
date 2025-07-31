@@ -1,8 +1,7 @@
 from uuid import UUID
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Literal
+from typing import List, Optional, Literal
 from synesis_api.base_schema import BaseSchema
-from synesis_api.modules.jobs.schema import Job
 
 
 class Modality(BaseSchema):
@@ -76,5 +75,4 @@ class ModelComplete(Model):
     modality: Modality
     source: Source
     programming_language_version: ProgrammingLanguageVersion
-    integration_jobs: List[Job] | None = None
     tasks: List[Task]

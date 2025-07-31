@@ -121,7 +121,6 @@ class DatasetWithObjectGroups(DatasetInDB):
     primary_object_group: ObjectGroupWithFeatures
     annotated_object_groups: List[ObjectGroupWithFeatures]
     computed_object_groups: List[ObjectGroupWithFeatures]
-    integration_jobs: Optional[List[uuid.UUID]] = None
 
 
 class DatasetWithObjectGroupsAndLists(DatasetWithObjectGroups):

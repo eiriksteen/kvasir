@@ -41,14 +41,12 @@ async def submit_dataset(
 
 @router.get("/datasets", response_model=List[Union[DatasetWithObjectGroups, DatasetWithObjectGroupsAndLists]])
 async def get_datasets(
-    include_integration_jobs: bool = False,
     include_object_lists: bool = False,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> List[Union[DatasetWithObjectGroups, DatasetWithObjectGroupsAndLists]]:
     """Get all datasets for the current user"""
     return await get_user_datasets(
         user.id,
-        include_integration_jobs=include_integration_jobs,
         include_object_lists=include_object_lists
     )
 
@@ -56,7 +54,6 @@ async def get_datasets(
 @router.get("/datasets/{dataset_id}", response_model=Union[DatasetWithObjectGroups, DatasetWithObjectGroupsAndLists])
 async def get_dataset_by_id(
     dataset_id: UUID,
-    include_integration_jobs: bool = False,
     include_object_lists: bool = False,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> Union[DatasetWithObjectGroups, DatasetWithObjectGroupsAndLists]:
@@ -69,7 +66,6 @@ async def get_dataset_by_id(
     return await get_user_dataset(
         dataset_id,
         user.id,
-        include_integration_jobs=include_integration_jobs,
         include_object_lists=include_object_lists
     )
 
@@ -77,7 +73,6 @@ async def get_dataset_by_id(
 @router.get("/datasets-by-ids", response_model=List[Union[DatasetWithObjectGroups, DatasetWithObjectGroupsAndLists]])
 async def get_datasets_by_ids(
     dataset_ids: List[UUID],
-    include_integration_jobs: bool = False,
     include_object_lists: bool = False,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> List[Union[DatasetWithObjectGroups, DatasetWithObjectGroupsAndLists]]:
@@ -85,6 +80,5 @@ async def get_datasets_by_ids(
     return await get_user_datasets_by_ids(
         user.id,
         dataset_ids,
-        include_integration_jobs=include_integration_jobs,
         include_object_lists=include_object_lists
     )

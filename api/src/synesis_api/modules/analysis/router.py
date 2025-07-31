@@ -7,15 +7,14 @@ from fastapi.responses import StreamingResponse
 from synesis_api.redis import get_redis
 import redis
 from synesis_api.modules.analysis.schema import AnalysisJobResultMetadata, AnalysisJobResultMetadataList
-from synesis_api.auth.service import get_current_user, user_owns_job
+from synesis_api.auth.service import get_current_user, user_owns_run
 from synesis_api.modules.analysis.service import (
     get_analysis_job_results_from_db,
     get_user_analysis_metadata,
     create_pdf_from_results,
-    delete_analysis_job_results_from_db
 )
-from synesis_api.modules.jobs.service import get_job
-from synesis_api.modules.jobs.schema import Job
+from synesis_api.modules.runs.service import get_run
+from synesis_api.modules.runs.schema import RunInDB
 from synesis_api.auth.schema import User
 
 router = APIRouter()
@@ -31,7 +30,7 @@ async def analysis_agent_sse(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> StreamingResponse:
 
-    if not user or not await user_owns_job(user.id, job_id):
+    if not user or not await user_owns_run(user.id, job_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 
@@ -61,18 +60,18 @@ async def analysis_agent_sse(
     return StreamingResponse(stream_job_updates(), media_type="text/event-stream")
 
 
-@router.get("/analysis-job-status/{job_id}", response_model=Job)
-async def get_analysis_job_status(
-    job_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> Job:
-    if not await user_owns_job(user.id, job_id):
-        raise HTTPException(
-            status_code=403, detail="You do not have permission to access this job"
-        )
+# @router.get("/analysis-job-status/{job_id}", response_model=RunInDB)
+# async def get_analysis_job_status(
+#     job_id: uuid.UUID,
+#     user: Annotated[User, Depends(get_current_user)] = None
+# ) -> Run:
+#     if not await user_owns_run(user.id, job_id):
+#         raise HTTPException(
+#             status_code=403, detail="You do not have permission to access this job"
+#         )
 
-    job_meta_data = await get_job(job_id)
-    return job_meta_data
+#     job_meta_data = await get_job(job_id)
+#     return job_meta_data
 
 
 @router.get("/analysis-job-results/{job_id}", response_model=AnalysisJobResultMetadata)
@@ -81,11 +80,11 @@ async def get_analysis_job_results(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> AnalysisJobResultMetadata:
 
-    if not await user_owns_job(user.id, job_id):
+    if not await user_owns_run(user.id, job_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 
-    job_metadata = await get_job(job_id)
+    job_metadata = await get_run(job_id)
     if job_metadata.status == "completed":
         return await get_analysis_job_results_from_db(job_id)
 
@@ -101,20 +100,20 @@ async def get_analysis_job_results_list(
     return await get_user_analysis_metadata(user.id)
 
 
-@router.post("/create-analysis-pdf/{job_id}", response_model=AnalysisJobResultMetadata)
+@router.post("/create-analysis-pdf/{run_id}", response_model=AnalysisJobResultMetadata)
 async def create_analysis_pdf(
-    job_id: uuid.UUID,
+    run_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> AnalysisJobResultMetadata:
-    if not await user_owns_job(user.id, job_id):
+    if not await user_owns_run(user.id, run_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 
-    job_metadata = await get_job(job_id)
+    run_metadata = await get_run(run_id)
 
-    if job_metadata.status == "completed":
-        job_results = await get_analysis_job_results_from_db(job_id)
-        await create_pdf_from_results(job_results, job_id)
+    if run_metadata.status == "completed":
+        job_results = await get_analysis_job_results_from_db(run_id)
+        await create_pdf_from_results(job_results, run_id)
     else:
         raise HTTPException(
             status_code=500, detail="Analysis job is still running")
@@ -128,12 +127,12 @@ async def get_analysis(
     return await get_user_analysis_metadata(user.id)
 
 
-@router.delete("/delete-analysis-job-results/{job_id}", response_model=uuid.UUID)
-async def delete_analysis_job_results(
-    job_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> uuid.UUID:
-    if not await user_owns_job(user.id, job_id):
-        raise HTTPException(
-            status_code=403, detail="You do not have permission to access this job")
-    return await delete_analysis_job_results_from_db(job_id)
+# @router.delete("/delete-analysis-job-results/{run_id}", response_model=uuid.UUID)
+# async def delete_analysis_job_results(
+#     run_id: uuid.UUID,
+#     user: Annotated[User, Depends(get_current_user)] = None
+# ) -> uuid.UUID:
+#     if not await user_owns_run(user.id, run_id):
+#         raise HTTPException(
+#             status_code=403, detail="You do not have permission to access this job")
+#     return await delete_analysis_job_results_from_db(run_id)

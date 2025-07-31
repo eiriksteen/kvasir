@@ -1,17 +1,12 @@
 import uuid
-import aiofiles
 import pandas as pd
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 from fastapi import UploadFile
-from sqlalchemy import insert, select, delete, update, case
+from sqlalchemy import insert, select, update, case
 from synesis_api.modules.data_objects.schema import FeatureInDB
-from synesis_api.modules.data_integration.schema import (
-    DataIntegrationJobResultInDB,
-    LocalDataIntegrationJobInput,
-    DataIntegrationJobInputInDB,
-    DataSourceInIntegrationJobInDB,
+from synesis_api.modules.data_sources.schema import (
     TabularFileDataSource,
     DataSourceInDB,
     FileDataSourceInDB,
@@ -19,19 +14,15 @@ from synesis_api.modules.data_integration.schema import (
     FeatureInTabularFileInDB,
     DataSource,
 )
-from synesis_api.modules.data_integration.models import (
-    data_integration_job_result,
-    data_integration_job_input,
-    data_source_in_integration_job,
+from synesis_api.modules.data_sources.models import (
     file_data_source,
     tabular_file_data_source,
     data_source,
     feature_in_tabular_file,
 )
 from synesis_api.modules.data_objects.models import feature
-from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_api.secrets import RAW_FILES_SAVE_DIR
-from synesis_api.modules.data_warehouse.service import save_raw_file_to_local_storage
+from synesis_api.database.service import execute, fetch_all
+from synesis_api.modules.raw_data_storage.service import save_raw_file_to_local_storage
 from synesis_api.modules.data_objects.service import create_features
 
 
@@ -323,116 +314,3 @@ async def get_data_sources_by_ids(data_source_ids: List[uuid.UUID]) -> List[Data
     ) for tabular_record in tabular_records]
 
     return tabular_objects
-
-
-async def create_integration_result(job_id: uuid.UUID, dataset_id: uuid.UUID, code_explanation: str, python_code_path: str):
-
-    result = DataIntegrationJobResultInDB(
-        job_id=job_id,
-        dataset_id=dataset_id,
-        code_explanation=code_explanation,
-        python_code_path=python_code_path
-    )
-
-    await execute(
-        insert(data_integration_job_result).values(result.model_dump()), commit_after=True
-    )
-
-
-async def delete_integration_result(job_id: uuid.UUID):
-    await execute(
-        delete(data_integration_job_result).where(
-            data_integration_job_result.c.job_id == job_id),
-        commit_after=True
-    )
-
-
-async def get_job_results_from_job_id(job_id: uuid.UUID) -> DataIntegrationJobResultInDB:
-    # get results from integration_jobs_results
-    results = await fetch_one(
-        select(data_integration_job_result).where(
-            data_integration_job_result.c.job_id == job_id),
-        commit_after=True
-    )
-
-    return DataIntegrationJobResultInDB(**results)
-
-
-async def get_job_results_from_dataset_id(dataset_id: uuid.UUID) -> List[DataIntegrationJobResultInDB]:
-    # get results from integration_jobs_results
-    results = await fetch_all(
-        select(data_integration_job_result).where(
-            data_integration_job_result.c.dataset_id == dataset_id),
-        commit_after=True
-    )
-
-    return [DataIntegrationJobResultInDB(**result) for result in results]
-
-
-async def create_local_integration_input(job_id: uuid.UUID, target_data_description: str, data_source_ids: List[uuid.UUID]):
-    # Create the job input record
-    job_input = DataIntegrationJobInputInDB(
-        job_id=job_id,
-        target_dataset_description=target_data_description,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    )
-
-    await execute(
-        insert(data_integration_job_input).values(job_input.model_dump()),
-        commit_after=True
-    )
-
-    # Create the data source associations
-    data_source_associations = [
-        DataSourceInIntegrationJobInDB(
-            job_id=job_id,
-            data_source_id=data_source_id,
-            created_at=datetime.now(timezone.utc),
-        ).model_dump() for data_source_id in data_source_ids
-    ]
-
-    await execute(
-        insert(data_source_in_integration_job).values(
-            data_source_associations),
-        commit_after=True
-    )
-
-
-async def get_local_integration_input(job_id: uuid.UUID) -> LocalDataIntegrationJobInput:
-    # Get the job input record
-    job_input = await fetch_one(
-        select(data_integration_job_input).where(
-            data_integration_job_input.c.job_id == job_id),
-        commit_after=True
-    )
-
-    # Get the associated data source IDs
-    data_source_associations = await fetch_all(
-        select(data_source_in_integration_job).where(
-            data_source_in_integration_job.c.job_id == job_id),
-        commit_after=True
-    )
-
-    data_source_ids = [assoc["data_source_id"]
-                       for assoc in data_source_associations]
-
-    # Get the full data sources
-    data_sources = await get_data_sources_by_ids(data_source_ids)
-
-    return LocalDataIntegrationJobInput(
-        job_id=job_input["job_id"],
-        target_dataset_description=job_input["target_dataset_description"],
-        created_at=job_input["created_at"],
-        data_sources=data_sources
-    )
-
-
-async def get_dataset_id_from_job_id(job_id: uuid.UUID) -> uuid.UUID:
-    dataset_id = await fetch_one(
-        select(data_integration_job_result).where(
-            data_integration_job_result.c.job_id == job_id),
-        commit_after=True
-    )
-
-    return dataset_id["dataset_id"]

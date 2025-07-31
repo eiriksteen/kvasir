@@ -26,7 +26,7 @@ project_data_source = Table(
     Column("project_id", UUID(as_uuid=True), ForeignKey(
         "project.project.id"), nullable=False),
     Column("data_source_id", UUID(as_uuid=True), ForeignKey(
-        "data_integration.data_source.id"), nullable=False),
+        "data_sources.data_source.id"), nullable=False),
     PrimaryKeyConstraint("project_id", "data_source_id"),
     schema="project"
 )

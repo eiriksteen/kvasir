@@ -1,5 +1,4 @@
 import uuid
-import json
 import docker
 from pathlib import Path
 from typing import Union, List, Literal, Optional, Tuple
@@ -8,7 +7,6 @@ from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
-    FunctionToolResultEvent,
     ModelMessage
 )
 from synesis_api.utils import (
@@ -17,40 +15,32 @@ from synesis_api.utils import (
     parse_github_url,
     run_python_code_in_container
 )
-from synesis_api.worker import broker, logger
+from synesis_api.worker import broker
 from synesis_api.base_schema import BaseSchema
 from synesis_api.redis import get_redis
 from synesis_api.agents.model_integration.setup_agent.agent import (
-    SetupAgentOutput,
     SetupAgentOutputWithScript,
     setup_agent
 )
 from synesis_api.agents.model_integration.implementation_agent.agent import (
     ModelAnalysisOutput,
     ImplementationPlanningOutput,
-    TrainingOutput,
     TrainingOutputWithScript,
-    InferenceOutput,
     InferenceOutputWithScript,
     implementation_agent
 )
 from synesis_api.agents.model_integration.deps import ModelIntegrationDeps
-from synesis_api.modules.jobs.schema import Job
-from synesis_api.modules.jobs.service import update_job_status, get_job
+from synesis_api.modules.runs.schema import RunInDB
+from synesis_api.modules.runs.service import update_run_status, get_run, create_run_message_pydantic, create_model_integration_run_result
 from synesis_api.modules.automation.service import insert_model
-from synesis_api.modules.model_integration.service import (
-    create_model_integration_result,
+from synesis_api.agents.model_integration.utils import (
     save_stage_output_to_cache,
     get_stage_output_from_cache,
     get_message_history_from_cache
 )
-from synesis_api.modules.chat.service import (
-    create_messages_pydantic,
-    get_messages_pydantic
-)
 from synesis_api.agents.model_integration.input_structures import get_input_structure, get_config_definition_code
 from synesis_api.agents.model_integration.output_structures import get_output_structure
-from synesis_api.modules.data_warehouse.service import save_script_to_local_storage
+from synesis_api.modules.raw_data_storage.service import save_script_to_local_storage
 
 
 class ModelIntegrationOutput(BaseSchema):
@@ -67,7 +57,7 @@ class ModelIntegrationRunner:
             self,
             user_id: str,
             model_id: str,
-            job_id: uuid.UUID,
+            run_id: uuid.UUID,
             conversation_id: uuid.UUID,
             source: Literal["github", "pip"] = "github"):
 
@@ -75,14 +65,14 @@ class ModelIntegrationRunner:
         self.implementation_agent = implementation_agent
         self.user_id = user_id
         self.model_id = model_id
-        self.job_id = job_id
+        self.run_id = run_id
         self.conversation_id = conversation_id
         self.source = source
         self.base_image = "model-integration-image"
         self.docker_client = docker.from_env()
-        self.job = None
+        self.run = None
         self.container = None
-        self.container_name = f"model-integration-{self.job_id}"
+        self.container_name = f"model-integration-{self.run_id}"
         self.container_cwd = None
         self.redis_stream = get_redis()
         self.stage: Literal["setup",
@@ -100,14 +90,14 @@ class ModelIntegrationRunner:
         elif source == "pip":
             self.github_info = None
 
-    async def get_job(self) -> Job:
-        """Get the job metadata"""
-        if self.job is None:
-            self.job = await get_job(self.job_id)
-        return self.job
+    async def get_run(self) -> RunInDB:
+        """Get the run metadata"""
+        if self.run is None:
+            self.run = await get_run(self.job_id)
+        return self.run
 
     async def _update_job_status(self, status: Literal["running", "completed", "failed"]) -> None:
-        self.job = await update_job_status(self.job.id, status)
+        self.run = await update_run_status(self.run.id, status)
 
     def _set_stage(self, stage: Literal["setup", "implementation"],
                    current_task: Optional[Literal["classification", "regression", "segmentation", "forecasting"]] = None) -> None:
@@ -121,12 +111,12 @@ class ModelIntegrationRunner:
             "id": str(uuid.uuid4()),
             "role": "agent",
             "conversation_id": str(self.conversation_id),
-            "job_id": str(self.job_id),
+            "run_id": str(self.run_id),
             "type": message_type,
             "content": content,
             "created_at": datetime.now(timezone.utc).isoformat()
         }
-        await self.redis_stream.xadd(str(self.job_id), message)
+        await self.redis_stream.xadd(str(self.run_id), message)
 
     async def _setup_container(self) -> None:
         assert self.stage == "setup", f"setup_container can only be called during setup stage, current stage: {self.stage}"
@@ -281,7 +271,7 @@ class ModelIntegrationRunner:
         return run.result
 
     async def _run_setup(self) -> SetupAgentOutputWithScript:
-        await self.get_job()
+        await self.get_run()
         await self._update_job_status("running")
         await self._setup_container()
         self._set_stage("setup")
@@ -308,14 +298,14 @@ class ModelIntegrationRunner:
                     container_name=self.container_name,
                     cwd=str(self.container_cwd),
                     source=self.source,
-                    integration_id=self.job_id,
+                    integration_id=self.run_id,
                     stage="setup"
                 )
             )
             setup_output = setup_run.output
 
-            await create_messages_pydantic(
-                job_id=self.job_id,
+            await create_run_message_pydantic(
+                run_id=self.run_id,
                 messages=setup_run.all_messages_json()
             )
 
@@ -361,15 +351,15 @@ class ModelIntegrationRunner:
                     container_name=self.container_name,
                     cwd=str(self.container_cwd),
                     source=self.source,
-                    integration_id=self.job_id,
+                    integration_id=self.run_id,
                     stage="model_analysis"
                 )
             )
             analysis_output = model_analysis_run.output
             message_history = model_analysis_run.all_messages()
 
-            await create_messages_pydantic(
-                job_id=self.job_id,
+            await create_run_message_pydantic(
+                run_id=self.run_id,
                 messages=model_analysis_run.all_messages_json()
             )
 
@@ -425,7 +415,7 @@ class ModelIntegrationRunner:
                         cwd=str(self.container_cwd),
                         model_id=self.model_id,
                         source=self.source,
-                        integration_id=self.job_id,
+                        integration_id=self.run_id,
                         stage="implementation_planning"
                     ),
                     message_history=message_history
@@ -433,8 +423,8 @@ class ModelIntegrationRunner:
                 planning_output = planning_run.output
                 message_history = planning_run.all_messages()
 
-                await create_messages_pydantic(
-                    job_id=self.job_id,
+                await create_run_message_pydantic(
+                    run_id=self.run_id,
                     messages=planning_run.new_messages_json()
                 )
 
@@ -476,8 +466,8 @@ class ModelIntegrationRunner:
                 training_output = training_run.output
                 message_history = training_run.all_messages()
 
-                await create_messages_pydantic(
-                    job_id=self.job_id,
+                await create_run_message_pydantic(
+                    run_id=self.run_id,
                     messages=training_run.new_messages_json()
                 )
 
@@ -533,8 +523,8 @@ class ModelIntegrationRunner:
                 inference_output = inference_run.output
                 message_history = inference_run.all_messages()
 
-                await create_messages_pydantic(
-                    job_id=self.job_id,
+                await create_run_message_pydantic(
+                    run_id=self.run_id,
                     messages=inference_run.new_messages_json()
                 )
 
@@ -646,7 +636,7 @@ class ModelIntegrationRunner:
 
         await self._update_job_status("completed")
         await self._log_message_to_redis(f"Model integration completed successfully! Model ID: {model_id}", "result")
-        await create_model_integration_result(job_id=self.job_id, model_id=model_id)
+        await create_model_integration_run_result(run_id=self.run_id, model_id=model_id)
 
         return ModelIntegrationOutput(
             setup_output=setup_output,
@@ -688,9 +678,9 @@ class ModelIntegrationRunner:
 async def run_model_integration_task(
         user_id: str,
         model_id: str,
-        job_id: uuid.UUID,
+        run_id: uuid.UUID,
         source: Literal["github", "pip"] = "github") -> ModelIntegrationOutput:
 
-    runner = ModelIntegrationRunner(user_id, model_id, job_id, source)
+    runner = ModelIntegrationRunner(user_id, model_id, run_id, source)
     result = await runner()
     return result

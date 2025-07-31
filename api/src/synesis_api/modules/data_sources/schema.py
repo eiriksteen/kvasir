@@ -46,27 +46,3 @@ class TabularFileDataSource(DataSourceInDB, FileDataSourceInDB, TabularFileDataS
 
 
 DataSource = Union[TabularFileDataSource]
-
-
-class DataIntegrationJobInputInDB(BaseSchema):
-    job_id: UUID
-    target_dataset_description: str
-    created_at: datetime
-    updated_at: datetime
-
-
-class DataSourceInIntegrationJobInDB(BaseSchema):
-    job_id: UUID
-    data_source_id: UUID
-    created_at: datetime
-
-
-class DataIntegrationJobResultInDB(BaseSchema):
-    job_id: UUID
-    dataset_id: UUID
-    code_explanation: str
-    python_code_path: str
-
-
-class LocalDataIntegrationJobInput(DataIntegrationJobInputInDB):
-    data_sources: List[DataSource]

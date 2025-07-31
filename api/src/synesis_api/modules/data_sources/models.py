@@ -33,7 +33,7 @@ data_source = Table(
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
     CheckConstraint(source_constraint),
-    schema="data_integration"
+    schema="data_sources"
 )
 
 
@@ -42,7 +42,7 @@ file_data_source = Table(
     metadata,
     Column("id",
            UUID(as_uuid=True),
-           ForeignKey("data_integration.data_source.id"),
+           ForeignKey("data_sources.data_source.id"),
            primary_key=True),
     Column("file_name", String, nullable=False),
     Column("file_path", String, nullable=False),
@@ -52,7 +52,7 @@ file_data_source = Table(
            nullable=False, default=func.now()),
     Column("updated_at", DateTime(timezone=True),
            nullable=False, default=func.now(), onupdate=func.now()),
-    schema="data_integration"
+    schema="data_sources"
 )
 
 
@@ -61,7 +61,7 @@ tabular_file_data_source = Table(
     metadata,
     Column("id",
            UUID(as_uuid=True),
-           ForeignKey("data_integration.file_data_source.id"),
+           ForeignKey("data_sources.file_data_source.id"),
            primary_key=True),
     Column("num_rows", Integer, nullable=False),
     Column("num_columns", Integer, nullable=False),
@@ -69,7 +69,7 @@ tabular_file_data_source = Table(
            nullable=False, default=func.now()),
     Column("updated_at", DateTime(timezone=True),
            nullable=False, default=func.now(), onupdate=func.now()),
-    schema="data_integration"
+    schema="data_sources"
 )
 
 
@@ -79,12 +79,12 @@ feature_in_tabular_file = Table(
     Column("feature_name", String, ForeignKey(
         "data_objects.feature.name"), primary_key=True, nullable=False),
     Column("tabular_file_id", UUID(as_uuid=True), ForeignKey(
-        "data_integration.tabular_file_data_source.id"), primary_key=True, nullable=False),
+        "data_sources.tabular_file_data_source.id"), primary_key=True, nullable=False),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
     Column("updated_at", DateTime(timezone=True),
            nullable=False, default=func.now(), onupdate=func.now()),
-    schema="data_integration"
+    schema="data_sources"
 )
 
 data_source_group = Table(
@@ -100,7 +100,7 @@ data_source_group = Table(
            nullable=False, default=func.now()),
     Column("updated_at", DateTime(timezone=True),
            nullable=False, default=func.now(), onupdate=func.now()),
-    schema="data_integration"
+    schema="data_sources"
 )
 
 
@@ -109,17 +109,17 @@ data_source_in_group = Table(
     metadata,
     Column("group_id",
            UUID(as_uuid=True),
-           ForeignKey("data_integration.data_source_group.id"),
+           ForeignKey("data_sources.data_source_group.id"),
            primary_key=True),
     Column("data_source_id",
            UUID(as_uuid=True),
-           ForeignKey("data_integration.data_source.id"),
+           ForeignKey("data_sources.data_source.id"),
            nullable=False),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
     Column("updated_at", DateTime(timezone=True),
            nullable=False, default=func.now(), onupdate=func.now()),
-    schema="data_integration"
+    schema="data_sources"
 )
 
 
@@ -132,62 +132,13 @@ subgroup = Table(
            primary_key=True),
     Column("parent_group_id",
            UUID(as_uuid=True),
-           ForeignKey("data_integration.data_source_group.id"),
+           ForeignKey("data_sources.data_source_group.id"),
            nullable=False),
     Column("child_group_id",
            UUID(as_uuid=True),
-           ForeignKey("data_integration.data_source_group.id"),
+           ForeignKey("data_sources.data_source_group.id"),
            nullable=False),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
-    schema="data_integration"
-)
-
-
-data_integration_job_input = Table(
-    "data_integration_job_input",
-    metadata,
-    Column("job_id",
-           UUID(as_uuid=True),
-           ForeignKey("jobs.job.id"),
-           primary_key=True),
-    Column("target_dataset_description", String, nullable=False),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    Column("updated_at", DateTime(timezone=True),
-           nullable=False, default=func.now(), onupdate=func.now()),
-    schema="data_integration"
-)
-
-
-data_source_in_integration_job = Table(
-    "data_source_in_integration_job",
-    metadata,
-    Column("job_id",
-           UUID(as_uuid=True),
-           ForeignKey("jobs.job.id"),
-           primary_key=True),
-    Column("data_source_id",
-           UUID(as_uuid=True),
-           ForeignKey("data_integration.data_source.id"),
-           nullable=False),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    schema="data_integration"
-)
-
-
-data_integration_job_result = Table(
-    "data_integration_job_result",
-    metadata,
-    Column("job_id",
-           UUID(as_uuid=True),
-           ForeignKey("jobs.job.id"),
-           primary_key=True),
-    Column("dataset_id", UUID(as_uuid=True), nullable=False),
-    Column("code_explanation", String, nullable=False),
-    Column("python_code_path", String, nullable=False),
-    Column("updated_at", DateTime(timezone=True),
-           nullable=False, default=func.now(), onupdate=func.now()),
-    schema="data_integration"
+    schema="data_sources"
 )

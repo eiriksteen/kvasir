@@ -1,18 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from synesis_api.modules.jobs.router import router as jobs_router
 from synesis_api.worker import broker
 from contextlib import asynccontextmanager
 from synesis_api.auth.router import router as auth_router
-from synesis_api.modules.data_integration.router import data_integration_router
-from synesis_api.modules.chat.router import router as chat_router
-from synesis_api.modules.analysis.router import router as eda_router
+from synesis_api.modules.data_sources.router import router as data_sources_router
+from synesis_api.modules.orchestrator.router import router as orchestrator_router
+from synesis_api.modules.analysis.router import router as analysis_router
 from synesis_api.modules.data_objects.router import router as ontology_router
-from synesis_api.modules.data_warehouse.router import router as data_warehouse_router
+from synesis_api.modules.raw_data_storage.router import router as raw_data_storage_router
 from synesis_api.modules.project.router import router as project_router
 from synesis_api.modules.node.router import router as node_router
 from synesis_api.modules.automation.router import router as automation_router
-from synesis_api.modules.model_integration.router import router as model_integration_router
+from synesis_api.modules.runs.router import router as runs_router
 
 
 @asynccontextmanager
@@ -38,9 +37,9 @@ app.add_middleware(
 )
 
 
-app.include_router(chat_router,
-                   prefix="/chat",
-                   tags=["Chat"])
+app.include_router(orchestrator_router,
+                   prefix="/orchestrator",
+                   tags=["Orchestrator"])
 
 
 # Include routers
@@ -49,9 +48,9 @@ app.include_router(auth_router,
                    tags=["Authentication"])
 
 
-app.include_router(data_integration_router,
-                   prefix="/data-integration",
-                   tags=["Data Integration"])
+app.include_router(data_sources_router,
+                   prefix="/data-sources",
+                   tags=["Data Sources"])
 
 
 app.include_router(ontology_router,
@@ -59,36 +58,34 @@ app.include_router(ontology_router,
                    tags=["Data Objects"])
 
 
-app.include_router(eda_router,
+app.include_router(analysis_router,
                    prefix="/analysis",
                    tags=["Analysis"])
 
 
-app.include_router(jobs_router,
-                   prefix="",
-                   tags=["Jobs"])
-
 app.include_router(project_router,
                    prefix="/project",
                    tags=["Project"])
+
 
 app.include_router(node_router,
                    prefix="/node",
                    tags=["Node"])
 
 
-app.include_router(data_warehouse_router,
-                   prefix="/data-warehouse",
-                   tags=["Data Warehouse"])
+app.include_router(raw_data_storage_router,
+                   prefix="/raw-data-storage",
+                   tags=["Raw Data Storage"])
+
 
 app.include_router(automation_router,
                    prefix="/automation",
                    tags=["Automation"])
 
 
-app.include_router(model_integration_router,
-                   prefix="/model-integration",
-                   tags=["Model Integration"])
+app.include_router(runs_router,
+                   prefix="/runs",
+                   tags=["Runs"])
 
 
 @app.get("/")

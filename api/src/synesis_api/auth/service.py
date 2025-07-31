@@ -9,8 +9,8 @@ from fastapi import Depends, HTTPException, status, Security, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from synesis_api.auth.schema import User, UserInDB, TokenData, UserAPIKey, UserCreate
 from synesis_api.auth.models import users, user_api_keys
-from synesis_api.modules.chat.models import conversation
-from synesis_api.modules.jobs.models import job
+from synesis_api.modules.orchestrator.models import conversation
+from synesis_api.modules.runs.models import run
 from synesis_api.modules.data_objects.models import dataset
 from synesis_api.secrets import API_SECRET_KEY, API_SECRET_ALGORITHM
 from synesis_api.database.service import fetch_one, execute
@@ -192,10 +192,6 @@ async def get_user_from_api_key(api_key: str = Security(api_key_header)) -> User
 
 async def get_user_from_jwt_or_api_key(token: Annotated[str, Depends(oauth2_scheme)], api_key: str = Security(api_key_header)) -> UserInDB:
 
-    print("RUNNING GET USER FROM JWT OR API KEY")
-    print("TOKEN IS", token)
-    print("API KEY IS", api_key)
-
     if token:
         return await get_current_user(token)
     elif api_key:
@@ -205,9 +201,9 @@ async def get_user_from_jwt_or_api_key(token: Annotated[str, Depends(oauth2_sche
             status_code=401, detail="No authentication provided")
 
 
-async def user_owns_job(user_id: uuid.UUID, job_id: uuid.UUID) -> bool:
-    job_record = await fetch_one(Select(job).where(job.c.id == job_id, job.c.user_id == user_id))
-    return job_record is not None
+async def user_owns_run(user_id: uuid.UUID, run_id: uuid.UUID) -> bool:
+    run_record = await fetch_one(Select(run).where(run.c.id == run_id, run.c.user_id == user_id))
+    return run_record is not None
 
 
 async def user_owns_conversation(user_id: uuid.UUID, conversation_id: uuid.UUID) -> bool:

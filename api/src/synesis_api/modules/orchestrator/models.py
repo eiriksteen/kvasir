@@ -4,39 +4,6 @@ from sqlalchemy.dialects.postgresql import UUID, BYTEA
 from synesis_api.database.core import metadata
 
 
-chat_message = Table(
-    "chat_message",
-    metadata,
-    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
-    Column("conversation_id", UUID(as_uuid=True),
-           ForeignKey("chat.conversation.id"), nullable=False),
-    # User, agent
-    Column("role", String, nullable=False),
-    Column("content", String, nullable=False),
-    Column("job_id", UUID(as_uuid=True), nullable=True),
-    # tool_call, result, error, chat
-    Column("type", String, nullable=True),
-    Column("context_id", UUID(as_uuid=True),
-           ForeignKey("chat.context.id"), nullable=True),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    schema="chat"
-)
-
-
-chat_pydantic_message = Table(
-    "chat_pydantic_message",
-    metadata,
-    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
-    Column("conversation_id", UUID(as_uuid=True),
-           ForeignKey("chat.conversation.id"), nullable=False),
-    Column("message_list", BYTEA, nullable=False),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    schema="chat"
-)
-
-
 conversation = Table(
     "conversation",
     metadata,
@@ -48,23 +15,53 @@ conversation = Table(
     Column("name", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
-    schema="chat"
+    schema="orchestrator"
 )
 
 
-# Conversation mode stores whether the conversation is in chat, data integration, analysis, or automation mode
-# This is so we know whether to launch the agent or update it with the new message
-# The mode may change over time, and the most recent created_at mode is the one that is active
-conversation_mode = Table(
-    "conversation_mode",
+run_in_conversation = Table(
+    "run_in_conversation",
+    metadata,
+    Column("conversation_id", UUID(as_uuid=True),
+           ForeignKey("orchestrator.conversation.id"), nullable=False),
+    Column("run_id", UUID(as_uuid=True),
+           ForeignKey("runs.run.id"), nullable=False),
+    Column("context_id", UUID(as_uuid=True),
+           ForeignKey("orchestrator.context.id"), nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           nullable=False, default=func.now()),
+    PrimaryKeyConstraint("conversation_id", "run_id"),
+    schema="orchestrator"
+)
+
+
+chat_message = Table(
+    "chat_message",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     Column("conversation_id", UUID(as_uuid=True),
-           ForeignKey("chat.conversation.id"), nullable=False),
-    Column("mode", String, nullable=False),
+           ForeignKey("orchestrator.conversation.id"), nullable=False),
+    # User, assistant
+    Column("role", String, nullable=False),
+    Column("content", String, nullable=False),
+    Column("context_id", UUID(as_uuid=True),
+           ForeignKey("orchestrator.context.id"), nullable=True),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
-    schema="chat"
+    schema="orchestrator"
+)
+
+
+chat_pydantic_message = Table(
+    "chat_pydantic_message",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
+    Column("conversation_id", UUID(as_uuid=True),
+           ForeignKey("orchestrator.conversation.id"), nullable=False),
+    Column("message_list", BYTEA, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           nullable=False, default=func.now()),
+    schema="orchestrator"
 )
 
 
@@ -72,7 +69,7 @@ context = Table(
     "context",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
-    schema="chat"
+    schema="orchestrator"
 )
 
 
@@ -80,11 +77,11 @@ data_source_context = Table(
     "data_source_context",
     metadata,
     Column("context_id", UUID(as_uuid=True),
-           ForeignKey("chat.context.id"), nullable=False),
+           ForeignKey("orchestrator.context.id"), nullable=False),
     Column("data_source_id", UUID(as_uuid=True),
-           ForeignKey("data_integration.data_source.id"), nullable=False),
+           ForeignKey("data_sources.data_source.id"), nullable=False),
     PrimaryKeyConstraint("context_id", "data_source_id"),
-    schema="chat"
+    schema="orchestrator"
 )
 
 
@@ -92,11 +89,11 @@ dataset_context = Table(
     "dataset_context",
     metadata,
     Column("context_id", UUID(as_uuid=True),
-           ForeignKey("chat.context.id"), nullable=False),
+           ForeignKey("orchestrator.context.id"), nullable=False),
     Column("dataset_id", UUID(as_uuid=True),
            ForeignKey("data_objects.dataset.id"), nullable=False),
     PrimaryKeyConstraint("context_id", "dataset_id"),
-    schema="chat"
+    schema="orchestrator"
 )
 
 
@@ -104,11 +101,11 @@ automation_context = Table(
     "automation_context",
     metadata,
     Column("context_id", UUID(as_uuid=True),
-           ForeignKey("chat.context.id"), nullable=False),
+           ForeignKey("orchestrator.context.id"), nullable=False),
     Column("automation_id", UUID(as_uuid=True),
            ForeignKey("automation.automation.id"), nullable=False),
     PrimaryKeyConstraint("context_id", "automation_id"),
-    schema="chat"
+    schema="orchestrator"
 )
 
 
@@ -116,9 +113,9 @@ analysis_context = Table(
     "analysis_context",
     metadata,
     Column("context_id", UUID(as_uuid=True),
-           ForeignKey("chat.context.id"), nullable=False),
+           ForeignKey("orchestrator.context.id"), nullable=False),
     Column("analysis_id", UUID(as_uuid=True),
            ForeignKey("analysis.analysis_jobs_results.job_id"), nullable=False),
     PrimaryKeyConstraint("context_id", "analysis_id"),
-    schema="chat"
+    schema="orchestrator"
 )

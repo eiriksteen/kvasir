@@ -5,12 +5,11 @@ from typing import List
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
 from synesis_api.modules.analysis.schema import AnalysisJobResultMetadataInDB, AnalysisJobResultInDB, AnalysisPlan, AnalysisJobResultMetadataList, AnalysisStatusMessage
-from synesis_api.modules.jobs.service import update_job_status
+from synesis_api.modules.runs.service import update_run_status
 from synesis_api.utils import save_markdown_as_html
 from synesis_api.aws.service import upload_object_s3
 from synesis_api.worker import logger
-from synesis_api.modules.jobs.service import delete_job_by_id
-from synesis_api.modules.chat.models import analysis_context
+from synesis_api.modules.orchestrator.models import analysis_context
 
 
 async def run_analysis_execution(
@@ -145,7 +144,7 @@ async def insert_analysis_job_results_into_db(job_results: AnalysisJobResultMeta
             commit_after=True
         )
 
-        await update_job_status(job_results.job_id, "completed")
+        await update_run_status(job_results.job_id, "completed")
 
         logger.info("Analysis plan inserted into DB")
     except Exception as e:
@@ -180,7 +179,7 @@ async def update_analysis_job_results_in_db(job_results: AnalysisJobResultMetada
             commit_after=True
         )
 
-        await update_job_status(job_results.job_id, "completed")
+        await update_run_status(job_results.job_id, "completed")
 
         logger.info("Analysis plan updated in DB")
 
@@ -253,39 +252,39 @@ async def get_dataset_ids_by_job_id(job_id: uuid.UUID) -> List[uuid.UUID]:
     return [mapping["dataset_id"] for mapping in dataset_mappings]
 
 
-async def delete_analysis_job_results_from_db(job_id: uuid.UUID) -> uuid.UUID:
+# async def delete_analysis_job_results_from_db(job_id: uuid.UUID) -> uuid.UUID:
 
-    # Delete from child tables first
-    await execute(
-        delete(analysis_jobs_datasets).where(
-            analysis_jobs_datasets.c.job_id == job_id),
-        commit_after=True
-    )
-    await execute(
-        delete(analysis_jobs_automations).where(
-            analysis_jobs_automations.c.job_id == job_id),
-        commit_after=True
-    )
-    # Delete status messages
-    await execute(
-        delete(analysis_status_messages).where(
-            analysis_status_messages.c.job_id == job_id),
-        commit_after=True
-    )
-    # Delete from analysis_context
-    await execute(
-        delete(analysis_context).where(
-            analysis_context.c.analysis_id == job_id),
-        commit_after=True
-    )
+#     # Delete from child tables first
+#     await execute(
+#         delete(analysis_jobs_datasets).where(
+#             analysis_jobs_datasets.c.job_id == job_id),
+#         commit_after=True
+#     )
+#     await execute(
+#         delete(analysis_jobs_automations).where(
+#             analysis_jobs_automations.c.job_id == job_id),
+#         commit_after=True
+#     )
+#     # Delete status messages
+#     await execute(
+#         delete(analysis_status_messages).where(
+#             analysis_status_messages.c.job_id == job_id),
+#         commit_after=True
+#     )
+#     # Delete from analysis_context
+#     await execute(
+#         delete(analysis_context).where(
+#             analysis_context.c.analysis_id == job_id),
+#         commit_after=True
+#     )
 
-    # Delete from analysis_jobs_results
-    await execute(
-        delete(analysis_jobs_results).where(
-            analysis_jobs_results.c.job_id == job_id),
-        commit_after=True
-    )
+#     # Delete from analysis_jobs_results
+#     await execute(
+#         delete(analysis_jobs_results).where(
+#             analysis_jobs_results.c.job_id == job_id),
+#         commit_after=True
+#     )
 
-    # Delete from jobs table
-    await delete_job_by_id(job_id)
-    return job_id
+#     # Delete from jobs table
+#     await delete_run_by_id(job_id)
+#     return job_id

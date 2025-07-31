@@ -1,17 +1,14 @@
 import uuid
 import json
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
-from sqlalchemy import select, join, insert, or_
+from typing import List, Optional
+from sqlalchemy import select, insert, or_
 from synesis_api.database.service import fetch_all, fetch_one, execute
 from synesis_api.modules.automation.models import (
     model, modality, source, programming_language_version,
-    programming_language, task, model_task, function
+    programming_language, task, model_task
 )
 from synesis_api.modules.automation.schema import ModelComplete, Modality, Source, ProgrammingLanguageVersion, Task, ProgrammingLanguage
-from synesis_api.modules.jobs.schema import Job
-from synesis_api.modules.jobs.models import job
-from synesis_api.modules.model_integration.models import model_integration_job_result
 
 
 async def get_or_create_modalities(names: List[str], descriptions: Optional[List[str]] = None) -> List[Modality]:
@@ -320,54 +317,7 @@ async def user_owns_model(user_id: uuid.UUID, model_id: uuid.UUID) -> bool:
     return model_record is not None
 
 
-async def get_integration_jobs_for_user_models(user_id: uuid.UUID) -> dict[uuid.UUID, List[dict]]:
-    """
-    Get all integration jobs for models owned by a user.
-
-    Args:
-        user_id: The ID of the user
-
-    Returns:
-        A dictionary mapping model_id to a list of job metadata dictionaries
-    """
-    query = select(
-        model_integration_job_result.c.model_id,
-        job.c.id,
-        job.c.type,
-        job.c.status,
-        job.c.job_name,
-        job.c.started_at,
-        job.c.completed_at
-    ).join(
-        job, job.c.id == model_integration_job_result.c.job_id
-    ).join(
-        model, model.c.id == model_integration_job_result.c.model_id
-    ).where(
-        model.c.owner_id == user_id
-    )
-
-    results = await fetch_all(query)
-
-    # Group jobs by model_id
-    jobs_by_model = {}
-    for row in results:
-        model_id = row["model_id"]
-        if model_id not in jobs_by_model:
-            jobs_by_model[model_id] = []
-
-        jobs_by_model[model_id].append({
-            "id": row["id"],
-            "type": row["type"],
-            "status": row["status"],
-            "job_name": row["job_name"],
-            "started_at": row["started_at"],
-            "completed_at": row["completed_at"]
-        })
-
-    return jobs_by_model
-
-
-async def get_user_models(user_id: uuid.UUID, include_integration_jobs: bool = False) -> List[ModelComplete]:
+async def get_user_models(user_id: uuid.UUID) -> List[ModelComplete]:
     """Get all models owned by a specific user"""
 
     # Join all the necessary tables and filter by owner
@@ -448,20 +398,10 @@ async def get_user_models(user_id: uuid.UUID, include_integration_jobs: bool = F
 
         models_joined.append(model_joined)
 
-    if include_integration_jobs:
-        # Get integration jobs for all user models
-        integration_jobs_by_model = await get_integration_jobs_for_user_models(user_id)
-
-        # Populate integration_jobs for each model
-        for model_joined in models_joined:
-            model_jobs = integration_jobs_by_model.get(model_joined.id, [])
-            model_joined.integration_jobs = [
-                Job(**job) for job in model_jobs]
-
     return models_joined
 
 
-async def get_model_complete(model_id: uuid.UUID, include_integration_jobs: bool = False) -> ModelComplete:
+async def get_model_complete(model_id: uuid.UUID) -> ModelComplete:
     """Get a single ModelComplete by model_id"""
 
     # Join all the necessary tables
@@ -542,17 +482,10 @@ async def get_model_complete(model_id: uuid.UUID, include_integration_jobs: bool
     model_joined.config_parameters = json.loads(
         f"[{model_joined.config_parameters[0]}]".replace("'", '"'))
 
-    if include_integration_jobs:
-        # Get integration jobs for this specific model
-        integration_jobs_by_model = await get_integration_jobs_for_user_models(result["owner_id"])
-        model_jobs = integration_jobs_by_model.get(model_id, [])
-        model_joined.integration_jobs = [
-            Job(**job) for job in model_jobs]
-
     return model_joined
 
 
-async def get_all_models_public_or_owned(user_id: uuid.UUID, include_integration_jobs: bool = False) -> List[ModelComplete]:
+async def get_all_models_public_or_owned(user_id: uuid.UUID) -> List[ModelComplete]:
     """Get all ModelComplete objects"""
 
     # Join all the necessary tables
@@ -638,15 +571,5 @@ async def get_all_models_public_or_owned(user_id: uuid.UUID, include_integration
             f"[{model_joined.config_parameters[0]}]".replace("'", '"'))
 
         models_joined.append(model_joined)
-
-    if include_integration_jobs:
-        # Get integration jobs for all user models
-        integration_jobs_by_model = await get_integration_jobs_for_user_models(user_id)
-
-        # Populate integration_jobs for each model
-        for model_joined in models_joined:
-            model_jobs = integration_jobs_by_model.get(model_joined.id, [])
-            model_joined.integration_jobs = [
-                Job(**job) for job in model_jobs]
 
     return models_joined

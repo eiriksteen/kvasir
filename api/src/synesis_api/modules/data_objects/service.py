@@ -33,9 +33,6 @@ from synesis_api.modules.data_objects.schema import (
     TimeSeriesAggregationFull,
     ObjectGroupWithObjectList,
 )
-from synesis_api.modules.jobs.models import job
-from synesis_api.modules.jobs.schema import Job
-from synesis_api.modules.data_integration.models import data_integration_job_result
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_data_structures.time_series.serialization import (
     deserialize_parquet_to_dataframes
@@ -48,7 +45,7 @@ from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID,
     TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID
 )
-from synesis_api.modules.data_warehouse.service import save_dataframe_to_local_storage
+from synesis_api.modules.raw_data_storage.service import save_dataframe_to_local_storage
 from synesis_api.utils import determine_sampling_frequency, determine_timezone
 
 
@@ -323,7 +320,6 @@ async def delete_dataset(dataset_id: uuid.UUID, user_id: uuid.UUID) -> None:
 async def get_user_dataset(
         dataset_id: uuid.UUID,
         user_id: uuid.UUID,
-        include_integration_jobs: bool = False,
         include_object_lists: bool = False,
 ) -> Union[DatasetWithObjectGroups, DatasetWithObjectGroupsAndLists]:
     """Get a dataset for a user"""
@@ -366,15 +362,6 @@ async def get_user_dataset(
         raise HTTPException(
             status_code=400, detail="Dataset must have a primary object group")
 
-    # Get integration jobs if requested
-    integration_jobs = []
-    if include_integration_jobs:
-        integration_jobs_query = select(data_integration_job_result.c.job_id).where(
-            data_integration_job_result.c.dataset_id == dataset_id
-        )
-        integration_jobs_result = await fetch_all(integration_jobs_query)
-        integration_jobs = [job["job_id"] for job in integration_jobs_result]
-
     # Create base result
     if include_object_lists:
         # Get objects for each group
@@ -386,8 +373,7 @@ async def get_user_dataset(
             **dataset_obj.model_dump(),
             primary_object_group=primary_with_objects,
             annotated_object_groups=annotated_with_objects,
-            computed_object_groups=computed_with_objects,
-            integration_jobs=integration_jobs
+            computed_object_groups=computed_with_objects
         )
     else:
         # Get features for each group
@@ -399,8 +385,7 @@ async def get_user_dataset(
             **dataset_obj.model_dump(),
             primary_object_group=primary_with_features,
             annotated_object_groups=annotated_with_features,
-            computed_object_groups=computed_with_features,
-            integration_jobs=integration_jobs
+            computed_object_groups=computed_with_features
         )
 
     return result
@@ -408,7 +393,6 @@ async def get_user_dataset(
 
 async def get_user_datasets(
         user_id: uuid.UUID,
-        include_integration_jobs: bool = False,
         include_object_lists: bool = False,
 ) -> List[Union[DatasetWithObjectGroups, DatasetWithObjectGroupsAndLists]]:
     """Get all datasets for a user"""
@@ -434,21 +418,6 @@ async def get_user_datasets(
         if group_obj.dataset_id not in object_groups_by_dataset:
             object_groups_by_dataset[group_obj.dataset_id] = []
         object_groups_by_dataset[group_obj.dataset_id].append(group_obj)
-
-    # Get integration jobs if requested
-    integration_jobs_by_dataset = {}
-    if include_integration_jobs:
-        integration_jobs_query = select(data_integration_job_result.c.job_id, data_integration_job_result.c.dataset_id).where(
-            data_integration_job_result.c.dataset_id.in_(dataset_ids)
-        )
-        integration_jobs_result = await fetch_all(integration_jobs_query)
-
-        for job_result in integration_jobs_result:
-            job_id = job_result["job_id"]
-            dataset_id = job_result["dataset_id"]
-            if dataset_id not in integration_jobs_by_dataset:
-                integration_jobs_by_dataset[dataset_id] = []
-            integration_jobs_by_dataset[dataset_id].append(job_id)
 
     # Build result for each dataset
     result_datasets = []
@@ -508,7 +477,6 @@ async def get_user_datasets(
 async def get_user_datasets_by_ids(
         user_id: uuid.UUID,
         dataset_ids: List[uuid.UUID] = [],
-        include_integration_jobs: bool = False,
         include_object_lists: bool = False,
 ) -> List[Union[DatasetWithObjectGroups, DatasetWithObjectGroupsAndLists]]:
     """Get specific datasets for a user by IDs"""
@@ -541,27 +509,6 @@ async def get_user_datasets_by_ids(
         if group_obj.dataset_id not in object_groups_by_dataset:
             object_groups_by_dataset[group_obj.dataset_id] = []
         object_groups_by_dataset[group_obj.dataset_id].append(group_obj)
-
-    # Get integration jobs if requested
-    integration_jobs_by_dataset = {}
-    if include_integration_jobs:
-        integration_jobs_query = select(job, data_integration_job_result.c.dataset_id).join(
-            data_integration_job_result,
-            job.c.id == data_integration_job_result.c.job_id
-        ).where(
-            and_(
-                data_integration_job_result.c.dataset_id.in_(dataset_ids),
-                job.c.user_id == user_id
-            )
-        )
-        integration_jobs_result = await fetch_all(integration_jobs_query)
-
-        for job_result in integration_jobs_result:
-            job = Job(**job_result)
-            dataset_id = job_result["dataset_id"]
-            if dataset_id not in integration_jobs_by_dataset:
-                integration_jobs_by_dataset[dataset_id] = []
-            integration_jobs_by_dataset[dataset_id].append(job)
 
     # Build result for each dataset
     result_datasets = []
@@ -598,9 +545,7 @@ async def get_user_datasets_by_ids(
                 **dataset_obj.model_dump(),
                 primary_object_group=primary_with_objects,
                 annotated_object_groups=annotated_with_objects,
-                computed_object_groups=computed_with_objects,
-                integration_jobs=integration_jobs_by_dataset.get(
-                    dataset_id, [])
+                computed_object_groups=computed_with_objects
             )
         else:
             # Get features for each group
@@ -613,8 +558,6 @@ async def get_user_datasets_by_ids(
                 primary_object_group=primary_with_features,
                 annotated_object_groups=annotated_with_features,
                 computed_object_groups=computed_with_features,
-                integration_jobs=integration_jobs_by_dataset.get(
-                    dataset_id, [])
             )
 
         result_datasets.append(dataset_with_objects)
