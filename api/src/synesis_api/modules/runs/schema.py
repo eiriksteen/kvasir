@@ -1,4 +1,4 @@
-from typing import Literal, List, Optional
+from typing import Literal, List, Optional, Union
 from datetime import datetime, timezone
 import uuid
 from synesis_api.base_schema import BaseSchema
@@ -9,9 +9,10 @@ from synesis_api.modules.data_sources.schema import DataSource
 
 class RunInDB(BaseSchema):
     id: uuid.UUID
-    type: str
-    status: str
     user_id: uuid.UUID
+    conversation_id: uuid.UUID
+    type: Literal["data_integration", "analysis", "automation"]
+    status: str
     started_at: datetime
     completed_at: Optional[datetime] = None
     run_name: Optional[str] = None
@@ -32,7 +33,7 @@ class RunPydanticMessageInDB(BaseSchema):
     created_at: datetime = datetime.now(timezone.utc)
 
 
-class DataSourceInRunInDB(BaseSchema):
+class DataSourceInIntegrationRunInDB(BaseSchema):
     run_id: uuid.UUID
     data_source_id: uuid.UUID
     created_at: datetime
@@ -45,16 +46,17 @@ class DataIntegrationRunInputInDB(BaseSchema):
     updated_at: datetime
 
 
+class ModelIntegrationRunInputInDB(BaseSchema):
+    run_id: uuid.UUID
+    model_id_str: str
+    source: Literal["github", "pip", "source_code"]
+
+
 class DataIntegrationRunResultInDB(BaseSchema):
     run_id: uuid.UUID
     dataset_id: uuid.UUID
     code_explanation: str
     python_code_path: str
-
-
-class ModelIntegrationRunInputInDB(BaseSchema):
-    model_id_str: str
-    source: Literal["github", "pip", "source_code"]
 
 
 class ModelIntegrationRunResultInDB(BaseSchema):
@@ -65,5 +67,16 @@ class ModelIntegrationRunResultInDB(BaseSchema):
 # API Models
 
 
-class DataIntegrationRunInput(DataIntegrationRunInputInDB):
-    data_sources: List[DataSource]
+class DataIntegrationRunInput(BaseSchema):
+    run_id: uuid.UUID
+    target_dataset_description: str
+    data_source_ids: List[uuid.UUID] = []
+
+
+RunInput = Union[DataIntegrationRunInput, ModelIntegrationRunInputInDB]
+RunResult = Union[DataIntegrationRunResultInDB, ModelIntegrationRunResultInDB]
+
+
+class Run(RunInDB):
+    input: RunInput
+    result: Optional[RunResult] = None

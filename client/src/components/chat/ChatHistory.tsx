@@ -1,6 +1,6 @@
 import React from 'react';
-import { useChat } from '@/hooks/useChat';
-import { Conversation } from '@/types/chat';
+import { useProjectChat } from '@/hooks/useChat';
+import { Conversation } from '@/types/orchestrator';
 import { MessageSquare, Loader2, AlertCircle } from 'lucide-react';
 import { useProject } from '@/hooks/useProject';
 import { useConversations } from '@/hooks/useConversations';
@@ -20,14 +20,14 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
   
   const { 
     conversation,
-    setConversationId
-  } = useChat(projectId);
+    setProjectConversationId
+  } = useProjectChat(projectId);
 
   const { selectedProject } = useProject(projectId);
 
   const handleConversationClick = async (conversationId: UUID) => {
     try {
-      await setConversationId(conversationId);
+      await setProjectConversationId(conversationId);
       onClose();
     } catch (error) {
       console.error('Failed to switch conversation:', error);

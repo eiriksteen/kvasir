@@ -1,7 +1,7 @@
 'use client';
 
 import { X, Info } from 'lucide-react';
-import { Job } from '@/types/jobs';
+import { Run } from '@/types/runs';
 import { getStatusColor } from '@/lib/utils';
 import { useState } from 'react';
 import AnalysisJobDetail from './analysis/AnalysisJobDetail';
@@ -11,11 +11,11 @@ interface JobsOverviewProps {
   job_type: string;
   isOpen: boolean;
   onClose: () => void;
-  jobs: Job[];
+  jobs: Run[];
 }
 
 export default function JobsOverview({ job_type, isOpen, onClose, jobs }: JobsOverviewProps) {
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [selectedJob, setSelectedJob] = useState<Run | null>(null);
   const { mutateCurrentAnalysis, analysisJobResults } = useAnalysis();
 
   if (!isOpen) return null;
@@ -42,7 +42,7 @@ export default function JobsOverview({ job_type, isOpen, onClose, jobs }: JobsOv
     );
   };
 
-  const handleJobClick = (job: Job) => {
+  const handleJobClick = (job: Run) => {
     if (job_type.toLowerCase() === "analysis") {
       mutateCurrentAnalysis(analysisJobResults?.analysesJobResults.find(analysis => analysis.jobId === job.id) || null);
       setSelectedJob(job);

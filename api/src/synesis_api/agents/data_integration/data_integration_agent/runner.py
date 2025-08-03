@@ -87,8 +87,7 @@ class DataIntegrationRunner:
     async def __call__(
         self,
         prompt_content: str,
-        data_source_ids: Optional[List[uuid.UUID]] = None,
-        resume: bool = False
+        data_source_ids: Optional[List[uuid.UUID]] = None
     ):
 
         api_key = (await create_api_key(self.user_id)).key
@@ -186,21 +185,5 @@ async def run_data_integration_task(
     )
 
     result = await runner(data_source_ids=data_source_ids, prompt_content=prompt_content)
-
-    return result
-
-
-@broker.task(retry_on_error=False)
-async def resume_data_integration_task(
-        user_id: uuid.UUID,
-        run_id: uuid.UUID,
-        prompt_content: str):
-
-    runner = DataIntegrationRunner(
-        user_id,
-        run_id
-    )
-
-    result = await runner(resume=True, prompt_content=prompt_content)
 
     return result

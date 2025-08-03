@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from synesis_api.redis import get_redis
 import redis
 from synesis_api.modules.analysis.schema import AnalysisJobResultMetadata, AnalysisJobResultMetadataList
-from synesis_api.auth.service import get_current_user, user_owns_run
+from synesis_api.auth.service import get_current_user, user_owns_runs
 from synesis_api.modules.analysis.service import (
     get_analysis_job_results_from_db,
     get_user_analysis_metadata,
@@ -30,7 +30,7 @@ async def analysis_agent_sse(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> StreamingResponse:
 
-    if not user or not await user_owns_run(user.id, job_id):
+    if not user or not await user_owns_runs(user.id, [job_id]):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 
@@ -80,7 +80,7 @@ async def get_analysis_job_results(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> AnalysisJobResultMetadata:
 
-    if not await user_owns_run(user.id, job_id):
+    if not await user_owns_runs(user.id, [job_id]):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 
@@ -105,7 +105,7 @@ async def create_analysis_pdf(
     run_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> AnalysisJobResultMetadata:
-    if not await user_owns_run(user.id, run_id):
+    if not await user_owns_runs(user.id, [run_id]):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 

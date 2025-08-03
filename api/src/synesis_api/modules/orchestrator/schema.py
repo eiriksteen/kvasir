@@ -1,7 +1,7 @@
 from typing import Literal, List, Optional
 from datetime import datetime, timezone
 from synesis_api.base_schema import BaseSchema
-from synesis_api.modules.runs.schema import RunInDB, RunMessageInDB
+from pydantic import model_validator
 import uuid
 
 
@@ -19,7 +19,7 @@ class ConversationInDB(BaseSchema):
 class RunInConversationInDB(BaseSchema):
     conversation_id: uuid.UUID
     run_id: uuid.UUID
-    context_id: uuid.UUID
+    context_id: Optional[uuid.UUID] = None
     created_at: datetime = datetime.now(timezone.utc)
 
 
@@ -78,23 +78,6 @@ class ChatMessage(ChatMessageInDB):
     context: Optional[Context] = None
 
 
-class Run(RunInDB):
-    context: Optional[Context] = None
-
-
-class Conversation(ConversationInDB):
-    runs: List[Run] = []
-
-
-class RunWithMessages(Run):
-    messages: List[RunMessageInDB] = []
-
-
-class ConversationWithMessages(ConversationInDB):
-    chat_messages: List[ChatMessage] = []
-    runs: List[RunWithMessages] = []
-
-
 # Create Models
 
 
@@ -106,13 +89,18 @@ class ContextCreate(BaseSchema):
 
 
 class UserChatMessageCreate(BaseSchema):
-    message_id: uuid.UUID
-    conversation_id: uuid.UUID
-    project_id: uuid.UUID
     content: str
+    conversation_id: Optional[uuid.UUID] = None
+    project_id: Optional[uuid.UUID] = None
     context: Optional[ContextCreate] = None
+
+    @model_validator(mode="after")
+    def validate_at_least_one_id(self):
+        if self.conversation_id is None and self.project_id is None:
+            raise ValueError(
+                'At least one of conversation_id or project_id must be provided')
+        return self
 
 
 class ConversationCreate(BaseSchema):
     project_id: uuid.UUID
-    content: str

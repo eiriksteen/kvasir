@@ -1,4 +1,4 @@
-import { Job } from "./jobs";
+import { Run } from "./runs";
 
 
 export type Feature = {
@@ -62,7 +62,7 @@ export type Dataset = {
     primaryObjectGroup: ObjectGroup;
     annotatedObjectGroups: ObjectGroup[];
     computedObjectGroups: ObjectGroup[];
-    integrationJobs: Job[];
+    integrationJobs: Run[];
 }
 
 export type DatasetWithObjectLists = {
@@ -76,5 +76,5 @@ export type DatasetWithObjectLists = {
     primaryObjectGroup: ObjectGroupWithObjectList;
     annotatedObjectGroups: ObjectGroupWithObjectList[];
     computedObjectGroups: ObjectGroupWithObjectList[];
-    integrationJobs: Job[];
+    integrationJobs: Run[];
 }

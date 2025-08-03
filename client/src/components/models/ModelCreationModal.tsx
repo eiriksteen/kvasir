@@ -2,10 +2,10 @@ import { format } from 'date-fns';
 import { X, Loader2 } from 'lucide-react';
 import { useEffect } from 'react';
 import ModelIntegrationChat from './ModelIntegrationChat';
-import { Job } from '@/types/jobs';
+import { Run } from '@/types/runs';
 
 interface ModelCreationModalProps {
-  job: Job;
+  job: Run;
   onClose: () => void;
   gradientClass: string | undefined;
 }

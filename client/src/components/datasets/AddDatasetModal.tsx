@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Plus, Upload, Check, AlertTriangle, Loader2, HardDrive, Cloud, X } from 'lucide-react';
 import { useJobs } from '@/hooks';
 import { useSession } from 'next-auth/react';
-import { IntegrationSource } from '@/types/jobs';
+import { IntegrationSource } from '@/types/runs';
 
 interface AddDatasetModalProps {
   onClose: () => void;

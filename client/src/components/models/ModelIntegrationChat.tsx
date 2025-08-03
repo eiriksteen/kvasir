@@ -3,12 +3,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useModelIntegrationAgent } from '@/hooks/useModelIntegrationAgent';
 import { ModelIntegrationMessage } from '@/types/model-integration';
-import { Job } from '@/types/jobs';
+import { Run } from '@/types/runs';
 import { getStatusColor } from '@/lib/utils';
 import { Loader2, Send, Check, ThumbsDown, Wifi, WifiOff } from 'lucide-react';
 
 interface ModelIntegrationChatProps {
-  job: Job;
+  job: Run;
 }
 
 export default function ModelIntegrationChat({ job }: ModelIntegrationChatProps) {

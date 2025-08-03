@@ -2,7 +2,7 @@
 
 import { useModels } from '@/hooks/useModels';
 import { useJobs } from '@/hooks';
-import { Job } from '@/types/jobs';
+import { Run } from '@/types/runs';
 import { Brain, Plus, Filter } from 'lucide-react';
 import ModelBeingCreated from '@/components/models/ModelBeingCreated';
 import { useMemo, useState } from 'react';
@@ -51,7 +51,7 @@ export default function ModelsPageContent() {
   const [showFailedJobs, setShowFailedJobs] = useState(false);
   const [showAddModelModal, setShowAddModelModal] = useState(false);
 
-  const creationJobs: Job[] = useMemo(() => {
+  const creationJobs: Run[] = useMemo(() => {
     // all jobs in the model jobs that are the only ones running (integrationJobs have len = 1), and the jobs in integrationJobs that do not belong to any model
     const modelJobs = (models?.filter(
       model => model.integrationJobs.length === 1 && model.integrationJobs[0].status !== 'completed') || []).map(model => model.integrationJobs[0]);
@@ -192,7 +192,7 @@ export default function ModelsPageContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               
               {/* Preliminary models for running jobs */}
-              {creationJobs.map((job: Job, index: number) => (
+              {creationJobs.map((job: Run, index: number) => (
                 <ModelBeingCreated
                   key={job.id}
                   job={job}

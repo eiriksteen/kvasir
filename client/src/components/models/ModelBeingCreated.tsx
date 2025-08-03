@@ -3,17 +3,17 @@
 import ModelMini from './ModelMini';
 import ModelCompact from './ModelCompact';
 import { Model } from '@/types/model-integration';
-import { Job } from '@/types/jobs';
+import { Run } from '@/types/runs';
 
 interface ModelBeingCreatedProps {
-  job: Job | undefined;
+  job: Run | undefined;
   gradientClass: string;
   defaultView: 'mini' | 'compact';
   onClick: () => void;
 }
 
 // Helper function to create preliminary model from integration job
-const createPreliminaryModel = (job?: Job): Model => {
+const createPreliminaryModel = (job?: Run): Model => {
   if (!job) {
     // Create a default preliminary model when no job exists yet
     const now = new Date().toISOString();

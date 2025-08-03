@@ -1,4 +1,4 @@
-import { Job } from "@/types/jobs";
+import { Run } from "@/types/runs";
 
 
 export interface Automation {
@@ -60,7 +60,7 @@ export interface Model {
   source: Source;
   programmingLanguageVersion: ProgrammingLanguageVersion;
   tasks: Task[];
-  integrationJobs: Job[];
+  integrationJobs: Run[];
   createdAt: string;
   updatedAt: string;
 }

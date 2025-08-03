@@ -4,10 +4,10 @@ import React, { useEffect, useRef, useState, memo } from 'react';
 import { Send, Plus, History, Database, X, BarChart, Zap } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useChat } from '@/hooks/useChat';
+import { useProjectChat } from '@/hooks/useChat';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { ChatHistory } from '@/components/chat/ChatHistory';
-import { ChatMessage } from '@/types/chat';
+import { ChatMessage } from '@/types/orchestrator';
 import { Dataset } from '@/types/data-objects';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 import { useSession } from 'next-auth/react';
@@ -29,43 +29,15 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
 
   // Different styling based on message type
   const getMessageStyles = () => {
-    if (message.type === 'chat') {
       return {
         container: `max-w-[80%] rounded-2xl px-4 py-3 shadow-md backdrop-blur-sm ${
           message.role === 'user' 
             ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-tr-none' 
             : 'bg-gray-950/40 text-white rounded-tl-none border border-gray-800/50'
         }`,
-        content: `text-sm leading-relaxed ${message.role === 'agent' ? 'animate-fade-in' : ''}`
+        content: `text-sm leading-relaxed ${message.role === 'assistant' ? 'animate-fade-in' : ''}`
       };
-    } else {
-      // For tool_call, result, error - sleek styling without boxes
-      const baseContainer = 'max-w-[80%] px-2 py-1';
-      const baseContent = 'text-xs leading-relaxed animate-fade-in';
-      
-      switch (message.type) {
-        case 'tool_call':
-          return {
-            container: `${baseContainer} text-gray-400`,
-            content: baseContent
-          };
-        case 'result':
-          return {
-            container: `${baseContainer} bg-gradient-to-r from-blue-600 via-purple-600 to-orange-700 bg-clip-text text-transparent`,
-            content: baseContent
-          };
-        case 'error':
-          return {
-            container: `${baseContainer} text-red-400`,
-            content: baseContent
-          };
-        default:
-          return {
-            container: `${baseContainer} text-gray-400`,
-            content: baseContent
-          };
-      }
-    }
+
   };
 
   const styles = getMessageStyles();
@@ -75,8 +47,8 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
       className={`mb-2 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
     >
       <div className={styles.container}>
-        {/* Context bar - only show for chat messages */}
-        {hasContext && message.type === 'chat' && (
+
+        {hasContext && (
           <div className="mb-2 pb-2 border-b border-current/20">
             <div className="flex flex-wrap gap-1">
               {/* Datasets */}
@@ -135,7 +107,7 @@ function Chat({ projectId }: { projectId: UUID }) {
   const [isDragging, setIsDragging] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(false);  
 
-  const { submitPrompt, conversation, setConversationId } = useChat(projectId);
+  const { submitPrompt, conversation, setProjectConversationId, conversationMessages } = useProjectChat(projectId);
 
   const { 
     dataSourcesInContext, 
@@ -167,7 +139,7 @@ function Chat({ projectId }: { projectId: UUID }) {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [conversation?.messages]);
+  }, [conversationMessages]);
   
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -228,13 +200,13 @@ function Chat({ projectId }: { projectId: UUID }) {
           {/* Header with history button */}
           <div className="border-b border-gray-800 bg-gray-900/50 p-3 flex justify-between items-center relative">
             <div className="flex-1 pl-1">
-              <h3 className="text-sm font-medium text-gray-300">
+              <h3 className="text-sm font-medium text-gray-300 animate-fade-in">
                 {conversation?.name || "Chat"}
               </h3>
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setConversationId(null)}
+                onClick={() => setProjectConversationId(null)}
                 className="p-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 text-gray-300 hover:text-white"
                 title="New Chat"
               >
@@ -330,22 +302,17 @@ function Chat({ projectId }: { projectId: UUID }) {
             className="flex-1 overflow-y-auto p-4 pb-24 scrollbar-thin scrollbar-thumb-gray-700"
             style={{ scrollBehavior: 'smooth' }}
           >
-            {conversation?.messages.length === 0 && (
+            {conversationMessages.length === 0 && (
               <div className="flex h-full items-center justify-center text-zinc-500">
                 <div className="text-center">
                   <p className="mb-2">
                     {conversation?.id ? 'Start a conversation' : 'Start a new conversation'}
                   </p>
-                  {!conversation?.id && (
-                    <p className="text-sm text-zinc-600">
-                      Select a conversation from history or start chatting
-                    </p>
-                  )}
                 </div>
               </div>
             )}
             {/* Message list */}
-            {conversation?.messages
+            {conversationMessages
               .sort((a: ChatMessage, b: ChatMessage) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
               .map((message: ChatMessage, index: number) => (
                 <ChatListItem key={index} message={message} />

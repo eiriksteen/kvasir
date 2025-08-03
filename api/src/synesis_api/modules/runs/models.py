@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Table, Column, String, DateTime, func, ForeignKey, PrimaryKeyConstraint
+from sqlalchemy import Table, Column, String, DateTime, func, ForeignKey, PrimaryKeyConstraint, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID, BYTEA
 from synesis_api.database.core import metadata
 
@@ -9,15 +9,17 @@ run = Table(
     "run",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
+    Column("user_id", UUID(as_uuid=True),
+           ForeignKey("auth.users.id"), nullable=False),
+    Column("conversation_id", UUID(as_uuid=True),
+           ForeignKey("orchestrator.conversation.id"), nullable=False),
     Column("type", String, nullable=False),
     Column("status", String, nullable=False),
-    Column("user_id",
-           UUID(as_uuid=True),
-           ForeignKey("auth.users.id"),
-           nullable=False),
     Column("started_at", DateTime(timezone=True), nullable=False),
     Column("completed_at", DateTime(timezone=True), nullable=True),
     Column("run_name", String, nullable=True),
+    CheckConstraint(
+        "type IN ('data_integration', 'analysis', 'automation')", name="type_check"),
     schema="runs"
 )
 
@@ -80,22 +82,6 @@ data_integration_run_input = Table(
 )
 
 
-data_integration_run_result = Table(
-    "data_integration_run_result",
-    metadata,
-    Column("run_id",
-           UUID(as_uuid=True),
-           ForeignKey("runs.run.id"),
-           primary_key=True),
-    Column("dataset_id", UUID(as_uuid=True), nullable=False),
-    Column("code_explanation", String, nullable=False),
-    Column("python_code_path", String, nullable=False),
-    Column("updated_at", DateTime(timezone=True),
-           nullable=False, default=func.now(), onupdate=func.now()),
-    schema="runs"
-)
-
-
 model_integration_run_input = Table(
     "model_integration_run_input",
     metadata,
@@ -112,13 +98,33 @@ model_integration_run_input = Table(
 )
 
 
+data_integration_run_result = Table(
+    "data_integration_run_result",
+    metadata,
+    Column("run_id",
+           UUID(as_uuid=True),
+           ForeignKey("runs.run.id"),
+           primary_key=True),
+    Column("dataset_id", UUID(as_uuid=True), ForeignKey(
+        "data_objects.dataset.id"), nullable=False),
+    Column("code_explanation", String, nullable=False),
+    Column("python_code_path", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           nullable=False, default=func.now()),
+    Column("updated_at", DateTime(timezone=True),
+           nullable=False, default=func.now(), onupdate=func.now()),
+    schema="runs"
+)
+
+
 model_integration_run_result = Table(
     "model_integration_run_result",
     metadata,
     Column("run_id", UUID(as_uuid=True),
            ForeignKey("runs.run.id"),
            primary_key=True),
-    Column("model_id", UUID(as_uuid=True), nullable=False),
+    Column("model_id", UUID(as_uuid=True), ForeignKey(
+        "automation.model.id"), nullable=False),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
     Column("updated_at", DateTime(timezone=True),

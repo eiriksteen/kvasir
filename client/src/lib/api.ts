@@ -1,8 +1,8 @@
 import { EventSource } from 'eventsource';
-import { ConversationWithMessages, ConversationCreate, Prompt, Conversation } from "@/types/chat";
+import { ConversationCreate, Prompt, Conversation, ChatMessage } from "@/types/orchestrator";
 import { Dataset, DatasetWithObjectLists } from "@/types/data-objects";
 import { Analyses } from "@/types/analysis";
-import { Job } from "@/types/jobs";
+import { Run, RunMessage } from "@/types/runs";
 import { Project, ProjectCreate, AddEntityToProject, RemoveEntityFromProject, ProjectDetailsUpdate } from "@/types/project";
 import { AnalysisRequest } from "@/types/analysis";
 import { FrontendNode, FrontendNodeCreate } from "@/types/node";
@@ -14,7 +14,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export async function fetchDatasets(token: string): Promise<Dataset[]> {
 
-  const response = await fetch(`${API_URL}/data-objects/datasets?include_integration_jobs=1&include_object_lists=0`, {
+  const response = await fetch(`${API_URL}/data-objects/datasets?include_object_lists=0`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -32,7 +32,7 @@ export async function fetchDatasets(token: string): Promise<Dataset[]> {
 }
 
 export async function fetchDatasetsWithObjectLists(token: string): Promise<DatasetWithObjectLists[]> {
-  const response = await fetch(`${API_URL}/data-objects/datasets?include_integration_jobs=1&include_object_lists=1`, {
+  const response = await fetch(`${API_URL}/data-objects/datasets?include_object_lists=1`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -49,7 +49,7 @@ export async function fetchDatasetsWithObjectLists(token: string): Promise<Datas
   return data;
 }
 
-export async function postAnalysisPlanner(token: string, analysisRequest: AnalysisRequest): Promise<Job> {
+export async function postAnalysisPlanner(token: string, analysisRequest: AnalysisRequest): Promise<Run> {
   const response = await fetch(`${API_URL}/analysis/create-analysis`, {
     method: 'POST',
     headers: {
@@ -85,7 +85,7 @@ export async function deleteAnalysisJobResultsDB(token: string, jobId: string): 
   return data;
 }
 
-export async function postAnalysis(token: string, datasetIds: string[], automationIds: string[]): Promise<Job> {
+export async function postAnalysis(token: string, datasetIds: string[], automationIds: string[]): Promise<Run> {
   const response = await fetch(`${API_URL}/eda/call-eda-agent?dataset_ids=${datasetIds.join(",")}&automation_ids=${automationIds.join(",")}`, {
     method: 'POST',
     headers: {
@@ -120,8 +120,8 @@ export async function fetchAnalysisJobResults(token: string): Promise<Analyses> 
   return data;
 }
 
-export async function fetchJobs(token: string, onlyRunning: boolean = false, type: string | null = null): Promise<Job[]> {
-  const response = await fetch(`${API_URL}/jobs?only_running=${onlyRunning}&type=${type}`, {
+export async function fetchRuns(token: string): Promise<Run[]> {
+  const response = await fetch(`${API_URL}/runs/user-runs`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -130,36 +130,16 @@ export async function fetchJobs(token: string, onlyRunning: boolean = false, typ
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Failed to fetch jobs', errorText);
-    throw new Error(`Failed to fetch jobs: ${response.status} ${errorText}`);
+    console.error('Failed to fetch runs', errorText);
+    throw new Error(`Failed to fetch runs: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
   return data;
 } 
 
-export async function fetchJobsBatch(token: string, jobIds: string[]): Promise<Job[]> {
-  const response = await fetch(`${API_URL}/jobs/batch`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(jobIds)
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to fetch jobs', errorText);
-    throw new Error(`Failed to fetch jobs: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data;
-}
-
-export async function fetchJob(token: string, jobId: string): Promise<Job> {
-  const response = await fetch(`${API_URL}/jobs/${jobId}`, {
+export async function fetchRunMessages(token: string, runId: string): Promise<RunMessage[]> {
+  const response = await fetch(`${API_URL}/runs/messages/${runId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -168,39 +148,17 @@ export async function fetchJob(token: string, jobId: string): Promise<Job> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Failed to fetch job', errorText);
-    throw new Error(`Failed to fetch job: ${response.status} ${errorText}`);
+    throw new Error(`Failed to fetch run full: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
   return data;
 }
 
-export async function* streamChat(token: string, prompt: Prompt): AsyncGenerator<string> {
-  const response = await fetch(`${API_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(prompt)
-  });
-
-  const reader = response.body?.getReader();
-  if (!reader) return;
-  const decoder = new TextDecoder();
-  
-  while (true) {
-    const result = await reader.read();
-    if (result.done) break;
-    const text = decoder.decode(result.value);
-    yield text;
-  }
-}
 
 export async function postConversation(token: string, conversationData: ConversationCreate): Promise<Conversation> {
 
-  const response = await fetch(`${API_URL}/chat/conversation`, {
+  const response = await fetch(`${API_URL}/orchestrator/conversation`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -220,7 +178,7 @@ export async function postConversation(token: string, conversationData: Conversa
 }
 
 export async function fetchConversations(token: string): Promise<Conversation[]> {
-  const response = await fetch(`${API_URL}/chat/conversations`, {
+  const response = await fetch(`${API_URL}/orchestrator/conversations`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -238,8 +196,8 @@ export async function fetchConversations(token: string): Promise<Conversation[]>
 }
 
 
-export function createChatEventSource(token: string, prompt: Prompt): SSE {
-  return new SSE(`${API_URL}/chat/completions`, {
+export function createOrchestratorEventSource(token: string, prompt: Prompt): SSE {
+  return new SSE(`${API_URL}/orchestrator/completions`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -250,8 +208,8 @@ export function createChatEventSource(token: string, prompt: Prompt): SSE {
 }
 
 
-export async function fetchConversationWithMessages(token: string, conversationId: string): Promise<ConversationWithMessages> {
-  const response = await fetch(`${API_URL}/chat/conversation/${conversationId}`, {
+export async function fetchConversationMessages(token: string, conversationId: string): Promise<ChatMessage[]> {
+  const response = await fetch(`${API_URL}/orchestrator/messages/${conversationId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -284,16 +242,25 @@ export function createAnalysisEventSource(token: string, jobId: string): EventSo
   );
 }
 
-export function createJobEventSource(token: string, jobType: string): EventSource {
-  return new EventSource(`${API_URL}/jobs-sse?job_type=${jobType}`, {
-    fetch: (input, init) =>
-      fetch(input, {
-        ...init,
-        headers: {
-          ...init?.headers,
-          Authorization: `Bearer ${token}`,
-        },
-      }),
+
+export function createIncompleteRunsEventSource(token: string): SSE {
+  return new SSE(`${API_URL}/runs/stream-incomplete-runs`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+}
+
+
+export function createRunMessagesEventSource(token: string, runId: string): SSE {
+  return new SSE(`${API_URL}/runs/stream-messages/${runId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
   });
 }
 
@@ -474,26 +441,8 @@ export async function fetchModels(token: string, only_owned: boolean = false): P
   return response.json();
 }
 
-export async function getDataIntegrationJobResults(token: string, jobId: string): Promise<{ jobId: string; datasetId: string }> {
-  const response = await fetch(`${API_URL}/data-integration/integration-job-results/${jobId}`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to get integration job results', errorText);
-    throw new Error(`Failed to get integration job results: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data;
-}
-
 export async function fetchDataSources(token: string): Promise<DataSource[]> {
-  const response = await fetch(`${API_URL}/data-integration/data-sources`, {
+  const response = await fetch(`${API_URL}/data-sources/data-sources`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -512,7 +461,7 @@ export async function createFileDataSource(token: string, files: File[]): Promis
   const formData = new FormData();
   files.forEach(file => formData.append('files', file));
 
-  const response = await fetch(`${API_URL}/data-integration/file-data-sources`, {
+  const response = await fetch(`${API_URL}/data-sources/file-data-sources`, {
     // FormData post with files
     method: 'POST',
     headers: {

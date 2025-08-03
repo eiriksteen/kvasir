@@ -3,17 +3,17 @@
 import DatasetMini from './DatasetMini';
 import DatasetCompact from './DatasetCompact';
 import { TimeSeriesDataset } from '@/types/datasets';
-import { Job } from '@/types/jobs';
+import { Run } from '@/types/runs';
 
 interface DatasetBeingCreatedProps {
-  job: Job | undefined;
+  job: Run | undefined;
   gradientClass: string;
   defaultView: 'mini' | 'compact';
   onClick: () => void;
 }
 
 // Helper function to create preliminary dataset from integration job
-const createPreliminaryDataset = (job?: Job): TimeSeriesDataset => {
+const createPreliminaryDataset = (job?: Run): TimeSeriesDataset => {
   if (!job) {
     // Create a default preliminary dataset when no job exists yet
     const now = new Date().toISOString();

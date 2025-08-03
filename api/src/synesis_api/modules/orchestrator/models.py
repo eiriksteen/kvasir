@@ -19,22 +19,6 @@ conversation = Table(
 )
 
 
-run_in_conversation = Table(
-    "run_in_conversation",
-    metadata,
-    Column("conversation_id", UUID(as_uuid=True),
-           ForeignKey("orchestrator.conversation.id"), nullable=False),
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"), nullable=False),
-    Column("context_id", UUID(as_uuid=True),
-           ForeignKey("orchestrator.context.id"), nullable=False),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    PrimaryKeyConstraint("conversation_id", "run_id"),
-    schema="orchestrator"
-)
-
-
 chat_message = Table(
     "chat_message",
     metadata,
@@ -45,7 +29,7 @@ chat_message = Table(
     Column("role", String, nullable=False),
     Column("content", String, nullable=False),
     Column("context_id", UUID(as_uuid=True),
-           ForeignKey("orchestrator.context.id"), nullable=True),
+           ForeignKey("orchestrator.chat_context.id"), nullable=True),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
     schema="orchestrator"
@@ -65,8 +49,8 @@ chat_pydantic_message = Table(
 )
 
 
-context = Table(
-    "context",
+chat_context = Table(
+    "chat_context",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     schema="orchestrator"
@@ -77,7 +61,7 @@ data_source_context = Table(
     "data_source_context",
     metadata,
     Column("context_id", UUID(as_uuid=True),
-           ForeignKey("orchestrator.context.id"), nullable=False),
+           ForeignKey("orchestrator.chat_context.id"), nullable=False),
     Column("data_source_id", UUID(as_uuid=True),
            ForeignKey("data_sources.data_source.id"), nullable=False),
     PrimaryKeyConstraint("context_id", "data_source_id"),
@@ -89,7 +73,7 @@ dataset_context = Table(
     "dataset_context",
     metadata,
     Column("context_id", UUID(as_uuid=True),
-           ForeignKey("orchestrator.context.id"), nullable=False),
+           ForeignKey("orchestrator.chat_context.id"), nullable=False),
     Column("dataset_id", UUID(as_uuid=True),
            ForeignKey("data_objects.dataset.id"), nullable=False),
     PrimaryKeyConstraint("context_id", "dataset_id"),
@@ -101,7 +85,7 @@ automation_context = Table(
     "automation_context",
     metadata,
     Column("context_id", UUID(as_uuid=True),
-           ForeignKey("orchestrator.context.id"), nullable=False),
+           ForeignKey("orchestrator.chat_context.id"), nullable=False),
     Column("automation_id", UUID(as_uuid=True),
            ForeignKey("automation.automation.id"), nullable=False),
     PrimaryKeyConstraint("context_id", "automation_id"),
@@ -113,7 +97,7 @@ analysis_context = Table(
     "analysis_context",
     metadata,
     Column("context_id", UUID(as_uuid=True),
-           ForeignKey("orchestrator.context.id"), nullable=False),
+           ForeignKey("orchestrator.chat_context.id"), nullable=False),
     Column("analysis_id", UUID(as_uuid=True),
            ForeignKey("analysis.analysis_jobs_results.job_id"), nullable=False),
     PrimaryKeyConstraint("context_id", "analysis_id"),

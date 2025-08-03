@@ -118,10 +118,6 @@ export const useAgentContext = () => {
     }
   );
 
-  console.log("dataSourcesInContext", dataSourcesInContext);
-  console.log("datasetsInContext", datasetsInContext);
-  console.log("automationsInContext", automationsInContext);
-  console.log("analysesInContext", analysesInContext);
 
   return {
     dataSourcesInContext,

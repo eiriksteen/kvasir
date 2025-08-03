@@ -25,8 +25,8 @@ from synesis_api.modules.data_objects.models import (
 )
 from synesis_api.modules.orchestrator.models import (
     chat_message, chat_pydantic_message, conversation,
-    context, dataset_context, automation_context, analysis_context,
-    data_source_context, run_in_conversation
+    chat_context, dataset_context, automation_context, analysis_context,
+    data_source_context
 )
 from synesis_api.modules.automation.models import (
     automation, function, function_input_structure, function_output_structure,
@@ -43,7 +43,7 @@ from alembic import context
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
-config = context.config
+config = chat_context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -84,7 +84,7 @@ __all__ = [
     chat_message,
     chat_pydantic_message,
     conversation,
-    context,
+    chat_context,
     dataset_context,
     automation_context,
     analysis_context,
@@ -147,7 +147,7 @@ def run_migrations_offline() -> None:
 
     """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(
+    chat_context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
@@ -156,20 +156,20 @@ def run_migrations_offline() -> None:
         include_name=include_name
     )
 
-    with context.begin_transaction():
-        context.run_migrations()
+    with chat_context.begin_transaction():
+        chat_context.run_migrations()
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(
+    chat_context.configure(
         connection=connection,
         target_metadata=target_metadata,
         include_schemas=True,
         include_name=include_name
     )
 
-    with context.begin_transaction():
-        context.run_migrations()
+    with chat_context.begin_transaction():
+        chat_context.run_migrations()
 
 
 async def run_async_migrations() -> None:
@@ -196,7 +196,7 @@ def run_migrations_online() -> None:
     asyncio.run(run_async_migrations())
 
 
-if context.is_offline_mode():
+if chat_context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()

@@ -10,9 +10,13 @@ from synesis_api.modules.runs.schema import (
     RunMessageInDB,
     DataIntegrationRunInputInDB,
     DataIntegrationRunResultInDB,
+    DataIntegrationRunResultInDB,
     DataIntegrationRunInput,
-    DataSourceInRunInDB,
+    DataSourceInIntegrationRunInDB,
     ModelIntegrationRunResultInDB,
+    Run,
+    RunInput,
+    RunResult
 )
 from synesis_api.modules.runs.models import (
     run,
@@ -31,15 +35,13 @@ async def create_run(
         user_id: uuid.UUID,
         type: Literal["chat", "data_integration", "analysis", "automation"],
         run_id: Optional[uuid.UUID] = None,
-        context_id: Optional[uuid.UUID] = None,
         run_name: Optional[str] = None) -> RunInDB:
 
     run_record = RunInDB(
         id=run_id if run_id else uuid.uuid4(),
         conversation_id=conversation_id,
-        type=type,
-        context_id=context_id,
         user_id=user_id,
+        type=type,
         run_name=run_name,
         started_at=datetime.now(timezone.utc),
         status="running"
@@ -50,34 +52,82 @@ async def create_run(
     return run_record
 
 
-async def get_run(run_id: uuid.UUID) -> RunInDB:
-    run_record = await fetch_one(
-        select(run).where(run.c.id == run_id)
-    )
-    return RunInDB(**run_record)
+async def _get_run_inputs(run_ids: List[uuid.UUID]) -> List[RunInput]:
 
-
-async def get_runs(user_id: uuid.UUID) -> List[RunInDB]:
-    runs = await fetch_all(
-        select(run).where(run.c.user_id == user_id)
+    data_integration_inputs = await fetch_all(
+        select(data_integration_run_input).where(
+            data_integration_run_input.c.run_id.in_(run_ids)
+        )
     )
 
-    return [RunInDB(**run_record) for run_record in runs]
-
-
-async def get_incomplete_runs(user_id: uuid.UUID) -> List[RunInDB]:
-    runs = await fetch_all(
-        select(run).where(run.c.user_id == user_id).where(
-            run.c.status.not_in_(["completed", "failed"]))
+    data_sources_in_runs = await fetch_all(
+        select(data_source_in_run).where(
+            data_source_in_run.c.run_id.in_(run_ids)
+        )
     )
-    return [RunInDB(**run_record) for run_record in runs]
+
+    data_integration_input_records = [DataIntegrationRunInput(**input,
+                                                              data_source_ids=[data_source_in_run["data_source_id"]
+                                                                               for data_source_in_run in data_sources_in_runs
+                                                                               if data_source_in_run["run_id"] == input["run_id"]]
+                                                              ) for input in data_integration_inputs]
+
+    # TODO: Other run types
+
+    return data_integration_input_records
 
 
-async def get_runs_by_ids(run_ids: List[uuid.UUID]) -> List[RunInDB]:
-    runs = await fetch_all(
-        select(run).where(run.c.id.in_(run_ids))
+async def _get_run_results(run_ids: List[uuid.UUID]) -> List[RunResult]:
+
+    data_integration_outputs = await fetch_all(
+        select(data_integration_run_result).where(
+            data_integration_run_result.c.run_id.in_(run_ids)
+        )
     )
-    return [RunInDB(**run_record) for run_record in runs]
+
+    data_integration_output_records = [DataIntegrationRunResultInDB(
+        **output) for output in data_integration_outputs]
+
+    # TODO: Other run types
+
+    return data_integration_output_records
+
+
+async def get_runs(
+        user_id: uuid.UUID,
+        only_running: bool = False,
+        run_ids: Optional[List
+                          [uuid.UUID]] = None,
+) -> List[Run]:
+
+    if only_running:
+        runs_query = select(run).where(
+            run.c.user_id == user_id, run.c.status == "running")
+    elif run_ids:
+        runs_query = select(run).where(
+            run.c.user_id == user_id, run.c.id.in_(run_ids))
+    else:
+        runs_query = select(run).where(run.c.user_id == user_id)
+
+    runs = await fetch_all(runs_query)
+
+    run_input_records = await _get_run_inputs(
+        [run_record["id"] for run_record in runs])
+
+    run_result_records = await _get_run_results(
+        [run_record["id"] for run_record in runs])
+
+    return [Run(
+        **run_record,
+        input=next(
+            [rec for rec in run_input_records if rec.run_id == run_record["id"]]),
+        result=next(
+            [rec for rec in run_result_records if rec.run_id == run_record["id"]])
+    ) for run_record in runs]
+
+
+async def get_run(run_id: uuid.UUID) -> Run:
+    return await get_runs(run_ids=[run_id])[0]
 
 
 async def update_run_status(run_id: uuid.UUID, status: Literal["running", "completed", "failed"]) -> RunInDB:
@@ -87,6 +137,13 @@ async def update_run_status(run_id: uuid.UUID, status: Literal["running", "compl
     run_record.status = status
     await execute(run.update().where(run.c.id == run_id).values(status=status), commit_after=True)
     return run_record
+
+
+async def get_run_messages(run_id: uuid.UUID) -> List[RunMessageInDB]:
+    run_messages = await fetch_all(
+        select(run_message).where(run_message.c.run_id == run_id)
+    )
+    return [RunMessageInDB(**message) for message in run_messages]
 
 
 async def get_run_messages_pydantic(run_id: uuid.UUID) -> list[ModelMessage]:
@@ -171,7 +228,7 @@ async def create_data_integration_run_input(run_id: uuid.UUID, target_data_descr
 
     # Create the data source associations
     data_source_associations = [
-        DataSourceInRunInDB(
+        DataSourceInIntegrationRunInDB(
             run_id=run_id,
             data_source_id=data_source_id,
             created_at=datetime.now(timezone.utc),
@@ -182,35 +239,6 @@ async def create_data_integration_run_input(run_id: uuid.UUID, target_data_descr
         insert(data_source_in_run).values(
             data_source_associations),
         commit_after=True
-    )
-
-
-async def get_data_integration_run_input(run_id: uuid.UUID) -> DataIntegrationRunInput:
-    # Get the run input record
-    run_input = await fetch_one(
-        select(data_integration_run_input).where(
-            data_integration_run_input.c.run_id == run_id),
-        commit_after=True
-    )
-
-    # Get the associated data source IDs
-    data_source_associations = await fetch_all(
-        select(data_source_in_run).where(
-            data_source_in_run.c.run_id == run_id),
-        commit_after=True
-    )
-
-    data_source_ids = [assoc["data_source_id"]
-                       for assoc in data_source_associations]
-
-    # Get the full data sources
-    data_sources = await get_data_sources_by_ids(data_source_ids)
-
-    return DataIntegrationRunInput(
-        run_id=run_input["run_id"],
-        target_dataset_description=run_input["target_dataset_description"],
-        created_at=run_input["created_at"],
-        data_sources=data_sources
     )
 
 
@@ -226,14 +254,3 @@ async def create_model_integration_run_result(run_id: uuid.UUID, model_id: uuid.
             result.model_dump()),
         commit_after=True
     )
-
-
-async def get_model_integration_run_results(run_id: uuid.UUID) -> ModelIntegrationRunResultInDB:
-    # get results from model_integration_run_results
-    results = await fetch_one(
-        select(model_integration_run_result).where(
-            model_integration_run_result.c.run_id == run_id),
-        commit_after=True
-    )
-
-    return ModelIntegrationRunResultInDB(**results)

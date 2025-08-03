@@ -9,11 +9,13 @@ from fastapi import Depends, HTTPException, status, Security, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from synesis_api.auth.schema import User, UserInDB, TokenData, UserAPIKey, UserCreate
 from synesis_api.auth.models import users, user_api_keys
+from synesis_api.modules.project.models import project
 from synesis_api.modules.orchestrator.models import conversation
 from synesis_api.modules.runs.models import run
 from synesis_api.modules.data_objects.models import dataset
 from synesis_api.secrets import API_SECRET_KEY, API_SECRET_ALGORITHM
-from synesis_api.database.service import fetch_one, execute
+from synesis_api.database.service import fetch_one, execute, fetch_all
+from sqlalchemy import select
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -201,9 +203,9 @@ async def get_user_from_jwt_or_api_key(token: Annotated[str, Depends(oauth2_sche
             status_code=401, detail="No authentication provided")
 
 
-async def user_owns_run(user_id: uuid.UUID, run_id: uuid.UUID) -> bool:
-    run_record = await fetch_one(Select(run).where(run.c.id == run_id, run.c.user_id == user_id))
-    return run_record is not None
+async def user_owns_runs(user_id: uuid.UUID, run_ids: list[uuid.UUID]) -> bool:
+    run_records = await fetch_all(Select(run).where(run.c.id.in_(run_ids), run.c.user_id == user_id))
+    return len(run_records) == len(run_ids)
 
 
 async def user_owns_conversation(user_id: uuid.UUID, conversation_id: uuid.UUID) -> bool:

@@ -1,12 +1,12 @@
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { fetchConversations, postConversation } from "@/lib/api";
-import { ConversationCreate } from "@/types/chat";
+import { ConversationCreate } from "@/types/orchestrator";
 import useSWRMutation from "swr/mutation";
 
 export const useConversations = () => {
   const { data: session } = useSession();
-  const { data: conversations, error, isLoading } = useSWR(session ? "conversations" : null, () => fetchConversations(session ? session.APIToken.accessToken : ""));
+  const { data: conversations, mutate: mutateConversations, error, isLoading } = useSWR(session ? ["conversations"] : null, () => fetchConversations(session ? session.APIToken.accessToken : ""));
 
   const { trigger: createConversation } = useSWRMutation(
     session ? "conversations" : null, 
@@ -25,6 +25,7 @@ export const useConversations = () => {
 
   return {
     conversations,
+    mutateConversations,
     isLoading,
     isError: error,
     createConversation,

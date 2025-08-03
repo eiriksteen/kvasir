@@ -1,7 +1,7 @@
-export { useChat } from './useChat';
-export { useDatasets } from './useDatasets';
-export { useJobs } from './useJobs';
-export { useAgentContext } from './useAgentContext';
-export { useAnalysis } from './useAnalysis';
-export { useProjects, useProject } from './useProject';
-export { useModels } from './useModels';
+export { useProjectChat as useChat } from '@/hooks/useChat';
+export { useDatasets } from '@/hooks/useDatasets';
+export { useRuns } from '@/hooks/useRuns';
+export { useAgentContext } from '@/hooks/useAgentContext';
+export { useAnalysis } from '@/hooks/useAnalysis';
+export { useProjects, useProject } from '@/hooks/useProject';
+export { useModels } from '@/hooks/useModels';
