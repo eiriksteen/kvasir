@@ -117,17 +117,21 @@ async def get_runs(
     run_result_records = await _get_run_results(
         [run_record["id"] for run_record in runs])
 
-    return [Run(
-        **run_record,
-        input=next(
-            [rec for rec in run_input_records if rec.run_id == run_record["id"]]),
-        result=next(
-            [rec for rec in run_result_records if rec.run_id == run_record["id"]])
-    ) for run_record in runs]
+    run_records = []
+    for run_record in runs:
+        input_list = [
+            rec for rec in run_input_records if rec.run_id == run_record["id"]]
+        result_list = [
+            rec for rec in run_result_records if rec.run_id == run_record["id"]]
+        run_records.append(
+            Run(
+                **run_record,
+                input=input_list[0] if len(input_list) > 0 else None,
+                result=result_list[0] if len(result_list) > 0 else None
+            )
+        )
 
-
-async def get_run(run_id: uuid.UUID) -> Run:
-    return await get_runs(run_ids=[run_id])[0]
+    return run_records
 
 
 async def update_run_status(run_id: uuid.UUID, status: Literal["running", "completed", "failed"]) -> RunInDB:
@@ -196,7 +200,9 @@ async def create_data_integration_run_result(run_id: uuid.UUID, dataset_id: uuid
         run_id=run_id,
         dataset_id=dataset_id,
         code_explanation=code_explanation,
-        python_code_path=python_code_path
+        python_code_path=python_code_path,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
     )
 
     await execute(

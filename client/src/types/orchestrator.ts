@@ -25,8 +25,7 @@ export interface Conversation {
 }
 
 export type Prompt = {
-    conversationId: UUID | null;
-    projectId: UUID | null;
+    conversationId: UUID;
     context: Context | null;
     content: string;
 }

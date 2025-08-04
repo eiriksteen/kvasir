@@ -121,7 +121,7 @@ export async function fetchAnalysisJobResults(token: string): Promise<Analyses> 
 }
 
 export async function fetchRuns(token: string): Promise<Run[]> {
-  const response = await fetch(`${API_URL}/runs/user-runs`, {
+  const response = await fetch(`${API_URL}/runs/runs`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

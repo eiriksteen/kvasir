@@ -59,6 +59,7 @@ async def post_chat(
         f"The user prompt is: '{prompt.content}'. "
         "Decide whether to launch an agent or just respond directly to the prompt. "
         "If launching an agent, choose between 'analysis', 'data_integration' or 'automation'. If not just choose 'chat'. "
+        "Do not launch any agent if the context is empty, tell the user to add some entities to the context."
         f"The context is:\n {context_message}",
         message_history=messages, output_type=OrchestratorOutput)
 
@@ -78,6 +79,7 @@ async def post_chat(
         context_in_db = None
         if prompt.context and len(prompt.context.data_source_ids) + len(prompt.context.dataset_ids) + len(prompt.context.automation_ids) + len(prompt.context.analysis_ids) > 0:
             context_in_db = await create_context(prompt.context)
+            print("context_in_db", context_in_db)
             response_message.context_id = context_in_db.id
 
         async with chatbot_agent.run_stream(

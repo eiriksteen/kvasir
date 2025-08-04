@@ -12,7 +12,7 @@ from synesis_api.auth.schema import User
 from synesis_api.redis import get_redis
 from synesis_api.secrets import SSE_MAX_TIMEOUT, SSE_MIN_SLEEP_TIME
 from synesis_api.modules.runs.schema import RunMessageInDB, Run
-from synesis_api.modules.runs.service import get_runs, get_run, get_run_messages
+from synesis_api.modules.runs.service import get_runs, get_run_messages
 
 
 router = APIRouter()
@@ -53,7 +53,8 @@ async def stream_run_messages(
     user: Annotated[User, Depends(get_current_user)] = None,
 ) -> StreamingResponse:
 
-    run = await get_run(run_id)
+    run = await get_runs(user.id, run_ids=[run_id])
+    run = run[0]
 
     if not user or not await user_owns_runs(user.id, [run_id]):
         raise HTTPException(

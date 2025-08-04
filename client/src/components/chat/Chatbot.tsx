@@ -16,6 +16,9 @@ import { useDatasets } from '@/hooks/useDatasets';
 import { useAnalysis } from '@/hooks/useAnalysis';
 import { DataSource } from '@/types/data-integration';
 import { UUID } from 'crypto';
+import { useRunsInConversation } from '@/hooks/useRuns';
+import RunBox from '@/components/runs/RunBox';
+import { Run } from '@/types/runs';
 
 const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
   const { datasets} = useDatasets();
@@ -117,6 +120,11 @@ function Chat({ projectId }: { projectId: UUID }) {
     analysesInContext, 
     removeAnalysisFromContext,
   } = useAgentContext();
+
+  const { runsInConversation } = useRunsInConversation(conversation?.id || "");
+
+  // console.log("runs", runs);
+  console.log("runsInConversation", runsInConversation);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -319,6 +327,13 @@ function Chat({ projectId }: { projectId: UUID }) {
               ))}
             {/* Invisible element for scrolling to bottom */}
             <div ref={messagesEndRef} style={{ height: '1px' }} />
+            {runsInConversation.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {runsInConversation.map((run: Run) => (
+                  <RunBox key={run.id} runId={run.id} />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Input area */}

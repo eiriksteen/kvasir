@@ -2,7 +2,7 @@ import { UUID } from "crypto";
 
 export type Run = {
 	id: UUID;
-	type: 'data_integration' | 'model_integration';
+	type: 'data_integration' | 'analysis' | 'automation';
 	status: 'pending' | 'running' | 'completed' | 'failed';
 	userId: UUID;
 	conversationId: UUID;

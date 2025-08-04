@@ -29,7 +29,7 @@ export const useRuns = () => {
   const { data: runs, mutate: mutateRuns } = useSWR(
     session ? ["runs"] : null, 
     () => fetchRuns(session ? session.APIToken.accessToken : ""), 
-    {fallbackData: [],
+    {
       onSuccess: (runs: Run[]) => {
         const newRunState = computeRunState(runs);
         if (newRunState === "running" || newRunState === "paused" || newRunState === "awaiting_approval") {
@@ -49,9 +49,12 @@ export const useRuns = () => {
         const streamedRuns = JSON.parse(ev.data);
         next(null, () => {
 
+          const runsAreUndefined = !runs;
+          const noNewRuns = streamedRuns.every((run: Run) => runs?.find((currentRun: Run) => currentRun.id === run.id) === run);
+          const noRunsChangedStatus = streamedRuns.every((run: Run) => run.status !== runs?.find((currentRun: Run) => currentRun.id === run.id)?.status);
+
           // Return without changes if all streamedRuns are the same as the current runs and no run has changed status
-          if (streamedRuns.every((run: Run) => runs.find((currentRun: Run) => currentRun.id === run.id) === run) 
-            && !streamedRuns.some((run: Run) => run.status !== runs.find((currentRun: Run) => currentRun.id === run.id)?.status)) {
+          if (runsAreUndefined || (noNewRuns && noRunsChangedStatus)) {
             return undefined;
           }
 
@@ -83,7 +86,7 @@ export const useRuns = () => {
     }
   )
 
-  return { runs, runState };
+  return { runs: runs || [], runState };
 };
 
 
@@ -97,18 +100,24 @@ export const useRunsInConversation = (conversationId: string) => {
   return { runsInConversation }
 }
 
-
 export const useRun = (runId: string) => {
-  const { data: session } = useSession()
   const { runs } = useRuns()
-  const { data: runMessages, mutate: mutateRunMessages } = useSWR(session ? ["runMessages", runId] : null, () => fetchRunMessages(session ? session.APIToken.accessToken : "", runId))
 
   const run = useMemo(() => {
     return runs.find((run: Run) => run.id === runId)
   }, [runs, runId])
 
+  return { run }
+}
+
+export const useRunMessages = (runId: string) => {
+  const { data: session } = useSession()
+  const { run } = useRun(runId)
+  const { data: runMessages, mutate: mutateRunMessages } = useSWR(session ? ["runMessages", runId] : null, () => fetchRunMessages(session ? session.APIToken.accessToken : "", runId))
+
+
   useSWRSubscription(
-    session && run ? ["run", runId, run.status] : null,
+    session && run ? ["runMessages", runId, run.status] : null,
     (_, {next}: SWRSubscriptionOptions<Run>) => {
 
       if (!run) {
@@ -135,5 +144,5 @@ export const useRun = (runId: string) => {
     }
   )
 
-  return { run, runMessages }
+  return { runMessages }
 }

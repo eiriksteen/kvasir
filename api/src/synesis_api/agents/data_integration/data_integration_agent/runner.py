@@ -159,7 +159,8 @@ class DataIntegrationRunner:
         except Exception as e:
             await self._log_message_to_redis(f"Error running integration agent: {e}", "error", write_to_db=True)
             logger.error(f"Error running integration agent: {e}")
-            await create_run_message_pydantic(self.run_id, run.result.new_messages_json())
+            if run and run.result and run.result.new_messages:
+                await create_run_message_pydantic(self.run_id, run.result.new_messages_json())
             await update_run_status(self.run_id, "failed")
 
             if api_key:

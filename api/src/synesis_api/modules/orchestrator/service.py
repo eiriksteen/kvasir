@@ -7,6 +7,7 @@ from synesis_api.modules.orchestrator.schema import (
     ChatMessage,
     Context,
     ContextInDB,
+    DataSourceContextInDB,
     DatasetContextInDB,
     AutomationContextInDB,
     AnalysisContextInDB,
@@ -99,7 +100,8 @@ async def _get_context_objects_from_ids(context_ids: list[uuid.UUID]) -> list[Co
 async def get_conversations(user_id: uuid.UUID) -> list[ConversationInDB]:
 
     conversations = await fetch_all(
-        select(conversation).where(conversation.c.user_id == user_id)
+        select(conversation).where(
+            conversation.c.user_id == user_id).order_by(conversation.c.created_at.desc())
     )
 
     return [ConversationInDB(**conversation) for conversation in conversations]
@@ -211,6 +213,14 @@ async def create_context(
         id=context_id,
     )
 
+    data_source_context_records = [
+        DataSourceContextInDB(
+            context_id=context_id,
+            data_source_id=data_source_id
+        )
+        for data_source_id in context_data.data_source_ids
+    ]
+
     dataset_context_records = [
         DatasetContextInDB(
             context_id=context_id,
@@ -235,11 +245,13 @@ async def create_context(
         for analysis_id in context_data.analysis_ids
     ]
 
-    if len(dataset_context_records) == 0 and len(automation_context_records) == 0 and len(analysis_context_records) == 0:
-        return None
+    if len(dataset_context_records) == 0 and len(automation_context_records) == 0 and len(analysis_context_records) == 0 and len(data_source_context_records) == 0:
+        raise ValueError("No context records given to create")
     else:
         await execute(chat_context.insert().values(context_record.model_dump()), commit_after=True)
 
+        if len(data_source_context_records) > 0:
+            await execute(data_source_context.insert().values([record.model_dump() for record in data_source_context_records]), commit_after=True)
         if len(dataset_context_records) > 0:
             await execute(dataset_context.insert().values([record.model_dump() for record in dataset_context_records]), commit_after=True)
         if len(automation_context_records) > 0:

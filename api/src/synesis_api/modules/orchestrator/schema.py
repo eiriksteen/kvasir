@@ -90,16 +90,8 @@ class ContextCreate(BaseSchema):
 
 class UserChatMessageCreate(BaseSchema):
     content: str
-    conversation_id: Optional[uuid.UUID] = None
-    project_id: Optional[uuid.UUID] = None
+    conversation_id: uuid.UUID
     context: Optional[ContextCreate] = None
-
-    @model_validator(mode="after")
-    def validate_at_least_one_id(self):
-        if self.conversation_id is None and self.project_id is None:
-            raise ValueError(
-                'At least one of conversation_id or project_id must be provided')
-        return self
 
 
 class ConversationCreate(BaseSchema):

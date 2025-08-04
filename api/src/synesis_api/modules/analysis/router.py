@@ -13,7 +13,7 @@ from synesis_api.modules.analysis.service import (
     get_user_analysis_metadata,
     create_pdf_from_results,
 )
-from synesis_api.modules.runs.service import get_run
+from synesis_api.modules.runs.service import get_runs
 from synesis_api.modules.runs.schema import RunInDB
 from synesis_api.auth.schema import User
 
@@ -84,7 +84,9 @@ async def get_analysis_job_results(
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 
-    job_metadata = await get_run(job_id)
+    job_metadata = await get_runs(user.id, run_ids=[job_id])
+    job_metadata = job_metadata[0]
+
     if job_metadata.status == "completed":
         return await get_analysis_job_results_from_db(job_id)
 
@@ -109,7 +111,8 @@ async def create_analysis_pdf(
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this job")
 
-    run_metadata = await get_run(run_id)
+    run_metadata = await get_runs(user.id, run_ids=[run_id])
+    run_metadata = run_metadata[0]
 
     if run_metadata.status == "completed":
         job_results = await get_analysis_job_results_from_db(run_id)
