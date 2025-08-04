@@ -31,7 +31,7 @@ from synesis_api.agents.model_integration.implementation_agent.agent import (
 )
 from synesis_api.agents.model_integration.deps import ModelIntegrationDeps
 from synesis_api.modules.runs.schema import RunInDB
-from synesis_api.modules.runs.service import update_run_status, get_run, create_run_message_pydantic, create_model_integration_run_result
+from synesis_api.modules.runs.service import update_run_status, get_runs, create_run_message_pydantic, create_model_integration_run_result
 from synesis_api.modules.automation.service import insert_model
 from synesis_api.agents.model_integration.utils import (
     save_stage_output_to_cache,
@@ -93,7 +93,7 @@ class ModelIntegrationRunner:
     async def get_run(self) -> RunInDB:
         """Get the run metadata"""
         if self.run is None:
-            self.run = await get_run(self.job_id)
+            self.run = await get_runs(self.user_id, self.run_id)
         return self.run
 
     async def _update_job_status(self, status: Literal["running", "completed", "failed"]) -> None:

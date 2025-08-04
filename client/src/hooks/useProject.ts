@@ -11,7 +11,7 @@ import { UUID } from "crypto";
 export const useProjects = () => {
   const { data: session } = useSession();
 
-  const { data: projects, error, isLoading } = useSWR(
+  const { data: projects, mutate: mutateProjects, error, isLoading } = useSWR(
     session ? "projects" : null,
     () => fetchProjects(session ? session.APIToken.accessToken : ""),
     { fallbackData: [] }
@@ -59,12 +59,12 @@ export const useProjects = () => {
     }
   );
 
-  return { projects, error, isLoading, triggerUpdateProject, triggerCreateNewProject };
+  return { projects, mutateProjects, error, isLoading, triggerUpdateProject, triggerCreateNewProject };
 }
 
 export const useProject = (projectId: string) => {
   const { data: session } = useSession();
-  const { projects, triggerUpdateProject } = useProjects();
+  const { projects, mutateProjects, triggerUpdateProject } = useProjects();
 
   // Store selected project
   const selectedProject = useMemo(() => projects.find(project => project.id === projectId), [projects, projectId]);
@@ -182,6 +182,7 @@ export const useProject = (projectId: string) => {
       entityId: entityId as UUID,
     });
 
+    mutateProjects();
   };
 
   // Unified function to remove any entity from project

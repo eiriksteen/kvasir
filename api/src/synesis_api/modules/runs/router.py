@@ -105,16 +105,12 @@ async def stream_incomplete_runs(
         while True:
             incomplete_runs = await get_runs(user.id, only_running=True)
 
-            print("INCOMPLETE RUNS", incomplete_runs)
-
             # Include recently stopped runs to ensure we don't miss the associated state changes
             # Could optionally listen for when a run id is removed from this list in the frontend, then mutate all jobs, but this is more efficient
             stopped_run_ids = [
                 run_id for run_id in prev_run_ids if run_id not in [run.id for run in incomplete_runs]]
 
             stopped_runs = await get_runs(user.id, run_ids=stopped_run_ids)
-
-            print("STOPPED RUNS", stopped_runs)
 
             runs = stopped_runs + incomplete_runs
 

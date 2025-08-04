@@ -18,7 +18,7 @@ from fastapi import HTTPException
 import aiofiles
 import uuid
 from io import StringIO
-from synesis_api.modules.runs.service import get_run, update_run_status, create_run, create_run_message_pydantic
+from synesis_api.modules.runs.service import get_runs, update_run_status, create_run, create_run_message_pydantic
 from synesis_api.modules.analysis.service import (
     get_user_analyses_by_ids,
     insert_analysis_job_results_into_db,
@@ -121,7 +121,7 @@ class AnalysisAgentRunner:
                 raise HTTPException(
                     status_code=500, detail=f"Failed to create analysis job: {str(e)}")
         else:
-            analysis_job = await get_run(analysis_request.analysis_ids[0])
+            analysis_job = await get_runs(analysis_request.user.id, analysis_request.analysis_ids[0])
 
         status_message = {
             "id": uuid.uuid4(),

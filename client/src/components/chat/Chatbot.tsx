@@ -144,7 +144,7 @@ function Chat({ projectId }: { projectId: UUID }) {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [conversationMessages]);
+  }, [conversationMessages, runsInConversation]);
   
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {

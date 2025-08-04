@@ -6,7 +6,7 @@ import { fetchDataSources, createFileDataSource } from "@/lib/api";
 
 export const useDataSources = () => {
   const { data: session } = useSession();
-  const { data: dataSources, error, isLoading } = useSWR(session ? "data-sources" : null, () => fetchDataSources(session ? session.APIToken.accessToken : ""));
+  const { data: dataSources, mutate: mutateDataSources, error, isLoading } = useSWR(session ? "data-sources" : null, () => fetchDataSources(session ? session.APIToken.accessToken : ""));
 
   const { trigger: triggerCreateFileDataSource } = useSWRMutation(
     session ? "data-sources" : null,
@@ -16,5 +16,5 @@ export const useDataSources = () => {
     }
   );
 
-  return { dataSources, error, isLoading, triggerCreateFileDataSource };
+  return { dataSources, mutateDataSources, error, isLoading, triggerCreateFileDataSource };
 }
