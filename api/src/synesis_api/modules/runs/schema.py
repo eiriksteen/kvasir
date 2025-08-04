@@ -78,5 +78,5 @@ RunResult = Union[DataIntegrationRunResultInDB, ModelIntegrationRunResultInDB]
 
 
 class Run(RunInDB):
-    input: RunInput
+    input: Optional[RunInput] = None
     result: Optional[RunResult] = None

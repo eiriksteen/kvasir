@@ -41,29 +41,28 @@ export const useRuns = () => {
 
   // This thing will always be running. Do we want to stop it when no runs are active?
   useSWRSubscription(
-    session ? "runStream" : null,
+    session && runs ? ["runStream", runs] : null,
     (_, {next}: SWRSubscriptionOptions<Run[]>) => {
       const eventSource = createIncompleteRunsEventSource(session ? session.APIToken.accessToken : "");
 
       eventSource.onmessage = (ev) => {
         const streamedRuns = JSON.parse(ev.data);
-        next(null, () => {
+        next(null, async () => {
 
           const runsAreUndefined = !runs;
-          const noNewRuns = streamedRuns.every((run: Run) => runs?.find((currentRun: Run) => currentRun.id === run.id) === run);
-          const noRunsChangedStatus = streamedRuns.every((run: Run) => run.status !== runs?.find((currentRun: Run) => currentRun.id === run.id)?.status);
+          const newRuns = streamedRuns.filter((run: Run) => !runs?.find((currentRun: Run) => currentRun.id === run.id));
+          const runsChangedStatus = streamedRuns.filter((run: Run) => run.status !== runs?.find((currentRun: Run) => currentRun.id === run.id)?.status);
 
           // Return without changes if all streamedRuns are the same as the current runs and no run has changed status
-          if (runsAreUndefined || (noNewRuns && noRunsChangedStatus)) {
+          if (runsAreUndefined || (newRuns.length === 0 && runsChangedStatus.length === 0)) {
             return undefined;
           }
 
-          const runsStopped = streamedRuns.filter((run: Run) => run.status !== "running");
-          const runsStillRunning = streamedRuns.filter((run: Run) => run.status === "running");
-          const updatedRuns = runs.map((run: Run) => runsStopped.find((stoppedRun: Run) => stoppedRun.id === run.id) || run);
+          let updatedRuns = runs.map(run => runsChangedStatus.find((changedRun: Run) => changedRun.id === run.id) || run);
+          updatedRuns = updatedRuns.concat(newRuns);
 
-          if (runsStillRunning.length === 0) {
-            const newRunState = computeRunState(runsStopped);
+          if (updatedRuns.every((run: Run) => run.status !== "running")) {
+            const newRunState = computeRunState(updatedRuns);
             mutateRunState(newRunState, {revalidate: false});
             if (newRunState == "completed" || newRunState == "failed") {
               setTimeout(() => {
@@ -72,7 +71,7 @@ export const useRuns = () => {
             }
           }
 
-          mutateRuns(updatedRuns, {revalidate: false});
+          await mutateRuns(updatedRuns, {revalidate: false});
 
           // Return undefined since this is purely to update the jobs by listening to updates from the event source
           return undefined;
@@ -120,7 +119,7 @@ export const useRunMessages = (runId: string) => {
     session && run ? ["runMessages", runId, run.status] : null,
     (_, {next}: SWRSubscriptionOptions<Run>) => {
 
-      if (!run) {
+      if (!run || !runMessages) {
         return () => {};
       }
 

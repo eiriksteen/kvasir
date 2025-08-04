@@ -149,7 +149,7 @@ class DataIntegrationRunner:
 
             await create_data_integration_run_result(self.run_id, agent_output.dataset_id, agent_output.code_explanation, str(python_code_path))
             await create_run_message_pydantic(self.run_id, run.result.new_messages_json())
-            await update_run_status(self.run_id, "awaiting_approval")
+            await update_run_status(self.run_id, "completed")
             await add_entity_to_project(self.project_id, AddEntityToProject(entity_type="dataset", entity_id=agent_output.dataset_id))
             await self._log_message_to_redis(f"Integration agent run completed!", "result", write_to_db=True)
 

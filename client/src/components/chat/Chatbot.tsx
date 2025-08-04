@@ -123,9 +123,6 @@ function Chat({ projectId }: { projectId: UUID }) {
 
   const { runsInConversation } = useRunsInConversation(conversation?.id || "");
 
-  // console.log("runs", runs);
-  console.log("runsInConversation", runsInConversation);
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
@@ -245,9 +242,6 @@ function Chat({ projectId }: { projectId: UUID }) {
               <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select items from the left panel</h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {/* {datasetsInContext.timeSeries.length === 0 && analysisesInContext.length === 0 ? (
-                <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select items from the left panel</h3>
-              ) : ( */}
                 <>
                   {/* Data Sources */}
                   {dataSourcesInContext.map((dataSource: DataSource) => (
@@ -300,7 +294,6 @@ function Chat({ projectId }: { projectId: UUID }) {
                     </div>
                   ))}
                 </>
-              {/* )} */}
             </div>
           </div>
 
@@ -310,7 +303,7 @@ function Chat({ projectId }: { projectId: UUID }) {
             className="flex-1 overflow-y-auto p-4 pb-24 scrollbar-thin scrollbar-thumb-gray-700"
             style={{ scrollBehavior: 'smooth' }}
           >
-            {conversationMessages.length === 0 && (
+            {conversationMessages.length === 0 && runsInConversation.length === 0 && (
               <div className="flex h-full items-center justify-center text-zinc-500">
                 <div className="text-center">
                   <p className="mb-2">
@@ -319,21 +312,36 @@ function Chat({ projectId }: { projectId: UUID }) {
                 </div>
               </div>
             )}
-            {/* Message list */}
-            {conversationMessages
-              .sort((a: ChatMessage, b: ChatMessage) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-              .map((message: ChatMessage, index: number) => (
-                <ChatListItem key={index} message={message} />
-              ))}
+            
+            {(() => {
+              const timelineItems = [
+                ...conversationMessages.map((message: ChatMessage) => ({
+                  type: 'message' as const,
+                  item: message,
+                  createdAt: message.createdAt
+                })),
+                ...runsInConversation.map((run: Run) => ({
+                  type: 'run' as const,
+                  item: run,
+                  createdAt: run.startedAt
+                }))
+              ];
+
+              timelineItems.sort((a, b) => 
+                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+              );
+
+              return timelineItems.map((timelineItem) => {
+                if (timelineItem.type === 'message') {
+                  return <ChatListItem key={`msg-${timelineItem.item.id}`} message={timelineItem.item} />;
+                } else {
+                  return <RunBox key={`run-${timelineItem.item.id}`} runId={timelineItem.item.id} />;
+                }
+              });
+            })()}
+            
             {/* Invisible element for scrolling to bottom */}
             <div ref={messagesEndRef} style={{ height: '1px' }} />
-            {runsInConversation.length > 0 && (
-              <div className="flex flex-col gap-2">
-                {runsInConversation.map((run: Run) => (
-                  <RunBox key={run.id} runId={run.id} />
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Input area */}

@@ -9,8 +9,8 @@ export type Run = {
 	startedAt: string;
 	completedAt: string | null;
 	runName: string | null;
-	input: RunInput;
-    result: RunResult;
+	input: RunInput | null;
+    result: RunResult | null;
 }
 
 

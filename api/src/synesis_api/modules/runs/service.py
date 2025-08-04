@@ -106,8 +106,10 @@ async def get_runs(
     elif run_ids:
         runs_query = select(run).where(
             run.c.user_id == user_id, run.c.id.in_(run_ids))
-    else:
+    elif run_ids is None:
         runs_query = select(run).where(run.c.user_id == user_id)
+    else:
+        return []
 
     runs = await fetch_all(runs_query)
 

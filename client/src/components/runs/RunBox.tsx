@@ -88,10 +88,10 @@ function RunMessageList({ runId }: { runId: UUID }) {
       {/* Messages */}
       {runMessages && runMessages.length > 0 && (
         <div className="px-3 pb-2 space-y-1">
-          {runMessages.slice(-2).map((message) => (
+          {runMessages.map((message) => (
             <div 
               key={message.id}
-              className="text-xs text-gray-300 font-mono leading-relaxed p-1 bg-gray-900/50"
+              className="text-xs text-gray-500 font-mono leading-relaxed p-1"
             >
               {message.content}
             </div>
@@ -122,25 +122,21 @@ export default function RunBox({ runId }: RunBoxProps) {
   const statusInfo = getStatusInfo(run.status);
 
   return (
-    <div className={`max-w-[80%] rounded-lg ${theme.bg} ${theme.border} ${theme.hover} mb-2 overflow-hidden`} onClick={() => setShowMessages(!showMessages)}>
+    <div className={`max-w-[80%] rounded-lg ${theme.bg} ${theme.hover} mb-2 overflow-hidden`} onClick={() => setShowMessages(!showMessages)}>
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2">
-        <div className={`px-2 py-0.5 rounded-md text-xs font-mono flex items-center gap-1 ${theme.statusBg} ${theme.statusBorder}`}>
-          <div className={theme.iconColor}>
+        <div className={`px-2 py-0.5 rounded-md text-xs font-mono flex items-center gap-1`}>
+          <div className={statusInfo.color}>
             {theme.icon}
           </div>
           <span className={statusInfo.color}>
             {statusInfo.icon}
           </span>
           <span className={statusInfo.color}>
-            {statusInfo.text}
+            {statusInfo.text} {run.type.replace('_', ' ')}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <h3 className={`text-xs font-mono ${theme.textColor} font-medium`}>
-            {run.runName || `${run.type.replace('_', ' ')} run`}
-          </h3>
-        </div>
+
       </div>
 
       {/* Messages */}

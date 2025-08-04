@@ -181,6 +181,7 @@ export const useProject = (projectId: string) => {
       entityType,
       entityId: entityId as UUID,
     });
+
   };
 
   // Unified function to remove any entity from project
