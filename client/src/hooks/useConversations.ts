@@ -6,7 +6,8 @@ import useSWRMutation from "swr/mutation";
 
 export const useConversations = () => {
   const { data: session } = useSession();
-  const { data: conversations, mutate: mutateConversations, error, isLoading } = useSWR(session ? ["conversations"] : null, () => fetchConversations(session ? session.APIToken.accessToken : ""));
+  const { data: conversations, mutate: mutateConversations, error, isLoading } = useSWR(
+    session ? ["conversations"] : null, () => fetchConversations(session ? session.APIToken.accessToken : ""));
 
   const { trigger: createConversation } = useSWRMutation(
     session ? "conversations" : null, 

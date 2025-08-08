@@ -8,18 +8,18 @@ from synesis_api.modules.node.schema import FrontendNode, FrontendNodeCreate
 
 BASE_X_POSITIONS = {
     "data_source": 0,
-    "dataset": 250,
-    "analysis": 500,
-    "automation": 750
+    "dataset": 400,
+    "analysis": 800,
+    "automation": 1200
 }
-VERTICAL_SPACING = 75
+VERTICAL_SPACING = 100
 
 
 async def _create_node_position(project_id: UUID, node_type: Literal["data_source", "dataset", "analysis", "automation"]):
-    lowest_y_position = await fetch_one(select(func.min(node.c.y_position).label("min_y")).where(node.c.project_id == project_id, node.c.type == node_type))
+    max_y_position = await fetch_one(select(func.max(node.c.y_position).label("max_y")).where(node.c.project_id == project_id, node.c.type == node_type))
 
-    if lowest_y_position and lowest_y_position["min_y"] is not None:
-        return BASE_X_POSITIONS[node_type], lowest_y_position["min_y"] + VERTICAL_SPACING
+    if max_y_position and max_y_position["max_y"] is not None:
+        return BASE_X_POSITIONS[node_type], max_y_position["max_y"] + VERTICAL_SPACING
     else:
         return BASE_X_POSITIONS[node_type], 0
 

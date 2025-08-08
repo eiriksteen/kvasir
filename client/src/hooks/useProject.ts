@@ -71,7 +71,8 @@ export const useProject = (projectId: string) => {
 
   // Fetch nodes for the selected project
   const { data: frontendNodes, error: nodesError, isLoading: nodesLoading, mutate: mutateNodes } = useSWR(
-    session && selectedProject ? ['projectNodes', selectedProject.id] : null,
+    // Could use selectedProject.id as the second part of the key, but doing it this way will update the nodes also when the projects change
+    session && selectedProject ? ['projectNodes', selectedProject] : null,
     () => fetchProjectNodes(session?.APIToken?.accessToken || '', projectId),
     { fallbackData: [] }
   );

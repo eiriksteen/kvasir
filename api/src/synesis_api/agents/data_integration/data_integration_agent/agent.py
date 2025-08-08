@@ -15,7 +15,8 @@ from synesis_api.agents.data_integration.shared_tools import (
 from synesis_api.utils import (
     copy_file_or_directory_to_container,
     get_model,
-    run_python_function_in_container
+    run_python_function_in_container,
+    remove_print_statements_from_code
 )
 from synesis_data_structures.time_series.definitions import get_data_structures_overview, get_data_structure_description
 from synesis_api.base_schema import BaseSchema
@@ -103,6 +104,8 @@ async def validate_data_integration(
 
     print("THE CODE IS", result.code)
 
+    result.code = remove_print_statements_from_code(result.code)
+
     out, err = await run_python_function_in_container(
         base_script=result.code,
         function_name="submit_dataset_to_api",
@@ -116,6 +119,8 @@ async def validate_data_integration(
 
     if err:
         raise ModelRetry(f"Error submitting dataset to API: {err}")
+
+    print("OUT IS", out)
 
     output_obj = json.loads(out)
 

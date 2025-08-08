@@ -16,7 +16,7 @@ import { useDatasets, useAnalysis } from '@/hooks';
 // import DataVisualizer from '@/components/data-visualization/DataVisualizer';
 // import AnalysisItem from '@/components/analysis/AnalysisItem';
 import { FrontendNode } from '@/types/node';
-import DatasetBox from '@/components/datasets/DatasetBox';
+import DatasetBox from '@/components/dataset/DatasetBox';
 import AnalysisNode from '@/components/react-flow-components/AnalysisNode';
 import TransportEdge from '@/components/react-flow-components/TransportEdge';
 import { useDataSources } from '@/hooks/useDataSources';

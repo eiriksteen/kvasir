@@ -1,9 +1,0 @@
-export { default as DatasetFull } from './DatasetFull';
-export { default as DatasetOverview } from './DatasetOverview';
-export { default as DatasetDataView } from './DatasetDataView';
-export { default as DatasetIntegrationAdd } from './DatasetIntegrationAdd';
-export { default as DatasetIntegrationJobs } from './DatasetIntegrationJobs';
-export { default as DatasetIntegrationDetail } from './DatasetIntegrationDetail';
-export { default as DatasetCompact } from './DatasetCompact';
-export { default as DatasetMini } from './DatasetMini';
-export { default as Dataset } from './DatasetBox'; 

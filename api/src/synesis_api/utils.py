@@ -590,3 +590,22 @@ def determine_timezone(timestamps: list[datetime]) -> str:
 
     # Return the single timezone
     return list(timezones)[0]
+
+
+def remove_print_statements_from_code(code: str) -> str:
+    """
+    Remove print statements from a string of code.
+    Handles various print statement formats including multi-line and empty prints.
+    """
+    # Pattern to match print statements with their arguments and closing parenthesis
+    # This handles: print(), print("hello"), print("hello", end=""), etc.
+    pattern = r'print\s*\([^)]*\)'
+
+    # Remove all print statements
+    cleaned_code = re.sub(pattern, '', code)
+
+    # Clean up any resulting empty lines
+    lines = cleaned_code.split('\n')
+    cleaned_lines = [line for line in lines if line.strip()]
+
+    return '\n'.join(cleaned_lines)

@@ -13,7 +13,7 @@ import { AnalysisJobResultMetadata } from '@/types/analysis';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useDatasets } from '@/hooks/useDatasets';
-import { useAnalysis } from '@/hooks/useAnalysis';
+// import { useAnalysis } from '@/hooks/useAnalysis';
 import { DataSource } from '@/types/data-integration';
 import { UUID } from 'crypto';
 import { useRunsInConversation } from '@/hooks/useRuns';
@@ -22,7 +22,7 @@ import { Run } from '@/types/runs';
 
 const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
   const { datasets} = useDatasets();
-  const { analysisJobResults } = useAnalysis();
+  // const { analysisJobResults } = useAnalysis();
 
   const hasContext = message.context && (
     message.context.datasetIds?.length > 0 || 
@@ -66,7 +66,7 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
               ))}
               
               {/* Analyses */}
-              {message.context?.analysisIds?.map((analysisId: string) => (
+              {/* {message.context?.analysisIds?.map((analysisId: string) => (
                 <div 
                   key={analysisId}
                   className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-purple-900/50 text-purple-200"
@@ -74,7 +74,7 @@ const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
                   <BarChart size={10} />
                   {analysisJobResults?.analysesJobResults.find((analysis: AnalysisJobResultMetadata) => analysis.jobId === analysisId)?.name}
                 </div>
-              ))}
+              ))} */}
               
               {/* Automations */}
               {message.context?.automationIds?.map((automationId: string) => (
@@ -129,6 +129,7 @@ function Chat({ projectId }: { projectId: UUID }) {
   
   const MIN_WIDTH = 300;
   const MAX_WIDTH = typeof window !== 'undefined' ? window.innerWidth * 0.8 : 800;
+
 
   useEffect(() => {
     if (messagesContainerRef.current) {

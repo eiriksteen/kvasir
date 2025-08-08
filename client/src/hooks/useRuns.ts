@@ -2,7 +2,7 @@ import { fetchRuns, createIncompleteRunsEventSource, fetchRunMessages, createRun
 import { Run, RunMessage } from "@/types/runs";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { SWRSubscriptionOptions } from "swr/subscription";
 import useSWRSubscription from "swr/subscription";
 
@@ -25,6 +25,8 @@ const emptyRunState: runState = ""
 export const useRuns = () => {
   const { data: session } = useSession()
   const { data: runState, mutate: mutateRunState } = useSWR(["runState"], {fallbackData: emptyRunState})
+  const { mutate } = useSWRConfig()
+
 
   const { data: runs, mutate: mutateRuns } = useSWR(
     session ? ["runs"] : null, 
@@ -64,7 +66,8 @@ export const useRuns = () => {
           if (updatedRuns.every((run: Run) => run.status !== "running")) {
             const newRunState = computeRunState(updatedRuns);
             mutateRunState(newRunState, {revalidate: false});
-            if (newRunState == "completed" || newRunState == "failed") {
+            const noRunningRuns = updatedRuns.filter((run: Run) => run.status === "running").length === 0;
+            if (noRunningRuns) {
               setTimeout(() => {
                 mutateRunState(emptyRunState, {revalidate: false});
               }, 5000);
@@ -72,6 +75,15 @@ export const useRuns = () => {
           }
 
           await mutateRuns(updatedRuns, {revalidate: false});
+
+          const completedRuns = runsChangedStatus.filter((run: Run) => run.status === "completed");
+          
+          if (completedRuns.length > 0) {
+            if (completedRuns.some((run: Run) => run.type === "data_integration")) {
+              mutate("datasets");
+            }
+            mutate("projects");
+          }
 
           // Return undefined since this is purely to update the jobs by listening to updates from the event source
           return undefined;
