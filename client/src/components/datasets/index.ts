@@ -6,4 +6,4 @@ export { default as DatasetIntegrationJobs } from './DatasetIntegrationJobs';
 export { default as DatasetIntegrationDetail } from './DatasetIntegrationDetail';
 export { default as DatasetCompact } from './DatasetCompact';
 export { default as DatasetMini } from './DatasetMini';
-export { default as Dataset } from './Dataset'; 
+export { default as Dataset } from './DatasetBox'; 

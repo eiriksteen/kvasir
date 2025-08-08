@@ -16,13 +16,14 @@ import { useDatasets, useAnalysis } from '@/hooks';
 // import DataVisualizer from '@/components/data-visualization/DataVisualizer';
 // import AnalysisItem from '@/components/analysis/AnalysisItem';
 import { FrontendNode } from '@/types/node';
-import Dataset from '@/components/datasets/Dataset';
+import DatasetBox from '@/components/datasets/DatasetBox';
 import AnalysisNode from '@/components/react-flow-components/AnalysisNode';
 import TransportEdge from '@/components/react-flow-components/TransportEdge';
 import { useDataSources } from '@/hooks/useDataSources';
 import DataSourceBox from '../data-sources/DataSourceBox';
 import { DataSource } from '@/types/data-integration';
 import FileInfoModal from '@/components/data-sources/FileInfoModal';
+import { Dataset } from '@/types/data-objects';
 
 const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradientClass: string; onClick: () => void } }) => (
   <DataSourceBox 
@@ -33,11 +34,10 @@ const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradi
 );
 
 // Wrapper component to adapt ReactFlow node props to Dataset component props
-const DatasetNodeWrapper = ({ data }: { data: { label: string; id: string; onClick: () => void } }) => (
-  <Dataset 
-    datasetId={data.id} 
-    gradientClass="from-blue-500 to-purple-600" 
-    defaultView="mini" 
+const DatasetNodeWrapper = ({ data }: { data: { dataset: Dataset; onClick: () => void } }) => (
+  <DatasetBox 
+    dataset={data.dataset} 
+    onClick={data.onClick} 
   />
 );
 
@@ -98,6 +98,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         data: {
           label: dataset.name,
           id: frontendNode.datasetId,
+          dataset: dataset,
+          onClick: () => console.log("Dataset clicked", dataset.id)
         },
       } as Node;
     });

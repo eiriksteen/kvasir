@@ -90,7 +90,6 @@ export const useProjectChat = (projectId: UUID) => {
       // Create the prompt with conversation_id
       const prompt: Prompt = {
         conversationId: convId,
-        projectId: projectId,
         context: context,
         content: content
       };

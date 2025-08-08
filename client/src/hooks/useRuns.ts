@@ -2,10 +2,9 @@ import { fetchRuns, createIncompleteRunsEventSource, fetchRunMessages, createRun
 import { Run, RunMessage } from "@/types/runs";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
-import useSWR, { useSWRConfig } from "swr";
+import useSWR from "swr";
 import { SWRSubscriptionOptions } from "swr/subscription";
 import useSWRSubscription from "swr/subscription";
-// import { useDatasets } from "./useDatasets";
 
 
 type runState = "running" | "failed" | "completed" | "paused" | "awaiting_approval" | "";
@@ -26,8 +25,6 @@ const emptyRunState: runState = ""
 export const useRuns = () => {
   const { data: session } = useSession()
   const { data: runState, mutate: mutateRunState } = useSWR(["runState"], {fallbackData: emptyRunState})
-  // const { mutateDatasets } = useDatasets()
-  const { mutate } = useSWRConfig()
 
   const { data: runs, mutate: mutateRuns } = useSWR(
     session ? ["runs"] : null, 
@@ -76,21 +73,6 @@ export const useRuns = () => {
 
           await mutateRuns(updatedRuns, {revalidate: false});
 
-          const completedRuns = runsChangedStatus.filter((run: Run) => run.status === "completed");
-          if (completedRuns.length > 0) {
-
-            console.log("SOME RUNS ARE COMPLETED", completedRuns);
-            
-            if (completedRuns.some((run: Run) => run.type === "data_integration")) {
-              console.log("MUTATING DATASETS");
-              mutate("datasets");
-            }
-            else{
-              console.error("No post-run mutation implemented for run type", completedRuns[0].type, ", do it now!");
-            }
-            mutate("projects");
-          }
-
           // Return undefined since this is purely to update the jobs by listening to updates from the event source
           return undefined;
         });
@@ -131,7 +113,6 @@ export const useRunMessages = (runId: string) => {
   const { data: session } = useSession()
   const { run } = useRun(runId)
   const { data: runMessages, mutate: mutateRunMessages } = useSWR(session ? ["runMessages", runId] : null, () => fetchRunMessages(session ? session.APIToken.accessToken : "", runId))
-
 
   useSWRSubscription(
     session && run ? ["runMessages", runId, run.status] : null,

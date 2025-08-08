@@ -26,6 +26,8 @@ from synesis_api.worker import broker, logger
 from synesis_api.redis import get_redis
 from synesis_api.modules.raw_data_storage.service import save_script_to_local_storage
 from synesis_api.modules.project.schema import AddEntityToProject
+from synesis_api.modules.node.service import create_node
+from synesis_api.modules.node.schema import FrontendNodeCreate
 
 
 class DataIntegrationRunner:
@@ -150,6 +152,7 @@ class DataIntegrationRunner:
             await create_data_integration_run_result(self.run_id, agent_output.dataset_id, agent_output.code_explanation, str(python_code_path))
             await create_run_message_pydantic(self.run_id, run.result.new_messages_json())
             await add_entity_to_project(self.project_id, AddEntityToProject(entity_type="dataset", entity_id=agent_output.dataset_id))
+            await create_node(FrontendNodeCreate(project_id=self.project_id, type="dataset", dataset_id=agent_output.dataset_id))
             await self._log_message_to_redis(f"Integration agent run completed!", "result", write_to_db=True)
             await update_run_status(self.run_id, "completed")
 

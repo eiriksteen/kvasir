@@ -1,20 +1,45 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 from uuid import UUID, uuid4
-from sqlalchemy import select, insert, update, delete
+from sqlalchemy import select, insert, update, delete, func
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.node.models import node, data_source_node, dataset_node, analysis_node, automation_node
 from synesis_api.modules.node.schema import FrontendNode, FrontendNodeCreate
 
 
+BASE_X_POSITIONS = {
+    "data_source": 0,
+    "dataset": 250,
+    "analysis": 500,
+    "automation": 750
+}
+VERTICAL_SPACING = 75
+
+
+async def _create_node_position(project_id: UUID, node_type: Literal["data_source", "dataset", "analysis", "automation"]):
+    lowest_y_position = await fetch_one(select(func.min(node.c.y_position).label("min_y")).where(node.c.project_id == project_id, node.c.type == node_type))
+
+    if lowest_y_position and lowest_y_position["min_y"] is not None:
+        return BASE_X_POSITIONS[node_type], lowest_y_position["min_y"] + VERTICAL_SPACING
+    else:
+        return BASE_X_POSITIONS[node_type], 0
+
+
 async def create_node(frontend_node: FrontendNodeCreate) -> FrontendNode:
 
     # First create the base node
+
+    if frontend_node.x_position is None or frontend_node.y_position is None:
+        x_position, y_position = await _create_node_position(frontend_node.project_id, frontend_node.type)
+    else:
+        x_position = frontend_node.x_position
+        y_position = frontend_node.y_position
+
     id = uuid4()
     node_query = insert(node).values(
         id=id,
         project_id=frontend_node.project_id,
-        x_position=frontend_node.x_position,
-        y_position=frontend_node.y_position,
+        x_position=x_position,
+        y_position=y_position,
         type=frontend_node.type
     )
 
@@ -48,8 +73,8 @@ async def create_node(frontend_node: FrontendNodeCreate) -> FrontendNode:
     return FrontendNode(
         id=id,
         project_id=frontend_node.project_id,
-        x_position=frontend_node.x_position,
-        y_position=frontend_node.y_position,
+        x_position=x_position,
+        y_position=y_position,
         type=frontend_node.type,
         data_source_id=frontend_node.data_source_id,
         dataset_id=frontend_node.dataset_id,

@@ -157,18 +157,17 @@ export const useProject = (projectId: string) => {
   }, [frontendNodes]);
 
 
-
   // Unified function to add any entity to project
   const addEntity = async (entityType: "data_source" | "dataset" | "analysis" | "automation", entityId: string) => {
     if (!selectedProject) return;
 
-    const position = calculateNodePosition();
+    //const position = calculateNodePosition();
 
     // Create the node for the entity
     await createFrontendNode({
       projectId: selectedProject.id,
-      xPosition: position.x,
-      yPosition: position.y,
+      xPosition: null,
+      yPosition: null,
       type: entityType,
       dataSourceId: entityType === "data_source" ? entityId : null,
       datasetId: entityType === "dataset" ? entityId : null,

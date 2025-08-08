@@ -14,8 +14,8 @@ export interface FrontendNode {
 
 export interface FrontendNodeCreate {
   projectId: string;
-  xPosition: number;
-  yPosition: number;
+  xPosition: number | null;
+  yPosition: number | null;
   type: NodeType;
   dataSourceId: string | null;
   datasetId: string | null;

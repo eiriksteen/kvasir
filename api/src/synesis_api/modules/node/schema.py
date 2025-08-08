@@ -1,6 +1,6 @@
 from synesis_api.base_schema import BaseSchema
-from typing import Literal
-from uuid import UUID, uuid4
+from typing import Literal, Optional
+from uuid import UUID
 
 
 class Node(BaseSchema):
@@ -20,18 +20,18 @@ class FrontendNode(BaseSchema):
     x_position: float
     y_position: float
     type: Literal["data_source", "dataset", "analysis", "automation"]
-    data_source_id: UUID | None
-    dataset_id: UUID | None
-    analysis_id: UUID | None
-    automation_id: UUID | None
+    data_source_id: Optional[UUID] = None
+    dataset_id: Optional[UUID] = None
+    analysis_id: Optional[UUID] = None
+    automation_id: Optional[UUID] = None
 
 
 class FrontendNodeCreate(BaseSchema):
     project_id: UUID
-    x_position: float
-    y_position: float
     type: Literal["data_source", "dataset", "analysis", "automation"]
-    data_source_id: UUID | None
-    dataset_id: UUID | None
-    analysis_id: UUID | None
-    automation_id: UUID | None
+    data_source_id: Optional[UUID] = None
+    dataset_id: Optional[UUID] = None
+    analysis_id: Optional[UUID] = None
+    automation_id: Optional[UUID] = None
+    x_position: Optional[float] = None
+    y_position: Optional[float] = None
