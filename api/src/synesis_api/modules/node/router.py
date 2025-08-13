@@ -24,8 +24,6 @@ async def create_new_node(
 ) -> FrontendNode:
     # Verify project exists and user has access
 
-    print(node)
-
     project = await get_project(node.project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")

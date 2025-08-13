@@ -32,11 +32,3 @@ export interface TabularFileDataSource extends FileDataSource {
 
 export type DataSource = TabularFileDataSource // | Other data source types
 
-
-export type IntegrationJobResult = {
-  jobId: string;
-  datasetId: string;
-  codeExplanation: string;
-  pythonCodePath: string;
-};
-

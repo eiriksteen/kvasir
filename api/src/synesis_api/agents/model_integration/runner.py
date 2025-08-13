@@ -40,7 +40,7 @@ from synesis_api.agents.model_integration.utils import (
 )
 from synesis_api.agents.model_integration.input_structures import get_input_structure, get_config_definition_code
 from synesis_api.agents.model_integration.output_structures import get_output_structure
-from synesis_api.modules.raw_data_storage.service import save_script_to_local_storage
+from synesis_api.storage.local import save_script_to_local_storage
 
 
 class ModelIntegrationOutput(BaseSchema):

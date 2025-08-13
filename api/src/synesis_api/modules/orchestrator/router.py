@@ -79,7 +79,7 @@ async def post_chat(
         context_in_db = None
         if prompt.context and len(prompt.context.data_source_ids) + len(prompt.context.dataset_ids) + len(prompt.context.automation_ids) + len(prompt.context.analysis_ids) > 0:
             context_in_db = await create_context(prompt.context)
-            print("context_in_db", context_in_db)
+
             response_message.context_id = context_in_db.id
 
         async with chatbot_agent.run_stream(

@@ -5,8 +5,10 @@ import markdown2
 import sys
 import asyncio
 import pandas as pd
+import pytz
+from datetime import tzinfo
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Literal
 from pylint import lint
 from io import StringIO
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -590,6 +592,41 @@ def determine_timezone(timestamps: list[datetime]) -> str:
 
     # Return the single timezone
     return list(timezones)[0]
+
+
+def timezone_str_to_tz_info(
+        timezone_str: Literal[
+            "UTC",
+            "UTC+00:00",
+            "UTC+01:00",
+            "UTC+02:00",
+            "UTC+03:00",
+            "UTC+04:00",
+            "UTC+05:00",
+            "UTC+06:00",
+            "UTC+07:00",
+            "UTC+08:00",
+            "UTC+09:00",
+            "UTC+10:00",
+            "UTC+11:00",
+            "UTC+12:00",
+            "UTC-01:00",
+            "UTC-02:00",
+            "UTC-03:00",
+            "UTC-04:00",
+            "UTC-05:00",
+            "UTC-06:00",
+            "UTC-07:00",
+            "UTC-08:00",
+            "UTC-09:00",
+            "UTC-10:00",
+            "UTC-11:00",
+            "UTC-12:00",
+        ]) -> tzinfo:
+    """
+    Convert a timezone string to a timezone object.
+    """
+    return pytz.timezone(timezone_str)
 
 
 def remove_print_statements_from_code(code: str) -> str:

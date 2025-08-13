@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { SupportedSource } from '@/types/data-integration';
+import { SupportedSource } from '@/types/data-sources';
 
 
 // type sourceTypeObject = {

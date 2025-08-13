@@ -1,14 +1,13 @@
-import { DataSource } from "@/types/data-integration";
+import { DataSource } from "@/types/data-sources";
 import { X, BarChart3, FileText as FileDescription, Shield, List } from 'lucide-react';
 import { useEffect } from 'react';
-import { getSourceTypeIcon } from "@/lib/data-sources/sourceTypes";
 
 export default function FileInfoModal({ 
   dataSource, 
-  setSelectedDataSource 
+  onClose
 }: { 
   dataSource: DataSource; 
-  setSelectedDataSource: (dataSource: DataSource | null) => void; 
+  onClose: () => void; 
 }) {
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -22,13 +21,15 @@ export default function FileInfoModal({
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setSelectedDataSource(null);
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
       }
     };
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [setSelectedDataSource]);
+    document.addEventListener('keydown', handleEscape, { capture: true });
+    return () => document.removeEventListener('keydown', handleEscape, { capture: true });
+  }, [onClose]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -44,73 +45,76 @@ export default function FileInfoModal({
     <>
       <div 
         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-        onClick={() => setSelectedDataSource(null)}
+        onClick={() => onClose()}
       />
       <div className="fixed inset-4 z-50 flex items-center justify-center">
-        <div className="w-full max-w-4xl flex flex-col overflow-hidden shadow-2xl">
-          <div className="bg-[#0a101c]/50 border border-[#1f2937] rounded-lg">
-            <div className="relative flex items-center p-3 border-b border-[#101827] flex-shrink-0">
-              {getSourceTypeIcon(dataSource.type, 16)}
+        <div className="w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden bg-black/50 rounded-lg">
+          <div className="rounded-xl border-2 border-emerald-500/20 shadow-xl shadow-emerald-500/10 h-full flex flex-col">
+            <div className="relative flex items-center p-4 border-b border-emerald-500/20 flex-shrink-0">
               <div className="ml-2">
-                <h3 className="text-sm font-mono uppercase tracking-wider text-zinc-200">
+                <h3 className="text-sm font-mono tracking-wider text-gray-200">
                   {dataSource.name}
                 </h3>
               </div>
               <button
-                onClick={() => setSelectedDataSource(null)}
-                className="absolute right-6 text-zinc-400 hover:text-zinc-300 transition-colors"
+                onClick={() => onClose()}
+                className="absolute right-6 text-gray-400 hover:text-white transition-colors"
                 title="Close modal"
               >
                 <X size={20} />
               </button>
             </div>
-            <div className="p-4 space-y-3">
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <BarChart3 size={16} className="text-blue-400" />
-                  <h3 className="text-sm text-zinc-200">Stats</h3>
-                </div>
-                <p className="text-sm text-zinc-400">File Type: {dataSource.fileType}</p>
-                <p className="text-sm text-zinc-400">File Size (bytes): {dataSource.fileSizeBytes}</p>
-                <p className="text-sm text-zinc-400">Created: {formatDate(dataSource.createdAt)}</p>
-                <p className="text-sm text-zinc-400">Number of Rows: {dataSource.numRows}</p>
-                <p className="text-sm text-zinc-400">Number of Columns: {dataSource.numColumns}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                {dataSource.description && (
-                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 space-y-2 max-h-[20vh] overflow-y-auto">
-                    <div className="flex items-center gap-2">
-                      <FileDescription size={16} className="text-green-400" />
-                      <h3 className="text-sm text-zinc-200">Content Description</h3>
-                    </div>
-                    <p className="text-sm text-zinc-400">{dataSource.description}</p>
-                  </div>
-                )}
-                {dataSource.qualityDescription && (
-                  <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 space-y-2 max-h-[20vh] overflow-y-auto">
-                    <div className="flex items-center gap-2">
-                      <Shield size={16} className="text-yellow-400" />
-                      <h3 className="text-sm text-zinc-200">Quality Description</h3>
-                    </div>
-                    <p className="text-sm text-zinc-400">{dataSource.qualityDescription}</p>
-                  </div>
-                )}
-              </div>
-              {dataSource.features && dataSource.features.length > 0 && (
-                <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 space-y-2">
+            <div className="p-4 flex-1 overflow-y-auto">
+              <div className="space-y-3">
+                <div className="border border-emerald-500/20 rounded-lg p-4 space-y-2 bg-zinc-900/50">
                   <div className="flex items-center gap-2">
-                    <List size={16} className="text-purple-400" />
-                    <h3 className="text-sm text-zinc-200">Features</h3>
+                    <BarChart3 size={16} className="text-emerald-400" />
+                    <h3 className="text-sm text-gray-200 font-mono">Stats</h3>
                   </div>
-                  <div className="space-y-2 max-h-[20vh] overflow-y-auto">
-                    {dataSource.features.map((feature) => (
-                      <div key={feature.name} className="">
-                        <p className="text-sm text-zinc-400">{feature.name}: {feature.description}</p>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-sm text-gray-300/80">File Type: {dataSource.fileType}</p>
+                  <p className="text-sm text-gray-300/80">File Size (bytes): {dataSource.fileSizeBytes}</p>
+                  <p className="text-sm text-gray-300/80">Created: {formatDate(dataSource.createdAt)}</p>
+                  <p className="text-sm text-gray-300/80">Number of Rows: {dataSource.numRows}</p>
+                  <p className="text-sm text-gray-300/80">Number of Columns: {dataSource.numColumns}</p>
                 </div>
-              )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {dataSource.description && (
+                    <div className="border border-emerald-500/20 rounded-lg p-4 space-y-2 bg-zinc-900/50 max-h-[20vh] overflow-y-auto">
+                      <div className="flex items-center gap-2">
+                        <FileDescription size={16} className="text-emerald-300" />
+                        <h3 className="text-sm text-gray-200 font-mono">Content Description</h3>
+                      </div>
+                      <p className="text-sm text-gray-300/80">{dataSource.description}</p>
+                    </div>
+                  )}
+                  {dataSource.qualityDescription && (
+                    <div className="border border-emerald-500/20 rounded-lg p-4 space-y-2 bg-zinc-900/50 max-h-[20vh] overflow-y-auto">
+                      <div className="flex items-center gap-2">
+                        <Shield size={16} className="text-emerald-300" />
+                        <h3 className="text-sm text-gray-200 font-mono">Quality Description</h3>
+                      </div>
+                      <p className="text-sm text-gray-300/80">{dataSource.qualityDescription}</p>
+                    </div>
+                  )}
+                </div>
+
+                {dataSource.features && dataSource.features.length > 0 && (
+                  <div className="border border-emerald-500/20 rounded-lg p-4 space-y-2 bg-zinc-900/50">
+                    <div className="flex items-center gap-2">
+                      <List size={16} className="text-emerald-300" />
+                      <h3 className="text-sm text-gray-200 font-mono">Features</h3>
+                    </div>
+                    <div className="space-y-2 max-h-[20vh] overflow-y-auto">
+                      {dataSource.features.map((feature) => (
+                        <div key={feature.name}>
+                          <p className="text-sm text-gray-300/80">{feature.name}: {feature.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

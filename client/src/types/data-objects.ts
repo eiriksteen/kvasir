@@ -1,4 +1,5 @@
 import { Run } from "./runs";
+import { UUID } from "crypto";
 
 
 export type Feature = {
@@ -13,8 +14,8 @@ export type Feature = {
 }
 
 export interface DataObject {
-    id: string;
-    groupId: string;
+    id: UUID;
+    groupId: UUID;
     originalId: string;
     name: string;
     description: string;
@@ -24,7 +25,7 @@ export interface DataObject {
 }
 
 export type ObjectGroup = {
-    id: string;
+    id: UUID;
     name: string;
     description: string;
     originalIdName: string | null;
@@ -41,10 +42,17 @@ export interface TimeSeries extends DataObject {
     endTimestamp: string;
     samplingFrequency: "m" | "h" | "d" | "w" | "y" | "irr";
     timezone: string;
+    type: "time_series";
+}
+
+export interface TimeSeriesWithRawData extends TimeSeries {
+    data: Record<string, Array<[string, number | string]>>;
+    features: Record<string, Feature>;
 }
 
 export interface TimeSeriesAggregation extends DataObject {
     isMultiSeriesComputation: boolean;
+    type: "time_series_aggregation";
 }
 
 export interface ObjectGroupWithObjectList extends ObjectGroup {
@@ -52,8 +60,8 @@ export interface ObjectGroupWithObjectList extends ObjectGroup {
 }
 
 export type Dataset = {
-    id: string;
-    userId: string;
+    id: UUID;
+    userId: UUID;
     name: string;
     description: string;
     modality: "time_series" | "image" | "text" | "audio" | "video";
@@ -65,16 +73,9 @@ export type Dataset = {
     integrationJobs: Run[];
 }
 
-export type DatasetWithObjectLists = {
-    id: string;
-    userId: string;
-    name: string;
-    description: string;
-    modality: "time_series" | "image" | "text" | "audio" | "video";
-    createdAt: string;
-    updatedAt: string;
+export type ObjectGroupsWithListsInDataset = {
+    datasetId: UUID;
     primaryObjectGroup: ObjectGroupWithObjectList;
     annotatedObjectGroups: ObjectGroupWithObjectList[];
     computedObjectGroups: ObjectGroupWithObjectList[];
-    integrationJobs: Run[];
 }

@@ -1,4 +1,4 @@
-import { DataSource } from "@/types/data-integration";
+import { DataSource } from "@/types/data-sources";
 import FileInfoModal from "@/components/data-sources/FileInfoModal";
 import { useState } from "react";
 import DataSourceListItem from "@/components/data-sources/DataSourceListItem";

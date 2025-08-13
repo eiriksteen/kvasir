@@ -14,7 +14,7 @@ import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useDatasets } from '@/hooks/useDatasets';
 // import { useAnalysis } from '@/hooks/useAnalysis';
-import { DataSource } from '@/types/data-integration';
+import { DataSource } from '@/types/data-sources';
 import { UUID } from 'crypto';
 import { useRunsInConversation } from '@/hooks/useRuns';
 import RunBox from '@/components/runs/RunBox';

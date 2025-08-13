@@ -77,8 +77,6 @@ async def get_system_prompt(ctx: RunContext[DataIntegrationAgentDeps]) -> str:
         f"The target data description is provided by the user in the prompt. Remember to use the full file path in your code!"
     )
 
-    print("SYSTEM PROMPT IS", sys_prompt)
-
     return sys_prompt
 
 
@@ -102,8 +100,6 @@ async def validate_data_integration(
         raise ModelRetry(
             "You didn't provide the dataset_dict variable in your code!")
 
-    print("THE CODE IS", result.code)
-
     result.code = remove_print_statements_from_code(result.code)
 
     out, err = await run_python_function_in_container(
@@ -114,13 +110,8 @@ async def validate_data_integration(
         print_output=True
     )
 
-    print("OUT IS", out)
-    print("ERR IS", err)
-
     if err:
         raise ModelRetry(f"Error submitting dataset to API: {err}")
-
-    print("OUT IS", out)
 
     output_obj = json.loads(out)
 

@@ -21,9 +21,10 @@ import AnalysisNode from '@/components/react-flow-components/AnalysisNode';
 import TransportEdge from '@/components/react-flow-components/TransportEdge';
 import { useDataSources } from '@/hooks/useDataSources';
 import DataSourceBox from '../data-sources/DataSourceBox';
-import { DataSource } from '@/types/data-integration';
+import { DataSource } from '@/types/data-sources';
 import FileInfoModal from '@/components/data-sources/FileInfoModal';
 import { Dataset } from '@/types/data-objects';
+import DatasetInfoModal from '@/components/dataset/DatasetInfoModal';
 
 const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradientClass: string; onClick: () => void } }) => (
   <DataSourceBox 
@@ -62,7 +63,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   const { analysisJobResults } = useAnalysis();
   // const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
   const [selectedDataSource, setSelectedDataSource] = useState<DataSource | null>(null);
-
+  const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
@@ -99,7 +100,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
           label: dataset.name,
           id: frontendNode.datasetId,
           dataset: dataset,
-          onClick: () => console.log("Dataset clicked", dataset.id)
+          onClick: () => setSelectedDataset(dataset)
         },
       } as Node;
     });
@@ -180,27 +181,15 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
   }, [frontendNodes, updatePosition]);
 
 
-  // const renderModal = () => {
+  // These are needed to ensure we don't need to click esc twice to close the modals
 
-  //   // Dataset modal is opened inside the Dataset component
+  const handleCloseDatasetModal = useCallback(() => {
+    setSelectedDataset(null);
+  }, []);
 
-  //   if (selectedAnalysis) {
-  //     const analysis = analysisJobResults?.analysesJobResults.find(a => a.jobId === selectedAnalysis);
-  //     if (!analysis) return null;
-
-  //     return (
-  //       <AnalysisItem
-  //         analysis={analysis}
-  //         isSelected={false}
-  //         onClick={() => {}}
-  //         isModal={true}
-  //         onClose={() => setSelectedAnalysis(null)}
-  //       />
-  //     );
-  //   }
-
-  //   return null;
-  // };
+  const handleCloseDataSourceModal = useCallback(() => {
+    setSelectedDataSource(null);
+  }, []);
 
   return (
     <div className="w-full h-screen">
@@ -226,7 +215,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         /> */}
       </ReactFlow>
       {/* {renderModal()} */}
-      {selectedDataSource && <FileInfoModal dataSource={selectedDataSource} setSelectedDataSource={setSelectedDataSource} />}
+      {selectedDataSource && <FileInfoModal dataSource={selectedDataSource} onClose={handleCloseDataSourceModal} />}
+      {selectedDataset && <DatasetInfoModal datasetId={selectedDataset.id} onClose={handleCloseDatasetModal} />}
     </div>
   );
 };

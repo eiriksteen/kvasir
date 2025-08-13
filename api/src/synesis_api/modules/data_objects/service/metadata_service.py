@@ -1,6 +1,6 @@
 import uuid
 import pandas as pd
-from typing import List, Union
+from typing import List, Optional
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from sqlalchemy import insert, select, and_
@@ -28,15 +28,13 @@ from synesis_api.modules.data_objects.schema import (
     FeatureWithSource,
     TimeSeriesAggregationInputInDB,
     DatasetWithObjectGroups,
-    DatasetWithObjectGroupsAndLists,
     TimeSeriesFull,
     TimeSeriesAggregationFull,
     ObjectGroupWithObjectList,
+    ObjectGroupsWithListsInDataset,
 )
 from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_data_structures.time_series.serialization import (
-    deserialize_parquet_to_dataframes
-)
+from synesis_data_structures.time_series.serialization import deserialize_parquet_to_dataframes
 from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_DATA_SECOND_LEVEL_ID,
     TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID,
@@ -45,7 +43,7 @@ from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID,
     TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID
 )
-from synesis_api.modules.raw_data_storage.service import save_dataframe_to_local_storage
+from synesis_api.storage.local import save_dataframe_to_local_storage
 from synesis_api.utils import determine_sampling_frequency, determine_timezone
 
 
@@ -125,6 +123,7 @@ async def create_dataset(
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc)
             )
+
             await execute(insert(object_group).values(object_group_record.model_dump()), commit_after=True)
 
             # To create the data objects, we must read and deserialize the parquet files from the uploaded file buffers
@@ -145,7 +144,9 @@ async def create_dataset(
                 parquet_dict[dataframe_create.structure_type] = file_content
 
             dataframes = deserialize_parquet_to_dataframes(
-                parquet_dict, group.structure_type)
+                parquet_dict,
+                group.structure_type
+            )
 
             # Check what data structures are present
             has_feature_information = FEATURE_INFORMATION_SECOND_LEVEL_ID in dataframes
@@ -200,7 +201,7 @@ async def create_dataset(
                     object_record = DataObjectInDB(
                         id=uuid.uuid4(),
                         original_id=str(original_id),
-                        name=f"Time series {original_id_name}: {original_id}",
+                        name=f"{original_id_name} {original_id}",
                         description=None,
                         group_id=object_group_record.id,
                         additional_variables=metadata.loc[original_entity_id].to_dict(
@@ -257,7 +258,7 @@ async def create_dataset(
 
                     object_record = DataObjectInDB(
                         id=uuid.uuid4(),
-                        name=f"Time series aggregation {original_id_name}: {original_id}",
+                        name=f"{original_id_name} {original_id}",
                         original_id=original_id,
                         description=None,
                         group_id=object_group_record.id,
@@ -320,8 +321,7 @@ async def delete_dataset(dataset_id: uuid.UUID, user_id: uuid.UUID) -> None:
 async def get_user_dataset(
         dataset_id: uuid.UUID,
         user_id: uuid.UUID,
-        include_object_lists: bool = False,
-) -> Union[DatasetWithObjectGroups, DatasetWithObjectGroupsAndLists]:
+) -> DatasetWithObjectGroups:
     """Get a dataset for a user"""
 
     # Get the base dataset
@@ -363,38 +363,25 @@ async def get_user_dataset(
             status_code=400, detail="Dataset must have a primary object group")
 
     # Create base result
-    if include_object_lists:
-        # Get objects for each group
-        primary_with_objects = await _get_object_group_with_objects(primary_object_group)
-        annotated_with_objects = [await _get_object_group_with_objects(group) for group in annotated_object_groups]
-        computed_with_objects = [await _get_object_group_with_objects(group) for group in computed_object_groups]
 
-        result = DatasetWithObjectGroupsAndLists(
-            **dataset_obj.model_dump(),
-            primary_object_group=primary_with_objects,
-            annotated_object_groups=annotated_with_objects,
-            computed_object_groups=computed_with_objects
-        )
-    else:
-        # Get features for each group
-        primary_with_features = await _get_object_group_with_features(primary_object_group)
-        annotated_with_features = [await _get_object_group_with_features(group) for group in annotated_object_groups]
-        computed_with_features = [await _get_object_group_with_features(group) for group in computed_object_groups]
+    # Get features for each group
+    primary_with_features = await _add_features_to_object_groups(primary_object_group)
+    annotated_with_features = [await _add_features_to_object_groups(group) for group in annotated_object_groups]
+    computed_with_features = [await _add_features_to_object_groups(group) for group in computed_object_groups]
 
-        result = DatasetWithObjectGroups(
-            **dataset_obj.model_dump(),
-            primary_object_group=primary_with_features,
-            annotated_object_groups=annotated_with_features,
-            computed_object_groups=computed_with_features
-        )
+    result = DatasetWithObjectGroups(
+        **dataset_obj.model_dump(),
+        primary_object_group=primary_with_features,
+        annotated_object_groups=annotated_with_features,
+        computed_object_groups=computed_with_features
+    )
 
     return result
 
 
 async def get_user_datasets(
         user_id: uuid.UUID,
-        include_object_lists: bool = False,
-) -> List[Union[DatasetWithObjectGroups, DatasetWithObjectGroupsAndLists]]:
+) -> List[DatasetWithObjectGroups]:
     """Get all datasets for a user"""
 
     # Get all datasets for the user
@@ -412,73 +399,34 @@ async def get_user_datasets(
     object_groups_result = await fetch_all(object_groups_query)
 
     # Group object groups by dataset_id
-    object_groups_by_dataset = {}
-    for group_result in object_groups_result:
-        group_obj = ObjectGroupInDB(**group_result)
-        if group_obj.dataset_id not in object_groups_by_dataset:
-            object_groups_by_dataset[group_obj.dataset_id] = []
-        object_groups_by_dataset[group_obj.dataset_id].append(group_obj)
+    object_groups = [ObjectGroupInDB(**group)
+                     for group in object_groups_result]
+    object_groups_with_features = await _add_features_to_object_groups(object_groups)
 
-    # Build result for each dataset
-    result_datasets = []
+    result_records = []
     for dataset_result in datasets_result:
         dataset_obj = DatasetInDB(**dataset_result)
-        dataset_id = dataset_obj.id
+        primary_object_group = [
+            group for group in object_groups_with_features if group.dataset_id == dataset_obj.id and group.role == "primary"][0]
+        annotated_object_groups = [
+            group for group in object_groups_with_features if group.dataset_id == dataset_obj.id and group.role == "annotated"]
+        computed_object_groups = [
+            group for group in object_groups_with_features if group.dataset_id == dataset_obj.id and group.role == "derived"]
 
-        # Get object groups for this dataset
-        dataset_groups = object_groups_by_dataset.get(dataset_id, [])
+        result_records.append(DatasetWithObjectGroups(
+            **dataset_obj.model_dump(),
+            primary_object_group=primary_object_group,
+            annotated_object_groups=annotated_object_groups,
+            computed_object_groups=computed_object_groups
+        ))
 
-        # Separate object groups by role
-        primary_object_group = None
-        annotated_object_groups = []
-        computed_object_groups = []
-
-        for group in dataset_groups:
-            if group.role == "primary":
-                primary_object_group = group
-            elif group.role == "annotated":
-                annotated_object_groups.append(group)
-            elif group.role == "derived":
-                computed_object_groups.append(group)
-
-        if not primary_object_group:
-            continue  # Skip datasets without primary object group
-
-        if include_object_lists:
-            # Get objects for each group
-            primary_with_objects = await _get_object_group_with_objects(primary_object_group)
-            annotated_with_objects = [await _get_object_group_with_objects(group) for group in annotated_object_groups]
-            computed_with_objects = [await _get_object_group_with_objects(group) for group in computed_object_groups]
-
-            dataset_with_objects = DatasetWithObjectGroupsAndLists(
-                **dataset_obj.model_dump(),
-                primary_object_group=primary_with_objects,
-                annotated_object_groups=annotated_with_objects,
-                computed_object_groups=computed_with_objects
-            )
-        else:
-            # Get features for each group
-            primary_with_features = await _get_object_group_with_features(primary_object_group)
-            annotated_with_features = [await _get_object_group_with_features(group) for group in annotated_object_groups]
-            computed_with_features = [await _get_object_group_with_features(group) for group in computed_object_groups]
-
-            dataset_with_objects = DatasetWithObjectGroups(
-                **dataset_obj.model_dump(),
-                primary_object_group=primary_with_features,
-                annotated_object_groups=annotated_with_features,
-                computed_object_groups=computed_with_features
-            )
-
-        result_datasets.append(dataset_with_objects)
-
-    return result_datasets
+    return result_records
 
 
 async def get_user_datasets_by_ids(
         user_id: uuid.UUID,
         dataset_ids: List[uuid.UUID] = [],
-        include_object_lists: bool = False,
-) -> List[Union[DatasetWithObjectGroups, DatasetWithObjectGroupsAndLists]]:
+) -> List[DatasetWithObjectGroups]:
     """Get specific datasets for a user by IDs"""
 
     if not dataset_ids:
@@ -535,23 +483,11 @@ async def get_user_datasets_by_ids(
         if not primary_object_group:
             continue  # Skip datasets without primary object group
 
-        if include_object_lists:
-            # Get objects for each group
-            primary_with_objects = await _get_object_group_with_objects(primary_object_group)
-            annotated_with_objects = [await _get_object_group_with_objects(group) for group in annotated_object_groups]
-            computed_with_objects = [await _get_object_group_with_objects(group) for group in computed_object_groups]
-
-            dataset_with_objects = DatasetWithObjectGroupsAndLists(
-                **dataset_obj.model_dump(),
-                primary_object_group=primary_with_objects,
-                annotated_object_groups=annotated_with_objects,
-                computed_object_groups=computed_with_objects
-            )
         else:
             # Get features for each group
-            primary_with_features = await _get_object_group_with_features(primary_object_group)
-            annotated_with_features = [await _get_object_group_with_features(group) for group in annotated_object_groups]
-            computed_with_features = [await _get_object_group_with_features(group) for group in computed_object_groups]
+            primary_with_features = await _add_features_to_object_groups(primary_object_group)
+            annotated_with_features = [await _add_features_to_object_groups(group) for group in annotated_object_groups]
+            computed_with_features = [await _add_features_to_object_groups(group) for group in computed_object_groups]
 
             dataset_with_objects = DatasetWithObjectGroups(
                 **dataset_obj.model_dump(),
@@ -565,66 +501,97 @@ async def get_user_datasets_by_ids(
     return result_datasets
 
 
-async def _get_object_group_with_objects(group: ObjectGroupInDB) -> ObjectGroupWithObjectList:
+async def get_object_groups(dataset_id: uuid.UUID) -> ObjectGroupsWithListsInDataset:
+    """Get all object groups in a dataset"""
+
+    # Get the object group
+    object_group_query = select(object_group, feature_in_group).where(
+        and_(object_group.c.dataset_id == dataset_id)
+    )
+    object_groups_result = await fetch_all(object_group_query)
+
+    object_groups = [ObjectGroupInDB(**group)
+                     for group in object_groups_result]
+
+    object_groups_with_features = await _add_features_to_object_groups(object_groups)
+    object_groups_with_lists = await _add_object_lists_to_object_groups(object_groups_with_features)
+
+    primary_object_group = [
+        g for g in object_groups_with_lists if g.role == "primary"][0]
+    annotated_object_groups = [
+        g for g in object_groups_with_lists if g.role == "annotated"]
+    computed_object_groups = [
+        g for g in object_groups_with_lists if g.role == "derived"]
+
+    return ObjectGroupsWithListsInDataset(
+        dataset_id=dataset_id,
+        primary_object_group=primary_object_group,
+        annotated_object_groups=annotated_object_groups,
+        computed_object_groups=computed_object_groups
+    )
+
+
+async def _add_object_lists_to_object_groups(groups: List[ObjectGroupWithFeatures]) -> List[ObjectGroupWithObjectList]:
     """Helper function to get an object group with its objects"""
 
-    # Get features for this group by joining feature and feature_in_group tables
-    features_query = select(
-        feature.c.name,
-        feature.c.unit,
-        feature.c.description,
-        feature.c.type,
-        feature.c.subtype,
-        feature.c.scale,
-        feature_in_group.c.source,
-        feature_in_group.c.category_id,
-        feature.c.created_at,
-        feature.c.updated_at
-    ).join(
-        feature_in_group,
-        feature.c.name == feature_in_group.c.feature_name
-    ).where(
-        feature_in_group.c.group_id == group.id
-    )
-    features_result = await fetch_all(features_query)
-    features = [FeatureWithSource(**feature) for feature in features_result]
+    time_series_group_ids = [
+        group.id for group in groups if group.structure_type == "time_series"]
+    time_series_aggregation_group_ids = [
+        group.id for group in groups if group.structure_type == "time_series_aggregation"]
 
     # Get all data objects in this group
     objects_query = select(data_object).where(
-        data_object.c.group_id == group.id)
+        data_object.c.group_id.in_([group.id for group in groups]))
     objects_result = await fetch_all(objects_query)
 
-    objects = []
-    for obj_result in objects_result:
-        obj = DataObjectInDB(**obj_result)
+    time_series_ids = [
+        obj["id"] for obj in objects_result if obj["group_id"] in time_series_group_ids]
+    time_series_aggregation_ids = [
+        obj["id"] for obj in objects_result if obj["group_id"] in time_series_aggregation_group_ids]
 
-        if obj.structure_type == "time_series":
-            # Get time series specific data
-            time_series_query = select(time_series).where(
-                time_series.c.id == obj.id)
-            time_series_result = await fetch_one(time_series_query)
-            if time_series_result:
-                time_series_obj = TimeSeriesInDB(**time_series_result)
-                full_obj = TimeSeriesFull(
-                    **obj.model_dump(), **time_series_obj.model_dump())
-                objects.append(full_obj)
+    time_series_objects = await fetch_all(select(time_series).where(
+        time_series.c.id.in_(time_series_ids)))
+    time_series_aggregation_objects = await fetch_all(select(time_series_aggregation).where(
+        time_series_aggregation.c.id.in_(time_series_aggregation_ids)))
 
-        elif obj.structure_type == "time_series_aggregation":
-            # Get time series aggregation specific data
-            aggregation_query = select(time_series_aggregation).where(
-                time_series_aggregation.c.id == obj.id)
-            aggregation_result = await fetch_one(aggregation_query)
-            if aggregation_result:
-                aggregation_obj = TimeSeriesAggregationInDB(
-                    **aggregation_result)
-                full_obj = TimeSeriesAggregationFull(
-                    **obj.model_dump(), **aggregation_obj.model_dump())
-                objects.append(full_obj)
+    result_records = []
+    for group in groups:
+        obj_ids = [obj["id"]
+                   for obj in objects_result if obj["group_id"] == group.id]
+        if group.structure_type == "time_series":
+            group_objects = [TimeSeriesFull(
+                id=ts_obj["id"],
+                name=data_obj["name"],
+                description=data_obj["description"],
+                original_id=data_obj["original_id"],
+                additional_variables=data_obj["additional_variables"],
+                created_at=data_obj["created_at"],
+                updated_at=data_obj["updated_at"],
+                num_timestamps=ts_obj["num_timestamps"],
+                start_timestamp=ts_obj["start_timestamp"],
+                end_timestamp=ts_obj["end_timestamp"],
+                sampling_frequency=ts_obj["sampling_frequency"],
+                timezone=ts_obj["timezone"],
+            ) for data_obj, ts_obj in zip(objects_result, time_series_objects) if ts_obj["id"] in obj_ids]
+        elif group.structure_type == "time_series_aggregation":
+            group_objects = [TimeSeriesAggregationFull(
+                id=ts_obj["id"],
+                name=data_obj["name"],
+                description=data_obj["description"],
+                original_id=data_obj["original_id"],
+                additional_variables=data_obj["additional_variables"],
+                created_at=data_obj["created_at"],
+                updated_at=data_obj["updated_at"],
+                is_multi_series_computation=ts_obj["is_multi_series_computation"],
+            ) for data_obj, ts_obj in zip(objects_result, time_series_aggregation_objects) if ts_obj["id"] in obj_ids]
 
-    return ObjectGroupWithObjectList(**group.model_dump(), features=features, objects=objects)
+        result_records.append(ObjectGroupWithObjectList(
+            **group.model_dump(), objects=group_objects))
+
+    return result_records
 
 
-async def _get_object_group_with_features(group: ObjectGroupInDB) -> ObjectGroupWithFeatures:
+async def _add_features_to_object_groups(groups: List[ObjectGroupInDB]) -> List[ObjectGroupWithFeatures]:
     """Helper function to get an object group with its features"""
 
     # Get features for this group by joining feature and feature_in_group tables
@@ -637,15 +604,43 @@ async def _get_object_group_with_features(group: ObjectGroupInDB) -> ObjectGroup
         feature.c.scale,
         feature_in_group.c.source,
         feature_in_group.c.category_id,
+        feature_in_group.c.group_id,
         feature.c.created_at,
         feature.c.updated_at
     ).join(
         feature_in_group,
         feature.c.name == feature_in_group.c.feature_name
     ).where(
-        feature_in_group.c.group_id == group.id
+        feature_in_group.c.group_id.in_([group.id for group in groups])
     )
     features_result = await fetch_all(features_query)
-    features = [FeatureWithSource(**feature) for feature in features_result]
 
-    return ObjectGroupWithFeatures(**group.model_dump(), features=features)
+    result_records = []
+    for group in groups:
+        group_features = [FeatureWithSource(
+            **feature) for feature in features_result if feature["group_id"] == group.id]
+        result_records.append(ObjectGroupWithFeatures(
+            **group.model_dump(), features=group_features))
+
+    return result_records
+
+
+async def entity_metadata_to_df(entity_ids: List[str]) -> pd.DataFrame:
+    pass
+
+
+async def feature_metadata_to_df(feature_names: Optional[List[str]] = None, group_id: Optional[uuid.UUID] = None) -> pd.DataFrame:
+
+    assert feature_names is not None or group_id is not None, "Either feature_names or group_id must be provided"
+
+    if feature_names is not None:
+        feature_query = select(feature).where(
+            feature.c.name.in_(feature_names))
+    elif group_id is not None:
+        feature_query = select(feature).join(feature_in_group).where(
+            feature_in_group.c.group_id == group_id,
+            feature.c.name == feature_in_group.c.feature_name
+        )
+
+    feature_result = await fetch_all(feature_query)
+    return pd.DataFrame(feature_result).set_index("name")

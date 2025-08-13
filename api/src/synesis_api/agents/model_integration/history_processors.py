@@ -78,13 +78,6 @@ async def keep_only_most_recent_script(
 
     updated_messages = updated_messages[::-1]
 
-    print("="*20, "KEEP ONLY MOST RECENT SCRIPT", "="*20)
-    for i, message in enumerate(updated_messages):
-        print("-"*20)
-        print(f"Message {i+1}: {message}")
-        print("-"*20)
-    print("="*50)
-
     return updated_messages
 
 
@@ -149,25 +142,11 @@ async def summarize_message_history(
     output_messages = [messages[0]] + \
         summary_run.new_messages() + messages[cutoff_index:]
 
-    print("--------------------------------")
-    print(
-        f"MESSAGE HISTORY SUMMARIZER APPLIED, WENT FROM SIZE {len(messages)} TO {len(output_messages)}")
-    print(
-        f"Last script modification at index: {last_script_index}, cutoff at: {cutoff_index}")
-    print("--------------------------------")
-
     # print("="*20, "PRE-SUMMARY MESSAGES", "="*20)
     # for i, message in enumerate(messages):
     #     print("-"*20)
     #     print(f"Message {i+1}: {message}")
     #     print("-"*20)
     # print("="*50)
-
-    print("="*20, "SUMMARIZER OUTPUT", "="*20)
-    for i, message in enumerate(output_messages):
-        print("-"*20)
-        print(f"Message {i+1}: {message}")
-        print("-"*20)
-    print("="*50)
 
     return output_messages

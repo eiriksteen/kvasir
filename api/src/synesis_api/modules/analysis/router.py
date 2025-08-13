@@ -48,7 +48,6 @@ async def analysis_agent_sse(
                 start_time = time.time()
                 last_id = response[0][1][-1][0]
                 data = response[0][1][0][1]
-                print("data", data)
 
                 # Don't send pydantic_ai_state to human, but send all other messages
                 if data["type"] != "pydantic_ai_state":

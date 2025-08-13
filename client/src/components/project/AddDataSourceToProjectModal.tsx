@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { X, Database } from 'lucide-react';
 import { useDataSources } from '@/hooks/useDataSources';
 import { useProject } from '@/hooks/useProject';
-import { DataSource } from '@/types/data-integration';
+import { DataSource } from '@/types/data-sources';
 import DataSourceListItem from '@/components/data-sources/DataSourceListItem';
 
 interface AddDataSourceToProjectModalProps {

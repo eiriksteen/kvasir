@@ -34,12 +34,8 @@ class Feature(BaseSchema):
 
 class DataObject(BaseSchema):
     id: uuid.UUID
-    name: Optional[str] = None
-    description: Optional[str] = None
     structure_type: Literal["time_series", "time_series_aggregation"]
     # Additional fields can be anything to accomodate for different use cases, for example metadata
     additional_variables: Optional[Dict[str, Any]] = None
     # feature name to feature object
     features: Dict[str, Feature]
-    created_at: datetime
-    updated_at: datetime

@@ -3,7 +3,7 @@ import { Dataset } from "@/types/data-objects";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { AnalysisJobResultMetadata } from "@/types/analysis";
-import { DataSource } from "@/types/data-integration";
+import { DataSource } from "@/types/data-sources";
 
 
 // Do this to avoid "possibly undefined" type errors

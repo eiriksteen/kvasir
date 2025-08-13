@@ -1,7 +1,7 @@
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';   
 import { Database } from 'lucide-react';
-import { DataSource } from '@/types/data-integration';
+import { DataSource } from '@/types/data-sources';
 
 interface DataSourceBoxProps {
   dataSource: DataSource;

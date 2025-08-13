@@ -1,4 +1,4 @@
-import { DataSource } from "@/types/data-integration";
+import { DataSource } from "@/types/data-sources";
 import { getSourceTypeIcon } from "@/lib/data-sources/sourceTypes";
 
 export default function DataSourceListItem({ dataSource, isFirst }: { dataSource: DataSource; isFirst: boolean }) {

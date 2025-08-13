@@ -2,7 +2,7 @@ import { useDataSources } from "@/hooks/useDataSources";
 import { useSession } from "next-auth/react";
 import { useState, useRef, useEffect } from 'react';
 import { Plus, X, Upload, Check, AlertTriangle, Loader2 } from 'lucide-react';
-import { SupportedSource } from "@/types/data-integration";
+import { SupportedSource } from "@/types/data-sources";
 import { getSourceTypeIcon } from "@/lib/data-sources/sourceTypes";
 
 // Add Data Source Modal

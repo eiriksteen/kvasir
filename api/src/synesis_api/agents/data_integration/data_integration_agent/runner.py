@@ -24,7 +24,7 @@ from synesis_api.agents.data_integration.data_integration_agent.agent import (
 from synesis_api.agents.chat.agent import chatbot_agent
 from synesis_api.worker import broker, logger
 from synesis_api.redis import get_redis
-from synesis_api.modules.raw_data_storage.service import save_script_to_local_storage
+from synesis_api.storage.local import save_script_to_local_storage
 from synesis_api.modules.project.schema import AddEntityToProject
 from synesis_api.modules.node.service import create_node
 from synesis_api.modules.node.schema import FrontendNodeCreate

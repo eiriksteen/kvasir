@@ -7,7 +7,7 @@ from typing import Dict, Tuple, List, Literal
 from synesis_api.agents.analysis.prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
 from synesis_api.agents.analysis.agent import analysis_agent, AnalysisDeps
 from synesis_api.modules.analysis.schema import AnalysisJobResult, AnalysisJobResultMetadataInDB, AnalysisPlan
-from synesis_api.modules.data_objects.service import get_user_datasets_by_ids
+from synesis_api.modules.data_objects.service.metadata_service import get_user_datasets_by_ids
 from synesis_api.worker import logger, broker
 from pydantic_ai.messages import (
     ModelMessage,

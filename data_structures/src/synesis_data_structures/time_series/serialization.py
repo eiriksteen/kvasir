@@ -7,7 +7,14 @@ from synesis_data_structures.time_series.schema import (
     TimeSeries,
     TimeSeriesAggregation
 )
-from synesis_data_structures.time_series.definitions import get_second_level_ids_for_structure
+from synesis_data_structures.time_series.definitions import (
+    FEATURE_INFORMATION_SECOND_LEVEL_ID,
+    TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID,
+    TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID,
+    TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID,
+    TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID,
+    get_second_level_ids_for_structure
+)
 
 
 # Functions to:
@@ -27,6 +34,7 @@ def serialize_dataframes_to_api_payloads(dataframes: Dict[str, pd.DataFrame], fi
     Returns:
         List of API payload objects (TimeSeries or TimeSeriesAggregation)
     """
+
     # Map first level IDs to their corresponding private serialization functions
     serialization_mapping = {
         "time_series": _serialize_time_series_dfs_to_api_payload,
@@ -123,8 +131,8 @@ def deserialize_parquet_to_dataframes(parquet_data: Dict[str, bytes], first_leve
 def _serialize_time_series_dfs_to_api_payload(dataframes: Dict[str, pd.DataFrame]) -> List[TimeSeries]:
     """Convert TimeSeries DataFrames to TimeSeries API payloads."""
     data_df = dataframes.get("time_series_data")
-    metadata_df = dataframes.get("time_series_entity_metadata")
-    feature_info_df = dataframes.get("time_series_feature_information")
+    metadata_df = dataframes.get(TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID)
+    feature_info_df = dataframes.get(FEATURE_INFORMATION_SECOND_LEVEL_ID)
 
     if data_df is None:
         raise ValueError("time_series_data DataFrame is required")
@@ -177,13 +185,9 @@ def _serialize_time_series_dfs_to_api_payload(dataframes: Dict[str, pd.DataFrame
         payload = TimeSeries(
             id=time_series_id,
             data=data,
-            name=f"TimeSeries_{entity_id}",
-            description=f"Time series data for entity {entity_id}",
             structure_type="time_series",
             additional_variables=additional_variables,
             features=feature_information,
-            created_at=datetime.now(),
-            updated_at=datetime.now()
         )
         payloads.append(payload)
 
@@ -192,10 +196,12 @@ def _serialize_time_series_dfs_to_api_payload(dataframes: Dict[str, pd.DataFrame
 
 def _serialize_time_series_aggregation_dfs_to_api_payload(dataframes: Dict[str, pd.DataFrame]) -> List[TimeSeriesAggregation]:
     """Convert TimeSeriesAggregation DataFrames to TimeSeriesAggregation API payloads."""
-    outputs_df = dataframes.get("time_series_aggregation_outputs")
-    inputs_df = dataframes.get("time_series_aggregation_inputs")
-    metadata_df = dataframes.get("time_series_aggregation_metadata")
-    feature_info_df = dataframes.get("time_series_feature_information")
+    outputs_df = dataframes.get(
+        TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID)
+    inputs_df = dataframes.get(TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID)
+    metadata_df = dataframes.get(
+        TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID)
+    feature_info_df = dataframes.get(FEATURE_INFORMATION_SECOND_LEVEL_ID)
 
     if outputs_df is None:
         raise ValueError(
@@ -274,13 +280,9 @@ def _serialize_time_series_aggregation_dfs_to_api_payload(dataframes: Dict[str, 
             id=aggregation_id,
             input_data=input_data,
             output_data=output_data,
-            name=f"TimeSeriesAggregation_{aggregation_id}",
-            description=f"Time series aggregation {aggregation_id}",
             structure_type="time_series_aggregation",
             additional_variables=additional_variables,
-            features=feature_information,
-            created_at=datetime.now(),
-            updated_at=datetime.now()
+            features=feature_information
         )
         payloads.append(payload)
 

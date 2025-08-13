@@ -9,10 +9,9 @@ from fastapi import Depends, HTTPException, status, Security, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from synesis_api.auth.schema import User, UserInDB, TokenData, UserAPIKey, UserCreate
 from synesis_api.auth.models import users, user_api_keys
-from synesis_api.modules.project.models import project
 from synesis_api.modules.orchestrator.models import conversation
 from synesis_api.modules.runs.models import run
-from synesis_api.modules.data_objects.models import dataset
+from synesis_api.modules.data_objects.models import dataset, object_group, data_object
 from synesis_api.secrets import API_SECRET_KEY, API_SECRET_ALGORITHM
 from synesis_api.database.service import fetch_one, execute, fetch_all
 from sqlalchemy import select
@@ -216,3 +215,19 @@ async def user_owns_conversation(user_id: uuid.UUID, conversation_id: uuid.UUID)
 async def user_owns_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID) -> bool:
     dataset_record = await fetch_one(Select(dataset).where(dataset.c.id == dataset_id, dataset.c.user_id == user_id))
     return dataset_record is not None
+
+
+async def user_owns_time_series(user_id: uuid.UUID, time_series_id: uuid.UUID) -> bool:
+    owner_id = await fetch_one(Select(
+        dataset.c.user_id
+    ).join(
+        object_group,
+        dataset.c.id == object_group.c.dataset_id
+    ).join(
+        data_object,
+        object_group.c.id == data_object.c.group_id
+    ).where(
+        data_object.c.id == time_series_id
+    ))
+
+    return owner_id["user_id"] == user_id

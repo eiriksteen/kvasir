@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SupportedSource } from "@/types/data-integration";
+import { SupportedSource } from "@/types/data-sources";
 import AddDataSourceModal from "@/app/data-sources/_components/AddDataSourceModal";
 import { getSourceTypeIcon, sourceTypes } from '@/lib/data-sources/sourceTypes';
 

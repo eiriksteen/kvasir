@@ -8,7 +8,7 @@ import { Dataset } from '@/types/data-objects';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 import { v4 as uuidv4 } from 'uuid';
 import { UUID } from "crypto";
-import { DataSource } from "@/types/data-integration";
+import { DataSource } from "@/types/data-sources";
 import { useConversations } from "./useConversations";
 import { createOrchestratorEventSource } from "@/lib/api";
 

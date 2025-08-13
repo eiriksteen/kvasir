@@ -7,7 +7,6 @@ from synesis_api.modules.data_sources.router import router as data_sources_route
 from synesis_api.modules.orchestrator.router import router as orchestrator_router
 from synesis_api.modules.analysis.router import router as analysis_router
 from synesis_api.modules.data_objects.router import router as ontology_router
-from synesis_api.modules.raw_data_storage.router import router as raw_data_storage_router
 from synesis_api.modules.project.router import router as project_router
 from synesis_api.modules.node.router import router as node_router
 from synesis_api.modules.automation.router import router as automation_router
@@ -71,11 +70,6 @@ app.include_router(project_router,
 app.include_router(node_router,
                    prefix="/node",
                    tags=["Node"])
-
-
-app.include_router(raw_data_storage_router,
-                   prefix="/raw-data-storage",
-                   tags=["Raw Data Storage"])
 
 
 app.include_router(automation_router,

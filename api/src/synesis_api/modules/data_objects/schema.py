@@ -1,8 +1,11 @@
 import uuid
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Union, Literal
+from typing import List, Optional, Dict, Any, Union, Literal, Tuple
+
 from synesis_api.base_schema import BaseSchema
 from synesis_api.secrets import MODALITY_TYPE
+
+from synesis_data_structures.base_schema import Feature
 
 
 # DB Schemas
@@ -87,7 +90,12 @@ class TimeSeriesInDB(BaseSchema):
 
 
 class TimeSeriesFull(DataObjectInDB, TimeSeriesInDB):
-    pass
+    type: Literal["time_series"] = "time_series"
+
+
+class TimeSeriesFullWithRawData(TimeSeriesFull):
+    data: Dict[str, List[Tuple[datetime, Union[float, int]]]]
+    features: Dict[str, Feature]
 
 
 class TimeSeriesAggregationInDB(BaseSchema):
@@ -96,7 +104,13 @@ class TimeSeriesAggregationInDB(BaseSchema):
 
 
 class TimeSeriesAggregationFull(DataObjectInDB, TimeSeriesAggregationInDB):
-    pass
+    type: Literal["time_series_aggregation"] = "time_series_aggregation"
+
+
+class TimeSeriesAggregationFullWithRawData(TimeSeriesAggregationFull):
+    input_data: Dict[Tuple[uuid.UUID, str], Tuple[datetime, datetime]]
+    output_data: Dict[str, List[Union[float, int]]]
+    features: Dict[str, Feature]
 
 
 class TimeSeriesAggregationInputInDB(BaseSchema):
@@ -113,17 +127,18 @@ class TimeSeriesAggregationInputInDB(BaseSchema):
 # Schemas for the API
 
 
-class ObjectGroupWithObjectList(ObjectGroupWithFeatures):
-    objects: List[Union[TimeSeriesFull, TimeSeriesAggregationFull]]
-
-
 class DatasetWithObjectGroups(DatasetInDB):
     primary_object_group: ObjectGroupWithFeatures
     annotated_object_groups: List[ObjectGroupWithFeatures]
     computed_object_groups: List[ObjectGroupWithFeatures]
 
 
-class DatasetWithObjectGroupsAndLists(DatasetWithObjectGroups):
+class ObjectGroupWithObjectList(ObjectGroupWithFeatures):
+    objects: List[Union[TimeSeriesFull, TimeSeriesAggregationFull]]
+
+
+class ObjectGroupsWithListsInDataset(BaseSchema):
+    dataset_id: uuid.UUID
     primary_object_group: ObjectGroupWithObjectList
     annotated_object_groups: List[ObjectGroupWithObjectList]
     computed_object_groups: List[ObjectGroupWithObjectList]

@@ -2,15 +2,19 @@ import pandas as pd
 import aiofiles
 from uuid import UUID
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
+from datetime import datetime
 from fastapi import UploadFile
+
 from synesis_api.secrets import (
     DATASETS_SAVE_PATH,
     DATA_INTEGRATION_SCRIPTS_SAVE_DIR,
     AUTOMATION_SCRIPTS_SAVE_DIR,
     ANALYSIS_SCRIPTS_SAVE_DIR,
-    RAW_FILES_SAVE_DIR
+    RAW_FILES_SAVE_DIR,
 )
+
+from synesis_data_structures.time_series.definitions import get_second_level_structure_ids
 
 
 def save_dataframe_to_local_storage(
@@ -21,6 +25,9 @@ def save_dataframe_to_local_storage(
     second_level_structure_id: str
 ) -> None:
 
+    assert second_level_structure_id in get_second_level_structure_ids(
+    ), f"Second level structure id {second_level_structure_id} not found in {get_second_level_structure_ids()}       "
+
     file_path = DATASETS_SAVE_PATH / \
         f"{user_id}" / \
         f"{dataset_id}" / \
@@ -29,6 +36,27 @@ def save_dataframe_to_local_storage(
 
     file_path.parent.mkdir(parents=True, exist_ok=True)
     dataframe.to_parquet(file_path, index=True)
+
+
+def read_dataframe_from_local_storage(
+    user_id: UUID,
+    dataset_id: UUID,
+    group_id: UUID,
+    second_level_structure_id: str
+) -> pd.DataFrame:
+
+    assert second_level_structure_id in get_second_level_structure_ids(
+    ), f"Second level structure id {second_level_structure_id} not found in {get_second_level_structure_ids()}       "
+
+    file_path = DATASETS_SAVE_PATH / \
+        f"{user_id}" / \
+        f"{dataset_id}" / \
+        f"{group_id}" / \
+        f"{second_level_structure_id}.parquet"
+
+    dataframe = pd.read_parquet(file_path)
+
+    return dataframe
 
 
 def save_script_to_local_storage(

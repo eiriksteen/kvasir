@@ -1,14 +1,15 @@
 import { EventSource } from 'eventsource';
 import { ConversationCreate, Prompt, Conversation, ChatMessage } from "@/types/orchestrator";
-import { Dataset, DatasetWithObjectLists } from "@/types/data-objects";
+import { Dataset, ObjectGroupsWithListsInDataset, TimeSeriesWithRawData } from "@/types/data-objects";
 import { Analyses } from "@/types/analysis";
 import { Run, RunMessage } from "@/types/runs";
 import { Project, ProjectCreate, AddEntityToProject, RemoveEntityFromProject, ProjectDetailsUpdate } from "@/types/project";
 import { AnalysisRequest } from "@/types/analysis";
 import { FrontendNode, FrontendNodeCreate } from "@/types/node";
 import { Model } from "@/types/automation";
-import { DataSource, FileDataSource } from '@/types/data-integration';
+import { DataSource, FileDataSource } from '@/types/data-sources';
 import { SSE } from 'sse.js';
+import { UUID } from 'crypto';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -31,8 +32,8 @@ export async function fetchDatasets(token: string): Promise<Dataset[]> {
   return data;
 }
 
-export async function fetchDatasetsWithObjectLists(token: string): Promise<DatasetWithObjectLists[]> {
-  const response = await fetch(`${API_URL}/data-objects/datasets?include_object_lists=1`, {
+export async function fetchObjectGroupsInDataset(token: string, datasetId: string): Promise<ObjectGroupsWithListsInDataset> {
+  const response = await fetch(`${API_URL}/data-objects/object-groups-in-dataset/${datasetId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -41,8 +42,28 @@ export async function fetchDatasetsWithObjectLists(token: string): Promise<Datas
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Failed to fetch datasets with object lists', errorText);
-    throw new Error(`Failed to fetch datasets with object lists: ${response.status} ${errorText}`);
+    console.error('Failed to fetch object group by id', errorText);
+    throw new Error(`Failed to fetch object group by id: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+export async function fetchTimeSeriesRawData(token: string, timeSeriesId: UUID, startDate?: string, endDate?: string): Promise<TimeSeriesWithRawData> {
+  const startDateParam = startDate ? `&start_date=${startDate}` : "";
+  const endDateParam = endDate ? `&end_date=${endDate}` : "";
+  const response = await fetch(`${API_URL}/data-objects/time-series-data/${timeSeriesId}?${startDateParam}${endDateParam}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch time series with raw data: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();

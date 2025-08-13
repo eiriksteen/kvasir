@@ -22,8 +22,8 @@ from synesis_api.modules.data_sources.models import (
 )
 from synesis_api.modules.data_objects.models import feature
 from synesis_api.database.service import execute, fetch_all
-from synesis_api.modules.raw_data_storage.service import save_raw_file_to_local_storage
-from synesis_api.modules.data_objects.service import create_features
+from synesis_api.storage.local import save_raw_file_to_local_storage
+from synesis_api.modules.data_objects.service.metadata_service import create_features
 
 
 async def _create_data_sources(

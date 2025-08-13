@@ -12,7 +12,7 @@ import { AnalysisJobResultMetadata } from '@/types/analysis';
 import AddDataSourceToProjectModal from '@/components/project/AddDataSourceToProjectModal';
 import AddAnalysis from '@/components/analysis/AddAnalysis';
 import { useDataSources } from '@/hooks/useDataSources';
-import { DataSource } from '@/types/data-integration';
+import { DataSource } from '@/types/data-sources';
 
 type ItemType = 'dataset' | 'analysis' | 'automation' | 'data_source';
 
@@ -253,7 +253,7 @@ export default function OntologyBar({ projectId }: OntologyBarProps) {
     const automations: Automation[] = [];
     const { analysisJobResults } = useAnalysis();
 
-    // console.log(datasets)
+    console.log(datasets)
 
     const filteredDataSources = useMemo(() => {
         if (!selectedProject || !dataSources) return [];
