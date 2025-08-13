@@ -1,10 +1,63 @@
-import { fetchAnalysisJobResults, deleteAnalysisJobResultsDB, createAnalysisEventSource } from "@/lib/api";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from 'swr/mutation'
 import useSWRSubscription, { SWRSubscriptionOptions } from 'swr/subscription'
-//import { useAgentContext } from "./useAgentContext";
 import { AnalysisJobResultMetadata, AnalysisStatusMessage } from "@/types/analysis";
+import { EventSource } from 'eventsource';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+
+
+async function deleteAnalysisJobResultsDB(token: string, jobId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/analysis/delete-analysis-job-results/${jobId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete analysis job results: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+async function fetchAnalysisJobResults(token: string): Promise<AnalysisJobResultMetadata[]> {
+  const response = await fetch(`${API_URL}/analysis/analysis-job-results`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('Failed to fetch analysis', errorText);
+    throw new Error(`Failed to fetch analysis: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+function createAnalysisEventSource(token: string, jobId: string): EventSource {
+  return new EventSource(`${API_URL}/analysis/analysis-agent-sse/${jobId}`,
+    {
+      fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+        fetch(input, {
+          ...init,
+          headers: {
+            ...init?.headers,
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+    }
+  );
+}
 
 export const useAnalysis = (jobId?: string) => {
     const { data: session } = useSession();
@@ -48,7 +101,7 @@ export const useAnalysis = (jobId?: string) => {
       }, {
       populateCache: (newData: AnalysisJobResultMetadata) => {
         if (analysisJobResults) {
-          return analysisJobResults.analysesJobResults.filter((analysis: AnalysisJobResultMetadata) => analysis.jobId !== newData.jobId);
+          return analysisJobResults.filter((analysis: AnalysisJobResultMetadata) => analysis.jobId !== newData.jobId);
         }
         return [];
       } 

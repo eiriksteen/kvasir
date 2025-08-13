@@ -1,10 +1,67 @@
-import { fetchRuns, createIncompleteRunsEventSource, fetchRunMessages, createRunMessagesEventSource } from "@/lib/api";
 import { Run, RunMessage } from "@/types/runs";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { SWRSubscriptionOptions } from "swr/subscription";
 import useSWRSubscription from "swr/subscription";
+import { SSE } from 'sse.js';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+async function fetchRuns(token: string): Promise<Run[]> {
+  const response = await fetch(`${API_URL}/runs/runs`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch runs', errorText);
+    throw new Error(`Failed to fetch runs: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+} 
+
+async function fetchRunMessages(token: string, runId: string): Promise<RunMessage[]> {
+  const response = await fetch(`${API_URL}/runs/messages/${runId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch run full: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+function createIncompleteRunsEventSource(token: string): SSE {
+  return new SSE(`${API_URL}/runs/stream-incomplete-runs`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+}
+
+function createRunMessagesEventSource(token: string, runId: string): SSE {
+  return new SSE(`${API_URL}/runs/stream-messages/${runId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+}
 
 
 type runState = "running" | "failed" | "completed" | "paused" | "awaiting_approval" | "";

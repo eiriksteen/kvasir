@@ -1,5 +1,4 @@
 import useSWR from "swr";
-import { fetchConversationMessages } from "@/lib/api";
 import { ChatMessage, Prompt, Context } from "@/types/orchestrator";
 import { useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
@@ -10,7 +9,38 @@ import { v4 as uuidv4 } from 'uuid';
 import { UUID } from "crypto";
 import { DataSource } from "@/types/data-sources";
 import { useConversations } from "./useConversations";
-import { createOrchestratorEventSource } from "@/lib/api";
+import { SSE } from 'sse.js';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+async function fetchConversationMessages(token: string, conversationId: string): Promise<ChatMessage[]> {
+  const response = await fetch(`${API_URL}/orchestrator/messages/${conversationId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch conversation with messages', errorText);
+    throw new Error(`Failed to fetch conversation with messages: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+function createOrchestratorEventSource(token: string, prompt: Prompt): SSE {
+  return new SSE(`${API_URL}/orchestrator/completions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    payload: JSON.stringify(prompt)
+  });
+}
 
 
 export const useConversationMessages = (conversationId: UUID | null) => {

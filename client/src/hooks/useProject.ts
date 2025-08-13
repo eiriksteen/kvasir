@@ -1,11 +1,170 @@
-import { fetchProjects, createProject, updateProjectDetails, fetchProjectNodes, updateNodePosition, createNode, deleteNode, addEntityToProject, removeEntityFromProject } from "@/lib/api";
-import { Project, ProjectCreate, ProjectDetailsUpdate } from "@/types/project";
+import { Project, ProjectCreate, ProjectDetailsUpdate, AddEntityToProject, RemoveEntityFromProject } from "@/types/project";
 import { FrontendNode, FrontendNodeCreate } from "@/types/node";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { useCallback, useMemo } from "react";
 import { UUID } from "crypto";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+async function fetchProjects(token: string): Promise<Project[]> {
+  const response = await fetch(`${API_URL}/project/get-user-projects`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch projects', errorText);
+    throw new Error(`Failed to fetch projects: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+async function createProject(token: string, projectData: ProjectCreate): Promise<Project> {
+  const response = await fetch(`${API_URL}/project/create-project`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(projectData)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to create project', errorText);
+    throw new Error(`Failed to create project: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+async function updateProjectDetails(token: string, projectId: string, projectData: ProjectDetailsUpdate): Promise<Project> {
+  const response = await fetch(`${API_URL}/project/update-project/${projectId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(projectData)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update project details: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+async function addEntityToProject(token: string, projectId: string, entityData: AddEntityToProject): Promise<Project> {
+  const response = await fetch(`${API_URL}/project/add-entity/${projectId}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(entityData)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to add entity to project: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+async function removeEntityFromProject(token: string, projectId: string, entityData: RemoveEntityFromProject): Promise<Project> {
+  const response = await fetch(`${API_URL}/project/remove-entity/${projectId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(entityData)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to remove entity from project: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+async function fetchProjectNodes(token: string, projectId: string): Promise<FrontendNode[]> {
+  const response = await fetch(`${API_URL}/node/project/${projectId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch time series data', errorText);
+    throw new Error(`Failed to fetch time series data: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+async function updateNodePosition(token: string, node: FrontendNode): Promise<FrontendNode> {
+  const response = await fetch(`${API_URL}/node/update-node/${node.id}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(node)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update node position: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+async function createNode(token: string, node: FrontendNodeCreate): Promise<FrontendNode> {
+  const response = await fetch(`${API_URL}/node/create-node`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(node)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create node: ${response.status} ${errorText}`);
+  }
+
+  return response.json();
+}
+
+async function deleteNode(token: string, nodeId: string): Promise<string> {
+  const response = await fetch(`${API_URL}/node/delete/${nodeId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete node: ${response.status} ${errorText}`);
+  }
+  return response.json();
+}
 
 
 export const useProjects = () => {
