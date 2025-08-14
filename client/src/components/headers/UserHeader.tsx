@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Database, Bot, ChevronDown } from 'lucide-react';
+import { Database, ChevronDown } from 'lucide-react';
 import { useSession } from "next-auth/react";
 import { useProjects, useProject } from '@/hooks';
 import { redirect, useRouter } from 'next/navigation';
@@ -16,7 +16,7 @@ interface UserHeaderProps {
 export default function UserHeader({ projectId }: UserHeaderProps) {
 	const { data: session } = useSession();
 	const { projects } = useProjects();
-	const { selectedProject } = useProject(projectId || '');
+	const { project } = useProject(projectId || '');
 	const [showProjectDropdown, setShowProjectDropdown] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
 	const router = useRouter();
@@ -55,7 +55,7 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 					{/* Logo and Project Title on the left */}
 					<div className="flex items-center space-x-4">
 						<Link href="/projects">
-							<div className="relative w-[30px] h-[30px]">
+							<div className="relative w-[25px] h-[25px]">
 								<Image
 									src="/miyaicon.png"
 									alt="Miya logo"
@@ -67,16 +67,16 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 						</Link>
 						
 						{/* Project Title with Slash */}
-						{selectedProject && (
+						{project && (
 							<div className="flex items-center space-x-3">
 								<div className="text-zinc-500 text-lg font-light">/</div>
 								<div className="flex flex-col">
 									<div className="text-zinc-300 text-sm font-medium">
-										{selectedProject.name}
+										{project.name}
 									</div>
-									{selectedProject.description && (
+									{project.description && (
 										<div className="text-zinc-500 text-xs truncate max-w-[200px]">
-											{selectedProject.description}
+											{project.description}
 										</div>
 									)}
 								</div>
@@ -139,18 +139,11 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 							)}
 						</div>
 						<Link 
-							href="/data-integration"
+							href="/data-sources"
 							className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-zinc-400 hover:text-zinc-200"
-							title="Manage Datasets"
+							title="Manage Data Sources"
 						>
 							<Database size={18} />
-						</Link>
-						<Link 
-							href="/model-integration"
-							className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-zinc-400 hover:text-zinc-200"
-							title="Model Integration"
-						>
-							<Bot size={18} />
 						</Link>
 					</div>
 				</div>

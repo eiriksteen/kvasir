@@ -190,7 +190,11 @@ base_config_dict = {{
     "min_entity_timestamps": 10000,
     "max_entity_timestamps": 30000,
     "mean_entity_timestamps": 20000,
-    "total_num_timestamps": 600000
+    "total_num_timestamps": 600000,
+    "num_epochs": 3,
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001
 }}
 """
 

@@ -4,13 +4,12 @@ from sqlalchemy import update, select, insert, delete
 from typing import List
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
-from synesis_api.modules.analysis.schema import AnalysisJobResultMetadataInDB, AnalysisJobResultInDB, AnalysisPlan, AnalysisJobResultMetadataList, AnalysisStatusMessage
-from synesis_api.modules.jobs.service import update_job_status
+from synesis_api.modules.analysis.schema import AnalysisJobResultMetadataInDB, AnalysisJobResultInDB, AnalysisPlan, AnalysisStatusMessage, AnalysisJobResultMetadata
+from synesis_api.modules.runs.service import update_run_status
 from synesis_api.utils import save_markdown_as_html
 from synesis_api.aws.service import upload_object_s3
 from synesis_api.worker import logger
-from synesis_api.modules.jobs.service import delete_job_by_id
-from synesis_api.modules.chat.models import analysis_context
+from synesis_api.modules.orchestrator.models import analysis_context
 
 
 async def run_analysis_execution(
@@ -25,7 +24,7 @@ async def run_analysis_execution(
 ) -> AnalysisJobResultInDB:
     pass
 
-    # try: 
+    # try:
     #     dfs = []
     #     try:
     #         for data_path in data_paths:
@@ -57,7 +56,7 @@ async def run_analysis_execution(
     #     eda_exist = await fetch_one(
     #         select(analysis_jobs_results).where(analysis_jobs_results.c.dataset_id == dataset_id)
     #     )
-        
+
     #     if eda_exist:
     #         logger.info("Updating existing EDA result")
     #         logger.info(output_in_db)
@@ -94,9 +93,8 @@ async def run_analysis_execution(
     # return output_in_db
 
 
-
 async def create_pdf_from_results(job_results: AnalysisJobResultInDB, eda_job_id: uuid.UUID) -> None:
-    
+
     file_html = save_markdown_as_html(job_results.summary)
     # logger.info("HTML file saved")
 
@@ -107,7 +105,8 @@ async def create_pdf_from_results(job_results: AnalysisJobResultInDB, eda_job_id
 
 async def get_status_messages_by_job_id(job_id: uuid.UUID) -> List[AnalysisStatusMessage]:
     messages = await fetch_all(
-        select(analysis_status_messages).where(analysis_status_messages.c.job_id == job_id)
+        select(analysis_status_messages).where(
+            analysis_status_messages.c.job_id == job_id)
     )
     return [AnalysisStatusMessage(**msg) for msg in messages]
 
@@ -136,7 +135,8 @@ async def insert_analysis_job_results_into_db(job_results: AnalysisJobResultMeta
             )
 
         # Create a dict without dataset_ids, automation_ids, and status_messages
-        db_data = job_results.model_dump(exclude={'dataset_ids', 'automation_ids', 'status_messages'})
+        db_data = job_results.model_dump(
+            exclude={'dataset_ids', 'automation_ids', 'status_messages'})
         await execute(
             insert(analysis_jobs_results).values(
                 **db_data
@@ -144,7 +144,7 @@ async def insert_analysis_job_results_into_db(job_results: AnalysisJobResultMeta
             commit_after=True
         )
 
-        await update_job_status(job_results.job_id, "completed")
+        await update_run_status(job_results.job_id, "completed")
 
         logger.info("Analysis plan inserted into DB")
     except Exception as e:
@@ -154,10 +154,11 @@ async def insert_analysis_job_results_into_db(job_results: AnalysisJobResultMeta
             detail=f"Error inserting analysis plan into DB: {str(e)}"
         )
 
+
 async def update_analysis_job_results_in_db(job_results: AnalysisJobResultMetadataInDB) -> None:
     try:
         logger.info("Updating analysis plan in DB")
-        
+
         for status_message in job_results.status_messages:
             await execute(
                 insert(analysis_status_messages).values(
@@ -167,7 +168,8 @@ async def update_analysis_job_results_in_db(job_results: AnalysisJobResultMetada
             )
 
         # Create a dict without dataset_ids, automation_ids, and status_messages
-        db_data = job_results.model_dump(exclude={'dataset_ids', 'automation_ids', 'status_messages'})
+        db_data = job_results.model_dump(
+            exclude={'dataset_ids', 'automation_ids', 'status_messages'})
         await execute(
             update(analysis_jobs_results)
             .where(analysis_jobs_results.c.job_id == job_results.job_id)
@@ -177,7 +179,7 @@ async def update_analysis_job_results_in_db(job_results: AnalysisJobResultMetada
             commit_after=True
         )
 
-        await update_job_status(job_results.job_id, "completed")
+        await update_run_status(job_results.job_id, "completed")
 
         logger.info("Analysis plan updated in DB")
 
@@ -188,25 +190,27 @@ async def update_analysis_job_results_in_db(job_results: AnalysisJobResultMetada
         )
 
 
-
-async def get_user_analysis_metadata(user_id: uuid.UUID) -> AnalysisJobResultMetadataList:
+async def get_user_analysis_metadata(user_id: uuid.UUID) -> List[AnalysisJobResultMetadata]:
     data = await fetch_all(
-        select(analysis_jobs_results).where(analysis_jobs_results.c.user_id == user_id)
+        select(analysis_jobs_results).where(
+            analysis_jobs_results.c.user_id == user_id)
     )
-    
+
     results = []
     for d in data:
         dataset_ids = await get_dataset_ids_by_job_id(d["job_id"])
         automation_ids = []  # TODO: implement get_automation_ids_by_job_id
         status_messages = await get_status_messages_by_job_id(d["job_id"])
-        results.append(AnalysisJobResultMetadataInDB(**d, dataset_ids=dataset_ids, automation_ids=automation_ids, status_messages=status_messages))
-    
-    return AnalysisJobResultMetadataList(analyses_job_results=results)
+        results.append(AnalysisJobResultMetadataInDB(**d, dataset_ids=dataset_ids,
+                       automation_ids=automation_ids, status_messages=status_messages))
+
+    return results
 
 
 async def get_analysis_job_results_from_db(job_id: uuid.UUID) -> AnalysisJobResultMetadataInDB:
     result = await fetch_one(
-        select(analysis_jobs_results).where(analysis_jobs_results.c.job_id == job_id),
+        select(analysis_jobs_results).where(
+            analysis_jobs_results.c.job_id == job_id),
         commit_after=True
     )
 
@@ -222,57 +226,65 @@ async def get_analysis_job_results_from_db(job_id: uuid.UUID) -> AnalysisJobResu
     return AnalysisJobResultMetadataInDB(**result, dataset_ids=dataset_ids, automation_ids=automation_ids, status_messages=status_messages)
 
 
-async def get_user_analyses_by_ids(user_id: uuid.UUID, analysis_ids: List[uuid.UUID]) -> AnalysisJobResultMetadataList:
+async def get_user_analyses_by_ids(user_id: uuid.UUID, analysis_ids: List[uuid.UUID]) -> List[AnalysisJobResultMetadata]:
     data = await fetch_all(
-        select(analysis_jobs_results).where(analysis_jobs_results.c.user_id == user_id, analysis_jobs_results.c.job_id.in_(analysis_ids))
+        select(analysis_jobs_results).where(analysis_jobs_results.c.user_id ==
+                                            user_id, analysis_jobs_results.c.job_id.in_(analysis_ids))
     )
-    
+
     results = []
     for d in data:
         dataset_ids = await get_dataset_ids_by_job_id(d["job_id"])
         automation_ids = []  # TODO: implement get_automation_ids_by_job_id
         status_messages = await get_status_messages_by_job_id(d["job_id"])
-        results.append(AnalysisJobResultMetadataInDB(**d, dataset_ids=dataset_ids, automation_ids=automation_ids, status_messages=status_messages))
-    
-    return AnalysisJobResultMetadataList(analyses_job_results=results)
+        results.append(AnalysisJobResultMetadataInDB(**d, dataset_ids=dataset_ids,
+                       automation_ids=automation_ids, status_messages=status_messages))
+
+    return results
+
 
 async def get_dataset_ids_by_job_id(job_id: uuid.UUID) -> List[uuid.UUID]:
     dataset_mappings = await fetch_all(
-        select(analysis_jobs_datasets).where(analysis_jobs_datasets.c.job_id == job_id)
-    )
-    
-    return [mapping["dataset_id"] for mapping in dataset_mappings]  
-
-
-async def delete_analysis_job_results_from_db(job_id: uuid.UUID) -> uuid.UUID:
-
-    # Delete from child tables first
-    await execute(
-        delete(analysis_jobs_datasets).where(analysis_jobs_datasets.c.job_id == job_id),
-        commit_after=True
-    )
-    await execute(
-        delete(analysis_jobs_automations).where(analysis_jobs_automations.c.job_id == job_id),
-        commit_after=True
-    )
-    # Delete status messages
-    await execute(
-        delete(analysis_status_messages).where(analysis_status_messages.c.job_id == job_id),
-        commit_after=True
-    )
-    # Delete from analysis_context
-    await execute(
-        delete(analysis_context).where(analysis_context.c.analysis_id == job_id),
-        commit_after=True
+        select(analysis_jobs_datasets).where(
+            analysis_jobs_datasets.c.job_id == job_id)
     )
 
-    # Delete from analysis_jobs_results
-    await execute(
-        delete(analysis_jobs_results).where(analysis_jobs_results.c.job_id == job_id),
-        commit_after=True
-    )
+    return [mapping["dataset_id"] for mapping in dataset_mappings]
 
-    # Delete from jobs table
-    await delete_job_by_id(job_id)
-    return job_id
 
+# async def delete_analysis_job_results_from_db(job_id: uuid.UUID) -> uuid.UUID:
+
+#     # Delete from child tables first
+#     await execute(
+#         delete(analysis_jobs_datasets).where(
+#             analysis_jobs_datasets.c.job_id == job_id),
+#         commit_after=True
+#     )
+#     await execute(
+#         delete(analysis_jobs_automations).where(
+#             analysis_jobs_automations.c.job_id == job_id),
+#         commit_after=True
+#     )
+#     # Delete status messages
+#     await execute(
+#         delete(analysis_status_messages).where(
+#             analysis_status_messages.c.job_id == job_id),
+#         commit_after=True
+#     )
+#     # Delete from analysis_context
+#     await execute(
+#         delete(analysis_context).where(
+#             analysis_context.c.analysis_id == job_id),
+#         commit_after=True
+#     )
+
+#     # Delete from analysis_jobs_results
+#     await execute(
+#         delete(analysis_jobs_results).where(
+#             analysis_jobs_results.c.job_id == job_id),
+#         commit_after=True
+#     )
+
+#     # Delete from jobs table
+#     await delete_run_by_id(job_id)
+#     return job_id

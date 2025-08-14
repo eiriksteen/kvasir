@@ -1,6 +1,5 @@
 from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.settings import ModelSettings
-from dataclasses import dataclass
 from typing import List
 from synesis_api.base_schema import BaseSchema
 from synesis_api.utils import (
@@ -18,15 +17,9 @@ from synesis_api.agents.model_integration.shared_tools import (
     add_script_lines,
     delete_script_lines
 )
-from synesis_api.agents.model_integration.prepare_tools import filter_tools_by_source
-from synesis_api.agents.model_integration.base_deps import BaseDeps
+from synesis_api.agents.model_integration.prepare_tools import filter_tools
+from synesis_api.agents.model_integration.deps import ModelIntegrationDeps
 from synesis_api.agents.model_integration.history_processors import keep_only_most_recent_script, summarize_message_history
-
-
-@dataclass(kw_only=True)
-class SetupDeps(BaseDeps):
-    run_pylint: bool = False
-    pass
 
 
 class SetupAgentOutput(BaseSchema):
@@ -42,7 +35,7 @@ model = get_model()
 
 setup_agent = Agent(
     model,
-    deps_type=SetupDeps,
+    deps_type=ModelIntegrationDeps,
     output_type=SetupAgentOutput,
     tools=[
         get_repo_info,
@@ -53,16 +46,18 @@ setup_agent = Agent(
         add_script_lines,
         delete_script_lines
     ],
-    prepare_tools=filter_tools_by_source,
+    prepare_tools=filter_tools,
     retries=5,
-    history_processors=[keep_only_most_recent_script,
-                        summarize_message_history],
+    history_processors=[
+        keep_only_most_recent_script,
+        # summarize_message_history
+    ],
     model_settings=ModelSettings(temperature=0),
 )
 
 
 @setup_agent.system_prompt
-def get_setup_system_prompt(ctx: RunContext[SetupDeps]) -> str:
+def get_setup_system_prompt(ctx: RunContext[ModelIntegrationDeps]) -> str:
 
     if ctx.deps.source == "github":
         return f"{SETUP_SYSTEM_PROMPT}\n\n GITHUB URL: {ctx.deps.model_id}"
@@ -72,7 +67,7 @@ def get_setup_system_prompt(ctx: RunContext[SetupDeps]) -> str:
 
 @setup_agent.output_validator
 async def validate_setup_output(
-    ctx: RunContext[SetupDeps],
+    ctx: RunContext[ModelIntegrationDeps],
     result: SetupAgentOutput
 ) -> SetupAgentOutputWithScript:
     """
@@ -88,10 +83,6 @@ async def validate_setup_output(
     if not ctx.deps.current_script:
         raise ModelRetry("No script written")
 
-    print("@"*20, "TESTING SETUP SCRIPT", "@"*20)
-    print(f"Python version: {result.python_version}")
-    print("@"*50)
-
     check_output, _ = await run_shell_code_in_container(
         f"pyenv versions | grep {result.python_version}",
         container_name=ctx.deps.container_name,
@@ -106,9 +97,6 @@ async def validate_setup_output(
         )
 
         if err:
-            print("@"*20, "ERROR INSTALLING PYTHON VERSION", "@"*20)
-            print(f"Error: {err}")
-            print("@"*50)
             raise ModelRetry(f"Error installing python version: {err}")
 
     _, err = await run_shell_code_in_container(
@@ -118,16 +106,9 @@ async def validate_setup_output(
     )
 
     if err:
-        print("@"*20, "ERROR SETTING GLOBAL PYTHON VERSION", "@"*20)
-        print(f"Error: {err}")
-        print("@"*50)
         raise ModelRetry(f"Error setting global python version: {err}")
 
     script = remove_line_numbers_from_script(ctx.deps.current_script)
-
-    print("RAW SCRIPT WITHOUT LINE NUMBERS")
-    print(script)
-    print("@"*50)
 
     _, err = await run_shell_code_in_container(
         script,
@@ -136,10 +117,6 @@ async def validate_setup_output(
     )
 
     if err:
-        print("@"*20, "ERROR EXECUTING SETUP SCRIPT", "@"*20)
-        print(f"Error: {err}")
-        print("@"*50)
-
         error_message = f"Error executing setup script: {err}"
         if ctx.retry > 3:
             error_message = f"{error_message}\n\n" \
@@ -147,8 +124,6 @@ async def validate_setup_output(
                 "install the latest stable versions of Python and all dependencies (the default versions)!"
 
         raise ModelRetry(error_message)
-
-    print("Setup script executed successfully")
 
     return SetupAgentOutputWithScript(
         **result.model_dump(),

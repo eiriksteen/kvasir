@@ -4,9 +4,11 @@ from typing import List, Literal
 from synesis_api.base_schema import BaseSchema
 from datetime import timezone
 
+
 class AnalysisPlanStep(BaseSchema):
     step_name: str
     step_description: str
+
 
 class AnalysisPlan(BaseSchema):
     analysis_overview: str
@@ -20,6 +22,7 @@ class AnalysisStatusMessage(BaseSchema):
     message: str
     created_at: datetime = datetime.now(timezone.utc)
 
+
 class AnalysisJobResultMetadata(BaseSchema):
     job_id: UUID
     name: str
@@ -32,6 +35,7 @@ class AnalysisJobResultMetadata(BaseSchema):
     created_at: datetime
     pdf_created: bool
 
+
 class AnalysisJobResultMetadataInDB(AnalysisJobResultMetadata):
     pdf_s3_path: str | None = None
     user_id: UUID
@@ -41,11 +45,6 @@ class AnalysisJobResult(BaseSchema):
     analysis: str | None = None
     python_code: str | None = None
 
+
 class AnalysisJobResultInDB(AnalysisJobResult):
     pass
-
-
-class AnalysisJobResultMetadataList(BaseSchema):
-    analyses_job_results: List[AnalysisJobResultMetadata] = []
-
-

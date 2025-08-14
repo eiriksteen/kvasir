@@ -4,10 +4,14 @@ __pycache__
 *result*
 *egg*
 pretrained
-dataset
 checkpoints
 *secrets*
 integrated_data
 files
+node_modules
 logs
 .venv/
+api/src/models
+local_directory_data_sources
+data_integration_scripts
+datasets

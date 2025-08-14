@@ -84,7 +84,11 @@ TIME_SERIES_INPUT_STRUCTURE = """
   - max_entity_timestamps: int
   - mean_entity_timestamps: int
   - total_num_timestamps: int
-  - [other parameters specific to the model, will be provided in the config_code]
+  - num_epochs: int
+  - batch_size: int
+  - learning_rate: float
+  - weight_decay: float
+  - [other parameters specific to the model, must be provided in the config_code]
 """
 
 
@@ -121,4 +125,19 @@ class BaseConfig:
     max_entity_timestamps: int
     mean_entity_timestamps: int
     total_num_timestamps: int
+    num_epochs: int
+    batch_size: int
+    learning_rate: float
+    weight_decay: float
 """
+
+
+def get_input_structure(modality: str) -> str:
+    if modality == "time_series":
+        return TIME_SERIES_INPUT_STRUCTURE
+    else:
+        raise ValueError(f"Invalid modality: {modality}")
+
+
+def get_config_definition_code() -> str:
+    return BASE_CONFIG_DEFINITION_CODE

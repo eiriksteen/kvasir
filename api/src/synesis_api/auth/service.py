@@ -9,11 +9,12 @@ from fastapi import Depends, HTTPException, status, Security, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from synesis_api.auth.schema import User, UserInDB, TokenData, UserAPIKey, UserCreate
 from synesis_api.auth.models import users, user_api_keys
-from synesis_api.modules.chat.models import conversations
-from synesis_api.modules.jobs.models import jobs
-from synesis_api.modules.ontology.models import dataset, time_series
+from synesis_api.modules.orchestrator.models import conversation
+from synesis_api.modules.runs.models import run
+from synesis_api.modules.data_objects.models import dataset, object_group, data_object
 from synesis_api.secrets import API_SECRET_KEY, API_SECRET_ALGORITHM
-from synesis_api.database.service import fetch_one, execute
+from synesis_api.database.service import fetch_one, execute, fetch_all
+from sqlalchemy import select
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -119,23 +120,22 @@ async def create_user(user_create: UserCreate) -> UserInDB:
                     email=user_create.email,
                     name=user_create.name,
                     hashed_password=hashed_password,
-                    created_at=datetime.now(timezone.utc).replace(tzinfo=None),
-                    updated_at=datetime.now(timezone.utc).replace(tzinfo=None))
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc))
     await execute(Insert(users).values(user.model_dump()), commit_after=True)
     return user
 
 
-async def create_api_key(user: UserInDB) -> UserAPIKey:
-    expiration_time = (datetime.now(timezone.utc) +
-                       timedelta(minutes=15)).replace(tzinfo=None)
+async def create_api_key(user_id: uuid.UUID) -> UserAPIKey:
+    expiration_time = datetime.now(timezone.utc) + timedelta(minutes=15)
 
     key_id = uuid.uuid4()
     api_key = UserAPIKey(id=key_id,
-                         user_id=user.id,
+                         user_id=user_id,
                          key=uuid.uuid4().hex,
                          expires_at=expiration_time)
     await execute(Insert(user_api_keys).values(id=key_id,
-                                               user_id=user.id,
+                                               user_id=user_id,
                                                key=api_key.key,
                                                expires_at=expiration_time), commit_after=True)
     return api_key
@@ -150,15 +150,15 @@ async def get_api_key(user: UserInDB) -> UserAPIKey:
 
     api_key = UserAPIKey(**api_key)
 
-    if api_key.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
+    if api_key.expires_at < datetime.now(timezone.utc):
         await delete_api_key(user)
         raise HTTPException(status_code=401, detail="API key has expired")
 
     return api_key
 
 
-async def delete_api_key(user: UserInDB) -> None:
-    await execute(Delete(user_api_keys).where(user_api_keys.c.user_id == user.id), commit_after=True)
+async def delete_api_key(user_id: uuid.UUID) -> None:
+    await execute(Delete(user_api_keys).where(user_api_keys.c.user_id == user_id), commit_after=True)
 
 
 async def get_user_from_api_key(api_key: str = Security(api_key_header)) -> UserInDB:
@@ -173,7 +173,7 @@ async def get_user_from_api_key(api_key: str = Security(api_key_header)) -> User
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if api_key_data["expires_at"] < datetime.now(timezone.utc).replace(tzinfo=None):
+    if api_key_data["expires_at"] < datetime.now(timezone.utc):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="API key has expired",
@@ -191,24 +191,43 @@ async def get_user_from_api_key(api_key: str = Security(api_key_header)) -> User
     return UserInDB(**user)
 
 
-async def user_owns_job(user_id: uuid.UUID, job_id: uuid.UUID) -> bool:
-    job = await fetch_one(Select(jobs).where(jobs.c.id == job_id, jobs.c.user_id == user_id))
-    return job is not None
+async def get_user_from_jwt_or_api_key(token: Annotated[str, Depends(oauth2_scheme)], api_key: str = Security(api_key_header)) -> UserInDB:
+
+    if token:
+        return await get_current_user(token)
+    elif api_key:
+        return await get_user_from_api_key(api_key)
+    else:
+        raise HTTPException(
+            status_code=401, detail="No authentication provided")
+
+
+async def user_owns_runs(user_id: uuid.UUID, run_ids: list[uuid.UUID]) -> bool:
+    run_records = await fetch_all(Select(run).where(run.c.id.in_(run_ids), run.c.user_id == user_id))
+    return len(run_records) == len(run_ids)
 
 
 async def user_owns_conversation(user_id: uuid.UUID, conversation_id: uuid.UUID) -> bool:
-    conversation = await fetch_one(Select(conversations).where(conversations.c.id == conversation_id, conversations.c.user_id == user_id))
-    return conversation is not None
+    conversation_record = await fetch_one(Select(conversation).where(conversation.c.id == conversation_id, conversation.c.user_id == user_id))
+    return conversation_record is not None
 
 
 async def user_owns_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID) -> bool:
-    d = await fetch_one(Select(dataset).where(dataset.c.id == dataset_id, dataset.c.user_id == user_id))
-    return d is not None
+    dataset_record = await fetch_one(Select(dataset).where(dataset.c.id == dataset_id, dataset.c.user_id == user_id))
+    return dataset_record is not None
 
 
-async def user_owns_data_entity(user_id: uuid.UUID, data_entity_id: uuid.UUID) -> bool:
-    # currently only time series are supported
-    query = Select(time_series).join(dataset, time_series.c.dataset_id == dataset.c.id).where(
-        time_series.c.id == data_entity_id, dataset.c.user_id == user_id)
-    data_entity = await fetch_one(query)
-    return data_entity is not None
+async def user_owns_time_series(user_id: uuid.UUID, time_series_id: uuid.UUID) -> bool:
+    owner_id = await fetch_one(Select(
+        dataset.c.user_id
+    ).join(
+        object_group,
+        dataset.c.id == object_group.c.dataset_id
+    ).join(
+        data_object,
+        object_group.c.id == data_object.c.group_id
+    ).where(
+        data_object.c.id == time_series_id
+    ))
+
+    return owner_id["user_id"] == user_id

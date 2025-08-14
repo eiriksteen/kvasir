@@ -1,62 +1,86 @@
-import { streamChat, fetchConversations, postConversation } from "@/lib/api";
-import { ChatMessage, Prompt, Conversation, Context, ConversationCreate } from "@/types/chat";
-import { useCallback } from "react";
-import { useSession } from "next-auth/react";
 import useSWR from "swr";
-import useSWRMutation from 'swr/mutation';
+import { ChatMessage, Prompt, Context } from "@/types/orchestrator";
+import { useCallback, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import { useAgentContext } from './useAgentContext';
-import { useProject } from './useProject';
-import { TimeSeriesDataset } from '@/types/datasets';
+import { Dataset } from '@/types/data-objects';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
+import { v4 as uuidv4 } from 'uuid';
+import { UUID } from "crypto";
+import { DataSource } from "@/types/data-sources";
+import { useConversations } from "./useConversations";
+import { SSE } from 'sse.js';
 
-export const useChat = (projectId: string) => {
-  const {data: session} = useSession();
-  const { datasetsInContext, analysisesInContext } = useAgentContext();
-  const { selectedProject } = useProject(projectId);
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-  // Fetch conversations using SWR
-  const { data: conversations, error: conversationsError, mutate: mutateConversations } = useSWR(
-    session ? ['conversations', session.APIToken.accessToken] : null,
-    () => fetchConversations(session!.APIToken.accessToken),
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: true,
-    }
-  );
-
-  const { data: currentConversation, mutate: mutateCurrentConversation } = useSWR("currentConversation", {fallbackData: null});
-
-  // Create conversation functionality (moved from useConversation)
-  const { trigger: createConversation } = useSWRMutation(
-    "currentConversation", 
-    async (_, { arg }: { arg: ConversationCreate }) => {
-      if (!session) throw new Error("No session");
-      
-      const newConversation = await postConversation(session.APIToken.accessToken, arg);
-      return newConversation;
+async function fetchConversationMessages(token: string, conversationId: string): Promise<ChatMessage[]> {
+  const response = await fetch(`${API_URL}/orchestrator/messages/${conversationId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
     },
-    {
-      populateCache: (newConversation) => {
-        if (conversations) {
-          mutateConversations([...conversations, { id: newConversation.id, name: newConversation.name, projectId: selectedProject?.id || "", messages: [], createdAt: newConversation.createdAt }]);
-        }
-        else{
-          mutateConversations([{ id: newConversation.id, name: newConversation.name, projectId: selectedProject?.id || "", messages: [], createdAt: newConversation.createdAt }]);
-        }
-        return newConversation;
-      }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch conversation with messages', errorText);
+    throw new Error(`Failed to fetch conversation with messages: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
+function createOrchestratorEventSource(token: string, prompt: Prompt): SSE {
+  return new SSE(`${API_URL}/orchestrator/completions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    payload: JSON.stringify(prompt)
+  });
+}
+
+
+export const useConversationMessages = (conversationId: UUID | null) => {
+  const { data: session } = useSession();
+
+  // Should optimize to just refetch conversations affected by runs in progress
+  const { data: conversationMessages, mutate: mutateConversationMessages, error, isLoading } = useSWR<ChatMessage[]>(
+   session ? ["conversationMessages", conversationId] : null, 
+   async () => {
+    if (conversationId) {
+      return await fetchConversationMessages(session ? session.APIToken.accessToken : "", conversationId) as ChatMessage[];
     }
+    else {
+      return []
+    }
+  }
   );
 
-  // Function to switch to a different conversation
-  const switchConversation = useCallback(async (conversationId: string) => {
-    await mutateCurrentConversation(conversations?.find(c => c.id === conversationId));
-  }, [mutateCurrentConversation, conversations]);
+  return {
+    conversationMessages: conversationMessages || [],
+    error,
+    isLoading,
+    mutateConversationMessages
+  }
+}
 
-  // Function to start a new conversation
-  const startNewConversation = useCallback(async () => {
-    await mutateCurrentConversation(null);
-  }, [mutateCurrentConversation]);
+
+export const useProjectChat = (projectId: UUID) => {
+  const { data: session } = useSession();
+  const { conversations, createConversation, mutateConversations } = useConversations();
+  const { dataSourcesInContext, datasetsInContext, analysesInContext } = useAgentContext(projectId);
+
+  const { data: projectConversationId, mutate: setProjectConversationId } = useSWR(
+    session ? ["project-conversation-id", projectId] : null, {fallbackData: null}
+  );
+  const { conversationMessages, error, isLoading, mutateConversationMessages } = useConversationMessages(projectConversationId);
+
+  const conversation = useMemo(() => {
+    return conversations?.find(conv => conv.id === projectConversationId) || null;
+  }, [conversations, projectConversationId]);
 
   const submitPrompt = useCallback(async (content: string) => {
     if (session) {
@@ -64,96 +88,88 @@ export const useChat = (projectId: string) => {
         return;
       }
 
-      let conversationId = currentConversation?.id;
+      const isNewConversation = !projectConversationId;
+      let convId = projectConversationId;
 
-      // Create a new conversation if none exists
-      if (!conversationId) {
-        try {
-          const conversationCreateObject: ConversationCreate = {
-            project_id: selectedProject?.id || "",
-            content: content
-          };
-          const conversation = await createConversation(conversationCreateObject);
-          await mutateCurrentConversation(conversation);
-          conversationId = conversation.id;
-
-        } catch (error) {
-          console.error('Failed to create conversation:', error);
-          return;
-        }
+      if (isNewConversation) {
+        const newConversation = await createConversation({projectId: projectId});
+        convId = newConversation.id;
+        await setProjectConversationId(newConversation.id, {revalidate: false});
       }
 
       // Create the context with the context data from hooks
       const context: Context = {
-        projectId: selectedProject?.id || "",
-        datasetIds: datasetsInContext.timeSeries.map((dataset: TimeSeriesDataset) => dataset.id),
+        dataSourceIds: dataSourcesInContext?.map((dataSource: DataSource) => dataSource.id) || [],
+        datasetIds: datasetsInContext?.map((dataset: Dataset) => dataset.id) || [],
         automationIds: [],
-        analysisIds: analysisesInContext.map((analysis: AnalysisJobResultMetadata) => analysis.jobId),
-      };
-
-      // Create the prompt with conversation_id
-      const prompt: Prompt = {
-        conversationId: conversationId,
-        context: context,
-        content: content
+        analysisIds: analysesInContext?.map((analysis: AnalysisJobResultMetadata) => analysis.jobId) || [],
       };
 
       // Create user message with proper context
       const userMessage: ChatMessage = {
+        // Placeholder id, the backend will create the actual id
+        id: uuidv4() as UUID,
         role: "user", 
-        conversationId: conversationId,
+        conversationId: convId,
         content: content,
         context: context,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
-      
-      mutateCurrentConversation((prev: Conversation) => ({
-        ...prev,
-        messages: [...prev.messages, userMessage]
-      }));
-      
-      
-      const stream = streamChat(session.APIToken.accessToken, prompt);
-      let chunkNum = 0;
-      for await (const chunk of stream) {
-        if (chunkNum === 0) {
-          // Create assistant message with proper context
-          const assistantMessage: ChatMessage = {
-            conversationId: conversationId,
-            role: "assistant", 
-            content: chunk,
-            context: null,
-            createdAt: new Date().toISOString()
-          };
-          mutateCurrentConversation((prev: Conversation) => ({
-            ...prev,
-            messages: [...prev.messages, assistantMessage]
-          }));
+
+      // Create the prompt with conversation_id
+      const prompt: Prompt = {
+        conversationId: convId,
+        context: context,
+        content: content
+      };
+
+      mutateConversationMessages([...conversationMessages, userMessage], {revalidate: false});
+
+      const eventSource = createOrchestratorEventSource(session.APIToken.accessToken, prompt);
+
+      eventSource.onmessage = (ev) => {
+          const data: ChatMessage = JSON.parse(ev.data);
+
+          if (data.content === "DONE") {
+            if (isNewConversation) {
+              mutateConversations();
+            }
+          }
+          else {
+            mutateConversationMessages((prev: ChatMessage[] | undefined) => {
+              if (!prev) return prev;
+              // If message with the same id already exists, update it, else add it
+              const existingMessage = prev.find((msg) => msg.id === data.id);
+              if (existingMessage) {
+                return prev.map((msg) => msg.id === data.id ? data : msg)
+              }
+              else {
+                return [...prev, data]
+              }
+            }, {revalidate: false});
         }
-        else {
-          mutateCurrentConversation((prev: Conversation) => ({
-            ...prev,
-            messages: prev.messages.map((msg, i) => 
-              i === prev.messages.length - 1 
-                ? { ...msg, content: chunk }
-                : msg
-            )
-          }));
-        }
-        chunkNum++;
-      }
+      };
     }
-  }, [session, createConversation, selectedProject, datasetsInContext, analysisesInContext, currentConversation?.id, mutateCurrentConversation]);
+  }, [
+    session, 
+    dataSourcesInContext, 
+    datasetsInContext, 
+    analysesInContext, 
+    conversationMessages, 
+    projectConversationId, 
+    projectId,
+    setProjectConversationId,
+    mutateConversations,
+    createConversation,
+    mutateConversationMessages
+  ]);
 
   return { 
-    currentConversation, 
+    conversation,
+    conversationMessages, 
     submitPrompt, 
-    conversations: conversations || [], 
-    conversationsError, 
-    mutateConversations,
-    isLoadingConversations: !conversations && !conversationsError,
-    createConversation,
-    switchConversation,
-    startNewConversation,
+    isLoading,
+    isError: error,
+    setProjectConversationId,
   };
 }; 

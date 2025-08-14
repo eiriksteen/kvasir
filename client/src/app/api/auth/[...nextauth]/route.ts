@@ -52,15 +52,13 @@ export const authOptions: AuthOptions = {
         };
         return token;
       }
-
-
+      
       const tokenExpiresAt = new Date(token.APIToken?.tokenExpiresAt);
       const now = new Date();
       
       if (tokenExpiresAt && tokenExpiresAt < now) {
 
         try {
-
           const response = await fetch(process.env.API_URL + "/auth/refresh", {
             method: "POST",
             credentials: "include", // Important for cookies
@@ -77,7 +75,7 @@ export const authOptions: AuthOptions = {
             tokenExpiresAt: refreshedUser.tokenExpiresAt,
           };
         } catch (error) {
-
+          console.error("Error refreshing access token:", error);
           return {
             ...token,
             error: "RefreshAccessTokenError",

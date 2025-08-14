@@ -1,69 +1,71 @@
 import uuid
-import aiofiles
-from pathlib import Path
-from typing import Annotated
+from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException
-from synesis_api.modules.automation.schema import ModelJobResult
-from synesis_api.modules.automation.service import (get_job_results)
-from synesis_api.modules.jobs.schema import JobMetadata
-from synesis_api.modules.jobs.service import create_job, get_job_metadata
+from synesis_api.modules.automation.schema import ModelComplete
+from synesis_api.modules.automation.service import (
+    get_model_complete,
+    get_all_models_public_or_owned,
+    get_user_models,
+    user_owns_model,
+    model_is_public
+)
 from synesis_api.auth.schema import User
-from synesis_api.auth.service import (create_api_key,
-                                      get_current_user,
-                                      user_owns_job)
-from synesis_api.modules.automation.tasks import run_model_job
-
+from synesis_api.auth.service import get_current_user
 
 router = APIRouter()
 
 
-@router.post("/call-model-agent", response_model=JobMetadata)
-async def call_model_agent(
-    # project_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> JobMetadata:
-    # project_description = ChatSummary()
+@router.get("/models", response_model=List[ModelComplete])
+async def get_all_models(
+    user: Annotated[User, Depends(get_current_user)] = None,
+) -> List[ModelComplete]:
+    """Get all automation models with joined data"""
     try:
-        async with aiofiles.open("files/98ca0ae7-5221-4ec0-9bf3-092a0445695a/c93e686e-f16d-4329-8882-0adce1218126.html", mode='r', encoding='utf-8') as file:
-            data_analysis = await file.read()
-    except:
+        return await get_all_models_public_or_owned(user.id)
+    except Exception as e:
         raise HTTPException(
-            status_code=404, detail="Could not find data analysis.")
+            status_code=500,
+            detail=f"Failed to retrieve models: {str(e)}"
+        )
 
+
+@router.get("/models/my", response_model=List[ModelComplete])
+async def get_my_models(
+    user: Annotated[User, Depends(get_current_user)] = None,
+) -> List[ModelComplete]:
+    """Get all automation models owned by the current user"""
     try:
-        model_job = await create_job(user.id, "modeling")
-    except:
+        results = await get_user_models(user.id)
+        return results
+    except Exception as e:
         raise HTTPException(
-            status_code=500, detail="Failed to create model job.")
-
-    data_dir = Path("files") / "98ca0ae7-5221-4ec0-9bf3-092a0445695a"
-    data_path = data_dir / "0b1626e1-d671-47ad-9013-f6ea23b35763.csv"
-    project_description = "The goal of this project is to analyze and model the Boston Housing Dataset, with the aim of predicting house prices based on various features. This dataset contains information about different attributes of houses in the Boston area, such as crime rates, average number of rooms, and proximity to employment centers. The project explores the relationship between these attributes and the price of homes, allowing for both descriptive and predictive analytics."
-
-    try:
-        model = run_model_job.kiq(model_job.id, str(data_path), project_description, data_analysis)
-
-    except:
-        raise HTTPException(
-            status_code=500, detail="Failed during model training")
-
-    return model_job
+            status_code=500,
+            detail=f"Failed to retrieve user models: {str(e)}"
+        )
 
 
-@router.get("/model-job-results/{model_id}", response_model=ModelJobResult)
-async def get_model_job_results(
+@router.get("/models/{model_id}", response_model=ModelComplete)
+async def get_model(
     model_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> ModelJobResult:
+    user: Annotated[User, Depends(get_current_user)] = None,
+) -> ModelComplete:
+    """Get a specific automation model with joined data by ID"""
 
-    if not await user_owns_job(user.id, model_id):
+    if not await user_owns_model(user.id, model_id) and not await model_is_public(model_id):
         raise HTTPException(
-            status_code=403, detail="You do not have permission to access this job")
+            status_code=403,
+            detail="You do not have permission to access this model"
+        )
 
-    job_metadata = await get_job_metadata(model_id)
-    if job_metadata.status == "completed":
-        return await get_job_results(model_id)
-
-    else:
+    try:
+        return await get_model_complete(model_id)
+    except ValueError as e:
         raise HTTPException(
-            status_code=500, detail="Model job is still running")
+            status_code=404,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve model: {str(e)}"
+        )

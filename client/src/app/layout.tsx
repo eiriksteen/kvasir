@@ -30,9 +30,9 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <head>
+      {/* <head>
         <link rel="icon" href="/miyaicon.png" type="image/png" />
-      </head>
+      </head> */}
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}>
         {!session && <PublicHeader />}

@@ -20,13 +20,25 @@ project = Table(
 )
 
 
+project_data_source = Table(
+    "project_data_source",
+    metadata,
+    Column("project_id", UUID(as_uuid=True), ForeignKey(
+        "project.project.id"), nullable=False),
+    Column("data_source_id", UUID(as_uuid=True), ForeignKey(
+        "data_sources.data_source.id"), nullable=False),
+    PrimaryKeyConstraint("project_id", "data_source_id"),
+    schema="project"
+)
+
+
 project_dataset = Table(
     "project_dataset",
     metadata,
     Column("project_id", UUID(as_uuid=True), ForeignKey(
         "project.project.id"), nullable=False),
     Column("dataset_id", UUID(as_uuid=True), ForeignKey(
-        "ontology.dataset.id"), nullable=False),
+        "data_objects.dataset.id"), nullable=False),
     PrimaryKeyConstraint("project_id", "dataset_id"),
     schema="project"
 )

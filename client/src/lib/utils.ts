@@ -1,4 +1,4 @@
-import { ChatMessageAPI, ChatMessage } from "@/types/chat";
+
 
 export const getStatusColor = (status: string) => {
 	switch(status) {
@@ -9,13 +9,4 @@ export const getStatusColor = (status: string) => {
 		case 'awaiting_approval': return 'text-green-200';
 		default: return 'text-gray-400';
 	}
-};
-
-
-export const apiMessageToChatMessage = (message: ChatMessageAPI): ChatMessage => {
-	return {
-		role: message.role,
-		content: message.content,
-		context: null
-	};
 };

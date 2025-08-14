@@ -17,10 +17,10 @@ from synesis_api.agents.model_integration.output_structures import (
     TIME_SERIES_FORECASTING_OUTPUT_STRUCTURE,
     TIME_SERIES_SEGMENTATION_OUTPUT_STRUCTURE
 )
-from synesis_api.agents.model_integration.base_deps import BaseDeps
+from synesis_api.agents.model_integration.deps import ModelIntegrationDeps
 
 
-async def get_repo_info(ctx: RunContext[BaseDeps], github_url: str, reasoning: str) -> str:
+async def get_repo_info(ctx: RunContext[ModelIntegrationDeps], github_url: str, reasoning: str) -> str:
     """
     Get repository information including size and description using GitHub API.
 
@@ -32,11 +32,6 @@ async def get_repo_info(ctx: RunContext[BaseDeps], github_url: str, reasoning: s
     Returns:
         str: Repository information as a formatted string.
     """
-
-    print("CALLING GET REPO INFO TOOL")
-    print(f"Reasoning: {reasoning}")
-    print(f"GitHub URL: {github_url}")
-    print("@"*50)
 
     match = re.search(
         r'github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?$', github_url)
@@ -64,7 +59,7 @@ async def get_repo_info(ctx: RunContext[BaseDeps], github_url: str, reasoning: s
     )
 
 
-async def get_repo_structure(ctx: RunContext[BaseDeps], github_url: str, reasoning: str) -> str:
+async def get_repo_structure(ctx: RunContext[ModelIntegrationDeps], github_url: str, reasoning: str) -> str:
     """
     Get the directory structure of a GitHub repository.
 
@@ -76,11 +71,6 @@ async def get_repo_structure(ctx: RunContext[BaseDeps], github_url: str, reasoni
     Returns:
         str: Directory structure as a formatted string.
     """
-
-    print("CALLING GET REPO STRUCTURE TOOL")
-    print(f"Reasoning: {reasoning}")
-    print(f"GitHub URL: {github_url}")
-    print("@"*50)
 
     match = re.search(
         r'github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?$', github_url)
@@ -119,7 +109,7 @@ async def get_repo_structure(ctx: RunContext[BaseDeps], github_url: str, reasoni
     return "\n".join(structure)
 
 
-async def get_file_content(ctx: RunContext[BaseDeps], github_url: str, file_path: str, reasoning: str) -> str:
+async def get_file_content(ctx: RunContext[ModelIntegrationDeps], github_url: str, file_path: str, reasoning: str) -> str:
     """
     Get the content of a specific file from the GitHub repository.
 
@@ -132,12 +122,6 @@ async def get_file_content(ctx: RunContext[BaseDeps], github_url: str, file_path
     Returns:
         str: File content as a string.
     """
-
-    print("CALLING GET FILE CONTENT TOOL")
-    print(f"Reasoning: {reasoning}")
-    print(f"GitHub URL: {github_url}")
-    print(f"File path: {file_path}")
-    print("@"*50)
 
     match = re.search(
         r'github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?$', github_url)
@@ -165,7 +149,7 @@ async def get_file_content(ctx: RunContext[BaseDeps], github_url: str, file_path
     return response.text
 
 
-def write_script(ctx: RunContext[BaseDeps], script: str, reasoning: str) -> str:
+def write_script(ctx: RunContext[ModelIntegrationDeps], script: str, reasoning: str) -> str:
     """
     Write the script solving the current task to a file. 
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -180,11 +164,6 @@ def write_script(ctx: RunContext[BaseDeps], script: str, reasoning: str) -> str:
     """
     ctx.deps.current_script = add_line_numbers_to_script(script)
 
-    print("CALLING WRITE SCRIPT TOOL")
-    print(f"Reasoning: {reasoning}")
-    print(f"Script: {ctx.deps.current_script}")
-    print("@"*50)
-
     out = f"UPDATED SCRIPT: \n\n <begin_script>\n\n {ctx.deps.current_script}\n\n <end_script>"
 
     if ctx.deps.run_pylint:
@@ -196,7 +175,7 @@ def write_script(ctx: RunContext[BaseDeps], script: str, reasoning: str) -> str:
     return out
 
 
-def replace_script_lines(ctx: RunContext[BaseDeps], line_number_start: int, line_number_end: int, new_code: str, reasoning: str) -> str:
+def replace_script_lines(ctx: RunContext[ModelIntegrationDeps], line_number_start: int, line_number_end: int, new_code: str, reasoning: str) -> str:
     """
     Replace lines in the current script with new code.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -222,14 +201,6 @@ def replace_script_lines(ctx: RunContext[BaseDeps], line_number_start: int, line
         script_has_line_numbers=True
     )
 
-    print("CALLING REPLACE SCRIPT LINES TOOL")
-    print(f"Reasoning: {reasoning}")
-    print(f"Line number start: {line_number_start}")
-    print(f"Line number end: {line_number_end}")
-    print(f"New code: {new_code}")
-    print(f"Current script: {ctx.deps.current_script}")
-    print("@"*50)
-
     out = f"UPDATED SCRIPT: \n\n <begin_script>\n\n {ctx.deps.current_script}\n\n <end_script>"
 
     if ctx.deps.run_pylint:
@@ -241,7 +212,7 @@ def replace_script_lines(ctx: RunContext[BaseDeps], line_number_start: int, line
     return out
 
 
-def add_script_lines(ctx: RunContext[BaseDeps], new_code: str, start_line: int, reasoning: str) -> str:
+def add_script_lines(ctx: RunContext[ModelIntegrationDeps], new_code: str, start_line: int, reasoning: str) -> str:
     """
     Add lines to the current script at the given line number.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -265,13 +236,6 @@ def add_script_lines(ctx: RunContext[BaseDeps], new_code: str, start_line: int, 
         script_has_line_numbers=True
     )
 
-    print("CALLING ADD SCRIPT LINES TOOL")
-    print(f"Reasoning: {reasoning}")
-    print(f"New code: {new_code}")
-    print(f"Start line: {start_line}")
-    print(f"Current script: {ctx.deps.current_script}")
-    print("@"*50)
-
     out = f"UPDATED SCRIPT: \n\n <begin_script>\n\n {ctx.deps.current_script}\n\n <end_script>"
 
     if ctx.deps.run_pylint:
@@ -283,7 +247,7 @@ def add_script_lines(ctx: RunContext[BaseDeps], new_code: str, start_line: int, 
     return out
 
 
-def delete_script_lines(ctx: RunContext[BaseDeps], line_number_start: int, line_number_end: int, reasoning: str) -> str:
+def delete_script_lines(ctx: RunContext[ModelIntegrationDeps], line_number_start: int, line_number_end: int, reasoning: str) -> str:
     """
     Delete lines from the current script at the given line numbers.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -307,13 +271,6 @@ def delete_script_lines(ctx: RunContext[BaseDeps], line_number_start: int, line_
         script_has_line_numbers=True
     )
 
-    print("CALLING DELETE SCRIPT LINES TOOL")
-    print(f"Reasoning: {reasoning}")
-    print(f"Line number start: {line_number_start}")
-    print(f"Line number end: {line_number_end}")
-    print(f"Current script: {ctx.deps.current_script}")
-    print("@"*50)
-
     out = f"UPDATED SCRIPT: \n\n <begin_script>\n\n {ctx.deps.current_script}\n\n <end_script>"
 
     if ctx.deps.run_pylint:
@@ -335,9 +292,6 @@ def get_input_structure(modality: str) -> str:
     Returns:
         str: The input structure for the given modality.
     """
-    print("CALLING GET INPUT STRUCTURE TOOL")
-    print(f"Modality: {modality}")
-    print("@"*50)
 
     if modality == "time_series":
         return TIME_SERIES_INPUT_STRUCTURE
@@ -349,8 +303,6 @@ def get_base_config_definition_code() -> str:
     """
     Get the base config definition code.
     """
-    print("CALLING GET BASE CONFIG DEFINITION CODE TOOL")
-    print("@"*50)
 
     return BASE_CONFIG_DEFINITION_CODE
 
@@ -366,10 +318,6 @@ def get_output_structure(modality: str, task_name: str) -> str:
     Returns:
         str: The output structure for the given task.
     """
-    print("CALLING GET OUTPUT STRUCTURE TOOL")
-    print(f"Modality: {modality}")
-    print(f"Task name: {task_name}")
-    print("@"*50)
 
     if modality == "time_series":
         if task_name == "forecasting":

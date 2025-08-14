@@ -15,6 +15,16 @@ node = Table(
     schema="node"
 )
 
+data_source_node = Table(
+    "data_source_node",
+    metadata,
+    Column("id", UUID(as_uuid=True), ForeignKey(
+        "node.node.id"), primary_key=True),
+    Column("data_source_id", UUID(as_uuid=True), ForeignKey(
+        "data_sources.data_source.id"), nullable=False),
+    schema="node"
+)
+
 # Dataset node table
 dataset_node = Table(
     "dataset_node",
@@ -22,7 +32,7 @@ dataset_node = Table(
     Column("id", UUID(as_uuid=True), ForeignKey(
         "node.node.id"), primary_key=True),
     Column("dataset_id", UUID(as_uuid=True), ForeignKey(
-        "ontology.dataset.id"), nullable=False),
+        "data_objects.dataset.id"), nullable=False),
     schema="node"
 )
 

@@ -2,11 +2,15 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.providers.openai import OpenAIProvider
+from typing import Optional
 from synesis_api.secrets import OPENAI_API_KEY, OPENAI_API_MODEL
 from synesis_api.utils import run_python_code_in_container
 from synesis_api.agents.analysis.prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
 from dataclasses import dataclass
 import pandas as pd
+
+
+# TODO: System prompt should be defined here using dependency injection instead of in the runner
 
 
 @dataclass

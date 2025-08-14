@@ -14,7 +14,7 @@ export default function PublicHeader() {
 				<div className="flex items-center justify-between h-12">
 				<div className="flex-shrink-0">
 					<Link href="/">
-						<div className="relative w-[30px] h-[30px]">
+						<div className="relative w-[25px] h-[25px]">
 							<Image
 								src="/miyaicon.png"
 								alt="Miya logo"

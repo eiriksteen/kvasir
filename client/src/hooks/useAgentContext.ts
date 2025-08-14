@@ -1,105 +1,131 @@
-import { Automation } from "@/types/automations";
-import { Datasets, TimeSeriesDataset } from "@/types/datasets";
+import { Automation } from "@/types/automation";
+import { Dataset } from "@/types/data-objects";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { AnalysisJobResultMetadata } from "@/types/analysis";
+import { DataSource } from "@/types/data-sources";
+import { UUID } from "crypto";
 
-const emptyDatasetsInContext: Datasets = {
-  timeSeries: [],
-}
 
-const emptyAutomationsInContext = {}
+// Do this to avoid "possibly undefined" type errors
+const emptyDataSourcesInContext: DataSource[] = [];
+const emptyDatasetsInContext: Dataset[] = [];
+const emptyAutomationsInContext: Automation[] = [];
+const emptyAnalysisesInContext: AnalysisJobResultMetadata[] = [];
 
-export const useAgentContext = () => {
+
+export const useAgentContext = (projectId: UUID) => {
   
-  const { data: datasetsInContext } = useSWR("datasetsInContext", { fallbackData: emptyDatasetsInContext });
-  const { data: automationsInContext } = useSWR("automationsInContext", { fallbackData: emptyAutomationsInContext });
-  const { data: analysisesInContext } = useSWR("analysisesInContext", { fallbackData: [] });
+  const { data: dataSourcesInContext } = useSWR(["dataSourcesInContext", projectId], { fallbackData: emptyDataSourcesInContext });
+  const { data: datasetsInContext } = useSWR(["datasetsInContext", projectId], { fallbackData: emptyDatasetsInContext });
+  const { data: automationsInContext } = useSWR(["automationsInContext", projectId], { fallbackData: emptyAutomationsInContext });
+  const { data: analysesInContext } = useSWR(["analysisesInContext", projectId], { fallbackData: emptyAnalysisesInContext });
 
-  const { trigger: addDatasetToContext } = useSWRMutation("datasetsInContext",
-    async (_, { arg }: { arg: TimeSeriesDataset }) => {
+  const { trigger: addDataSourceToContext } = useSWRMutation(["dataSourcesInContext", projectId],
+    async (_, { arg }: { arg: DataSource }) => {
       return arg;
     },
     {
-      populateCache: (newData: TimeSeriesDataset) => ({...datasetsInContext, timeSeries: [...datasetsInContext.timeSeries, newData]})
+      populateCache: (newData: DataSource) => ([...(dataSourcesInContext || []), newData])
     }
   );
 
-  const { trigger: removeDatasetFromContext } = useSWRMutation("datasetsInContext",
-    async (_, { arg }: { arg: TimeSeriesDataset }) => {
+  const { trigger: removeDataSourceFromContext } = useSWRMutation(["dataSourcesInContext", projectId],
+    async (_, { arg }: { arg: DataSource }) => {
       return arg;
     },
     {
-      populateCache: (newData: TimeSeriesDataset) => {
-        if (datasetsInContext) {
-          return {
-            ...datasetsInContext,
-            timeSeries: datasetsInContext.timeSeries.filter((d: TimeSeriesDataset) => d.id !== newData.id)
-          };
+      populateCache: (newData: DataSource) => {
+        if (dataSourcesInContext) {
+          return dataSourcesInContext.filter((d: DataSource) => d.id !== newData.id);
         }
         return [];
       }
     }
   );
 
-  const { trigger: addAutomationToContext } = useSWRMutation("automationsInContext",
+  const { trigger: addDatasetToContext } = useSWRMutation(["datasetsInContext", projectId],
+    async (_, { arg }: { arg: Dataset }) => {
+      return arg;
+    },
+    {
+      populateCache: (newData: Dataset) => ([...(datasetsInContext || []), newData])
+    }
+  );
+
+  const { trigger: removeDatasetFromContext } = useSWRMutation(["datasetsInContext", projectId],
+    async (_, { arg }: { arg: Dataset }) => {
+      return arg;
+    },
+    {
+      populateCache: (newData: Dataset) => {
+        if (datasetsInContext) {
+          return datasetsInContext.filter((d: Dataset) => d.id !== newData.id);
+        }
+        return [];
+      }
+    }
+  );
+
+  const { trigger: addAutomationToContext } = useSWRMutation(["automationsInContext", projectId],
     async (_, { arg }: { arg: Automation }) => {
       return arg;
     },
     {
-      populateCache: (newData: Automation) => ({...automationsInContext, [newData.id]: newData})
+      populateCache: (newData: Automation) => ([...(automationsInContext || []), newData])
     }
   );
 
-  const { trigger: removeAutomationFromContext } = useSWRMutation("automationsInContext",
+  const { trigger: removeAutomationFromContext } = useSWRMutation(["automationsInContext", projectId],
     async (_, { arg }: { arg: Automation }) => {
       return arg;
     },
     {
       populateCache: (newData: Automation) => {
         if (automationsInContext) {
-          return {
-            ...automationsInContext,
-            [newData.id]: undefined
-          };
+          return automationsInContext.filter((a: Automation) => a.id !== newData.id);
         }
         return [];
       }
     }
   );
 
-  const { trigger: addAnalysisToContext } = useSWRMutation("analysisesInContext",
+  const { trigger: addAnalysisToContext } = useSWRMutation(["analysisesInContext", projectId],
     async (_, { arg }: { arg: AnalysisJobResultMetadata }) => {
       return arg;
     },
     {
       populateCache: (newData: AnalysisJobResultMetadata) => {
-        if (analysisesInContext) {
-          return [...analysisesInContext, newData];
+        if (analysesInContext) {
+          return [...analysesInContext, newData];
         }
         return [newData];
       }
     }
   );
 
-  const { trigger: removeAnalysisFromContext } = useSWRMutation("analysisesInContext",
+  const { trigger: removeAnalysisFromContext } = useSWRMutation(["analysisesInContext", projectId],
     async (_, { arg }: { arg: AnalysisJobResultMetadata }) => {
       return arg;
     },
     {
       populateCache: (newData: AnalysisJobResultMetadata) => {
-        if (analysisesInContext) {
-          return analysisesInContext.filter((a: AnalysisJobResultMetadata) => a.jobId !== newData.jobId);
+        if (analysesInContext) {
+          return analysesInContext.filter((a: AnalysisJobResultMetadata) => a.jobId !== newData.jobId);
         }
         return [];
       }
     }
   );
 
+
   return {
+    dataSourcesInContext,
     datasetsInContext,
     automationsInContext,
-    analysisesInContext,
+    analysesInContext,
+    addDataSourceToContext,
+    removeDataSourceFromContext,
     addDatasetToContext,
     removeDatasetFromContext,
     addAutomationToContext,

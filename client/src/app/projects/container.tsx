@@ -2,7 +2,7 @@
 
 import { SessionProvider } from "next-auth/react";
 import { Session } from 'next-auth';
-import ProjectMenu from "@/components/project/ProjectMenu";
+import ProjectMenu from "@/app/projects/_components/ProjectMenu";
 import UserHeader from "@/components/headers/UserHeader";
 
 interface SelectProjectContainerProps {

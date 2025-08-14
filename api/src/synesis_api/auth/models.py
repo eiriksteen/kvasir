@@ -11,8 +11,9 @@ users = Table(
     Column("name", String, nullable=False),
     Column("disabled", Boolean, nullable=False, default=False),
     Column("hashed_password", String, nullable=False),
-    Column("created_at", DateTime, nullable=False, default=func.now()),
-    Column("updated_at", DateTime, nullable=False,
+    Column("created_at", DateTime(timezone=True),
+           nullable=False, default=func.now()),
+    Column("updated_at", DateTime(timezone=True), nullable=False,
            default=func.now(), onupdate=func.now()),
     schema="auth"
 )
@@ -24,9 +25,9 @@ user_api_keys = Table(
     Column("user_id", UUID(as_uuid=True),
            ForeignKey("auth.users.id"), nullable=False),
     Column("key", String, nullable=False, unique=True),
-    Column("expires_at", DateTime, nullable=False),
-    Column("created_at", DateTime, default=func.now()),
-    Column("updated_at", DateTime, default=func.now(),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("created_at", DateTime(timezone=True), default=func.now()),
+    Column("updated_at", DateTime(timezone=True), default=func.now(),
            onupdate=func.now()),
     schema="auth"
 )

@@ -7,13 +7,34 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 # Import all models to ensure they register with metadata
 from synesis_api.auth.models import users, user_api_keys
-from synesis_api.modules.data_integration.models import integration_jobs_results, integration_pydantic_message, integration_jobs_local_inputs, integration_message
-from synesis_api.modules.jobs.models import jobs
-from synesis_api.modules.ontology.models import time_series, time_series_dataset
-from synesis_api.modules.chat.models import chat_message, pydantic_message, conversations
-from synesis_api.modules.automation.models import model_job_result, automation
+from synesis_api.modules.data_sources.models import (
+    data_source, file_data_source,
+    data_source_group, data_source_in_group, subgroup,
+    feature_in_tabular_file
+)
+from synesis_api.modules.runs.models import (
+    run, run_message, run_pydantic_message,
+    data_integration_run_input, data_integration_run_result,
+    model_integration_run_input, model_integration_run_result,
+    data_source_in_run
+)
+from synesis_api.modules.data_objects.models import (
+    dataset, data_object, object_group, derived_object_source,
+    feature, feature_in_group, time_series, time_series_aggregation,
+    time_series_aggregation_input
+)
+from synesis_api.modules.orchestrator.models import (
+    chat_message, chat_pydantic_message, conversation,
+    chat_context, dataset_context, automation_context, analysis_context,
+    data_source_context
+)
+from synesis_api.modules.automation.models import (
+    automation, function, function_input_structure, function_output_structure,
+    data_object_computed_from_function, modality, task, source,
+    programming_language, programming_language_version, model, model_task
+)
 from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
-from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_automation
+from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_automation, project_data_source
 from synesis_api.modules.node.models import node, dataset_node, analysis_node, automation_node
 from synesis_api.secrets import DATABASE_URL
 from synesis_api.database.core import metadata
@@ -22,7 +43,7 @@ from alembic import context
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
-config = context.config
+config = chat_context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -33,30 +54,63 @@ if config.config_file_name is not None:
 __all__ = [
     users,
     user_api_keys,
-    integration_jobs_results,
-    integration_pydantic_message,
-    integration_jobs_local_inputs,
-    integration_message,
-    jobs,
+    data_source,
+    file_data_source,
+    run,
+    run_message,
+    run_pydantic_message,
+    data_integration_run_input,
+    data_integration_run_result,
+    model_integration_run_input,
+    model_integration_run_result,
+    data_source_in_run,
+    data_source_group,
+    data_source_in_group,
+    subgroup,
+    feature_in_tabular_file,
+    dataset,
+    data_object,
+    object_group,
+    derived_object_source,
+    feature,
+    feature_in_group,
     time_series,
-    time_series_dataset,
+    time_series_aggregation,
+    time_series_aggregation_input,
     analysis_jobs_results,
     analysis_jobs_datasets,
     analysis_jobs_automations,
     analysis_status_messages,
     chat_message,
-    pydantic_message,
-    conversations,
-    model_job_result,
+    chat_pydantic_message,
+    conversation,
+    chat_context,
+    dataset_context,
+    automation_context,
+    analysis_context,
+    data_source_context,
+    run_in_conversation,
     automation,
+    function,
+    function_input_structure,
+    function_output_structure,
+    data_object_computed_from_function,
+    modality,
+    task,
+    source,
+    programming_language,
+    programming_language_version,
+    model,
+    model_task,
     project,
     project_dataset,
     project_analysis,
     project_automation,
+    project_data_source,
     node,
     dataset_node,
     analysis_node,
-    automation_node
+    automation_node,
 ]
 
 # add your model's MetaData object here
@@ -68,7 +122,7 @@ target_metadata = metadata
 
 def include_name(name, type_, parent_names):
     if type_ == "schema":
-        return name in ["public", "auth", "integration", "jobs", "ontology", "analysis", "chat", "automation", "project", "node"]
+        return name in ["public", "auth", "data_sources", "runs", "data_objects", "analysis", "orchestrator", "automation", "project", "node"]
     else:
         return True
 
@@ -89,12 +143,11 @@ def run_migrations_offline() -> None:
     here as well.  By skipping the Engine creation
     we don't even need a DBAPI to be available.
 
-    Calls to context.execute() here emit the given string to the
-    script output.
+    Calls to context.execute() here emit the given string to the script output.
 
     """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(
+    chat_context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
@@ -103,20 +156,20 @@ def run_migrations_offline() -> None:
         include_name=include_name
     )
 
-    with context.begin_transaction():
-        context.run_migrations()
+    with chat_context.begin_transaction():
+        chat_context.run_migrations()
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(
+    chat_context.configure(
         connection=connection,
         target_metadata=target_metadata,
         include_schemas=True,
         include_name=include_name
     )
 
-    with context.begin_transaction():
-        context.run_migrations()
+    with chat_context.begin_transaction():
+        chat_context.run_migrations()
 
 
 async def run_async_migrations() -> None:
@@ -143,7 +196,7 @@ def run_migrations_online() -> None:
     asyncio.run(run_async_migrations())
 
 
-if context.is_offline_mode():
+if chat_context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
