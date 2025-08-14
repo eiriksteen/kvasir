@@ -48,7 +48,3 @@ class AnalysisJobResult(BaseSchema):
 
 class AnalysisJobResultInDB(AnalysisJobResult):
     pass
-
-
-class AnalysisJobResultMetadataList(BaseSchema):
-    analyses_job_results: List[AnalysisJobResultMetadata] = []

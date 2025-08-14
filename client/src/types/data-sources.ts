@@ -1,8 +1,9 @@
 export type SupportedSource = "TabularFile" | "AWS S3" | "Azure Blob" | "GCP Storage" | "PostgreSQL" | "MongoDB";
 import { Feature } from "@/types/data-objects";
+import { UUID } from "crypto";
 
 export interface DataSourceBase {
-  id: string;
+  id: UUID;
   user_id: string;
   type: SupportedSource;
   name: string;
@@ -14,7 +15,6 @@ export interface DataSourceBase {
 }
 
 export interface FileDataSource extends DataSourceBase {
-  id: string;
   fileName: string;
   filePath: string;
   fileType: string;

@@ -1,7 +1,20 @@
 import { useState } from 'react';
 import { SupportedSource } from "@/types/data-sources";
 import AddDataSourceModal from "@/app/data-sources/_components/AddDataSourceModal";
-import { getSourceTypeIcon, sourceTypes } from '@/lib/data-sources/sourceTypes';
+import SourceTypeIcon from "@/app/data-sources/_components/SourceTypeIcon";
+
+type sourceInfo = {
+    available: boolean,
+}
+
+export const sourceTypes: Record<SupportedSource, sourceInfo> = {
+    'TabularFile': { available: true},
+    'AWS S3': { available: false},
+    'Azure Blob': { available: false},
+    'GCP Storage': { available: false},
+    'PostgreSQL': { available: false},
+    'MongoDB': { available: false},
+};
 
 
 // Add Data Source Modal
@@ -39,7 +52,7 @@ export default function AddDataSourceMenu() {
                         }`}
                         title={sourceTypes[sourceType].available ? `${sourceType} coming soon` : `${sourceType} coming soon`}
                     >
-                            {getSourceTypeIcon(sourceType, 32)}
+                            {SourceTypeIcon(sourceType, 32)}
                         <span className="text-sm font-medium mt-3">{sourceType}</span>
                         {!sourceTypes[sourceType].available && (
                         <span className="absolute bottom-2 right-2 text-[10px] bg-zinc-700 text-zinc-400 px-1.5 py-0.5 rounded">Coming Soon</span>

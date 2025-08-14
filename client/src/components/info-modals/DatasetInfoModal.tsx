@@ -2,7 +2,7 @@ import { X, Info, Layers, Tag, Folder, ArrowLeft } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useDataset } from "@/hooks/useDatasets";
 import { ObjectGroupWithObjectList, TimeSeries, TimeSeriesAggregation } from "@/types/data-objects";
-import TimeSeriesEChart from '@/components/data-visualization/TimeSeriesEChart';
+import TimeSeriesChart from '@/components/charts/TimeSeriesChart';
 import { UUID } from 'crypto';
 
 
@@ -25,7 +25,6 @@ export default function DatasetInfoModal({
   const { dataset, objectGroups } = useDataset(datasetId);
   const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(new Set());
-
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -131,7 +130,7 @@ export default function DatasetInfoModal({
             <div className="p-4 flex-1 overflow-hidden">
               {selectedEntity && selectedEntity.type === "time_series" ? (
                 <div className="w-full h-full">
-                  <TimeSeriesEChart timeSeriesId={selectedEntity.id} />
+                  <TimeSeriesChart timeSeriesId={selectedEntity.id} />
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full overflow-y-auto">

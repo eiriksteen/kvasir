@@ -16,15 +16,16 @@ import { useDatasets, useAnalysis } from '@/hooks';
 // import DataVisualizer from '@/components/data-visualization/DataVisualizer';
 // import AnalysisItem from '@/components/analysis/AnalysisItem';
 import { FrontendNode } from '@/types/node';
-import DatasetBox from '@/components/dataset/DatasetBox';
-import AnalysisNode from '@/components/react-flow-components/AnalysisNode';
-import TransportEdge from '@/components/react-flow-components/TransportEdge';
+import DatasetBox from '@/app/projects/[projectId]/_components/erd/DatasetBox';
+import AnalysisBox from '@/app/projects/[projectId]/_components/erd/AnalysisBox';
+import TransportEdge from '@/app/projects/[projectId]/_components/erd/TransportEdge';
 import { useDataSources } from '@/hooks/useDataSources';
-import DataSourceBox from '../data-sources/DataSourceBox';
+import DataSourceBox from '@/app/projects/[projectId]/_components/erd/DataSourceBox';
 import { DataSource } from '@/types/data-sources';
-import FileInfoModal from '@/components/data-sources/FileInfoModal';
+import FileInfoModal from '@/components/info-modals/FileInfoModal';
 import { Dataset } from '@/types/data-objects';
-import DatasetInfoModal from '@/components/dataset/DatasetInfoModal';
+import DatasetInfoModal from '@/components/info-modals/DatasetInfoModal';
+import { AnalysisJobResultMetadata } from '@/types/analysis';
 
 const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradientClass: string; onClick: () => void } }) => (
   <DataSourceBox 
@@ -42,9 +43,17 @@ const DatasetNodeWrapper = ({ data }: { data: { dataset: Dataset; onClick: () =>
   />
 );
 
+// Wrapper component to adapt ReactFlow node props to Analysis component props
+const AnalysisNodeWrapper = ({ data }: { data: { analysis: AnalysisJobResultMetadata; onClick: () => void } }) => (
+  <AnalysisBox 
+    analysis={data.analysis} 
+    onClick={data.onClick} 
+  />
+);
+
 const nodeTypes = {
   dataset: DatasetNodeWrapper,
-  analysis: AnalysisNode,
+  analysis: AnalysisNodeWrapper,
   dataSource: DataSourceNodeWrapper,
 };
 
@@ -52,11 +61,11 @@ const edgeTypes: EdgeTypes = {
   'custom-edge': TransportEdge,
 };
 
-interface ProjectViewProps {
+interface EntityRelationshipDiagramProps {
   projectId: string;
 }
 
-const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
+export default function EntityRelationshipDiagram({ projectId }: EntityRelationshipDiagramProps) {
   const { selectedProject, frontendNodes, updatePosition } = useProject(projectId);
   const { dataSources } = useDataSources();
   const { datasets } = useDatasets();
@@ -69,7 +78,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
   // Memoize nodes
   const memoizedNodes = useMemo(() => {
-    if (!selectedProject || !datasets || !analysisJobResults?.analysesJobResults || !dataSources) {
+    if (!selectedProject || !datasets || !analysisJobResults || !dataSources) {
       return [];
     }
 
@@ -106,7 +115,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
     });
 
     const analysisNodes = frontendNodes.map((frontendNode: FrontendNode) => {
-      const analysis = analysisJobResults.analysesJobResults.filter(a => selectedProject.analysisIds.includes(a.jobId)).find(a => a.jobId === frontendNode.analysisId);
+      const analysis = analysisJobResults.filter(a => selectedProject.analysisIds.includes(a.jobId)).find(a => a.jobId === frontendNode.analysisId);
       if (!analysis) return null;
       return {
         id: frontendNode.id,
@@ -115,7 +124,8 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         data: {
           label: analysis.name,
           id: frontendNode.analysisId,
-          // onClick: () => setSelectedAnalysis(frontendNode.analysisId)
+          analysis: analysis,
+          onClick: () => {} // TODO: Implement analysis modal when available
         },
       } as Node;
     });
@@ -126,10 +136,10 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
 
   // Memoize edges
   const memoizedEdges = useMemo(() => {
-    if (!selectedProject || !analysisJobResults?.analysesJobResults) {
+    if (!selectedProject || !analysisJobResults) {
       return [];
     }
-    return analysisJobResults.analysesJobResults
+    return analysisJobResults
       .filter(analysis => selectedProject.analysisIds.includes(analysis.jobId))
       .flatMap(analysis =>
         analysis.datasetIds.map(datasetId => {
@@ -215,10 +225,9 @@ const ProjectView: React.FC<ProjectViewProps> = ({ projectId }) => {
         /> */}
       </ReactFlow>
       {/* {renderModal()} */}
-      {selectedDataSource && <FileInfoModal dataSource={selectedDataSource} onClose={handleCloseDataSourceModal} />}
+      {selectedDataSource && <FileInfoModal dataSourceId={selectedDataSource.id} onClose={handleCloseDataSourceModal} />}
       {selectedDataset && <DatasetInfoModal datasetId={selectedDataset.id} onClose={handleCloseDatasetModal} />}
+      {/* TODO: Add AnalysisInfoModal when available */}
     </div>
   );
 };
-
-export default ProjectView;

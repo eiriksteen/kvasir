@@ -3,7 +3,7 @@ import { useSession } from "next-auth/react";
 import { useState, useRef, useEffect } from 'react';
 import { Plus, X, Upload, Check, AlertTriangle, Loader2 } from 'lucide-react';
 import { SupportedSource } from "@/types/data-sources";
-import { getSourceTypeIcon } from "@/lib/data-sources/sourceTypes";
+import SourceTypeIcon from "@/app/data-sources/_components/SourceTypeIcon";
 
 // Add Data Source Modal
 export default function AddDataSourceModal({ 
@@ -134,7 +134,7 @@ export default function AddDataSourceModal({
         <div className="relative bg-[#050a14] rounded-xl border-2 border-[#101827] w-full max-w-6xl h-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="relative flex items-center p-6 border-b border-[#101827] flex-shrink-0">
-              {getSourceTypeIcon(selectedSourceType, 16)}
+              {SourceTypeIcon(selectedSourceType, 16)}
               <h3 className="text-base font-mono uppercase tracking-wider text-gray-400 flex-grow pl-3">
                 Add {selectedSourceType}
               </h3>

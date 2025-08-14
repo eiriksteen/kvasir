@@ -1,109 +1,21 @@
 'use client';
 
-import React, { useEffect, useRef, useState, memo } from 'react';
-import { Send, Plus, History, Database, X, BarChart, Zap } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import React, { useEffect, useRef, useState } from 'react';
+import { Send, Plus, History, Database, X, BarChart } from 'lucide-react';
 import { useProjectChat } from '@/hooks/useChat';
 import { useAgentContext } from '@/hooks/useAgentContext';
-import { ChatHistory } from '@/components/chat/ChatHistory';
+import { ChatHistory } from '@/app/projects/[projectId]/_components/chat/ChatHistory';
 import { ChatMessage } from '@/types/orchestrator';
 import { Dataset } from '@/types/data-objects';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
-import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
-import { useDatasets } from '@/hooks/useDatasets';
-// import { useAnalysis } from '@/hooks/useAnalysis';
 import { DataSource } from '@/types/data-sources';
 import { UUID } from 'crypto';
 import { useRunsInConversation } from '@/hooks/useRuns';
 import RunBox from '@/components/runs/RunBox';
 import { Run } from '@/types/runs';
+import ChatMessageBox from '@/app/projects/[projectId]/_components/chat/ChatMessageBox';
 
-const ChatListItem = memo(({ message }: { message: ChatMessage }) => {
-  const { datasets} = useDatasets();
-  // const { analysisJobResults } = useAnalysis();
-
-  const hasContext = message.context && (
-    message.context.datasetIds?.length > 0 || 
-    message.context.analysisIds?.length > 0 || 
-    message.context.automationIds?.length > 0
-  );
-
-  // Different styling based on message type
-  const getMessageStyles = () => {
-      return {
-        container: `max-w-[80%] rounded-2xl px-4 py-3 shadow-md backdrop-blur-sm ${
-          message.role === 'user' 
-            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-tr-none' 
-            : 'bg-gray-950/40 text-white rounded-tl-none border border-gray-800/50'
-        }`,
-        content: `text-sm leading-relaxed ${message.role === 'assistant' ? 'animate-fade-in' : ''}`
-      };
-
-  };
-
-  const styles = getMessageStyles();
-
-  return (
-    <div 
-      className={`mb-2 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-    >
-      <div className={styles.container}>
-
-        {hasContext && (
-          <div className="mb-2 pb-2 border-b border-current/20">
-            <div className="flex flex-wrap gap-1">
-              {/* Datasets */}
-              {message.context?.datasetIds?.map((datasetId: string) => (
-                <div 
-                  key={datasetId}
-                  className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-blue-900/50 text-blue-200"
-                >
-                  <Database size={10} />
-                  {datasets?.find((dataset: Dataset) => dataset.id === datasetId)?.name}
-                </div>
-              ))}
-              
-              {/* Analyses */}
-              {/* {message.context?.analysisIds?.map((analysisId: string) => (
-                <div 
-                  key={analysisId}
-                  className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-purple-900/50 text-purple-200"
-                >
-                  <BarChart size={10} />
-                  {analysisJobResults?.analysesJobResults.find((analysis: AnalysisJobResultMetadata) => analysis.jobId === analysisId)?.name}
-                </div>
-              ))} */}
-              
-              {/* Automations */}
-              {message.context?.automationIds?.map((automationId: string) => (
-                <div 
-                  key={automationId}
-                  className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-orange-900/50 text-orange-200"
-                >
-                  <Zap size={10} />
-                  Automation {automationId.slice(0, 6)}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        <div className={styles.content}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {message.content}
-          </ReactMarkdown>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-// Add display name to the memo component
-ChatListItem.displayName = 'ChatListItem';
-
-function Chat({ projectId }: { projectId: UUID }) {
+export default function Chatbot({ projectId }: { projectId: UUID }) {
   
   const [input, setInput] = useState('');
   const [width, setWidth] = useState(400);
@@ -334,7 +246,7 @@ function Chat({ projectId }: { projectId: UUID }) {
 
               return timelineItems.map((timelineItem) => {
                 if (timelineItem.type === 'message') {
-                  return <ChatListItem key={`msg-${timelineItem.item.id}`} message={timelineItem.item} />;
+                  return <ChatMessageBox key={`msg-${timelineItem.item.id}`} message={timelineItem.item} />;
                 } else {
                   return <RunBox key={`run-${timelineItem.item.id}`} runId={timelineItem.item.id} />;
                 }
@@ -375,12 +287,3 @@ function Chat({ projectId }: { projectId: UUID }) {
   );
 }
 
-export default function Chatbot({ projectId }: { projectId: UUID }) {
-  const {data: session} = useSession();
-
-  if (!session) {
-    redirect("/login");
-  }
-
-  return <Chat projectId={projectId} />;
-}

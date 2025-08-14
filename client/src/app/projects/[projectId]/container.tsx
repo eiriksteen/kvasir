@@ -2,19 +2,20 @@
 
 import { SessionProvider } from "next-auth/react";
 import { Session } from 'next-auth';
-import OntologyBar from "@/components/OntologyBar";
-import Chatbot from "@/components/chat/Chatbot";
+import EntitySidebar from "@/app/projects/[projectId]/_components/entity-sidebar/Sidebar";
+import Chatbot from "@/app/projects/[projectId]/_components/chat/Chatbot";
 import UserHeader from "@/components/headers/UserHeader";
-import ProjectView from "@/components/project/ProjectView";
+import ProjectView from "@/app/projects/[projectId]/_components/erd/EntityRelationshipDiagram";
 import { useProject } from "@/hooks/useProject";
 // import MainView from "@/components/MainView";
+import { UUID } from "crypto";
 
 interface DashboardProps {
   session: Session;
-  projectId: string;
+  projectId: UUID;
 }
 
-function DashboardContent({ projectId }: { projectId: string }) {
+function DashboardContent({ projectId }: { projectId: UUID }) {
   const { selectedProject } = useProject(projectId);
   
   // If no project is selected, show loading or return null
@@ -34,7 +35,7 @@ function DashboardContent({ projectId }: { projectId: string }) {
     <div className="flex flex-col h-full bg-zinc-950">
       <UserHeader projectId={projectId}  />
       <div className="flex flex-1 h-[calc(100vh-3rem)]">
-        <OntologyBar projectId={projectId} />
+        <EntitySidebar projectId={projectId} />
         <main className="flex-1 min-w-0 overflow-hidden">
           <ProjectView projectId={projectId} />
         </main>

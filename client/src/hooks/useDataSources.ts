@@ -2,6 +2,8 @@ import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { DataSource, FileDataSource } from '@/types/data-sources';
+import { useMemo } from "react";
+import { UUID } from "crypto";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -58,3 +60,13 @@ export const useDataSources = () => {
 
   return { dataSources, mutateDataSources, error, isLoading, triggerCreateFileDataSource };
 }
+
+
+export const useDataSource = (dataSourceId: UUID) => {
+
+  const { dataSources } = useDataSources();
+  const dataSource = useMemo(() => dataSources?.find(ds => ds.id === dataSourceId), [dataSources, dataSourceId]);
+
+  return { dataSource };
+}
+

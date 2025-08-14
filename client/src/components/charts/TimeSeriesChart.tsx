@@ -3,11 +3,11 @@ import ReactECharts from "echarts-for-react";
 import { useTimeSeriesData } from "@/hooks/useTimeSeriesData";
 import { UUID } from "crypto";
 
-interface TimeSeriesEChartProps {
+interface TimeSeriesChartProps {
   timeSeriesId: UUID;
 }
 
-const TimeSeriesEChart = ({ timeSeriesId }: TimeSeriesEChartProps) => {
+const TimeSeriesChart = ({ timeSeriesId }: TimeSeriesChartProps) => {
   const { timeSeriesData } = useTimeSeriesData(timeSeriesId);
 
   if (!timeSeriesData) {
@@ -119,4 +119,4 @@ const TimeSeriesEChart = ({ timeSeriesId }: TimeSeriesEChartProps) => {
   );
 };
 
-export default TimeSeriesEChart;
+export default TimeSeriesChart;

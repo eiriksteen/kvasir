@@ -29,10 +29,6 @@ export interface AnalysisJobResultMetadata {
     statusMessages: AnalysisStatusMessage[];
 }
 
-export interface Analyses {
-    analysesJobResults: AnalysisJobResultMetadata[];
-}
-
 export interface AnalysisRequest {
     projectId: string;
     datasetIds: string[];

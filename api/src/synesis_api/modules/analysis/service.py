@@ -4,7 +4,7 @@ from sqlalchemy import update, select, insert, delete
 from typing import List
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
-from synesis_api.modules.analysis.schema import AnalysisJobResultMetadataInDB, AnalysisJobResultInDB, AnalysisPlan, AnalysisJobResultMetadataList, AnalysisStatusMessage
+from synesis_api.modules.analysis.schema import AnalysisJobResultMetadataInDB, AnalysisJobResultInDB, AnalysisPlan, AnalysisStatusMessage, AnalysisJobResultMetadata
 from synesis_api.modules.runs.service import update_run_status
 from synesis_api.utils import save_markdown_as_html
 from synesis_api.aws.service import upload_object_s3
@@ -190,7 +190,7 @@ async def update_analysis_job_results_in_db(job_results: AnalysisJobResultMetada
         )
 
 
-async def get_user_analysis_metadata(user_id: uuid.UUID) -> AnalysisJobResultMetadataList:
+async def get_user_analysis_metadata(user_id: uuid.UUID) -> List[AnalysisJobResultMetadata]:
     data = await fetch_all(
         select(analysis_jobs_results).where(
             analysis_jobs_results.c.user_id == user_id)
@@ -204,7 +204,7 @@ async def get_user_analysis_metadata(user_id: uuid.UUID) -> AnalysisJobResultMet
         results.append(AnalysisJobResultMetadataInDB(**d, dataset_ids=dataset_ids,
                        automation_ids=automation_ids, status_messages=status_messages))
 
-    return AnalysisJobResultMetadataList(analyses_job_results=results)
+    return results
 
 
 async def get_analysis_job_results_from_db(job_id: uuid.UUID) -> AnalysisJobResultMetadataInDB:
@@ -226,7 +226,7 @@ async def get_analysis_job_results_from_db(job_id: uuid.UUID) -> AnalysisJobResu
     return AnalysisJobResultMetadataInDB(**result, dataset_ids=dataset_ids, automation_ids=automation_ids, status_messages=status_messages)
 
 
-async def get_user_analyses_by_ids(user_id: uuid.UUID, analysis_ids: List[uuid.UUID]) -> AnalysisJobResultMetadataList:
+async def get_user_analyses_by_ids(user_id: uuid.UUID, analysis_ids: List[uuid.UUID]) -> List[AnalysisJobResultMetadata]:
     data = await fetch_all(
         select(analysis_jobs_results).where(analysis_jobs_results.c.user_id ==
                                             user_id, analysis_jobs_results.c.job_id.in_(analysis_ids))
@@ -240,7 +240,7 @@ async def get_user_analyses_by_ids(user_id: uuid.UUID, analysis_ids: List[uuid.U
         results.append(AnalysisJobResultMetadataInDB(**d, dataset_ids=dataset_ids,
                        automation_ids=automation_ids, status_messages=status_messages))
 
-    return AnalysisJobResultMetadataList(analyses_job_results=results)
+    return results
 
 
 async def get_dataset_ids_by_job_id(job_id: uuid.UUID) -> List[uuid.UUID]:

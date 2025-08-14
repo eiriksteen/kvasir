@@ -4,9 +4,12 @@ import { useState } from 'react';
 import { Check, Plus, Trash2, Calendar, Database, Bot, FileText, X } from 'lucide-react';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 import { useAnalysis } from '@/hooks';
-import ConfirmationPopup from '../ConfirmationPopup';
+import ConfirmationPopup from '@/components/ConfirmationPopup';
 
-interface AnalysisItemProps {
+
+// TODO: Update to match design of the other info modals
+
+interface AnalysisInfoModalProps {
     analysis: AnalysisJobResultMetadata;
     isSelected: boolean;
     onClick: () => void;
@@ -14,7 +17,7 @@ interface AnalysisItemProps {
     onClose?: () => void;
 }
 
-export default function AnalysisItem({ analysis, isSelected, onClick, isModal = false, onClose }: AnalysisItemProps) {
+export default function AnalysisInfoModal({ analysis, isSelected, onClick, isModal = false, onClose }: AnalysisInfoModalProps) {
     const { deleteAnalysisJobResults } = useAnalysis();
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 

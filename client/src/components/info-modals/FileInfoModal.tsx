@@ -1,14 +1,20 @@
-import { DataSource } from "@/types/data-sources";
 import { X, BarChart3, FileText as FileDescription, Shield, List } from 'lucide-react';
 import { useEffect } from 'react';
+import { useDataSource } from "@/hooks/useDataSources";
+import { UUID } from 'crypto';
+
+interface FileInfoModalProps {
+  dataSourceId: UUID;
+  onClose: () => void;
+}
 
 export default function FileInfoModal({ 
-  dataSource, 
+  dataSourceId, 
   onClose
-}: { 
-  dataSource: DataSource; 
-  onClose: () => void; 
-}) {
+}: FileInfoModalProps) {
+  
+  const { dataSource } = useDataSource(dataSourceId);
+
   // Prevent body scroll when modal is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -40,6 +46,10 @@ export default function FileInfoModal({
       minute: '2-digit'
     });
   };
+
+  if (!dataSource) {
+    return null;
+  }
 
   return (
     <>

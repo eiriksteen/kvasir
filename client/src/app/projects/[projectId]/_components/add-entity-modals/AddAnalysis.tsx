@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { X, Info } from 'lucide-react';
 import { useProject } from '@/hooks/useProject';
 import { useDatasets } from '@/hooks';
+import { Dataset } from '@/types/data-objects';
 
 interface AddAnalysisProps {
   projectId: string;
@@ -19,8 +20,8 @@ export default function AddAnalysis({ projectId, isOpen, onClose }: AddAnalysisP
 
   // Filter datasets based on selected project
   const filteredDatasets = useMemo(() => {
-    if (!selectedProject || !datasets?.timeSeries) return [];
-    return datasets.timeSeries.filter(dataset => 
+    if (!selectedProject || !datasets) return [];
+    return datasets.filter((dataset: Dataset) => 
       selectedProject.datasetIds.includes(dataset.id)
     );
   }, [selectedProject, datasets]);

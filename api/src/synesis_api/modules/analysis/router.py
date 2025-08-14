@@ -1,12 +1,12 @@
 import uuid
 import json
 import time
-from typing import Annotated
+from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from synesis_api.redis import get_redis
 import redis
-from synesis_api.modules.analysis.schema import AnalysisJobResultMetadata, AnalysisJobResultMetadataList
+from synesis_api.modules.analysis.schema import AnalysisJobResultMetadata
 from synesis_api.auth.service import get_current_user, user_owns_runs
 from synesis_api.modules.analysis.service import (
     get_analysis_job_results_from_db,
@@ -94,10 +94,10 @@ async def get_analysis_job_results(
             status_code=500, detail="Analysis job is still running")
 
 
-@router.get("/analysis-job-results", response_model=AnalysisJobResultMetadataList)
+@router.get("/analysis-job-results", response_model=List[AnalysisJobResultMetadata])
 async def get_analysis_job_results_list(
     user: Annotated[User, Depends(get_current_user)] = None
-) -> AnalysisJobResultMetadataList:
+) -> List[AnalysisJobResultMetadata]:
     return await get_user_analysis_metadata(user.id)
 
 
@@ -122,10 +122,10 @@ async def create_analysis_pdf(
     return job_results
 
 
-@router.get("/analysis-result", response_model=AnalysisJobResultMetadataList)
+@router.get("/analysis-result", response_model=List[AnalysisJobResultMetadata])
 async def get_analysis(
     user: Annotated[User, Depends(get_current_user)] = None
-) -> AnalysisJobResultMetadataList:
+) -> List[AnalysisJobResultMetadata]:
     return await get_user_analysis_metadata(user.id)
 
 

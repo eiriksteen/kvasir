@@ -20,7 +20,7 @@ export const sourceTypes: Record<SupportedSource, sourceInfo> = {
     'MongoDB': { available: false},
 };
 
-export function getSourceTypeIcon(sourceType: SupportedSource, size: number) {
+export default function SourceTypeIcon(sourceType: SupportedSource, size: number) {
     switch (sourceType) {
         case 'TabularFile':
             return <Image src="/file.svg" alt="File" width={size} height={size} />;

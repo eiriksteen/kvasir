@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from 'next/navigation';
 import { getSession } from "@/lib/getSession";
-import LoginForm from "./form";
+import LoginForm from "@/app/login/_components/LoginForm";
 
 
 

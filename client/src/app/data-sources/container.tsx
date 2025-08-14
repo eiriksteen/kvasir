@@ -11,8 +11,6 @@ interface SourcesContainerProps {
   session: Session;
 }
 
-
-
 function SourcesPageContent() {
   const { dataSources, error, isLoading } = useDataSources();
 
