@@ -66,7 +66,7 @@ interface EntityRelationshipDiagramProps {
 }
 
 export default function EntityRelationshipDiagram({ projectId }: EntityRelationshipDiagramProps) {
-  const { selectedProject, frontendNodes, updatePosition } = useProject(projectId);
+  const { project, frontendNodes, updatePosition } = useProject(projectId);
   const { dataSources } = useDataSources();
   const { datasets } = useDatasets();
   const { analysisJobResults } = useAnalysis();
@@ -78,12 +78,12 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
 
   // Memoize nodes
   const memoizedNodes = useMemo(() => {
-    if (!selectedProject || !datasets || !analysisJobResults || !dataSources) {
+    if (!project || !datasets || !analysisJobResults || !dataSources) {
       return [];
     }
 
     const dataSourceNodes = frontendNodes.map((frontendNode: FrontendNode) => {
-      const dataSource = dataSources.filter(d => selectedProject.dataSourceIds.includes(d.id)).find(d => d.id === frontendNode.dataSourceId);
+      const dataSource = dataSources.filter(d => project.dataSourceIds.includes(d.id)).find(d => d.id === frontendNode.dataSourceId);
       if (!dataSource) return null;
       return {
         id: frontendNode.id,
@@ -99,7 +99,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     });
 
     const datasetNodes = frontendNodes.map((frontendNode: FrontendNode) => {
-      const dataset = datasets.filter(d => selectedProject.datasetIds.includes(d.id)).find(d => d.id === frontendNode.datasetId);
+      const dataset = datasets.filter(d => project.datasetIds.includes(d.id)).find(d => d.id === frontendNode.datasetId);
       if (!dataset) return null;
       return {
         id: frontendNode.id,
@@ -115,7 +115,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     });
 
     const analysisNodes = frontendNodes.map((frontendNode: FrontendNode) => {
-      const analysis = analysisJobResults.filter(a => selectedProject.analysisIds.includes(a.jobId)).find(a => a.jobId === frontendNode.analysisId);
+      const analysis = analysisJobResults.filter(a => project.analysisIds.includes(a.jobId)).find(a => a.jobId === frontendNode.analysisId);
       if (!analysis) return null;
       return {
         id: frontendNode.id,
@@ -132,15 +132,15 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
 
     return [...datasetNodes.filter(Boolean), ...analysisNodes.filter(Boolean), ...dataSourceNodes.filter(Boolean)] as Node[];
 
-  }, [selectedProject, datasets, analysisJobResults, frontendNodes, dataSources]);
+  }, [project, datasets, analysisJobResults, frontendNodes, dataSources]);
 
   // Memoize edges
   const memoizedEdges = useMemo(() => {
-    if (!selectedProject || !analysisJobResults) {
+    if (!project || !analysisJobResults) {
       return [];
     }
     return analysisJobResults
-      .filter(analysis => selectedProject.analysisIds.includes(analysis.jobId))
+      .filter(analysis => project.analysisIds.includes(analysis.jobId))
       .flatMap(analysis =>
         analysis.datasetIds.map(datasetId => {
           const sourceNode = frontendNodes.find(fn => fn.datasetId === datasetId);
@@ -158,7 +158,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
         })
       )
       .filter(Boolean) as Edge[];
-  }, [selectedProject, frontendNodes, analysisJobResults]);
+  }, [project, frontendNodes, analysisJobResults]);
 
   // Only update nodes when memoizedNodes changes
   useEffect(() => {

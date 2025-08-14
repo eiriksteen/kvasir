@@ -226,19 +226,19 @@ export const useProject = (projectId: string) => {
   const { projects, mutateProjects, triggerUpdateProject } = useProjects();
 
   // Store selected project
-  const selectedProject = useMemo(() => projects.find(project => project.id === projectId), [projects, projectId]);
+  const project = useMemo(() => projects.find(project => project.id === projectId), [projects, projectId]);
 
   // Fetch nodes for the selected project
   const { data: frontendNodes, error: nodesError, isLoading: nodesLoading, mutate: mutateNodes } = useSWR(
     // Could use selectedProject.id as the second part of the key, but doing it this way will update the nodes also when the projects change
-    session && selectedProject ? ['projectNodes', selectedProject] : null,
+    session && project ? ['projectNodes', project] : null,
     () => fetchProjectNodes(session?.APIToken?.accessToken || '', projectId),
     { fallbackData: [] }
   );
 
   // Update node position
   const { trigger: updatePosition } = useSWRMutation(
-    session && selectedProject ? ['projectNodes', selectedProject.id] : null,
+    session && project ? ['projectNodes', project.id] : null,
     async (_, { arg }: { arg: FrontendNode }) => {
       const node = frontendNodes?.find(n => n.id === arg.id);
       if (!node) return frontendNodes;
@@ -258,7 +258,7 @@ export const useProject = (projectId: string) => {
 
   // Create node
   const { trigger: createFrontendNode } = useSWRMutation(
-    session && selectedProject ? ['projectNodes', selectedProject.id] : null,
+    session && project ? ['projectNodes', project.id] : null,
     async (_, { arg }: { arg: FrontendNodeCreate }) => {
       const res = await createNode(session?.APIToken?.accessToken || '', arg);
       return res;
@@ -273,7 +273,7 @@ export const useProject = (projectId: string) => {
 
   // Delete node
   const { trigger: deleteNodeTrigger } = useSWRMutation(
-    session && selectedProject ? ['projectNodes', selectedProject.id] : null,
+    session && project ? ['projectNodes', project.id] : null,
     async (_, { arg }: { arg: string } ) => {
       return await deleteNode(session?.APIToken?.accessToken || '', arg);
     },
@@ -289,12 +289,12 @@ export const useProject = (projectId: string) => {
   );
 
   const updateProjectAndNode = useCallback(async (data: ProjectDetailsUpdate) => {
-    if (!selectedProject) return;
+    if (!project) return;
 
-    await triggerUpdateProject({data, projectId: selectedProject.id});
+    await triggerUpdateProject({data, projectId: project.id});
     
     mutateNodes();
-  }, [selectedProject, triggerUpdateProject, mutateNodes]);
+  }, [project, triggerUpdateProject, mutateNodes]);
 
   const calculateNodePosition = useCallback(() => {
     if (!frontendNodes) {
@@ -319,13 +319,13 @@ export const useProject = (projectId: string) => {
 
   // Unified function to add any entity to project
   const addEntity = async (entityType: "data_source" | "dataset" | "analysis" | "automation", entityId: string) => {
-    if (!selectedProject) return;
+    if (!project) return;
 
     //const position = calculateNodePosition();
 
     // Create the node for the entity
     await createFrontendNode({
-      projectId: selectedProject.id,
+      projectId: project.id,
       xPosition: null,
       yPosition: null,
       type: entityType,
@@ -336,7 +336,7 @@ export const useProject = (projectId: string) => {
     });
 
     // Update the project to include the entity
-    await addEntityToProject(session?.APIToken?.accessToken || '', selectedProject.id, {
+    await addEntityToProject(session?.APIToken?.accessToken || '', project.id, {
       entityType,
       entityId: entityId as UUID,
     });
@@ -346,10 +346,10 @@ export const useProject = (projectId: string) => {
 
   // Unified function to remove any entity from project
   const removeEntity = async (entityType: "data_source" | "dataset" | "analysis" | "automation", entityId: string) => {
-    if (!selectedProject) return;
+    if (!project) return;
 
     // Update the project to remove the entity
-    await removeEntityFromProject(session?.APIToken?.accessToken || '', selectedProject.id, {
+    await removeEntityFromProject(session?.APIToken?.accessToken || '', project.id, {
       entityType,
       entityId: entityId as UUID,
     });
@@ -377,8 +377,7 @@ export const useProject = (projectId: string) => {
   };
 
   return {
-    projects,
-    selectedProject,
+    project,
     frontendNodes,
     error: nodesError,
     isLoading: nodesLoading,

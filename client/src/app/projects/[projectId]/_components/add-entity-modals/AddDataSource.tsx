@@ -25,50 +25,39 @@ function DataSourceListItem({ dataSource, isFirst }: { dataSource: DataSource; i
 }
 
 interface AddDataSourceProps {
-  isOpen: boolean;
   onClose: () => void;
   projectId: string;
 }
 
-export default function AddDataSource({ isOpen, onClose, projectId }: AddDataSourceProps) {
+export default function AddDataSource({ onClose, projectId }: AddDataSourceProps) {
   const { dataSources, mutateDataSources, isLoading, error } = useDataSources();
-  const { selectedProject, addEntity } = useProject(projectId);
+  const { project, addEntity } = useProject(projectId);
   const [isAdding, setIsAdding] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isOpen) {
-      setIsAdding(null);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isOpen) {
+      if (event.key === 'Escape') {
         onClose();
       }
     };
 
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-    } else {
-      window.removeEventListener('keydown', handleKeyDown);
-    }
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [onClose]);
 
   // Filter out data sources that are already in the project
   const availableDataSources = useMemo(() => {
-    if (!selectedProject || !dataSources) return [];
+    if (!project || !dataSources) return [];
     return dataSources.filter(dataSource => 
-      !selectedProject.dataSourceIds.includes(dataSource.id)
+      !project.dataSourceIds.includes(dataSource.id)
     );
-  }, [selectedProject, dataSources]);
+  }, [project, dataSources]);
 
   const handleAddDataSource = async (dataSource: DataSource) => {
-    if (!selectedProject || isAdding === dataSource.id) return;
+    if (!project || isAdding === dataSource.id) return;
     
     setIsAdding(dataSource.id);
     try {
@@ -82,8 +71,6 @@ export default function AddDataSource({ isOpen, onClose, projectId }: AddDataSou
       setIsAdding(null);
     }
   };
-
-  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm">

@@ -41,7 +41,6 @@ async function fetchAnalysisJobResults(token: string): Promise<AnalysisJobResult
   }
 
   const data = await response.json();
-  console.log(data)
   return data;
 }
 
@@ -68,8 +67,6 @@ export const useAnalysis = (jobId?: string) => {
     const { data: analysisJobResults, error, isLoading } = useSWR(session ? "analysisJobResults" : null, () => fetchAnalysisJobResults(session ? session.APIToken.accessToken : ""));
     const { data: currentAnalysis, mutate: mutateCurrentAnalysis } = useSWR("currentAnalysis", {fallbackData: null});
     const { data: streamedMessages, mutate: mutateStreamedMessages } = useSWR("streamedMessages", {fallbackData: []});
-
-    console.log(analysisJobResults)
 
     useSWRSubscription<AnalysisStatusMessage[]>(
       session && jobId ? ["analysis-agent-stream", jobId] : null,

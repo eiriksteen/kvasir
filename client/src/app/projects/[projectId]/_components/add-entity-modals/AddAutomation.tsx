@@ -4,12 +4,13 @@ import { useEffect } from 'react';
 import { X } from 'lucide-react';
 
 
-interface AddAnalysisProps {
+interface AddAutomationProps {
   onClose: () => void;
   projectId: string;
 }
 
-export default function AddAnalysis({ onClose, projectId }: AddAnalysisProps) {
+export default function AddAutomation({ onClose, projectId }: AddAutomationProps) {
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -38,7 +39,7 @@ export default function AddAnalysis({ onClose, projectId }: AddAnalysisProps) {
 
         <div className="flex flex-col h-full">
           <div className="p-4">
-            <h3 className="text-xs font-mono uppercase tracking-wider text-gray-400">Add Analysis</h3>
+            <h3 className="text-xs font-mono uppercase tracking-wider text-gray-400">Add Automation</h3>
           </div>
 
         </div>

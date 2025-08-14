@@ -16,15 +16,20 @@ import { DataSource } from '@/types/data-sources';
 import EntityItem from '@/app/projects/[projectId]/_components/entity-sidebar/EntityItem';
 import AddEntityIcon from '@/app/projects/[projectId]/_components/entity-sidebar/AddEntityIcon';
 import EntityOverviewItem from '@/app/projects/[projectId]/_components/entity-sidebar/EntityOverviewItem';
+import { UUID } from 'crypto';
+import AddDataset from '@/app/projects/[projectId]/_components/add-entity-modals/AddDataset';
+import AddAutomation from '@/app/projects/[projectId]/_components/add-entity-modals/AddAutomation';
 
 interface EntitySidebarProps {
-    projectId: string;
+    projectId: UUID;
 }
 
 export default function EntitySidebar({ projectId }: EntitySidebarProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [showAddDataSourceToProject, setShowAddDataSourceToProject] = useState(false);
     const [showAddAnalysis, setShowAddAnalysis] = useState(false);
+    const [showAddDatasetToProject, setShowAddDatasetToProject] = useState(false);
+    const [showAddAutomation, setShowAddAutomation] = useState(false);
     const [expandedSections, setExpandedSections] = useState({
         datasets: false,
         analysis: false,
@@ -32,7 +37,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
         data_sources: false
     });
     const { data: session } = useSession();
-    const { selectedProject } = useProject(projectId);
+    const { project } = useProject(projectId);
     const { 
         dataSourcesInContext,
         addDataSourceToContext,
@@ -43,7 +48,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
         analysesInContext,
         addAnalysisToContext,
         removeAnalysisFromContext
-    } = useAgentContext();  
+    } = useAgentContext(projectId);  
 
     if (!session) {
         redirect("/login");
@@ -55,28 +60,27 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
     // const { analysisJobResults } = useAnalysis();
 
     const filteredDataSources = useMemo(() => {
-        if (!selectedProject || !dataSources) return [];
+        if (!project || !dataSources) return [];
         return dataSources.filter(dataSource => 
-            selectedProject.dataSourceIds.includes(dataSource.id)
+            project.dataSourceIds.includes(dataSource.id)
         );
-    }, [selectedProject, dataSources]);
+    }, [project, dataSources]);
 
     const filteredDatasets = useMemo(() => {
-        if (!selectedProject || !datasets) return [];
+        if (!project || !datasets) return [];
         return datasets.filter(dataset => 
-            selectedProject.datasetIds.includes(dataset.id)
+            project.datasetIds.includes(dataset.id)
         );
-    }, [selectedProject, datasets]);
+    }, [project, datasets]);
 
     const filteredAnalysis: AnalysisJobResultMetadata[] = []
 
     const filteredAutomations = useMemo(() => {
-        if (!selectedProject || !automations) return [];
+        if (!project || !automations) return [];
         return automations.filter(automation => 
-            selectedProject.automationIds.includes(automation.id)
+            project.automationIds.includes(automation.id)
         );
-    }, [selectedProject, automations]);
-
+    }, [project, automations]);
 
     const toggleSection = (section: keyof typeof expandedSections) => {
         setExpandedSections(prev => ({
@@ -113,7 +117,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
     };
 
     const renderContent = () => {
-        if (!selectedProject) {
+        if (!project) {
             return (
                 <div className="flex flex-col h-full items-center justify-center p-4">
                     <p className="text-sm text-gray-400 mb-2">No project selected</p>
@@ -164,7 +168,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                             count={filteredDatasets?.length || 0}
                             color="blue"
                             onToggle={() => toggleSection('datasets')}
-                            onAdd={() => {}}
+                            onAdd={() => setShowAddDatasetToProject(true)}
                         />
                         {expandedSections.datasets && (
                             <div className="bg-blue-500/5 border-l-2 border-blue-500/20">
@@ -225,7 +229,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                             count={filteredAutomations.length}
                             color="orange"
                             onToggle={() => toggleSection('automations')}
-                            onAdd={() => {}}
+                            onAdd={() => setShowAddAutomation(true)}
                         />
                         {expandedSections.automations && (
                             <div className="bg-orange-500/5 border-l-2 border-orange-500/20">
@@ -278,7 +282,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                 <AddEntityIcon type="data_source" size={14} />
                             </button>
                             <button
-                                onClick={() => {}}
+                                onClick={() => setShowAddDatasetToProject(true)}
                                 className="p-2 rounded-md text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/40 transition-all duration-200 hover:scale-105"
                                 title="Add Dataset to Project"
                             >
@@ -292,7 +296,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                 <AddEntityIcon type="analysis" size={14} />
                             </button>
                             <button
-                                onClick={() => {}}
+                                onClick={() => setShowAddAutomation(true)}
                                 className="p-2 rounded-md text-orange-400 hover:text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 hover:border-orange-500/40 transition-all duration-200 hover:scale-105"
                                 title="Add Automation"
                             >
@@ -314,18 +318,25 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                 )}
             </div>
 
-            <AddDataSource
-                isOpen={showAddDataSourceToProject}
+            {showAddDataSourceToProject && <AddDataSource
                 onClose={() => setShowAddDataSourceToProject(false)}
                 projectId={projectId}
-            />
+            />}
 
-            <AddAnalysis
-                isOpen={showAddAnalysis}
+            {showAddAnalysis && <AddAnalysis
                 onClose={() => setShowAddAnalysis(false)}
                 projectId={projectId}
-            />
+            />}
 
+            {showAddDatasetToProject && <AddDataset
+                onClose={() => setShowAddDatasetToProject(false)}
+                projectId={projectId}
+            />}
+
+            {showAddAutomation && <AddAutomation
+                onClose={() => setShowAddAutomation(false)}
+                projectId={projectId}
+            />}
         </div>
     );
 }

@@ -16,7 +16,7 @@ interface UserHeaderProps {
 export default function UserHeader({ projectId }: UserHeaderProps) {
 	const { data: session } = useSession();
 	const { projects } = useProjects();
-	const { selectedProject } = useProject(projectId || '');
+	const { project } = useProject(projectId || '');
 	const [showProjectDropdown, setShowProjectDropdown] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
 	const router = useRouter();
@@ -67,16 +67,16 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 						</Link>
 						
 						{/* Project Title with Slash */}
-						{selectedProject && (
+						{project && (
 							<div className="flex items-center space-x-3">
 								<div className="text-zinc-500 text-lg font-light">/</div>
 								<div className="flex flex-col">
 									<div className="text-zinc-300 text-sm font-medium">
-										{selectedProject.name}
+										{project.name}
 									</div>
-									{selectedProject.description && (
+									{project.description && (
 										<div className="text-zinc-500 text-xs truncate max-w-[200px]">
-											{selectedProject.description}
+											{project.description}
 										</div>
 									)}
 								</div>

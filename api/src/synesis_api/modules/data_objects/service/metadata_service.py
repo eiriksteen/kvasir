@@ -480,14 +480,11 @@ async def get_user_datasets_by_ids(
             elif group.role == "derived":
                 computed_object_groups.append(group)
 
-        if not primary_object_group:
-            continue  # Skip datasets without primary object group
-
-        else:
+        if primary_object_group:
             # Get features for each group
-            primary_with_features = await _add_features_to_object_groups(primary_object_group)
-            annotated_with_features = [await _add_features_to_object_groups(group) for group in annotated_object_groups]
-            computed_with_features = [await _add_features_to_object_groups(group) for group in computed_object_groups]
+            primary_with_features = (await _add_features_to_object_groups([primary_object_group]))[0]
+            annotated_with_features = await _add_features_to_object_groups(annotated_object_groups)
+            computed_with_features = await _add_features_to_object_groups(computed_object_groups)
 
             dataset_with_objects = DatasetWithObjectGroups(
                 **dataset_obj.model_dump(),
@@ -496,7 +493,7 @@ async def get_user_datasets_by_ids(
                 computed_object_groups=computed_with_features,
             )
 
-        result_datasets.append(dataset_with_objects)
+            result_datasets.append(dataset_with_objects)
 
     return result_datasets
 
@@ -626,6 +623,7 @@ async def _add_features_to_object_groups(groups: List[ObjectGroupInDB]) -> List[
 
 
 async def entity_metadata_to_df(entity_ids: List[str]) -> pd.DataFrame:
+    # TODO: Implement entity metadata to dataframe
     pass
 
 

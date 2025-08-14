@@ -16,10 +16,10 @@ interface DashboardProps {
 }
 
 function DashboardContent({ projectId }: { projectId: UUID }) {
-  const { selectedProject } = useProject(projectId);
+  const { project } = useProject(projectId);
   
   // If no project is selected, show loading or return null
-  if (!selectedProject) {
+  if (!project) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-zinc-950">
         <div className="text-center">

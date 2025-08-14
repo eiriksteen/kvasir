@@ -75,55 +75,95 @@ export default function FileInfoModal({
               </button>
             </div>
             <div className="p-4 flex-1 overflow-y-auto">
-              <div className="space-y-3">
-                <div className="border border-emerald-500/20 rounded-lg p-4 space-y-2 bg-zinc-900/50">
-                  <div className="flex items-center gap-2">
-                    <BarChart3 size={16} className="text-emerald-400" />
-                    <h3 className="text-sm text-gray-200 font-mono">Stats</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+                {/* Left Column - File Stats & Features */}
+                <div className="lg:col-span-1 flex flex-col space-y-4 max-h-[100vh] overflow-y-auto">
+                  <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-emerald-500/20 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-emerald-500/20 rounded-lg">
+                        <BarChart3 size={18} className="text-emerald-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-200">File Stats</h3>
+                        <p className="text-xs text-gray-400 font-mono">{dataSource.fileType}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-300/80">File Size:</span>
+                        <span className="text-sm text-gray-200 font-mono">{dataSource.fileSizeBytes} bytes</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-300/80">Created:</span>
+                        <span className="text-sm text-gray-200 font-mono">{formatDate(dataSource.createdAt)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-300/80">Rows:</span>
+                        <span className="text-sm text-gray-200 font-mono">{dataSource.numRows}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-300/80">Columns:</span>
+                        <span className="text-sm text-gray-200 font-mono">{dataSource.numColumns}</span>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-300/80">File Type: {dataSource.fileType}</p>
-                  <p className="text-sm text-gray-300/80">File Size (bytes): {dataSource.fileSizeBytes}</p>
-                  <p className="text-sm text-gray-300/80">Created: {formatDate(dataSource.createdAt)}</p>
-                  <p className="text-sm text-gray-300/80">Number of Rows: {dataSource.numRows}</p>
-                  <p className="text-sm text-gray-300/80">Number of Columns: {dataSource.numColumns}</p>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {dataSource.description && (
-                    <div className="border border-emerald-500/20 rounded-lg p-4 space-y-2 bg-zinc-900/50 max-h-[20vh] overflow-y-auto">
-                      <div className="flex items-center gap-2">
-                        <FileDescription size={16} className="text-emerald-300" />
-                        <h3 className="text-sm text-gray-200 font-mono">Content Description</h3>
-                      </div>
-                      <p className="text-sm text-gray-300/80">{dataSource.description}</p>
-                    </div>
-                  )}
-                  {dataSource.qualityDescription && (
-                    <div className="border border-emerald-500/20 rounded-lg p-4 space-y-2 bg-zinc-900/50 max-h-[20vh] overflow-y-auto">
-                      <div className="flex items-center gap-2">
-                        <Shield size={16} className="text-emerald-300" />
-                        <h3 className="text-sm text-gray-200 font-mono">Quality Description</h3>
-                      </div>
-                      <p className="text-sm text-gray-300/80">{dataSource.qualityDescription}</p>
-                    </div>
-                  )}
-                </div>
-
-                {dataSource.features && dataSource.features.length > 0 && (
-                  <div className="border border-emerald-500/20 rounded-lg p-4 space-y-2 bg-zinc-900/50">
-                    <div className="flex items-center gap-2">
-                      <List size={16} className="text-emerald-300" />
-                      <h3 className="text-sm text-gray-200 font-mono">Features</h3>
-                    </div>
-                    <div className="space-y-2 max-h-[20vh] overflow-y-auto">
-                      {dataSource.features.map((feature) => (
-                        <div key={feature.name}>
-                          <p className="text-sm text-gray-300/80">{feature.name}: {feature.description}</p>
+                  {dataSource.features && dataSource.features.length > 0 && (
+                    <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-emerald-500/20 rounded-xl p-4 flex flex-col flex-1 min-h-0">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="p-2 bg-emerald-500/20 rounded-lg">
+                          <List size={18} className="text-emerald-300" />
                         </div>
-                      ))}
+                        <h3 className="text-sm font-semibold text-gray-200">Features</h3>
+                        <span className="text-xs px-2 py-1 bg-emerald-500/20 rounded-full text-emerald-300 font-mono">
+                          {dataSource.features.length} feature(s)
+                        </span>
+                      </div>
+                      <div className="space-y-2 overflow-y-auto pr-2 flex-1 min-h-0">
+                        {dataSource.features.map((feature) => (
+                          <div key={feature.name} className="bg-zinc-800/50 rounded-lg p-2 border border-zinc-700/50">
+                            <div className="flex justify-between items-start mb-1">
+                              <span className="text-sm font-medium text-gray-200">{feature.name}</span>
+                            </div>
+                            <p className="text-xs text-gray-400">{feature.description}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+
+                {/* Right Column - Quality & Description */}
+                <div className="lg:col-span-1 flex flex-col space-y-4 max-h-[100vh] overflow-y-auto">
+
+                  {dataSource.description && (
+                    <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-emerald-500/20 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0">
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="p-2 bg-emerald-500/20 rounded-lg">
+                          <FileDescription size={18} className="text-emerald-300" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-gray-200">Content Description</h3>
+                      </div>
+                      <div className="overflow-y-auto pr-2 flex-1 min-h-0">
+                        <p className="text-sm text-gray-300/80 leading-relaxed">{dataSource.description}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {dataSource.qualityDescription && (
+                    <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-emerald-500/20 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0">
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="p-2 bg-emerald-500/20 rounded-lg">
+                          <Shield size={18} className="text-emerald-300" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-gray-200">Quality Description</h3>
+                      </div>
+                      <div className="overflow-y-auto pr-2 flex-1 min-h-0">
+                        <p className="text-sm text-gray-300/80 leading-relaxed">{dataSource.qualityDescription}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

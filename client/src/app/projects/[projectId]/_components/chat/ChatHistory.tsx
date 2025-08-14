@@ -23,7 +23,7 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
     setProjectConversationId
   } = useProjectChat(projectId);
 
-  const { selectedProject } = useProject(projectId);
+  const { project } = useProject(projectId);
 
   const handleConversationClick = async (conversationId: UUID) => {
     try {
@@ -35,7 +35,7 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
   };
 
   const projectConversations = conversations?.filter((conversation: Conversation) => 
-    conversation.projectId === selectedProject?.id
+    conversation.projectId === project?.id
   ).sort((a: Conversation, b: Conversation) => 
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   ) || [];

@@ -31,7 +31,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
     removeDatasetFromContext, 
     analysesInContext, 
     removeAnalysisFromContext,
-  } = useAgentContext();
+  } = useAgentContext(projectId);
 
   const { runsInConversation } = useRunsInConversation(conversation?.id || "");
 

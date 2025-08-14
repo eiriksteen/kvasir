@@ -4,6 +4,7 @@ import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { AnalysisJobResultMetadata } from "@/types/analysis";
 import { DataSource } from "@/types/data-sources";
+import { UUID } from "crypto";
 
 
 // Do this to avoid "possibly undefined" type errors
@@ -13,15 +14,14 @@ const emptyAutomationsInContext: Automation[] = [];
 const emptyAnalysisesInContext: AnalysisJobResultMetadata[] = [];
 
 
-export const useAgentContext = () => {
+export const useAgentContext = (projectId: UUID) => {
   
-  const { data: dataSourcesInContext } = useSWR("dataSourcesInContext", { fallbackData: emptyDataSourcesInContext });
-  const { data: datasetsInContext } = useSWR("datasetsInContext", { fallbackData: emptyDatasetsInContext });
-  const { data: automationsInContext } = useSWR("automationsInContext", { fallbackData: emptyAutomationsInContext });
-  const { data: analysesInContext } = useSWR("analysisesInContext", { fallbackData: emptyAnalysisesInContext });
+  const { data: dataSourcesInContext } = useSWR(["dataSourcesInContext", projectId], { fallbackData: emptyDataSourcesInContext });
+  const { data: datasetsInContext } = useSWR(["datasetsInContext", projectId], { fallbackData: emptyDatasetsInContext });
+  const { data: automationsInContext } = useSWR(["automationsInContext", projectId], { fallbackData: emptyAutomationsInContext });
+  const { data: analysesInContext } = useSWR(["analysisesInContext", projectId], { fallbackData: emptyAnalysisesInContext });
 
-
-  const { trigger: addDataSourceToContext } = useSWRMutation("dataSourcesInContext",
+  const { trigger: addDataSourceToContext } = useSWRMutation(["dataSourcesInContext", projectId],
     async (_, { arg }: { arg: DataSource }) => {
       return arg;
     },
@@ -30,7 +30,7 @@ export const useAgentContext = () => {
     }
   );
 
-  const { trigger: removeDataSourceFromContext } = useSWRMutation("dataSourcesInContext",
+  const { trigger: removeDataSourceFromContext } = useSWRMutation(["dataSourcesInContext", projectId],
     async (_, { arg }: { arg: DataSource }) => {
       return arg;
     },
@@ -44,7 +44,7 @@ export const useAgentContext = () => {
     }
   );
 
-  const { trigger: addDatasetToContext } = useSWRMutation("datasetsInContext",
+  const { trigger: addDatasetToContext } = useSWRMutation(["datasetsInContext", projectId],
     async (_, { arg }: { arg: Dataset }) => {
       return arg;
     },
@@ -53,7 +53,7 @@ export const useAgentContext = () => {
     }
   );
 
-  const { trigger: removeDatasetFromContext } = useSWRMutation("datasetsInContext",
+  const { trigger: removeDatasetFromContext } = useSWRMutation(["datasetsInContext", projectId],
     async (_, { arg }: { arg: Dataset }) => {
       return arg;
     },
@@ -67,7 +67,7 @@ export const useAgentContext = () => {
     }
   );
 
-  const { trigger: addAutomationToContext } = useSWRMutation("automationsInContext",
+  const { trigger: addAutomationToContext } = useSWRMutation(["automationsInContext", projectId],
     async (_, { arg }: { arg: Automation }) => {
       return arg;
     },
@@ -76,7 +76,7 @@ export const useAgentContext = () => {
     }
   );
 
-  const { trigger: removeAutomationFromContext } = useSWRMutation("automationsInContext",
+  const { trigger: removeAutomationFromContext } = useSWRMutation(["automationsInContext", projectId],
     async (_, { arg }: { arg: Automation }) => {
       return arg;
     },
@@ -90,7 +90,7 @@ export const useAgentContext = () => {
     }
   );
 
-  const { trigger: addAnalysisToContext } = useSWRMutation("analysisesInContext",
+  const { trigger: addAnalysisToContext } = useSWRMutation(["analysisesInContext", projectId],
     async (_, { arg }: { arg: AnalysisJobResultMetadata }) => {
       return arg;
     },
@@ -104,7 +104,7 @@ export const useAgentContext = () => {
     }
   );
 
-  const { trigger: removeAnalysisFromContext } = useSWRMutation("analysisesInContext",
+  const { trigger: removeAnalysisFromContext } = useSWRMutation(["analysisesInContext", projectId],
     async (_, { arg }: { arg: AnalysisJobResultMetadata }) => {
       return arg;
     },

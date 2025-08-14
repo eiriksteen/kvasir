@@ -71,7 +71,7 @@ export const useConversationMessages = (conversationId: UUID | null) => {
 export const useProjectChat = (projectId: UUID) => {
   const { data: session } = useSession();
   const { conversations, createConversation, mutateConversations } = useConversations();
-  const { dataSourcesInContext, datasetsInContext, analysesInContext } = useAgentContext();
+  const { dataSourcesInContext, datasetsInContext, analysesInContext } = useAgentContext(projectId);
 
   const { data: projectConversationId, mutate: setProjectConversationId } = useSWR(
     session ? ["project-conversation-id", projectId] : null, {fallbackData: null}
@@ -81,7 +81,6 @@ export const useProjectChat = (projectId: UUID) => {
   const conversation = useMemo(() => {
     return conversations?.find(conv => conv.id === projectConversationId) || null;
   }, [conversations, projectConversationId]);
-
 
   const submitPrompt = useCallback(async (content: string) => {
     if (session) {
