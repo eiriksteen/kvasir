@@ -9,7 +9,7 @@ from fastapi import UploadFile
 from synesis_api.secrets import (
     DATASETS_SAVE_PATH,
     DATA_INTEGRATION_SCRIPTS_SAVE_DIR,
-    AUTOMATION_SCRIPTS_SAVE_DIR,
+    PIPELINE_SCRIPTS_SAVE_DIR,
     ANALYSIS_SCRIPTS_SAVE_DIR,
     RAW_FILES_SAVE_DIR,
 )
@@ -64,14 +64,14 @@ def save_script_to_local_storage(
     job_id: UUID,
     script: str,
     filename: str,
-    kind: Literal["data_integration", "automation", "analysis"]
+    kind: Literal["data_integration", "pipeline", "analysis"]
 ) -> Path:
 
     if kind == "data_integration":
         parent_dir = DATA_INTEGRATION_SCRIPTS_SAVE_DIR / \
             f"{user_id}" / f"{job_id}"
-    elif kind == "automation":
-        parent_dir = AUTOMATION_SCRIPTS_SAVE_DIR / \
+    elif kind == "pipeline":
+        parent_dir = PIPELINE_SCRIPTS_SAVE_DIR / \
             f"{user_id}" / f"{job_id}"
     elif kind == "analysis":
         parent_dir = ANALYSIS_SCRIPTS_SAVE_DIR / \

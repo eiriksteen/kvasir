@@ -64,7 +64,7 @@ export default function AnalysisInfoModal({ analysis, isSelected, onClick, isMod
                                             </div>
                                             <div className="flex items-center gap-2 text-zinc-400">
                                                 <Bot size={14} className="text-purple-400" />
-                                                <span className="text-xs">{analysis.numberOfAutomations} Automations</span>
+                                                <span className="text-xs">{analysis.numberOfPipelines} Pipelines</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-zinc-400">
                                                 <FileText size={14} className="text-purple-400" />
@@ -155,7 +155,7 @@ export default function AnalysisInfoModal({ analysis, isSelected, onClick, isMod
                                 </div>
                                 <div className="flex items-center gap-2 text-zinc-400">
                                     <Bot size={14} className="text-purple-400" />
-                                    <span className="text-xs">{analysis.numberOfAutomations} Automations</span>
+                                    <span className="text-xs">{analysis.numberOfPipelines} Pipelines</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-zinc-400">
                                     <FileText size={14} className="text-purple-400" />

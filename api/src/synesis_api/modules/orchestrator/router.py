@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from typing import Annotated, List
+
 from synesis_api.modules.orchestrator.schema import (
     ChatMessage,
     UserChatMessageCreate,
@@ -22,10 +23,12 @@ from synesis_api.modules.orchestrator.service import (
     get_conversation_by_id,
     update_conversation_name,
 )
-from synesis_api.agents.chat.agent import chatbot_agent, OrchestratorOutput
+from synesis_api.agents.chat.agent import chatbot_agent
+from synesis_api.agents.chat.output import OrchestratorOutput
 from synesis_api.auth.service import get_current_user, user_owns_conversation
 from synesis_api.auth.schema import User
 from synesis_api.agents.data_integration.data_integration_agent.runner import run_data_integration_task
+from synesis_api.agents.pipeline.runner import run_pipeline_task
 from synesis_api.modules.runs.service import create_run
 
 
@@ -56,11 +59,11 @@ async def post_chat(
     context_message = await get_context_message(user.id, prompt.context)
 
     orchestrator_run = await chatbot_agent.run(
-        f"The user prompt is: '{prompt.content}'. "
-        "Decide whether to launch an agent or just respond directly to the prompt. "
-        "If launching an agent, choose between 'analysis', 'data_integration' or 'automation'. If not just choose 'chat'. "
-        "Do not launch any agent if the context is empty, tell the user to add some entities to the context."
-        f"The context is:\n {context_message}",
+        f"The user prompt is: '{prompt.content}'. \n\n" +
+        "Decide whether to launch an agent or just respond directly to the prompt. \n\n" +
+        "If launching an agent, choose between 'analysis', 'data_integration' or 'pipeline'. If not just choose 'chat'. \n\n" +
+        "Do not launch any agent if the context is empty, tell the user to add some entities to the context.\n\n" +
+        f"The context is:\n\n{context_message}",
         message_history=messages, output_type=OrchestratorOutput)
 
     handoff_agent = orchestrator_run.output.handoff_agent
@@ -77,7 +80,7 @@ async def post_chat(
         )
 
         context_in_db = None
-        if prompt.context and len(prompt.context.data_source_ids) + len(prompt.context.dataset_ids) + len(prompt.context.automation_ids) + len(prompt.context.analysis_ids) > 0:
+        if prompt.context and len(prompt.context.data_source_ids) + len(prompt.context.dataset_ids) + len(prompt.context.pipeline_ids) + len(prompt.context.analysis_ids) > 0:
             context_in_db = await create_context(prompt.context)
 
             response_message.context_id = context_in_db.id
@@ -102,33 +105,47 @@ async def post_chat(
         await create_chat_message(conversation_record.id, "assistant", response_message.content, response_message.context_id, response_message.id)
         await create_chat_message_pydantic(conversation_record.id, [orchestrator_run.new_messages_json(), result.new_messages_json()])
 
-        if handoff_agent == "analysis":
-            raise HTTPException(
-                status_code=501, detail="Analysis is not implemented yet")
+        if handoff_agent != "chat":
 
-        elif handoff_agent == "data_integration":
+            if handoff_agent == "analysis":
+                raise HTTPException(
+                    status_code=501, detail="Analysis is not implemented yet")
 
             run = await create_run(
                 conversation_record.id,
                 user.id,
-                "data_integration",
+                handoff_agent,
                 run_name=orchestrator_run.output.run_name
             )
 
-            await run_data_integration_task.kiq(
-                user_id=user.id,
-                conversation_id=conversation_record.id,
-                project_id=conversation_record.project_id,
-                run_id=run.id,
-                data_source_ids=prompt.context.data_source_ids,
-                prompt_content=prompt.content
-            )
+            if handoff_agent == "data_integration":
+
+                await run_data_integration_task.kiq(
+                    user_id=user.id,
+                    project_id=conversation_record.project_id,
+                    run_id=run.id,
+                    conversation_id=conversation_record.id,
+                    data_source_ids=prompt.context.data_source_ids,
+                    prompt_content=prompt.content
+                )
+
+            elif handoff_agent == "pipeline":
+
+                await run_pipeline_task.kiq(
+                    user_id=user.id,
+                    project_id=conversation_record.project_id,
+                    run_id=run.id,
+                    conversation_id=conversation_record.id,
+                    prompt_content=prompt.content
+                )
 
         if is_new_conversation:
-            name = await chatbot_agent.run(f"""The user wants to start a new conversation. The user has written this: {prompt.content}.
-                                        What is the name of the conversation? Just give me the name of the conversation, no other text.
-                                        NB: Do not output a response to the prompt, that is done elsewhere! Just produce a suitable topic name given the prompt.
-                                        """, output_type=str)
+            name = await chatbot_agent.run(
+                f"The user wants to start a new conversation. The user has written this: '{prompt.content}'.\n\n" +
+                "What is the name of the conversation? Just give me the name of the conversation, no other text.\n\n" +
+                "NB: Do not output a response to the prompt, that is done elsewhere! Just produce a suitable topic name given the prompt.",
+                output_type=str
+            )
             name = name.output.replace('"', '').replace("'", "").strip()
 
             await update_conversation_name(conversation_record.id, name)

@@ -37,6 +37,8 @@ export const useTimeSeriesData = (timeSeriesId: UUID, options: TimeSeriesDataOpt
     () => fetchTimeSeriesRawData(session ? session.APIToken.accessToken : "", timeSeriesId, options.startDate, options.endDate),
   );
 
+  console.log(timeSeriesData);
+
   // TODO: Implement pagination-like fetching to vary the start and end date
 
   return {

@@ -2,20 +2,20 @@ from typing import List, Literal, Optional
 from uuid import UUID, uuid4
 from sqlalchemy import select, insert, update, delete, func
 from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_api.modules.node.models import node, data_source_node, dataset_node, analysis_node, automation_node
+from synesis_api.modules.node.models import node, data_source_node, dataset_node, analysis_node, pipeline_node
 from synesis_api.modules.node.schema import FrontendNode, FrontendNodeCreate
 
 
 BASE_X_POSITIONS = {
     "data_source": 0,
-    "dataset": 400,
-    "analysis": 800,
-    "automation": 1200
+    "dataset": 200,
+    "analysis": 400,
+    "pipeline": 600
 }
 VERTICAL_SPACING = 100
 
 
-async def _create_node_position(project_id: UUID, node_type: Literal["data_source", "dataset", "analysis", "automation"]):
+async def _create_node_position(project_id: UUID, node_type: Literal["data_source", "dataset", "analysis", "pipeline"]):
     max_y_position = await fetch_one(select(func.max(node.c.y_position).label("max_y")).where(node.c.project_id == project_id, node.c.type == node_type))
 
     if max_y_position and max_y_position["max_y"] is not None:
@@ -61,10 +61,10 @@ async def create_node(frontend_node: FrontendNodeCreate) -> FrontendNode:
             id=id,
             analysis_id=frontend_node.analysis_id
         )
-    elif frontend_node.type == "automation":
-        specific_node_query = insert(automation_node).values(
+    elif frontend_node.type == "pipeline":
+        specific_node_query = insert(pipeline_node).values(
             id=id,
-            automation_id=frontend_node.automation_id
+            pipeline_id=frontend_node.pipeline_id
         )
 
     await execute(specific_node_query, commit_after=True)
@@ -79,7 +79,7 @@ async def create_node(frontend_node: FrontendNodeCreate) -> FrontendNode:
         data_source_id=frontend_node.data_source_id,
         dataset_id=frontend_node.dataset_id,
         analysis_id=frontend_node.analysis_id,
-        automation_id=frontend_node.automation_id
+        pipeline_id=frontend_node.pipeline_id
     )
 
 
@@ -104,7 +104,7 @@ async def get_node(node_id: UUID) -> Optional[FrontendNode]:
             data_source_id=data_source_row["data_source_id"],
             dataset_id=None,
             analysis_id=None,
-            automation_id=None
+            pipeline_id=None
         )
 
     # Check if it's a dataset node
@@ -119,7 +119,7 @@ async def get_node(node_id: UUID) -> Optional[FrontendNode]:
             type="dataset",
             dataset_id=dataset_row["dataset_id"],
             analysis_id=None,
-            automation_id=None
+            pipeline_id=None
         )
 
     # Check if it's an analysis node
@@ -134,23 +134,23 @@ async def get_node(node_id: UUID) -> Optional[FrontendNode]:
             type="analysis",
             dataset_id=None,
             analysis_id=analysis_row["analysis_id"],
-            automation_id=None
+            pipeline_id=None
         )
 
-    # Check if it's an automation node
-    automation_query = select(automation_node).where(
-        automation_node.c.id == node_id)
-    automation_row = await fetch_one(automation_query)
-    if automation_row:
+    # Check if it's an pipeline node
+    pipeline_query = select(pipeline_node).where(
+        pipeline_node.c.id == node_id)
+    pipeline_row = await fetch_one(pipeline_query)
+    if pipeline_row:
         return FrontendNode(
             id=node_row["id"],
             project_id=node_row["project_id"],
             x_position=node_row["x_position"],
             y_position=node_row["y_position"],
-            type="automation",
+            type="pipeline",
             dataset_id=None,
             analysis_id=None,
-            automation_id=automation_row["automation_id"]
+            pipeline_id=pipeline_row["pipeline_id"]
         )
 
     return None
@@ -177,7 +177,7 @@ async def get_project_nodes(project_id: UUID) -> List[FrontendNode]:
                 data_source_id=data_source_row["data_source_id"],
                 dataset_id=None,
                 analysis_id=None,
-                automation_id=None
+                pipeline_id=None
             ))
             continue
 
@@ -193,7 +193,7 @@ async def get_project_nodes(project_id: UUID) -> List[FrontendNode]:
                 type="dataset",
                 dataset_id=dataset_row["dataset_id"],
                 analysis_id=None,
-                automation_id=None
+                pipeline_id=None
             ))
             continue
 
@@ -209,23 +209,23 @@ async def get_project_nodes(project_id: UUID) -> List[FrontendNode]:
                 type="analysis",
                 dataset_id=None,
                 analysis_id=analysis_row["analysis_id"],
-                automation_id=None
+                pipeline_id=None
             ))
             continue
 
-        automation_query = select(automation_node).where(
-            automation_node.c.id == node_row["id"])
-        automation_row = await fetch_one(automation_query)
-        if automation_row:
+        pipeline_query = select(pipeline_node).where(
+            pipeline_node.c.id == node_row["id"])
+        pipeline_row = await fetch_one(pipeline_query)
+        if pipeline_row:
             result.append(FrontendNode(
                 id=node_row["id"],
                 project_id=node_row["project_id"],
                 x_position=node_row["x_position"],
                 y_position=node_row["y_position"],
-                type="automation",
+                type="pipeline",
                 dataset_id=None,
                 analysis_id=None,
-                automation_id=automation_row["automation_id"]
+                pipeline_id=pipeline_row["pipeline_id"]
             ))
             continue
 
@@ -257,9 +257,9 @@ async def delete_node(node_id: UUID) -> bool:
     analysis_query = delete(analysis_node).where(analysis_node.c.id == node_id)
     await execute(analysis_query, commit_after=True)
 
-    automation_query = delete(automation_node).where(
-        automation_node.c.id == node_id)
-    await execute(automation_query, commit_after=True)
+    pipeline_query = delete(pipeline_node).where(
+        pipeline_node.c.id == node_id)
+    await execute(pipeline_query, commit_after=True)
 
     # Then delete from the base node table
     query = delete(node).where(node.c.id == node_id)

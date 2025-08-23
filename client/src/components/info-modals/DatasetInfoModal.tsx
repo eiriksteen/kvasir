@@ -7,7 +7,7 @@ import { UUID } from 'crypto';
 
 
 interface DatasetInfoModalProps {
-  datasetId: string;
+  datasetId: UUID;
   onClose: () => void;
 }   
 

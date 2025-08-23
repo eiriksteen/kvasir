@@ -7,7 +7,8 @@ interface RunBoxProps {
   runId: UUID;
 }
 
-const getRunTheme = (type: 'data_integration' | 'analysis' | 'automation') => {
+const getRunTheme = (type: 'data_integration' | 'analysis' | 'pipeline' | 'swe') => {
+
 switch (type) {
     case 'data_integration':
     return {
@@ -31,7 +32,8 @@ switch (type) {
         statusBorder: 'border-purple-400/30',
         hover: 'hover:bg-purple-500/10 cursor-pointer',
     };
-    case 'automation':
+    case 'pipeline':
+    case 'swe':
     return {
         bg: 'bg-orange-500/5',
         border: 'border border-orange-400/30',

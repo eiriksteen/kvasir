@@ -8,9 +8,10 @@ import { useProjects, useProject } from '@/hooks';
 import { redirect, useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { Project } from '@/types/project';
+import { UUID } from 'crypto';
 
 interface UserHeaderProps {
-	projectId: string | undefined;
+	projectId: UUID | undefined;
 } 
 
 export default function UserHeader({ projectId }: UserHeaderProps) {

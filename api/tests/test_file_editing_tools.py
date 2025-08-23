@@ -1,4 +1,4 @@
-from synesis_api.utils import (
+from synesis_api.utils.code_utils import (
     add_lines_to_script_at_line,
     add_line_numbers_to_script,
     remove_line_numbers_from_script,

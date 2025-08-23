@@ -81,14 +81,14 @@ dataset_context = Table(
 )
 
 
-automation_context = Table(
-    "automation_context",
+pipeline_context = Table(
+    "pipeline_context",
     metadata,
     Column("context_id", UUID(as_uuid=True),
            ForeignKey("orchestrator.chat_context.id"), nullable=False),
-    Column("automation_id", UUID(as_uuid=True),
-           ForeignKey("automation.automation.id"), nullable=False),
-    PrimaryKeyConstraint("context_id", "automation_id"),
+    Column("pipeline_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline.id"), nullable=False),
+    PrimaryKeyConstraint("context_id", "pipeline_id"),
     schema="orchestrator"
 )
 

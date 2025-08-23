@@ -1,6 +1,6 @@
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
-import { Model } from "@/types/automation";
+import { Model } from "@/types/pipeline";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 

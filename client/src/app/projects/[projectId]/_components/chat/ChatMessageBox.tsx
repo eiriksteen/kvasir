@@ -15,7 +15,7 @@ const ChatMessageBox = memo(({ message }: { message: ChatMessage }) => {
   const hasContext = message.context && (
     message.context.datasetIds?.length > 0 || 
     message.context.analysisIds?.length > 0 || 
-    message.context.automationIds?.length > 0
+    message.context.pipelineIds?.length > 0
   );
 
   // Different styling based on message type
@@ -65,13 +65,13 @@ const ChatMessageBox = memo(({ message }: { message: ChatMessage }) => {
               ))} */}
               
               {/* Automations */}
-              {message.context?.automationIds?.map((automationId: string) => (
+              {message.context?.pipelineIds?.map((pipelineId: string) => (
                 <div 
-                  key={automationId}
+                  key={pipelineId}
                   className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-orange-900/50 text-orange-200"
                 >
                   <Zap size={10} />
-                  Automation {automationId.slice(0, 6)}
+                  Pipeline {pipelineId.slice(0, 6)}
                 </div>
               ))}
             </div>

@@ -1,13 +1,21 @@
 import { Run } from "@/types/runs";
 
 
-export interface Automation {
+export interface Pipeline {
   id: string;
   name: string;
   description: string;
   createdAt: string;
   updatedAt: string;
 } 
+
+export interface Function {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface Modality {
   id: string;

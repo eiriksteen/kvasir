@@ -9,7 +9,7 @@ from synesis_api.modules.analysis.router import router as analysis_router
 from synesis_api.modules.data_objects.router import router as ontology_router
 from synesis_api.modules.project.router import router as project_router
 from synesis_api.modules.node.router import router as node_router
-from synesis_api.modules.automation.router import router as automation_router
+from synesis_api.modules.pipeline.router import router as pipeline_router
 from synesis_api.modules.runs.router import router as runs_router
 
 
@@ -19,12 +19,14 @@ async def lifespan(app: FastAPI):
     yield
     await broker.shutdown()
 
+
 app = FastAPI(
     title="Synesis API",
     description="Synesis API",
     version="1.0.0",
     lifespan=lifespan
 )
+
 
 # Configure CORS
 app.add_middleware(
@@ -41,7 +43,6 @@ app.include_router(orchestrator_router,
                    tags=["Orchestrator"])
 
 
-# Include routers
 app.include_router(auth_router,
                    prefix="/auth",
                    tags=["Authentication"])
@@ -72,9 +73,9 @@ app.include_router(node_router,
                    tags=["Node"])
 
 
-app.include_router(automation_router,
-                   prefix="/automation",
-                   tags=["Automation"])
+app.include_router(pipeline_router,
+                   prefix="/pipeline",
+                   tags=["Pipeline"])
 
 
 app.include_router(runs_router,

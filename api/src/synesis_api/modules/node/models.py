@@ -47,13 +47,13 @@ analysis_node = Table(
     schema="node"
 )
 
-# Automation node table
-automation_node = Table(
-    "automation_node",
+# Pipeline node table
+pipeline_node = Table(
+    "pipeline_node",
     metadata,
     Column("id", UUID(as_uuid=True), ForeignKey(
         "node.node.id"), primary_key=True),
-    Column("automation_id", UUID(as_uuid=True), ForeignKey(
-        "automation.automation.id"), nullable=False),
+    Column("pipeline_id", UUID(as_uuid=True), ForeignKey(
+        "pipeline.pipeline.id"), nullable=False),
     schema="node"
 )

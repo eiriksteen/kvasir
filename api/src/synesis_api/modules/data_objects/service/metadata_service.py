@@ -44,7 +44,7 @@ from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID
 )
 from synesis_api.storage.local import save_dataframe_to_local_storage
-from synesis_api.utils import determine_sampling_frequency, determine_timezone
+from synesis_api.utils.time_series_utils import determine_sampling_frequency, determine_timezone
 
 
 async def create_features(
@@ -501,10 +501,8 @@ async def get_user_datasets_by_ids(
 async def get_object_groups(dataset_id: uuid.UUID) -> ObjectGroupsWithListsInDataset:
     """Get all object groups in a dataset"""
 
-    # Get the object group
-    object_group_query = select(object_group, feature_in_group).where(
-        and_(object_group.c.dataset_id == dataset_id)
-    )
+    object_group_query = select(object_group).where(
+        object_group.c.dataset_id == dataset_id)
     object_groups_result = await fetch_all(object_group_query)
 
     object_groups = [ObjectGroupInDB(**group)

@@ -35,14 +35,14 @@ class DataIntegrationRunner:
     def __init__(
             self,
             user_id: str,
-            conversation_id: uuid.UUID,
             project_id: uuid.UUID,
+            conversation_id: uuid.UUID,
             run_id: uuid.UUID | None = None):
 
         self.data_integration_agent = data_integration_agent
         self.user_id = user_id
-        self.conversation_id = conversation_id
         self.project_id = project_id
+        self.conversation_id = conversation_id
         self.run_id = run_id
         self.dataset_name = None
         self.redis_stream = get_redis()
@@ -59,7 +59,6 @@ class DataIntegrationRunner:
             "role": "agent",
             "content": content,
             "run_id": str(self.run_id),
-            "conversation_id": str(self.conversation_id),
             "type": message_type,
             "created_at": datetime.now(timezone.utc).isoformat()
         }
@@ -105,8 +104,9 @@ class DataIntegrationRunner:
             self.run_id = uuid.uuid4()
             dataset_name = await self._create_dataset_name(prompt_content)
             await create_run(
+                self.conversation_id,
                 self.user_id,
-                "integration",
+                "data_integration",
                 run_id=self.run_id,
                 run_name=dataset_name
             )
@@ -175,17 +175,17 @@ class DataIntegrationRunner:
 @broker.task(retry_on_error=False)
 async def run_data_integration_task(
         user_id: uuid.UUID,
-        conversation_id: uuid.UUID,
         project_id: uuid.UUID,
         run_id: uuid.UUID,
+        conversation_id: uuid.UUID,
         data_source_ids: List[uuid.UUID],
         prompt_content: str):
 
     runner = DataIntegrationRunner(
         user_id,
-        conversation_id,
         project_id,
-        run_id
+        conversation_id,
+        run_id,
     )
 
     result = await runner(data_source_ids=data_source_ids, prompt_content=prompt_content)

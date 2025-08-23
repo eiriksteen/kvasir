@@ -15,10 +15,11 @@ from synesis_api.modules.data_objects.models import (
 from synesis_api.secrets import DEFAULT_TIME_SERIES_PAYLOAD_LEN
 from synesis_api.modules.data_objects.schema import TimeSeriesFullWithRawData
 from synesis_api.modules.data_objects.service.metadata_service import feature_metadata_to_df
-from synesis_api.utils import timezone_str_to_tz_info
+from synesis_api.utils.time_series_utils import timezone_str_to_tz_info
 
 
 from synesis_data_structures.time_series.serialization import serialize_dataframes_to_api_payloads
+from synesis_data_structures.time_series.df_dataclasses import TimeSeriesStructure
 from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_DATA_SECOND_LEVEL_ID,
     FEATURE_INFORMATION_SECOND_LEVEL_ID,
@@ -31,6 +32,10 @@ from synesis_data_structures.time_series.definitions import (
 # Functions to:
 # - get raw data (combined with metadata) payload to send it to the client
 # - combine stored raw parquet with metadata to prepare parquet files to be sent to processing units
+
+
+async def get_time_series_group_dfs_by_id(group_id: UUID) -> TimeSeriesStructure:
+    pass
 
 
 # TODO: This is inefficient, shouldn't load the whole dataframe

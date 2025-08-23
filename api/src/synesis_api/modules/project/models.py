@@ -56,12 +56,13 @@ project_analysis = Table(
 )
 
 
-project_automation = Table(
-    "project_automation",
+project_pipeline = Table(
+    "project_pipeline",
     metadata,
     Column("project_id", UUID(as_uuid=True), ForeignKey(
         "project.project.id"), nullable=False),
-    Column("automation_id", UUID(as_uuid=True), nullable=False),
-    PrimaryKeyConstraint("project_id", "automation_id"),
+    Column("pipeline_id", UUID(as_uuid=True), ForeignKey(
+        "pipeline.pipeline.id"), nullable=False),
+    PrimaryKeyConstraint("project_id", "pipeline_id"),
     schema="project"
 )

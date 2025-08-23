@@ -1,6 +1,6 @@
 import re
 from pydantic_ai import RunContext, ModelRetry
-from synesis_api.utils import (
+from synesis_api.utils.code_utils import (
     add_line_numbers_to_script,
     replace_lines_in_script,
     add_lines_to_script_at_line,

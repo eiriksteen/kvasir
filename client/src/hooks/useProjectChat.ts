@@ -2,14 +2,15 @@ import useSWR from "swr";
 import { ChatMessage, Prompt, Context } from "@/types/orchestrator";
 import { useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
-import { useAgentContext } from './useAgentContext';
+import { useAgentContext } from '@/hooks/useAgentContext';
 import { Dataset } from '@/types/data-objects';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 import { v4 as uuidv4 } from 'uuid';
 import { UUID } from "crypto";
 import { DataSource } from "@/types/data-sources";
-import { useConversations } from "./useConversations";
+import { useConversations } from "@/hooks/useConversations";
 import { SSE } from 'sse.js';
+import { Pipeline } from "@/types/pipeline";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -42,7 +43,6 @@ function createOrchestratorEventSource(token: string, prompt: Prompt): SSE {
   });
 }
 
-
 export const useConversationMessages = (conversationId: UUID | null) => {
   const { data: session } = useSession();
 
@@ -71,7 +71,7 @@ export const useConversationMessages = (conversationId: UUID | null) => {
 export const useProjectChat = (projectId: UUID) => {
   const { data: session } = useSession();
   const { conversations, createConversation, mutateConversations } = useConversations();
-  const { dataSourcesInContext, datasetsInContext, analysesInContext } = useAgentContext(projectId);
+  const { dataSourcesInContext, datasetsInContext, analysesInContext, pipelinesInContext } = useAgentContext(projectId);
 
   const { data: projectConversationId, mutate: setProjectConversationId } = useSWR(
     session ? ["project-conversation-id", projectId] : null, {fallbackData: null}
@@ -101,7 +101,7 @@ export const useProjectChat = (projectId: UUID) => {
       const context: Context = {
         dataSourceIds: dataSourcesInContext?.map((dataSource: DataSource) => dataSource.id) || [],
         datasetIds: datasetsInContext?.map((dataset: Dataset) => dataset.id) || [],
-        automationIds: [],
+        pipelineIds: pipelinesInContext?.map((pipeline: Pipeline) => pipeline.id) || [],
         analysisIds: analysesInContext?.map((analysis: AnalysisJobResultMetadata) => analysis.jobId) || [],
       };
 
@@ -155,6 +155,7 @@ export const useProjectChat = (projectId: UUID) => {
     dataSourcesInContext, 
     datasetsInContext, 
     analysesInContext, 
+    pipelinesInContext,
     conversationMessages, 
     projectConversationId, 
     projectId,

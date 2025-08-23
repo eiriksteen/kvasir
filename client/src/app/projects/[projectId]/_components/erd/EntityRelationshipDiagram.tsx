@@ -12,7 +12,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useProject } from '@/hooks/useProject';
-import { useDatasets, useAnalysis } from '@/hooks';
+import { useDatasets, useAnalysis, usePipelines } from '@/hooks';
 // import DataVisualizer from '@/components/data-visualization/DataVisualizer';
 // import AnalysisItem from '@/components/analysis/AnalysisItem';
 import { FrontendNode } from '@/types/node';
@@ -26,6 +26,8 @@ import FileInfoModal from '@/components/info-modals/FileInfoModal';
 import { Dataset } from '@/types/data-objects';
 import DatasetInfoModal from '@/components/info-modals/DatasetInfoModal';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
+import PipelineBox from '@/app/projects/[projectId]/_components/erd/PipelineBox';
+import { Pipeline } from '@/types/pipeline';
 
 const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradientClass: string; onClick: () => void } }) => (
   <DataSourceBox 
@@ -51,10 +53,18 @@ const AnalysisNodeWrapper = ({ data }: { data: { analysis: AnalysisJobResultMeta
   />
 );
 
+const PipelineNodeWrapper = ({ data }: { data: { pipeline: Pipeline; onClick: () => void } }) => (
+  <PipelineBox 
+    pipeline={data.pipeline} 
+    onClick={data.onClick} 
+  />
+);
+
 const nodeTypes = {
   dataset: DatasetNodeWrapper,
   analysis: AnalysisNodeWrapper,
   dataSource: DataSourceNodeWrapper,
+  pipeline: PipelineNodeWrapper,
 };
 
 const edgeTypes: EdgeTypes = {
@@ -69,6 +79,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
   const { project, frontendNodes, updatePosition } = useProject(projectId);
   const { dataSources } = useDataSources();
   const { datasets } = useDatasets();
+  const { pipelines } = usePipelines();
   const { analysisJobResults } = useAnalysis();
   // const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
   const [selectedDataSource, setSelectedDataSource] = useState<DataSource | null>(null);
@@ -78,7 +89,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
 
   // Memoize nodes
   const memoizedNodes = useMemo(() => {
-    if (!project || !datasets || !analysisJobResults || !dataSources) {
+    if (!project || !datasets || !analysisJobResults || !dataSources || !pipelines) {
       return [];
     }
 
@@ -114,6 +125,23 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       } as Node;
     });
 
+    const pipelineNodes = frontendNodes.map((frontendNode: FrontendNode) => {
+
+      const pipeline = pipelines.filter(p => project.pipelineIds.includes(p.id)).find(p => p.id === frontendNode.pipelineId);
+      if (!pipeline) return null;
+      return {
+        id: frontendNode.id,
+        type: 'pipeline',
+        position: { x: frontendNode.xPosition, y: frontendNode.yPosition },
+        data: {
+          label: pipeline.name,
+          id: frontendNode.pipelineId,
+          pipeline: pipeline,
+          onClick: () => {} // TODO: Implement pipeline modal when available
+        },
+      } as Node;
+    });
+
     const analysisNodes = frontendNodes.map((frontendNode: FrontendNode) => {
       const analysis = analysisJobResults.filter(a => project.analysisIds.includes(a.jobId)).find(a => a.jobId === frontendNode.analysisId);
       if (!analysis) return null;
@@ -130,9 +158,9 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       } as Node;
     });
 
-    return [...datasetNodes.filter(Boolean), ...analysisNodes.filter(Boolean), ...dataSourceNodes.filter(Boolean)] as Node[];
+    return [...datasetNodes.filter(Boolean), ...analysisNodes.filter(Boolean), ...dataSourceNodes.filter(Boolean), ...pipelineNodes.filter(Boolean)] as Node[];
 
-  }, [project, datasets, analysisJobResults, frontendNodes, dataSources]);
+  }, [project, datasets, analysisJobResults, frontendNodes, dataSources, pipelines]);
 
   // Memoize edges
   const memoizedEdges = useMemo(() => {

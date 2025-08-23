@@ -20,10 +20,10 @@ export interface AnalysisJobResultMetadata {
     jobId: string;
     name: string;
     datasetIds: string[];
-    automationIds: string[];
+    pipelineIds: string[];
     analysisPlan: AnalysisPlan;
     numberOfDatasets: number;
-    numberOfAutomations: number;
+    numberOfPipelines: number;
     createdAt: string;
     pdfCreated: boolean;
     statusMessages: AnalysisStatusMessage[];
@@ -33,7 +33,7 @@ export interface AnalysisRequest {
     projectId: string;
     datasetIds: string[];
     analysisIds: string[];
-    automationIds: string[];
+    pipelineIds: string[];
     prompt: string | null;
     conversationId: string;
 }

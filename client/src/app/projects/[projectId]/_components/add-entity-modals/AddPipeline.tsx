@@ -4,12 +4,12 @@ import { useEffect } from 'react';
 import { X } from 'lucide-react';
 
 
-interface AddAutomationProps {
+interface AddPipelineProps {
   onClose: () => void;
   projectId: string;
 }
 
-export default function AddAutomation({ onClose, projectId }: AddAutomationProps) {
+export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -39,7 +39,7 @@ export default function AddAutomation({ onClose, projectId }: AddAutomationProps
 
         <div className="flex flex-col h-full">
           <div className="p-4">
-            <h3 className="text-xs font-mono uppercase tracking-wider text-gray-400">Add Automation</h3>
+            <h3 className="text-xs font-mono uppercase tracking-wider text-gray-400">Add Pipeline</h3>
           </div>
 
         </div>

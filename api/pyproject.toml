@@ -53,7 +53,9 @@ dependencies = [
     "docker",
     "pylint",
     "taskiq",
-    "taskiq-redis"
+    "taskiq-redis",
+    "pgvector",
+    "google-generativeai"
 ]
 
 [tool.setuptools]

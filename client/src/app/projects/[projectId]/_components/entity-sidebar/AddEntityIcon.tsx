@@ -3,7 +3,7 @@ import React from 'react';
 
 import { Database, Plus, BarChart3, Zap, Folder } from 'lucide-react';
 
-type ItemType = 'dataset' | 'analysis' | 'automation' | 'data_source';
+type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source';
 
 // Component for merged concept + plus icons
 export default function AddEntityIcon({ type, size = 13 }: { type: ItemType; size?: number }) {
@@ -37,7 +37,7 @@ export default function AddEntityIcon({ type, size = 13 }: { type: ItemType; siz
                         </div>
                     </div>
                 );
-            case 'automation':
+            case 'pipeline':
                 return (
                     <div className="relative overflow-visible">
                         <Zap size={size} />

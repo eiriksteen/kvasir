@@ -11,9 +11,10 @@ class RunInDB(BaseSchema):
     id: uuid.UUID
     user_id: uuid.UUID
     conversation_id: uuid.UUID
-    type: Literal["data_integration", "analysis", "automation"]
+    type: Literal["data_integration", "analysis", "pipeline", "swe"]
     status: str
     started_at: datetime
+    parent_run_id: Optional[uuid.UUID] = None
     completed_at: Optional[datetime] = None
     run_name: Optional[str] = None
 

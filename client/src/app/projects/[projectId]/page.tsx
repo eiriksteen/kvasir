@@ -2,11 +2,12 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import ProjectContainer from "@/app/projects/[projectId]/container";
+import { UUID } from "crypto";
 
 
 interface ProjectPageProps {
   params: Promise<{
-    projectId: string;
+    projectId: UUID;
   }>;
 }
 
@@ -15,7 +16,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const { projectId } = await params;
 
   if (!session) {
-    redirect('/login');
+    redirect("/login");
   }
 
   return (

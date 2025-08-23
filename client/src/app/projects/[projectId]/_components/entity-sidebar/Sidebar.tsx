@@ -4,8 +4,7 @@ import React from 'react';
 import { useState, useMemo } from 'react';
 import { Database, ChevronLeft, ChevronRight, BarChart3, Zap, Folder } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
-import { Automation } from '@/types/automation';
-import { useAgentContext, useDatasets, useProject } from '@/hooks';
+import { useAgentContext, useDatasets, usePipelines, useProject } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
@@ -18,7 +17,8 @@ import AddEntityIcon from '@/app/projects/[projectId]/_components/entity-sidebar
 import EntityOverviewItem from '@/app/projects/[projectId]/_components/entity-sidebar/EntityOverviewItem';
 import { UUID } from 'crypto';
 import AddDataset from '@/app/projects/[projectId]/_components/add-entity-modals/AddDataset';
-import AddAutomation from '@/app/projects/[projectId]/_components/add-entity-modals/AddAutomation';
+import AddPipeline from '@/app/projects/[projectId]/_components/add-entity-modals/AddPipeline';
+import { Pipeline } from '@/types/pipeline';
 
 interface EntitySidebarProps {
     projectId: UUID;
@@ -29,11 +29,11 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
     const [showAddDataSourceToProject, setShowAddDataSourceToProject] = useState(false);
     const [showAddAnalysis, setShowAddAnalysis] = useState(false);
     const [showAddDatasetToProject, setShowAddDatasetToProject] = useState(false);
-    const [showAddAutomation, setShowAddAutomation] = useState(false);
+    const [showAddPipeline, setShowAddPipeline] = useState(false);
     const [expandedSections, setExpandedSections] = useState({
         datasets: false,
         analysis: false,
-        automations: false,
+        pipelines: false,
         data_sources: false
     });
     const { data: session } = useSession();
@@ -47,7 +47,10 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
         removeDatasetFromContext,
         analysesInContext,
         addAnalysisToContext,
-        removeAnalysisFromContext
+        removeAnalysisFromContext,
+        pipelinesInContext,
+        addPipelineToContext,
+        removePipelineFromContext
     } = useAgentContext(projectId);  
 
     if (!session) {
@@ -56,7 +59,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
 
     const { datasets } = useDatasets();
     const { dataSources } = useDataSources();
-    const automations: Automation[] = [];
+    const { pipelines } = usePipelines();
     // const { analysisJobResults } = useAnalysis();
 
     const filteredDataSources = useMemo(() => {
@@ -75,12 +78,12 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
 
     const filteredAnalysis: AnalysisJobResultMetadata[] = []
 
-    const filteredAutomations = useMemo(() => {
-        if (!project || !automations) return [];
-        return automations.filter(automation => 
-            project.automationIds.includes(automation.id)
+    const filteredPipelines = useMemo(() => {
+        if (!project || !pipelines) return [];
+        return pipelines.filter(pipeline => 
+            project.pipelineIds.includes(pipeline.id)
         );
-    }, [project, automations]);
+    }, [project, pipelines]);
 
     const toggleSection = (section: keyof typeof expandedSections) => {
         setExpandedSections(prev => ({
@@ -113,6 +116,16 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
             removeAnalysisFromContext(analysis);
         } else {
             addAnalysisToContext(analysis);
+        }
+    };
+
+    const handlePipelineToggle = (pipeline: Pipeline) => {
+
+        const isActive = pipelinesInContext.some((p: Pipeline) => p.id === pipeline.id);
+        if (isActive) {
+            removePipelineFromContext(pipeline);
+        } else {
+            addPipelineToContext(pipeline);
         }
     };
 
@@ -225,27 +238,27 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                     {/* Automations Section */}
                     <div className="border-b border-gray-800">
                         <EntityOverviewItem
-                            title="Automations"
-                            count={filteredAutomations.length}
+                            title="Pipelines"
+                            count={filteredPipelines.length}
                             color="orange"
-                            onToggle={() => toggleSection('automations')}
-                            onAdd={() => setShowAddAutomation(true)}
+                            onToggle={() => toggleSection('pipelines')}
+                            onAdd={() => setShowAddPipeline(true)}
                         />
-                        {expandedSections.automations && (
+                        {expandedSections.pipelines && (
                             <div className="bg-orange-500/5 border-l-2 border-orange-500/20">
-                                {filteredAutomations.map((automation) => (
+                                {filteredPipelines.map((pipeline) => (
                                     <EntityItem
-                                        key={automation.id}
-                                        item={automation}
-                                        type="automation"
-                                        isInContext={false}
-                                        onClick={() => {}}
+                                        key={pipeline.id}
+                                        item={pipeline}
+                                        type="pipeline"
+                                        isInContext={pipelinesInContext.some((p: Pipeline) => p.id === pipeline.id)}
+                                        onClick={() => handlePipelineToggle(pipeline)}
                                     />
                                 ))}
-                                {filteredAutomations.length === 0 && (
+                                {filteredPipelines.length === 0 && (
                                     <div className="px-3 py-4 text-center">
                                         <Zap size={16} className="text-orange-400/40 mx-auto mb-2" />
-                                        <p className="text-xs text-gray-500">No automations</p>
+                                        <p className="text-xs text-gray-500">No pipelines</p>
                                     </div>
                                 )}
                             </div>
@@ -296,11 +309,11 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                 <AddEntityIcon type="analysis" size={14} />
                             </button>
                             <button
-                                onClick={() => setShowAddAutomation(true)}
+                                onClick={() => setShowAddPipeline(true)}
                                 className="p-2 rounded-md text-orange-400 hover:text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 hover:border-orange-500/40 transition-all duration-200 hover:scale-105"
-                                title="Add Automation"
+                                title="Add Pipeline"
                             >
-                                <AddEntityIcon type="automation" size={14} />
+                                <AddEntityIcon type="pipeline" size={14} />
                             </button>
                         </div>
                         
@@ -333,8 +346,8 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                 projectId={projectId}
             />}
 
-            {showAddAutomation && <AddAutomation
-                onClose={() => setShowAddAutomation(false)}
+            {showAddPipeline && <AddPipeline
+                onClose={() => setShowAddPipeline(false)}
                 projectId={projectId}
             />}
         </div>

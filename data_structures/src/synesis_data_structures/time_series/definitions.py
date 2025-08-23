@@ -1,5 +1,6 @@
 # Dataframe Definitions
 
+import pandas as pd
 from dataclasses import dataclass
 from typing import List, Dict
 
@@ -16,10 +17,10 @@ class DataStructureDefinition:
 FEATURE_INFORMATION_SECOND_LEVEL_ID = "feature_information"
 
 
-# Structure descriptions - separated for readability
+# Structure descriptions
 TIME_SERIES_DATA_SECOND_LEVEL_ID = "time_series_data"
 TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID = "time_series_entity_metadata"
-TIME_SERIES_DESCRIPTION = f"""## Purpose and Use Cases
+TIME_SERIES_DESCRIPTION = f"""# Purpose and Use Cases
 The Time Series DataFrame structure is designed for representing time-varying data from multiple entities (sensors, objects, systems, etc.) in a unified format. Some examples this structure is ideal for:
 
 - **IoT Sensor Data**: Temperature, humidity, pressure readings from multiple sensors over time
@@ -32,7 +33,7 @@ The Time Series DataFrame structure is designed for representing time-varying da
 
 The structure supports varying time series lengths per entity, making it flexible for real-world scenarios where different entities may have different observation periods or sampling frequencies. 
 
-## Data Structure
+# Data Structure
 
 ## Time-Varying Data
 - Second level ID identifying this dataframe: {TIME_SERIES_DATA_SECOND_LEVEL_ID}
@@ -71,6 +72,22 @@ The structure supports varying time series lengths per entity, making it flexibl
   - category_id: If the feature is categorical, the category id to map the integer to the label, else pd.NA
 - Missing Values: pd.NA
 - Naming convention: snake_case
+
+# Access in your code
+
+Note: This is mainly relevant for accessing existing datasets. When creating a new one, the prompt will tell you the desired output.
+
+The time-varying data, entity metadata, and feature information together encompass a time series group. 
+The following dataclass will be defined for you, and it lets you access the dataframes in a group.
+If you need to access the definition, you can import it with 'from synesis_data_structures.time_series.df_dataclasses import TimeSeriesStructure'.
+
+@dataclass
+class TimeSeriesStructure:
+    {TIME_SERIES_DATA_SECOND_LEVEL_ID}: pd.DataFrame
+    {TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID}: Optional[pd.DataFrame] = None
+    {FEATURE_INFORMATION_SECOND_LEVEL_ID}: Optional[pd.DataFrame] = None
+
+If relevant, the name(s) of the instantiated TimeSeriesStructure(s) will be provided to you, so you can access the data in your code. 
 """
 
 TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID = "time_series_aggregation_outputs"
@@ -136,6 +153,23 @@ The aggregation structure allows for flexible time window definitions and can ha
   - category_id: If the feature is categorical, the category id to map the integer to the label, else pd.NA
 - Missing Values: pd.NA
 - Naming convention: snake_case
+
+# Access in your code
+
+Note: This is mainly relevant for accessing existing datasets. When creating a new one, the prompt will tell you the desired output.
+
+The aggregation outputs, inputs, aggregation metadata, and feature information together encompass a time series aggregation group. 
+The following dataclass will be defined for you, and it lets you access the dataframes in a group.
+If you need to access the definition, you can import it with 'from synesis_data_structures.time_series.df_dataclasses import TimeSeriesAggregationStructure'.
+
+@dataclass
+class TimeSeriesAggregationStructure:
+    {TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID}: pd.DataFrame
+    {TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID}: pd.DataFrame
+    {TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID}: Optional[pd.DataFrame] = None
+    {FEATURE_INFORMATION_SECOND_LEVEL_ID}: Optional[pd.DataFrame] = None
+
+If relevant, the name(s) of the instantiated TimeSeriesAggregationStructure(s) will be provided to you, so you can access the data in your code. 
 """
 
 TIME_SERIES_STRUCTURE = DataStructureDefinition(
@@ -161,6 +195,7 @@ DATA_STRUCTURES = [
     TIME_SERIES_STRUCTURE,
     TIME_SERIES_AGGREGATION_STRUCTURE
 ]
+
 
 # Helper functions
 

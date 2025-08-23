@@ -3,7 +3,7 @@ import { UUID } from "crypto";
 export type Context = {
     dataSourceIds: UUID[];
     datasetIds: UUID[];
-    automationIds: UUID[];
+    pipelineIds: UUID[];
     analysisIds: UUID[];
 }
 

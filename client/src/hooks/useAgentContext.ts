@@ -1,4 +1,4 @@
-import { Automation } from "@/types/automation";
+import { Pipeline } from "@/types/pipeline";
 import { Dataset } from "@/types/data-objects";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
@@ -10,7 +10,7 @@ import { UUID } from "crypto";
 // Do this to avoid "possibly undefined" type errors
 const emptyDataSourcesInContext: DataSource[] = [];
 const emptyDatasetsInContext: Dataset[] = [];
-const emptyAutomationsInContext: Automation[] = [];
+const emptyPipelinesInContext: Pipeline[] = [];
 const emptyAnalysisesInContext: AnalysisJobResultMetadata[] = [];
 
 
@@ -18,7 +18,7 @@ export const useAgentContext = (projectId: UUID) => {
   
   const { data: dataSourcesInContext } = useSWR(["dataSourcesInContext", projectId], { fallbackData: emptyDataSourcesInContext });
   const { data: datasetsInContext } = useSWR(["datasetsInContext", projectId], { fallbackData: emptyDatasetsInContext });
-  const { data: automationsInContext } = useSWR(["automationsInContext", projectId], { fallbackData: emptyAutomationsInContext });
+  const { data: pipelinesInContext } = useSWR(["pipelinesInContext", projectId], { fallbackData: emptyPipelinesInContext });
   const { data: analysesInContext } = useSWR(["analysisesInContext", projectId], { fallbackData: emptyAnalysisesInContext });
 
   const { trigger: addDataSourceToContext } = useSWRMutation(["dataSourcesInContext", projectId],
@@ -67,23 +67,23 @@ export const useAgentContext = (projectId: UUID) => {
     }
   );
 
-  const { trigger: addAutomationToContext } = useSWRMutation(["automationsInContext", projectId],
-    async (_, { arg }: { arg: Automation }) => {
+  const { trigger: addPipelineToContext } = useSWRMutation(["pipelinesInContext", projectId],
+    async (_, { arg }: { arg: Pipeline }) => {
       return arg;
     },
     {
-      populateCache: (newData: Automation) => ([...(automationsInContext || []), newData])
+      populateCache: (newData: Pipeline) => ([...(pipelinesInContext || []), newData])
     }
   );
 
-  const { trigger: removeAutomationFromContext } = useSWRMutation(["automationsInContext", projectId],
-    async (_, { arg }: { arg: Automation }) => {
+  const { trigger: removePipelineFromContext } = useSWRMutation(["pipelinesInContext", projectId],
+    async (_, { arg }: { arg: Pipeline }) => {
       return arg;
     },
     {
-      populateCache: (newData: Automation) => {
-        if (automationsInContext) {
-          return automationsInContext.filter((a: Automation) => a.id !== newData.id);
+      populateCache: (newData: Pipeline) => {
+        if (pipelinesInContext) {
+          return pipelinesInContext.filter((a: Pipeline) => a.id !== newData.id);
         }
         return [];
       }
@@ -122,14 +122,14 @@ export const useAgentContext = (projectId: UUID) => {
   return {
     dataSourcesInContext,
     datasetsInContext,
-    automationsInContext,
+    pipelinesInContext,
     analysesInContext,
     addDataSourceToContext,
     removeDataSourceFromContext,
     addDatasetToContext,
     removeDatasetFromContext,
-    addAutomationToContext,
-    removeAutomationFromContext,
+    addPipelineToContext,
+    removePipelineFromContext,
     addAnalysisToContext,
     removeAnalysisFromContext
   };

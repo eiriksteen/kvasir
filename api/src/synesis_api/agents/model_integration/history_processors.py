@@ -2,7 +2,7 @@ import copy
 from pydantic_ai import RunContext, Agent
 from pydantic_ai.messages import ModelMessage, ModelResponse, ModelRequest, ToolCallPart, ToolReturnPart, SystemPromptPart, RetryPromptPart
 from synesis_api.agents.model_integration.deps import ModelIntegrationDeps
-from synesis_api.utils import get_model
+from synesis_api.utils.pydanticai_utils import get_model
 
 
 def get_last_script_message_index(messages: list[ModelMessage]) -> int:

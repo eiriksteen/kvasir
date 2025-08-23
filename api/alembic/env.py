@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 # Import all models to ensure they register with metadata
 from synesis_api.auth.models import users, user_api_keys
 from synesis_api.modules.data_sources.models import (
-    data_source, file_data_source,
+    data_source, file_data_source, tabular_file_data_source,
     data_source_group, data_source_in_group, subgroup,
     feature_in_tabular_file
 )
@@ -25,17 +25,17 @@ from synesis_api.modules.data_objects.models import (
 )
 from synesis_api.modules.orchestrator.models import (
     chat_message, chat_pydantic_message, conversation,
-    chat_context, dataset_context, automation_context, analysis_context,
+    chat_context, dataset_context, pipeline_context, analysis_context,
     data_source_context
 )
-from synesis_api.modules.automation.models import (
-    automation, function, function_input_structure, function_output_structure,
+from synesis_api.modules.pipeline.models import (
+    pipeline, function, function_input, function_output, function_in_pipeline,
     data_object_computed_from_function, modality, task, source,
     programming_language, programming_language_version, model, model_task
 )
-from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
-from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_automation, project_data_source
-from synesis_api.modules.node.models import node, dataset_node, analysis_node, automation_node
+from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_pipelines, analysis_status_messages
+from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_pipeline, project_data_source
+from synesis_api.modules.node.models import node, dataset_node, analysis_node, pipeline_node
 from synesis_api.secrets import DATABASE_URL
 from synesis_api.database.core import metadata
 
@@ -43,7 +43,7 @@ from alembic import context
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
-config = chat_context.config
+config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -56,6 +56,7 @@ __all__ = [
     user_api_keys,
     data_source,
     file_data_source,
+    tabular_file_data_source,
     run,
     run_message,
     run_pydantic_message,
@@ -79,21 +80,21 @@ __all__ = [
     time_series_aggregation_input,
     analysis_jobs_results,
     analysis_jobs_datasets,
-    analysis_jobs_automations,
+    analysis_jobs_pipelines,
     analysis_status_messages,
     chat_message,
     chat_pydantic_message,
     conversation,
     chat_context,
     dataset_context,
-    automation_context,
+    pipeline_context,
     analysis_context,
     data_source_context,
-    run_in_conversation,
-    automation,
+    pipeline,
     function,
-    function_input_structure,
-    function_output_structure,
+    function_input,
+    function_output,
+    function_in_pipeline,
     data_object_computed_from_function,
     modality,
     task,
@@ -105,12 +106,12 @@ __all__ = [
     project,
     project_dataset,
     project_analysis,
-    project_automation,
+    project_pipeline,
     project_data_source,
     node,
     dataset_node,
     analysis_node,
-    automation_node,
+    pipeline_node,
 ]
 
 # add your model's MetaData object here
@@ -122,7 +123,7 @@ target_metadata = metadata
 
 def include_name(name, type_, parent_names):
     if type_ == "schema":
-        return name in ["public", "auth", "data_sources", "runs", "data_objects", "analysis", "orchestrator", "automation", "project", "node"]
+        return name in ["public", "auth", "data_sources", "runs", "data_objects", "analysis", "orchestrator", "pipeline", "project", "node"]
     else:
         return True
 
@@ -147,7 +148,7 @@ def run_migrations_offline() -> None:
 
     """
     url = config.get_main_option("sqlalchemy.url")
-    chat_context.configure(
+    context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
@@ -156,20 +157,20 @@ def run_migrations_offline() -> None:
         include_name=include_name
     )
 
-    with chat_context.begin_transaction():
-        chat_context.run_migrations()
+    with context.begin_transaction():
+        context.run_migrations()
 
 
 def do_run_migrations(connection: Connection) -> None:
-    chat_context.configure(
+    context.configure(
         connection=connection,
         target_metadata=target_metadata,
         include_schemas=True,
         include_name=include_name
     )
 
-    with chat_context.begin_transaction():
-        chat_context.run_migrations()
+    with context.begin_transaction():
+        context.run_migrations()
 
 
 async def run_async_migrations() -> None:
@@ -196,7 +197,7 @@ def run_migrations_online() -> None:
     asyncio.run(run_async_migrations())
 
 
-if chat_context.is_offline_mode():
+if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
