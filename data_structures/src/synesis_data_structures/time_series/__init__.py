@@ -9,6 +9,19 @@ from .schema import (
     TimeSeriesAggregation
 )
 
+from .df_dataclasses import (
+    TimeSeriesStructure,
+    TimeSeriesAggregationStructure
+)
+
+from .validation import (
+    validate_dfs_structure
+)
+
+from .synthetic import (
+    generate_synthetic_data
+)
+
 from .definitions import (
     get_first_level_structure_ids,
     get_second_level_structure_ids,
@@ -26,6 +39,16 @@ __all__ = [
     # Schema classes
     "TimeSeries",
     "TimeSeriesAggregation",
+
+    # Dataclasses
+    "TimeSeriesStructure",
+    "TimeSeriesAggregationStructure",
+
+    # Validation functions
+    "validate_dfs_structure",
+
+    # Synthetic data functions
+    "generate_synthetic_data",
 
     # Definition functions
     "get_first_level_structure_ids",

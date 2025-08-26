@@ -1,7 +1,8 @@
 import re
-import tempfile
+import json
 import sys
 import asyncio
+import tempfile
 from pathlib import Path
 from typing import Tuple, Optional
 from pylint import lint
@@ -204,9 +205,6 @@ def delete_lines_from_script(
 
 
 def run_pylint(code_string: str) -> str:
-    """
-    Lints a string of Python code and returns the Pylint output.
-    """
     with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".py") as temp_file:
         temp_file.write(code_string)
         temp_file_path = temp_file.name
@@ -226,10 +224,6 @@ def run_pylint(code_string: str) -> str:
 
 
 def remove_print_statements_from_code(code: str) -> str:
-    """
-    Remove print statements from a string of code.
-    Handles various print statement formats including multi-line and empty prints.
-    """
     # Pattern to match print statements with their arguments and closing parenthesis
     # This handles: print(), print("hello"), print("hello", end=""), etc.
     pattern = r'print\s*\([^)]*\)'

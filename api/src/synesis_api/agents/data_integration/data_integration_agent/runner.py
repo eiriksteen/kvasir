@@ -1,4 +1,5 @@
 import uuid
+import json
 from pathlib import Path
 from typing import Optional, List, Literal
 from datetime import datetime, timezone
@@ -21,7 +22,7 @@ from synesis_api.agents.data_integration.data_integration_agent.agent import (
     DataIntegrationAgentDeps,
     DataIntegrationAgentOutputWithDatasetId
 )
-from synesis_api.agents.chat.agent import chatbot_agent
+from synesis_api.agents.orchestrator.agent import orchestrator_agent
 from synesis_api.worker import broker, logger
 from synesis_api.redis import get_redis
 from synesis_api.storage.local import save_script_to_local_storage
@@ -76,7 +77,7 @@ class DataIntegrationRunner:
         if self.dataset_name is not None:
             raise RuntimeError("Dataset name already created")
 
-        name = await chatbot_agent.run(
+        name = await orchestrator_agent.run(
             f"Give me a nice human-readable name for a dataset with the following description: '{data_description}'. The name should be short and concise. Output just the name!"
         )
         self.dataset_name = name.output
@@ -135,7 +136,7 @@ class DataIntegrationRunner:
                                     logger.info(
                                         f"Integration agent tool call: {message}")
                                     # print(event.part.args)
-                                    explanation = event.part.args[
+                                    explanation = json.loads(event.part.args)[
                                         "explanation"] if "explanation" in event.part.args else "Understanding dataset requirements"
                                     await self._log_message_to_redis(explanation, "tool_call", write_to_db=True)
 

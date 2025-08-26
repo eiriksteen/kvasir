@@ -24,6 +24,9 @@ pipeline = Table(
            ForeignKey("auth.users.id"),
            nullable=False),
     Column("name", String, nullable=False),
+    # "periodic", "on_demand", or "on_event"
+    Column("schedule", String, nullable=False),
+    Column("cron_schedule", String, nullable=True),
     Column("description", String, nullable=True),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
@@ -33,6 +36,28 @@ pipeline = Table(
     schema="pipeline"
 )
 
+
+pipeline_periodic_schedule = Table(
+    "pipeline_periodic_schedule",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           default=uuid.uuid4,
+           primary_key=True),
+    Column("pipeline_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline.id"),
+           nullable=False),
+    Column("start_time", DateTime(timezone=True), nullable=False),
+    Column("end_time", DateTime(timezone=True), nullable=True),
+    Column("cron_schedule", String, nullable=True),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="pipeline"
+)
+
+# TODO: pipeline_on_event_schedule
 
 function = Table(
     "function",
@@ -44,7 +69,8 @@ function = Table(
     Column("description", String, nullable=False),
     Column("embedding", Vector(dim=EMBEDDING_DIM), nullable=False),
     Column("implementation_script_path", String, nullable=False),
-    Column("setup_script_path", String, nullable=False),
+    Column("setup_script_path", String, nullable=True),
+    Column("default_config", JSONB, nullable=True),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
@@ -53,13 +79,13 @@ function = Table(
     schema="pipeline"
 )
 
-
 function_input = Table(
     "function_input",
     metadata,
     Column("id", UUID(as_uuid=True),
            default=uuid.uuid4,
            primary_key=True),
+    Column("position", Integer, nullable=False),
     Column("function_id", UUID(as_uuid=True),
            ForeignKey("pipeline.function.id"),
            nullable=False),
@@ -85,6 +111,7 @@ function_output = Table(
     Column("id", UUID(as_uuid=True),
            default=uuid.uuid4,
            primary_key=True),
+    Column("position", Integer, nullable=False),
     Column("function_id", UUID(as_uuid=True),
            ForeignKey("pipeline.function.id"),
            nullable=False),
@@ -114,30 +141,8 @@ function_in_pipeline = Table(
     Column("function_id", UUID(as_uuid=True),
            ForeignKey("pipeline.function.id"),
            nullable=False),
-    Column("next_function_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.function.id"),
-           nullable=True),
-    Column("created_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc), nullable=False),
-    Column("updated_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc),
-           onupdate=datetime.now(timezone.utc), nullable=False),
-    schema="pipeline"
-)
-
-
-data_object_computed_from_function = Table(
-    "data_object_computed_from_function",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           default=uuid.uuid4,
-           primary_key=True),
-    Column("data_object_id", UUID(as_uuid=True),
-           ForeignKey("data_objects.data_object.id"),
-           nullable=False),
-    Column("function_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.function.id"),
-           nullable=False),
+    Column("position", Integer, nullable=False),
+    Column("config", JSONB, nullable=True),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
@@ -256,12 +261,11 @@ model = Table(
            ForeignKey("pipeline.programming_language_version.id"),
            nullable=False),
     Column("setup_script_path", String, nullable=False),
-    Column("config_script_path", String, nullable=False),
     Column("input_description", String, nullable=False),
     Column("output_description", String, nullable=False),
     # TODO: Should have a separate table to define config parameters
     # Very nice to unify the treatment of config parameters for reusability and systemization
-    Column("config_parameters", JSONB, nullable=False),
+    Column("config_parameters", JSONB, nullable=True),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),

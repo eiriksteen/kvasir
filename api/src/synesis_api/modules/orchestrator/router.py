@@ -23,8 +23,8 @@ from synesis_api.modules.orchestrator.service import (
     get_conversation_by_id,
     update_conversation_name,
 )
-from synesis_api.agents.chat.agent import chatbot_agent
-from synesis_api.agents.chat.output import OrchestratorOutput
+from synesis_api.agents.orchestrator.agent import orchestrator_agent
+from synesis_api.agents.orchestrator.output import OrchestratorOutput
 from synesis_api.auth.service import get_current_user, user_owns_conversation
 from synesis_api.auth.schema import User
 from synesis_api.agents.data_integration.data_integration_agent.runner import run_data_integration_task
@@ -58,7 +58,7 @@ async def post_chat(
     # One option is to keep the full entity objects just for the current context, and collapse to the IDs and names for the past ones
     context_message = await get_context_message(user.id, prompt.context)
 
-    orchestrator_run = await chatbot_agent.run(
+    orchestrator_run = await orchestrator_agent.run(
         f"The user prompt is: '{prompt.content}'. \n\n" +
         "Decide whether to launch an agent or just respond directly to the prompt. \n\n" +
         "If launching an agent, choose between 'analysis', 'data_integration' or 'pipeline'. If not just choose 'chat'. \n\n" +
@@ -85,7 +85,7 @@ async def post_chat(
 
             response_message.context_id = context_in_db.id
 
-        async with chatbot_agent.run_stream(
+        async with orchestrator_agent.run_stream(
             "Now respond to the user! If you launched an agent, explain what you did. If not, just respond directly to the user prompt.",
             message_history=messages+orchestrator_run.new_messages()
         ) as result:
@@ -140,7 +140,7 @@ async def post_chat(
                 )
 
         if is_new_conversation:
-            name = await chatbot_agent.run(
+            name = await orchestrator_agent.run(
                 f"The user wants to start a new conversation. The user has written this: '{prompt.content}'.\n\n" +
                 "What is the name of the conversation? Just give me the name of the conversation, no other text.\n\n" +
                 "NB: Do not output a response to the prompt, that is done elsewhere! Just produce a suitable topic name given the prompt.",

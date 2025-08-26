@@ -30,7 +30,7 @@ from synesis_api.modules.orchestrator.models import (
 )
 from synesis_api.modules.pipeline.models import (
     pipeline, function, function_input, function_output, function_in_pipeline,
-    data_object_computed_from_function, modality, task, source,
+    modality, task, source,
     programming_language, programming_language_version, model, model_task
 )
 from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_pipelines, analysis_status_messages
@@ -95,7 +95,7 @@ __all__ = [
     function_input,
     function_output,
     function_in_pipeline,
-    data_object_computed_from_function,
+
     modality,
     task,
     source,

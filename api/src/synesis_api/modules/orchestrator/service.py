@@ -29,6 +29,7 @@ from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.data_objects.service.metadata_service import get_user_datasets_by_ids
 from synesis_api.modules.analysis.service import get_user_analyses_by_ids
 from synesis_api.modules.data_sources.service import get_data_sources_by_ids
+from synesis_api.modules.pipeline.service import get_user_pipelines_by_ids
 
 
 async def create_conversation(
@@ -263,10 +264,9 @@ async def create_context(
 
 
 async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
-    datasets = await get_user_datasets_by_ids(user_id, context.dataset_ids)
+    datasets = await get_user_datasets_by_ids(user_id, context.dataset_ids, max_features=20)
     data_sources = await get_data_sources_by_ids(context.data_source_ids)
-    # await get_user_pipelines_by_ids(context.user_id, context.pipeline_ids)
-    pipelines = []
+    pipelines = await get_user_pipelines_by_ids(user_id, context.pipeline_ids)
     analyses = await get_user_analyses_by_ids(user_id, context.analysis_ids)
 
     context_message = f"""

@@ -1,6 +1,6 @@
 from uuid import UUID
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Literal
 from synesis_api.base_schema import BaseSchema
 
 
@@ -10,6 +10,8 @@ class PipelineInDB(BaseSchema):
     id: UUID
     user_id: UUID
     name: str
+    schedule: Literal["periodic", "on_demand", "on_event"]
+    cron_schedule: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     description: Optional[str] = None
@@ -19,15 +21,17 @@ class FunctionInDB(BaseSchema):
     id: UUID
     name: str
     implementation_script_path: str
-    setup_script_path: str
     created_at: datetime
     updated_at: datetime
     description: str
     embedding: List[float]
+    setup_script_path: Optional[str] = None
+    default_config: Optional[dict] = None
 
 
 class FunctionInputInDB(BaseSchema):
     id: UUID
+    position: int
     function_id: UUID
     structure_id: str
     name: str
@@ -39,6 +43,7 @@ class FunctionInputInDB(BaseSchema):
 
 class FunctionOutputInDB(BaseSchema):
     id: UUID
+    position: int
     function_id: UUID
     structure_id: str
     name: str
@@ -51,9 +56,10 @@ class FunctionInPipelineInDB(BaseSchema):
     id: UUID
     pipeline_id: UUID
     function_id: UUID
-    next_function_id: Optional[UUID] = None
+    position: int
     created_at: datetime
     updated_at: datetime
+    config: Optional[dict] = None
 
 
 class DataObjectComputedFromFunctionInDB(BaseSchema):
@@ -114,7 +120,6 @@ class ModelInDB(BaseSchema):
     source_id: UUID
     programming_language_version_id: UUID
     setup_script_path: str
-    config_script_path: str
     input_description: str
     output_description: str
     config_parameters: Dict[str, Any]
@@ -160,9 +165,14 @@ class FunctionWithoutEmbedding(BaseSchema):
     id: UUID
     name: str
     implementation_script_path: str
-    setup_script_path: str
     created_at: datetime
     updated_at: datetime
     description: str
     inputs: List[FunctionInputInDB]
     outputs: List[FunctionOutputInDB]
+    setup_script_path: Optional[str] = None
+    default_config: Optional[dict] = None
+
+
+class PipelineWithFunctions(PipelineInDB):
+    functions: List[FunctionWithoutEmbedding]

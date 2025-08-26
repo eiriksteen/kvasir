@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
-import { Pipeline } from "@/types/pipeline";
+import { Pipeline, PipelineWithFunctions } from "@/types/pipeline";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -22,9 +22,27 @@ async function fetchPipelines(token: string): Promise<Pipeline[]> {
   return data;
 }
 
+async function fetchPipeline(token: string, pipelineId: string): Promise<PipelineWithFunctions> {
+  const response = await fetch(`${API_URL}/pipeline/user-pipeline/${pipelineId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch pipeline', errorText);
+    throw new Error(`Failed to fetch pipeline: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data;
+}
+
 export const usePipelines = () => {
   const { data: session } = useSession();
-  const { data: pipelines, mutate: mutatePipelines, error, isLoading } = useSWR(
+  const { data: pipelines, mutate: mutatePipelines, error, isLoading } = useSWR<Pipeline[]>(
     session ? "pipelines" : null, 
     () => fetchPipelines(session ? session.APIToken.accessToken : ""),
     {
@@ -42,3 +60,18 @@ export const usePipelines = () => {
   };
 }; 
 
+
+export const usePipeline = (pipelineId: string) => {
+  const { data: session } = useSession();
+
+  const { data: pipeline, isLoading: isLoadingPipeline, error: errorPipeline } = useSWR<PipelineWithFunctions>(
+    pipelineId ? `pipeline-${pipelineId}` : null,
+    () => fetchPipeline(session ? session.APIToken.accessToken : "", pipelineId),
+  );
+
+  return {
+    pipeline,
+    isLoading: isLoadingPipeline,
+    isError: errorPipeline,
+  };
+};

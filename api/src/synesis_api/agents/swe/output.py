@@ -1,3 +1,4 @@
+import ast
 from typing import List, Optional
 from pydantic_ai import RunContext, ModelRetry
 
@@ -19,17 +20,23 @@ class SetupAgentOutputWithScript(SetupAgentOutput):
     script: str
 
 
+class ConfigOutput(BaseSchema):
+    config_dict: dict
+
+
 class ImplementationOutput(BaseSchema):
     code_explanation: str
 
 
-class ImplementationOutputWithScript(ImplementationOutput):
+class ImplementationOutputWithScriptAndArgOrder(ImplementationOutput):
     script: str
+    args_ordered: List[str]
 
 
 class SWEAgentOutput(BaseSchema):
-    setup: SetupAgentOutputWithScript
-    implementation: ImplementationOutputWithScript
+    implementation: ImplementationOutputWithScriptAndArgOrder
+    setup: Optional[SetupAgentOutputWithScript] = None
+    config: Optional[ConfigOutput] = None
     plan: Optional[PlanningOutput] = None
 
 
@@ -44,8 +51,12 @@ async def submit_setup_output(ctx: RunContext[SWEAgentDeps], result: SetupAgentO
     Returns:
         SetupOutput: The setup output.
     """
-    if not ctx.deps.current_script:
+    if not ctx.deps.current_scripts[ctx.deps.current_file_name]:
         raise ModelRetry("No script written")
+
+    if ctx.deps.current_file_name != "setup.sh":
+        raise ModelRetry(
+            f"The current script is not the setup script, it must be named 'setup.sh'! The current script is {ctx.deps.current_file_name}")
 
     check_output, _ = await run_shell_code_in_container(
         f"pyenv versions | grep {result.python_version}",
@@ -72,7 +83,8 @@ async def submit_setup_output(ctx: RunContext[SWEAgentDeps], result: SetupAgentO
     if err:
         raise ModelRetry(f"Error setting global python version: {err}")
 
-    script = remove_line_numbers_from_script(ctx.deps.current_script)
+    script = remove_line_numbers_from_script(
+        ctx.deps.current_scripts[ctx.deps.current_file_name])
 
     if not script.strip().startswith('#!/bin/bash') and not script.strip().startswith('#!/usr/bin/env bash'):
         raise ModelRetry(
@@ -99,14 +111,34 @@ async def submit_setup_output(ctx: RunContext[SWEAgentDeps], result: SetupAgentO
     )
 
 
-async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], result: ImplementationOutput) -> ImplementationOutputWithScript:
+async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], result: ImplementationOutput) -> ImplementationOutputWithScriptAndArgOrder:
 
-    if not ctx.deps.current_script:
+    if not ctx.deps.current_scripts[ctx.deps.current_file_name]:
         raise ModelRetry("No script written")
 
-    script = remove_line_numbers_from_script(ctx.deps.current_script)
+    if ctx.deps.current_file_name != "implementation.py":
+        raise ModelRetry(
+            f"The current script is not the implementation script, it must be named 'implementation.py'! The current script is {ctx.deps.current_file_name}")
+
+    script = remove_line_numbers_from_script(
+        ctx.deps.current_scripts[ctx.deps.current_file_name])
+
+    try:
+        fn_named_run_found = False
+        for node in ast.walk(ast.parse(script)):
+            if isinstance(node, ast.FunctionDef) and node.name == "run":
+                args = [arg.arg for arg in node.args.args]
+                fn_named_run_found = True
+                break
+    except Exception as e:
+        raise ModelRetry(
+            f"Error parsing the implementation script: {e}")
+
+    if not fn_named_run_found:
+        raise ModelRetry(
+            "No function named 'run' found in the implementation script")
 
     for func in ctx.deps.implementation_validation_fns:
-        result = await func(ctx, script)
+        await func(ctx, script)
 
-    return ImplementationOutputWithScript(**result.model_dump(), script=script)
+    return ImplementationOutputWithScriptAndArgOrder(**result.model_dump(), script=script, args_ordered=args)

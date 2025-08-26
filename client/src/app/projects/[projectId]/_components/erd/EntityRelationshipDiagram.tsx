@@ -28,6 +28,7 @@ import DatasetInfoModal from '@/components/info-modals/DatasetInfoModal';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 import PipelineBox from '@/app/projects/[projectId]/_components/erd/PipelineBox';
 import { Pipeline } from '@/types/pipeline';
+import PipelineInfoModal from '@/components/info-modals/PipelineInfoModal';
 
 const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradientClass: string; onClick: () => void } }) => (
   <DataSourceBox 
@@ -84,6 +85,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
   // const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
   const [selectedDataSource, setSelectedDataSource] = useState<DataSource | null>(null);
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null);
+  const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
@@ -137,7 +139,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
           label: pipeline.name,
           id: frontendNode.pipelineId,
           pipeline: pipeline,
-          onClick: () => {} // TODO: Implement pipeline modal when available
+          onClick: () => setSelectedPipeline(pipeline)
         },
       } as Node;
     });
@@ -229,6 +231,10 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     setSelectedDataSource(null);
   }, []);
 
+  const handleClosePipelineModal = useCallback(() => {
+    setSelectedPipeline(null);
+  }, []);
+
   return (
     <div className="w-full h-screen">
       <ReactFlow
@@ -255,6 +261,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       {/* {renderModal()} */}
       {selectedDataSource && <FileInfoModal dataSourceId={selectedDataSource.id} onClose={handleCloseDataSourceModal} />}
       {selectedDataset && <DatasetInfoModal datasetId={selectedDataset.id} onClose={handleCloseDatasetModal} />}
+      {selectedPipeline && <PipelineInfoModal pipelineId={selectedPipeline.id} onClose={handleClosePipelineModal} />}
       {/* TODO: Add AnalysisInfoModal when available */}
     </div>
   );

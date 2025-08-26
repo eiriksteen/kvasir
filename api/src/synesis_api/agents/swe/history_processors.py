@@ -6,27 +6,38 @@ from synesis_api.agents.swe.deps import SWEAgentDeps
 from synesis_api.utils.pydanticai_utils import get_model
 
 
-def get_last_script_message_index(messages: list[ModelMessage]) -> int:
+def get_last_script_message_index(messages: list[ModelMessage]) -> dict[str, int]:
     """
     Find the index of the last message containing a script modification tool call.
     Returns the index of the ToolCallPart message, not the ToolReturnPart.
     Returns -1 if no script modification is found.
     """
-    script_tools = [
-        "write_script",
-        "replace_script_lines",
-        "add_script_lines",
-        "delete_script_lines"
-    ]
+    # script_tools = [
+    #     "write_script",
+    #     "replace_script_lines",
+    #     "add_script_lines",
+    #     "delete_script_lines"
+    # ]
+
+    last_idx_per_script = {}
 
     for i in range(len(messages) - 1, -1, -1):
         message = messages[i]
-        if isinstance(message, ModelResponse):
-            for part in message.parts:
-                if isinstance(part, ToolCallPart) and part.tool_name in script_tools:
-                    return i
 
-    return -1
+        # if isinstance(message, ModelResponse):
+        #     for part in message.parts:
+        #         if isinstance(part, ToolCallPart) and part.tool_name in script_tools:
+        #             return i
+        if isinstance(message, ModelRequest):
+            for part in message.parts:
+                if isinstance(part, ToolReturnPart):
+                    if "<begin_script>" in part.content:
+                        script_name = part.content.split(
+                            "file_name=")[1].split(">")[0]
+                        if not script_name in last_idx_per_script:
+                            last_idx_per_script[script_name] = i
+
+    return last_idx_per_script
 
 
 async def keep_only_most_recent_script(
@@ -35,9 +46,9 @@ async def keep_only_most_recent_script(
     """
     Keep only the most recent script in the history.
     """
-    last_script_index = get_last_script_message_index(messages)
+    last_idx_per_script = get_last_script_message_index(messages)
 
-    if last_script_index == -1:
+    if not last_idx_per_script:
         # No script modifications found, return messages as is
         return messages
 
@@ -52,11 +63,14 @@ async def keep_only_most_recent_script(
         if isinstance(message, ModelRequest):
             for idx, part in enumerate(message.parts):
                 if isinstance(part, ToolReturnPart):
-                    if "<begin_script>" in part.content and original_index < last_script_index:
-                        # This is an older script, omit it
-                        part.content = "Successfully updated the script. The script is not automatically run and validated, you must call the result submission tool to submit the script for validation and feedback."
-                        updated_message.parts[idx] = part
-                        parts_modified = True
+                    if "<begin_script>" in part.content:
+                        script_name = part.content.split(
+                            "file_name=")[1].split(">")[0]
+                        if original_index < last_idx_per_script[script_name]:
+                            # This is an older script, omit it
+                            part.content = "Successfully updated the script. The script is not automatically run and validated, you must call the result submission tool to submit the script for validation and feedback."
+                            updated_message.parts[idx] = part
+                            parts_modified = True
 
         if parts_modified:
             message_to_add = updated_message

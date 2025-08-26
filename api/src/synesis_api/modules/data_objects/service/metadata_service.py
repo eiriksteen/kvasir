@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from sqlalchemy import insert, select, and_
 from fastapi import UploadFile, HTTPException
+
 from synesis_api.modules.data_objects.models import (
     dataset,
     time_series,
@@ -426,6 +427,7 @@ async def get_user_datasets(
 async def get_user_datasets_by_ids(
         user_id: uuid.UUID,
         dataset_ids: List[uuid.UUID] = [],
+        max_features: Optional[int] = None
 ) -> List[DatasetWithObjectGroups]:
     """Get specific datasets for a user by IDs"""
 
@@ -482,9 +484,9 @@ async def get_user_datasets_by_ids(
 
         if primary_object_group:
             # Get features for each group
-            primary_with_features = (await _add_features_to_object_groups([primary_object_group]))[0]
-            annotated_with_features = await _add_features_to_object_groups(annotated_object_groups)
-            computed_with_features = await _add_features_to_object_groups(computed_object_groups)
+            primary_with_features = (await _add_features_to_object_groups([primary_object_group], max_features))[0]
+            annotated_with_features = await _add_features_to_object_groups(annotated_object_groups, max_features)
+            computed_with_features = await _add_features_to_object_groups(computed_object_groups, max_features)
 
             dataset_with_objects = DatasetWithObjectGroups(
                 **dataset_obj.model_dump(),
@@ -586,7 +588,7 @@ async def _add_object_lists_to_object_groups(groups: List[ObjectGroupWithFeature
     return result_records
 
 
-async def _add_features_to_object_groups(groups: List[ObjectGroupInDB]) -> List[ObjectGroupWithFeatures]:
+async def _add_features_to_object_groups(groups: List[ObjectGroupInDB], max_features: Optional[int] = None) -> List[ObjectGroupWithFeatures]:
     """Helper function to get an object group with its features"""
 
     # Get features for this group by joining feature and feature_in_group tables
@@ -608,6 +610,10 @@ async def _add_features_to_object_groups(groups: List[ObjectGroupInDB]) -> List[
     ).where(
         feature_in_group.c.group_id.in_([group.id for group in groups])
     )
+
+    if max_features:
+        features_query = features_query.limit(max_features)
+
     features_result = await fetch_all(features_query)
 
     result_records = []

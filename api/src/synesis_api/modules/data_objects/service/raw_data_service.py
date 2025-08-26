@@ -104,10 +104,17 @@ async def get_time_series_payload_data_by_id(
 
     feature_metadata_df = await feature_metadata_to_df(group_id=ts_metadata["group_id"])
 
-    data_serialized = serialize_dataframes_to_api_payloads(
-        {TIME_SERIES_DATA_SECOND_LEVEL_ID: series,
-         FEATURE_INFORMATION_SECOND_LEVEL_ID: feature_metadata_df},
-        "time_series")[0]
+    # Create TimeSeriesStructure instance
+    from synesis_data_structures.time_series.df_dataclasses import TimeSeriesStructure
+
+    time_series_structure = TimeSeriesStructure(
+        time_series_data=series,
+        time_series_entity_metadata=None,  # Not needed for this use case
+        feature_information=feature_metadata_df
+    )
+
+    data_serialized = serialize_dataframes_to_api_payloads(time_series_structure)[
+        0]
 
     payload = TimeSeriesFullWithRawData(
         **data_serialized.model_dump(),

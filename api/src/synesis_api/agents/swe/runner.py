@@ -10,10 +10,11 @@ from synesis_api.agents.swe.agent import swe_agent
 from synesis_api.agents.swe.output import (
     SWEAgentOutput,
     PlanningOutput,
-    ImplementationOutputWithScript,
+    ImplementationOutputWithScriptAndArgOrder,
     SetupAgentOutputWithScript,
     submit_setup_output,
-    submit_implementation_output
+    submit_implementation_output,
+    ConfigOutput
 )
 from synesis_api.agents.swe.deps import SWEAgentDeps
 from synesis_api.worker import logger
@@ -28,7 +29,8 @@ class SWEAgentRunner:
             user_id: str,
             conversation_id: uuid.UUID,
             parent_run_id: uuid.UUID,
-            log_to_parent_run: bool = True
+            log_to_parent_run: bool = True,
+            implementation_validation_fns: List[Callable] = []
     ):
 
         self.swe_agent = swe_agent
@@ -37,17 +39,26 @@ class SWEAgentRunner:
         self.parent_run_id = parent_run_id
         self.run_id = None
         self.message_history = []
+        self.deps = None
         self.plan_result = None
         self.setup_result = None
+        self.config_result = None
         self.implementation_result = None
         self.container = None
         self.max_tries = SWE_MAX_TRIES
         self.tries = 0
         self.container_name = f"swe-agent-{uuid.uuid4()}"
-        self.base_image = "model-integration-image"
+        self.container_cwd = Path("/app") / self.container_name
+        self.base_image = "swe"
         self.docker_client = docker.from_env()
         self.log_to_parent_run = log_to_parent_run
         self.redis_stream = get_redis()
+
+        self.deps = SWEAgentDeps(
+            cwd=str(self.container_cwd),
+            container_name=self.container_name,
+            implementation_validation_fns=implementation_validation_fns
+        )
 
     async def _log_message_to_redis(
             self,
@@ -86,8 +97,6 @@ class SWEAgentRunner:
         )
 
         self.container.start()
-
-        self.container_cwd = Path("/app") / f"swe-agent-{uuid.uuid4()}"
 
         _, err = await run_shell_code_in_container(
             f"mkdir -p {str(self.container_cwd)}",
@@ -150,18 +159,22 @@ class SWEAgentRunner:
 
     async def _save_results(self):
 
-        assert self.setup_result is not None and self.implementation_result is not None, "Cannot save results before setup and implementation is complete."
+        assert self.implementation_result is not None, "Cannot save results before implementation is complete."
 
         if self.plan_result is not None:
             await create_run_message_pydantic(self.run_id, self.plan_result.new_messages_json())
 
-        await create_run_message_pydantic(self.run_id, self.setup_result.new_messages_json())
+        if self.setup_result is not None:
+            await create_run_message_pydantic(self.run_id, self.setup_result.new_messages_json())
+
+        if self.config_result is not None:
+            await create_run_message_pydantic(self.run_id, self.config_result.new_messages_json())
+
         await create_run_message_pydantic(self.run_id, self.implementation_result.new_messages_json())
 
     async def __call__(
         self,
         prompt_content: str,
-        implementation_validation_fns: List[Callable]
     ) -> SWEAgentOutput:
 
         try:
@@ -178,7 +191,7 @@ class SWEAgentRunner:
 
             swe_prompt = (
                 f"Your instruction is:\n\n'{prompt_content}'\n\n" +
-                "Now choose your action. Create an implementation plan, write the setup script, or the final implementation. " +
+                "Now choose your action. Create an implementation plan, write the setup script, write the config script, or the final implementation. " +
                 "In case you have been provided feedback, choose your action based on it. Only redo the steps deemed necessary by the feedback." +
                 "NB: The setup script must be written and completed before the final implementation."
             )
@@ -193,21 +206,14 @@ class SWEAgentRunner:
 
                 self.tries += 1
 
-                if self.setup_result is None:
-                    # Enforce setup before implementation
-                    output_type = [PlanningOutput, submit_setup_output]
-                else:
-                    output_type = [
-                        PlanningOutput, submit_setup_output, submit_implementation_output]
+                output_type = [
+                    PlanningOutput, submit_setup_output, ConfigOutput, submit_implementation_output
+                ]
 
                 run_result = await self.swe_agent.run(
                     swe_prompt,
                     output_type=output_type,
-                    deps=SWEAgentDeps(
-                        cwd=str(self.container_cwd),
-                        container_name=self.container_name,
-                        implementation_validation_fns=implementation_validation_fns
-                    ),
+                    deps=self.deps,
                     message_history=self.message_history
                 )
 
@@ -216,28 +222,32 @@ class SWEAgentRunner:
                 if isinstance(run_result.output, PlanningOutput):
                     self.plan_result = run_result
                     await self._log_message_to_redis("Plan complete", "result")
-                    print(f"PLAN RESULT: {self.plan_result}")
+                    logger.info(f"Plan result: {self.plan_result}")
+
                 elif isinstance(run_result.output, SetupAgentOutputWithScript):
                     self.setup_result = run_result
-                    print(f"SETUP RESULT: {self.setup_result}")
                     await self._install_python_version(run_result.output.python_version)
                     await self._run_setup_script(run_result.output.script)
                     await self._log_message_to_redis("Setup complete", "result")
-                elif isinstance(run_result.output, ImplementationOutputWithScript):
+                    logger.info(f"Setup result: {self.setup_result}")
+
+                elif isinstance(run_result.output, ConfigOutput):
+                    self.config_result = run_result
+                    await self._log_message_to_redis("Config complete", "result")
+                    logger.info(f"Config result: {self.config_result}")
+
+                elif isinstance(run_result.output, ImplementationOutputWithScriptAndArgOrder):
                     self.implementation_result = run_result
-                    print(
-                        f"IMPLEMENTATION RESULT: {self.implementation_result}")
                     await self._log_message_to_redis(
                         "Implementation complete", "result")
+                    logger.info(
+                        f"Implementation result: {self.implementation_result}")
+
                 else:
                     raise RuntimeError(
                         f"Unrecognized agent return type: {run_result.output}")
 
                 swe_prompt = "Choose your action"
-
-            logger.info(f"PLAN RESULT: {self.plan_result}")
-            logger.info(f"SETUP RESULT: {self.setup_result}")
-            logger.info(f"IMPLEMENTATION RESULT: {self.implementation_result}")
 
             # We only save the run messages as the outputs are dealt with by the caller
             await self._save_results()
@@ -254,6 +264,7 @@ class SWEAgentRunner:
         else:
             return SWEAgentOutput(
                 plan=self.plan_result.output if self.plan_result else None,
-                setup=self.setup_result.output,
+                setup=self.setup_result.output if self.setup_result else None,
+                config=self.config_result.output if self.config_result else None,
                 implementation=self.implementation_result.output
             )

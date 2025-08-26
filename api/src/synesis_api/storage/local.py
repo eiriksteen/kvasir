@@ -61,7 +61,7 @@ def read_dataframe_from_local_storage(
 
 def save_script_to_local_storage(
     user_id: UUID,
-    job_id: UUID,
+    run_id: UUID,
     script: str,
     filename: str,
     kind: Literal["data_integration", "pipeline", "analysis"]
@@ -69,13 +69,13 @@ def save_script_to_local_storage(
 
     if kind == "data_integration":
         parent_dir = DATA_INTEGRATION_SCRIPTS_SAVE_DIR / \
-            f"{user_id}" / f"{job_id}"
+            f"{user_id}" / f"{run_id}"
     elif kind == "pipeline":
         parent_dir = PIPELINE_SCRIPTS_SAVE_DIR / \
-            f"{user_id}" / f"{job_id}"
+            f"{user_id}" / f"{run_id}"
     elif kind == "analysis":
         parent_dir = ANALYSIS_SCRIPTS_SAVE_DIR / \
-            f"{user_id}" / f"{job_id}"
+            f"{user_id}" / f"{run_id}"
 
     parent_dir.mkdir(parents=True, exist_ok=True)
     path = parent_dir / filename

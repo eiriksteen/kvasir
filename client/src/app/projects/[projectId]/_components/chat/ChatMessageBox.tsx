@@ -26,7 +26,7 @@ const ChatMessageBox = memo(({ message }: { message: ChatMessage }) => {
             ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-tr-none' 
             : 'bg-gray-950/40 text-white rounded-tl-none border border-gray-800/50'
         }`,
-        content: `text-sm leading-relaxed ${message.role === 'assistant' ? 'animate-fade-in' : ''}`
+        content: `text-xs leading-relaxed ${message.role === 'assistant' ? 'animate-fade-in' : ''}`
       };
 
   };

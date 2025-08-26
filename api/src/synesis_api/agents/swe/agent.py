@@ -1,4 +1,4 @@
-from pydantic_ai import Agent
+from pydantic_ai import Agent, RunContext
 from pydantic_ai.models import ModelSettings
 
 from synesis_api.agents.swe.prompt import SWE_AGENT_SYSTEM_PROMPT
@@ -8,10 +8,11 @@ from synesis_api.agents.swe.tools import (
     replace_script_lines,
     add_script_lines,
     delete_script_lines,
+    switch_script,
 )
 from synesis_api.agents.swe.history_processors import keep_only_most_recent_script
 from synesis_api.utils.pydanticai_utils import get_model
-from synesis_data_structures.time_series.definitions import get_data_structures_overview, get_data_structure_description
+from synesis_api.secrets import SWE_ENV_DOCKERFILE_PATH
 
 
 model = get_model()
@@ -27,8 +28,9 @@ swe_agent = Agent(
         replace_script_lines,
         add_script_lines,
         delete_script_lines,
-        get_data_structures_overview,
-        get_data_structure_description
+        switch_script,
+        # get_data_structures_overview,
+        # get_data_structure_description
         # Add extra tools during runtime with FunctionToolset
     ],
     retries=10,
@@ -39,3 +41,15 @@ swe_agent = Agent(
     model_settings=ModelSettings(temperature=0)
     # The specific task will be provided in the user prompt
 )
+
+
+@swe_agent.system_prompt
+def swe_agent_system_prompt(_: RunContext[SWEAgentDeps]) -> str:
+
+    with open(SWE_ENV_DOCKERFILE_PATH, "r") as file:
+        dockerfile_content = file.read()
+
+    return (
+        SWE_AGENT_SYSTEM_PROMPT +
+        f"\n\nThe Dockerfile defining your environment is:\n\n{dockerfile_content}\n\n"
+    )

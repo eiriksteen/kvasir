@@ -15,7 +15,8 @@ def get_model():
         "claude-3-5-sonnet-latest": "anthropic",
         "gemini-2.5-flash": "google",
         "o3": "openai",
-        "gemini-2.5-pro": "google"
+        "gemini-2.5-pro": "google",
+        "gpt-5": "openai"
     }
 
     if model_id_to_provider_name[MODEL_TO_USE] == "anthropic":

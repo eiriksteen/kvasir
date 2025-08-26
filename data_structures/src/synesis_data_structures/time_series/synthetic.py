@@ -2,7 +2,7 @@ import random
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from typing import Dict
+from typing import Union
 
 from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_DATA_SECOND_LEVEL_ID,
@@ -12,9 +12,13 @@ from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID,
     TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID
 )
+from synesis_data_structures.time_series.df_dataclasses import (
+    TimeSeriesStructure,
+    TimeSeriesAggregationStructure
+)
 
 
-def generate_synthetic_data(first_level_id: str) -> Dict[str, pd.DataFrame]:
+def generate_synthetic_data(first_level_id: str) -> Union[TimeSeriesStructure, TimeSeriesAggregationStructure]:
     """
     Generate synthetic data for the specified first level structure.
 
@@ -22,7 +26,7 @@ def generate_synthetic_data(first_level_id: str) -> Dict[str, pd.DataFrame]:
         first_level_id: The first level ID of the data structure ('time_series' or 'time_series_aggregation')
 
     Returns:
-        Dictionary mapping second level IDs to DataFrames
+        A TimeSeriesStructure or TimeSeriesAggregationStructure instance
     """
     if first_level_id == "time_series":
         return _generate_synthetic_time_series_data()
@@ -37,11 +41,11 @@ def _generate_synthetic_time_series_data(
     min_timestamps: int = 1000,
     max_timestamps: int = 3000,
     seed: int = 42
-) -> Dict[str, pd.DataFrame]:
+) -> TimeSeriesStructure:
     """
     Generate synthetic time series data following the new DataFrame structure.
 
-    Returns a dictionary with three DataFrames:
+    Returns a TimeSeriesStructure instance with:
     - time_series_data: MultiIndex DataFrame with entity and timestamp
     - time_series_entity_metadata: Entity-specific static metadata
     - feature_information: Feature descriptions and metadata
@@ -177,17 +181,17 @@ def _generate_synthetic_time_series_data(
     # Combine all feature information
     feature_information = pd.concat([feature_information, metadata_features])
 
-    return {
-        TIME_SERIES_DATA_SECOND_LEVEL_ID: time_series_data,
-        TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID: time_series_entity_metadata,
-        FEATURE_INFORMATION_SECOND_LEVEL_ID: feature_information
-    }
+    return TimeSeriesStructure(
+        time_series_data=time_series_data,
+        time_series_entity_metadata=time_series_entity_metadata,
+        feature_information=feature_information
+    )
 
 
 def _generate_synthetic_time_series_aggregation_data(
     num_aggregations: int = 50,
     seed: int = 42
-) -> Dict[str, pd.DataFrame]:
+) -> TimeSeriesAggregationStructure:
     """
     Generate synthetic time series aggregation data.
     This function internally generates time series data and then creates aggregations based on it.
@@ -197,18 +201,18 @@ def _generate_synthetic_time_series_aggregation_data(
         seed: Random seed for reproducibility
 
     Returns:
-        Dictionary with aggregation DataFrames
+        A TimeSeriesAggregationStructure instance
     """
     # Set random seed
     np.random.seed(seed)
     random.seed(seed)
 
     # Generate the base time series data internally
-    time_series_data = _generate_synthetic_time_series_data(seed=seed)
+    time_series_structure = _generate_synthetic_time_series_data(seed=seed)
 
     # Extract the time series data
-    ts_data = time_series_data[TIME_SERIES_DATA_SECOND_LEVEL_ID]
-    ts_metadata = time_series_data[TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID]
+    ts_data = time_series_structure.time_series_data
+    ts_metadata = time_series_structure.time_series_entity_metadata
 
     # Get unique entities and their data
     entities = ts_data.index.get_level_values('entity').unique()
@@ -392,9 +396,9 @@ def _generate_synthetic_time_series_aggregation_data(
     aggregation_feature_information = pd.DataFrame(output_features)
     aggregation_feature_information.set_index('name', inplace=True)
 
-    return {
-        TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID: aggregation_outputs_df,
-        TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID: aggregation_inputs_df,
-        TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID: aggregation_metadata_df,
-        FEATURE_INFORMATION_SECOND_LEVEL_ID: aggregation_feature_information
-    }
+    return TimeSeriesAggregationStructure(
+        time_series_aggregation_outputs=aggregation_outputs_df,
+        time_series_aggregation_inputs=aggregation_inputs_df,
+        time_series_aggregation_metadata=aggregation_metadata_df,
+        feature_information=aggregation_feature_information
+    )

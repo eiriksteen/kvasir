@@ -4,12 +4,21 @@ from synesis_api.agents.swe.deps import SWEAgentDeps
 from synesis_api.agents.pipeline.output import DetailedFunctionDescription
 
 
-async def validate_script(ctx: RunContext[SWEAgentDeps], script: str) -> str:
+async def validate_script(ctx: RunContext[SWEAgentDeps], script: str) -> bool:
     """
     Validate the implementation of a function.
     """
 
-    if ctx.deps.current_script is None:
-        raise ModelRetry("No script provided")
+    # TODO: Implement
 
-    return "Function implementation validated"
+    return True
+
+
+async def validate_arg_order(ctx: RunContext[SWEAgentDeps], script: str) -> bool:
+    """
+    Validate the argument order of a function.
+    """
+
+    # TODO: Implement
+
+    return True

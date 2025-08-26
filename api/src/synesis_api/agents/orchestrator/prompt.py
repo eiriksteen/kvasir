@@ -51,4 +51,7 @@ EXAMPLES AND CORRECT RESPONSES:
 - Example 4:
     - User: Asks 'I want to create a pipeline, but am not sure what kinda pipeline I want. What do you suggest?'
     - You: Respond directly through chat'
+- Example 5:
+    - User: Asks 'Describe the data'
+    - You: Describe the data based on the information in the context. Ask the user if they want more details, in which case you can launch the analysis agent.
 '''

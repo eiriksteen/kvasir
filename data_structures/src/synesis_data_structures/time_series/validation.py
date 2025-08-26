@@ -1,10 +1,6 @@
 import pandas as pd
-from typing import Dict
+from typing import Union
 from synesis_data_structures.time_series.definitions import (
-    get_first_level_structure_ids,
-    get_second_level_ids_for_structure,
-    TIME_SERIES_STRUCTURE,
-    TIME_SERIES_AGGREGATION_STRUCTURE,
     TIME_SERIES_DATA_SECOND_LEVEL_ID,
     TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID,
     TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID,
@@ -12,36 +8,35 @@ from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID,
     FEATURE_INFORMATION_SECOND_LEVEL_ID
 )
+from synesis_data_structures.time_series.df_dataclasses import (
+    TimeSeriesStructure,
+    TimeSeriesAggregationStructure
+)
 
 
-def validate_dfs_structure(dataframes: Dict[str, pd.DataFrame], first_level_id: str) -> None:
-    first_level_ids = get_first_level_structure_ids()
-    assert first_level_id in first_level_ids, f"Invalid first level ID: {first_level_id}"
+def validate_dfs_structure(data_structure: Union[TimeSeriesStructure, TimeSeriesAggregationStructure]) -> None:
+    """
+    Validate a dataclass data structure.
 
-    second_level_ids = get_second_level_ids_for_structure(first_level_id)
-    # Check that all provided second level IDs are valid
-    assert all(
-        second_level_id in second_level_ids for second_level_id in dataframes), f"Input second level IDs must match the second level IDs {second_level_ids}"
-    # Check that all required second level IDs are provided
-    missing_ids = set(second_level_ids) - set(dataframes.keys())
-    assert len(
-        missing_ids) == 0, f"Missing required second level IDs: {missing_ids}"
-
-    if first_level_id == TIME_SERIES_STRUCTURE.first_level_id:
-        _validate_time_series_dfs(dataframes)
-    elif first_level_id == TIME_SERIES_AGGREGATION_STRUCTURE.first_level_id:
-        _validate_time_series_aggregation_dfs(dataframes)
+    Args:
+        data_structure: A TimeSeriesStructure or TimeSeriesAggregationStructure instance
+    """
+    if isinstance(data_structure, TimeSeriesStructure):
+        _validate_time_series_dataclass(data_structure)
+    elif isinstance(data_structure, TimeSeriesAggregationStructure):
+        _validate_time_series_aggregation_dataclass(data_structure)
     else:
-        raise ValueError(f"Unsupported first level ID: {first_level_id}")
+        raise ValueError(
+            f"Expected TimeSeriesStructure or TimeSeriesAggregationStructure, got {type(data_structure).__name__}")
 
 
-def _validate_time_series_dfs(dataframes: Dict[str, pd.DataFrame]) -> None:
+def _validate_time_series_dataclass(data_structure: TimeSeriesStructure) -> None:
+    """Validate a TimeSeriesStructure dataclass instance."""
     errors = []
 
-    data_df = dataframes.get(TIME_SERIES_DATA_SECOND_LEVEL_ID)
-    metadata_df = dataframes.get(TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID)
-    feature_info_df = dataframes.get(
-        FEATURE_INFORMATION_SECOND_LEVEL_ID)
+    data_df = data_structure.time_series_data
+    metadata_df = data_structure.time_series_entity_metadata
+    feature_info_df = data_structure.feature_information
 
     if data_df is None:
         errors.append(
@@ -56,13 +51,15 @@ def _validate_time_series_dfs(dataframes: Dict[str, pd.DataFrame]) -> None:
         errors.append(
             f"{TIME_SERIES_DATA_SECOND_LEVEL_ID} DataFrame must have MultiIndex with 2 levels (entity_id, timestamp)")
 
-    if len(data_df.index.levels) != 2:
+    if isinstance(data_df.index, pd.MultiIndex) and len(data_df.index.levels) != 2:
         errors.append(
             f"{TIME_SERIES_DATA_SECOND_LEVEL_ID} DataFrame must have exactly 2 index levels, got {len(data_df.index.levels)}")
 
-    level_1_values = data_df.index.get_level_values(1)
-    if not pd.api.types.is_datetime64_any_dtype(level_1_values):
-        errors.append("Level 1 of MultiIndex must contain datetime objects")
+    if isinstance(data_df.index, pd.MultiIndex):
+        level_1_values = data_df.index.get_level_values(1)
+        if not pd.api.types.is_datetime64_any_dtype(level_1_values):
+            errors.append(
+                "Level 1 of MultiIndex must contain datetime objects")
 
     for col in data_df.columns:
         if not _is_snake_case(col):
@@ -162,16 +159,14 @@ def _validate_time_series_dfs(dataframes: Dict[str, pd.DataFrame]) -> None:
         raise ValueError(f"TimeSeries validation failed: {'; '.join(errors)}")
 
 
-def _validate_time_series_aggregation_dfs(dataframes: Dict[str, pd.DataFrame]) -> None:
+def _validate_time_series_aggregation_dataclass(data_structure: TimeSeriesAggregationStructure) -> None:
+    """Validate a TimeSeriesAggregationStructure dataclass instance."""
     errors = []
 
-    outputs_df = dataframes.get(
-        TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID)
-    inputs_df = dataframes.get(TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID)
-    metadata_df = dataframes.get(
-        TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID)
-    feature_info_df = dataframes.get(
-        FEATURE_INFORMATION_SECOND_LEVEL_ID)
+    outputs_df = data_structure.time_series_aggregation_outputs
+    inputs_df = data_structure.time_series_aggregation_inputs
+    metadata_df = data_structure.time_series_aggregation_metadata
+    feature_info_df = data_structure.feature_information
 
     if outputs_df is None:
         errors.append(

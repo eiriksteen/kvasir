@@ -286,7 +286,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSubmitPrompt()}
                 placeholder="Ask a question..."
-                className="flex-1 bg-transparent px-4 py-3 outline-none text-white"
+                className="flex-1 bg-transparent px-4 py-3 outline-none text-white text-xs"
               />
               <button 
                 onClick={handleSubmitPrompt}

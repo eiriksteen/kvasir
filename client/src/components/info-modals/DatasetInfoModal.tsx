@@ -129,14 +129,19 @@ export default function DatasetInfoModal({
               >
                 <ArrowLeft size={20} />
               </button>
-              <div className="ml-2">
+              <div className="ml-2 flex-1">
                 <h3 className="text-sm font-mono tracking-wider text-gray-200">
                   {dataset.name}
                 </h3>
+                {dataset.description && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    {dataset.description} • Created on {formatDate(dataset.createdAt)}
+                  </p>
+                )}
               </div>
               <button
                 onClick={() => onClose()}
-                className="absolute right-6 text-gray-400 hover:text-white transition-colors"
+                className="text-gray-400 hover:text-white transition-colors"
                 title="Close modal"
               >
                 <X size={20} />
@@ -149,20 +154,8 @@ export default function DatasetInfoModal({
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
-                  {/* Left Column - Dataset Info */}
+                  {/* Left Column - Blank box */}
                   <div className="lg:col-span-1 flex flex-col space-y-4 overflow-y-auto">
-                    <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-blue-500/20 rounded-xl p-4 space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-500/20 rounded-lg">
-                          <Folder size={18} className="text-blue-400" />
-                        </div>
-                        <h3 className="text-sm font-semibold text-gray-200">Dataset Info</h3>
-                      </div>
-                      {dataset.description && (
-                        <p className="text-sm text-gray-300/80 leading-relaxed">{dataset.description} Created on {formatDate(dataset.createdAt)}</p>
-                      )}
-                    </div>
-
                     {objectGroups && objectGroups.primaryObjectGroup?.features?.length > 0 && (
                       <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-blue-500/20 rounded-xl p-4 flex flex-col flex-1 min-h-0">
                         <div className="flex items-center gap-3 mb-3">

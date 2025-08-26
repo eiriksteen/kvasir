@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Literal
 from pydantic_ai import RunContext, ModelRetry
 from pydantic import field_validator
 
@@ -42,10 +42,26 @@ class ImplementationFeedbackOutput(BaseSchema):
         return v
 
 
+class FunctionInPipelineInfo(BaseSchema):
+    id: uuid.UUID
+    config: Optional[dict] = None
+
+
 class FinalPipelineOutput(BaseSchema):
     name: str
     description: str
-    function_ids: List[uuid.UUID]
+    functions: List[FunctionInPipelineInfo]
+    schedule: Literal["periodic", "on_demand", "on_event"]
+    cron_schedule: Optional[str] = None
+
+    @field_validator('cron_schedule')
+    @classmethod
+    def validate_cron_schedule_for_periodic(cls, v, info):
+        schedule = info.data.get('schedule')
+        if schedule == 'periodic' and v is None:
+            raise ValueError(
+                'cron_schedule is required when schedule is periodic')
+        return v
 
 
 # Function outputs
@@ -78,10 +94,10 @@ async def submit_final_pipeline_output(
     # This will set up a docker container with the functions and run it on some dummy data to ensure it runs
     # Raises model retry if any error
 
-    if len(result.function_ids) == 0:
+    if len(result.functions) == 0:
         raise ModelRetry("No function IDs provided!")
 
-    if not await check_function_ids_exist(result.function_ids):
+    if not await check_function_ids_exist([f.id for f in result.functions]):
         raise ModelRetry("One or more function IDs do not exist!")
 
     return result

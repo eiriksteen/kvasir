@@ -15,6 +15,10 @@ from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID,
     get_second_level_ids_for_structure
 )
+from synesis_data_structures.time_series.df_dataclasses import (
+    TimeSeriesStructure,
+    TimeSeriesAggregationStructure
+)
 
 
 # Functions to:
@@ -23,45 +27,58 @@ from synesis_data_structures.time_series.definitions import (
 
 # Public API
 
-def serialize_dataframes_to_api_payloads(dataframes: Dict[str, pd.DataFrame], first_level_id: str) -> List[Union[TimeSeries, TimeSeriesAggregation]]:
+def serialize_dataframes_to_api_payloads(data_structure: Union[TimeSeriesStructure, TimeSeriesAggregationStructure]) -> List[Union[TimeSeries, TimeSeriesAggregation]]:
     """
-    Serialize a first level data structure to API payload objects for sending to client.
+    Serialize a dataclass data structure to API payload objects for sending to client.
 
     Args:
-        dataframes: Dictionary mapping second_level_id to DataFrame
-        first_level_id: The first level ID of the data structure
+        data_structure: A TimeSeriesStructure or TimeSeriesAggregationStructure instance
 
     Returns:
         List of API payload objects (TimeSeries or TimeSeriesAggregation)
     """
 
-    # Map first level IDs to their corresponding private serialization functions
-    serialization_mapping = {
-        "time_series": _serialize_time_series_dfs_to_api_payload,
-        "time_series_aggregation": _serialize_time_series_aggregation_dfs_to_api_payload
-    }
-
-    if first_level_id not in serialization_mapping:
-        raise ValueError(f"Unknown first level ID: {first_level_id}")
-
-    # Use the appropriate private serialization function
-    return serialization_mapping[first_level_id](dataframes)
+    if isinstance(data_structure, TimeSeriesStructure):
+        return _serialize_time_series_dataclass_to_api_payload(data_structure)
+    elif isinstance(data_structure, TimeSeriesAggregationStructure):
+        return _serialize_time_series_aggregation_dataclass_to_api_payload(data_structure)
+    else:
+        raise ValueError(
+            f"Expected TimeSeriesStructure or TimeSeriesAggregationStructure, got {type(data_structure).__name__}")
 
 
-def serialize_dataframes_to_parquet(dataframes: Dict[str, pd.DataFrame], first_level_id: str) -> Dict[str, bytes]:
+def serialize_dataframes_to_parquet(data_structure: Union[TimeSeriesStructure, TimeSeriesAggregationStructure]) -> Dict[str, bytes]:
     """
-    Serialize a first level data structure to parquet format for processing unit.
+    Serialize a dataclass data structure to parquet format for processing unit.
 
     This function takes the DataFrames and returns them as bytes ready for direct HTTP submission.
     The output is a dictionary with second_level_id as key and the corresponding parquet bytes as value.
 
     Args:
-        dataframes: Dictionary mapping second_level_id to DataFrame
-        first_level_id: The first level ID of the data structure
+        data_structure: A TimeSeriesStructure or TimeSeriesAggregationStructure instance
 
     Returns:
         Dictionary mapping second_level_id to parquet bytes (ready for HTTP submission)
     """
+
+    if isinstance(data_structure, TimeSeriesStructure):
+        first_level_id = "time_series"
+        dataframes = {
+            "time_series_data": data_structure.time_series_data,
+            "time_series_entity_metadata": data_structure.time_series_entity_metadata,
+            "feature_information": data_structure.feature_information
+        }
+    elif isinstance(data_structure, TimeSeriesAggregationStructure):
+        first_level_id = "time_series_aggregation"
+        dataframes = {
+            "time_series_aggregation_outputs": data_structure.time_series_aggregation_outputs,
+            "time_series_aggregation_inputs": data_structure.time_series_aggregation_inputs,
+            "time_series_aggregation_metadata": data_structure.time_series_aggregation_metadata,
+            "feature_information": data_structure.feature_information
+        }
+    else:
+        raise ValueError(
+            f"Expected TimeSeriesStructure or TimeSeriesAggregationStructure, got {type(data_structure).__name__}")
 
     # Get the expected second level IDs for this structure
     expected_second_level_ids = get_second_level_ids_for_structure(
@@ -75,33 +92,34 @@ def serialize_dataframes_to_parquet(dataframes: Dict[str, pd.DataFrame], first_l
     # Serialize each DataFrame to parquet bytes using in-memory buffer
     parquet_bytes = {}
     for second_level_id, df in dataframes.items():
-        if not df.empty:
+        if df is not None and not df.empty:
             # Use in-memory buffer to serialize DataFrame to parquet bytes
             buffer = io.BytesIO()
             df.to_parquet(buffer, index=True)
             parquet_bytes[second_level_id] = buffer.getvalue()
         else:
-            # For empty DataFrames, create an empty parquet file
+            # For None or empty DataFrames, create an empty parquet file
             buffer = io.BytesIO()
-            df.to_parquet(buffer, index=True)
+            empty_df = pd.DataFrame()
+            empty_df.to_parquet(buffer, index=True)
             parquet_bytes[second_level_id] = buffer.getvalue()
 
     return parquet_bytes
 
 
-def deserialize_parquet_to_dataframes(parquet_data: Dict[str, bytes], first_level_id: str) -> Dict[str, pd.DataFrame]:
+def deserialize_parquet_to_dataframes(parquet_data: Dict[str, bytes], first_level_id: str) -> Union[TimeSeriesStructure, TimeSeriesAggregationStructure]:
     """
-    Deserialize parquet data back to a first level data structure.
+    Deserialize parquet data back to a dataclass data structure.
 
     This is the reverse operation of serialize_dataframes_to_parquet.
-    Takes parquet bytes from HTTP submission and converts them back to DataFrames.
+    Takes parquet bytes from HTTP submission and converts them back to dataclass instances.
 
     Args:
         parquet_data: Dictionary mapping second_level_id to parquet bytes (from HTTP)
         first_level_id: The first level ID of the data structure
 
     Returns:
-        Dictionary mapping second_level_id to DataFrame in the expected format
+        A TimeSeriesStructure or TimeSeriesAggregationStructure instance
     """
 
     # Get the expected second level IDs for this structure
@@ -123,16 +141,35 @@ def deserialize_parquet_to_dataframes(parquet_data: Dict[str, bytes], first_leve
         df = pd.read_parquet(buffer)
         dataframes[second_level_id] = df
 
-    return dataframes
+    # Convert to appropriate dataclass
+    if first_level_id == "time_series":
+        return TimeSeriesStructure(
+            time_series_data=dataframes.get("time_series_data"),
+            time_series_entity_metadata=dataframes.get(
+                "time_series_entity_metadata"),
+            feature_information=dataframes.get("feature_information")
+        )
+    elif first_level_id == "time_series_aggregation":
+        return TimeSeriesAggregationStructure(
+            time_series_aggregation_outputs=dataframes.get(
+                "time_series_aggregation_outputs"),
+            time_series_aggregation_inputs=dataframes.get(
+                "time_series_aggregation_inputs"),
+            time_series_aggregation_metadata=dataframes.get(
+                "time_series_aggregation_metadata"),
+            feature_information=dataframes.get("feature_information")
+        )
+    else:
+        raise ValueError(f"Unsupported first level ID: {first_level_id}")
 
 
 # Private API
 
-def _serialize_time_series_dfs_to_api_payload(dataframes: Dict[str, pd.DataFrame]) -> List[TimeSeries]:
-    """Convert TimeSeries DataFrames to TimeSeries API payloads."""
-    data_df = dataframes.get("time_series_data")
-    metadata_df = dataframes.get(TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID)
-    feature_info_df = dataframes.get(FEATURE_INFORMATION_SECOND_LEVEL_ID)
+def _serialize_time_series_dataclass_to_api_payload(data_structure: TimeSeriesStructure) -> List[TimeSeries]:
+    """Convert TimeSeriesStructure to TimeSeries API payloads."""
+    data_df = data_structure.time_series_data
+    metadata_df = data_structure.time_series_entity_metadata
+    feature_info_df = data_structure.feature_information
 
     if data_df is None:
         raise ValueError("time_series_data DataFrame is required")
@@ -194,14 +231,12 @@ def _serialize_time_series_dfs_to_api_payload(dataframes: Dict[str, pd.DataFrame
     return payloads
 
 
-def _serialize_time_series_aggregation_dfs_to_api_payload(dataframes: Dict[str, pd.DataFrame]) -> List[TimeSeriesAggregation]:
-    """Convert TimeSeriesAggregation DataFrames to TimeSeriesAggregation API payloads."""
-    outputs_df = dataframes.get(
-        TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID)
-    inputs_df = dataframes.get(TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID)
-    metadata_df = dataframes.get(
-        TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID)
-    feature_info_df = dataframes.get(FEATURE_INFORMATION_SECOND_LEVEL_ID)
+def _serialize_time_series_aggregation_dataclass_to_api_payload(data_structure: TimeSeriesAggregationStructure) -> List[TimeSeriesAggregation]:
+    """Convert TimeSeriesAggregationStructure to TimeSeriesAggregation API payloads."""
+    outputs_df = data_structure.time_series_aggregation_outputs
+    inputs_df = data_structure.time_series_aggregation_inputs
+    metadata_df = data_structure.time_series_aggregation_metadata
+    feature_info_df = data_structure.feature_information
 
     if outputs_df is None:
         raise ValueError(

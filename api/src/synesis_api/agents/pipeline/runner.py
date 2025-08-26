@@ -17,6 +17,7 @@ from synesis_api.agents.pipeline.output import (
     submit_final_pipeline_output
 )
 from synesis_api.agents.swe.runner import SWEAgentRunner
+from synesis_api.agents.pipeline.validation import validate_script, validate_arg_order
 from synesis_api.storage.local import save_script_to_local_storage
 from synesis_api.worker import broker, logger
 from synesis_api.modules.project.service import add_entity_to_project
@@ -24,6 +25,7 @@ from synesis_api.modules.node.service import create_node
 from synesis_api.modules.node.schema import FrontendNodeCreate
 from synesis_api.modules.project.schema import AddEntityToProject
 from synesis_api.secrets import SWE_MAX_TRIES
+from synesis_data_structures.time_series.definitions import get_data_structure_description
 
 
 class PipelineAgentRunner:
@@ -44,7 +46,15 @@ class PipelineAgentRunner:
         self.run_id = run_id
         self.tries = 0
 
-        self.swe_runner = SWEAgentRunner(user_id, conversation_id, run_id)
+        self.swe_runner = SWEAgentRunner(
+            user_id,
+            conversation_id,
+            run_id,
+            implementation_validation_fns=[
+                validate_script,
+                validate_arg_order
+            ])
+
         self.redis_stream = get_redis()
 
     async def _log_message_to_redis(
@@ -74,7 +84,10 @@ class PipelineAgentRunner:
             name=result.name,
             description=result.description,
             user_id=self.user_id,
-            function_ids=result.function_ids
+            schedule=result.schedule,
+            cron_schedule=result.cron_schedule,
+            function_ids=[f.id for f in result.functions],
+            function_configs=[f.config for f in result.functions]
         )
 
         await add_entity_to_project(self.project_id, AddEntityToProject(entity_type="pipeline", entity_id=pipeline.id))
@@ -110,9 +123,11 @@ class PipelineAgentRunner:
             pipeline_run_result = await self.pipeline_agent.run(
                 f"The search results are:\n\n{search_result_str}\n\n" +
                 "Now determine whether these suffice to compose the final pipeline, or if new functions must be implemented. " +
-                "In case we need new ones, submit a description for each until all necessary functions are done.",
-                output_type=[FunctionsToImplementOutput,
-                             submit_final_pipeline_output],
+                "In case we need new ones, submit descriptions for each.",
+                output_type=[
+                    FunctionsToImplementOutput,
+                    submit_final_pipeline_output
+                ],
                 message_history=self.message_history
             )
 
@@ -124,10 +139,11 @@ class PipelineAgentRunner:
 
                 fn_name_to_function_id = {}
 
-                for fn_name in pipeline_run_result.output.function_names:
+                for fn_name, fn_desc in zip(pipeline_run_result.output.function_names, pipeline_run_result.output.function_descriptions_brief):
 
                     fn_spec_run_result = await self.pipeline_agent.run(
                         f"We are currently looking at the function '{fn_name}'\n" +
+                        f"A brief description of the function is:\n\n{fn_desc}\n\n" +
                         "Please create a detailed implementation spec for the software engineer agent.\n",
                         output_type=submit_detailed_function_description_output,
                         message_history=self.message_history
@@ -136,10 +152,23 @@ class PipelineAgentRunner:
 
                     self.message_history += fn_spec_run_result.new_messages()
 
+                    input_structure_ids = [
+                        input.structure_id for input in fn_spec_run_result.output.inputs
+                    ]
+
+                    output_structure_ids = [
+                        output.structure_id for output in fn_spec_run_result.output.outputs
+                    ]
+
+                    structure_descriptions = [get_data_structure_description(
+                        structure_id) for structure_id in input_structure_ids + output_structure_ids
+                    ]
+
                     deliverable_description = (
                         "I have been tasked to compose a data processing pipeline. For context, this is my full task description:\n\n" +
                         f"'{PIPELINE_AGENT_SYSTEM_PROMPT}'\n\n" +
                         f"Now I need you to implement a function as part of the pipeline. You need to implement:\n\n{fn_spec_run_result.output.model_dump_json()}\n\n" +
+                        f"All relevant data structure descriptions for the inputs and outputs are:\n\n{structure_descriptions}\n\n" +
                         "Go!"
                     )
 
@@ -157,11 +186,7 @@ class PipelineAgentRunner:
 
                         self.tries += 1
 
-                        swe_result = await self.swe_runner(
-                            swe_prompt,
-                            # TODO: Fill validation fns
-                            implementation_validation_fns=[]
-                        )
+                        swe_result = await self.swe_runner(swe_prompt)
 
                         feedback_prompt = (
                             "The software engineer agent has submitted a solution.\n" +
@@ -190,37 +215,33 @@ class PipelineAgentRunner:
 
                             await self._log_message_to_redis("Implementation approved, saving function", "result", write_to_db=True)
 
-                            setup_script_path = save_script_to_local_storage(
-                                user_id=self.user_id,
-                                job_id=self.run_id,
-                                script=swe_result.setup.script,
-                                filename=f"{fn_name}_setup.sh",
-                                kind="pipeline"
-                            )
-
-                            implementation_script_path = save_script_to_local_storage(
-                                user_id=self.user_id,
-                                job_id=self.run_id,
-                                script=swe_result.implementation.script,
-                                filename=f"{fn_name}_implementation.py",
-                                kind="pipeline"
-                            )
-
                             fn = await create_function(
                                 name=fn_name,
+                                user_id=self.user_id,
+                                run_id=self.run_id,
                                 description=fn_spec_run_result.output.description,
-                                implementation_script_path=str(
-                                    implementation_script_path),
-                                setup_script_path=str(setup_script_path),
+                                implementation_script=swe_result.implementation.script,
+                                setup_script=swe_result.setup.script if swe_result.setup else None,
+                                config_dict=swe_result.config.config_dict if swe_result.config else None,
                                 inputs=fn_spec_run_result.output.inputs,
                                 outputs=fn_spec_run_result.output.outputs
                             )
 
                             fn_name_to_function_id[fn_name] = fn.id
 
+                            # Reset SWE agent runner to ensure cleared context for the next implementation
+                            self.swe_runner = SWEAgentRunner(
+                                self.user_id,
+                                self.conversation_id,
+                                self.run_id,
+                                implementation_validation_fns=[
+                                    validate_script,
+                                    validate_arg_order
+                                ])
+
                         else:
                             await self._log_message_to_redis(
-                                f"Implementation rejected, trying again. Feedback: {swe_prompt}", "result", write_to_db=True)
+                                f"Implementation rejected. Feedback: {swe_prompt}", "result", write_to_db=True)
 
                 await self._log_message_to_redis("All functions implemented, submitting pipeline", "result", write_to_db=True)
 

@@ -36,17 +36,17 @@ WORKDIR /app
 RUN pip install --upgrade pip
 
 # Core ML/AI packages
-RUN pip install torch numpy pandas scikit-learn \
+RUN pip install numpy torch pandas scikit-learn \
     transformers xgboost lightgbm catboost \
     tensorflow keras
 
 # Data processing & utilities
 RUN pip install scipy statsmodels arch prophet \
-    pmdarima tslearn pyts tsfresh feature-engine \
+    tslearn pyts tsfresh feature-engine \
     category-encoders
 
 # Time series specific packages
-RUN pip install darts neuralprophet kats pyflux pykalman
+RUN pip install darts prophet sktime
 
 # Development & testing
 RUN pip install pytest black flake8 pylint mypy
