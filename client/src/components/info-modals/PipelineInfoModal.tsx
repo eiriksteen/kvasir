@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { UUID } from 'crypto';
 import { usePipeline } from '@/hooks/usePipelines';
-import { X, GitMerge, Clock, ArrowDown, Database, Zap } from 'lucide-react';
+import { X, GitMerge, Clock, ArrowDown, Database, Zap, SquarePlay, Play } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { PipelineWithFunctions } from '@/types/pipeline';
 
@@ -98,6 +98,8 @@ export default function PipelineInfoModal({
 
   const { pipeline } = usePipeline(pipelineId);
 
+  console.log(pipeline);
+
   // Prevent body scroll when modal is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -135,8 +137,8 @@ export default function PipelineInfoModal({
       <div className="fixed inset-4 z-50 flex items-center justify-center">
         <div className="w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden bg-black/50 rounded-lg">
           <div className="rounded-xl border-2 border-orange-500/20 shadow-xl shadow-orange-500/10 h-full flex flex-col">
-            <div className="relative flex items-center p-4 border-b border-orange-500/20 flex-shrink-0">
-              <div className="ml-2 flex-1">
+            <div className="relative flex items-center p-6 border-b border-orange-500/20 flex-shrink-0">
+              <div className="flex-1">
                 <h3 className="text-sm font-mono tracking-wider text-gray-200">
                   {pipeline.name}
                 </h3>
@@ -146,6 +148,7 @@ export default function PipelineInfoModal({
                   </p>
                 )}
               </div>
+              
               <button
                 onClick={() => onClose()}
                 className="text-gray-400 hover:text-white transition-colors"
@@ -154,10 +157,13 @@ export default function PipelineInfoModal({
                 <X size={20} />
               </button>
             </div>
+
+
             <div className="p-4 flex-1 overflow-hidden">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
-                {/* Left Column - Function Chain Flow */}
-                <div className="flex flex-col space-y-4 overflow-y-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-full">
+
+                {/* Function Chain Flow */}
+                <div className="lg:col-span-2 flex flex-col space-y-4 overflow-y-auto">
                   <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-orange-500/20 rounded-xl p-4 flex flex-col flex-1 min-h-0">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="p-2 bg-orange-500/20 rounded-lg">
@@ -171,9 +177,38 @@ export default function PipelineInfoModal({
                   </div>
                 </div>
 
-                {/* Right Column - Blank box */}
-                <div>
-                  <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-orange-500/20 rounded-xl p-4 h-full flex flex-col">
+                <div className="lg:col-span-2 flex flex-col space-y-4">
+
+                  {/* Runs */}
+                  <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-orange-500/20 rounded-xl p-4 flex flex-col flex-1 min-h-0">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-orange-500/20 rounded-lg">
+                          <SquarePlay className="w-4 h-4 text-orange-300" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-gray-200">Runs</h3>
+                      </div>
+                      
+                      {/* Run Pipeline Button */}
+                      <button
+                        onClick={() => {
+                          // TODO: Implement pipeline run functionality
+                          console.log('Running pipeline:', pipeline.id);
+                        }}
+                        className="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold text-sm rounded-lg shadow-lg hover:shadow-orange-500/25 transition-all duration-200 flex items-center gap-2 border border-orange-400/30 hover:border-orange-400/50"
+                        title="Run pipeline now"
+                      >
+                        <Play className="w-4 h-4" />
+                        Run Pipeline
+                      </button>
+                    </div>
+                    <div className="flex-1 min-h-0">
+                      {/* Content for runs can be added here */}
+                    </div>
+                  </div>
+
+                  {/* Run Schedule */}
+                  <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-orange-500/20 rounded-xl p-4 flex flex-col flex-1 min-h-0">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-2 bg-orange-500/20 rounded-lg">
                         <Clock className="w-4 h-4 text-orange-300" />
@@ -181,7 +216,7 @@ export default function PipelineInfoModal({
                       <h3 className="text-sm font-semibold text-gray-200">Run Schedule</h3>
                     </div>
                     <div className="flex-1 min-h-0">
-                      {/* Content for right panel can be added here */}
+                      {/* Content for run schedule can be added here */}
                     </div>
                   </div>
                 </div>

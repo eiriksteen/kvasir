@@ -33,11 +33,11 @@ async def submit_dataset(
 
     metadata_parsed = DatasetCreate(**json.loads(metadata))
 
-    try:
-        dataset_record = await create_dataset(files, metadata_parsed, user.id)
-    except Exception as e:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid dataset: {e}")
+    # try:
+    dataset_record = await create_dataset(files, metadata_parsed, user.id)
+    # except Exception as e:
+    #     raise HTTPException(
+    #         status_code=400, detail=f"Invalid dataset: {e}")
 
     return dataset_record
 

@@ -6,6 +6,8 @@ export interface Pipeline {
   id: UUID;
   userId: UUID;
   name: string;
+  schedule: "periodic" | "on_demand" | "on_event";
+  cronSchedule?: string;
   description?: string;
   createdAt: string;
   updatedAt: string;

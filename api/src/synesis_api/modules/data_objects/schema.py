@@ -42,13 +42,13 @@ class DerivedObjectSourceInDB(BaseSchema):
 
 class FeatureInDB(BaseSchema):
     name: str
-    unit: str
     description: str
     type: Literal["numerical", "categorical"]
     subtype: Literal["continuous", "discrete"]
     scale: Literal["ratio", "interval", "ordinal", "nominal"]
     created_at: datetime
     updated_at: datetime
+    unit: Optional[str] = None
 
 
 class FeatureInGroupInDB(BaseSchema):

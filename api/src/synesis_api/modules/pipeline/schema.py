@@ -10,11 +10,41 @@ class PipelineInDB(BaseSchema):
     id: UUID
     user_id: UUID
     name: str
-    schedule: Literal["periodic", "on_demand", "on_event"]
-    cron_schedule: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     description: Optional[str] = None
+
+
+class PeriodicScheduleInDB(BaseSchema):
+    id: UUID
+    pipeline_id: UUID
+    start_time: datetime
+    end_time: datetime
+    schedule_description: str
+    cron_expression: str
+    created_at: datetime
+    updated_at: datetime
+
+
+# Not yet supported
+# Would need to have the SWE agent create a script to listen for the event, then deploy it at some frequency
+class OnEventScheduleInDB(BaseSchema):
+    id: UUID
+    pipeline_id: UUID
+    event_listener_script_path: str
+    event_description: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class PipelineRunInDB(BaseSchema):
+    id: UUID
+    pipeline_id: UUID
+    status: Literal["pending", "running", "completed", "failed"]
+    start_time: datetime
+    end_time: datetime
+    created_at: datetime
+    updated_at: datetime
 
 
 class FunctionInDB(BaseSchema):
@@ -154,6 +184,17 @@ class FunctionOutputCreate(BaseSchema):
     description: str
 
 
+class PeriodicScheduleCreate(BaseSchema):
+    schedule_description: str
+    cron_expression: str
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+
+
+class OnEventScheduleCreate(BaseSchema):
+    event_description: str
+
+
 # API schemas
 
 class Function(FunctionInDB):
@@ -174,5 +215,8 @@ class FunctionWithoutEmbedding(BaseSchema):
     default_config: Optional[dict] = None
 
 
-class PipelineWithFunctions(PipelineInDB):
+class PipelineFull(PipelineInDB):
     functions: List[FunctionWithoutEmbedding]
+    runs: List[PipelineRunInDB] = []
+    periodic_schedules: List[PeriodicScheduleInDB] = []
+    on_event_schedules: List[OnEventScheduleInDB] = []

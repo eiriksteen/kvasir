@@ -51,10 +51,9 @@ Invoking the SWE agent:
 Then, once the functions are implemented, you must output:
   - name: The name of the pipeline
   - description: The description of the pipeline
-  - schedule: The schedule of the pipeline, one of "periodic", "on_demand", "on_event". If no schedule is provided in the prompt, default to "on_demand".
-  - cron_schedule: The cron schedule of the pipeline (if periodic). Create the schedule based on the input prompt.
-  - List of function IDs in the order they will be called
-  - List of config dictionaries for each function. There will be a default config, and if no modifications are needed, just output the default config.
+  - functions: List of function IDs in the order they will be called, and their configs
+  - periodic_schedules: List of periodic schedules for the pipeline, which you derive from the user prompt. If no periodic schedule is specified in the prompt, just output an empty list.
+  - on_event_schedules: List of on-event schedules for the pipeline, which you derive from the user prompt. If no on-event schedule is specified in the prompt, just output an empty list.
 
 ## OUTPUT FORMAT REQUIREMENTS
 - Function IDs must be valid UUIDs from the search results

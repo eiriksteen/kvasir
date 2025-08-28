@@ -100,7 +100,7 @@ feature = Table(
     "feature",
     metadata,
     Column("name", String, primary_key=True, nullable=False),
-    Column("unit", String, nullable=False),
+    Column("unit", String, nullable=True),
     Column("description", String, nullable=False),
     # One of numerical, categorical
     Column("type", String, nullable=False),

@@ -7,7 +7,7 @@ from sqlalchemy import select, insert, or_, case
 from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.pipeline.models import (
     model, modality, source, programming_language_version,
-    programming_language, task, model_task, function, function_input, function_output, pipeline, function_in_pipeline
+    programming_language, task, model_task, function, function_input, function_output, pipeline, function_in_pipeline, pipeline_periodic_schedule, pipeline_on_event_schedule
 )
 from synesis_api.modules.pipeline.schema import (
     PipelineInDB,
@@ -25,7 +25,11 @@ from synesis_api.modules.pipeline.schema import (
     FunctionOutputCreate,
     FunctionInPipelineInDB,
     FunctionWithoutEmbedding,
-    PipelineWithFunctions
+    PipelineFull,
+    PeriodicScheduleCreate,
+    OnEventScheduleCreate,
+    PeriodicScheduleInDB,
+    OnEventScheduleInDB
 )
 from synesis_api.utils.rag_utils import embed
 from synesis_api.storage.local import save_script_to_local_storage
@@ -35,10 +39,10 @@ async def create_pipeline(
     name: str,
     description: str,
     user_id: uuid.UUID,
-    schedule: Literal["periodic", "on_demand", "on_event"],
     function_ids: List[uuid.UUID],
     function_configs: List[dict | None],
-    cron_schedule: Optional[str] = None
+    periodic_schedules: List[PeriodicScheduleCreate] = [],
+    on_event_schedules: List[OnEventScheduleCreate] = []
 ) -> PipelineInDB:
 
     pipeline_obj = PipelineInDB(
@@ -46,8 +50,6 @@ async def create_pipeline(
         user_id=user_id,
         name=name,
         description=description,
-        schedule=schedule,
-        cron_schedule=cron_schedule,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
     )
@@ -58,7 +60,28 @@ async def create_pipeline(
         raise ValueError(
             "function_ids and function_configs must have the same length")
 
+    if len(periodic_schedules) > 0:
+
+        periodic_schedule_records = [
+            PeriodicScheduleInDB(
+                id=uuid.uuid4(),
+                pipeline_id=pipeline_obj.id,
+                start_time=periodic_schedule.start_time if periodic_schedule.start_time else datetime.now(
+                    timezone.utc),
+                end_time=periodic_schedule.end_time,
+                schedule_description=periodic_schedule.schedule_description,
+                cron_expression=periodic_schedule.cron_expression,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
+            ).model_dump() for periodic_schedule in periodic_schedules
+        ]
+
+        await execute(insert(pipeline_periodic_schedule).values(periodic_schedule_records), commit_after=True)
+
+    # TODO: Add on-event schedules
+
     fn_in_pipeline_records = []
+
     for i, (function_id, function_config) in enumerate(zip(function_ids, function_configs)):
         function_in_pipeline_obj = FunctionInPipelineInDB(
             id=uuid.uuid4(),
@@ -331,7 +354,7 @@ async def get_user_pipelines_by_ids(user_id: uuid.UUID, pipeline_ids: List[uuid.
     return [PipelineInDB(**p) for p in pipelines]
 
 
-async def get_user_pipeline_with_functions(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> PipelineWithFunctions:
+async def get_user_pipeline_with_functions(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> PipelineFull:
     pipeline_record = await fetch_one(
         select(pipeline).where(
             pipeline.c.id == pipeline_id,
@@ -376,7 +399,7 @@ async def get_user_pipeline_with_functions(user_id: uuid.UUID, pipeline_id: uuid
         functions_with_inputs_and_outputs.append(
             FunctionWithoutEmbedding(**fn, inputs=fn_inputs, outputs=fn_outputs))
 
-    return PipelineWithFunctions(
+    return PipelineFull(
         **pipeline_record,
         functions=functions_with_inputs_and_outputs
     )

@@ -9,7 +9,10 @@ from synesis_api.agents.pipeline.output import (
     ImplementationFeedbackOutput,
     submit_final_pipeline_output,
 )
-from synesis_data_structures.time_series.definitions import get_data_structures_overview, get_data_structure_description
+from synesis_api.agents.shared_tools import (
+    get_data_structures_overview_tool,
+    get_data_structure_description_tool
+)
 
 
 model = get_model()
@@ -19,7 +22,8 @@ pipeline_agent = Agent(
     model,
     system_prompt=PIPELINE_AGENT_SYSTEM_PROMPT,
     model_settings=ModelSettings(temperature=0.0),
-    tools=[get_data_structures_overview, get_data_structure_description],
+    tools=[get_data_structures_overview_tool,
+           get_data_structure_description_tool],
     output_type=[
         SearchQueryOutput,
         DetailedFunctionDescription,

@@ -42,7 +42,7 @@ interface AddPipelineProps {
 export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
   const [description, setDescription] = useState('');
   const [isSubmitting] = useState(false);
-  const [runSchedule, setRunSchedule] = useState('periodically');
+  const [runSchedule, setRunSchedule] = useState('on-demand');
   const [scheduleConfig, setScheduleConfig] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -103,8 +103,8 @@ export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
   };
 
   const runScheduleOptions = [
-    { value: 'periodically', label: 'Periodically' },
     { value: 'on-demand', label: 'On Demand' },
+    { value: 'periodically', label: 'Periodically' },
     { value: 'on-event', label: 'On Event' }
   ];
 
@@ -149,7 +149,7 @@ export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
                 </div>
               ) : (
                 <div className="text-center py-4 text-gray-500">
-                  <p className="text-sm">No data sources available</p>
+                  <p className="text-sm">No datasets available</p>
                 </div>
               )}
             </div>

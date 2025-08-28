@@ -24,9 +24,6 @@ pipeline = Table(
            ForeignKey("auth.users.id"),
            nullable=False),
     Column("name", String, nullable=False),
-    # "periodic", "on_demand", or "on_event"
-    Column("schedule", String, nullable=False),
-    Column("cron_schedule", String, nullable=True),
     Column("description", String, nullable=True),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
@@ -48,7 +45,8 @@ pipeline_periodic_schedule = Table(
            nullable=False),
     Column("start_time", DateTime(timezone=True), nullable=False),
     Column("end_time", DateTime(timezone=True), nullable=True),
-    Column("cron_schedule", String, nullable=True),
+    Column("schedule_description", String, nullable=True),
+    Column("cron_expression", String, nullable=True),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
@@ -57,7 +55,46 @@ pipeline_periodic_schedule = Table(
     schema="pipeline"
 )
 
-# TODO: pipeline_on_event_schedule
+
+pipeline_on_event_schedule = Table(
+    "pipeline_on_event_schedule",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           default=uuid.uuid4,
+           primary_key=True),
+    Column("pipeline_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline.id"),
+           nullable=False),
+    Column("event_listener_script_path", String, nullable=False),
+    Column("event_description", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="pipeline"
+)
+
+
+pipeline_run = Table(
+    "pipeline_run",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           default=uuid.uuid4,
+           primary_key=True),
+    Column("pipeline_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline.id"),
+           nullable=False),
+    Column("status", String, nullable=False),
+    Column("start_time", DateTime(timezone=True), nullable=False),
+    Column("end_time", DateTime(timezone=True), nullable=True),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="pipeline"
+)
 
 function = Table(
     "function",

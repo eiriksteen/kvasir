@@ -36,6 +36,7 @@ from synesis_api.modules.data_objects.schema import (
 )
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_data_structures.time_series.serialization import deserialize_parquet_to_dataframes
+from synesis_data_structures.time_series.df_dataclasses import TimeSeriesStructure, TimeSeriesAggregationStructure
 from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_DATA_SECOND_LEVEL_ID,
     TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID,
@@ -144,19 +145,20 @@ async def create_dataset(
                 file_content = await matching_file.read()
                 parquet_dict[dataframe_create.structure_type] = file_content
 
-            dataframes = deserialize_parquet_to_dataframes(
+            structure = deserialize_parquet_to_dataframes(
                 parquet_dict,
                 group.structure_type
             )
 
             # Check what data structures are present
-            has_feature_information = FEATURE_INFORMATION_SECOND_LEVEL_ID in dataframes
-            is_time_series_structure = TIME_SERIES_DATA_SECOND_LEVEL_ID in dataframes
-            is_time_series_aggregation_structure = TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID in dataframes
+            has_feature_information = structure.feature_information is not None
+            is_time_series_structure = isinstance(
+                structure, TimeSeriesStructure)
+            is_time_series_aggregation_structure = isinstance(
+                structure, TimeSeriesAggregationStructure)
 
             if has_feature_information:
-                features_info = dataframes[FEATURE_INFORMATION_SECOND_LEVEL_ID].reset_index(
-                )
+                features_info = structure.feature_information.reset_index()
 
                 await create_features(
                     names=[record["name"]
@@ -188,10 +190,9 @@ async def create_dataset(
 
             original_entity_id_to_generated_id = {}
             if is_time_series_structure:
-                raw_data_second_level_structure_id = TIME_SERIES_DATA_SECOND_LEVEL_ID
-                raw_data: pd.DataFrame = dataframes[raw_data_second_level_structure_id]
-                metadata: pd.DataFrame = dataframes[
-                    TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID] if TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID in dataframes else None
+                raw_data = structure.time_series_data
+                metadata = structure.time_series_entity_metadata
+                second_level_id = TIME_SERIES_DATA_SECOND_LEVEL_ID
 
                 # Create the time series objects
                 for original_entity_id in raw_data.index.get_level_values(0).unique():
@@ -243,12 +244,10 @@ async def create_dataset(
                     await execute(insert(time_series).values(time_series_record.model_dump()), commit_after=True)
 
             elif is_time_series_aggregation_structure:
-                raw_data_second_level_structure_id = TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID
-                raw_data: pd.DataFrame = dataframes[raw_data_second_level_structure_id]
-                input_data: pd.DataFrame = dataframes[
-                    TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID]
-                metadata: pd.DataFrame = dataframes[
-                    TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID] if TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID in dataframes else None
+                raw_data = structure.time_series_aggregation_outputs
+                input_data = structure.time_series_aggregation_inputs
+                metadata = structure.time_series_aggregation_metadata
+                second_level_id = TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID
 
                 for aggregation_id in raw_data.index:
                     aggregation_output: pd.DataFrame = raw_data.loc[aggregation_id]
@@ -300,14 +299,14 @@ async def create_dataset(
 
             else:
                 raise ValueError(
-                    f"Data structure not supported: {raw_data_second_level_structure_id}")
+                    f"Data structure not supported: {structure}")
 
             save_dataframe_to_local_storage(
                 user_id,
                 dataset_record.id,
                 object_group_record.id,
                 raw_data,
-                raw_data_second_level_structure_id
+                second_level_id
             )
 
         return dataset_record
@@ -407,6 +406,10 @@ async def get_user_datasets(
     result_records = []
     for dataset_result in datasets_result:
         dataset_obj = DatasetInDB(**dataset_result)
+        if len([
+                group for group in object_groups_with_features if group.dataset_id == dataset_obj.id and group.role == "primary"]) == 0:
+            print(
+                f"No primary object group found for dataset {dataset_obj.id}")
         primary_object_group = [
             group for group in object_groups_with_features if group.dataset_id == dataset_obj.id and group.role == "primary"][0]
         annotated_object_groups = [

@@ -84,10 +84,10 @@ class PipelineAgentRunner:
             name=result.name,
             description=result.description,
             user_id=self.user_id,
-            schedule=result.schedule,
-            cron_schedule=result.cron_schedule,
             function_ids=[f.id for f in result.functions],
-            function_configs=[f.config for f in result.functions]
+            function_configs=[f.config for f in result.functions],
+            periodic_schedules=result.periodic_schedules,
+            on_event_schedules=result.on_event_schedules
         )
 
         await add_entity_to_project(self.project_id, AddEntityToProject(entity_type="pipeline", entity_id=pipeline.id))

@@ -80,7 +80,7 @@ export default function AddDataset({ onClose, projectId }: AddDatasetProps) {
   };
 
   const handleSubmit = async () => {
-    await submitPrompt(`Create a new dataset!${description ? `\n\nDescription: ${description}` : ''}`);
+    await submitPrompt(`Create a new dataset from the data sources in the context!${description ? `\n\nDescription: ${description}` : ''}`);
     onClose();
   };
 

@@ -6,7 +6,7 @@ from pydantic import field_validator
 from synesis_api.base_schema import BaseSchema
 from synesis_api.agents.pipeline.deps import PipelineAgentDeps
 from synesis_api.modules.pipeline.service import check_function_ids_exist
-from synesis_api.modules.pipeline.schema import FunctionInputCreate, FunctionOutputCreate
+from synesis_api.modules.pipeline.schema import FunctionInputCreate, FunctionOutputCreate, PeriodicScheduleCreate, OnEventScheduleCreate
 from synesis_data_structures.time_series.definitions import get_first_level_structure_ids
 
 
@@ -51,17 +51,8 @@ class FinalPipelineOutput(BaseSchema):
     name: str
     description: str
     functions: List[FunctionInPipelineInfo]
-    schedule: Literal["periodic", "on_demand", "on_event"]
-    cron_schedule: Optional[str] = None
-
-    @field_validator('cron_schedule')
-    @classmethod
-    def validate_cron_schedule_for_periodic(cls, v, info):
-        schedule = info.data.get('schedule')
-        if schedule == 'periodic' and v is None:
-            raise ValueError(
-                'cron_schedule is required when schedule is periodic')
-        return v
+    periodic_schedules: List[PeriodicScheduleCreate]
+    on_event_schedules: List[OnEventScheduleCreate]
 
 
 # Function outputs
