@@ -27,10 +27,32 @@ ENV PATH $PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH
 
 RUN curl https://pyenv.run | bash
 
-RUN echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc && \
-    echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc && \
-    echo 'eval "$(pyenv init -)"' >> ~/.bashrc
+# Install and use a specific Python version through pyenv
+RUN pyenv install 3.13.7 && \
+    pyenv global 3.13.7
 
 WORKDIR /app
+
+RUN pip install --upgrade pip
+
+# Core ML/AI packages
+RUN pip install torch numpy pandas scikit-learn \
+    transformers xgboost lightgbm catboost \
+    tensorflow keras
+
+# Data processing & utilities
+RUN pip install scipy statsmodels arch prophet \
+    pmdarima tslearn pyts tsfresh feature-engine \
+    category-encoders
+
+# Time series specific packages
+RUN pip install darts neuralprophet kats pyflux pykalman
+
+# Development & testing
+RUN pip install pytest black flake8 pylint mypy
+
+# System & network
+RUN pip install httpx requests aiohttp docker redis \
+    psycopg2-binary sqlalchemy
 
 CMD ["tail", "-f", "/dev/null"]

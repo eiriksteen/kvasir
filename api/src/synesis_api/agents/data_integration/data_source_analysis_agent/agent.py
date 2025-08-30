@@ -1,8 +1,8 @@
 from pathlib import Path
-from typing import List, Literal
-from dataclasses import dataclass
 from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.settings import ModelSettings
+
+from synesis_api.agents.data_integration.data_source_analysis_agent.deps import DataSourceAnalysisAgentDeps
 from synesis_api.agents.data_integration.data_source_analysis_agent.prompt import DATA_SOURCE_AGENT_SYSTEM_PROMPT
 from synesis_api.agents.data_integration.shared_tools import (
     execute_python_code,
@@ -10,40 +10,9 @@ from synesis_api.agents.data_integration.shared_tools import (
     get_json_contents,
     get_excel_contents
 )
-# from synesis_api.agents.data_integration.data_source_agent.utils import list_directory_contents, resolve_path_from_directory_name
-from synesis_api.utils import (
-    copy_file_or_directory_to_container,
-    get_model,
-)
-from synesis_api.base_schema import BaseSchema
-
-
-@dataclass
-class DataSourceAnalysisAgentDeps:
-    file_paths: List[Path]
-    # TODO: Add other sources and corresponding deps to interact with them
-    # s3_buckets = ...
-
-
-class FeatureDescription(BaseSchema):
-    name: str
-    unit: str
-    description: str
-    type: Literal["numerical", "categorical"]
-    subtype: Literal["continuous", "discrete"]
-    scale: Literal["ratio", "interval", "ordinal", "nominal"]
-
-
-class DataSourceDescription(BaseSchema):
-    source_name: str
-    content_description: str
-    quality_description: str
-    num_rows: int
-    features: List[FeatureDescription]
-
-
-class DataSourceAnalysisAgentOutput(BaseSchema):
-    data_sources: List[DataSourceDescription]
+from synesis_api.utils.file_utils import copy_file_or_directory_to_container
+from synesis_api.utils.pydanticai_utils import get_model
+from synesis_api.agents.data_integration.data_source_analysis_agent.output import DataSourceAnalysisAgentOutput
 
 
 model = get_model()

@@ -7,7 +7,7 @@ import re
 import httpx
 from pydantic_ai import Agent, RunContext
 
-from synesis_api.utils import get_model
+from synesis_api.utils.pydanticai_utils import get_model
 from synesis_api.secrets import GITHUB_TOKEN
 
 model = get_model()

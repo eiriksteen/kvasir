@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Union, Literal
 import sys
 
-from synesis_api.utils import get_model
+from synesis_api.utils.pydanticai_utils import get_model
 from synesis_api.secrets import GITHUB_TOKEN
 from synesis_api.redis import get_redis
 from synesis_api.agents.model_integration.runner import ModelIntegrationRunner

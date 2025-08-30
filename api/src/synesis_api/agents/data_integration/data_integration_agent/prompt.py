@@ -137,6 +137,7 @@ When in the transformation stage, create the data transformation code:
       }}, ...]
     }}
     Note: The entity_id_name is the name of the entity-specific id in the data. For time series, when it comes to the second-level timestamp index, simply rename it to "timestamp".
+    Output the dictionary exactly this way, note that the df_dataclasses to organize the dataframesare not used here.
 
 - Output:
   - Summary: Brief summary of what you did

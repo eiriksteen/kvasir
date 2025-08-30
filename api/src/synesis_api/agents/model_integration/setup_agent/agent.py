@@ -1,12 +1,8 @@
 from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.settings import ModelSettings
-from typing import List
-from synesis_api.base_schema import BaseSchema
-from synesis_api.utils import (
-    get_model,
-    run_shell_code_in_container,
-    remove_line_numbers_from_script
-)
+
+from synesis_api.utils.pydanticai_utils import get_model
+from synesis_api.utils.code_utils import run_shell_code_in_container, remove_line_numbers_from_script
 from synesis_api.agents.model_integration.setup_agent.prompt import SETUP_SYSTEM_PROMPT
 from synesis_api.agents.model_integration.shared_tools import (
     get_repo_info,
@@ -20,15 +16,7 @@ from synesis_api.agents.model_integration.shared_tools import (
 from synesis_api.agents.model_integration.prepare_tools import filter_tools
 from synesis_api.agents.model_integration.deps import ModelIntegrationDeps
 from synesis_api.agents.model_integration.history_processors import keep_only_most_recent_script, summarize_message_history
-
-
-class SetupAgentOutput(BaseSchema):
-    dependencies: List[str]
-    python_version: str
-
-
-class SetupAgentOutputWithScript(SetupAgentOutput):
-    script: str
+from synesis_api.agents.model_integration.setup_agent.output import SetupAgentOutput, SetupAgentOutputWithScript
 
 
 model = get_model()

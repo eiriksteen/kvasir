@@ -2,7 +2,8 @@ import json
 import pandas as pd
 from pathlib import Path
 from pydantic_ai import ModelRetry, RunContext
-from synesis_api.utils import run_python_code_in_container, get_basic_df_info
+from synesis_api.utils.code_utils import run_python_code_in_container
+from synesis_api.utils.dataframe_utils import get_basic_df_info
 from synesis_api.agents.data_integration.utils import get_path_from_filename
 
 

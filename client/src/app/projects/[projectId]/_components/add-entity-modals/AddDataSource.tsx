@@ -85,7 +85,7 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
 
         <div className="flex flex-col h-full">
           <div className="p-4">
-            <h3 className="text-xs font-mono uppercase tracking-wider text-gray-400">Add Data Sources</h3>
+            <h3 className="text-xs font-mono uppercase tracking-wider text-gray-400">Add Data Source</h3>
           </div>
 
           <div className="flex-grow overflow-y-auto">

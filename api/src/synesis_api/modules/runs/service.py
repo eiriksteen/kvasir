@@ -33,8 +33,9 @@ from synesis_api.modules.data_sources.service import get_data_sources_by_ids
 async def create_run(
         conversation_id: uuid.UUID,
         user_id: uuid.UUID,
-        type: Literal["chat", "data_integration", "analysis", "automation"],
+        type: Literal["chat", "data_integration", "analysis", "pipeline", "swe"],
         run_id: Optional[uuid.UUID] = None,
+        parent_run_id: Optional[uuid.UUID] = None,
         run_name: Optional[str] = None) -> RunInDB:
 
     run_record = RunInDB(
@@ -44,7 +45,8 @@ async def create_run(
         type=type,
         run_name=run_name,
         started_at=datetime.now(timezone.utc),
-        status="running"
+        status="running",
+        parent_run_id=parent_run_id
     )
 
     await execute(run.insert().values(run_record.model_dump()), commit_after=True)
@@ -96,8 +98,8 @@ async def _get_run_results(run_ids: List[uuid.UUID]) -> List[RunResult]:
 async def get_runs(
         user_id: uuid.UUID,
         only_running: bool = False,
-        run_ids: Optional[List
-                          [uuid.UUID]] = None,
+        run_ids: Optional[List[uuid.UUID]] = None,
+        exclude_swe: bool = True
 ) -> List[Run]:
 
     if only_running:
@@ -110,6 +112,9 @@ async def get_runs(
         runs_query = select(run).where(run.c.user_id == user_id)
     else:
         return []
+
+    if exclude_swe:
+        runs_query = runs_query.where(run.c.type != "swe")
 
     runs = await fetch_all(runs_query)
 

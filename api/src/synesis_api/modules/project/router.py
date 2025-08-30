@@ -67,7 +67,7 @@ async def add_entity_to_project_by_id(
     entity_data: AddEntityToProject,
     user: User = Depends(get_current_user)
 ) -> Project:
-    """Add an entity (data source, dataset, analysis, automation) to a project."""
+    """Add an entity (data source, dataset, analysis, pipeline) to a project."""
     project = await get_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -88,7 +88,7 @@ async def remove_entity_from_project_by_id(
     entity_data: RemoveEntityFromProject,
     user: User = Depends(get_current_user)
 ) -> Project:
-    """Remove an entity (data source, dataset, analysis, automation) from a project."""
+    """Remove an entity (data source, dataset, analysis, pipeline) from a project."""
     project = await get_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")

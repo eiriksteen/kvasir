@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # Database service
   db:
-    image: postgres:latest
+    image: pgvector/pgvector:0.8.0-pg17-bookworm
     container_name: synesis-db
     environment:
       POSTGRES_DB: synesis

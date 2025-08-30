@@ -1,5 +1,5 @@
 import React from 'react';
-import { useProjectChat } from '@/hooks/useChat';
+import { useProjectChat } from '@/hooks/useProjectChat';
 import { Conversation } from '@/types/orchestrator';
 import { MessageSquare, Loader2, AlertCircle } from 'lucide-react';
 import { useProject } from '@/hooks/useProject';

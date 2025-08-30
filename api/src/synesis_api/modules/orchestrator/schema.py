@@ -53,9 +53,9 @@ class DatasetContextInDB(BaseSchema):
     dataset_id: uuid.UUID
 
 
-class AutomationContextInDB(BaseSchema):
+class PipelineContextInDB(BaseSchema):
     context_id: uuid.UUID
-    automation_id: uuid.UUID
+    pipeline_id: uuid.UUID
 
 
 class AnalysisContextInDB(BaseSchema):
@@ -70,7 +70,7 @@ class Context(BaseSchema):
     id: uuid.UUID
     data_source_ids: List[uuid.UUID] = []
     dataset_ids: List[uuid.UUID] = []
-    automation_ids: List[uuid.UUID] = []
+    pipeline_ids: List[uuid.UUID] = []
     analysis_ids: List[uuid.UUID] = []
 
 
@@ -84,7 +84,7 @@ class ChatMessage(ChatMessageInDB):
 class ContextCreate(BaseSchema):
     data_source_ids: List[uuid.UUID] = []
     dataset_ids: List[uuid.UUID] = []
-    automation_ids: List[uuid.UUID] = []
+    pipeline_ids: List[uuid.UUID] = []
     analysis_ids: List[uuid.UUID] = []
 
 

@@ -318,7 +318,7 @@ export const useProject = (projectId: string) => {
 
 
   // Unified function to add any entity to project
-  const addEntity = async (entityType: "data_source" | "dataset" | "analysis" | "automation", entityId: string) => {
+  const addEntity = async (entityType: "data_source" | "dataset" | "analysis" | "pipeline", entityId: string) => {
     if (!project) return;
 
     //const position = calculateNodePosition();
@@ -332,7 +332,7 @@ export const useProject = (projectId: string) => {
       dataSourceId: entityType === "data_source" ? entityId : null,
       datasetId: entityType === "dataset" ? entityId : null,
       analysisId: entityType === "analysis" ? entityId : null,
-      automationId: entityType === "automation" ? entityId : null,
+      pipelineId: entityType === "pipeline" ? entityId : null,
     });
 
     // Update the project to include the entity
@@ -345,7 +345,7 @@ export const useProject = (projectId: string) => {
   };
 
   // Unified function to remove any entity from project
-  const removeEntity = async (entityType: "data_source" | "dataset" | "analysis" | "automation", entityId: string) => {
+  const removeEntity = async (entityType: "data_source" | "dataset" | "analysis" | "pipeline", entityId: string) => {
     if (!project) return;
 
     // Update the project to remove the entity
@@ -366,8 +366,8 @@ export const useProject = (projectId: string) => {
       case "analysis":
         nodeToDelete = frontendNodes?.find(node => node.analysisId === entityId);
         break;
-      case "automation":
-        nodeToDelete = frontendNodes?.find(node => node.automationId === entityId);
+      case "pipeline":
+        nodeToDelete = frontendNodes?.find(node => node.pipelineId === entityId);
         break;
     }
     

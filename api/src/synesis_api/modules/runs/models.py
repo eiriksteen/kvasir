@@ -13,13 +13,15 @@ run = Table(
            ForeignKey("auth.users.id"), nullable=False),
     Column("conversation_id", UUID(as_uuid=True),
            ForeignKey("orchestrator.conversation.id"), nullable=False),
+    Column("parent_run_id", UUID(as_uuid=True),
+           ForeignKey("runs.run.id"), nullable=True),
     Column("type", String, nullable=False),
     Column("status", String, nullable=False),
     Column("started_at", DateTime(timezone=True), nullable=False),
     Column("completed_at", DateTime(timezone=True), nullable=True),
     Column("run_name", String, nullable=True),
     CheckConstraint(
-        "type IN ('data_integration', 'analysis', 'automation')", name="type_check"),
+        "type IN ('data_integration', 'analysis', 'pipeline', 'swe')", name="type_check"),
     schema="runs"
 )
 
@@ -124,7 +126,7 @@ model_integration_run_result = Table(
            ForeignKey("runs.run.id"),
            primary_key=True),
     Column("model_id", UUID(as_uuid=True), ForeignKey(
-        "automation.model.id"), nullable=False),
+        "pipeline.model.id"), nullable=False),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
     Column("updated_at", DateTime(timezone=True),

@@ -5,7 +5,7 @@ import { X, Folder } from 'lucide-react';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { UUID } from 'crypto';
 import { useDataSources } from '@/hooks/useDataSources';
-import { useProjectChat } from '@/hooks/useChat';
+import { useProjectChat } from '@/hooks/useProjectChat';
 import { DataSource } from '@/types/data-sources';
 import SourceTypeIcon from "@/app/data-sources/_components/SourceTypeIcon";
 import { useProject } from '@/hooks/useProject';
@@ -80,7 +80,7 @@ export default function AddDataset({ onClose, projectId }: AddDatasetProps) {
   };
 
   const handleSubmit = async () => {
-    await submitPrompt(`Create a new dataset!${description ? `\n\nDescription: ${description}` : ''}`);
+    await submitPrompt(`Create a new dataset from the data sources in the context!${description ? `\n\nDescription: ${description}` : ''}`);
     onClose();
   };
 

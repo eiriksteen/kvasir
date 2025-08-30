@@ -13,7 +13,7 @@ analysis_jobs_results = Table(
            primary_key=True),
     Column("name", String, nullable=False),
     Column("number_of_datasets", Integer, nullable=False),
-    Column("number_of_automations", Integer, nullable=False),
+    Column("number_of_pipelines", Integer, nullable=False),
     Column("analysis_plan", JSONB, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("pdf_created", Boolean, nullable=False),
@@ -38,8 +38,8 @@ analysis_jobs_datasets = Table(
     schema="analysis",
 )
 
-analysis_jobs_automations = Table(
-    "analysis_jobs_automations",
+analysis_jobs_pipelines = Table(
+    "analysis_jobs_pipelines",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
@@ -47,8 +47,8 @@ analysis_jobs_automations = Table(
     Column("job_id", UUID(as_uuid=True),
            ForeignKey("runs.run.id"),
            nullable=False),
-    Column("automation_id", UUID(as_uuid=True),
-           ForeignKey("automation.automation.id"),
+    Column("pipeline_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline.id"),
            nullable=False),
     schema="analysis",
 )

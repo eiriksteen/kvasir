@@ -21,9 +21,10 @@ router = APIRouter()
 @router.get("/runs")
 async def fetch_runs(
     user: Annotated[User, Depends(get_current_user)] = None,
+    exclude_swe: bool = True
 ) -> List[Run]:
 
-    runs = await get_runs(user.id)
+    runs = await get_runs(user.id, exclude_swe=exclude_swe)
     return runs
 
 
@@ -95,7 +96,7 @@ async def stream_run_messages(
 @router.get("/stream-incomplete-runs")
 async def stream_incomplete_runs(
     user: Annotated[User, Depends(get_current_user)] = None,
-    sleep_time: int = SSE_MIN_SLEEP_TIME
+    exclude_swe: bool = True
 ) -> StreamingResponse:
 
     adapter = TypeAdapter(List[Run])
@@ -103,14 +104,14 @@ async def stream_incomplete_runs(
     async def stream_incomplete_runs():
         prev_run_ids = []
         while True:
-            incomplete_runs = await get_runs(user.id, only_running=True)
+            incomplete_runs = await get_runs(user.id, only_running=True, exclude_swe=exclude_swe)
 
             # Include recently stopped runs to ensure we don't miss the associated state changes
             # Could optionally listen for when a run id is removed from this list in the frontend, then mutate all jobs, but this is more efficient
             stopped_run_ids = [
                 run_id for run_id in prev_run_ids if run_id not in [run.id for run in incomplete_runs]]
 
-            stopped_runs = await get_runs(user.id, run_ids=stopped_run_ids)
+            stopped_runs = await get_runs(user.id, run_ids=stopped_run_ids, exclude_swe=exclude_swe)
 
             runs = stopped_runs + incomplete_runs
 
@@ -118,6 +119,6 @@ async def stream_incomplete_runs(
 
             prev_run_ids = [run.id for run in runs]
 
-            await asyncio.sleep(sleep_time)
+            await asyncio.sleep(SSE_MIN_SLEEP_TIME)
 
     return StreamingResponse(stream_incomplete_runs(), media_type="text/event-stream")

@@ -9,7 +9,7 @@ from synesis_api.modules.orchestrator.schema import (
     ContextInDB,
     DataSourceContextInDB,
     DatasetContextInDB,
-    AutomationContextInDB,
+    PipelineContextInDB,
     AnalysisContextInDB,
     ConversationInDB,
     ChatMessageInDB,
@@ -21,7 +21,7 @@ from synesis_api.modules.orchestrator.models import (
     conversation,
     chat_context,
     dataset_context,
-    automation_context,
+    pipeline_context,
     analysis_context,
     data_source_context,
 )
@@ -29,6 +29,7 @@ from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.data_objects.service.metadata_service import get_user_datasets_by_ids
 from synesis_api.modules.analysis.service import get_user_analyses_by_ids
 from synesis_api.modules.data_sources.service import get_data_sources_by_ids
+from synesis_api.modules.pipeline.service import get_user_pipelines_by_ids
 
 
 async def create_conversation(
@@ -66,9 +67,9 @@ async def _get_context_objects_from_ids(context_ids: list[uuid.UUID]) -> list[Co
             dataset_context.c.context_id.in_(context_ids))
     )
 
-    automation_contexts = await fetch_all(
-        select(automation_context).where(
-            automation_context.c.context_id.in_(context_ids))
+    pipeline_contexts = await fetch_all(
+        select(pipeline_context).where(
+            pipeline_context.c.context_id.in_(context_ids))
     )
 
     analysis_contexts = await fetch_all(
@@ -81,8 +82,8 @@ async def _get_context_objects_from_ids(context_ids: list[uuid.UUID]) -> list[Co
                            for dc in data_source_contexts if dc['context_id'] == ctx_id]
         dataset_ids = [dc['dataset_id']
                        for dc in dataset_contexts if dc['context_id'] == ctx_id]
-        automation_ids = [ac['automation_id']
-                          for ac in automation_contexts if ac['context_id'] == ctx_id]
+        pipeline_ids = [ac['pipeline_id']
+                        for ac in pipeline_contexts if ac['context_id'] == ctx_id]
         analysis_ids = [ac['analysis_id']
                         for ac in analysis_contexts if ac['context_id'] == ctx_id]
 
@@ -90,7 +91,7 @@ async def _get_context_objects_from_ids(context_ids: list[uuid.UUID]) -> list[Co
             id=ctx_id,
             data_source_ids=data_source_ids,
             dataset_ids=dataset_ids,
-            automation_ids=automation_ids,
+            pipeline_ids=pipeline_ids,
             analysis_ids=analysis_ids
         ))
 
@@ -229,12 +230,12 @@ async def create_context(
         for dataset_id in context_data.dataset_ids
     ]
 
-    automation_context_records = [
-        AutomationContextInDB(
+    pipeline_context_records = [
+        PipelineContextInDB(
             context_id=context_id,
-            automation_id=automation_id
+            pipeline_id=pipeline_id
         )
-        for automation_id in context_data.automation_ids
+        for pipeline_id in context_data.pipeline_ids
     ]
 
     analysis_context_records = [
@@ -245,7 +246,7 @@ async def create_context(
         for analysis_id in context_data.analysis_ids
     ]
 
-    if len(dataset_context_records) == 0 and len(automation_context_records) == 0 and len(analysis_context_records) == 0 and len(data_source_context_records) == 0:
+    if len(dataset_context_records) == 0 and len(pipeline_context_records) == 0 and len(analysis_context_records) == 0 and len(data_source_context_records) == 0:
         raise ValueError("No context records given to create")
     else:
         await execute(chat_context.insert().values(context_record.model_dump()), commit_after=True)
@@ -254,8 +255,8 @@ async def create_context(
             await execute(data_source_context.insert().values([record.model_dump() for record in data_source_context_records]), commit_after=True)
         if len(dataset_context_records) > 0:
             await execute(dataset_context.insert().values([record.model_dump() for record in dataset_context_records]), commit_after=True)
-        if len(automation_context_records) > 0:
-            await execute(automation_context.insert().values([record.model_dump() for record in automation_context_records]), commit_after=True)
+        if len(pipeline_context_records) > 0:
+            await execute(pipeline_context.insert().values([record.model_dump() for record in pipeline_context_records]), commit_after=True)
         if len(analysis_context_records) > 0:
             await execute(analysis_context.insert().values([record.model_dump() for record in analysis_context_records]), commit_after=True)
 
@@ -263,17 +264,16 @@ async def create_context(
 
 
 async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
-    datasets = await get_user_datasets_by_ids(user_id, context.dataset_ids)
+    datasets = await get_user_datasets_by_ids(user_id, context.dataset_ids, max_features=20)
     data_sources = await get_data_sources_by_ids(context.data_source_ids)
-    # await get_user_automations_by_ids(context.user_id, context.automation_ids)
-    automations = []
+    pipelines = await get_user_pipelines_by_ids(user_id, context.pipeline_ids)
     analyses = await get_user_analyses_by_ids(user_id, context.analysis_ids)
 
     context_message = f"""
         <CONTEXT UPDATES>
         Current data sources in context: {data_sources}
         Current datasets in context: {datasets}
-        Current automations in context: {automations}
+        Current pipelines in context: {pipelines}
         Current analyses in context: {analyses}
         </CONTEXT UPDATES>
         """

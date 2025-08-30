@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from sqlalchemy import insert, select, and_
 from fastapi import UploadFile, HTTPException
+
 from synesis_api.modules.data_objects.models import (
     dataset,
     time_series,
@@ -35,6 +36,7 @@ from synesis_api.modules.data_objects.schema import (
 )
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_data_structures.time_series.serialization import deserialize_parquet_to_dataframes
+from synesis_data_structures.time_series.df_dataclasses import TimeSeriesStructure, TimeSeriesAggregationStructure
 from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_DATA_SECOND_LEVEL_ID,
     TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID,
@@ -44,7 +46,7 @@ from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID
 )
 from synesis_api.storage.local import save_dataframe_to_local_storage
-from synesis_api.utils import determine_sampling_frequency, determine_timezone
+from synesis_api.utils.time_series_utils import determine_sampling_frequency, determine_timezone
 
 
 async def create_features(
@@ -143,19 +145,20 @@ async def create_dataset(
                 file_content = await matching_file.read()
                 parquet_dict[dataframe_create.structure_type] = file_content
 
-            dataframes = deserialize_parquet_to_dataframes(
+            structure = deserialize_parquet_to_dataframes(
                 parquet_dict,
                 group.structure_type
             )
 
             # Check what data structures are present
-            has_feature_information = FEATURE_INFORMATION_SECOND_LEVEL_ID in dataframes
-            is_time_series_structure = TIME_SERIES_DATA_SECOND_LEVEL_ID in dataframes
-            is_time_series_aggregation_structure = TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID in dataframes
+            has_feature_information = structure.feature_information is not None
+            is_time_series_structure = isinstance(
+                structure, TimeSeriesStructure)
+            is_time_series_aggregation_structure = isinstance(
+                structure, TimeSeriesAggregationStructure)
 
             if has_feature_information:
-                features_info = dataframes[FEATURE_INFORMATION_SECOND_LEVEL_ID].reset_index(
-                )
+                features_info = structure.feature_information.reset_index()
 
                 await create_features(
                     names=[record["name"]
@@ -187,10 +190,9 @@ async def create_dataset(
 
             original_entity_id_to_generated_id = {}
             if is_time_series_structure:
-                raw_data_second_level_structure_id = TIME_SERIES_DATA_SECOND_LEVEL_ID
-                raw_data: pd.DataFrame = dataframes[raw_data_second_level_structure_id]
-                metadata: pd.DataFrame = dataframes[
-                    TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID] if TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID in dataframes else None
+                raw_data = structure.time_series_data
+                metadata = structure.time_series_entity_metadata
+                second_level_id = TIME_SERIES_DATA_SECOND_LEVEL_ID
 
                 # Create the time series objects
                 for original_entity_id in raw_data.index.get_level_values(0).unique():
@@ -242,12 +244,10 @@ async def create_dataset(
                     await execute(insert(time_series).values(time_series_record.model_dump()), commit_after=True)
 
             elif is_time_series_aggregation_structure:
-                raw_data_second_level_structure_id = TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID
-                raw_data: pd.DataFrame = dataframes[raw_data_second_level_structure_id]
-                input_data: pd.DataFrame = dataframes[
-                    TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID]
-                metadata: pd.DataFrame = dataframes[
-                    TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID] if TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID in dataframes else None
+                raw_data = structure.time_series_aggregation_outputs
+                input_data = structure.time_series_aggregation_inputs
+                metadata = structure.time_series_aggregation_metadata
+                second_level_id = TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID
 
                 for aggregation_id in raw_data.index:
                     aggregation_output: pd.DataFrame = raw_data.loc[aggregation_id]
@@ -299,14 +299,14 @@ async def create_dataset(
 
             else:
                 raise ValueError(
-                    f"Data structure not supported: {raw_data_second_level_structure_id}")
+                    f"Data structure not supported: {structure}")
 
             save_dataframe_to_local_storage(
                 user_id,
                 dataset_record.id,
                 object_group_record.id,
                 raw_data,
-                raw_data_second_level_structure_id
+                second_level_id
             )
 
         return dataset_record
@@ -406,6 +406,10 @@ async def get_user_datasets(
     result_records = []
     for dataset_result in datasets_result:
         dataset_obj = DatasetInDB(**dataset_result)
+        if len([
+                group for group in object_groups_with_features if group.dataset_id == dataset_obj.id and group.role == "primary"]) == 0:
+            print(
+                f"No primary object group found for dataset {dataset_obj.id}")
         primary_object_group = [
             group for group in object_groups_with_features if group.dataset_id == dataset_obj.id and group.role == "primary"][0]
         annotated_object_groups = [
@@ -426,6 +430,7 @@ async def get_user_datasets(
 async def get_user_datasets_by_ids(
         user_id: uuid.UUID,
         dataset_ids: List[uuid.UUID] = [],
+        max_features: Optional[int] = None
 ) -> List[DatasetWithObjectGroups]:
     """Get specific datasets for a user by IDs"""
 
@@ -482,9 +487,9 @@ async def get_user_datasets_by_ids(
 
         if primary_object_group:
             # Get features for each group
-            primary_with_features = (await _add_features_to_object_groups([primary_object_group]))[0]
-            annotated_with_features = await _add_features_to_object_groups(annotated_object_groups)
-            computed_with_features = await _add_features_to_object_groups(computed_object_groups)
+            primary_with_features = (await _add_features_to_object_groups([primary_object_group], max_features))[0]
+            annotated_with_features = await _add_features_to_object_groups(annotated_object_groups, max_features)
+            computed_with_features = await _add_features_to_object_groups(computed_object_groups, max_features)
 
             dataset_with_objects = DatasetWithObjectGroups(
                 **dataset_obj.model_dump(),
@@ -501,10 +506,8 @@ async def get_user_datasets_by_ids(
 async def get_object_groups(dataset_id: uuid.UUID) -> ObjectGroupsWithListsInDataset:
     """Get all object groups in a dataset"""
 
-    # Get the object group
-    object_group_query = select(object_group, feature_in_group).where(
-        and_(object_group.c.dataset_id == dataset_id)
-    )
+    object_group_query = select(object_group).where(
+        object_group.c.dataset_id == dataset_id)
     object_groups_result = await fetch_all(object_group_query)
 
     object_groups = [ObjectGroupInDB(**group)
@@ -588,7 +591,7 @@ async def _add_object_lists_to_object_groups(groups: List[ObjectGroupWithFeature
     return result_records
 
 
-async def _add_features_to_object_groups(groups: List[ObjectGroupInDB]) -> List[ObjectGroupWithFeatures]:
+async def _add_features_to_object_groups(groups: List[ObjectGroupInDB], max_features: Optional[int] = None) -> List[ObjectGroupWithFeatures]:
     """Helper function to get an object group with its features"""
 
     # Get features for this group by joining feature and feature_in_group tables
@@ -610,6 +613,10 @@ async def _add_features_to_object_groups(groups: List[ObjectGroupInDB]) -> List[
     ).where(
         feature_in_group.c.group_id.in_([group.id for group in groups])
     )
+
+    if max_features:
+        features_query = features_query.limit(max_features)
+
     features_result = await fetch_all(features_query)
 
     result_records = []

@@ -3,6 +3,7 @@ from uuid import UUID
 from typing import Annotated, List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Form, UploadFile
+
 from synesis_api.modules.data_objects.service.metadata_service import (
     create_dataset,
     get_user_datasets,
@@ -32,11 +33,11 @@ async def submit_dataset(
 
     metadata_parsed = DatasetCreate(**json.loads(metadata))
 
-    try:
-        dataset_record = await create_dataset(files, metadata_parsed, user.id)
-    except Exception as e:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid dataset: {e}")
+    # try:
+    dataset_record = await create_dataset(files, metadata_parsed, user.id)
+    # except Exception as e:
+    #     raise HTTPException(
+    #         status_code=400, detail=f"Invalid dataset: {e}")
 
     return dataset_record
 

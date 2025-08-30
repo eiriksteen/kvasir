@@ -3,14 +3,14 @@
 import React from 'react';
 import { Database, BarChart3, Zap, Folder } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
-import { Automation } from '@/types/automation';
+import { Pipeline } from '@/types/pipeline';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 import { DataSource } from '@/types/data-sources';
 
-type ItemType = 'dataset' | 'analysis' | 'automation' | 'data_source';
+type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source';
 
 interface EntityItemProps {
-    item: Dataset | AnalysisJobResultMetadata | Automation | DataSource;
+    item: Dataset | AnalysisJobResultMetadata | Pipeline | DataSource;
     type: ItemType;
     isInContext: boolean;
     onClick: () => void;
@@ -43,7 +43,7 @@ export default function EntityItem({ item, type, isInContext, onClick }: EntityI
                     textColor: 'text-gray-200',
                     hover: 'hover:bg-purple-500/8'
                 };
-            case 'automation':
+            case 'pipeline':
                 return {
                     bg: isInContext ? 'bg-orange-500/10' : 'hover:bg-orange-500/5',
                     icon: <Zap size={11} />,

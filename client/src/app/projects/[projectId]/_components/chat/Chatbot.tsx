@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Send, Plus, History, Database, X, BarChart } from 'lucide-react';
-import { useProjectChat } from '@/hooks/useChat';
+import { Send, Plus, History, Database, X, BarChart, Zap } from 'lucide-react';
+import { useProjectChat } from '@/hooks';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { ChatHistory } from '@/app/projects/[projectId]/_components/chat/ChatHistory';
 import { ChatMessage } from '@/types/orchestrator';
@@ -14,6 +14,7 @@ import { useRunsInConversation } from '@/hooks/useRuns';
 import RunBox from '@/components/runs/RunBox';
 import { Run } from '@/types/runs';
 import ChatMessageBox from '@/app/projects/[projectId]/_components/chat/ChatMessageBox';
+import { Pipeline } from '@/types/pipeline';
 
 export default function Chatbot({ projectId }: { projectId: UUID }) {
   
@@ -31,6 +32,8 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
     removeDatasetFromContext, 
     analysesInContext, 
     removeAnalysisFromContext,
+    pipelinesInContext,
+    removePipelineFromContext,
   } = useAgentContext(projectId);
 
   const { runsInConversation } = useRunsInConversation(conversation?.id || "");
@@ -206,6 +209,23 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                       </button>
                     </div>
                   ))}
+
+                  {/* Pipelines */}
+                  {pipelinesInContext.map((pipeline: Pipeline) => (
+                    <div 
+                      key={pipeline.id}
+                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-orange-900/30 text-orange-300"
+                    >
+                      <Zap size={12} />
+                      {pipeline.name}
+                      <button 
+                        onClick={() => removePipelineFromContext(pipeline)}
+                        className="text-zinc-400 hover:text-white"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
                 </>
             </div>
           </div>
@@ -266,7 +286,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSubmitPrompt()}
                 placeholder="Ask a question..."
-                className="flex-1 bg-transparent px-4 py-3 outline-none text-white"
+                className="flex-1 bg-transparent px-4 py-3 outline-none text-white text-xs"
               />
               <button 
                 onClick={handleSubmitPrompt}

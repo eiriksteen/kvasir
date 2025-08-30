@@ -10,7 +10,7 @@ export interface Project {
     dataSourceIds: string[];
     datasetIds: string[];
     analysisIds: string[];
-    automationIds: string[];
+    pipelineIds: string[];
 }
 
 export interface ProjectCreate {
@@ -24,11 +24,11 @@ export interface ProjectDetailsUpdate {
 }
 
 export interface AddEntityToProject {
-    entityType: "data_source" | "dataset" | "analysis" | "automation";
+    entityType: "data_source" | "dataset" | "analysis" | "pipeline";
     entityId: UUID;
 }
 
 export interface RemoveEntityFromProject {
-    entityType: "data_source" | "dataset" | "analysis" | "automation";
+    entityType: "data_source" | "dataset" | "analysis" | "pipeline";
     entityId: UUID;
 }

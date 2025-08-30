@@ -3,10 +3,10 @@ from fastapi import HTTPException
 from sqlalchemy import update, select, insert, delete
 from typing import List
 from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_automations, analysis_status_messages
+from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_pipelines, analysis_status_messages
 from synesis_api.modules.analysis.schema import AnalysisJobResultMetadataInDB, AnalysisJobResultInDB, AnalysisPlan, AnalysisStatusMessage, AnalysisJobResultMetadata
 from synesis_api.modules.runs.service import update_run_status
-from synesis_api.utils import save_markdown_as_html
+from synesis_api.utils.markdown_utils import save_markdown_as_html
 from synesis_api.aws.service import upload_object_s3
 from synesis_api.worker import logger
 from synesis_api.modules.orchestrator.models import analysis_context
@@ -15,7 +15,7 @@ from synesis_api.modules.orchestrator.models import analysis_context
 async def run_analysis_execution(
         job_id: uuid.UUID,
         dataset_ids: List[uuid.UUID],
-        automation_ids: List[uuid.UUID],
+        pipeline_ids: List[uuid.UUID],
         data_paths: List[str],
         data_description: str,
         problem_description: str,

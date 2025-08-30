@@ -27,9 +27,9 @@ class AnalysisJobResultMetadata(BaseSchema):
     job_id: UUID
     name: str
     number_of_datasets: int
-    number_of_automations: int
+    number_of_pipelines: int
     dataset_ids: List[UUID]
-    automation_ids: List[UUID]
+    pipeline_ids: List[UUID]
     analysis_plan: AnalysisPlan
     status_messages: List[AnalysisStatusMessage]
     created_at: datetime

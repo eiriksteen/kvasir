@@ -9,12 +9,10 @@ from pydantic_ai.messages import (
     FunctionToolCallEvent,
     ModelMessage
 )
-from synesis_api.utils import (
-    run_shell_code_in_container,
-    create_file_in_container_with_content,
-    parse_github_url,
-    run_python_code_in_container
-)
+
+from synesis_api.utils.code_utils import run_shell_code_in_container, run_python_code_in_container
+from synesis_api.utils.file_utils import create_file_in_container_with_content
+from synesis_api.utils.github_utils import parse_github_url
 from synesis_api.worker import broker
 from synesis_api.base_schema import BaseSchema
 from synesis_api.redis import get_redis
@@ -22,17 +20,17 @@ from synesis_api.agents.model_integration.setup_agent.agent import (
     SetupAgentOutputWithScript,
     setup_agent
 )
-from synesis_api.agents.model_integration.implementation_agent.agent import (
+from synesis_api.agents.model_integration.implementation_agent.output import (
     ModelAnalysisOutput,
     ImplementationPlanningOutput,
     TrainingOutputWithScript,
-    InferenceOutputWithScript,
-    implementation_agent
+    InferenceOutputWithScript
 )
+from synesis_api.agents.model_integration.implementation_agent.agent import implementation_agent
 from synesis_api.agents.model_integration.deps import ModelIntegrationDeps
 from synesis_api.modules.runs.schema import RunInDB
 from synesis_api.modules.runs.service import update_run_status, get_runs, create_run_message_pydantic, create_model_integration_run_result
-from synesis_api.modules.automation.service import insert_model
+from synesis_api.modules.pipeline.service import create_model
 from synesis_api.agents.model_integration.utils import (
     save_stage_output_to_cache,
     get_stage_output_from_cache,
@@ -562,7 +560,7 @@ class ModelIntegrationRunner:
             self.job_id,
             setup_output.script,
             "setup.sh",
-            "automation"
+            "pipeline"
         )
 
         # Save files to local system
@@ -572,18 +570,18 @@ class ModelIntegrationRunner:
 
             inference_script_path = save_script_to_local_storage(
                 self.user_id,
-                self.job_id,
+                self.run_id,
                 inference_outputs[i].script,
                 f"inference_{task}.py",
-                "automation"
+                "pipeline"
             )
 
             training_script_path = save_script_to_local_storage(
                 self.user_id,
-                self.job_id,
+                self.run_id,
                 training_outputs[i].script,
                 f"training_{task}.py",
-                "automation"
+                "pipeline"
             )
 
             inference_save_paths.append(str(inference_script_path))
@@ -592,17 +590,17 @@ class ModelIntegrationRunner:
         # Save config file
         config_script_path = save_script_to_local_storage(
             self.user_id,
-            self.job_id,
+            self.run_id,
             model_analysis_output.config_code,
             "config.py",
-            "automation"
+            "pipeline"
         )
 
         # Save to database
         await self._log_message_to_redis("Saving model to database...")
         model_id = uuid.uuid4()
 
-        await insert_model(
+        await create_model(
             name=model_analysis_output.model_name,
             description=model_analysis_output.model_description,
             owner_id=self.user_id,

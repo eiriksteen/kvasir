@@ -1,4 +1,5 @@
 import uuid
+import json
 from pathlib import Path
 from typing import Optional, List, Literal
 from datetime import datetime, timezone
@@ -21,7 +22,7 @@ from synesis_api.agents.data_integration.data_integration_agent.agent import (
     DataIntegrationAgentDeps,
     DataIntegrationAgentOutputWithDatasetId
 )
-from synesis_api.agents.chat.agent import chatbot_agent
+from synesis_api.agents.orchestrator.agent import orchestrator_agent
 from synesis_api.worker import broker, logger
 from synesis_api.redis import get_redis
 from synesis_api.storage.local import save_script_to_local_storage
@@ -35,14 +36,14 @@ class DataIntegrationRunner:
     def __init__(
             self,
             user_id: str,
-            conversation_id: uuid.UUID,
             project_id: uuid.UUID,
+            conversation_id: uuid.UUID,
             run_id: uuid.UUID | None = None):
 
         self.data_integration_agent = data_integration_agent
         self.user_id = user_id
-        self.conversation_id = conversation_id
         self.project_id = project_id
+        self.conversation_id = conversation_id
         self.run_id = run_id
         self.dataset_name = None
         self.redis_stream = get_redis()
@@ -59,7 +60,6 @@ class DataIntegrationRunner:
             "role": "agent",
             "content": content,
             "run_id": str(self.run_id),
-            "conversation_id": str(self.conversation_id),
             "type": message_type,
             "created_at": datetime.now(timezone.utc).isoformat()
         }
@@ -77,7 +77,7 @@ class DataIntegrationRunner:
         if self.dataset_name is not None:
             raise RuntimeError("Dataset name already created")
 
-        name = await chatbot_agent.run(
+        name = await orchestrator_agent.run(
             f"Give me a nice human-readable name for a dataset with the following description: '{data_description}'. The name should be short and concise. Output just the name!"
         )
         self.dataset_name = name.output
@@ -105,8 +105,9 @@ class DataIntegrationRunner:
             self.run_id = uuid.uuid4()
             dataset_name = await self._create_dataset_name(prompt_content)
             await create_run(
+                self.conversation_id,
                 self.user_id,
-                "integration",
+                "data_integration",
                 run_id=self.run_id,
                 run_name=dataset_name
             )
@@ -135,7 +136,7 @@ class DataIntegrationRunner:
                                     logger.info(
                                         f"Integration agent tool call: {message}")
                                     # print(event.part.args)
-                                    explanation = event.part.args[
+                                    explanation = json.loads(event.part.args)[
                                         "explanation"] if "explanation" in event.part.args else "Understanding dataset requirements"
                                     await self._log_message_to_redis(explanation, "tool_call", write_to_db=True)
 
@@ -175,17 +176,17 @@ class DataIntegrationRunner:
 @broker.task(retry_on_error=False)
 async def run_data_integration_task(
         user_id: uuid.UUID,
-        conversation_id: uuid.UUID,
         project_id: uuid.UUID,
         run_id: uuid.UUID,
+        conversation_id: uuid.UUID,
         data_source_ids: List[uuid.UUID],
         prompt_content: str):
 
     runner = DataIntegrationRunner(
         user_id,
-        conversation_id,
         project_id,
-        run_id
+        conversation_id,
+        run_id,
     )
 
     result = await runner(data_source_ids=data_source_ids, prompt_content=prompt_content)

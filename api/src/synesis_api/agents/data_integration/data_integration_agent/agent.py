@@ -1,10 +1,9 @@
 import json
-import uuid
-from typing import List
 from pathlib import Path
-from dataclasses import dataclass
 from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.settings import ModelSettings
+
+from synesis_api.agents.data_integration.data_integration_agent.deps import DataIntegrationAgentDeps
 from synesis_api.agents.data_integration.data_integration_agent.prompt import DATASET_INTEGRATION_SYSTEM_PROMPT
 from synesis_api.agents.data_integration.shared_tools import (
     execute_python_code,
@@ -12,32 +11,11 @@ from synesis_api.agents.data_integration.shared_tools import (
     get_json_contents,
     get_excel_contents
 )
-from synesis_api.utils import (
-    copy_file_or_directory_to_container,
-    get_model,
-    run_python_function_in_container,
-    remove_print_statements_from_code
-)
-from synesis_data_structures.time_series.definitions import get_data_structures_overview, get_data_structure_description
-from synesis_api.base_schema import BaseSchema
-
-
-@dataclass
-class DataIntegrationAgentDeps:
-    data_source_descriptions: List[str]
-    file_paths: List[Path]
-    api_key: str
-    # No target data description as this will be provided in the user prompt
-
-
-class DataIntegrationAgentOutput(BaseSchema):
-    summary: str
-    code_explanation: str
-    code: str
-
-
-class DataIntegrationAgentOutputWithDatasetId(DataIntegrationAgentOutput):
-    dataset_id: uuid.UUID
+from synesis_api.agents.shared_tools import get_data_structures_overview_tool, get_data_structure_description_tool
+from synesis_api.utils.file_utils import copy_file_or_directory_to_container
+from synesis_api.utils.pydanticai_utils import get_model
+from synesis_api.utils.code_utils import run_python_function_in_container, remove_print_statements_from_code
+from synesis_api.agents.data_integration.data_integration_agent.output import DataIntegrationAgentOutput, DataIntegrationAgentOutputWithDatasetId
 
 
 model = get_model()
@@ -52,8 +30,8 @@ data_integration_agent = Agent(
         get_csv_contents,
         get_json_contents,
         get_excel_contents,
-        get_data_structures_overview,
-        get_data_structure_description
+        get_data_structures_overview_tool,
+        get_data_structure_description_tool
     ],
     retries=3
 )
@@ -101,6 +79,8 @@ async def validate_data_integration(
             "You didn't provide the dataset_dict variable in your code!")
 
     result.code = remove_print_statements_from_code(result.code)
+
+    print("DATA INTEGRATION AGENT CODE:\n\n" + result.code)
 
     out, err = await run_python_function_in_container(
         base_script=result.code,

@@ -15,7 +15,7 @@ class Project(BaseSchema):
     data_source_ids: List[UUID] = []
     dataset_ids: List[UUID] = []
     analysis_ids: List[UUID] = []
-    automation_ids: List[UUID] = []
+    pipeline_ids: List[UUID] = []
 
 
 class ProjectCreate(BaseSchema):
@@ -36,10 +36,10 @@ class ProjectDetailsUpdate(BaseSchema):
 
 
 class AddEntityToProject(BaseSchema):
-    entity_type: Literal["data_source", "dataset", "analysis", "automation"]
+    entity_type: Literal["data_source", "dataset", "analysis", "pipeline"]
     entity_id: UUID
 
 
 class RemoveEntityFromProject(BaseSchema):
-    entity_type: Literal["data_source", "dataset", "analysis", "automation"]
+    entity_type: Literal["data_source", "dataset", "analysis", "pipeline"]
     entity_id: UUID
