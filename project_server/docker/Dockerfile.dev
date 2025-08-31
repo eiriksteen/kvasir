@@ -1,0 +1,24 @@
+# NB: Assumes build context is the root of the project (where the docker-compose file is).
+
+FROM python:3.13-slim
+
+WORKDIR /app
+
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get update && \
+    apt-get -y install build-essential mono-mcs && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy the data_structures package first for better caching
+COPY data_structures /app/data_structures
+
+# Copy the project_server project files
+COPY project_server /app
+
+# Install synesis data structures package from source and the main package
+RUN pip install --upgrade pip && \
+    pip install -e /app/data_structures && \
+    pip install -e .
+
+CMD ["uvicorn", "src.project_server.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"] 

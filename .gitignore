@@ -16,3 +16,4 @@ local_directory_data_sources
 data_integration_scripts
 datasets
 pipeline_scripts
+*password.txt

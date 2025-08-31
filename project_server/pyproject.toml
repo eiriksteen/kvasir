@@ -11,18 +11,61 @@ authors = [
 ]
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    # FastAPI and web framework
     "fastapi[standard]",
     "uvicorn",
     "pydantic",
     "httpx",
-    "aiofiles"
+    "aiofiles",
+    
+    # Core ML/AI packages
+    "numpy",
+    "torch",
+    "pandas",
+    "scikit-learn",
+    "transformers",
+    "xgboost",
+    "lightgbm",
+    "catboost",
+    "tensorflow",
+    "keras",
+    
+    # Data processing & utilities
+    "scipy",
+    "statsmodels",
+    "arch",
+    "prophet",
+    "tslearn",
+    "pyts",
+    "tsfresh",
+    "feature-engine",
+    "category-encoders",
+    
+    # Time series specific packages
+    "darts",
+    "sktime",
+    
+    # Development & testing
+    "pytest",
+    "black",
+    "flake8",
+    "pylint",
+    "mypy",
+    
+    # System & network
+    "requests",
+    "aiohttp",
+    "docker",
+    "redis",
+    "psycopg2-binary",
+    "sqlalchemy",
 ]
 
 [tool.setuptools]
