@@ -15,11 +15,11 @@ class DataStructureDefinition:
 
 
 FEATURE_INFORMATION_SECOND_LEVEL_ID = "feature_information"
+ENTITY_METADATA_SECOND_LEVEL_ID = "entity_metadata"
 
 
 # Structure descriptions
 TIME_SERIES_DATA_SECOND_LEVEL_ID = "time_series_data"
-TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID = "time_series_entity_metadata"
 TIME_SERIES_DESCRIPTION = f"""# Purpose and Use Cases
 The Time Series DataFrame structure is designed for representing time-varying data from multiple entities (sensors, objects, systems, etc.) in a unified format. Some examples this structure is ideal for:
 
@@ -49,11 +49,19 @@ The structure supports varying time series lengths per entity, making it flexibl
 - Note: Varying number of timestamps per entity are supported, i.e the time series have differing lengths
 
 ## Static Entity-Specific Metadata
-- Second level ID identifying this dataframe: {TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID}
+- Second level ID identifying this dataframe: {ENTITY_METADATA_SECOND_LEVEL_ID}
 - Format: pandas DataFrame
 - Index Structure: Single-level index
   - Index: Entity ID (must exactly match Level 0 of the MultiIndex of the time-varying data)
 - Content: Static features as columns
+  - Fixed columns (always present):
+    - num_timestamps: Number of timestamps for the entity time series
+    - start_timestamp: Start timestamp of the entity time series
+    - end_timestamp: End timestamp of the entity time series
+    - sampling_frequency: Sampling frequency of the entity time series
+    - timezone: Timezone of the entity time series
+  - Variable columns:
+    - Any other column may be defined which is specific to the entity
 - Missing Values: pd.NA
 - Naming convention: snake_case
 
@@ -84,7 +92,7 @@ If you need to access the definition, you can import it with 'from synesis_data_
 @dataclass
 class TimeSeriesStructure:
     {TIME_SERIES_DATA_SECOND_LEVEL_ID}: pd.DataFrame
-    {TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID}: Optional[pd.DataFrame] = None
+    {ENTITY_METADATA_SECOND_LEVEL_ID}: Optional[pd.DataFrame] = None
     {FEATURE_INFORMATION_SECOND_LEVEL_ID}: Optional[pd.DataFrame] = None
 
 If relevant, the name(s) of the instantiated TimeSeriesStructure(s) will be provided to you, so you can access the data in your code. 
@@ -92,7 +100,6 @@ If relevant, the name(s) of the instantiated TimeSeriesStructure(s) will be prov
 
 TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID = "time_series_aggregation_outputs"
 TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID = "time_series_aggregation_inputs"
-TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID = "time_series_aggregation_metadata"
 TIME_SERIES_AGGREGATION_DESCRIPTION = f"""## Purpose and Use Cases
 The Time Series Aggregation DataFrame structure is designed for computing summary statistics, derived metrics, or analytical results over specific time intervals within time series data. Some examples this structure is ideal for:
 
@@ -130,11 +137,15 @@ The aggregation structure allows for flexible time window definitions and can ha
 - Naming convention: snake_case
 
 ## Static Aggregation-Specific Metadata
-- Second level ID identifying this dataframe: {TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID}
+- Second level ID identifying this dataframe: {ENTITY_METADATA_SECOND_LEVEL_ID}
 - Format: pandas DataFrame
 - Index Structure: Single-level index
   - Index: Aggregation ID (must exactly match the id in the aggregation outputs)
 - Content: Static features as columns
+  - Fixed columns (always present):
+    - is_multi_series_computation: Whether the aggregation is computed from multiple time series
+  - Variable columns:
+    - Any other column may be defined which is specific to the aggregation
 - Missing Values: pd.NA
 - Naming convention: snake_case
 
@@ -166,7 +177,7 @@ If you need to access the definition, you can import it with 'from synesis_data_
 class TimeSeriesAggregationStructure:
     {TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID}: pd.DataFrame
     {TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID}: pd.DataFrame
-    {TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID}: Optional[pd.DataFrame] = None
+    {ENTITY_METADATA_SECOND_LEVEL_ID}: Optional[pd.DataFrame] = None
     {FEATURE_INFORMATION_SECOND_LEVEL_ID}: Optional[pd.DataFrame] = None
 
 If relevant, the name(s) of the instantiated TimeSeriesAggregationStructure(s) will be provided to you, so you can access the data in your code. 
@@ -175,7 +186,7 @@ If relevant, the name(s) of the instantiated TimeSeriesAggregationStructure(s) w
 TIME_SERIES_STRUCTURE = DataStructureDefinition(
     first_level_id="time_series",
     second_level_ids=[TIME_SERIES_DATA_SECOND_LEVEL_ID,
-                      TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID,
+                      ENTITY_METADATA_SECOND_LEVEL_ID,
                       FEATURE_INFORMATION_SECOND_LEVEL_ID],
     description=TIME_SERIES_DESCRIPTION,
     brief_description="Data structure for any time-varying data. Call get_data_structure_description('time_series') for details."
@@ -185,7 +196,7 @@ TIME_SERIES_AGGREGATION_STRUCTURE = DataStructureDefinition(
     first_level_id="time_series_aggregation",
     second_level_ids=[TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID,
                       TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID,
-                      TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID,
+                      ENTITY_METADATA_SECOND_LEVEL_ID,
                       FEATURE_INFORMATION_SECOND_LEVEL_ID],
     description=TIME_SERIES_AGGREGATION_DESCRIPTION,
     brief_description="Data structure for computing summary statistics, derived metrics, or analytical results over specific time intervals within time series data. Call get_data_structure_description('time_series_aggregation') for details."
@@ -194,6 +205,12 @@ TIME_SERIES_AGGREGATION_STRUCTURE = DataStructureDefinition(
 DATA_STRUCTURES = [
     TIME_SERIES_STRUCTURE,
     TIME_SERIES_AGGREGATION_STRUCTURE
+]
+
+METADATA_SECOND_LEVEL_IDS = [
+    ENTITY_METADATA_SECOND_LEVEL_ID,
+    FEATURE_INFORMATION_SECOND_LEVEL_ID,
+    TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID
 ]
 
 

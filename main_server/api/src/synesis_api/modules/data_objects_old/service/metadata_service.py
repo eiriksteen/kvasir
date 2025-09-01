@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import insert, select, and_
 from fastapi import UploadFile, HTTPException
 
-from synesis_api.modules.data_objects.models import (
+from synesis_api.modules.data_objects_old.models import (
     dataset,
     time_series,
     time_series_aggregation,
@@ -16,7 +16,7 @@ from synesis_api.modules.data_objects.models import (
     feature_in_group,
     time_series_aggregation_input,
 )
-from synesis_api.modules.data_objects.schema import (
+from synesis_api.modules.data_objects_old.schema import (
     DatasetCreate,
     DatasetInDB,
     ObjectGroupInDB,
@@ -28,11 +28,11 @@ from synesis_api.modules.data_objects.schema import (
     FeatureInGroupInDB,
     FeatureWithSource,
     TimeSeriesAggregationInputInDB,
-    DatasetWithObjectGroups,
+    DatasetWithObjectGroupsAndFeatures,
     TimeSeriesFull,
     TimeSeriesAggregationFull,
-    ObjectGroupWithObjectList,
-    ObjectGroupsWithListsInDataset,
+    ObjectGroupWithEntitiesAndFeatures,
+    ObjectGroupsWithEntitiesAndFeaturesInDataset,
 )
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_data_structures.time_series.serialization import deserialize_parquet_to_dataframes
@@ -107,6 +107,11 @@ async def create_dataset(
 
     await execute(insert(dataset).values(dataset_record.model_dump()), commit_after=True)
 
+    # Variables to collect object groups for the response
+    primary_object_group = None
+    annotated_object_groups = []
+    computed_object_groups = []
+
     for (groups, role) in zip(
         ([dataset_create.primary_object_group],
          dataset_create.annotated_object_groups,
@@ -127,6 +132,14 @@ async def create_dataset(
             )
 
             await execute(insert(object_group).values(object_group_record.model_dump()), commit_after=True)
+
+            # Collect the object group for the response
+            if role == "primary":
+                primary_object_group = object_group_record
+            elif role == "annotated":
+                annotated_object_groups.append(object_group_record)
+            elif role == "derived":
+                computed_object_groups.append(object_group_record)
 
             # To create the data objects, we must read and deserialize the parquet files from the uploaded file buffers
             parquet_dict = {}
@@ -191,7 +204,7 @@ async def create_dataset(
             original_entity_id_to_generated_id = {}
             if is_time_series_structure:
                 raw_data = structure.time_series_data
-                metadata = structure.time_series_entity_metadata
+                metadata = structure.entity_metadata
                 second_level_id = TIME_SERIES_DATA_SECOND_LEVEL_ID
 
                 # Create the time series objects
@@ -246,7 +259,7 @@ async def create_dataset(
             elif is_time_series_aggregation_structure:
                 raw_data = structure.time_series_aggregation_outputs
                 input_data = structure.time_series_aggregation_inputs
-                metadata = structure.time_series_aggregation_metadata
+                metadata = structure.entity_metadata
                 second_level_id = TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID
 
                 for aggregation_id in raw_data.index:
@@ -309,7 +322,13 @@ async def create_dataset(
                 second_level_id
             )
 
-        return dataset_record
+        # Return the dataset with object groups
+        return DatasetWithObjectGroups(
+            **dataset_record.model_dump(),
+            primary_object_group=primary_object_group,
+            annotated_object_groups=annotated_object_groups,
+            computed_object_groups=computed_object_groups
+        )
 
 
 async def delete_dataset(dataset_id: uuid.UUID, user_id: uuid.UUID) -> None:
@@ -321,7 +340,7 @@ async def delete_dataset(dataset_id: uuid.UUID, user_id: uuid.UUID) -> None:
 async def get_user_dataset(
         dataset_id: uuid.UUID,
         user_id: uuid.UUID,
-) -> DatasetWithObjectGroups:
+) -> DatasetWithObjectGroupsAndFeatures:
     """Get a dataset for a user"""
 
     # Get the base dataset
@@ -369,7 +388,7 @@ async def get_user_dataset(
     annotated_with_features = [await _add_features_to_object_groups(group) for group in annotated_object_groups]
     computed_with_features = [await _add_features_to_object_groups(group) for group in computed_object_groups]
 
-    result = DatasetWithObjectGroups(
+    result = DatasetWithObjectGroupsAndFeatures(
         **dataset_obj.model_dump(),
         primary_object_group=primary_with_features,
         annotated_object_groups=annotated_with_features,
@@ -381,7 +400,7 @@ async def get_user_dataset(
 
 async def get_user_datasets(
         user_id: uuid.UUID,
-) -> List[DatasetWithObjectGroups]:
+) -> List[DatasetWithObjectGroupsAndFeatures]:
     """Get all datasets for a user"""
 
     # Get all datasets for the user
@@ -417,7 +436,7 @@ async def get_user_datasets(
         computed_object_groups = [
             group for group in object_groups_with_features if group.dataset_id == dataset_obj.id and group.role == "derived"]
 
-        result_records.append(DatasetWithObjectGroups(
+        result_records.append(DatasetWithObjectGroupsAndFeatures(
             **dataset_obj.model_dump(),
             primary_object_group=primary_object_group,
             annotated_object_groups=annotated_object_groups,
@@ -431,7 +450,7 @@ async def get_user_datasets_by_ids(
         user_id: uuid.UUID,
         dataset_ids: List[uuid.UUID] = [],
         max_features: Optional[int] = None
-) -> List[DatasetWithObjectGroups]:
+) -> List[DatasetWithObjectGroupsAndFeatures]:
     """Get specific datasets for a user by IDs"""
 
     if not dataset_ids:
@@ -491,7 +510,7 @@ async def get_user_datasets_by_ids(
             annotated_with_features = await _add_features_to_object_groups(annotated_object_groups, max_features)
             computed_with_features = await _add_features_to_object_groups(computed_object_groups, max_features)
 
-            dataset_with_objects = DatasetWithObjectGroups(
+            dataset_with_objects = DatasetWithObjectGroupsAndFeatures(
                 **dataset_obj.model_dump(),
                 primary_object_group=primary_with_features,
                 annotated_object_groups=annotated_with_features,
@@ -503,7 +522,7 @@ async def get_user_datasets_by_ids(
     return result_datasets
 
 
-async def get_object_groups(dataset_id: uuid.UUID) -> ObjectGroupsWithListsInDataset:
+async def get_object_groups(dataset_id: uuid.UUID) -> ObjectGroupsWithEntitiesAndFeaturesInDataset:
     """Get all object groups in a dataset"""
 
     object_group_query = select(object_group).where(
@@ -523,7 +542,7 @@ async def get_object_groups(dataset_id: uuid.UUID) -> ObjectGroupsWithListsInDat
     computed_object_groups = [
         g for g in object_groups_with_lists if g.role == "derived"]
 
-    return ObjectGroupsWithListsInDataset(
+    return ObjectGroupsWithEntitiesAndFeaturesInDataset(
         dataset_id=dataset_id,
         primary_object_group=primary_object_group,
         annotated_object_groups=annotated_object_groups,
@@ -531,7 +550,7 @@ async def get_object_groups(dataset_id: uuid.UUID) -> ObjectGroupsWithListsInDat
     )
 
 
-async def _add_object_lists_to_object_groups(groups: List[ObjectGroupWithFeatures]) -> List[ObjectGroupWithObjectList]:
+async def _add_object_lists_to_object_groups(groups: List[ObjectGroupWithFeatures]) -> List[ObjectGroupWithEntitiesAndFeatures]:
     """Helper function to get an object group with its objects"""
 
     time_series_group_ids = [
@@ -585,7 +604,7 @@ async def _add_object_lists_to_object_groups(groups: List[ObjectGroupWithFeature
                 is_multi_series_computation=ts_obj["is_multi_series_computation"],
             ) for data_obj, ts_obj in zip(objects_result, time_series_aggregation_objects) if ts_obj["id"] in obj_ids]
 
-        result_records.append(ObjectGroupWithObjectList(
+        result_records.append(ObjectGroupWithEntitiesAndFeatures(
             **group.model_dump(), objects=group_objects))
 
     return result_records

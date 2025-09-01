@@ -1,4 +1,5 @@
 from typing import List, Literal
+
 from synesis_api.base_schema import BaseSchema
 
 

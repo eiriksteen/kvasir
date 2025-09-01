@@ -2,9 +2,9 @@ from pathlib import Path
 from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.settings import ModelSettings
 
-from synesis_api.agents.data_integration.data_source_analysis_agent.deps import DataSourceAnalysisAgentDeps
-from synesis_api.agents.data_integration.data_source_analysis_agent.prompt import DATA_SOURCE_AGENT_SYSTEM_PROMPT
-from synesis_api.agents.data_integration.shared_tools import (
+from synesis_api.agents.data_source_analysis.deps import DataSourceAnalysisAgentDeps
+from synesis_api.agents.data_source_analysis.prompt import DATA_SOURCE_AGENT_SYSTEM_PROMPT
+from synesis_api.agents.shared_tools import (
     execute_python_code,
     get_csv_contents,
     get_json_contents,
@@ -12,7 +12,7 @@ from synesis_api.agents.data_integration.shared_tools import (
 )
 from synesis_api.utils.file_utils import copy_file_or_directory_to_container
 from synesis_api.utils.pydanticai_utils import get_model
-from synesis_api.agents.data_integration.data_source_analysis_agent.output import DataSourceAnalysisAgentOutput
+from synesis_api.agents.data_source_analysis.output import DataSourceAnalysisAgentOutput
 
 
 model = get_model()

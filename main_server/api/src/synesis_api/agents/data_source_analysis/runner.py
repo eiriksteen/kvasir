@@ -2,7 +2,7 @@ import uuid
 import pandas as pd
 from pathlib import Path
 from typing import List, Optional
-from synesis_api.agents.data_integration.data_source_analysis_agent.agent import data_source_analysis_agent, DataSourceAnalysisAgentDeps, DataSourceAnalysisAgentOutput
+from synesis_api.agents.data_source_analysis.agent import data_source_analysis_agent, DataSourceAnalysisAgentDeps, DataSourceAnalysisAgentOutput
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import FunctionToolCallEvent

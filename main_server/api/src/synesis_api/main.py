@@ -6,7 +6,7 @@ from synesis_api.auth.router import router as auth_router
 from synesis_api.modules.data_sources.router import router as data_sources_router
 from synesis_api.modules.orchestrator.router import router as orchestrator_router
 from synesis_api.modules.analysis.router import router as analysis_router
-from synesis_api.modules.data_objects.router import router as ontology_router
+from synesis_api.modules.data_objects_old.router import router as ontology_router
 from synesis_api.modules.project.router import router as project_router
 from synesis_api.modules.node.router import router as node_router
 from synesis_api.modules.pipeline.router import router as pipeline_router

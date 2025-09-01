@@ -3,9 +3,9 @@ from pathlib import Path
 from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.settings import ModelSettings
 
-from synesis_api.agents.data_integration.data_integration_agent.deps import DataIntegrationAgentDeps
-from synesis_api.agents.data_integration.data_integration_agent.prompt import DATASET_INTEGRATION_SYSTEM_PROMPT
-from synesis_api.agents.data_integration.shared_tools import (
+from synesis_api.agents.data_integration.deps import DataIntegrationAgentDeps
+from synesis_api.agents.data_integration.prompt import DATASET_INTEGRATION_SYSTEM_PROMPT
+from synesis_api.agents.shared_tools import (
     execute_python_code,
     get_csv_contents,
     get_json_contents,
@@ -15,7 +15,7 @@ from synesis_api.agents.shared_tools import get_data_structures_overview_tool, g
 from synesis_api.utils.file_utils import copy_file_or_directory_to_container
 from synesis_api.utils.pydanticai_utils import get_model
 from synesis_api.utils.code_utils import run_python_function_in_container, remove_print_statements_from_code
-from synesis_api.agents.data_integration.data_integration_agent.output import DataIntegrationAgentOutput, DataIntegrationAgentOutputWithDatasetId
+from synesis_api.agents.data_integration.output import DataIntegrationAgentOutput, DataIntegrationAgentOutputWithDatasetId
 
 
 model = get_model()

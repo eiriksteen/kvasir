@@ -6,15 +6,15 @@ from fastapi import HTTPException
 
 from synesis_api.database.service import fetch_one
 from synesis_api.storage.local import read_dataframe_from_local_storage
-from synesis_api.modules.data_objects.models import (
+from synesis_api.modules.data_objects_old.models import (
     dataset,
     time_series,
     object_group,
     data_object,
 )
 from synesis_api.app_secrets import DEFAULT_TIME_SERIES_PAYLOAD_LEN
-from synesis_api.modules.data_objects.schema import TimeSeriesFullWithRawData
-from synesis_api.modules.data_objects.service.metadata_service import feature_metadata_to_df
+from synesis_api.modules.data_objects_old.schema import TimeSeriesFullWithRawData
+from synesis_api.modules.data_objects_old.service.metadata_service import feature_metadata_to_df
 from synesis_api.utils.time_series_utils import timezone_str_to_tz_info
 
 
@@ -109,7 +109,7 @@ async def get_time_series_payload_data_by_id(
 
     time_series_structure = TimeSeriesStructure(
         time_series_data=series,
-        time_series_entity_metadata=None,  # Not needed for this use case
+        entity_metadata=None,  # Not needed for this use case
         feature_information=feature_metadata_df
     )
 

@@ -60,6 +60,10 @@ class FeatureInGroupInDB(BaseSchema):
     updated_at: datetime
 
 
+class FeatureWithSource(FeatureInDB):
+    source: Literal["data", "metadata"]
+
+
 class ObjectGroupInDB(BaseSchema):
     id: uuid.UUID
     dataset_id: uuid.UUID  # Foreign key to dataset.id
@@ -72,6 +76,10 @@ class ObjectGroupInDB(BaseSchema):
     updated_at: datetime
 
 
+class ObjectGroupWithFeatures(ObjectGroupInDB):
+    features: List[FeatureWithSource]
+
+
 class TimeSeriesInDB(BaseSchema):
     id: uuid.UUID  # Foreign key to data_object.id
     num_timestamps: int
@@ -81,9 +89,28 @@ class TimeSeriesInDB(BaseSchema):
     timezone: str
 
 
+class TimeSeriesFull(DataObjectInDB, TimeSeriesInDB):
+    type: Literal["time_series"] = "time_series"
+
+
+class TimeSeriesFullWithRawData(TimeSeriesFull):
+    data: Dict[str, List[Tuple[datetime, Union[float, int]]]]
+    features: Dict[str, Feature]
+
+
 class TimeSeriesAggregationInDB(BaseSchema):
     id: uuid.UUID  # Foreign key to data_object.id
     is_multi_series_computation: bool
+
+
+class TimeSeriesAggregationFull(DataObjectInDB, TimeSeriesAggregationInDB):
+    type: Literal["time_series_aggregation"] = "time_series_aggregation"
+
+
+class TimeSeriesAggregationFullWithRawData(TimeSeriesAggregationFull):
+    input_data: Dict[Tuple[uuid.UUID, str], Tuple[datetime, datetime]]
+    output_data: Dict[str, List[Union[float, int]]]
+    features: Dict[str, Feature]
 
 
 class TimeSeriesAggregationInputInDB(BaseSchema):
@@ -98,33 +125,6 @@ class TimeSeriesAggregationInputInDB(BaseSchema):
 
 
 # Schemas for the API
-
-
-class FeatureWithSource(FeatureInDB):
-    source: Literal["data", "metadata"]
-
-
-class ObjectGroupWithFeatures(ObjectGroupInDB):
-    features: List[FeatureWithSource]
-
-
-class TimeSeriesFull(DataObjectInDB, TimeSeriesInDB):
-    type: Literal["time_series"] = "time_series"
-
-
-class TimeSeriesFullWithRawData(TimeSeriesFull):
-    data: Dict[str, List[Tuple[datetime, Union[float, int]]]]
-    features: Dict[str, Feature]
-
-
-class TimeSeriesAggregationFull(DataObjectInDB, TimeSeriesAggregationInDB):
-    type: Literal["time_series_aggregation"] = "time_series_aggregation"
-
-
-class TimeSeriesAggregationFullWithRawData(TimeSeriesAggregationFull):
-    input_data: Dict[Tuple[uuid.UUID, str], Tuple[datetime, datetime]]
-    output_data: Dict[str, List[Union[float, int]]]
-    features: Dict[str, Feature]
 
 
 class DatasetWithObjectGroups(DatasetInDB):
@@ -152,9 +152,10 @@ class ObjectGroupsWithEntitiesAndFeaturesInDataset(BaseSchema):
 
 # Create schemas
 
-class MetadataDataframe(BaseSchema):
+
+class DataframeCreate(BaseSchema):
     filename: str
-    second_level_id: str
+    structure_type: str
 
 
 class ObjectGroupCreate(BaseSchema):
@@ -162,7 +163,7 @@ class ObjectGroupCreate(BaseSchema):
     entity_id_name: str
     description: str
     structure_type: str
-    metadata_dataframes: List[MetadataDataframe]
+    dataframes: List[DataframeCreate]
 
 
 class DatasetCreate(BaseSchema):
@@ -171,4 +172,4 @@ class DatasetCreate(BaseSchema):
     modality: MODALITY_TYPE
     primary_object_group: ObjectGroupCreate
     annotated_object_groups: List[ObjectGroupCreate]
-    computed_object_groups: List[ObjectGroupCreate]
+    derived_object_groups: List[ObjectGroupCreate]

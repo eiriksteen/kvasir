@@ -42,7 +42,7 @@ function SourcesPageContent() {
 export default function SourcesContainer({ session }: SourcesContainerProps) {
 
   return (
-    <SessionProvider session={session}>
+    <SessionProvider session={session} basePath="/next-api/auth">
       <div>
         <UserHeader projectId={undefined} />
         <div className="flex h-[calc(100vh-3rem)]">

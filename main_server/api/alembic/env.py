@@ -18,7 +18,7 @@ from synesis_api.modules.runs.models import (
     model_integration_run_input, model_integration_run_result,
     data_source_in_run
 )
-from synesis_api.modules.data_objects.models import (
+from synesis_api.modules.data_objects_old.models import (
     dataset, data_object, object_group, derived_object_source,
     feature, feature_in_group, time_series, time_series_aggregation,
     time_series_aggregation_input

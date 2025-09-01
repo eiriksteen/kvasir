@@ -2,7 +2,7 @@ from uuid import UUID
 from datetime import datetime
 from typing import List, Optional, Union
 from synesis_api.base_schema import BaseSchema
-from synesis_api.modules.data_objects.schema import FeatureInDB
+from synesis_api.modules.data_objects_old.schema import FeatureInDB
 
 
 class DataSourceInDB(BaseSchema):

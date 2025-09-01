@@ -6,7 +6,7 @@ import { Dataset, ObjectGroupsWithListsInDataset } from "@/types/data-objects";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 async function fetchDatasets(token: string): Promise<Dataset[]> {
-  const response = await fetch(`${API_URL}/data-objects/datasets?include_object_lists=0`, {
+  const response = await fetch(`${API_URL}/data-objects/datasets?include_object_lists=0&include_features=1`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

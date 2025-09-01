@@ -5,6 +5,7 @@ from typing import Optional, List, Literal
 from datetime import datetime, timezone
 from pydantic_ai.messages import FunctionToolCallEvent
 from pydantic_ai.agent import Agent
+
 from synesis_api.modules.project.service import add_entity_to_project
 from synesis_api.modules.data_sources.service import get_data_sources_by_ids
 from synesis_api.auth.service import delete_api_key, create_api_key
@@ -17,7 +18,7 @@ from synesis_api.modules.runs.service import (
     create_data_integration_run_input,
     create_data_integration_run_result,
 )
-from synesis_api.agents.data_integration.data_integration_agent.agent import (
+from synesis_api.agents.data_integration.agent import (
     data_integration_agent,
     DataIntegrationAgentDeps,
     DataIntegrationAgentOutputWithDatasetId

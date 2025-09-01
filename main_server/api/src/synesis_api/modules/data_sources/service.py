@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 from fastapi import UploadFile
 from sqlalchemy import insert, select, update, case
-from synesis_api.modules.data_objects.schema import FeatureInDB
+from synesis_api.modules.data_objects_old.schema import FeatureInDB
 from synesis_api.modules.data_sources.schema import (
     TabularFileDataSource,
     DataSourceInDB,
@@ -20,10 +20,10 @@ from synesis_api.modules.data_sources.models import (
     data_source,
     feature_in_tabular_file,
 )
-from synesis_api.modules.data_objects.models import feature
+from synesis_api.modules.data_objects_old.models import feature
 from synesis_api.database.service import execute, fetch_all
 from synesis_api.storage.local import save_raw_file_to_local_storage
-from synesis_api.modules.data_objects.service.metadata_service import create_features
+from synesis_api.modules.data_objects_old.service.metadata_service import create_features
 
 
 async def _create_data_sources(

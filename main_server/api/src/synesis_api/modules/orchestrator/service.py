@@ -26,7 +26,7 @@ from synesis_api.modules.orchestrator.models import (
     data_source_context,
 )
 from synesis_api.database.service import fetch_all, execute, fetch_one
-from synesis_api.modules.data_objects.service.metadata_service import get_user_datasets_by_ids
+from synesis_api.modules.data_objects_old.service.metadata_service import get_user_datasets_by_ids
 from synesis_api.modules.analysis.service import get_user_analyses_by_ids
 from synesis_api.modules.data_sources.service import get_data_sources_by_ids
 from synesis_api.modules.pipeline.service import get_user_pipelines_by_ids
