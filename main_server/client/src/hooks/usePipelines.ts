@@ -1,6 +1,7 @@
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { Pipeline, PipelineWithFunctions } from "@/types/pipeline";
+import { snakeToCamelKeys } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -19,7 +20,7 @@ async function fetchPipelines(token: string): Promise<Pipeline[]> {
   }
 
   const data = await response.json();
-  return data;
+  return snakeToCamelKeys(data);
 }
 
 async function fetchPipeline(token: string, pipelineId: string): Promise<PipelineWithFunctions> {
@@ -37,7 +38,7 @@ async function fetchPipeline(token: string, pipelineId: string): Promise<Pipelin
   }
 
   const data = await response.json();
-  return data;
+  return snakeToCamelKeys(data);
 }
 
 export const usePipelines = () => {

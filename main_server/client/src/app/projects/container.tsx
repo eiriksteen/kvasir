@@ -22,7 +22,7 @@ function SelectProjectContent() {
 
 export default function SelectProjectContainer({ session }: SelectProjectContainerProps) {
   return (
-    <SessionProvider session={session} basePath="/next-api/auth">
+    <SessionProvider session={session} basePath="/next-api/api/auth">
       <SelectProjectContent />
     </SessionProvider>
   );

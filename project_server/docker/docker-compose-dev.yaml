@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+
+  server:
+    &server
+    build:
+      context: ../..
+      dockerfile: project_server/server/Dockerfile.dev  
+    container_name: project-server
+    networks:
+      - project-backend
+      - project-frontend
+    volumes:
+      - type: bind
+        source: ../server
+        target: /app
+      - type: bind
+        source: ../../data_structures
+        target: /app/data_structures
+      - type: bind
+        source: ../../schemas
+        target: /app/schemas
+      - type: bind
+        source: ../sandbox/pyproject.toml
+        target: /app/sandbox/pyproject.toml
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+      - type: bind
+        source: ../server/data_storage
+        target: /app/data_storage
+      - type: bind
+        source: ../server/script_storage
+        target: /app/script_storage
+        
+  taskiq-worker:
+    <<: *server
+    container_name: project-taskiq-worker
+    # working_dir: /app/src
+    command: ["sh", "-c", "cd /app/src && taskiq worker project_server.worker:broker -tp='**/runner.py' -fsd --reload"]
+    networks:
+      - project-backend
+
+  sandbox:
+    build:
+      context: ../..
+      dockerfile: project_server/sandbox/Dockerfile.dev
+    container_name: project-sandbox
+    networks:
+      - project-backend
+    depends_on:
+      - server
+    volumes:
+      - type: bind
+        source: ../sandbox
+        target: /app
+      - type: bind
+        source: ../../data_structures
+        target: /app/data_structures
+      - type: bind
+        source: ../../schemas
+        target: /app/schemas
+      - type: bind
+        source: ../server/data_storage
+        target: /app/data_storage
+      - type: bind
+        source: ../server/script_storage
+        target: /app/script_storage
+
+  proxy:
+    image: nginx:latest
+    container_name: project-proxy
+    ports:
+      - "81:81"
+    networks:
+      - project-frontend
+    depends_on:
+      - server
+    volumes:
+      - type: bind
+        source: ../proxy/nginx-dev.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
+
+volumes:
+  postgres_data:
+
+networks:
+  project-backend:
+    driver: bridge
+  project-frontend:
+    driver: bridge

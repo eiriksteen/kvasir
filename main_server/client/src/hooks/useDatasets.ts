@@ -2,6 +2,7 @@ import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import { Dataset, ObjectGroupsWithListsInDataset } from "@/types/data-objects";
+import { snakeToCamelKeys } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -20,7 +21,7 @@ async function fetchDatasets(token: string): Promise<Dataset[]> {
   }
 
   const data = await response.json();
-  return data;
+  return snakeToCamelKeys(data);
 }
 
 async function fetchObjectGroupsInDataset(token: string, datasetId: string): Promise<ObjectGroupsWithListsInDataset> {
@@ -38,7 +39,7 @@ async function fetchObjectGroupsInDataset(token: string, datasetId: string): Pro
   }
 
   const data = await response.json();
-  return data;
+  return snakeToCamelKeys(data);
 }
 
 

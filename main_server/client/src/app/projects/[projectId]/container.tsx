@@ -49,7 +49,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
 
 export default function ProjectContainer({ projectId, session }: DashboardProps) {
   return (
-    <SessionProvider session={session} basePath="/next-api/auth">
+    <SessionProvider session={session} basePath="/next-api/api/auth">
       <DashboardContent projectId={projectId} />
     </SessionProvider>
   );

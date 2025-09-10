@@ -2,6 +2,7 @@ import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { ConversationCreate, Conversation } from "@/types/orchestrator";
 import useSWRMutation from "swr/mutation";
+import { snakeToCamelKeys } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -22,7 +23,7 @@ async function postConversation(token: string, conversationData: ConversationCre
   }
 
   const data = await response.json();
-  return data;
+  return snakeToCamelKeys(data);
 }
 
 async function fetchConversations(token: string): Promise<Conversation[]> {
@@ -40,7 +41,7 @@ async function fetchConversations(token: string): Promise<Conversation[]> {
   }
 
   const data = await response.json();
-  return data;
+  return snakeToCamelKeys(data);
 }
 
 export const useConversations = () => {

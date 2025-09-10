@@ -11,6 +11,7 @@ import { DataSource } from "@/types/data-sources";
 import { useConversations } from "@/hooks/useConversations";
 import { SSE } from 'sse.js';
 import { Pipeline } from "@/types/pipeline";
+import { snakeToCamelKeys } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -29,7 +30,7 @@ async function fetchConversationMessages(token: string, conversationId: string):
   }
 
   const data = await response.json();
-  return data;
+  return snakeToCamelKeys(data);
 }
 
 function createOrchestratorEventSource(token: string, prompt: Prompt): SSE {
@@ -128,7 +129,7 @@ export const useProjectChat = (projectId: UUID) => {
       const eventSource = createOrchestratorEventSource(session.APIToken.accessToken, prompt);
 
       eventSource.onmessage = (ev) => {
-          const data: ChatMessage = JSON.parse(ev.data);
+          const data: ChatMessage = snakeToCamelKeys(JSON.parse(ev.data));
 
           if (data.content === "DONE") {
             if (isNewConversation) {

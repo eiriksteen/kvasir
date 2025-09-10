@@ -27,7 +27,6 @@ function SourcesPageContent() {
 
         </div>
 
-        Content
         <div className="flex-grow p-6 overflow-y-auto">
           <div className="grid grid-cols-2 gap-4">
             <DataSourceList dataSources={dataSources || []} isLoading={isLoading} error={error || null} />
@@ -42,7 +41,7 @@ function SourcesPageContent() {
 export default function SourcesContainer({ session }: SourcesContainerProps) {
 
   return (
-    <SessionProvider session={session} basePath="/next-api/auth">
+    <SessionProvider session={session} basePath="/next-api/api/auth">
       <div>
         <UserHeader projectId={undefined} />
         <div className="flex h-[calc(100vh-3rem)]">

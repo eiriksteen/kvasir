@@ -1,6 +1,7 @@
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { Model } from "@/types/pipeline";
+import { snakeToCamelKeys } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -18,7 +19,8 @@ async function fetchModels(token: string, only_owned: boolean = false): Promise<
     throw new Error(`Failed to fetch models: ${response.status} ${errorText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  return snakeToCamelKeys(data);
 }
 
 export const useModels = () => {

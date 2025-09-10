@@ -5,6 +5,7 @@ import useSWR, { useSWRConfig } from "swr";
 import { SWRSubscriptionOptions } from "swr/subscription";
 import useSWRSubscription from "swr/subscription";
 import { SSE } from 'sse.js';
+import { snakeToCamelKeys } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -23,7 +24,7 @@ async function fetchRuns(token: string): Promise<Run[]> {
   }
 
   const data = await response.json();
-  return data;
+  return snakeToCamelKeys(data);
 } 
 
 async function fetchRunMessages(token: string, runId: string): Promise<RunMessage[]> {
@@ -40,7 +41,7 @@ async function fetchRunMessages(token: string, runId: string): Promise<RunMessag
   }
 
   const data = await response.json();
-  return data;
+  return snakeToCamelKeys(data);
 }
 
 function createIncompleteRunsEventSource(token: string): SSE {
@@ -105,7 +106,7 @@ export const useRuns = () => {
       const eventSource = createIncompleteRunsEventSource(session ? session.APIToken.accessToken : "");
 
       eventSource.onmessage = (ev) => {
-        const streamedRuns = JSON.parse(ev.data);
+        const streamedRuns = snakeToCamelKeys(JSON.parse(ev.data));
         next(null, async () => {
 
           const runsAreUndefined = !runs;
@@ -196,7 +197,7 @@ export const useRunMessages = (runId: string) => {
         const eventSource = createRunMessagesEventSource(session ? session.APIToken.accessToken : "", runId)
 
         eventSource.onmessage = (ev) => {
-          const streamedMessage: RunMessage = JSON.parse(ev.data);
+          const streamedMessage: RunMessage = snakeToCamelKeys(JSON.parse(ev.data));
           next(null, () => {
             mutateRunMessages([...(runMessages || []), streamedMessage], {revalidate: false});
             return undefined;

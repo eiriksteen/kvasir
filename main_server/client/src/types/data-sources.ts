@@ -1,34 +1,36 @@
-export type SupportedSource = "TabularFile" | "AWS S3" | "Azure Blob" | "GCP Storage" | "PostgreSQL" | "MongoDB";
-import { Feature } from "@/types/data-objects";
+// import { Feature } from "@/types/data-objects";
 import { UUID } from "crypto";
+
+export type SupportedSource = "file" | "s3" | "azure" | "gcp" | "psql" | "mongodb";
 
 export interface DataSourceBase {
   id: UUID;
   user_id: string;
   type: SupportedSource;
   name: string;
-  description: string | null;
-  qualityDescription: string | null;
-  contentPreview: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface FileDataSource extends DataSourceBase {
+export interface TabularFileDataSource extends DataSourceBase {
   fileName: string;
   filePath: string;
   fileType: string;
   fileSizeBytes: number;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export interface TabularFileDataSource extends FileDataSource {
   numRows: number;
   numColumns: number;
-  features: Feature[];
+  analysis: DataSourceAnalysis;
+};
+
+export interface DataSourceAnalysis {
+  id: UUID;
+  dataSourceId: UUID;
+  contentDescription: string;
+  qualityDescription: string;
+  edaSummary: string;
+  cautions: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-
-export type DataSource = TabularFileDataSource // | Other data source types
-
+export type DataSource = DataSourceBase | TabularFileDataSource; // | Other data source types

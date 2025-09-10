@@ -2,6 +2,7 @@ import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { UUID } from "crypto";
 import { TimeSeriesWithRawData } from "@/types/data-objects";
+import { snakeToCamelKeys } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -22,7 +23,7 @@ async function fetchTimeSeriesRawData(token: string, timeSeriesId: UUID, startDa
   }
 
   const data = await response.json();
-  return data;
+  return snakeToCamelKeys(data);
 }
 
 type TimeSeriesDataOptions = {
@@ -36,8 +37,6 @@ export const useTimeSeriesData = (timeSeriesId: UUID, options: TimeSeriesDataOpt
     session ? `time-series-data-${timeSeriesId}` : null,
     () => fetchTimeSeriesRawData(session ? session.APIToken.accessToken : "", timeSeriesId, options.startDate, options.endDate),
   );
-
-  console.log(timeSeriesData);
 
   // TODO: Implement pagination-like fetching to vary the start and end date
 

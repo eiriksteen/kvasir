@@ -4,6 +4,7 @@ import useSWRMutation from 'swr/mutation'
 import useSWRSubscription, { SWRSubscriptionOptions } from 'swr/subscription'
 import { AnalysisJobResultMetadata, AnalysisStatusMessage } from "@/types/analysis";
 import { EventSource } from 'eventsource';
+import { snakeToCamelKeys } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -41,7 +42,7 @@ async function fetchAnalysisJobResults(token: string): Promise<AnalysisJobResult
   }
 
   const data = await response.json();
-  return data;
+  return snakeToCamelKeys(data);
 }
 
 function createAnalysisEventSource(token: string, jobId: string): EventSource {
@@ -76,7 +77,7 @@ export const useAnalysis = (jobId?: string) => {
         }
         const eventSource = createAnalysisEventSource(session.APIToken.accessToken, jobId);
         eventSource.onmessage = (event) => {
-          const newMessage = JSON.parse(event.data) as AnalysisStatusMessage;
+          const newMessage = snakeToCamelKeys(JSON.parse(event.data)) as AnalysisStatusMessage;
           next(null, undefined);
           
           // Always update streamedMessages with new messages

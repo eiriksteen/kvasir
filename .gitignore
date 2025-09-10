@@ -17,3 +17,6 @@ data_integration_scripts
 datasets
 pipeline_scripts
 *password.txt
+data_storage
+script_storage
+.ssh

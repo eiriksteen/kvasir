@@ -5,6 +5,7 @@ import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { useCallback, useMemo } from "react";
 import { UUID } from "crypto";
+import { snakeToCamelKeys } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -22,7 +23,8 @@ async function fetchProjects(token: string): Promise<Project[]> {
     throw new Error(`Failed to fetch projects: ${response.status} ${errorText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  return snakeToCamelKeys(data);
 }
 
 async function createProject(token: string, projectData: ProjectCreate): Promise<Project> {
@@ -41,7 +43,8 @@ async function createProject(token: string, projectData: ProjectCreate): Promise
     throw new Error(`Failed to create project: ${response.status} ${errorText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  return snakeToCamelKeys(data);
 }
 
 async function updateProjectDetails(token: string, projectId: string, projectData: ProjectDetailsUpdate): Promise<Project> {
@@ -59,7 +62,8 @@ async function updateProjectDetails(token: string, projectId: string, projectDat
     throw new Error(`Failed to update project details: ${response.status} ${errorText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  return snakeToCamelKeys(data);
 }
 
 async function addEntityToProject(token: string, projectId: string, entityData: AddEntityToProject): Promise<Project> {
@@ -77,7 +81,8 @@ async function addEntityToProject(token: string, projectId: string, entityData: 
     throw new Error(`Failed to add entity to project: ${response.status} ${errorText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  return snakeToCamelKeys(data);
 }
 
 async function removeEntityFromProject(token: string, projectId: string, entityData: RemoveEntityFromProject): Promise<Project> {
@@ -95,7 +100,8 @@ async function removeEntityFromProject(token: string, projectId: string, entityD
     throw new Error(`Failed to remove entity from project: ${response.status} ${errorText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  return snakeToCamelKeys(data);
 }
 
 async function fetchProjectNodes(token: string, projectId: string): Promise<FrontendNode[]> {
@@ -112,7 +118,8 @@ async function fetchProjectNodes(token: string, projectId: string): Promise<Fron
     throw new Error(`Failed to fetch time series data: ${response.status} ${errorText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  return snakeToCamelKeys(data);
 }
 
 async function updateNodePosition(token: string, node: FrontendNode): Promise<FrontendNode> {
@@ -130,7 +137,8 @@ async function updateNodePosition(token: string, node: FrontendNode): Promise<Fr
     throw new Error(`Failed to update node position: ${response.status} ${errorText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  return snakeToCamelKeys(data);
 }
 
 async function createNode(token: string, node: FrontendNodeCreate): Promise<FrontendNode> {
@@ -148,7 +156,8 @@ async function createNode(token: string, node: FrontendNodeCreate): Promise<Fron
     throw new Error(`Failed to create node: ${response.status} ${errorText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  return snakeToCamelKeys(data);
 }
 
 async function deleteNode(token: string, nodeId: string): Promise<string> {

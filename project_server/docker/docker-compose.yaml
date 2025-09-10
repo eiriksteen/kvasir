@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: ../..
+      dockerfile: project_server/api/Dockerfile.prod  
+    container_name: project-server
+    networks:
+      - backend
+      - proxy
+
+  sandbox:
+    build:
+      context: ../..
+      dockerfile: project_server/sandbox/Dockerfile.prod
+    container_name: sandbox
+    networks:
+      - backend
+    depends_on:
+      - server
+
+
+  proxy:
+    image: nginx:latest
+    container_name: project-proxy
+    ports:
+      - "80:80"
+    networks:
+      - proxy
+    depends_on:
+      - server
+    volumes:
+      - type: bind
+        source: ../proxy/nginx-prod.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
+
+volumes:
+  postgres_data:
+
+networks:
+  backend:
+    driver: bridge
+  proxy:
+    driver: bridge
