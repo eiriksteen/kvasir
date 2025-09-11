@@ -64,8 +64,6 @@ export const useDataSources = () => {
     }
   );
 
-  console.log("dataSources", dataSources);
-
   return { dataSources, mutateDataSources, error, isLoading, triggerCreateFileDataSource };
 }
 

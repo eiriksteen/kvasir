@@ -64,12 +64,7 @@ class PipelineAgentRunner:
         self.project_client = ProjectClient()
         self.project_client.set_bearer_token(bearer_token)
 
-        self.swe_runner = SWEAgentRunner(
-            user_id,
-            bearer_token,
-            conversation_id,
-            run_id
-        )
+        self.swe_runner = None
 
         self.redis_stream = get_redis()
 
@@ -161,6 +156,13 @@ class PipelineAgentRunner:
 
                     await self._log_message_to_redis("Calling SWE agent to implement function", "result", write_to_db=True)
 
+                    self.swe_runner = SWEAgentRunner(
+                        self.user_id,
+                        self.bearer_token,
+                        self.conversation_id,
+                        self.run_id
+                    )
+
                     while not implementation_approved:
 
                         if self.tries >= SWE_MAX_TRIES:
@@ -209,14 +211,6 @@ class PipelineAgentRunner:
                             ))
 
                             fn_name_to_function_id[fn_name] = fn_response.id
-
-                            # Reset SWE agent runner to ensure cleared context for the next implementation
-                            self.swe_runner = SWEAgentRunner(
-                                self.user_id,
-                                self.bearer_token,
-                                self.conversation_id,
-                                self.run_id
-                            )
 
                         else:
                             await self._log_message_to_redis(
@@ -319,12 +313,11 @@ class PipelineAgentRunner:
 async def run_pipeline_task(
         user_id: uuid.UUID,
         project_id: uuid.UUID,
-        run_id: uuid.UUID,
         conversation_id: uuid.UUID,
         prompt_content: str,
         bearer_token: str):
 
     runner = PipelineAgentRunner(
-        user_id, project_id, conversation_id, bearer_token, run_id)
+        user_id, project_id, conversation_id, bearer_token)
 
     await runner(prompt_content)

@@ -14,7 +14,7 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {console.log("NO CREDENTIALS"); return null;}
+        if (!credentials?.email || !credentials?.password) {return null;}
         
         try {
           const formData = new FormData();
@@ -27,8 +27,6 @@ export const authOptions: AuthOptions = {
             credentials: "include", 
           });
 
-          console.log("RESPONSE", response)
-
 
           if (!response.ok) {
             const error = await response.text();
@@ -36,7 +34,6 @@ export const authOptions: AuthOptions = {
           }
 
           const user = snakeToCamelKeys(await response.json());
-          console.log("USER", user)
           return user;
         } catch (error) {
           throw error; 

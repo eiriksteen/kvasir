@@ -162,6 +162,8 @@ export const useRuns = () => {
 export const useRunsInConversation = (conversationId: string) => {
   const { runs } = useRuns()
 
+  console.log('THE RUNS', runs);
+
   const runsInConversation = useMemo(() => {
     return runs.filter((run: Run) => run.conversationId === conversationId)
   }, [runs, conversationId])

@@ -32,7 +32,6 @@ async def run_data_integration(
     await run_data_integration_task.kiq(
         user_id=token_data.user_id,
         project_id=request.project_id,
-        run_id=request.run_id,
         conversation_id=request.conversation_id,
         data_source_ids=request.data_source_ids,
         prompt_content=request.prompt_content,
@@ -48,7 +47,6 @@ async def run_pipeline(
     await run_pipeline_task.kiq(
         user_id=token_data.user_id,
         project_id=request.project_id,
-        run_id=request.run_id,
         conversation_id=request.conversation_id,
         prompt_content=request.prompt_content,
         bearer_token=token_data.bearer_token

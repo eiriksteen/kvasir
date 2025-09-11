@@ -9,7 +9,7 @@ import { Dataset } from '@/types/data-objects';
 import { useDatasets } from '@/hooks/useDatasets';
 
 const ChatMessageBox = memo(({ message }: { message: ChatMessage }) => {
-  const { datasets} = useDatasets();
+  const { datasets } = useDatasets();
   // const { analysisJobResults } = useAnalysis();
 
   const hasContext = message.context && (

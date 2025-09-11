@@ -68,15 +68,14 @@ class DataIntegrationRunner:
 
         if self.run_id is None:
             self.run_id = uuid.uuid4()
-            dataset_name = await self._create_dataset_name(prompt_content)
 
-            await post_run(self.project_client, RunCreate(
+            run_in_db = await post_run(self.project_client, RunCreate(
                 conversation_id=self.conversation_id,
                 user_id=self.user_id,
                 type="data_integration",
-                run_id=self.run_id,
-                run_name=dataset_name
             ))
+
+            self.run_id = run_in_db.id
 
         await post_data_integration_run_input(self.project_client, DataIntegrationRunInputCreate(
             run_id=self.run_id,
@@ -211,7 +210,6 @@ class DataIntegrationRunner:
 async def run_data_integration_task(
         user_id: uuid.UUID,
         project_id: uuid.UUID,
-        run_id: uuid.UUID,
         conversation_id: uuid.UUID,
         data_source_ids: List[uuid.UUID],
         prompt_content: str,
@@ -222,7 +220,6 @@ async def run_data_integration_task(
         project_id,
         conversation_id,
         bearer_token,
-        run_id,
     )
 
     result = await runner(prompt_content=prompt_content, data_source_ids=data_source_ids)

@@ -98,8 +98,6 @@ export default function PipelineInfoModal({
 
   const { pipeline } = usePipeline(pipelineId);
 
-  console.log(pipeline);
-
   // Prevent body scroll when modal is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -121,8 +119,6 @@ export default function PipelineInfoModal({
     document.addEventListener('keydown', handleEscape, { capture: true });
     return () => document.removeEventListener('keydown', handleEscape, { capture: true });
   }, [onClose]);
-
-  console.log(pipeline);
 
   if (!pipeline) {
     return null;
@@ -193,7 +189,6 @@ export default function PipelineInfoModal({
                       <button
                         onClick={() => {
                           // TODO: Implement pipeline run functionality
-                          console.log('Running pipeline:', pipeline.id);
                         }}
                         className="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold text-sm rounded-lg shadow-lg hover:shadow-orange-500/25 transition-all duration-200 flex items-center gap-2 border border-orange-400/30 hover:border-orange-400/50"
                         title="Run pipeline now"

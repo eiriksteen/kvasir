@@ -10,7 +10,6 @@ class RunDataSourceAnalysisRequest(BaseModel):
 
 class RunDataIntegrationRequest(BaseModel):
     project_id: UUID
-    run_id: UUID
     conversation_id: UUID
     data_source_ids: List[UUID]
     prompt_content: str
@@ -18,6 +17,5 @@ class RunDataIntegrationRequest(BaseModel):
 
 class RunPipelineRequest(BaseModel):
     project_id: UUID
-    run_id: UUID
     conversation_id: UUID
     prompt_content: str

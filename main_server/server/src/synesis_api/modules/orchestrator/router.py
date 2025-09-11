@@ -114,21 +114,12 @@ async def post_chat(
                 raise HTTPException(
                     status_code=501, detail="Analysis is not implemented yet")
 
-            run = await create_run(
-                user.id,
-                RunCreate(
-                    type=handoff_agent,
-                    run_name=orchestrator_run.output.run_name
-                )
-            )
-
             client = MainServerClient(token)
 
             if handoff_agent == "data_integration":
 
                 await post_run_data_integration(client, RunDataIntegrationRequest(
                     project_id=conversation_record.project_id,
-                    run_id=run.id,
                     conversation_id=conversation_record.id,
                     data_source_ids=prompt.context.data_source_ids,
                     prompt_content=prompt.content
@@ -138,7 +129,6 @@ async def post_chat(
 
                 await post_run_pipeline(client, RunPipelineRequest(
                     project_id=conversation_record.project_id,
-                    run_id=run.id,
                     conversation_id=conversation_record.id,
                     prompt_content=prompt.content
                 ))
