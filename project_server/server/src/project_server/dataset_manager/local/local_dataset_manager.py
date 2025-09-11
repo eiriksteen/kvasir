@@ -17,38 +17,40 @@ from synesis_data_structures.time_series.definitions import (
 )
 
 from project_server.dataset_manager.abstract_dataset_manager import AbstractDatasetManager, DatasetCreate
-from project_server.dataset_manager.dataclasses import ObjectGroupWithRawData, DatasetWithRawData, DatasetWithObjectGroupsAPI
+from project_server.dataset_manager.dataclasses import ObjectGroupWithRawData, DatasetWithRawData
+from synesis_schemas.main_server import DatasetWithObjectGroups
+from project_server.client.requests.data_objects import get_object_group, get_dataset
 from project_server.app_secrets import INTEGRATED_DATA_DIR
 
 
 class LocalDatasetManager(AbstractDatasetManager):
 
-    async def get_data_group(self, group_id: uuid.UUID) -> ObjectGroupWithRawData:
-        group_metadata = await self._fetch_group_metadata_from_main_server(group_id)
+    async def get_data_group_with_raw_data(self, group_id: uuid.UUID) -> ObjectGroupWithRawData:
+        group_metadata = await get_object_group(self.client, group_id)
 
         structure = await self._read_structure(group_metadata.dataset_id, group_id, group_metadata.structure_type)
 
         return ObjectGroupWithRawData(**asdict(group_metadata), structure=structure)
 
-    async def get_dataset(self, dataset_id: uuid.UUID) -> DatasetWithRawData:
-        dataset_metadata = await self._fetch_dataset_metadata_from_main_server(dataset_id)
+    async def get_dataset_with_raw_data(self, dataset_id: uuid.UUID) -> DatasetWithRawData:
+        dataset_metadata = await get_dataset(self.client, dataset_id)
 
-        primary_group = await self.get_data_group(dataset_metadata.primary_object_group.id)
+        primary_group = await self.get_data_group_with_raw_data(dataset_metadata.primary_object_group.id)
 
-        annotated_groups = [await self.get_data_group(group.id)
+        annotated_groups = [await self.get_data_group_with_raw_data(group.id)
                             for group in dataset_metadata.annotated_object_groups]
 
-        computed_groups = [await self.get_data_group(group.id)
+        computed_groups = [await self.get_data_group_with_raw_data(group.id)
                            for group in dataset_metadata.computed_object_groups]
 
         return DatasetWithRawData(
-            **asdict(dataset_metadata),
+            *dataset_metadata.model_dump(),
             primary_object_group=primary_group,
             annotated_object_groups=annotated_groups,
             computed_object_groups=computed_groups
         )
 
-    async def upload_dataset(self, dataset_create: DatasetCreate, output_json: bool = False) -> Union[str, DatasetWithRawData]:
+    async def upload_dataset(self, dataset_create: DatasetCreate, output_json: bool = False) -> Union[str, DatasetWithObjectGroups]:
 
         dataset: DatasetWithRawData = await self._upload_dataset_metadata_to_main_server(dataset_create)
 
@@ -62,10 +64,10 @@ class LocalDatasetManager(AbstractDatasetManager):
         for group in dataset.computed_object_groups:
             self._save_object_group(group, dataset.id)
 
-        output_record = DatasetWithObjectGroupsAPI(**asdict(dataset))
+        output_record = DatasetWithObjectGroups(**asdict(dataset))
 
         if output_json:
-            return json.dumps(asdict(output_record))
+            return output_record.model_dump_json()
         else:
             return output_record
 
@@ -179,6 +181,3 @@ class LocalDatasetManager(AbstractDatasetManager):
         elif isinstance(group.structure, TimeSeriesAggregationStructure):
             self._save_time_series_aggregation_structure(
                 group.structure, save_path)
-
-
-local_dataset_manager = LocalDatasetManager()

@@ -31,7 +31,8 @@ from synesis_schemas.main_server import (
     DataIntegrationRunInputCreate,
     DataIntegrationRunResultCreate,
     AddEntityToProject,
-    FrontendNodeCreate
+    FrontendNodeCreate,
+    GetDataSourcesByIDsRequest
 )
 
 
@@ -62,7 +63,7 @@ class DataIntegrationRunner:
         data_source_ids: List[uuid.UUID]
     ):
 
-        data_sources = await get_data_sources_by_ids(self.project_client, data_source_ids)
+        data_sources = await get_data_sources_by_ids(self.project_client, GetDataSourcesByIDsRequest(data_source_ids=data_source_ids))
         assert data_sources is not None, "No data sources found for the given IDs"
 
         if self.run_id is None:
@@ -84,7 +85,10 @@ class DataIntegrationRunner:
         ))
 
         try:
-            deps = DataIntegrationAgentDeps(data_sources=data_sources)
+            deps = DataIntegrationAgentDeps(
+                data_sources=data_sources,
+                bearer_token=self.bearer_token
+            )
 
             messages_pydantic_response = await get_run_messages_pydantic(self.project_client, self.run_id)
             message_history = pydantic_ai_bytes_to_messages(

@@ -1,7 +1,9 @@
 from typing import List, Union
 from uuid import UUID
+import json
 
-from project_server.client import ProjectClient
+from project_server.client import ProjectClient, FileInput
+
 from synesis_schemas.main_server import (
     DatasetCreate,
     DatasetWithObjectGroups,
@@ -13,12 +15,12 @@ from synesis_schemas.main_server import (
 )
 
 
-async def post_dataset(client: ProjectClient, files: List[bytes], metadata: DatasetCreate) -> DatasetWithObjectGroups:
+async def post_dataset(client: ProjectClient, files: List[FileInput], metadata: DatasetCreate) -> DatasetWithObjectGroups:
     response = await client.send_request(
         "post",
         "/data-objects/dataset",
-        data={"files": files, "metadata": metadata.model_dump(mode="json")},
-        headers={"Content-Type": "multipart/form-data"}
+        files=files,
+        data={"metadata": json.dumps(metadata.model_dump(mode="json"))}
     )
 
     return DatasetWithObjectGroups(**response.body)

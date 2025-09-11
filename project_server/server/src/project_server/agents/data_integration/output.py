@@ -39,13 +39,15 @@ async def submit_data_integration_output(
 
     result.code = remove_print_statements_from_code(result.code)
 
-    print("DATA INTEGRATION AGENT CODE:\n\n" + result.code)
-
     out, err = await run_python_function_in_container(
-        base_script=f"{result.code}\n\nfrom project_server.dataset_manager.local.local_dataset_manager import local_dataset_manager",
-        function_name="local_dataset_manager.upload_dataset",
+        base_script=(
+            f"{result.code}\n\nfrom project_server.dataset_manager.local.local_dataset_manager import LocalDatasetManager\n\n" +
+            f"dataset_manager = LocalDatasetManager('{ctx.deps.bearer_token}')"
+        ),
+        function_name="dataset_manager.upload_dataset",
         input_variables=["dataset_create, True"],
-        print_output=True
+        print_output=True,
+        async_function=True
     )
 
     if err:

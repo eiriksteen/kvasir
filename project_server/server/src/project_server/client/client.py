@@ -6,6 +6,14 @@ from project_server.app_secrets import MAIN_SERVER_URL
 
 
 @dataclass
+class FileInput:
+    field_name: str
+    filename: str
+    file_data: bytes
+    content_type: str
+
+
+@dataclass
 class ProjectClientResponse:
     status: int
     headers: dict
@@ -29,6 +37,7 @@ class ProjectClient:
         path: str,
         data: Optional[dict] = None,
         json: Optional[dict] = None,
+        files: Optional[list[FileInput]] = None,
         headers: dict = {}
     ) -> ProjectClientResponse:
 
@@ -36,15 +45,33 @@ class ProjectClient:
             headers["Authorization"] = f'Bearer {self.bearer_token}'
 
         async with aiohttp.ClientSession() as session:
-            async with session.request(method, f"{MAIN_SERVER_URL}{path}", headers=headers, data=data, json=json) as response:
+
+            is_form_data = files or data
+            if is_form_data:
+                form_data = aiohttp.FormData()
+                if files:
+                    for file in files:
+                        form_data.add_field(file.field_name, file.file_data,
+                                            filename=file.filename, content_type=file.content_type)
+                if data:
+                    for key, value in data.items():
+                        form_data.add_field(key, value)
+            else:
+                form_data = None
+
+            async with session.request(method, f"{MAIN_SERVER_URL}{path}", headers=headers, data=form_data, json=json) as response:
 
                 if response.status == 401:
                     if self.refresh_tries >= self.max_refresh_tries:
                         raise RuntimeError("Max tries reached")
                     else:
                         await self.refresh_token()
-                        response = await self.send_request(method, path, data, json, headers)
                         self.refresh_tries += 1
+                        return await self.send_request(method, path, data, json, files, headers)
+
+                if response.status != 200:
+                    raise RuntimeError(
+                        f"Error {response.status}: {await response.text()}")
 
                 return ProjectClientResponse(
                     status=response.status,

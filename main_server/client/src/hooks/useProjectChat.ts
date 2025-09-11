@@ -11,7 +11,7 @@ import { DataSource } from "@/types/data-sources";
 import { useConversations } from "@/hooks/useConversations";
 import { SSE } from 'sse.js';
 import { Pipeline } from "@/types/pipeline";
-import { snakeToCamelKeys } from "@/lib/utils";
+import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -40,7 +40,7 @@ function createOrchestratorEventSource(token: string, prompt: Prompt): SSE {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    payload: JSON.stringify(prompt)
+    payload: JSON.stringify(camelToSnakeKeys(prompt))
   });
 }
 

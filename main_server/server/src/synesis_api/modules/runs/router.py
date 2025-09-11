@@ -57,7 +57,7 @@ async def post_run(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> RunInDB:
 
-    run = await create_run(user.id, request.type, request.conversation_id, request.parent_run_id, request.run_name)
+    run = await create_run(user.id, request)
     return run
 
 
@@ -85,7 +85,7 @@ async def post_run_message(
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this run")
 
-    run_message = await create_run_message(request.type, request.run_id, request.content)
+    run_message = await create_run_message(request)
     return run_message
 
 
@@ -99,7 +99,7 @@ async def post_run_message_pydantic(
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this run")
 
-    run_message = await create_run_message_pydantic(request.run_id, request.content)
+    run_message = await create_run_message_pydantic(request)
     return run_message
 
 
@@ -223,7 +223,7 @@ async def post_data_integration_run_input(
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this run")
 
-    return await create_data_integration_run_input(request.run_id, request.target_dataset_description, request.data_source_ids)
+    return await create_data_integration_run_input(request)
 
 
 @router.post("/data-integration-run-result")
@@ -236,4 +236,4 @@ async def post_data_integration_run_result(
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this run")
 
-    return await create_data_integration_run_result(request.run_id, request.dataset_id, request.code_explanation, request.python_code_path)
+    return await create_data_integration_run_result(request)

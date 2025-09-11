@@ -69,7 +69,16 @@ class FileSavedResponse(BaseModel):
     file_path: str
 
 
+class GetDataSourcesByIDsRequest(BaseModel):
+    data_source_ids: List[UUID]
+
+
 # Create models
+
+
+class DataSourceCreate(BaseModel):
+    name: str
+    type: str
 
 
 class TabularFileDataSourceCreate(BaseModel):

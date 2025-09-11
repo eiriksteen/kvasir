@@ -1,8 +1,6 @@
 'use client';
 
 import Link from "next/link";
-import { redirect } from 'next/navigation';
-
 import LoginForm from "@/app/login/_components/LoginForm";
 import { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
@@ -24,13 +22,6 @@ function LoginContent() {
 
 
 export default function LoginContainer({ session }: { session: Session | null }) {
-
-    console.log("SESSION")
-    console.log(session);
-
-    if (session) {
-        redirect('/projects');
-    }
 
     return (
         <SessionProvider session={session} basePath="/next-api/api/auth">

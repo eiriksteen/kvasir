@@ -10,6 +10,7 @@ from synesis_schemas.main_server import (
     ChatMessageInDB,
     ConversationInDB,
     ConversationCreate,
+    RunCreate,
 )
 from synesis_api.modules.orchestrator.service import (
     create_conversation,
@@ -114,10 +115,11 @@ async def post_chat(
                     status_code=501, detail="Analysis is not implemented yet")
 
             run = await create_run(
-                conversation_record.id,
                 user.id,
-                handoff_agent,
-                run_name=orchestrator_run.output.run_name
+                RunCreate(
+                    type=handoff_agent,
+                    run_name=orchestrator_run.output.run_name
+                )
             )
 
             client = MainServerClient(token)
@@ -169,7 +171,7 @@ async def post_chat(
 
 @router.post("/conversation")
 async def post_user_conversation(conversation_data: ConversationCreate, user: Annotated[User, Depends(get_current_user)] = None) -> ConversationInDB:
-    conversation_record = await create_conversation(conversation_data.project_id, user.id, "New Chat")
+    conversation_record = await create_conversation(conversation_data, user.id, "New Chat")
     return conversation_record
 
 

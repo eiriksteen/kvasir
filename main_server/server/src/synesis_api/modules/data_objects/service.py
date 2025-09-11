@@ -42,6 +42,7 @@ from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_STRUCTURE,
     TIME_SERIES_AGGREGATION_STRUCTURE
 )
+from synesis_api.utils.time_series_utils import make_timezone_aware
 
 
 async def create_features(features: List[FeatureCreate]) -> List[FeatureInDB]:
@@ -186,23 +187,42 @@ async def create_dataset(
                 for entity_id in metadata.index:
                     object_record = DataObjectInDB(
                         id=uuid.uuid4(),
+                        name=entity_id,
                         group_id=object_group_record.id,
+                        original_id=entity_id,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                         additional_variables=additional_metadata.loc[entity_id].to_dict(
                         )
                     )
 
-                    object_records.append(object_record)
+                    object_records.append(object_record.model_dump())
+
+                    # Extract timestamp values and make them timezone-aware
+                    entity_timezone = fixed_metadata.loc[entity_id, 'timezone']
+                    start_timestamp = make_timezone_aware(
+                        fixed_metadata.loc[entity_id, 'start_timestamp'],
+                        entity_timezone
+                    )
+                    end_timestamp = make_timezone_aware(
+                        fixed_metadata.loc[entity_id, 'end_timestamp'],
+                        entity_timezone
+                    )
 
                     time_series_record = TimeSeriesInDB(
                         id=object_record.id,
-                        **fixed_metadata.loc[entity_id].to_dict()
+                        num_timestamps=fixed_metadata.loc[entity_id,
+                                                          'num_timestamps'],
+                        start_timestamp=start_timestamp,
+                        end_timestamp=end_timestamp,
+                        sampling_frequency=fixed_metadata.loc[entity_id,
+                                                              'sampling_frequency'],
+                        timezone=entity_timezone
                     )
 
                     original_entity_id_to_generated_id[entity_id] = time_series_record.id
 
-                    time_series_records.append(time_series_record)
+                    time_series_records.append(time_series_record.model_dump())
 
                 await execute(insert(data_object).values(object_records), commit_after=True)
                 await execute(insert(time_series).values(time_series_records), commit_after=True)
@@ -224,21 +244,24 @@ async def create_dataset(
                 for aggregation_id in metadata.index:
                     object_record = DataObjectInDB(
                         id=uuid.uuid4(),
+                        name=aggregation_id,
                         group_id=object_group_record.id,
+                        original_id=aggregation_id,
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc),
                         additional_variables=additional_metadata.loc[aggregation_id].to_dict(
                         )
                     )
 
-                    object_records.append(object_record)
+                    object_records.append(object_record.model_dump())
 
                     time_series_aggregation_record = TimeSeriesAggregationInDB(
                         id=object_record.id,
                         **fixed_metadata.loc[aggregation_id].to_dict()
                     )
 
-                    agg_records.append(time_series_aggregation_record)
+                    agg_records.append(
+                        time_series_aggregation_record.model_dump())
 
                     for agg_input in inputs_metadata.iterrows():
                         time_series_aggregation_input_record = TimeSeriesAggregationInputInDB(
@@ -248,7 +271,7 @@ async def create_dataset(
                             **agg_input.to_dict()
                         )
                         input_records.append(
-                            time_series_aggregation_input_record)
+                            time_series_aggregation_input_record.model_dump())
 
                 await execute(insert(data_object).values(object_records), commit_after=True)
                 await execute(insert(time_series_aggregation).values(agg_records), commit_after=True)

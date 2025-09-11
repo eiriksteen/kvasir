@@ -99,11 +99,11 @@ When in the transformation stage, create the data transformation code:
 
 ## When Complete
 - Python Code:
-  - Output the dataset information and dataframes in an instantiated DatasetCreate object called dataset_create with the following structure:
+  - Output the dataset information and dataframes in an instantiated DatasetCreate object called dataset_create: DatasetCreateWithRawData with the following structure:
 
 ```python
 @dataclass
-class ObjectGroupCreate:
+class ObjectGroupCreateWithRawData:
     name: str
     entity_id_name: str
     description: str
@@ -111,21 +111,21 @@ class ObjectGroupCreate:
     structure: Union[TimeSeriesStructure, TimeSeriesAggregationStructure]
 
 @dataclass
-class DatasetCreate:
+class DatasetCreateWithRawData:
     name: str
     description: str
     modality: str
-    primary_object_group: ObjectGroupCreate
-    annotated_object_groups: List[ObjectGroupCreate]
-    computed_object_groups: List[ObjectGroupCreate]
+    primary_object_group: ObjectGroupCreateWithRawData
+    annotated_object_groups: List[ObjectGroupCreateWithRawData]
+    computed_object_groups: List[ObjectGroupCreateWithRawData]
 ```
-To import these classes use: "from project_server.dataset_manager.dataclasses import ObjectGroupCreate, DatasetCreate"
+To import these classes use: "from project_server.dataset_manager.dataclasses import ObjectGroupCreateWithRawData, DatasetCreateWithRawData"
 Remember: The structure definitions will be accessible by calling the relevant tools.
 
 - Output:
   - Summary: Brief summary of what you did
   - Code explanation: Explanation of the code you wrote
-  - Code: The code you wrote (and remember dataset_create must be defined in this code)
+  - Code: The code you wrote (and remember dataset_create must be defined in this code and it must be an instantiated DatasetCreateWithRawData object)
 
 # Critical Rules
 1. Include all necessary metadata for the target format

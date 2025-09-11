@@ -88,6 +88,8 @@ from .data_sources import (
     FileSavedResponse,
     TabularFileDataSourceCreate,
     DataSourceAnalysisCreate,
+    DataSourceCreate,
+    GetDataSourcesByIDsRequest
 )
 
 # Runs schemas

@@ -16,50 +16,41 @@ from synesis_schemas.main_server import (
     ProgrammingLanguageVersionInDB,
     TaskInDB,
     ProgrammingLanguageInDB,
-    ModelInDB,
-    ModelTaskInDB,
     FunctionInDB,
     FunctionInputInDB,
     FunctionOutputInDB,
-    FunctionInputCreate,
-    FunctionOutputCreate,
+    FunctionCreate,
     FunctionInPipelineInDB,
     FunctionWithoutEmbedding,
     PipelineFull,
-    PeriodicScheduleCreate,
-    OnEventScheduleCreate,
-    PeriodicScheduleInDB
+    PeriodicScheduleInDB,
+    PipelineCreate
 )
 from synesis_api.utils.rag_utils import embed
 from synesis_api.storage.local import save_script_to_local_storage
 
 
 async def create_pipeline(
-    name: str,
-    description: str,
     user_id: uuid.UUID,
-    function_ids: List[uuid.UUID],
-    function_configs: List[dict | None],
-    periodic_schedules: List[PeriodicScheduleCreate] = [],
-    on_event_schedules: List[OnEventScheduleCreate] = []
+    pipeline_create: PipelineCreate,
 ) -> PipelineInDB:
 
     pipeline_obj = PipelineInDB(
         id=uuid.uuid4(),
         user_id=user_id,
-        name=name,
-        description=description,
+        name=pipeline_create.name,
+        description=pipeline_create.description,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
     )
 
     await execute(insert(pipeline).values(**pipeline_obj.model_dump()), commit_after=True)
 
-    if len(function_ids) != len(function_configs):
+    if len(pipeline_create.function_ids) != len(pipeline_create.function_configs):
         raise ValueError(
             "function_ids and function_configs must have the same length")
 
-    if len(periodic_schedules) > 0:
+    if len(pipeline_create.periodic_schedules) > 0:
 
         periodic_schedule_records = [
             PeriodicScheduleInDB(
@@ -72,7 +63,7 @@ async def create_pipeline(
                 cron_expression=periodic_schedule.cron_expression,
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc)
-            ).model_dump() for periodic_schedule in periodic_schedules
+            ).model_dump() for periodic_schedule in pipeline_create.periodic_schedules
         ]
 
         await execute(insert(pipeline_periodic_schedule).values(periodic_schedule_records), commit_after=True)
@@ -81,7 +72,7 @@ async def create_pipeline(
 
     fn_in_pipeline_records = []
 
-    for i, (function_id, function_config) in enumerate(zip(function_ids, function_configs)):
+    for i, (function_id, function_config) in enumerate(zip(pipeline_create.function_ids, pipeline_create.function_configs)):
         function_in_pipeline_obj = FunctionInPipelineInDB(
             id=uuid.uuid4(),
             pipeline_id=pipeline_obj.id,
@@ -107,46 +98,39 @@ async def get_user_pipelines(user_id: uuid.UUID) -> List[PipelineInDB]:
 
 
 async def create_function(
-    name: str,
-    description: str,
-    implementation_script: str,
     user_id: uuid.UUID,
-    run_id: uuid.UUID,
-    inputs: List[FunctionInputCreate],
-    outputs: List[FunctionOutputCreate],
-    setup_script: Optional[str] = None,
-    config_dict: Optional[dict] = None
+    function_create: FunctionCreate,
 ) -> FunctionInDB:
 
     implementation_script_path = save_script_to_local_storage(
         user_id=user_id,
-        run_id=run_id,
-        script=implementation_script,
-        filename=f"{name}_implementation.py",
+        run_id=function_create.run_id,
+        script=function_create.implementation_script,
+        filename=f"{function_create.name}_implementation.py",
         kind="pipeline"
     )
 
-    if setup_script is not None:
+    if function_create.setup_script is not None:
         setup_script_path = save_script_to_local_storage(
             user_id=user_id,
-            run_id=run_id,
-            script=setup_script,
-            filename=f"{name}_setup.sh",
+            run_id=function_create.run_id,
+            script=function_create.setup_script,
+            filename=f"{function_create.name}_setup.sh",
             kind="pipeline"
         )
     else:
         setup_script_path = None
 
-    embedding = (await embed([description]))[0]
+    embedding = (await embed([function_create.description]))[0]
 
     function_obj = FunctionInDB(
         id=uuid.uuid4(),
-        name=name,
-        description=description,
+        name=function_create.name,
+        description=function_create.description,
         implementation_script_path=str(implementation_script_path),
         setup_script_path=str(
             setup_script_path) if setup_script_path else None,
-        config_dict=config_dict,
+        config_dict=function_create.config_dict,
         embedding=embedding,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
@@ -165,7 +149,7 @@ async def create_function(
             required=input.required,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
-        ).model_dump() for i, input in enumerate(inputs)
+        ).model_dump() for i, input in enumerate(function_create.inputs)
     ]
 
     await execute(insert(function_input).values(input_records), commit_after=True)
@@ -180,7 +164,7 @@ async def create_function(
             description=output.description,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
-        ).model_dump() for i, output in enumerate(outputs)
+        ).model_dump() for i, output in enumerate(function_create.outputs)
     ]
 
     await execute(insert(function_output).values(output_records), commit_after=True)
@@ -188,124 +172,124 @@ async def create_function(
     return function_obj
 
 
-# TODO: Update to deal with function inputs and outputs
-async def create_model(
-    name: str,
-    description: str,
-    owner_id: uuid.UUID,
-    public: bool,
-    modality_name: str,
-    source_name: str,
-    programming_language_name: str,
-    programming_language_version_name: str,
-    setup_script_path: str,
-    config_script_path: str,
-    input_description: str,
-    output_description: str,
-    config_parameters: List[str],
-    tasks: List[str],
-    inference_script_paths: List[str],
-    training_script_paths: List[str],
-    model_id: Optional[uuid.UUID] = None
-) -> ModelInDB:
+# # TODO: Implement
+# async def create_model(
+#     name: str,
+#     description: str,
+#     owner_id: uuid.UUID,
+#     public: bool,
+#     modality_name: str,
+#     source_name: str,
+#     programming_language_name: str,
+#     programming_language_version_name: str,
+#     setup_script_path: str,
+#     config_script_path: str,
+#     input_description: str,
+#     output_description: str,
+#     config_parameters: List[str],
+#     tasks: List[str],
+#     inference_script_paths: List[str],
+#     training_script_paths: List[str],
+#     model_id: Optional[uuid.UUID] = None
+# ) -> ModelInDB:
 
-    # Get IDs from names using the list-based functions
-    modalities = await _get_or_create_modalities([modality_name])
-    modality = modalities[0]
+#     # Get IDs from names using the list-based functions
+#     modalities = await _get_or_create_modalities([modality_name])
+#     modality = modalities[0]
 
-    sources = await _get_or_create_sources([source_name])
-    source = sources[0]
+#     sources = await _get_or_create_sources([source_name])
+#     source = sources[0]
 
-    programming_languages = await _get_or_create_programming_languages(
-        [programming_language_name])
-    programming_language = programming_languages[0]
+#     programming_languages = await _get_or_create_programming_languages(
+#         [programming_language_name])
+#     programming_language = programming_languages[0]
 
-    # Get or create programming language version
-    programming_language_versions = await _get_or_create_programming_language_versions(
-        [programming_language.id],
-        [programming_language_version_name]
-    )
-    programming_language_version = programming_language_versions[0]
+#     # Get or create programming language version
+#     programming_language_versions = await _get_or_create_programming_language_versions(
+#         [programming_language.id],
+#         [programming_language_version_name]
+#     )
+#     programming_language_version = programming_language_versions[0]
 
-    # Get or create tasks
-    task_objects = await _get_or_create_tasks(tasks)
+#     # Get or create tasks
+#     task_objects = await _get_or_create_tasks(tasks)
 
-    # Insert the model
-    if model_id is None:
-        model_id = uuid.uuid4()
+#     # Insert the model
+#     if model_id is None:
+#         model_id = uuid.uuid4()
 
-    model_obj = ModelInDB(
-        id=model_id,
-        name=name,
-        description=description,
-        owner_id=owner_id,
-        public=public,
-        modality_id=modality.id,
-        source_id=source.id,
-        programming_language_version_id=programming_language_version.id,
-        setup_script_path=setup_script_path,
-        config_script_path=config_script_path,
-        input_description=input_description,
-        output_description=output_description,
-        config_parameters=config_parameters,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    )
+#     model_obj = ModelInDB(
+#         id=model_id,
+#         name=name,
+#         description=description,
+#         owner_id=owner_id,
+#         public=public,
+#         modality_id=modality.id,
+#         source_id=source.id,
+#         programming_language_version_id=programming_language_version.id,
+#         setup_script_path=setup_script_path,
+#         config_script_path=config_script_path,
+#         input_description=input_description,
+#         output_description=output_description,
+#         config_parameters=config_parameters,
+#         created_at=datetime.now(timezone.utc),
+#         updated_at=datetime.now(timezone.utc)
+#     )
 
-    await execute(
-        insert(model).values(**model_obj.model_dump()),
-        commit_after=True
-    )
+#     await execute(
+#         insert(model).values(**model_obj.model_dump()),
+#         commit_after=True
+#     )
 
-    # Insert model_task relationships
-    for i, task_object in enumerate(task_objects):
+#     # Insert model_task relationships
+#     for i, task_object in enumerate(task_objects):
 
-        inference_fn_desc = f"Inference function for model {name} and task {task_object.name}"
-        training_fn_desc = f"Training function for model {name} and task {task_object.name}"
+#         inference_fn_desc = f"Inference function for model {name} and task {task_object.name}"
+#         training_fn_desc = f"Training function for model {name} and task {task_object.name}"
 
-        embeddings = await embed([inference_fn_desc, training_fn_desc])
+#         embeddings = await embed([inference_fn_desc, training_fn_desc])
 
-        inference_function_obj = FunctionInDB(
-            id=uuid.uuid4(),
-            name=f"{name}_{task_object.id}",
-            script_path=inference_script_paths[i],
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
-            description=inference_fn_desc,
-            embedding=embeddings[0]
-        )
+#         inference_function_obj = FunctionInDB(
+#             id=uuid.uuid4(),
+#             name=f"{name}_{task_object.id}",
+#             script_path=inference_script_paths[i],
+#             created_at=datetime.now(timezone.utc),
+#             updated_at=datetime.now(timezone.utc),
+#             description=inference_fn_desc,
+#             embedding=embeddings[0]
+#         )
 
-        training_function_obj = FunctionInDB(
-            id=uuid.uuid4(),
-            name=f"{name}_{task_object.id}",
-            script_path=training_script_paths[i],
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
-            description=training_fn_desc,
-            embedding=embeddings[1]
-        )
+#         training_function_obj = FunctionInDB(
+#             id=uuid.uuid4(),
+#             name=f"{name}_{task_object.id}",
+#             script_path=training_script_paths[i],
+#             created_at=datetime.now(timezone.utc),
+#             updated_at=datetime.now(timezone.utc),
+#             description=training_fn_desc,
+#             embedding=embeddings[1]
+#         )
 
-        await execute(
-            insert(function).values(
-                [inference_function_obj.model_dump(), training_function_obj.model_dump()]),
-            commit_after=True
-        )
+#         await execute(
+#             insert(function).values(
+#                 [inference_function_obj.model_dump(), training_function_obj.model_dump()]),
+#             commit_after=True
+#         )
 
-        model_task_obj = ModelTaskInDB(
-            model_id=model_id,
-            task_id=task_object.id,
-            inference_script_path=inference_script_paths[i],
-            training_script_path=training_script_paths[i],
-            inference_function_id=inference_function_obj.id,
-            training_function_id=training_function_obj.id
-        )
+#         model_task_obj = ModelTaskInDB(
+#             model_id=model_id,
+#             task_id=task_object.id,
+#             inference_script_path=inference_script_paths[i],
+#             training_script_path=training_script_paths[i],
+#             inference_function_id=inference_function_obj.id,
+#             training_function_id=training_function_obj.id
+#         )
 
-        await execute(
-            insert(model_task).values(**model_task_obj.model_dump()),
-            commit_after=True
-        )
+#         await execute(
+#             insert(model_task).values(**model_task_obj.model_dump()),
+#             commit_after=True
+#         )
 
-    return model_obj
+#     return model_obj
 
 
 async def check_function_ids_exist(function_ids: List[uuid.UUID]) -> bool:
@@ -381,191 +365,191 @@ async def get_user_pipeline_with_functions(user_id: uuid.UUID, pipeline_id: uuid
 # Private
 
 
-async def _get_or_create_modalities(names: List[str], descriptions: Optional[List[str]] = None) -> List[ModalityInDB]:
-    """Get existing modalities or create new ones"""
+# async def _get_or_create_modalities(names: List[str], descriptions: Optional[List[str]] = None) -> List[ModalityInDB]:
+#     """Get existing modalities or create new ones"""
 
-    assert descriptions is None or len(names) == len(
-        descriptions), "Names and descriptions must have the same length"
+#     assert descriptions is None or len(names) == len(
+#         descriptions), "Names and descriptions must have the same length"
 
-    modalities = []
-    existing_modalities = await fetch_all(
-        select(modality).where(modality.c.name.in_(names))
-    )
+#     modalities = []
+#     existing_modalities = await fetch_all(
+#         select(modality).where(modality.c.name.in_(names))
+#     )
 
-    # Create a map of existing modalities by name
-    existing_by_name = {m["name"]: m for m in existing_modalities}
+#     # Create a map of existing modalities by name
+#     existing_by_name = {m["name"]: m for m in existing_modalities}
 
-    for i, name in enumerate(names):
-        description = descriptions[i] if descriptions else None
+#     for i, name in enumerate(names):
+#         description = descriptions[i] if descriptions else None
 
-        if name in existing_by_name:
-            modalities.append(ModalityInDB(**existing_by_name[name]))
-        else:
-            modality_id = uuid.uuid4()
+#         if name in existing_by_name:
+#             modalities.append(ModalityInDB(**existing_by_name[name]))
+#         else:
+#             modality_id = uuid.uuid4()
 
-            modality_obj = ModalityInDB(
-                id=modality_id,
-                name=name,
-                description=description,
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc)
-            )
+#             modality_obj = ModalityInDB(
+#                 id=modality_id,
+#                 name=name,
+#                 description=description,
+#                 created_at=datetime.now(timezone.utc),
+#                 updated_at=datetime.now(timezone.utc)
+#             )
 
-            await execute(insert(modality).values(**modality_obj.model_dump()), commit_after=True)
-            modalities.append(modality_obj)
+#             await execute(insert(modality).values(**modality_obj.model_dump()), commit_after=True)
+#             modalities.append(modality_obj)
 
-    return modalities
-
-
-async def _get_or_create_tasks(names: List[str], descriptions: Optional[List[str]] = None) -> List[TaskInDB]:
-    """Get existing tasks or create new ones"""
-
-    assert descriptions is None or len(names) == len(
-        descriptions), "Names and descriptions must have the same length"
-
-    tasks = []
-    existing_tasks = await fetch_all(
-        select(task).where(task.c.name.in_(names))
-    )
-
-    # Create a map of existing tasks by name
-    existing_by_name = {t["name"]: t for t in existing_tasks}
-
-    for i, name in enumerate(names):
-        description = descriptions[i] if descriptions else None
-
-        if name in existing_by_name:
-            tasks.append(TaskInDB(**existing_by_name[name]))
-        else:
-            task_obj = TaskInDB(
-                id=uuid.uuid4(),
-                name=name,
-                description=description,
-                created_at=datetime.now(timezone.utc)
-            )
-            await execute(insert(task).values(**task_obj.model_dump()), commit_after=True)
-            tasks.append(task_obj)
-
-    return tasks
+#     return modalities
 
 
-async def _get_or_create_sources(names: List[str], descriptions: Optional[List[str]] = None) -> List[SourceInDB]:
-    """Get existing sources or create new ones"""
+# async def _get_or_create_tasks(names: List[str], descriptions: Optional[List[str]] = None) -> List[TaskInDB]:
+#     """Get existing tasks or create new ones"""
 
-    assert descriptions is None or len(names) == len(
-        descriptions), "Names and descriptions must have the same length"
+#     assert descriptions is None or len(names) == len(
+#         descriptions), "Names and descriptions must have the same length"
 
-    sources = []
-    existing_sources = await fetch_all(
-        select(source).where(source.c.name.in_(names))
-    )
+#     tasks = []
+#     existing_tasks = await fetch_all(
+#         select(task).where(task.c.name.in_(names))
+#     )
 
-    # Create a map of existing sources by name
-    existing_by_name = {s["name"]: s for s in existing_sources}
+#     # Create a map of existing tasks by name
+#     existing_by_name = {t["name"]: t for t in existing_tasks}
 
-    for i, name in enumerate(names):
-        description = descriptions[i] if descriptions else None
+#     for i, name in enumerate(names):
+#         description = descriptions[i] if descriptions else None
 
-        if name in existing_by_name:
-            sources.append(SourceInDB(**existing_by_name[name]))
-        else:
-            source_obj = SourceInDB(
-                id=uuid.uuid4(),
-                name=name,
-                description=description,
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc)
-            )
-            await execute(insert(source).values(**source_obj.model_dump()), commit_after=True)
-            sources.append(source_obj)
+#         if name in existing_by_name:
+#             tasks.append(TaskInDB(**existing_by_name[name]))
+#         else:
+#             task_obj = TaskInDB(
+#                 id=uuid.uuid4(),
+#                 name=name,
+#                 description=description,
+#                 created_at=datetime.now(timezone.utc)
+#             )
+#             await execute(insert(task).values(**task_obj.model_dump()), commit_after=True)
+#             tasks.append(task_obj)
 
-    return sources
-
-
-async def _get_or_create_programming_languages(names: List[str], descriptions: Optional[List[str]] = None) -> List[ProgrammingLanguageInDB]:
-    """Get existing programming languages or create new ones"""
-
-    assert descriptions is None or len(names) == len(
-        descriptions), "Names and descriptions must have the same length"
-
-    programming_languages = []
-    existing_programming_languages = await fetch_all(
-        select(programming_language).where(
-            programming_language.c.name.in_(names))
-    )
-
-    # Create a map of existing programming languages by name
-    existing_by_name = {
-        pl["name"]: pl for pl in existing_programming_languages}
-
-    for i, name in enumerate(names):
-        description = descriptions[i] if descriptions else None
-
-        if name in existing_by_name:
-            programming_languages.append(
-                ProgrammingLanguageInDB(**existing_by_name[name]))
-        else:
-            programming_language_obj = ProgrammingLanguageInDB(
-                id=uuid.uuid4(),
-                name=name,
-                description=description,
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc)
-            )
-            await execute(insert(programming_language).values(**programming_language_obj.model_dump()), commit_after=True)
-            programming_languages.append(programming_language_obj)
-
-    return programming_languages
+#     return tasks
 
 
-async def _get_or_create_programming_language_versions(
-    programming_language_ids: List[uuid.UUID],
-    versions: List[str]
-) -> List[ProgrammingLanguageVersionInDB]:
-    """Get existing programming language versions or create new ones"""
+# async def _get_or_create_sources(names: List[str], descriptions: Optional[List[str]] = None) -> List[SourceInDB]:
+#     """Get existing sources or create new ones"""
 
-    assert len(programming_language_ids) == len(
-        versions), "Programming language IDs and versions must have the same length"
+#     assert descriptions is None or len(names) == len(
+#         descriptions), "Names and descriptions must have the same length"
 
-    programming_language_versions = []
+#     sources = []
+#     existing_sources = await fetch_all(
+#         select(source).where(source.c.name.in_(names))
+#     )
 
-    # Build query to find existing versions
-    conditions = []
-    for pl_id, version in zip(programming_language_ids, versions):
-        conditions.append(
-            (programming_language_version.c.programming_language_id == pl_id) &
-            (programming_language_version.c.version == version)
-        )
+#     # Create a map of existing sources by name
+#     existing_by_name = {s["name"]: s for s in existing_sources}
 
-    existing_versions = await fetch_all(
-        select(programming_language_version).where(or_(*conditions))
-    )
+#     for i, name in enumerate(names):
+#         description = descriptions[i] if descriptions else None
 
-    # Create a map of existing versions by (programming_language_id, version)
-    existing_by_key = {(v["programming_language_id"],
-                        v["version"]): v for v in existing_versions}
+#         if name in existing_by_name:
+#             sources.append(SourceInDB(**existing_by_name[name]))
+#         else:
+#             source_obj = SourceInDB(
+#                 id=uuid.uuid4(),
+#                 name=name,
+#                 description=description,
+#                 created_at=datetime.now(timezone.utc),
+#                 updated_at=datetime.now(timezone.utc)
+#             )
+#             await execute(insert(source).values(**source_obj.model_dump()), commit_after=True)
+#             sources.append(source_obj)
 
-    for programming_language_id, version in zip(programming_language_ids, versions):
-        key = (programming_language_id, version)
+#     return sources
 
-        if key in existing_by_key:
-            programming_language_versions.append(
-                ProgrammingLanguageVersionInDB(**existing_by_key[key]))
-        else:
 
-            programming_language_version_obj = ProgrammingLanguageVersionInDB(
-                id=uuid.uuid4(),
-                programming_language_id=programming_language_id,
-                version=version,
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc)
-            )
-            await execute(
-                insert(programming_language_version).values(
-                    **programming_language_version_obj.model_dump()),
-                commit_after=True
-            )
-            programming_language_versions.append(
-                programming_language_version_obj)
+# async def _get_or_create_programming_languages(names: List[str], descriptions: Optional[List[str]] = None) -> List[ProgrammingLanguageInDB]:
+#     """Get existing programming languages or create new ones"""
 
-    return programming_language_versions
+#     assert descriptions is None or len(names) == len(
+#         descriptions), "Names and descriptions must have the same length"
+
+#     programming_languages = []
+#     existing_programming_languages = await fetch_all(
+#         select(programming_language).where(
+#             programming_language.c.name.in_(names))
+#     )
+
+#     # Create a map of existing programming languages by name
+#     existing_by_name = {
+#         pl["name"]: pl for pl in existing_programming_languages}
+
+#     for i, name in enumerate(names):
+#         description = descriptions[i] if descriptions else None
+
+#         if name in existing_by_name:
+#             programming_languages.append(
+#                 ProgrammingLanguageInDB(**existing_by_name[name]))
+#         else:
+#             programming_language_obj = ProgrammingLanguageInDB(
+#                 id=uuid.uuid4(),
+#                 name=name,
+#                 description=description,
+#                 created_at=datetime.now(timezone.utc),
+#                 updated_at=datetime.now(timezone.utc)
+#             )
+#             await execute(insert(programming_language).values(**programming_language_obj.model_dump()), commit_after=True)
+#             programming_languages.append(programming_language_obj)
+
+#     return programming_languages
+
+
+# async def _get_or_create_programming_language_versions(
+#     programming_language_ids: List[uuid.UUID],
+#     versions: List[str]
+# ) -> List[ProgrammingLanguageVersionInDB]:
+#     """Get existing programming language versions or create new ones"""
+
+#     assert len(programming_language_ids) == len(
+#         versions), "Programming language IDs and versions must have the same length"
+
+#     programming_language_versions = []
+
+#     # Build query to find existing versions
+#     conditions = []
+#     for pl_id, version in zip(programming_language_ids, versions):
+#         conditions.append(
+#             (programming_language_version.c.programming_language_id == pl_id) &
+#             (programming_language_version.c.version == version)
+#         )
+
+#     existing_versions = await fetch_all(
+#         select(programming_language_version).where(or_(*conditions))
+#     )
+
+#     # Create a map of existing versions by (programming_language_id, version)
+#     existing_by_key = {(v["programming_language_id"],
+#                         v["version"]): v for v in existing_versions}
+
+#     for programming_language_id, version in zip(programming_language_ids, versions):
+#         key = (programming_language_id, version)
+
+#         if key in existing_by_key:
+#             programming_language_versions.append(
+#                 ProgrammingLanguageVersionInDB(**existing_by_key[key]))
+#         else:
+
+#             programming_language_version_obj = ProgrammingLanguageVersionInDB(
+#                 id=uuid.uuid4(),
+#                 programming_language_id=programming_language_id,
+#                 version=version,
+#                 created_at=datetime.now(timezone.utc),
+#                 updated_at=datetime.now(timezone.utc)
+#             )
+#             await execute(
+#                 insert(programming_language_version).values(
+#                     **programming_language_version_obj.model_dump()),
+#                 commit_after=True
+#             )
+#             programming_language_versions.append(
+#                 programming_language_version_obj)
+
+#     return programming_language_versions

@@ -128,3 +128,22 @@ def timezone_str_to_tz_info(
     Convert a timezone string to a timezone object.
     """
     return pytz.timezone(timezone_str)
+
+
+def make_timezone_aware(dt: datetime, timezone_str: str) -> datetime:
+    """Convert a naive datetime to timezone-aware using the provided timezone string.
+
+    Args:
+        dt: The datetime object to convert (may be naive)
+        timezone_str: The timezone string (e.g., 'UTC', 'America/New_York')
+
+    Returns:
+        Timezone-aware datetime object
+    """
+    if dt.tzinfo is not None:
+        # Already timezone-aware, return as-is
+        return dt
+
+    # Convert naive datetime to timezone-aware
+    tz = pytz.timezone(timezone_str)
+    return tz.localize(dt)

@@ -85,10 +85,10 @@ export default function FileInfoModal({
             </div>
             <div className="p-4 flex-1 overflow-y-auto">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
-                {/* Left Column - File Stats */}
-                <div className="lg:col-span-1 flex flex-col space-y-4 max-h-[100vh] overflow-y-auto">
-                  <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-emerald-500/20 rounded-xl p-4 space-y-3">
-                    <div className="flex items-center gap-3">
+                {/* Left Column - File Stats and Content Description */}
+                <div className="lg:col-span-1 flex flex-col gap-4 h-full overflow-y-auto">
+                  <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-emerald-500/20 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0">
+                    <div className="flex items-center gap-3 flex-shrink-0">
                       <div className="p-2 bg-emerald-500/20 rounded-lg">
                         <BarChart3 size={18} className="text-emerald-400" />
                       </div>
@@ -99,7 +99,7 @@ export default function FileInfoModal({
                         <p className="text-xs text-gray-400 font-mono">{dataSource.type}</p>
                       </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 flex-1 overflow-y-auto pr-2 min-h-0">
                       <div className="flex items-center">
                         <span className="text-sm text-gray-300/80">Created:</span>
                         <span className="text-sm text-gray-200 font-mono ml-2">{formatDate(dataSource.createdAt)}</span>
@@ -134,42 +134,64 @@ export default function FileInfoModal({
                       
                     </div>
                   </div>
+
+                  <div className={`border border-blue-500/20 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0 ${
+                    hasAnalysis && dataSource.analysis.contentDescription
+                      ? 'bg-gradient-to-br from-zinc-900/80 to-zinc-800/40'
+                      : 'bg-black/60'
+                  }`}>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="p-2 bg-blue-500/20 rounded-lg">
+                        <FileDescription size={18} className="text-blue-300" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-gray-200">Content Description</h3>
+                    </div>
+                    <div className="overflow-y-auto pr-2 flex-1 min-h-0">
+                      { hasAnalysis && dataSource.analysis.contentDescription ?
+                        <p className="text-sm text-gray-300/80 leading-relaxed">{dataSource.analysis.contentDescription}</p>
+                        :
+                        <div className="flex items-center justify-center h-full">
+                          <p className="text-sm text-gray-400/80 leading-relaxed text-center font-medium">Working on it...</p>
+                        </div>
+                      }
+                    </div>
+                  </div>
+
+
                 </div>
 
-                {/* Right Column - Analysis Information */}
-                <div className="lg:col-span-1 flex flex-col space-y-4 max-h-[100vh] overflow-y-auto">
-                  {hasAnalysis && (
+                {/* Right Column - More Analysis Information */}
+                <div className="lg:col-span-1 flex flex-col gap-4 h-full overflow-y-auto">
                     <>
-                      {dataSource.analysis.contentDescription && (
-                        <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-emerald-500/20 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0">
-                          <div className="flex items-center gap-3 flex-shrink-0">
-                            <div className="p-2 bg-emerald-500/20 rounded-lg">
-                              <FileDescription size={18} className="text-emerald-300" />
-                            </div>
-                            <h3 className="text-sm font-semibold text-gray-200">Content Description</h3>
-                          </div>
-                          <div className="overflow-y-auto pr-2 flex-1 min-h-0">
-                            <p className="text-sm text-gray-300/80 leading-relaxed">{dataSource.analysis.contentDescription}</p>
-                          </div>
-                        </div>
-                      )}
 
-                      {dataSource.analysis.qualityDescription && (
-                        <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-emerald-500/20 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0">
+                        <div className={`border border-orange-500/20 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0 ${
+                          hasAnalysis && dataSource.analysis.qualityDescription
+                            ? 'bg-gradient-to-br from-zinc-900/80 to-zinc-800/40'
+                            : 'bg-black/60'
+                        }`}>
                           <div className="flex items-center gap-3 flex-shrink-0">
-                            <div className="p-2 bg-emerald-500/20 rounded-lg">
-                              <Shield size={18} className="text-emerald-300" />
+                            <div className="p-2 bg-orange-500/20 rounded-lg">
+                              <Shield size={18} className="text-orange-300" />
                             </div>
                             <h3 className="text-sm font-semibold text-gray-200">Quality Assessment</h3>
                           </div>
                           <div className="overflow-y-auto pr-2 flex-1 min-h-0">
-                            <p className="text-sm text-gray-300/80 leading-relaxed">{dataSource.analysis.qualityDescription}</p>
+                            { hasAnalysis && dataSource.analysis.qualityDescription ?
+                              <p className="text-sm text-gray-300/80 leading-relaxed">{dataSource.analysis.qualityDescription}</p>
+                              :
+                              <div className="flex items-center justify-center h-full">
+                                <p className="text-sm text-gray-400/80 leading-relaxed text-center font-medium">Working on it...</p>
+                              </div>
+                            }
                           </div>
                         </div>
-                      )}
 
-                      {dataSource.analysis.cautions && (
-                        <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-red-500/20 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0">
+
+                        <div className={`border border-red-500/20 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0 ${
+                          hasAnalysis && dataSource.analysis.cautions
+                            ? 'bg-gradient-to-br from-zinc-900/80 to-zinc-800/40'
+                            : 'bg-black/60'
+                        }`}>
                           <div className="flex items-center gap-3 flex-shrink-0">
                             <div className="p-2 bg-red-500/20 rounded-lg">
                               <Shield size={18} className="text-red-300" />
@@ -177,12 +199,16 @@ export default function FileInfoModal({
                             <h3 className="text-sm font-semibold text-gray-200">Cautions</h3>
                           </div>
                           <div className="overflow-y-auto pr-2 flex-1 min-h-0">
-                            <p className="text-sm text-gray-300/80 leading-relaxed">{dataSource.analysis.cautions}</p>
+                            {hasAnalysis && dataSource.analysis.cautions ?
+                              <p className="text-sm text-gray-300/80 leading-relaxed">{dataSource.analysis.cautions}</p>
+                              :
+                              <div className="flex items-center justify-center h-full">
+                                <p className="text-sm text-gray-400/80 leading-relaxed text-center font-medium">Working on it...</p>
+                              </div>
+                            }
                           </div>
                         </div>
-                      )}
                     </>
-                  )}
 
                 </div>
               </div>

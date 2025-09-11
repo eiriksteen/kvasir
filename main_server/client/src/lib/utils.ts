@@ -26,6 +26,11 @@ const snakeToCamel = (str: string): string => {
 	return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
 };
 
+// Convert camelCase to snake_case
+const camelToSnake = (str: string): string => {
+	return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+};
+
 // Recursively convert object keys from snake_case to camelCase
 export const snakeToCamelKeys = <T>(obj: T): T => {
 	if (obj === null || obj === undefined) {
@@ -41,6 +46,28 @@ export const snakeToCamelKeys = <T>(obj: T): T => {
 		for (const [key, value] of Object.entries(obj)) {
 			const camelKey = snakeToCamel(key);
 			result[camelKey] = snakeToCamelKeys(value);
+		}
+		return result as T;
+	}
+
+	return obj;
+};
+
+// Recursively convert object keys from camelCase to snake_case
+export const camelToSnakeKeys = <T>(obj: T): T => {
+	if (obj === null || obj === undefined) {
+		return obj;
+	}
+
+	if (Array.isArray(obj)) {
+		return obj.map(camelToSnakeKeys) as T;
+	}
+
+	if (typeof obj === 'object' && obj.constructor === Object) {
+		const result: Record<string, unknown> = {};
+		for (const [key, value] of Object.entries(obj)) {
+			const snakeKey = camelToSnake(key);
+			result[snakeKey] = camelToSnakeKeys(value);
 		}
 		return result as T;
 	}

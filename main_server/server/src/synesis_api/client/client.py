@@ -38,8 +38,12 @@ class MainServerClient:
                         raise RuntimeError("Max tries reached")
 
                     else:
-                        response = await self.send_request(method, path, data, json, headers)
                         self.refresh_tries += 1
+                        return await self.send_request(method, path, data, json, headers)
+
+                elif response.status != 200:
+                    raise RuntimeError(
+                        f"Error {response.status}: {await response.text()}")
 
                 return MainServerClientResponse(
                     status=response.status,

@@ -5,7 +5,7 @@ import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { useCallback, useMemo } from "react";
 import { UUID } from "crypto";
-import { snakeToCamelKeys } from "@/lib/utils";
+import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -34,7 +34,7 @@ async function createProject(token: string, projectData: ProjectCreate): Promise
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(projectData)
+    body: JSON.stringify(camelToSnakeKeys(projectData))
   });
 
   if (!response.ok) {
@@ -54,7 +54,7 @@ async function updateProjectDetails(token: string, projectId: string, projectDat
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(projectData)
+    body: JSON.stringify(camelToSnakeKeys(projectData))
   });
 
   if (!response.ok) {
@@ -73,7 +73,7 @@ async function addEntityToProject(token: string, projectId: string, entityData: 
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(entityData)
+    body: JSON.stringify(camelToSnakeKeys(entityData))
   });
 
   if (!response.ok) {
@@ -92,7 +92,7 @@ async function removeEntityFromProject(token: string, projectId: string, entityD
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(entityData)
+    body: JSON.stringify(camelToSnakeKeys(entityData))
   });
 
   if (!response.ok) {
@@ -129,7 +129,7 @@ async function updateNodePosition(token: string, node: FrontendNode): Promise<Fr
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(node)
+    body: JSON.stringify(camelToSnakeKeys(node))
   });
 
   if (!response.ok) {
@@ -148,7 +148,7 @@ async function createNode(token: string, node: FrontendNodeCreate): Promise<Fron
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(node)
+    body: JSON.stringify(camelToSnakeKeys(node))
   });
 
   if (!response.ok) {

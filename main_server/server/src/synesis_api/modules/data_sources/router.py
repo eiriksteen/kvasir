@@ -13,9 +13,10 @@ from synesis_schemas.main_server import (
     DataSource,
     DataSourceAnalysisInDB,
     DataSourceAnalysisCreate,
-    TabularFileDataSource,
     TabularFileDataSourceCreate,
-    TabularFileDataSourceInDB
+    TabularFileDataSourceInDB,
+    DataSourceCreate,
+    GetDataSourcesByIDsRequest
 )
 from synesis_schemas.project_server import RunDataSourceAnalysisRequest
 from synesis_schemas.main_server import User
@@ -43,10 +44,10 @@ async def fetch_data_sources(
 
 @router.get("/data-sources-by-ids", response_model=List[DataSource])
 async def fetch_data_sources_by_ids(
-    data_source_ids: List[UUID],
+    request: GetDataSourcesByIDsRequest,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> List[DataSource]:
-    return await get_data_sources(data_source_ids=data_source_ids, user_id=user.id)
+    return await get_data_sources(data_source_ids=request.data_source_ids, user_id=user.id)
 
 
 @router.post("/file-data-source", response_model=DataSourceInDB)
@@ -55,7 +56,7 @@ async def post_file_data_source(
         user: Annotated[User, Depends(get_current_user)] = None,
         token: str = Depends(oauth2_scheme)) -> DataSourceInDB:
 
-    data_source_record = await create_data_source(user.id, type="file", name=file.filename)
+    data_source_record = await create_data_source(user.id, DataSourceCreate(name=file.filename, type="file"))
     file_content = await file.read()
 
     client = MainServerClient(token)

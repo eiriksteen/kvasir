@@ -46,41 +46,6 @@ class DataSourceAnalysisRunner:
         self.project_client = ProjectClient()
         self.project_client.set_bearer_token(bearer_token)
 
-    async def _save_results(self, result: AgentRunResult):
-
-        output: TabularFileAnalysisOutput = result.output
-
-        await post_data_source_details(self.project_client, TabularFileDataSourceCreate(
-            data_source_id=self.source_id,
-            file_name=self.file_path.name,
-            file_path=str(self.file_path),
-            file_type=self.file_path.suffix,
-            file_size_bytes=output.file_size_bytes,
-            num_rows=output.num_rows,
-            num_columns=output.num_columns,
-        ))
-
-        await post_data_source_analysis(self.project_client, DataSourceAnalysisCreate(
-            data_source_id=self.source_id,
-            content_description=output.content_description,
-            quality_description=output.quality_description,
-            eda_summary=output.eda_summary,
-            cautions=output.cautions,
-            features=output.features,
-        ))
-
-        await post_run_message_pydantic(self.project_client, RunMessageCreatePydantic(
-            run_id=self.run_id,
-            content=result.all_messages_json()
-        ))
-
-        await patch_run_status(self.project_client, RunStatusUpdate(
-            run_id=self.run_id,
-            status="completed"
-        ))
-
-        # TODO: Save the SWE functions
-
     async def __call__(self) -> DataSourceAnalysisRunnerOutput:
 
         try:
@@ -126,7 +91,7 @@ class DataSourceAnalysisRunner:
 
                     # TODO: Generalize this
                     test_code_to_append_to_implementation = (
-                        f"print({run_result.output.function_name}('{self.file_path}'))"
+                        f"print(str({run_result.output.function_name}('{self.file_path}'))[:5000])"
                     )
 
                     swe_output = await self.swe_runner(deliverable_description, test_code_to_append_to_implementation)
@@ -161,6 +126,41 @@ class DataSourceAnalysisRunner:
 
         else:
             return DataSourceAnalysisRunnerOutput(source_analysis=run_output, swe_outputs=swe_outputs)
+
+    async def _save_results(self, result: AgentRunResult):
+
+        output: TabularFileAnalysisOutput = result.output
+
+        await post_data_source_details(self.project_client, TabularFileDataSourceCreate(
+            data_source_id=self.source_id,
+            file_name=self.file_path.name,
+            file_path=str(self.file_path),
+            file_type=self.file_path.suffix,
+            file_size_bytes=output.file_size_bytes,
+            num_rows=output.num_rows,
+            num_columns=output.num_columns,
+        ))
+
+        await post_data_source_analysis(self.project_client, DataSourceAnalysisCreate(
+            data_source_id=self.source_id,
+            content_description=output.content_description,
+            quality_description=output.quality_description,
+            eda_summary=output.eda_summary,
+            cautions=output.cautions,
+            features=output.features,
+        ))
+
+        await post_run_message_pydantic(self.project_client, RunMessageCreatePydantic(
+            run_id=self.run_id,
+            content=result.all_messages_json()
+        ))
+
+        await patch_run_status(self.project_client, RunStatusUpdate(
+            run_id=self.run_id,
+            status="completed"
+        ))
+
+        # TODO: Save the SWE functions
 
 
 @broker.task(retry_on_error=False)

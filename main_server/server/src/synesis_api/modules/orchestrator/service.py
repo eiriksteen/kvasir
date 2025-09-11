@@ -15,6 +15,7 @@ from synesis_schemas.main_server import (
     ConversationInDB,
     ChatMessageInDB,
     ChatPydanticMessageInDB,
+    ConversationCreate,
 )
 
 from synesis_api.modules.orchestrator.models import (
@@ -35,7 +36,7 @@ from synesis_api.modules.pipeline.service import get_user_pipelines_by_ids
 
 
 async def create_conversation(
-        project_id: uuid.UUID,
+        conversation_create: ConversationCreate,
         user_id: uuid.UUID,
         name: str,
         conversation_id: Optional[uuid.UUID] = None,
@@ -43,7 +44,7 @@ async def create_conversation(
     conversation_record = ConversationInDB(
         id=conversation_id if conversation_id else uuid.uuid4(),
         user_id=user_id,
-        project_id=project_id,
+        project_id=conversation_create.project_id,
         name=name,
     )
     await execute(conversation.insert().values(conversation_record.model_dump()), commit_after=True)

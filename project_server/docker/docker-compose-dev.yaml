@@ -43,30 +43,33 @@ services:
       - project-backend
 
   sandbox:
-    build:
-      context: ../..
-      dockerfile: project_server/sandbox/Dockerfile.dev
+    <<: *server
     container_name: project-sandbox
-    networks:
-      - project-backend
-    depends_on:
-      - server
-    volumes:
-      - type: bind
-        source: ../sandbox
-        target: /app
-      - type: bind
-        source: ../../data_structures
-        target: /app/data_structures
-      - type: bind
-        source: ../../schemas
-        target: /app/schemas
-      - type: bind
-        source: ../server/data_storage
-        target: /app/data_storage
-      - type: bind
-        source: ../server/script_storage
-        target: /app/script_storage
+    command: ["tail", "-f", "/dev/null"]
+    # build:
+    #   context: ../..
+    #   dockerfile: project_server/sandbox/Dockerfile.dev
+    # container_name: project-sandbox
+    # networks:
+    #   - project-backend
+    # depends_on:
+    #   - server
+    # volumes:
+    #   - type: bind
+    #     source: ../sandbox
+    #     target: /app
+    #   - type: bind
+    #     source: ../../data_structures
+    #     target: /app/data_structures
+    #   - type: bind
+    #     source: ../../schemas
+    #     target: /app/schemas
+    #   - type: bind
+    #     source: ../server/data_storage
+    #     target: /app/data_storage
+    #   - type: bind
+    #     source: ../server/script_storage
+    #     target: /app/script_storage
 
   proxy:
     image: nginx:latest

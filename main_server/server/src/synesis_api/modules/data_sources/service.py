@@ -21,20 +21,18 @@ from synesis_api.modules.data_sources.models import (
 )
 from synesis_api.modules.data_objects.models import feature
 from synesis_api.database.service import execute, fetch_all
-from synesis_schemas.main_server import TabularFileDataSourceCreate, DataSourceAnalysisCreate
+from synesis_schemas.main_server import TabularFileDataSourceCreate, DataSourceAnalysisCreate, DataSourceCreate
 
 
 async def create_data_source(
         user_id: uuid.UUID,
-        type: str,
-        name: str,
+        data_source_create: DataSourceCreate,
 ) -> DataSourceInDB:
 
     data_source_record = DataSourceInDB(
         id=uuid.uuid4(),
         user_id=user_id,
-        type=type,
-        name=name,
+        **data_source_create.model_dump(),
         created_at=datetime.now()
     )
 

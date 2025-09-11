@@ -40,7 +40,7 @@ The structure supports varying time series lengths per entity, making it flexibl
 - Format: pandas DataFrame
 - Index Structure: MultiIndex with 2 levels (THEY ARE NOT COLUMNS, THEY ARE THE INDEX OF THE DATAFRAME)
   - Level 0 (outer): Entity ID (sensor, object, etc.)
-  - Level 1 (inner): Timestamp (datetime object)
+  - Level 1 (inner): Timestamp (datetime object - Timezone aware!)
 - Content: Features as columns, including:
   - Time-varying measurements: Numerical continuous features as floats, discrete as integers, categorical as 0-indexed integers (0/1 for binary features)
 - Shape: (num_entities, num_timestamps, num_features)
@@ -58,7 +58,7 @@ The structure supports varying time series lengths per entity, making it flexibl
     - num_timestamps: Number of timestamps for the entity time series
     - start_timestamp: Start timestamp of the entity time series
     - end_timestamp: End timestamp of the entity time series
-    - sampling_frequency: Sampling frequency of the entity time series
+    - sampling_frequency: Sampling frequency of the entity time series - Must be one of 'm', 'h', 'd', 'w', 'y' or 'irr'
     - timezone: Timezone of the entity time series
   - Variable columns:
     - Any other column may be defined which is specific to the entity

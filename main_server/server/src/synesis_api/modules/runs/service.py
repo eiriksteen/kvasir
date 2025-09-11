@@ -17,7 +17,12 @@ from synesis_schemas.main_server import (
     ModelIntegrationRunResultInDB,
     Run,
     RunInput,
-    RunResult
+    RunResult,
+    RunCreate,
+    RunMessageCreate,
+    RunMessageCreatePydantic,
+    DataIntegrationRunInputCreate,
+    DataIntegrationRunResultCreate
 )
 from synesis_api.modules.runs.models import (
     run,
@@ -30,22 +35,14 @@ from synesis_api.modules.runs.models import (
 )
 
 
-async def create_run(user_id: uuid.UUID,
-                     type: Literal["chat", "data_integration", "analysis", "pipeline", "swe"],
-                     conversation_id: Optional[uuid.UUID] = None,
-                     run_id: Optional[uuid.UUID] = None,
-                     parent_run_id: Optional[uuid.UUID] = None,
-                     run_name: Optional[str] = None) -> RunInDB:
+async def create_run(user_id: uuid.UUID, run_create: RunCreate) -> RunInDB:
 
     run_record = RunInDB(
-        id=run_id if run_id else uuid.uuid4(),
-        conversation_id=conversation_id,
+        id=uuid.uuid4(),
         user_id=user_id,
-        type=type,
-        run_name=run_name,
+        **run_create.model_dump(),
         started_at=datetime.now(timezone.utc),
-        status="running",
-        parent_run_id=parent_run_id
+        status="running"
     )
 
     await execute(run.insert().values(run_record.model_dump()), commit_after=True)
@@ -173,16 +170,13 @@ async def get_run_messages_pydantic(run_id: uuid.UUID, bytes: bool = False) -> l
     return messages
 
 
-async def create_run_message(
-        type: Literal["tool_call", "result", "error"],
-        run_id: uuid.UUID,
-        content: str) -> RunMessageInDB:
+async def create_run_message(run_message_create: RunMessageCreate) -> RunMessageInDB:
 
     run_message_record = RunMessageInDB(
         id=uuid.uuid4(),
-        content=content,
-        type=type,
-        run_id=run_id,
+        content=run_message_create.content,
+        type=run_message_create.type,
+        run_id=run_message_create.run_id,
         created_at=datetime.now(timezone.utc)
     )
 
@@ -191,11 +185,11 @@ async def create_run_message(
     return run_message_record
 
 
-async def create_run_message_pydantic(run_id: uuid.UUID, messages: bytes) -> RunPydanticMessageInDB:
+async def create_run_message_pydantic(run_message_create_pydantic: RunMessageCreatePydantic) -> RunPydanticMessageInDB:
     run_pydantic_message_record = RunPydanticMessageInDB(
         id=uuid.uuid4(),
-        run_id=run_id,
-        message_list=messages,
+        run_id=run_message_create_pydantic.run_id,
+        message_list=run_message_create_pydantic.content,
         created_at=datetime.now(timezone.utc)
     )
 
@@ -204,13 +198,13 @@ async def create_run_message_pydantic(run_id: uuid.UUID, messages: bytes) -> Run
     return run_pydantic_message_record
 
 
-async def create_data_integration_run_result(run_id: uuid.UUID, dataset_id: uuid.UUID, code_explanation: str, python_code_path: str):
+async def create_data_integration_run_result(data_integration_run_result_create: DataIntegrationRunResultCreate) -> DataIntegrationRunResultInDB:
 
     result = DataIntegrationRunResultInDB(
-        run_id=run_id,
-        dataset_id=dataset_id,
-        code_explanation=code_explanation,
-        python_code_path=python_code_path,
+        run_id=data_integration_run_result_create.run_id,
+        dataset_id=data_integration_run_result_create.dataset_id,
+        code_explanation=data_integration_run_result_create.code_explanation,
+        python_code_path=data_integration_run_result_create.python_code_path,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
     )
@@ -218,6 +212,8 @@ async def create_data_integration_run_result(run_id: uuid.UUID, dataset_id: uuid
     await execute(
         insert(data_integration_run_result).values(result.model_dump()), commit_after=True
     )
+
+    return result
 
 
 async def delete_data_integration_run_result(run_id: uuid.UUID):
@@ -228,11 +224,10 @@ async def delete_data_integration_run_result(run_id: uuid.UUID):
     )
 
 
-async def create_data_integration_run_input(run_id: uuid.UUID, target_data_description: str, data_source_ids: List[uuid.UUID]):
-    # Create the run input record
+async def create_data_integration_run_input(data_integration_run_input_create: DataIntegrationRunInputCreate) -> DataIntegrationRunInputInDB:
     run_input = DataIntegrationRunInputInDB(
-        run_id=run_id,
-        target_dataset_description=target_data_description,
+        run_id=data_integration_run_input_create.run_id,
+        target_dataset_description=data_integration_run_input_create.target_dataset_description,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
     )
@@ -245,10 +240,10 @@ async def create_data_integration_run_input(run_id: uuid.UUID, target_data_descr
     # Create the data source associations
     data_source_associations = [
         DataSourceInIntegrationRunInDB(
-            run_id=run_id,
+            run_id=data_integration_run_input_create.run_id,
             data_source_id=data_source_id,
             created_at=datetime.now(timezone.utc),
-        ).model_dump() for data_source_id in data_source_ids
+        ).model_dump() for data_source_id in data_integration_run_input_create.data_source_ids
     ]
 
     await execute(
@@ -257,8 +252,10 @@ async def create_data_integration_run_input(run_id: uuid.UUID, target_data_descr
         commit_after=True
     )
 
+    return run_input
 
-async def create_model_integration_run_result(run_id: uuid.UUID, model_id: uuid.UUID):
+
+async def create_model_integration_run_result(run_id: uuid.UUID, model_id: uuid.UUID) -> ModelIntegrationRunResultInDB:
 
     result = ModelIntegrationRunResultInDB(
         run_id=run_id,
@@ -270,3 +267,5 @@ async def create_model_integration_run_result(run_id: uuid.UUID, model_id: uuid.
             result.model_dump()),
         commit_after=True
     )
+
+    return result

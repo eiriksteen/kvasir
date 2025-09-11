@@ -12,7 +12,6 @@ router = APIRouter()
 @router.get("/user-pipelines")
 async def fetch_pipelines(user: User = Depends(get_current_user),):
     pipelines = await get_user_pipelines(user.id)
-
     return pipelines
 
 
@@ -23,7 +22,6 @@ async def fetch_pipeline(
 ) -> PipelineFull:
 
     pipe = await get_user_pipeline_with_functions(user.id, pipeline_id)
-
     return pipe
 
 
@@ -33,16 +31,7 @@ async def post_pipeline(
     user: User = Depends(get_current_user),
 ) -> PipelineInDB:
 
-    pipeline = await create_pipeline(
-        request.name,
-        request.description,
-        user.id,
-        request.function_ids,
-        request.function_configs,
-        request.periodic_schedules,
-        request.on_event_schedules
-    )
-
+    pipeline = await create_pipeline(user.id, request)
     return pipeline
 
 
@@ -52,15 +41,5 @@ async def post_function(
     user: User = Depends(get_current_user),
 ) -> FunctionInDB:
 
-    function = await create_function(
-        request.name,
-        request.description,
-        request.implementation_script,
-        user.id,
-        request.inputs,
-        request.outputs,
-        request.setup_script,
-        request.config_dict
-    )
-
+    function = await create_function(user.id, request)
     return function

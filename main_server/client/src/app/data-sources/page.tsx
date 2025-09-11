@@ -6,7 +6,7 @@ import SourcesContainer from "@/app/data-sources/container";
 export default async function SourcesPage() {
   const session = await getServerSession(authOptions);
 
-  if (!session) {
+  if (!session || session?.error) {
     redirect('/login');
   }
 

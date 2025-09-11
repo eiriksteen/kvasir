@@ -60,9 +60,20 @@ async def run_python_function_in_container(
     """
 
     raw_code = f"from {source_module} import {function_name}\n\n" if source_module else ""
+    raw_code += f"import asyncio\n\n" if async_function else ""
     raw_code += f"{base_script}\n\n"
-    raw_code += f"output = {'await ' if async_function else ''}{function_name}({', '.join(input_variables)})\n"
-    raw_code += f"print(output)" if print_output else ""
+    if async_function:
+        raw_code += (
+            "async def run_function():\n" +
+            f"    output = await {function_name}({', '.join(input_variables)})\n" +
+            (f"    print(output)\n" if print_output else "") +
+            "\nasyncio.run(run_function())"
+        )
+    else:
+        raw_code += (
+            f"output = {function_name}({', '.join(input_variables)})\n" +
+            "print(output)" if print_output else ""
+        )
 
     out, err = await run_python_code_in_container(raw_code, container_name)
 

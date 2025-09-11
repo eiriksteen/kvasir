@@ -84,6 +84,119 @@ class SWEAgentRunner:
             test_code_to_append_to_implementation=None
         )
 
+    async def __call__(
+        self,
+        prompt_content: str,
+        test_code_to_append_to_implementation: Optional[str] = None
+    ) -> SWEAgentOutput:
+
+        try:
+            if self.run_id is None:
+                if self.log:
+                    logger.info(
+                        f"Creating new SWE run for conversation {self.conversation_id} and parent run {self.parent_run_id}")
+                run = await post_run(self.project_client, RunCreate(
+                    type="swe",
+                    conversation_id=self.conversation_id,
+                    parent_run_id=self.parent_run_id
+                ))
+                self.run_id = run.id
+
+            await self._setup_container()
+            self.deps.test_code_to_append_to_implementation = test_code_to_append_to_implementation
+
+            swe_prompt = (
+                f"Your instruction is:\n\n'{prompt_content}'\n\n" +
+                "Now choose your action. Create an implementation plan, write the setup script, write the config script, or the final implementation. " +
+                "In case you have been provided feedback, choose your action based on it. Only redo the steps deemed necessary by the feedback." +
+                "NB: The setup script must be written and completed before the final implementation."
+            )
+
+            self.implementation_result = None
+
+            while not self.implementation_result:
+
+                if self.tries >= self.max_tries:
+                    raise RuntimeError(
+                        f"SWE agent failed to implement function after {self.max_tries} tries")
+
+                self.tries += 1
+
+                run_result = await self.swe_agent.run(
+                    swe_prompt,
+                    output_type=[
+                        PlanningOutput,
+                        # TODO: Add setup, will need to spin up extra container in this case
+                        # submit_setup_output,
+                        ConfigOutput,
+                        submit_implementation_output
+                    ],
+                    deps=self.deps,
+                    message_history=self.message_history
+                )
+
+                self.message_history += run_result.new_messages()
+
+                if isinstance(run_result.output, PlanningOutput):
+                    self.plan_result = run_result
+                    if self.log:
+                        await self._log_message_to_redis("Plan complete", "result")
+                        logger.info(f"Plan result: {self.plan_result}")
+
+                # elif isinstance(run_result.output, SetupAgentOutputWithScript):
+                #     self.setup_result = run_result
+                #     await self._install_python_version(run_result.output.python_version)
+                #     await self._run_setup_script(run_result.output.script)
+                #     if self.log:
+                #         await self._log_message_to_redis("Setup complete", "result")
+                #         logger.info(f"Setup result: {self.setup_result}")
+
+                elif isinstance(run_result.output, ConfigOutput):
+                    self.config_result = run_result
+                    if self.log:
+                        await self._log_message_to_redis("Config complete", "result")
+                        logger.info(f"Config result: {self.config_result}")
+
+                elif isinstance(run_result.output, ImplementationOutputFull):
+                    self.implementation_result = run_result
+                    if self.log:
+                        await self._log_message_to_redis(
+                            "Implementation complete", "result")
+                        logger.info(
+                            f"Implementation result: {self.implementation_result}")
+
+                else:
+                    raise RuntimeError(
+                        f"Unrecognized agent return type: {run_result.output}")
+
+                swe_prompt = "Choose your action"
+
+            # We only save the run messages as the outputs are dealt with by the caller
+
+        except Exception as e:
+            # await self._save_results()
+            if self.log:
+                await self._log_message_to_redis(f"Error running SWE agent: {e}", "error", write_to_db=True)
+                logger.error(f"Error running SWE agent: {e}")
+            await patch_run_status(self.project_client, RunStatusUpdate(
+                run_id=self.run_id,
+                status="failed"
+            ))
+            if self.container and self.new_container_created:
+                self.container.stop()
+                self.container.remove()
+                self.new_container_created = False
+            raise e
+
+        else:
+            await self._save_results()
+            return SWEAgentOutput(
+                plan=self.plan_result.output if self.plan_result else None,
+                setup=self.setup_result.output if self.setup_result else None,
+                config=self.config_result.output if self.config_result else None,
+                implementation=self.implementation_result.output
+            )
+
     async def _log_message_to_redis(
             self,
             content: str,
@@ -234,116 +347,3 @@ class SWEAgentRunner:
             run_id=self.run_id,
             content=self.implementation_result.new_messages_json()
         ))
-
-    async def __call__(
-        self,
-        prompt_content: str,
-        test_code_to_append_to_implementation: Optional[str] = None
-    ) -> SWEAgentOutput:
-
-        try:
-            if self.run_id is None:
-                if self.log:
-                    logger.info(
-                        f"Creating new SWE run for conversation {self.conversation_id} and parent run {self.parent_run_id}")
-                run = await post_run(self.project_client, RunCreate(
-                    type="swe",
-                    conversation_id=self.conversation_id,
-                    parent_run_id=self.parent_run_id
-                ))
-                self.run_id = run.id
-
-            await self._setup_container()
-            self.deps.test_code_to_append_to_implementation = test_code_to_append_to_implementation
-
-            swe_prompt = (
-                f"Your instruction is:\n\n'{prompt_content}'\n\n" +
-                "Now choose your action. Create an implementation plan, write the setup script, write the config script, or the final implementation. " +
-                "In case you have been provided feedback, choose your action based on it. Only redo the steps deemed necessary by the feedback." +
-                "NB: The setup script must be written and completed before the final implementation."
-            )
-
-            self.implementation_result = None
-
-            while not self.implementation_result:
-
-                if self.tries >= self.max_tries:
-                    raise RuntimeError(
-                        f"SWE agent failed to implement function after {self.max_tries} tries")
-
-                self.tries += 1
-
-                run_result = await self.swe_agent.run(
-                    swe_prompt,
-                    output_type=[
-                        PlanningOutput,
-                        # TODO: Add setup, will need to spin up extra container in this case
-                        # submit_setup_output,
-                        ConfigOutput,
-                        submit_implementation_output
-                    ],
-                    deps=self.deps,
-                    message_history=self.message_history
-                )
-
-                self.message_history += run_result.new_messages()
-
-                if isinstance(run_result.output, PlanningOutput):
-                    self.plan_result = run_result
-                    if self.log:
-                        await self._log_message_to_redis("Plan complete", "result")
-                        logger.info(f"Plan result: {self.plan_result}")
-
-                # elif isinstance(run_result.output, SetupAgentOutputWithScript):
-                #     self.setup_result = run_result
-                #     await self._install_python_version(run_result.output.python_version)
-                #     await self._run_setup_script(run_result.output.script)
-                #     if self.log:
-                #         await self._log_message_to_redis("Setup complete", "result")
-                #         logger.info(f"Setup result: {self.setup_result}")
-
-                elif isinstance(run_result.output, ConfigOutput):
-                    self.config_result = run_result
-                    if self.log:
-                        await self._log_message_to_redis("Config complete", "result")
-                        logger.info(f"Config result: {self.config_result}")
-
-                elif isinstance(run_result.output, ImplementationOutputFull):
-                    self.implementation_result = run_result
-                    if self.log:
-                        await self._log_message_to_redis(
-                            "Implementation complete", "result")
-                        logger.info(
-                            f"Implementation result: {self.implementation_result}")
-
-                else:
-                    raise RuntimeError(
-                        f"Unrecognized agent return type: {run_result.output}")
-
-                swe_prompt = "Choose your action"
-
-            # We only save the run messages as the outputs are dealt with by the caller
-
-        except Exception as e:
-            # await self._save_results()
-            if self.log:
-                await self._log_message_to_redis(f"Error running SWE agent: {e}", "error", write_to_db=True)
-                logger.error(f"Error running SWE agent: {e}")
-            await patch_run_status(self.project_client, RunStatusUpdate(
-                run_id=self.run_id,
-                status="failed"
-            ))
-            if self.container and self.new_container_created:
-                self.container.stop()
-                self.container.remove()
-                self.new_container_created = False
-            raise e
-
-        else:
-            await self._save_results()
-            return SWEAgentOutput(
-                plan=self.plan_result.output if self.plan_result else None,
-                setup=self.setup_result.output if self.setup_result else None,
-                config=self.config_result.output if self.config_result else None,
-                implementation=self.implementation_result.output
-            )

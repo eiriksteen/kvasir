@@ -2,7 +2,7 @@ import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { ConversationCreate, Conversation } from "@/types/orchestrator";
 import useSWRMutation from "swr/mutation";
-import { snakeToCamelKeys } from "@/lib/utils";
+import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -13,7 +13,7 @@ async function postConversation(token: string, conversationData: ConversationCre
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(conversationData)
+    body: JSON.stringify(camelToSnakeKeys(conversationData))
   });
 
   if (!response.ok) {

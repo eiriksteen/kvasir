@@ -3,9 +3,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Database, ChevronDown } from 'lucide-react';
-import { useSession } from "next-auth/react";
 import { useProjects, useProject } from '@/hooks';
-import { redirect, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { Project } from '@/types/project';
 import { UUID } from 'crypto';
@@ -15,16 +14,11 @@ interface UserHeaderProps {
 } 
 
 export default function UserHeader({ projectId }: UserHeaderProps) {
-	const { data: session } = useSession();
 	const { projects } = useProjects();
 	const { project } = useProject(projectId || '');
 	const [showProjectDropdown, setShowProjectDropdown] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
 	const router = useRouter();
-
-	if (!session) {
-		redirect("/login");
-	}
 
 	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {

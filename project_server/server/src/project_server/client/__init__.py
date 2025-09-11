@@ -1,5 +1,5 @@
 # Import client
-from .client import ProjectClient
+from .client import ProjectClient, FileInput
 
 # Import all functions from request modules
 from .requests.auth import (
