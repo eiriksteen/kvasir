@@ -78,7 +78,7 @@ async def update_project_details(project_id: UUID, project_data: ProjectDetailsU
     return await get_project(project_id)
 
 
-async def add_entity_to_project(project_id: UUID, entity_data: AddEntityToProject) -> Project | None:
+async def add_entity_to_project(entity_data: AddEntityToProject) -> Project | None:
     """Add an entity (data source, dataset, analysis, pipeline) to a project."""
     entity_type = entity_data.entity_type
     entity_id = entity_data.entity_id
@@ -86,7 +86,7 @@ async def add_entity_to_project(project_id: UUID, entity_data: AddEntityToProjec
     if entity_type == "data_source":
         await execute(
             insert(project_data_source).values(
-                project_id=project_id,
+                project_id=entity_data.project_id,
                 data_source_id=entity_id
             ),
             commit_after=True
@@ -94,7 +94,7 @@ async def add_entity_to_project(project_id: UUID, entity_data: AddEntityToProjec
     elif entity_type == "dataset":
         await execute(
             insert(project_dataset).values(
-                project_id=project_id,
+                project_id=entity_data.project_id,
                 dataset_id=entity_id
             ),
             commit_after=True
@@ -102,7 +102,7 @@ async def add_entity_to_project(project_id: UUID, entity_data: AddEntityToProjec
     elif entity_type == "analysis":
         await execute(
             insert(project_analysis).values(
-                project_id=project_id,
+                project_id=entity_data.project_id,
                 analysis_id=entity_id
             ),
             commit_after=True
@@ -110,16 +110,16 @@ async def add_entity_to_project(project_id: UUID, entity_data: AddEntityToProjec
     elif entity_type == "pipeline":
         await execute(
             insert(project_pipeline).values(
-                project_id=project_id,
+                project_id=entity_data.project_id,
                 pipeline_id=entity_id
             ),
             commit_after=True
         )
 
-    return await get_project(project_id)
+    return await get_project(entity_data.project_id)
 
 
-async def remove_entity_from_project(project_id: UUID, entity_data: RemoveEntityFromProject) -> Project | None:
+async def remove_entity_from_project(entity_data: RemoveEntityFromProject) -> Project | None:
     """Remove an entity (data source, dataset, analysis, pipeline) from a project."""
     entity_type = entity_data.entity_type
     entity_id = entity_data.entity_id
@@ -127,7 +127,7 @@ async def remove_entity_from_project(project_id: UUID, entity_data: RemoveEntity
     if entity_type == "data_source":
         await execute(
             delete(project_data_source).where(
-                project_data_source.c.project_id == project_id,
+                project_data_source.c.project_id == entity_data.project_id,
                 project_data_source.c.data_source_id == entity_id
             ),
             commit_after=True
@@ -135,7 +135,7 @@ async def remove_entity_from_project(project_id: UUID, entity_data: RemoveEntity
     elif entity_type == "dataset":
         await execute(
             delete(project_dataset).where(
-                project_dataset.c.project_id == project_id,
+                project_dataset.c.project_id == entity_data.project_id,
                 project_dataset.c.dataset_id == entity_id
             ),
             commit_after=True
@@ -143,7 +143,7 @@ async def remove_entity_from_project(project_id: UUID, entity_data: RemoveEntity
     elif entity_type == "analysis":
         await execute(
             delete(project_analysis).where(
-                project_analysis.c.project_id == project_id,
+                project_analysis.c.project_id == entity_data.project_id,
                 project_analysis.c.analysis_id == entity_id
             ),
             commit_after=True
@@ -151,13 +151,13 @@ async def remove_entity_from_project(project_id: UUID, entity_data: RemoveEntity
     elif entity_type == "pipeline":
         await execute(
             delete(project_pipeline).where(
-                project_pipeline.c.project_id == project_id,
+                project_pipeline.c.project_id == entity_data.project_id,
                 project_pipeline.c.pipeline_id == entity_id
             ),
             commit_after=True
         )
 
-    return await get_project(project_id)
+    return await get_project(entity_data.project_id)
 
 
 async def delete_project(project_id: UUID) -> bool:

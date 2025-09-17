@@ -30,7 +30,6 @@ class ImplementationOutput(BaseModel):
 
 class ImplementationOutputFull(ImplementationOutput):
     script: str
-    args_ordered: List[str]
     run_output: str
 
 
@@ -124,20 +123,17 @@ async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], result: Im
     script = remove_line_numbers_from_script(
         ctx.deps.current_scripts[ctx.deps.current_file_name])
 
-    try:
-        fn_named_run_found = False
-        for node in ast.walk(ast.parse(script)):
-            if isinstance(node, ast.FunctionDef) and node.name == "run":
-                args = [arg.arg for arg in node.args.args]
-                fn_named_run_found = True
-                break
-    except Exception as e:
-        raise ModelRetry(
-            f"Error parsing the implementation script: {e}")
-
-    if not fn_named_run_found:
+    if "run" not in script:
         raise ModelRetry(
             "No function named 'run' found in the implementation script")
+
+    if "FunctionInput" not in script:
+        raise ModelRetry(
+            "No FunctionInput dataclass found in the implementation script")
+
+    if "FunctionOutput" not in script:
+        raise ModelRetry(
+            "No FunctionOutput dataclass found in the implementation script")
 
     script_to_run = script
     if ctx.deps.test_code_to_append_to_implementation:
@@ -148,4 +144,4 @@ async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], result: Im
     if err:
         raise ModelRetry(f"Error executing code: {err}")
 
-    return ImplementationOutputFull(**result.model_dump(), script=script, args_ordered=args, run_output=out)
+    return ImplementationOutputFull(**result.model_dump(), script=script, run_output=out)

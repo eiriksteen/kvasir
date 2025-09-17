@@ -27,7 +27,7 @@ function FunctionChainFlow({ pipeline }: FunctionChainFlowProps) {
   }
 
   return (
-    <div className="flex flex-col items-center space-y-1 overflow-y-auto">
+    <div className="flex flex-col items-center space-y-1">
       {pipeline.functions.map((functionItem, index) => {
         const isFirst = index === 0;
         const isLast = index === pipeline.functions.length - 1;
@@ -36,11 +36,11 @@ function FunctionChainFlow({ pipeline }: FunctionChainFlowProps) {
           <div key={functionItem.id} className="flex flex-col items-center space-y-1 w-full">
             {/* INPUT BOX */}
             {isFirst && (
-              <div className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 border border-gray-600/30 rounded-lg p-1.5 w-fit mx-auto px-3">
+              <div className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 border border-gray-600/30 rounded-lg p-1.5 w-fit mx-auto px-3 pt-1">
                 <div className="flex items-center justify-center gap-2">
                   <Database size={12} className="text-gray-400 flex-shrink-0" />
-                  <span className="text-xs font-semibold text-gray-200">{functionItem.inputs[0].name}</span>
-                  <span className="text-[10px] font-mono text-gray-500 bg-gray-800/50 px-1 py-0.5 rounded border border-gray-700/50">{functionItem.inputs[0].structureId}</span>
+                  <span className="text-xs font-semibold text-gray-200">{functionItem.inputStructures[0].name}</span>
+                  <span className="text-[10px] font-mono text-gray-500 bg-gray-800/50 px-1 py-0.5 rounded border border-gray-700/50">{functionItem.inputStructures[0].structureId}</span>
                 </div>
               </div>
             )}
@@ -75,8 +75,8 @@ function FunctionChainFlow({ pipeline }: FunctionChainFlowProps) {
             <div className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 border border-gray-600/30 rounded-lg p-1.5 w-fit mx-auto px-3">
               <div className="flex items-center justify-center gap-2">
                 <Database size={12} className="text-gray-400 flex-shrink-0" />
-                <span className="text-xs font-semibold text-gray-200">{functionItem.outputs[0].name}</span>
-                <span className="text-[10px] font-mono text-gray-500 bg-gray-800/50 px-1 py-0.5 rounded border border-gray-700/50">{functionItem.outputs[0].structureId}</span>
+                <span className="text-xs font-semibold text-gray-200">{functionItem.outputStructures[0].name}</span>
+                <span className="text-[10px] font-mono text-gray-500 bg-gray-800/50 px-1 py-0.5 rounded border border-gray-700/50">{functionItem.outputStructures[0].structureId}</span>
               </div>
             </div>
 
@@ -167,7 +167,7 @@ export default function PipelineInfoModal({
                       </div>
                       <h3 className="text-sm font-semibold text-gray-200">Function Chain</h3>
                     </div>
-                    <div className="flex-1 min-h-0 overflow-y-auto flex items-center justify-center">
+                    <div className="flex-1 min-h-0 overflow-y-auto grid place-items-center">
                       <FunctionChainFlow pipeline={pipeline} />
                     </div>
                   </div>

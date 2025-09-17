@@ -1,5 +1,5 @@
 import uuid
-from typing import Literal, Optional
+from typing import Literal, Optional, List
 from datetime import datetime, timezone
 import docker
 from pathlib import Path
@@ -47,7 +47,8 @@ class SWEAgentRunner:
             run_id: Optional[uuid.UUID] = None,
             create_new_container_on_start: bool = False,
             create_new_container_on_package_installation: bool = True,
-            log=False
+            log=False,
+            structure_ids_to_inject: Optional[List[str]] = None
     ):
 
         self.swe_agent = swe_agent
@@ -66,7 +67,7 @@ class SWEAgentRunner:
         self.max_tries = SWE_MAX_TRIES
         self.tries = 0
         self.container_name = "project-sandbox"
-        self.container_cwd = Path("/app") / f"{uuid.uuid4()}"
+        self.container_cwd = Path("/app")
         # TODO: Implement these
         self.create_new_container_on_start = create_new_container_on_start
         self.create_new_container_on_package_installation = create_new_container_on_package_installation
@@ -81,7 +82,8 @@ class SWEAgentRunner:
         self.deps = SWEAgentDeps(
             cwd=str(self.container_cwd),
             container_name=self.container_name,
-            test_code_to_append_to_implementation=None
+            test_code_to_append_to_implementation=None,
+            structure_ids_to_inject=structure_ids_to_inject
         )
 
     async def __call__(
@@ -103,6 +105,7 @@ class SWEAgentRunner:
                 self.run_id = run.id
 
             await self._setup_container()
+
             self.deps.test_code_to_append_to_implementation = test_code_to_append_to_implementation
 
             swe_prompt = (
@@ -230,10 +233,11 @@ class SWEAgentRunner:
         if self.container is not None:
             return
 
-        if self.log:
-            await self._log_message_to_redis("Setting up Docker container for SWE agent...", "tool_call")
-
         if self.create_new_container_on_start:
+
+            if self.log:
+                await self._log_message_to_redis("Setting up Docker container for SWE agent...", "tool_call")
+
             # Is now sync, blocking the main thread, TODO: Make async
             self.container = self.docker_client.containers.create(
                 self.base_image,
@@ -242,6 +246,9 @@ class SWEAgentRunner:
 
             self.container.start()
             self.new_container_created = True
+
+            if self.log:
+                await self._log_message_to_redis("Docker container started successfully", "result")
 
         else:
             try:
@@ -263,8 +270,6 @@ class SWEAgentRunner:
             if self.log:
                 await self._log_message_to_redis(f"Error creating directory: {err}", "result")
             raise RuntimeError(f"Error creating directory: {err}")
-
-        await self._log_message_to_redis("Docker container started successfully", "result")
 
     async def _install_python_version(self, python_version: str) -> None:
         if self.log:

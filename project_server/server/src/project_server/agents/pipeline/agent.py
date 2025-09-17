@@ -1,10 +1,10 @@
 from pydantic_ai import Agent
 from pydantic_ai.settings import ModelSettings
+from typing import List
 
 from project_server.agents.pipeline.prompt import PIPELINE_AGENT_SYSTEM_PROMPT
 from project_server.utils.pydanticai_utils import get_model
 from project_server.agents.pipeline.output import (
-    SearchQueryOutput,
     DetailedFunctionDescription,
     ImplementationFeedbackOutput,
     submit_final_pipeline_output,
@@ -13,6 +13,7 @@ from project_server.agents.shared_tools import (
     get_data_structures_overview_tool,
     get_data_structure_description_tool
 )
+from synesis_schemas.main_server import QueryRequest
 
 
 model = get_model()
@@ -25,7 +26,7 @@ pipeline_agent = Agent(
     tools=[get_data_structures_overview_tool,
            get_data_structure_description_tool],
     output_type=[
-        SearchQueryOutput,
+        List[QueryRequest],
         DetailedFunctionDescription,
         ImplementationFeedbackOutput,
         submit_final_pipeline_output

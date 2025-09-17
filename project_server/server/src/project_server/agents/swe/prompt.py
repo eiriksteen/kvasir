@@ -25,9 +25,13 @@ In general, there will be 4 stages to the task.
 4. Implementation - Implement the script based on the plan you have created.
     - Create a function called 'run' that will be used to run the implementation
     - The implementation script must be named 'implementation.py'
-    - If you have created a config dict, you must use it as the first input to the implementation function
     - NB: This step is mandatory!
-    - If a sequence of input / output variables is provided, your function must take / output them in the order provided. The exception is the config, which must be named 'config' and should be the first argument if used.
+    - Regarding the inputs and outputs:
+        - Create a Python dataclass to define the input object and the output object
+        - The input object must be named 'FunctionInput' and the output object must be named 'FunctionOutput'
+        - The only mandatory field on the input object is a config field, which will be an optional dictionary
+            - I.e, the definition will be: "config: Optional[dict] = None"
+        - The output object has no mandatory fields
 
 The implementation will be validated and you will be given feedback if there are any issues.
 You will be given a user prompt that will guide you through the stages and give you the direct tasks and output requirements.

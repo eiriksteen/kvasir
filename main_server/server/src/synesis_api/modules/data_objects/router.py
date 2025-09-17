@@ -14,9 +14,8 @@ from synesis_api.modules.data_objects.service import (
 # from synesis_api.modules.data_objects.service import get_time_series_payload_data_by_id
 from synesis_schemas.main_server import (
     DatasetCreate,
-    DatasetWithObjectGroups,
-    DatasetWithObjectGroupsAndFeatures,
-    ObjectGroupsWithEntitiesAndFeaturesInDataset,
+    DatasetFull,
+    DatasetFullWithFeatures,
     TimeSeriesFullWithRawData,
     ObjectGroupInDB,
     ObjectGroupWithFeatures,
@@ -34,7 +33,7 @@ async def submit_dataset(
     files: list[UploadFile],
     metadata: str = Form(...),
     user: Annotated[User, Depends(get_current_user)] = None
-) -> DatasetWithObjectGroups:
+) -> DatasetFull:
 
     try:
         metadata_parsed = DatasetCreate(**json.loads(metadata))
@@ -47,21 +46,21 @@ async def submit_dataset(
     return dataset_record
 
 
-@router.get("/datasets", response_model=List[Union[DatasetWithObjectGroupsAndFeatures, DatasetWithObjectGroups]])
+@router.get("/datasets", response_model=List[Union[DatasetFullWithFeatures, DatasetFull]])
 async def fetch_datasets(
     include_features: bool = False,
     user: Annotated[User, Depends(get_current_user)] = None
-) -> List[Union[DatasetWithObjectGroupsAndFeatures, DatasetWithObjectGroups]]:
+) -> List[Union[DatasetFullWithFeatures, DatasetFull]]:
     """Get all datasets for the current user"""
     return await get_user_datasets(user.id, include_features=include_features)
 
 
-@router.get("/dataset/{dataset_id}", response_model=Union[DatasetWithObjectGroupsAndFeatures, DatasetWithObjectGroups])
+@router.get("/dataset/{dataset_id}", response_model=Union[DatasetFullWithFeatures, DatasetFull])
 async def fetch_dataset(
     dataset_id: UUID,
     include_features: bool = False,
     user: Annotated[User, Depends(get_current_user)] = None
-) -> Union[DatasetWithObjectGroupsAndFeatures, DatasetWithObjectGroups]:
+) -> Union[DatasetFullWithFeatures, DatasetFull]:
     """Get a specific dataset by ID"""
     return await get_user_dataset_by_id(dataset_id, user.id, include_features=include_features)
 
@@ -82,11 +81,11 @@ async def fetch_object_group(
     return await get_object_group(group_id, include_features=include_features, include_entities=include_entities)
 
 
-@router.get("/object-groups-in-dataset/{dataset_id}", response_model=ObjectGroupsWithEntitiesAndFeaturesInDataset)
+@router.get("/object-groups-in-dataset/{dataset_id}", response_model=List[ObjectGroupWithEntitiesAndFeatures])
 async def fetch_object_groups_in_dataset(
     dataset_id: UUID,
     user: Annotated[User, Depends(get_current_user)] = None
-) -> ObjectGroupsWithEntitiesAndFeaturesInDataset:
+) -> List[ObjectGroupWithEntitiesAndFeatures]:
     """Get a specific object group by ID"""
 
     if not await user_owns_dataset(user.id, dataset_id):

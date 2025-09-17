@@ -14,8 +14,6 @@ class DatasetInDB(BaseModel):
     user_id: uuid.UUID
     name: str
     description: str
-    modality: Literal["time_series", "document",
-                      "image", "video", "multimodal"]
     created_at: datetime
     updated_at: datetime
 
@@ -31,10 +29,12 @@ class DataObjectInDB(BaseModel):
     updated_at: datetime
 
 
-class DerivedObjectSourceInDB(BaseModel):
+class VariableInDB(BaseModel):
     id: uuid.UUID
-    derived_object_id: uuid.UUID
-    original_object_id: uuid.UUID
+    variable_group_id: uuid.UUID
+    name: str
+    description: str
+    python_type: str
     created_at: datetime
     updated_at: datetime
 
@@ -64,9 +64,19 @@ class ObjectGroupInDB(BaseModel):
     dataset_id: uuid.UUID  # Foreign key to dataset.id
     name: str
     description: str
-    original_id_name: Optional[str] = None
-    role: Literal["primary", "annotated", "derived"]
     structure_type: str
+    save_path: str
+    created_at: datetime
+    updated_at: datetime
+    original_id_name: Optional[str] = None
+
+
+class VariableGroupInDB(BaseModel):
+    id: uuid.UUID
+    dataset_id: uuid.UUID
+    name: str
+    description: str
+    save_path: str
     created_at: datetime
     updated_at: datetime
 
@@ -126,27 +136,22 @@ class TimeSeriesAggregationFullWithRawData(TimeSeriesAggregationFull):
     features: Dict[str, Feature]
 
 
-class DatasetWithObjectGroups(DatasetInDB):
-    primary_object_group: ObjectGroupInDB
-    annotated_object_groups: List[ObjectGroupInDB]
-    computed_object_groups: List[ObjectGroupInDB]
+class VariableGroupFull(VariableGroupInDB):
+    variables: List[VariableInDB]
 
 
-class DatasetWithObjectGroupsAndFeatures(DatasetInDB):
-    primary_object_group: ObjectGroupWithFeatures
-    annotated_object_groups: List[ObjectGroupWithFeatures]
-    computed_object_groups: List[ObjectGroupWithFeatures]
+class DatasetFull(DatasetInDB):
+    object_groups: List[ObjectGroupInDB]
+    variable_groups: List[VariableGroupFull]
+
+
+class DatasetFullWithFeatures(DatasetInDB):
+    object_groups: List[ObjectGroupWithFeatures]
+    variable_groups: List[VariableGroupFull]
 
 
 class ObjectGroupWithEntitiesAndFeatures(ObjectGroupWithFeatures):
     objects: List[Union[TimeSeriesFull, TimeSeriesAggregationFull]]
-
-
-class ObjectGroupsWithEntitiesAndFeaturesInDataset(BaseModel):
-    dataset_id: uuid.UUID
-    primary_object_group: ObjectGroupWithEntitiesAndFeatures
-    annotated_object_groups: List[ObjectGroupWithEntitiesAndFeatures]
-    computed_object_groups: List[ObjectGroupWithEntitiesAndFeatures]
 
 
 # Create schemas
@@ -171,14 +176,25 @@ class ObjectGroupCreate(BaseModel):
     entity_id_name: str
     description: str
     structure_type: str
+    save_path: str
     metadata_dataframes: List[MetadataDataframe]
+
+
+class VariableCreate(BaseModel):
+    name: str
+    python_type: str
+    description: str
+
+
+class VariableGroupCreate(BaseModel):
+    name: str
+    description: str
+    save_path: str
+    variables: List[VariableCreate]
 
 
 class DatasetCreate(BaseModel):
     name: str
     description: str
-    modality: Literal["time_series", "document",
-                      "image", "video", "multimodal"]
-    primary_object_group: ObjectGroupCreate
-    annotated_object_groups: List[ObjectGroupCreate]
-    computed_object_groups: List[ObjectGroupCreate]
+    object_groups: List[ObjectGroupCreate]
+    variable_groups: List[VariableGroupCreate]

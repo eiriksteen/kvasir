@@ -14,13 +14,12 @@ from synesis_api.modules.data_sources.models import (
 from synesis_api.modules.runs.models import (
     run, run_message, run_pydantic_message,
     data_integration_run_input, data_integration_run_result,
-    model_integration_run_input, model_integration_run_result,
     data_source_in_run
 )
 from synesis_api.modules.data_objects.models import (
-    dataset, data_object, object_group, derived_object_source,
+    dataset, data_object, object_group,
     feature, feature_in_group, time_series, time_series_aggregation,
-    time_series_aggregation_input
+    time_series_aggregation_input, variable_group, variable
 )
 from synesis_api.modules.orchestrator.models import (
     chat_message, chat_pydantic_message, conversation,
@@ -28,9 +27,7 @@ from synesis_api.modules.orchestrator.models import (
     data_source_context
 )
 from synesis_api.modules.pipeline.models import (
-    pipeline, function, function_input, function_output, function_in_pipeline,
-    modality, task, source,
-    programming_language, programming_language_version, model, model_task
+    pipeline, function, function_input_structure, function_output_structure, function_output_variable, pipeline_run_variables_result, function_in_pipeline
 )
 from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_pipelines, analysis_status_messages
 from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_pipeline, project_data_source
@@ -53,6 +50,8 @@ if config.config_file_name is not None:
 __all__ = [
     users,
     user_api_keys,
+    variable_group,
+    variable,
     data_source,
     tabular_file_data_source,
     run,
@@ -60,15 +59,12 @@ __all__ = [
     run_pydantic_message,
     data_integration_run_input,
     data_integration_run_result,
-    model_integration_run_input,
-    model_integration_run_result,
     data_source_in_run,
     data_source_analysis,
     feature_in_tabular_file,
     dataset,
     data_object,
     object_group,
-    derived_object_source,
     feature,
     feature_in_group,
     time_series,
@@ -88,17 +84,11 @@ __all__ = [
     data_source_context,
     pipeline,
     function,
-    function_input,
-    function_output,
+    function_input_structure,
+    function_output_structure,
+    function_output_variable,
+    pipeline_run_variables_result,
     function_in_pipeline,
-
-    modality,
-    task,
-    source,
-    programming_language,
-    programming_language_version,
-    model,
-    model_task,
     project,
     project_dataset,
     project_analysis,

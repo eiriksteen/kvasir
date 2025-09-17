@@ -21,39 +21,47 @@ from .project import (
 )
 
 # Pipeline schemas
-from .pipeline import (
-    PipelineInDB,
-    PeriodicScheduleInDB,
-    OnEventScheduleInDB,
-    PipelineRunInDB,
-    FunctionInDB,
-    FunctionInputInDB,
-    FunctionOutputInDB,
-    FunctionInPipelineInDB,
-    DataObjectComputedFromFunctionInDB,
-    ModalityInDB,
-    TaskInDB,
-    SourceInDB,
-    ProgrammingLanguageInDB,
-    ProgrammingLanguageVersionInDB,
-    ModelInDB,
-    ModelTaskInDB,
-    FunctionInputCreate,
-    FunctionOutputCreate,
-    PeriodicScheduleCreate,
-    OnEventScheduleCreate,
+from .pipeline.create import (
+    FunctionInputStructureCreate,
+    FunctionOutputStructureCreate,
+    FunctionOutputVariableCreate,
     FunctionCreate,
     PipelineCreate,
+    ModelCreate,
+)
+
+from .pipeline.api import (
     Function,
-    FunctionWithoutEmbedding,
+    FunctionBare,
     PipelineFull,
+    ModelBare,
+    ModelTaskBare,
+)
+
+from .pipeline.io import (
+    FunctionInputStructureInDB,
+    FunctionOutputStructureInDB,
+    FunctionOutputVariableInDB,
+    PipelineRunObjectGroupResultInDB,
+    PipelineRunVariablesResultInDB,
+)
+
+from .pipeline.pipeline import (
+    PipelineInDB,
+    PipelineRunInDB,
+    FunctionInDB,
+    FunctionInPipelineInDB,
+)
+
+from .pipeline.schedule import (
+    PeriodicScheduleInDB,
+    OnEventScheduleInDB,
 )
 
 # Data Objects schemas
 from .data_objects import (
     DatasetInDB,
     DataObjectInDB,
-    DerivedObjectSourceInDB,
     FeatureInDB,
     FeatureInGroupInDB,
     ObjectGroupInDB,
@@ -66,14 +74,18 @@ from .data_objects import (
     TimeSeriesFullWithRawData,
     TimeSeriesAggregationFull,
     TimeSeriesAggregationFullWithRawData,
-    DatasetWithObjectGroups,
-    DatasetWithObjectGroupsAndFeatures,
+    DatasetFull,
+    DatasetFullWithFeatures,
     ObjectGroupWithEntitiesAndFeatures,
-    ObjectGroupsWithEntitiesAndFeaturesInDataset,
     MetadataDataframe,
     ObjectGroupCreate,
     DatasetCreate,
-    FeatureCreate
+    FeatureCreate,
+    VariableGroupCreate,
+    VariableCreate,
+    VariableGroupInDB,
+    VariableInDB,
+    VariableGroupFull,
 )
 
 # Data Sources schemas
@@ -144,4 +156,6 @@ from .orchestrator import (
 from .knowledge_bank import (
     SearchFunctionsRequest,
     SearchFunctionsResponse,
+    QueryRequest,
+    FunctionQueryResult,
 )

@@ -31,7 +31,7 @@ from synesis_api.modules.runs.models import (
     data_integration_run_result,
     data_integration_run_input,
     data_source_in_run,
-    model_integration_run_result
+    # model_integration_run_result
 )
 
 
@@ -255,17 +255,17 @@ async def create_data_integration_run_input(data_integration_run_input_create: D
     return run_input
 
 
-async def create_model_integration_run_result(run_id: uuid.UUID, model_id: uuid.UUID) -> ModelIntegrationRunResultInDB:
+# async def create_model_integration_run_result(run_id: uuid.UUID, model_id: uuid.UUID) -> ModelIntegrationRunResultInDB:
 
-    result = ModelIntegrationRunResultInDB(
-        run_id=run_id,
-        model_id=model_id
-    )
+#     result = ModelIntegrationRunResultInDB(
+#         run_id=run_id,
+#         model_id=model_id
+#     )
 
-    await execute(
-        insert(model_integration_run_result).values(
-            result.model_dump()),
-        commit_after=True
-    )
+#     await execute(
+#         insert(model_integration_run_result).values(
+#             result.model_dump()),
+#         commit_after=True
+#     )
 
-    return result
+#     return result

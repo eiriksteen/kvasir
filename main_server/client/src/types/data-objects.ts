@@ -1,4 +1,3 @@
-import { Run } from "./runs";
 import { UUID } from "crypto";
 
 
@@ -26,14 +25,37 @@ export interface DataObject {
 
 export type ObjectGroup = {
     id: UUID;
+    datasetId: UUID;
     name: string;
     description: string;
     originalIdName: string | null;
-    role: "primary" | "annotated" | "derived";
+    savePath: string;
     structureType: string;
     createdAt: string;
     updatedAt: string;
     features: Feature[];
+}
+
+export type VariableGroup = {
+    id: UUID;
+    datasetId: UUID;
+    name: string;
+    description: string;
+    savePath: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export type Variable = {
+    id: UUID;
+    variableGroupId: UUID;
+    name: string;
+    pythonType: string;
+    description: string;
+}
+
+export type VariableGroupWithVariables = VariableGroup & {
+    variables: Variable[];
 }
 
 export interface TimeSeries extends DataObject {
@@ -67,15 +89,8 @@ export type Dataset = {
     modality: "time_series" | "image" | "text" | "audio" | "video";
     createdAt: string;
     updatedAt: string;
-    primaryObjectGroup: ObjectGroup;
-    annotatedObjectGroups: ObjectGroup[];
-    computedObjectGroups: ObjectGroup[];
-    integrationJobs: Run[];
+    objectGroups: ObjectGroup[];
+    variableGroups: VariableGroupWithVariables[];
 }
 
-export type ObjectGroupsWithListsInDataset = {
-    datasetId: UUID;
-    primaryObjectGroup: ObjectGroupWithObjectList;
-    annotatedObjectGroups: ObjectGroupWithObjectList[];
-    computedObjectGroups: ObjectGroupWithObjectList[];
-}
+

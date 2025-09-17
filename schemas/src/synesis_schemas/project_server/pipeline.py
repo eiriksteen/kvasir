@@ -4,7 +4,6 @@ from uuid import UUID
 
 class RunPipelineRequest(BaseModel):
     project_id: UUID
-    run_id: UUID
     conversation_id: UUID
     prompt_content: str
 

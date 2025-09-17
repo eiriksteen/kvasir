@@ -135,7 +135,7 @@ export default function RunBox({ runId }: RunBoxProps) {
             {statusInfo.icon}
           </span>
           <span className={statusInfo.color}>
-            {statusInfo.text} {run.type.replace('_', ' ')}
+            {statusInfo.text} {run.type.replace('_', ' ')} agent
           </span>
         </div>
 

@@ -13,7 +13,7 @@ export interface Pipeline {
   updatedAt: string;
 }
 
-export interface FunctionInput {
+export interface FunctionInputStructure {
   id: UUID;
   position: number;
   functionId: UUID;
@@ -25,7 +25,7 @@ export interface FunctionInput {
   updatedAt: string;
 }
 
-export interface FunctionOutput {
+export interface FunctionOutputStructure {
   id: UUID;
   position: number;
   functionId: UUID;
@@ -36,31 +36,36 @@ export interface FunctionOutput {
   updatedAt: string;
 }
 
+export interface FunctionOutputVariable {
+  id: UUID;
+  position: number;
+  functionId: UUID;
+  variableId: string;
+}
+
 export interface Function {
   id: UUID;
   name: string;
+  type: "inference" | "training" | "computation";
   implementationScriptPath: string;
   setupScriptPath?: string;
-  configScriptPath?: string;
-  description: string;
   defaultConfig?: Record<string, unknown>;
+  description: string;
   createdAt: string;
   updatedAt: string;
-  inputs: FunctionInput[];
-  outputs: FunctionOutput[];
+  inputStructures: FunctionInputStructure[];
+  outputStructures: FunctionOutputStructure[];
+  outputVariables: FunctionOutputVariable[];
 }
 
 export interface FunctionWithoutEmbedding {
   id: UUID;
   name: string;
-  implementationScriptPath: string;
-  setupScriptPath: string;
   description: string;
   defaultConfig?: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
-  inputs: FunctionInput[];
-  outputs: FunctionOutput[];
+  inputStructures: FunctionInputStructure[];
+  outputStructures: FunctionOutputStructure[];
+  outputVariables: FunctionOutputVariable[];
 }
 
 export interface FunctionInPipeline {
@@ -147,17 +152,3 @@ export interface ModelTask {
   updatedAt: string;
 }
 
-// Create schemas (matching schema.py Create schemas)
-
-export interface FunctionInputCreate {
-  structureId: string;
-  name: string;
-  description: string;
-  required: boolean;
-}
-
-export interface FunctionOutputCreate {
-  structureId: string;
-  name: string;
-  description: string;
-}

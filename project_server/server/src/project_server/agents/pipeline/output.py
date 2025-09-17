@@ -1,18 +1,12 @@
-import uuid
-from typing import List, Optional
-from datetime import datetime
+from typing import List, Optional, Literal
 from pydantic_ai import RunContext, ModelRetry
 from pydantic import field_validator, BaseModel
 
 from synesis_data_structures.time_series.definitions import get_first_level_structure_ids
+from synesis_schemas.main_server import PipelineCreate, FunctionInputStructureCreate, FunctionOutputStructureCreate, FunctionOutputVariableCreate, ModelTaskBare
 
 
 # Schema outputs
-
-
-class SearchQueryOutput(BaseModel):
-    function_names: List[str]
-    function_descriptions: List[str]
 
 
 class FunctionsToImplementOutput(BaseModel):
@@ -20,35 +14,14 @@ class FunctionsToImplementOutput(BaseModel):
     function_descriptions_brief: List[str]
 
 
-class FunctionInputCreate(BaseModel):
-    structure_id: str
-    name: str
-    description: str
-    required: bool
-
-
-class FunctionOutputCreate(BaseModel):
-    structure_id: str
-    name: str
-    description: str
-
-
-class PeriodicScheduleCreate(BaseModel):
-    schedule_description: str
-    cron_expression: str
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-
-
-class OnEventScheduleCreate(BaseModel):
-    event_description: str
-
-
 class DetailedFunctionDescription(BaseModel):
     name: str
     description: str
-    inputs: List[FunctionInputCreate]
-    outputs: List[FunctionOutputCreate]
+    type: Literal["inference", "training", "computation"]
+    input_structures: List[FunctionInputStructureCreate]
+    output_structures: List[FunctionOutputStructureCreate]
+    output_variables: List[FunctionOutputVariableCreate]
+    output_models: List[ModelTaskBare]
 
 
 class ImplementationFeedbackOutput(BaseModel):
@@ -63,19 +36,6 @@ class ImplementationFeedbackOutput(BaseModel):
         return v
 
 
-class FunctionInPipelineInfo(BaseModel):
-    id: uuid.UUID
-    config: Optional[dict] = None
-
-
-class FinalPipelineOutput(BaseModel):
-    name: str
-    description: str
-    functions: List[FunctionInPipelineInfo]
-    periodic_schedules: List[PeriodicScheduleCreate]
-    on_event_schedules: List[OnEventScheduleCreate]
-
-
 # Function outputs
 
 
@@ -86,21 +46,29 @@ async def submit_detailed_function_description_output(
 
     first_level_structure_ids = get_first_level_structure_ids()
 
-    for input in result.inputs:
-        if input.structure_id not in first_level_structure_ids:
-            raise ModelRetry(f"Invalid structure ID: {input.structure_id}")
+    if len(result.input_structures) == 0:
+        raise ModelRetry("No input structures provided!")
 
-    for output in result.outputs:
+    if len(result.output_structures) == 0:
+        raise ModelRetry("No output structures provided!")
+
+    for input in result.input_structures:
+        if input.structure_id not in first_level_structure_ids:
+            raise ModelRetry(
+                f"Invalid structure ID: {input.structure_id}, available structures: {first_level_structure_ids}")
+
+    for output in result.output_structures:
         if output.structure_id not in first_level_structure_ids:
-            raise ModelRetry(f"Invalid structure ID: {output.structure_id}")
+            raise ModelRetry(
+                f"Invalid structure ID: {output.structure_id}, available structures: {first_level_structure_ids}")
 
     return result
 
 
 async def submit_final_pipeline_output(
     _: RunContext,
-    result: FinalPipelineOutput
-) -> FinalPipelineOutput:
+    result: PipelineCreate
+) -> PipelineCreate:
 
     # TODO: Implement
     # This will set up a docker container with the functions and run it on some dummy data to ensure it runs

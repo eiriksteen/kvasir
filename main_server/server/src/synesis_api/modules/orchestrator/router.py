@@ -130,7 +130,7 @@ async def post_chat(
                 await post_run_pipeline(client, RunPipelineRequest(
                     project_id=conversation_record.project_id,
                     conversation_id=conversation_record.id,
-                    prompt_content=prompt.content
+                    prompt_content=prompt.content,
                 ))
 
         if is_new_conversation:

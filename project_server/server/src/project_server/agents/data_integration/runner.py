@@ -149,19 +149,20 @@ class DataIntegrationRunner:
             python_code_path=str(python_code_path)
         ))
 
-        await post_add_entity(self.project_client, self.project_id, AddEntityToProject(
+        await post_add_entity(self.project_client, AddEntityToProject(
+            project_id=self.project_id,
             entity_type="dataset",
             entity_id=output.dataset_id
         ))
 
         await post_create_node(self.project_client, FrontendNodeCreate(
-            project_id=str(self.project_id),
+            project_id=self.project_id,
             type="dataset",
-            dataset_id=str(output.dataset_id)
+            dataset_id=output.dataset_id
         ))
 
         await patch_run_status(self.project_client, RunStatusUpdate(
-            run_id=str(self.run_id),
+            run_id=self.run_id,
             status="completed"
         ))
 

@@ -57,9 +57,6 @@ async def post_run(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> RunInDB:
 
-    print("@"*100)
-    print('THE REQUEST', request)
-
     run = await create_run(user.id, request)
     return run
 

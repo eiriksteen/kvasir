@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from typing import List
 
 from synesis_api.auth.service import get_current_user
 from synesis_schemas.main_server import User
@@ -9,13 +10,13 @@ from synesis_api.modules.pipeline.service import create_function
 router = APIRouter()
 
 
-@router.get("/user-pipelines")
-async def fetch_pipelines(user: User = Depends(get_current_user),):
+@router.get("/user-pipelines", response_model=List[PipelineInDB])
+async def fetch_pipelines(user: User = Depends(get_current_user)) -> List[PipelineInDB]:
     pipelines = await get_user_pipelines(user.id)
     return pipelines
 
 
-@router.get("/user-pipeline/{pipeline_id}")
+@router.get("/user-pipeline/{pipeline_id}", response_model=PipelineFull)
 async def fetch_pipeline(
     pipeline_id: str,
     user: User = Depends(get_current_user),
@@ -38,8 +39,8 @@ async def post_pipeline(
 @router.post("/function", response_model=FunctionInDB)
 async def post_function(
     request: FunctionCreate,
-    user: User = Depends(get_current_user),
+    _: User = Depends(get_current_user),
 ) -> FunctionInDB:
 
-    function = await create_function(user.id, request)
+    function = await create_function(request)
     return function

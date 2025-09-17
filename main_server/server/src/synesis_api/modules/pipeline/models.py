@@ -1,6 +1,6 @@
 import uuid
 from datetime import timezone, datetime
-from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean, CheckConstraint, Integer
+from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean, CheckConstraint, Integer, Float
 from sqlalchemy.dialects.postgresql import JSONB
 from pgvector.sqlalchemy import Vector
 
@@ -12,6 +12,9 @@ from synesis_data_structures.time_series.definitions import get_first_level_stru
 structure_ids = get_first_level_structure_ids()
 structure_constraint = "structure_id IN (" + \
     ", ".join(f"'{id}'" for id in structure_ids) + ")"
+
+
+function_type_constraint = "type IN ('inference', 'training', 'computation')"
 
 
 pipeline = Table(
@@ -96,6 +99,47 @@ pipeline_run = Table(
     schema="pipeline"
 )
 
+
+pipeline_inference_run_object_group_result = Table(
+    "pipeline_inference_run_object_group_result",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           default=uuid.uuid4,
+           primary_key=True),
+    Column("pipeline_run_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline_run.id"),
+           nullable=False),
+    Column("object_group_id", UUID(as_uuid=True),
+           ForeignKey("data_objects.object_group.id"),
+           nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="pipeline"
+)
+
+
+pipeline_run_variables_result = Table(
+    "pipeline_run_variables_result",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           default=uuid.uuid4,
+           primary_key=True),
+    Column("pipeline_run_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline_run.id"),
+           nullable=False),
+    Column("variables_save_path", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="pipeline"
+)
+
+
 function = Table(
     "function",
     metadata,
@@ -108,27 +152,28 @@ function = Table(
     Column("implementation_script_path", String, nullable=False),
     Column("setup_script_path", String, nullable=True),
     Column("default_config", JSONB, nullable=True),
+    Column("type", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
+    CheckConstraint(function_type_constraint),
     schema="pipeline"
 )
 
-function_input = Table(
-    "function_input",
+function_input_structure = Table(
+    "function_input_structure",
     metadata,
     Column("id", UUID(as_uuid=True),
            default=uuid.uuid4,
            primary_key=True),
-    Column("position", Integer, nullable=False),
     Column("function_id", UUID(as_uuid=True),
            ForeignKey("pipeline.function.id"),
            nullable=False),
     Column("structure_id", String, nullable=False),
     Column("name", String, nullable=False),
-    Column("description", String, nullable=False),
+    Column("description", String, nullable=True),
     Column("required", Boolean, nullable=False),
     CheckConstraint(structure_constraint),
     Column("created_at", DateTime(timezone=True),
@@ -136,32 +181,49 @@ function_input = Table(
     Column("updated_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
-    # Ensure the structure id is a valid first level structure id
-    CheckConstraint(structure_constraint),
     schema="pipeline"
 )
 
 
-function_output = Table(
-    "function_output",
+function_output_structure = Table(
+    "function_output_structure",
     metadata,
     Column("id", UUID(as_uuid=True),
            default=uuid.uuid4,
            primary_key=True),
-    Column("position", Integer, nullable=False),
+    Column("name", String, nullable=False),
     Column("function_id", UUID(as_uuid=True),
            ForeignKey("pipeline.function.id"),
            nullable=False),
     Column("structure_id", String, nullable=False),
-    Column("name", String, nullable=False),
-    Column("description", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
-    # Ensure the structure id is a valid first level structure id
+    Column("description", String, nullable=True),
     CheckConstraint(structure_constraint),
+    schema="pipeline"
+)
+
+
+function_output_variable = Table(
+    "function_output_variable",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           default=uuid.uuid4,
+           primary_key=True),
+    Column("name", String, nullable=False),
+    Column("function_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.function.id"),
+           nullable=False),
+    Column("python_type", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    Column("description", String, nullable=True),
     schema="pipeline"
 )
 
@@ -189,91 +251,8 @@ function_in_pipeline = Table(
 )
 
 
-modality = Table(
-    "modality",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           default=uuid.uuid4,
-           primary_key=True),
-    Column("name", String, nullable=False),
-    Column("description", String, nullable=True),
-    Column("created_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc), nullable=False),
-    Column("updated_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc),
-           onupdate=datetime.now(timezone.utc), nullable=False),
-    schema="pipeline"
-)
-
-
-task = Table(
-    "task",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           default=uuid.uuid4,
-           primary_key=True),
-    Column("name", String, nullable=False),
-    Column("description", String, nullable=True),
-    Column("created_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc), nullable=False),
-    Column("updated_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc),
-           onupdate=datetime.now(timezone.utc), nullable=False),
-    schema="pipeline"
-)
-
-
-source = Table(
-    "source",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           default=uuid.uuid4,
-           primary_key=True),
-    Column("name", String, nullable=False),
-    Column("description", String, nullable=True),
-    Column("created_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc), nullable=False),
-    Column("updated_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc),
-           onupdate=datetime.now(timezone.utc), nullable=False),
-    schema="pipeline"
-)
-
-
-programming_language = Table(
-    "programming_language",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           default=uuid.uuid4,
-           primary_key=True),
-    Column("name", String, nullable=False),
-    Column("description", String, nullable=True),
-    Column("created_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc), nullable=False),
-    Column("updated_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc),
-           onupdate=datetime.now(timezone.utc), nullable=False),
-    schema="pipeline"
-)
-
-
-programming_language_version = Table(
-    "programming_language_version",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           default=uuid.uuid4,
-           primary_key=True),
-    Column("programming_language_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.programming_language.id"),
-           nullable=False),
-    Column("version", String, nullable=False),
-    Column("created_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc), nullable=False),
-    Column("updated_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc),
-           onupdate=datetime.now(timezone.utc), nullable=False),
-    schema="pipeline"
-)
+model_modality_constraint = "modality IN ('time_series', 'tabular', 'multimodal', 'image', 'text', 'audio', 'video')"
+model_source_constraint = "source IN ('github', 'pypi', 'gitlab', 'huggingface', 'local')"
 
 
 model = Table(
@@ -287,22 +266,14 @@ model = Table(
     Column("owner_id", UUID(as_uuid=True),
            ForeignKey("auth.users.id"),
            nullable=False),
-    Column("public", Boolean, nullable=False, default=False),
-    Column("modality_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.modality.id"),
-           nullable=False),
-    Column("source_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.source.id"),
-           nullable=False),
-    Column("programming_language_version_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.programming_language_version.id"),
-           nullable=False),
-    Column("setup_script_path", String, nullable=False),
-    Column("input_description", String, nullable=False),
-    Column("output_description", String, nullable=False),
-    # TODO: Should have a separate table to define config parameters
-    # Very nice to unify the treatment of config parameters for reusability and systemization
-    Column("config_parameters", JSONB, nullable=True),
+    Column("public", Boolean, nullable=False),
+    Column("modality", String, nullable=False),
+    Column("source", String, nullable=False),
+    Column("programming_language_with_version", String, nullable=False),
+    Column("setup_script_path", String, nullable=True),
+    Column("default_config", JSONB, nullable=True),
+    CheckConstraint(model_modality_constraint),
+    CheckConstraint(model_source_constraint),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
@@ -312,21 +283,17 @@ model = Table(
 )
 
 
-# TODO: Add input and output structure defs
+model_task_constraint = "task IN ('forecasting', 'classification', 'regression', 'clustering', 'anomaly_detection', 'generation', 'segmentation')"
+
+
 model_task = Table(
     "model_task",
     metadata,
-    Column("id", UUID(as_uuid=True),
-           default=uuid.uuid4,
-           primary_key=True),
     Column("model_id", UUID(as_uuid=True),
            ForeignKey("pipeline.model.id"),
+           primary_key=True,
            nullable=False),
-    Column("task_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.task.id"),
-           nullable=False),
-    Column("inference_script_path", String, nullable=False),
-    Column("training_script_path", String, nullable=False),
+    Column("task", String, nullable=False, primary_key=True),
     Column("inference_function_id", UUID(as_uuid=True),
            ForeignKey("pipeline.function.id"),
            nullable=False),
@@ -338,5 +305,6 @@ model_task = Table(
     Column("updated_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
+    CheckConstraint(model_task_constraint),
     schema="pipeline"
 )

@@ -84,20 +84,20 @@ data_integration_run_input = Table(
 )
 
 
-model_integration_run_input = Table(
-    "model_integration_run_input",
-    metadata,
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"),
-           primary_key=True),
-    Column("model_id_str", String, nullable=False),
-    Column("source", String, nullable=False),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    Column("updated_at", DateTime(timezone=True),
-           nullable=False, default=func.now(), onupdate=func.now()),
-    schema="runs"
-)
+# model_integration_run_input = Table(
+#     "model_integration_run_input",
+#     metadata,
+#     Column("run_id", UUID(as_uuid=True),
+#            ForeignKey("runs.run.id"),
+#            primary_key=True),
+#     Column("model_id_str", String, nullable=False),
+#     Column("source", String, nullable=False),
+#     Column("created_at", DateTime(timezone=True),
+#            nullable=False, default=func.now()),
+#     Column("updated_at", DateTime(timezone=True),
+#            nullable=False, default=func.now(), onupdate=func.now()),
+#     schema="runs"
+# )
 
 
 data_integration_run_result = Table(
@@ -119,17 +119,17 @@ data_integration_run_result = Table(
 )
 
 
-model_integration_run_result = Table(
-    "model_integration_run_result",
-    metadata,
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"),
-           primary_key=True),
-    Column("model_id", UUID(as_uuid=True), ForeignKey(
-        "pipeline.model.id"), nullable=False),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    Column("updated_at", DateTime(timezone=True),
-           nullable=False, default=func.now(), onupdate=func.now()),
-    schema="runs"
-)
+# model_integration_run_result = Table(
+#     "model_integration_run_result",
+#     metadata,
+#     Column("run_id", UUID(as_uuid=True),
+#            ForeignKey("runs.run.id"),
+#            primary_key=True),
+#     Column("model_id", UUID(as_uuid=True), ForeignKey(
+#         "pipeline.model.id"), nullable=False),
+#     Column("created_at", DateTime(timezone=True),
+#            nullable=False, default=func.now()),
+#     Column("updated_at", DateTime(timezone=True),
+#            nullable=False, default=func.now(), onupdate=func.now()),
+#     schema="runs"
+# )

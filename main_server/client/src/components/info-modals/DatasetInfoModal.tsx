@@ -1,5 +1,5 @@
-import { X, Layers, Tag, Folder, ArrowLeft, ChevronDown, ChevronRight, Database, BarChart3, Calendar, List } from 'lucide-react';  
-import { useEffect, useMemo, useState } from 'react';
+import { X, Layers, ArrowLeft, ChevronDown, ChevronRight, Database, Calendar, List } from 'lucide-react';  
+import { useEffect, useState } from 'react';
 import { useDataset } from "@/hooks/useDatasets";
 import { ObjectGroupWithObjectList, TimeSeries, TimeSeriesAggregation } from "@/types/data-objects";
 import TimeSeriesChart from '@/components/charts/TimeSeriesChart';
@@ -25,6 +25,8 @@ export default function DatasetInfoModal({
   const { dataset, objectGroups } = useDataset(datasetId);
   const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(new Set());
+
+  console.log(dataset)
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -66,42 +68,11 @@ export default function DatasetInfoModal({
     });
   };
 
-  const getGroupIcon = (role: string) => {
-    switch (role) {
-      case 'primary': return <Database size={16} className="text-blue-400" />;
-      case 'annotated': return <Tag size={16} className="text-green-400" />;
-      case 'derived': return <BarChart3 size={16} className="text-purple-400" />;
-      default: return <Layers size={16} className="text-gray-400" />;
-    }
-  };
-
   const formatTimeRange = (obj: TimeSeries) => {
     const start = new Date(obj.startTimestamp).toLocaleDateString();
     const end = new Date(obj.endTimestamp).toLocaleDateString();
     return `${start} - ${end}`;
   };
-
-  const allGroups = useMemo(() => {
-    if (!objectGroups) return [] as ObjectGroupWithObjectList[];
-    const groups: ObjectGroupWithObjectList[] = [];
-    
-    // Start with primary group
-    if (objectGroups.primaryObjectGroup) {
-      groups.push(objectGroups.primaryObjectGroup);
-    }
-    
-    // Add annotated groups
-    if (objectGroups.annotatedObjectGroups) {
-      groups.push(...objectGroups.annotatedObjectGroups);
-    }
-    
-    // Add computed groups
-    if (objectGroups.computedObjectGroups) {
-      groups.push(...objectGroups.computedObjectGroups);
-    }
-    
-    return groups;
-  }, [objectGroups]);
 
   if (!dataset) {
     return null;
@@ -156,7 +127,7 @@ export default function DatasetInfoModal({
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
                   {/* Left Column - Blank box */}
                   <div className="lg:col-span-1 flex flex-col space-y-4 overflow-y-auto">
-                    {objectGroups && objectGroups.primaryObjectGroup?.features?.length > 0 && (
+                    {objectGroups && objectGroups[0].features?.length > 0 && (
                       <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-blue-500/20 rounded-xl p-4 flex flex-col flex-1 min-h-0">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="p-2 bg-blue-500/20 rounded-lg">
@@ -164,11 +135,11 @@ export default function DatasetInfoModal({
                           </div>
                           <h3 className="text-sm font-semibold text-gray-200">Features</h3>
                           <span className="text-xs px-2 py-1 bg-blue-500/20 rounded-full text-blue-300 font-mono">
-                            {objectGroups.primaryObjectGroup.features.length} feature(s)
+                            {objectGroups[0].features.length} feature(s)
                           </span>
                         </div>
                         <div className="space-y-2 overflow-y-auto pr-2 flex-1 min-h-0">
-                          {objectGroups.primaryObjectGroup.features.map((feature) => (
+                          {objectGroups[0].features.map((feature) => (
                             <div key={feature.name} className="bg-zinc-800/50 rounded-lg p-2 border border-zinc-700/50">
                               <div className="flex justify-between items-start mb-1">
                                 <span className="text-sm font-medium text-gray-200">{feature.name}</span>
@@ -191,12 +162,12 @@ export default function DatasetInfoModal({
                           </div>
                           <h3 className="text-sm font-semibold text-gray-200">Data Groups</h3>
                           <span className="text-xs px-2 py-1 bg-blue-500/20 rounded-full text-blue-300 font-mono">
-                            {allGroups.length} group(s)
+                            {objectGroups.length} group(s)
                           </span>
                         </div>
 
                         <div className="flex-1 space-y-1 overflow-y-auto pr-2">
-                          {allGroups.map((group: ObjectGroupWithObjectList) => {
+                          {objectGroups.map((group: ObjectGroupWithObjectList) => {
                             const isOpen = expandedGroupIds.has(group.id);
                             const entityCount = group.objects?.length || 0;
                             
@@ -208,7 +179,7 @@ export default function DatasetInfoModal({
                                 >
                                   <div className="flex items-center gap-3">
                                     <div className="p-2 bg-zinc-700/50 rounded-lg group-hover:bg-zinc-600/50 transition-colors">
-                                      {getGroupIcon(group.role)}
+                                      <Layers size={16} className="text-gray-400" />
                                     </div>
                                     <div className="text-left">
                                       <div className="flex items-center gap-2 mb-1">

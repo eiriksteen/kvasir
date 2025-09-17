@@ -38,8 +38,6 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
 
   const { runsInConversation } = useRunsInConversation(conversation?.id || "");
 
-  console.log('THE RUNS IN CONVERSATION', conversation?.id, runsInConversation);
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);

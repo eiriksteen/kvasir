@@ -1,16 +1,16 @@
 import { UUID } from "crypto";
 
 export interface Project {
-    id: string;
-    userId: string;
+    id: UUID;
+    userId: UUID;
     name: string;
     description: string;
     createdAt: string;
     updatedAt: string;
-    dataSourceIds: string[];
-    datasetIds: string[];
-    analysisIds: string[];
-    pipelineIds: string[];
+    dataSourceIds: UUID[];
+    datasetIds: UUID[];
+    analysisIds: UUID[];
+    pipelineIds: UUID[];
 }
 
 export interface ProjectCreate {
@@ -24,11 +24,13 @@ export interface ProjectDetailsUpdate {
 }
 
 export interface AddEntityToProject {
+    projectId: UUID;
     entityType: "data_source" | "dataset" | "analysis" | "pipeline";
     entityId: UUID;
 }
 
 export interface RemoveEntityFromProject {
+    projectId: UUID;
     entityType: "data_source" | "dataset" | "analysis" | "pipeline";
     entityId: UUID;
 }

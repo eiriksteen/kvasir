@@ -14,6 +14,8 @@ from synesis_api.modules.data_objects.models import (
     feature,
     feature_in_group,
     time_series_aggregation_input,
+    variable_group,
+    variable
 )
 from synesis_schemas.main_server import (
     FeatureCreate,
@@ -28,12 +30,14 @@ from synesis_schemas.main_server import (
     FeatureInGroupInDB,
     FeatureWithSource,
     TimeSeriesAggregationInputInDB,
-    DatasetWithObjectGroups,
-    DatasetWithObjectGroupsAndFeatures,
+    DatasetFull,
+    DatasetFullWithFeatures,
     TimeSeriesFull,
     TimeSeriesAggregationFull,
     ObjectGroupWithEntitiesAndFeatures,
-    ObjectGroupsWithEntitiesAndFeaturesInDataset,
+    VariableGroupInDB,
+    VariableInDB,
+    VariableGroupFull,
 )
 from synesis_api.database.service import execute, fetch_one, fetch_all
 
@@ -79,8 +83,7 @@ async def create_features(features: List[FeatureCreate]) -> List[FeatureInDB]:
 async def create_dataset(
         files: list[UploadFile],
         dataset_create: DatasetCreate,
-        user_id: uuid.UUID) -> DatasetWithObjectGroups:
-    """Create a new dataset - placeholder function"""
+        user_id: uuid.UUID) -> DatasetFull:
 
     # Create dataset
     dataset_record = DatasetInDB(
@@ -88,7 +91,6 @@ async def create_dataset(
         user_id=user_id,
         name=dataset_create.name,
         description=dataset_create.description,
-        modality=dataset_create.modality,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
     )
@@ -96,208 +98,236 @@ async def create_dataset(
     await execute(insert(dataset).values(dataset_record.model_dump()), commit_after=True)
 
     # Variables to collect object groups for the response
-    primary_object_group = None
-    annotated_object_groups = []
-    computed_object_groups = []
+    object_group_records = []
+    for group in dataset_create.object_groups:
+        object_group_record = ObjectGroupInDB(
+            id=uuid.uuid4(),
+            dataset_id=dataset_record.id,
+            name=group.name,
+            original_id_name=group.entity_id_name,
+            description=group.description,
+            structure_type=group.structure_type,
+            save_path=group.save_path,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
+        )
 
-    for (groups, role) in zip(
-        ([dataset_create.primary_object_group],
-         dataset_create.annotated_object_groups,
-         dataset_create.computed_object_groups),
-        ["primary", "annotated", "derived"]
-    ):
-        for group in groups:
-            object_group_record = ObjectGroupInDB(
+        await execute(insert(object_group).values(object_group_record.model_dump()), commit_after=True)
+
+        object_group_records.append(object_group_record)
+
+        # To create the data objects, we must read and deserialize the parquet files from the uploaded file buffers
+        parquet_dict = {}
+        for dataframe_create in group.metadata_dataframes:
+            matching_file = None
+            for file in files:
+                if file.filename == dataframe_create.filename:
+                    matching_file = file
+                    break
+
+            if matching_file is None:
+                raise RuntimeError(
+                    f"File {dataframe_create.filename} not found in uploaded files"
+                )
+
+            file_content = await matching_file.read()
+            parquet_dict[dataframe_create.second_level_id] = file_content
+
+        structure = deserialize_parquet_to_dataframes(
+            parquet_dict, group.structure_type, only_metadata=True)
+
+        # Check what data structures are present
+        is_time_series_structure = group.structure_type == TIME_SERIES_STRUCTURE.first_level_id
+        is_time_series_aggregation_structure = group.structure_type == TIME_SERIES_AGGREGATION_STRUCTURE.first_level_id
+
+        if structure.feature_information is not None:
+            features_info = structure.feature_information.reset_index()
+            await create_features(features=[FeatureCreate(**record) for record in features_info.to_dict(orient="records")])
+
+            feature_in_group_dumps = []
+            for record in features_info.to_dict(orient="records"):
+                feature_in_group_dumps.append(FeatureInGroupInDB(
+                    group_id=object_group_record.id,
+                    feature_name=record["name"],
+                    source=record['source'],
+                    category_id=record['category_id'] if 'category_id' in record else None,
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc)
+                ).model_dump())
+
+            await execute(insert(feature_in_group).values(feature_in_group_dumps), commit_after=True)
+
+        original_entity_id_to_generated_id = {}
+        if is_time_series_structure:
+            metadata = structure.entity_metadata
+            fixed_columns = ["num_timestamps", "start_timestamp",
+                             "end_timestamp", "sampling_frequency", "timezone"]
+            additional_columns = [
+                col for col in metadata.columns if col not in fixed_columns]
+
+            fixed_metadata = metadata[fixed_columns]
+            additional_metadata = metadata[additional_columns]
+
+            object_records = []
+            time_series_records = []
+
+            for entity_id in metadata.index:
+                object_record = DataObjectInDB(
+                    id=uuid.uuid4(),
+                    name=entity_id,
+                    group_id=object_group_record.id,
+                    original_id=entity_id,
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc),
+                    additional_variables=additional_metadata.loc[entity_id].to_dict(
+                    )
+                )
+
+                object_records.append(object_record.model_dump())
+
+                # Extract timestamp values and make them timezone-aware
+                entity_timezone = fixed_metadata.loc[entity_id, 'timezone']
+                start_timestamp = make_timezone_aware(
+                    fixed_metadata.loc[entity_id, 'start_timestamp'],
+                    entity_timezone
+                )
+                end_timestamp = make_timezone_aware(
+                    fixed_metadata.loc[entity_id, 'end_timestamp'],
+                    entity_timezone
+                )
+
+                time_series_record = TimeSeriesInDB(
+                    id=object_record.id,
+                    num_timestamps=fixed_metadata.loc[entity_id,
+                                                      'num_timestamps'],
+                    start_timestamp=start_timestamp,
+                    end_timestamp=end_timestamp,
+                    sampling_frequency=fixed_metadata.loc[entity_id,
+                                                          'sampling_frequency'],
+                    timezone=entity_timezone
+                )
+
+                original_entity_id_to_generated_id[entity_id] = time_series_record.id
+
+                time_series_records.append(time_series_record.model_dump())
+
+            await execute(insert(data_object).values(object_records), commit_after=True)
+            await execute(insert(time_series).values(time_series_records), commit_after=True)
+
+        elif is_time_series_aggregation_structure:
+
+            metadata = structure.entity_metadata
+            fixed_columns = ["is_multi_series_computation"]
+            additional_columns = [
+                col for col in metadata.columns if col not in fixed_columns]
+
+            fixed_metadata = metadata[fixed_columns]
+            additional_metadata = metadata[additional_columns]
+            inputs_metadata = structure.time_series_aggregation_inputs
+
+            object_records = []
+            agg_records = []
+            input_records = []
+
+            for aggregation_id in metadata.index:
+                object_record = DataObjectInDB(
+                    id=uuid.uuid4(),
+                    name=aggregation_id,
+                    group_id=object_group_record.id,
+                    original_id=aggregation_id,
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc),
+                    additional_variables=additional_metadata.loc[aggregation_id].to_dict(
+                    )
+                )
+
+                object_records.append(object_record.model_dump())
+
+                time_series_aggregation_record = TimeSeriesAggregationInDB(
+                    id=object_record.id,
+                    **fixed_metadata.loc[aggregation_id].to_dict()
+                )
+
+                agg_records.append(
+                    time_series_aggregation_record.model_dump())
+
+                for agg_input in inputs_metadata.iterrows():
+                    time_series_aggregation_input_record = TimeSeriesAggregationInputInDB(
+                        id=uuid.uuid4(),
+                        time_series_id=original_entity_id_to_generated_id[agg_input["time_series_id"]],
+                        aggregation_id=object_record.id,
+                        **agg_input.to_dict()
+                    )
+                    input_records.append(
+                        time_series_aggregation_input_record.model_dump())
+
+            await execute(insert(data_object).values(object_records), commit_after=True)
+            await execute(insert(time_series_aggregation).values(agg_records), commit_after=True)
+            await execute(insert(time_series_aggregation_input).values(input_records), commit_after=True)
+
+        else:
+            raise ValueError(
+                f"Data structure not supported: {structure}")
+
+    variable_group_records = []
+    variable_group_full_records = []
+    for variable_group_create in dataset_create.variable_groups:
+        variable_group_record = VariableGroupInDB(
+            id=uuid.uuid4(),
+            dataset_id=dataset_record.id,
+            name=variable_group_create.name,
+            description=variable_group_create.description,
+            save_path=variable_group_create.save_path,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
+        )
+
+        variable_group_records.append(variable_group_record.model_dump())
+
+        variable_records = []
+        for variable_create in variable_group_create.variables:
+            variable_record = VariableInDB(
                 id=uuid.uuid4(),
-                dataset_id=dataset_record.id,
-                name=group.name,
-                original_id_name=group.entity_id_name,
-                description=group.description,
-                role=role,
-                structure_type=group.structure_type,
+                variable_group_id=variable_group_record.id,
+                name=variable_create.name,
+                python_type=variable_create.python_type,
+                description=variable_create.description,
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc)
             )
+            variable_records.append(variable_record.model_dump())
 
-            await execute(insert(object_group).values(object_group_record.model_dump()), commit_after=True)
+        variable_group_full_records.append(VariableGroupFull(
+            **variable_group_record.model_dump(),
+            variables=variable_records
+        ))
 
-            # Collect the object group for the response
-            if role == "primary":
-                primary_object_group = object_group_record
-            elif role == "annotated":
-                annotated_object_groups.append(object_group_record)
-            elif role == "derived":
-                computed_object_groups.append(object_group_record)
+    if len(variable_group_records) > 0 and len(variable_records) > 0:
+        await execute(insert(variable_group).values(variable_group_records), commit_after=True)
+        await execute(insert(variable).values(variable_records), commit_after=True)
 
-            # To create the data objects, we must read and deserialize the parquet files from the uploaded file buffers
-            parquet_dict = {}
-            for dataframe_create in group.metadata_dataframes:
-                matching_file = None
-                for file in files:
-                    if file.filename == dataframe_create.filename:
-                        matching_file = file
-                        break
-
-                if matching_file is None:
-                    raise RuntimeError(
-                        f"File {dataframe_create.filename} not found in uploaded files"
-                    )
-
-                file_content = await matching_file.read()
-                parquet_dict[dataframe_create.second_level_id] = file_content
-
-            structure = deserialize_parquet_to_dataframes(
-                parquet_dict, group.structure_type, only_metadata=True)
-
-            # Check what data structures are present
-            is_time_series_structure = dataset_create.primary_object_group.structure_type == TIME_SERIES_STRUCTURE.first_level_id
-            is_time_series_aggregation_structure = dataset_create.primary_object_group.structure_type == TIME_SERIES_AGGREGATION_STRUCTURE.first_level_id
-
-            if structure.feature_information is not None:
-                features_info = structure.feature_information.reset_index()
-                await create_features(features=[FeatureCreate(**record) for record in features_info.to_dict(orient="records")])
-
-                feature_in_group_dumps = []
-                for record in features_info.to_dict(orient="records"):
-                    feature_in_group_dumps.append(FeatureInGroupInDB(
-                        group_id=object_group_record.id,
-                        feature_name=record["name"],
-                        source=record['source'],
-                        category_id=record['category_id'] if 'category_id' in record else None,
-                        created_at=datetime.now(timezone.utc),
-                        updated_at=datetime.now(timezone.utc)
-                    ).model_dump())
-
-                await execute(insert(feature_in_group).values(feature_in_group_dumps), commit_after=True)
-
-            original_entity_id_to_generated_id = {}
-            if is_time_series_structure:
-                metadata = structure.entity_metadata
-                fixed_columns = ["num_timestamps", "start_timestamp",
-                                 "end_timestamp", "sampling_frequency", "timezone"]
-                additional_columns = [
-                    col for col in metadata.columns if col not in fixed_columns]
-
-                fixed_metadata = metadata[fixed_columns]
-                additional_metadata = metadata[additional_columns]
-
-                object_records = []
-                time_series_records = []
-
-                for entity_id in metadata.index:
-                    object_record = DataObjectInDB(
-                        id=uuid.uuid4(),
-                        name=entity_id,
-                        group_id=object_group_record.id,
-                        original_id=entity_id,
-                        created_at=datetime.now(timezone.utc),
-                        updated_at=datetime.now(timezone.utc),
-                        additional_variables=additional_metadata.loc[entity_id].to_dict(
-                        )
-                    )
-
-                    object_records.append(object_record.model_dump())
-
-                    # Extract timestamp values and make them timezone-aware
-                    entity_timezone = fixed_metadata.loc[entity_id, 'timezone']
-                    start_timestamp = make_timezone_aware(
-                        fixed_metadata.loc[entity_id, 'start_timestamp'],
-                        entity_timezone
-                    )
-                    end_timestamp = make_timezone_aware(
-                        fixed_metadata.loc[entity_id, 'end_timestamp'],
-                        entity_timezone
-                    )
-
-                    time_series_record = TimeSeriesInDB(
-                        id=object_record.id,
-                        num_timestamps=fixed_metadata.loc[entity_id,
-                                                          'num_timestamps'],
-                        start_timestamp=start_timestamp,
-                        end_timestamp=end_timestamp,
-                        sampling_frequency=fixed_metadata.loc[entity_id,
-                                                              'sampling_frequency'],
-                        timezone=entity_timezone
-                    )
-
-                    original_entity_id_to_generated_id[entity_id] = time_series_record.id
-
-                    time_series_records.append(time_series_record.model_dump())
-
-                await execute(insert(data_object).values(object_records), commit_after=True)
-                await execute(insert(time_series).values(time_series_records), commit_after=True)
-
-            elif is_time_series_aggregation_structure:
-
-                fixed_columns = ["is_multi_series_computation"]
-                additional_columns = [
-                    col for col in metadata.columns if col not in fixed_columns]
-
-                fixed_metadata = metadata[fixed_columns]
-                additional_metadata = metadata[additional_columns]
-                inputs_metadata = structure.time_series_aggregation_inputs
-
-                object_records = []
-                agg_records = []
-                input_records = []
-
-                for aggregation_id in metadata.index:
-                    object_record = DataObjectInDB(
-                        id=uuid.uuid4(),
-                        name=aggregation_id,
-                        group_id=object_group_record.id,
-                        original_id=aggregation_id,
-                        created_at=datetime.now(timezone.utc),
-                        updated_at=datetime.now(timezone.utc),
-                        additional_variables=additional_metadata.loc[aggregation_id].to_dict(
-                        )
-                    )
-
-                    object_records.append(object_record.model_dump())
-
-                    time_series_aggregation_record = TimeSeriesAggregationInDB(
-                        id=object_record.id,
-                        **fixed_metadata.loc[aggregation_id].to_dict()
-                    )
-
-                    agg_records.append(
-                        time_series_aggregation_record.model_dump())
-
-                    for agg_input in inputs_metadata.iterrows():
-                        time_series_aggregation_input_record = TimeSeriesAggregationInputInDB(
-                            id=uuid.uuid4(),
-                            time_series_id=original_entity_id_to_generated_id[agg_input["time_series_id"]],
-                            aggregation_id=object_record.id,
-                            **agg_input.to_dict()
-                        )
-                        input_records.append(
-                            time_series_aggregation_input_record.model_dump())
-
-                await execute(insert(data_object).values(object_records), commit_after=True)
-                await execute(insert(time_series_aggregation).values(agg_records), commit_after=True)
-                await execute(insert(time_series_aggregation_input).values(input_records), commit_after=True)
-
-            else:
-                raise ValueError(
-                    f"Data structure not supported: {structure}")
-
-        # Return the dataset with object groups
-        return DatasetWithObjectGroups(
-            **dataset_record.model_dump(),
-            primary_object_group=primary_object_group,
-            annotated_object_groups=annotated_object_groups,
-            computed_object_groups=computed_object_groups
-        )
+    # Return the dataset with object groups
+    return DatasetFull(
+        **dataset_record.model_dump(),
+        object_groups=object_group_records,
+        variable_groups=variable_group_full_records
+    )
 
 
 async def get_user_datasets(
         user_id: uuid.UUID,
         include_features: bool = False,
-) -> List[Union[DatasetWithObjectGroupsAndFeatures, DatasetWithObjectGroups]]:
+        ids: Optional[List[uuid.UUID]] = None,
+        max_features: Optional[int] = None,
+) -> List[Union[DatasetFullWithFeatures, DatasetFull]]:
     """Get all datasets for a user"""
 
     # Get all datasets for the user
     datasets_query = select(dataset).where(dataset.c.user_id == user_id)
+
+    if ids:
+        datasets_query = datasets_query.where(dataset.c.id.in_(ids))
+
     datasets_result = await fetch_all(datasets_query)
 
     if not datasets_result:
@@ -310,39 +340,58 @@ async def get_user_datasets(
     )
     object_groups_result = await fetch_all(object_groups_query)
 
+    variable_groups_query = select(variable_group).where(
+        variable_group.c.dataset_id.in_(dataset_ids)
+    )
+    variable_groups_result = await fetch_all(variable_groups_query)
+
+    variables_query = select(variable).where(
+        variable.c.variable_group_id.in_(
+            [group["id"] for group in variable_groups_result])
+    )
+    variables_result = await fetch_all(variables_query)
+
+    variable_groups = [VariableGroupInDB(**group)
+                       for group in variable_groups_result]
+
+    variables = [VariableInDB(**variable)
+                 for variable in variables_result]
+
     # Group object groups by dataset_id
     object_groups = [ObjectGroupInDB(**group)
                      for group in object_groups_result]
     if include_features:
-        object_groups = await _add_features_to_object_groups(object_groups)
+        object_groups = await _add_features_to_object_groups(object_groups, max_features=max_features)
 
     result_records = []
     for dataset_result in datasets_result:
         dataset_obj = DatasetInDB(**dataset_result)
-        if len([
-                group for group in object_groups if group.dataset_id == dataset_obj.id and group.role == "primary"]) == 0:
-            print(
-                f"No primary object group found for dataset {dataset_obj.id}")
-        primary_object_group = [
-            group for group in object_groups if group.dataset_id == dataset_obj.id and group.role == "primary"][0]
-        annotated_object_groups = [
-            group for group in object_groups if group.dataset_id == dataset_obj.id and group.role == "annotated"]
-        computed_object_groups = [
-            group for group in object_groups if group.dataset_id == dataset_obj.id and group.role == "derived"]
+
+        object_groups = [
+            group for group in object_groups if group.dataset_id == dataset_obj.id]
+
+        variable_groups = [
+            group for group in variable_groups if group.dataset_id == dataset_obj.id]
+
+        variables = [variable for variable in variables if variable.variable_group_id in [
+            group.id for group in variable_groups]]
+
+        variable_groups_full = [VariableGroupFull(
+            **group,
+            variables=variables
+        ) for group in variable_groups]
 
         if include_features:
-            record = DatasetWithObjectGroupsAndFeatures(
+            record = DatasetFullWithFeatures(
                 **dataset_obj.model_dump(),
-                primary_object_group=primary_object_group,
-                annotated_object_groups=annotated_object_groups,
-                computed_object_groups=computed_object_groups
+                object_groups=object_groups,
+                variable_groups=variable_groups_full
             )
         else:
-            record = DatasetWithObjectGroups(
+            record = DatasetFull(
                 **dataset_obj.model_dump(),
-                primary_object_group=primary_object_group,
-                annotated_object_groups=annotated_object_groups,
-                computed_object_groups=computed_object_groups
+                object_groups=object_groups,
+                variable_groups=variable_groups_full
             )
 
         result_records.append(record)
@@ -355,97 +404,23 @@ async def get_user_datasets_by_ids(
         dataset_ids: List[uuid.UUID] = [],
         max_features: Optional[int] = None,
         include_features: bool = False
-) -> List[Union[DatasetWithObjectGroupsAndFeatures, DatasetWithObjectGroups]]:
+) -> List[Union[DatasetFullWithFeatures, DatasetFull]]:
     """Get specific datasets for a user by IDs"""
 
-    if not dataset_ids:
-        return []
-
-    # Get specific datasets for the user
-    datasets_query = select(dataset).where(
-        and_(
-            dataset.c.user_id == user_id,
-            dataset.c.id.in_(dataset_ids)
-        )
-    )
-    datasets_result = await fetch_all(datasets_query)
-
-    if not datasets_result:
-        return []
-
-    # Get all object groups for these datasets
-    object_groups_query = select(object_group).where(
-        object_group.c.dataset_id.in_(dataset_ids)
-    )
-    object_groups_result = await fetch_all(object_groups_query)
-
-    # Group object groups by dataset_id
-    object_groups_by_dataset = {}
-    for group_result in object_groups_result:
-        group_obj = ObjectGroupInDB(**group_result)
-        if group_obj.dataset_id not in object_groups_by_dataset:
-            object_groups_by_dataset[group_obj.dataset_id] = []
-        object_groups_by_dataset[group_obj.dataset_id].append(group_obj)
-
-    # Build result for each dataset
-    result_datasets = []
-    for dataset_result in datasets_result:
-        dataset_obj = DatasetInDB(**dataset_result)
-        dataset_id = dataset_obj.id
-
-        # Get object groups for this dataset
-        dataset_groups = object_groups_by_dataset.get(dataset_id, [])
-
-        # Separate object groups by role
-        primary_object_group = None
-        annotated_object_groups = []
-        computed_object_groups = []
-
-        for group in dataset_groups:
-            if group.role == "primary":
-                primary_object_group = group
-            elif group.role == "annotated":
-                annotated_object_groups.append(group)
-            elif group.role == "derived":
-                computed_object_groups.append(group)
-
-        if primary_object_group:
-            # Get features for each group
-            if include_features:
-                primary = (await _add_features_to_object_groups([primary_object_group], max_features))[0]
-                annotated = await _add_features_to_object_groups(annotated_object_groups, max_features)
-                computed = await _add_features_to_object_groups(computed_object_groups, max_features)
-
-                record = DatasetWithObjectGroupsAndFeatures(
-                    **dataset_obj.model_dump(),
-                    primary_object_group=primary,
-                    annotated_object_groups=annotated,
-                    computed_object_groups=computed,
-                )
-            else:
-                record = DatasetWithObjectGroups(
-                    **dataset_obj.model_dump(),
-                    primary_object_group=primary_object_group,
-                    annotated_object_groups=annotated_object_groups,
-                    computed_object_groups=computed_object_groups,
-                )
-
-            result_datasets.append(record)
-
-    return result_datasets
+    return await get_user_datasets(user_id, ids=dataset_ids, include_features=include_features, max_features=max_features)
 
 
 async def get_user_dataset_by_id(
         dataset_id: uuid.UUID,
         user_id: uuid.UUID,
         include_features: bool = False
-) -> Union[DatasetWithObjectGroupsAndFeatures, DatasetWithObjectGroups]:
+) -> Union[DatasetFullWithFeatures, DatasetFull]:
     """Get a dataset for a user"""
 
     return (await get_user_datasets_by_ids(user_id, [dataset_id], include_features=include_features))[0]
 
 
-async def get_object_groups_in_dataset_with_entities_and_features(dataset_id: uuid.UUID) -> ObjectGroupsWithEntitiesAndFeaturesInDataset:
+async def get_object_groups_in_dataset_with_entities_and_features(dataset_id: uuid.UUID) -> List[ObjectGroupWithEntitiesAndFeatures]:
     """Get all object groups in a dataset"""
 
     object_group_query = select(object_group).where(
@@ -458,19 +433,7 @@ async def get_object_groups_in_dataset_with_entities_and_features(dataset_id: uu
     object_groups_with_features = await _add_features_to_object_groups(object_groups)
     object_groups_with_lists = await _add_object_lists_to_object_groups(object_groups_with_features)
 
-    primary_object_group = [
-        g for g in object_groups_with_lists if g.role == "primary"][0]
-    annotated_object_groups = [
-        g for g in object_groups_with_lists if g.role == "annotated"]
-    computed_object_groups = [
-        g for g in object_groups_with_lists if g.role == "derived"]
-
-    return ObjectGroupsWithEntitiesAndFeaturesInDataset(
-        dataset_id=dataset_id,
-        primary_object_group=primary_object_group,
-        annotated_object_groups=annotated_object_groups,
-        computed_object_groups=computed_object_groups
-    )
+    return object_groups_with_lists
 
 
 async def get_object_group(
@@ -493,23 +456,6 @@ async def get_object_group(
         object_group_obj = await _add_object_lists_to_object_groups([object_group_obj])[0]
 
     return object_group_obj
-
-
-async def feature_metadata_to_df(feature_names: Optional[List[str]] = None, group_id: Optional[uuid.UUID] = None) -> pd.DataFrame:
-
-    assert feature_names is not None or group_id is not None, "Either feature_names or group_id must be provided"
-
-    if feature_names is not None:
-        feature_query = select(feature).where(
-            feature.c.name.in_(feature_names))
-    elif group_id is not None:
-        feature_query = select(feature).join(feature_in_group).where(
-            feature_in_group.c.group_id == group_id,
-            feature.c.name == feature_in_group.c.feature_name
-        )
-
-    feature_result = await fetch_all(feature_query)
-    return pd.DataFrame(feature_result).set_index("name")
 
 
 async def _add_object_lists_to_object_groups(groups: List[ObjectGroupWithFeatures]) -> List[ObjectGroupWithEntitiesAndFeatures]:

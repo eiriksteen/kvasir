@@ -29,15 +29,15 @@ async def put_update_project(client: ProjectClient, project_id: UUID, project_da
     return Project(**response.body)
 
 
-async def post_add_entity(client: ProjectClient, project_id: UUID, entity_data: AddEntityToProject) -> Project:
+async def post_add_entity(client: ProjectClient, entity_data: AddEntityToProject) -> Project:
     """Add an entity (data source, dataset, analysis, pipeline) to a project"""
-    response = await client.send_request("post", f"/project/add-entity/{project_id}", json=entity_data.model_dump(mode="json"))
+    response = await client.send_request("post", f"/project/add-entity", json=entity_data.model_dump(mode="json"))
     return Project(**response.body)
 
 
-async def delete_remove_entity(client: ProjectClient, project_id: UUID, entity_data: RemoveEntityFromProject) -> Project:
+async def delete_remove_entity(client: ProjectClient, entity_data: RemoveEntityFromProject) -> Project:
     """Remove an entity (data source, dataset, analysis, pipeline) from a project"""
-    response = await client.send_request("delete", f"/project/remove-entity/{project_id}", json=entity_data.model_dump(mode="json"))
+    response = await client.send_request("delete", f"/project/remove-entity", json=entity_data.model_dump(mode="json"))
     return Project(**response.body)
 
 

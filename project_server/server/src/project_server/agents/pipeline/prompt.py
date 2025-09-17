@@ -33,17 +33,91 @@ First, output a list of:
 
 Then, for each function, output a detailed description of the function, including:
   - description: Detailed description of what this function does
-  - inputs
-    - name: Name of the input. Name it something that makes sense for the function. Don't just copy the structure ID (unless it really makes sense)
+  - input_structures
+    - name: Name of the input structure. Name it something that makes sense for the function. Don't just copy the structure ID (unless it really makes sense)
     - description: Description of the input
     - structure_id: ID of the data structure of the input - Important: This refers to the first level structure ID of the data structure, which you get via the tools
     - required: Whether this is an optional or required input
-  - outputs
-    - name: Name of the output. Name it something that makes sense for the function. Don't just copy the structure ID (unless it really makes sense)
+  - output_structures
+    - name: Name of the output structure. Name it something that makes sense for the function. Don't just copy the structure ID (unless it really makes sense)
     - description: Description of the output
     - structure_id: ID of the data structure of the output - Important: This refers to the first level structure ID of the data structure, which you get via the tools
-Regarding inputs / outputs:
-  - Each input / output in the code must correspond to a group dataclass. Their definitions are available through the data structure tools.
+  - output_variables
+    - name: Name of the output variable, for example mse_per_epoch, accuracy, feature_importances, etc.
+    - description: Description of the output variable,
+    - variable_id: ID of the variable of the output - Important: This refers to the second level variable ID of the data structure, which you get via the tools
+
+Pipeline examples:
+- Time series forecasting training pipeline:
+  - Inputs:
+    - config: 
+      - seq_len: Input sequence length for the forecaster
+      - pred_len: Prediction length for the forecaster
+      - num_epochs: Number of epochs for the training
+      - batch_size: Batch size for the training
+      - learning_rate: Learning rate for the training
+      - optimizer: Optimizer for the training
+      - loss_function: Loss function for the training
+      - metrics: Metrics for the training
+      - random_seed: Random seed for the training
+      - ...
+    - data_structures:
+      - time_series: Time series data
+  - Outputs:
+    - data structures:
+      - train_forecasts: Train forecasts
+      - validation_forecasts: Validation forecasts
+      - test_forecasts: Test forecasts
+    - variables:
+      - train_mse_loss_curve: Train MSE loss curve
+      - validation_mse_loss_curve: Validation MSE loss curve
+      - test_mse_loss_curve: Test MSE loss curve
+      - train_mae_per_epoch: Train MAE per epoch
+      - validation_mae_per_epoch: Validation MAE per epoch
+      - test_mae_per_epoch: Test MAE per epoch
+      - train_r2_score: Train R2 score
+      - validation_r2_score: Validation R2 score
+      - test_r2_score: Test R2 score
+      - ...
+- Pipeline to slice series into segments of 
+  - Inputs:
+    - config: 
+      - window_size: Window size for the segmentation
+      - step_size: Step size for the segmentation
+      - overlap: Overlap for the segmentation
+      - sampling_frequency: Sampling frequency for the time series
+      - timezone: Timezone for the time series
+    - data_structures:
+      - time_series: Time series data
+  - Outputs:
+    - data structures:
+      - time_series_segments: Time series segments
+Important:
+- Exclude the config input from the list of inputs
+- The output variables are important for training functions! We want the loss curves and various metrics that can be relevant! Its better to output too many variables than too few!
+- Both inputs and outputs must consist of at least one structure, it doesn't make sense to not have inputs or outputs to the pipeline function!
+  - The inputs / outputs should be the direct instantiated structures, not filepaths or anything else
+  - The inputs will be instantiated externally, just use them! No empty inputs, it doesn't make sense to not have input data to a data processing function!
+  - No reading from files, there are no files to read from! We have the data structures as inputs!
+  - All outputs must correspond to a group dataclass (and corresponding first level structure id)
+    - The final analysis results (including metrics, validation, etc.) will be handled elsewhere, you just output the raw results (for example the raw detected anomalies or raw forecasts)
+- The output variables do not represent predictions of the models, they represent results related to training or small objects that are computed when running the function
+  - Examples of suitable output variables are: mse_per_epoch, accuracy, feature_importances, etc. For training, include at least the loss curves!
+  - Examples of unsuitable output variables are: predictions, anomaly_scores, etc.
+- We keep pipelines for training and inference separate! We need a trained model to set up an inference pipeline
+- Otherwise, for straight-forward computations like slicing a series or computing some values, we of course don't need a trained model, and for this use the "computation" type
+
+
+Notes on data structures
+- All pipeline functions will work with the same fundamental data structures which should suffice for all data processing needs.
+- You will be provided tools to get the descriptions of the data structures!
+- Inputs and outputs will be instantiated data structures (objects), NOT just IDs or raw data
+- The only exception is the config input, which will be a dictionary of configuration parameters
+- The data structures to use will depend on the function's purpose and the data it processes
+  - For example, if processing time series data with classification labels and anomaly detection results, the relevant structures will be time_series and time_series_aggregation
+- Important: We divide in first and second level structure ids. The first level structure id is the id of the data structure, and the second level structure id is the id of the dataframe in the data structure
+  - For example, the time_series (first level structure id) structure is composed of the dataframes time_series_data (second level structure id), entity_metadata (second level structure id), and more
+- Each input / output in the code must correspond to a group dataclass. Their definitions are available through the data structure tools
 Invoking the SWE agent:
   - The SWE agent will automatically be invoked when you submit the detailed function description.
   - You must then evaluate its result, and if not satisfactory, provide feedback to the SWE agent to fix it.

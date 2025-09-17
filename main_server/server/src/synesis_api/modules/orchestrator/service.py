@@ -56,51 +56,6 @@ async def update_conversation_name(conversation_id: uuid.UUID, name: str) -> Non
     await execute(conversation.update().where(conversation.c.id == conversation_id).values(name=name), commit_after=True)
 
 
-async def _get_context_objects_from_ids(context_ids: list[uuid.UUID]) -> list[Context]:
-
-    context_data = []
-
-    data_source_contexts = await fetch_all(
-        select(data_source_context).where(
-            data_source_context.c.context_id.in_(context_ids))
-    )
-
-    dataset_contexts = await fetch_all(
-        select(dataset_context).where(
-            dataset_context.c.context_id.in_(context_ids))
-    )
-
-    pipeline_contexts = await fetch_all(
-        select(pipeline_context).where(
-            pipeline_context.c.context_id.in_(context_ids))
-    )
-
-    analysis_contexts = await fetch_all(
-        select(analysis_context).where(
-            analysis_context.c.context_id.in_(context_ids))
-    )
-
-    for ctx_id in context_ids:
-        data_source_ids = [dc['data_source_id']
-                           for dc in data_source_contexts if dc['context_id'] == ctx_id]
-        dataset_ids = [dc['dataset_id']
-                       for dc in dataset_contexts if dc['context_id'] == ctx_id]
-        pipeline_ids = [ac['pipeline_id']
-                        for ac in pipeline_contexts if ac['context_id'] == ctx_id]
-        analysis_ids = [ac['analysis_id']
-                        for ac in analysis_contexts if ac['context_id'] == ctx_id]
-
-        context_data.append(Context(
-            id=ctx_id,
-            data_source_ids=data_source_ids,
-            dataset_ids=dataset_ids,
-            pipeline_ids=pipeline_ids,
-            analysis_ids=analysis_ids
-        ))
-
-    return context_data
-
-
 async def get_conversations(user_id: uuid.UUID) -> list[ConversationInDB]:
 
     conversations = await fetch_all(
@@ -267,11 +222,17 @@ async def create_context(
 
 
 async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
-    datasets = await get_user_datasets_by_ids(user_id, context.dataset_ids, max_features=20)
-    data_sources = await get_data_sources(context.data_source_ids)
-    pipelines = await get_user_pipelines_by_ids(user_id, context.pipeline_ids)
-    # await get_user_analyses_by_ids(user_id, context.analysis_ids)
-    analyses = []
+    datasets, data_sources, pipelines, analyses = [], [], [], []
+
+    if len(context.dataset_ids) > 0:
+        datasets = await get_user_datasets_by_ids(user_id, context.dataset_ids, max_features=20)
+    if len(context.data_source_ids) > 0:
+        data_sources = await get_data_sources(context.data_source_ids)
+    if len(context.pipeline_ids) > 0:
+        pipelines = await get_user_pipelines_by_ids(user_id, context.pipeline_ids)
+    if len(context.analysis_ids) > 0:
+        # analyses = await get_user_analyses_by_ids(user_id, context.analysis_ids)
+        analyses = []
 
     context_message = f"""
         <CONTEXT UPDATES>
@@ -285,9 +246,46 @@ async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
     return context_message
 
 
-# async def get_conversation_ids_from_run_ids(run_ids: list[uuid.UUID]) -> list[uuid.UUID]:
-#     conversation_ids = await fetch_all(
-#         select(run_in_conversation.c.conversation_id).where(
-#             run_in_conversation.c.run_id.in_(run_ids))
-#     )
-#     return [record["conversation_id"] for record in conversation_ids]
+async def _get_context_objects_from_ids(context_ids: list[uuid.UUID]) -> list[Context]:
+
+    context_data = []
+
+    data_source_contexts = await fetch_all(
+        select(data_source_context).where(
+            data_source_context.c.context_id.in_(context_ids))
+    )
+
+    dataset_contexts = await fetch_all(
+        select(dataset_context).where(
+            dataset_context.c.context_id.in_(context_ids))
+    )
+
+    pipeline_contexts = await fetch_all(
+        select(pipeline_context).where(
+            pipeline_context.c.context_id.in_(context_ids))
+    )
+
+    analysis_contexts = await fetch_all(
+        select(analysis_context).where(
+            analysis_context.c.context_id.in_(context_ids))
+    )
+
+    for ctx_id in context_ids:
+        data_source_ids = [dc['data_source_id']
+                           for dc in data_source_contexts if dc['context_id'] == ctx_id]
+        dataset_ids = [dc['dataset_id']
+                       for dc in dataset_contexts if dc['context_id'] == ctx_id]
+        pipeline_ids = [ac['pipeline_id']
+                        for ac in pipeline_contexts if ac['context_id'] == ctx_id]
+        analysis_ids = [ac['analysis_id']
+                        for ac in analysis_contexts if ac['context_id'] == ctx_id]
+
+        context_data.append(Context(
+            id=ctx_id,
+            data_source_ids=data_source_ids,
+            dataset_ids=dataset_ids,
+            pipeline_ids=pipeline_ids,
+            analysis_ids=analysis_ids
+        ))
+
+    return context_data

@@ -6,16 +6,15 @@ from project_server.client import ProjectClient, FileInput
 
 from synesis_schemas.main_server import (
     DatasetCreate,
-    DatasetWithObjectGroups,
-    DatasetWithObjectGroupsAndFeatures,
-    ObjectGroupsWithEntitiesAndFeaturesInDataset,
+    DatasetFull,
+    DatasetFullWithFeatures,
     ObjectGroupInDB,
     ObjectGroupWithFeatures,
     ObjectGroupWithEntitiesAndFeatures
 )
 
 
-async def post_dataset(client: ProjectClient, files: List[FileInput], metadata: DatasetCreate) -> DatasetWithObjectGroups:
+async def post_dataset(client: ProjectClient, files: List[FileInput], metadata: DatasetCreate) -> DatasetFull:
     response = await client.send_request(
         "post",
         "/data-objects/dataset",
@@ -23,23 +22,23 @@ async def post_dataset(client: ProjectClient, files: List[FileInput], metadata: 
         data={"metadata": json.dumps(metadata.model_dump(mode="json"))}
     )
 
-    return DatasetWithObjectGroups(**response.body)
+    return DatasetFull(**response.body)
 
 
-async def get_datasets(client: ProjectClient, include_features: bool = False) -> List[Union[DatasetWithObjectGroupsAndFeatures, DatasetWithObjectGroups]]:
+async def get_datasets(client: ProjectClient, include_features: bool = False) -> List[Union[DatasetFullWithFeatures, DatasetFull]]:
     response = await client.send_request("get", f"/data-objects/datasets?include_features={include_features}")
     if include_features:
-        return [DatasetWithObjectGroupsAndFeatures(**ds) for ds in response.body]
+        return [DatasetFullWithFeatures(**ds) for ds in response.body]
     else:
-        return [DatasetWithObjectGroups(**ds) for ds in response.body]
+        return [DatasetFull(**ds) for ds in response.body]
 
 
-async def get_dataset(client: ProjectClient, dataset_id: UUID, include_features: bool = False) -> Union[DatasetWithObjectGroupsAndFeatures, DatasetWithObjectGroups]:
+async def get_dataset(client: ProjectClient, dataset_id: UUID, include_features: bool = False) -> Union[DatasetFullWithFeatures, DatasetFull]:
     response = await client.send_request("get", f"/data-objects/dataset/{dataset_id}?include_features={include_features}")
     if include_features:
-        return DatasetWithObjectGroupsAndFeatures(**response.body)
+        return DatasetFullWithFeatures(**response.body)
     else:
-        return DatasetWithObjectGroups(**response.body)
+        return DatasetFull(**response.body)
 
 
 async def get_object_group(client: ProjectClient, group_id: UUID, include_features: bool = False, include_entities: bool = False) -> Union[ObjectGroupInDB, ObjectGroupWithFeatures, ObjectGroupWithEntitiesAndFeatures]:
@@ -52,6 +51,6 @@ async def get_object_group(client: ProjectClient, group_id: UUID, include_featur
         return ObjectGroupInDB(**response.body)
 
 
-async def get_object_groups_in_dataset(client: ProjectClient, dataset_id: UUID) -> ObjectGroupsWithEntitiesAndFeaturesInDataset:
+async def get_object_groups_in_dataset(client: ProjectClient, dataset_id: UUID) -> List[ObjectGroupWithEntitiesAndFeatures]:
     response = await client.send_request("get", f"/data-objects/object-groups-in-dataset/{dataset_id}")
-    return ObjectGroupsWithEntitiesAndFeaturesInDataset(**response.body)
+    return [ObjectGroupWithEntitiesAndFeatures(**group) for group in response.body]

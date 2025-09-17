@@ -22,8 +22,6 @@ dataset = Table(
     Column("user_id", UUID, ForeignKey("auth.users.id"), nullable=False),
     Column("description", String, nullable=False),
     Column("name", String, nullable=False),
-    # Type will reference the modality, options are "time_series", "document", "image", "video", "multimodal"
-    Column("modality", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
@@ -62,12 +60,9 @@ object_group = Table(
     Column("name", String, nullable=False),
     Column("original_id_name", String, nullable=True),
     Column("description", String, nullable=False),
-    # Role is primary, annotated, or derived
-    # Primary is the main data, annotated is ground truth targets, and derived is a computed quantity
-    # Primary must be a data object of the primary modality of the dataset, meaning either a time series, image, document, or video, etc, but not a mask, aggregation, or similar quantity
-    Column("role", String, nullable=False),
     # Data structure type indicates the actual data structure: time_series, time_series_aggregation, etc.
     Column("structure_type", String, nullable=False),
+    Column("save_path", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
@@ -78,16 +73,32 @@ object_group = Table(
 )
 
 
-# To store the source data objects of a derived object
-derived_object_source = Table(
-    "derived_object_source",
+# This table is to store additional variables relevant to a dataset. They will be stored as key value pairs in a json file.
+variable = Table(
+    "variable",
     metadata,
-    Column("id", UUID(as_uuid=True), ForeignKey(
-        "data_objects.data_object.id"), primary_key=True, default=uuid.uuid4),
-    Column("derived_object_id", UUID, ForeignKey(
-        "data_objects.data_object.id"), nullable=False),
-    Column("original_object_id", UUID, ForeignKey(
-        "data_objects.data_object.id"), nullable=False),
+    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
+    Column("variable_group_id", UUID, ForeignKey(
+        "data_objects.variable_group.id"), nullable=False),
+    Column("name", String, nullable=False),
+    Column("python_type", String, nullable=False),
+    Column("description", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="data_objects"
+)
+
+variable_group = Table(
+    "variable_group",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
+    Column("name", String, nullable=False),
+    Column("description", String, nullable=False),
+    Column("dataset_id", UUID, ForeignKey(
+        "data_objects.dataset.id"), nullable=False),
+    Column("save_path", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),

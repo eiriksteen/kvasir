@@ -1,6 +1,7 @@
 import uuid
+from pathlib import Path
 from datetime import datetime
-from typing import List, Optional, Literal, Union
+from typing import List, Optional, Union, Dict, Any
 from dataclasses import dataclass
 
 from synesis_data_structures.time_series.df_dataclasses import TimeSeriesStructure, TimeSeriesAggregationStructure
@@ -16,13 +17,26 @@ class ObjectGroupCreateWithRawData:
 
 
 @dataclass
+class RawVariableCreate:
+    name: str
+    python_type: str
+    description: str
+
+
+@dataclass
+class VariableGroupCreateWithRawData:
+    name: str
+    description: str
+    variables: List[RawVariableCreate]
+    data: Dict[str, Any]
+
+
+@dataclass
 class DatasetCreateWithRawData:
     name: str
     description: str
-    modality: str
-    primary_object_group: ObjectGroupCreateWithRawData
-    annotated_object_groups: List[ObjectGroupCreateWithRawData]
-    computed_object_groups: List[ObjectGroupCreateWithRawData]
+    object_groups: List[ObjectGroupCreateWithRawData]
+    variable_groups: List[VariableGroupCreateWithRawData]
 
 
 @dataclass
@@ -31,12 +45,33 @@ class ObjectGroupWithRawData:
     dataset_id: uuid.UUID
     name: str
     description: str
-    role: Literal["primary", "annotated", "derived"]
     structure_type: str
+    save_path: Path
     created_at: datetime
     updated_at: datetime
     structure: Union[TimeSeriesStructure, TimeSeriesAggregationStructure]
     original_id_name: Optional[str] = None
+
+
+@dataclass
+class DatasetVariable:
+    id: uuid.UUID
+    variable_group_id: uuid.UUID
+    name: str
+    python_type: str
+    description: str
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass
+class DatasetVariableGroupWithRawData:
+    id: uuid.UUID
+    dataset_id: uuid.UUID
+    name: str
+    description: str
+    variables: List[DatasetVariable]
+    data: Dict[str, Any]
 
 
 @dataclass
@@ -45,9 +80,7 @@ class DatasetWithRawData:
     user_id: uuid.UUID
     name: str
     description: str
-    modality: str
     created_at: datetime
     updated_at: datetime
-    primary_object_group: ObjectGroupWithRawData
-    annotated_object_groups: List[ObjectGroupWithRawData]
-    computed_object_groups: List[ObjectGroupWithRawData]
+    object_groups: List[ObjectGroupWithRawData]
+    variable_groups: List[DatasetVariableGroupWithRawData]

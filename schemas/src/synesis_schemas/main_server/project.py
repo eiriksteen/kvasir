@@ -36,10 +36,12 @@ class ProjectDetailsUpdate(BaseModel):
 
 
 class AddEntityToProject(BaseModel):
+    project_id: UUID
     entity_type: Literal["data_source", "dataset", "analysis", "pipeline"]
     entity_id: UUID
 
 
 class RemoveEntityFromProject(BaseModel):
+    project_id: UUID
     entity_type: Literal["data_source", "dataset", "analysis", "pipeline"]
     entity_id: UUID

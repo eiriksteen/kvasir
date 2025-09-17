@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Annotated
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -22,7 +22,7 @@ router = APIRouter()
 @router.post("/create-project", response_model=Project)
 async def create_new_project(
     project_data: ProjectCreate,
-    user: User = Depends(get_current_user)
+    user: Annotated[User, Depends(get_current_user)] = None
 ) -> Project:
     return await create_project(user.id, project_data)
 
@@ -30,7 +30,7 @@ async def create_new_project(
 @router.get("/get-project/{project_id}", response_model=Project)
 async def get_project_by_id(
     project_id: UUID,
-    user: User = Depends(get_current_user)
+    user: Annotated[User, Depends(get_current_user)] = None
 ) -> Project:
     project = await get_project(project_id)
     if not project:
@@ -45,7 +45,7 @@ async def get_project_by_id(
 async def update_project_details_by_id(
     project_id: UUID,
     project_data: ProjectDetailsUpdate,
-    user: User = Depends(get_current_user)
+    user: Annotated[User, Depends(get_current_user)] = None
 ) -> Project:
     """Update project name and/or description."""
     project = await get_project(project_id)
@@ -62,42 +62,40 @@ async def update_project_details_by_id(
     return updated_project
 
 
-@router.post("/add-entity/{project_id}", response_model=Project)
-async def add_entity_to_project_by_id(
-    project_id: UUID,
+@router.post("/add-entity", response_model=Project)
+async def post_entity_to_project(
     entity_data: AddEntityToProject,
-    user: User = Depends(get_current_user)
+    user: Annotated[User, Depends(get_current_user)] = None
 ) -> Project:
     """Add an entity (data source, dataset, analysis, pipeline) to a project."""
-    project = await get_project(project_id)
+    project = await get_project(entity_data.project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     if project.user_id != user.id:
         raise HTTPException(
             status_code=403, detail="Not authorized to modify this project")
 
-    updated_project = await add_entity_to_project(project_id, entity_data)
+    updated_project = await add_entity_to_project(entity_data)
     if not updated_project:
         raise HTTPException(
             status_code=404, detail="Project not found after adding entity")
     return updated_project
 
 
-@router.delete("/remove-entity/{project_id}", response_model=Project)
-async def remove_entity_from_project_by_id(
-    project_id: UUID,
+@router.delete("/remove-entity", response_model=Project)
+async def delete_entity_from_project(
     entity_data: RemoveEntityFromProject,
-    user: User = Depends(get_current_user)
+    user: Annotated[User, Depends(get_current_user)] = None
 ) -> Project:
     """Remove an entity (data source, dataset, analysis, pipeline) from a project."""
-    project = await get_project(project_id)
+    project = await get_project(entity_data.project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     if project.user_id != user.id:
         raise HTTPException(
             status_code=403, detail="Not authorized to modify this project")
 
-    updated_project = await remove_entity_from_project(project_id, entity_data)
+    updated_project = await remove_entity_from_project(entity_data)
     if not updated_project:
         raise HTTPException(
             status_code=404, detail="Project not found after removing entity")
@@ -107,7 +105,7 @@ async def remove_entity_from_project_by_id(
 @router.delete("/delete-project/{project_id}")
 async def delete_project_by_id(
     project_id: UUID,
-    user: User = Depends(get_current_user)
+    user: Annotated[User, Depends(get_current_user)] = None
 ) -> dict:
     project = await get_project(project_id)
     if not project:
@@ -122,6 +120,6 @@ async def delete_project_by_id(
 
 @router.get("/get-user-projects", response_model=List[Project])
 async def list_all_projects(
-    user: User = Depends(get_current_user)
+    user: Annotated[User, Depends(get_current_user)] = None
 ) -> List[Project]:
     return await get_user_projects(user.id)

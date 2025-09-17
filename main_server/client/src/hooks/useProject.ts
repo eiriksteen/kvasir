@@ -66,8 +66,8 @@ async function updateProjectDetails(token: string, projectId: string, projectDat
   return snakeToCamelKeys(data);
 }
 
-async function addEntityToProject(token: string, projectId: string, entityData: AddEntityToProject): Promise<Project> {
-  const response = await fetch(`${API_URL}/project/add-entity/${projectId}`, {
+async function addEntityToProject(token: string, entityData: AddEntityToProject): Promise<Project> {
+  const response = await fetch(`${API_URL}/project/add-entity`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -85,8 +85,8 @@ async function addEntityToProject(token: string, projectId: string, entityData: 
   return snakeToCamelKeys(data);
 }
 
-async function removeEntityFromProject(token: string, projectId: string, entityData: RemoveEntityFromProject): Promise<Project> {
-  const response = await fetch(`${API_URL}/project/remove-entity/${projectId}`, {
+async function removeEntityFromProject(token: string, entityData: RemoveEntityFromProject): Promise<Project> {
+  const response = await fetch(`${API_URL}/project/remove-entity`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -345,7 +345,8 @@ export const useProject = (projectId: string) => {
     });
 
     // Update the project to include the entity
-    await addEntityToProject(session?.APIToken?.accessToken || '', project.id, {
+    await addEntityToProject(session?.APIToken?.accessToken || '', {
+      projectId: project.id,
       entityType,
       entityId: entityId as UUID,
     });
@@ -358,7 +359,8 @@ export const useProject = (projectId: string) => {
     if (!project) return;
 
     // Update the project to remove the entity
-    await removeEntityFromProject(session?.APIToken?.accessToken || '', project.id, {
+    await removeEntityFromProject(session?.APIToken?.accessToken || '', {
+      projectId: project.id,
       entityType,
       entityId: entityId as UUID,
     });
