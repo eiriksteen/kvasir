@@ -1,11 +1,17 @@
 from fastapi import APIRouter, Depends
 from typing import Annotated
 
-from synesis_schemas.project_server import RunDataSourceAnalysisRequest, RunDataIntegrationRequest, RunPipelineRequest
+from synesis_schemas.project_server import (
+    RunDataSourceAnalysisRequest,
+    RunDataIntegrationRequest,
+    RunPipelineRequest,
+    RunModelIntegrationRequest
+)
 from project_server.auth import TokenData, decode_token
 from project_server.agents.data_integration.runner import run_data_integration_task
 from project_server.agents.data_source_analysis.runner import run_data_source_analysis_task
 from project_server.agents.pipeline.runner import run_pipeline_task
+from project_server.agents.model_integration.runner import run_model_integration_task
 
 
 router = APIRouter()
@@ -50,4 +56,20 @@ async def run_pipeline(
         conversation_id=request.conversation_id,
         prompt_content=request.prompt_content,
         bearer_token=token_data.bearer_token
+    )
+
+
+@router.post("/run-model-integration")
+async def run_model_integration(
+        request: RunModelIntegrationRequest,
+        token_data: Annotated[TokenData, Depends(decode_token)] = None):
+
+    await run_model_integration_task.kiq(
+        user_id=token_data.user_id,
+        project_id=request.project_id,
+        conversation_id=request.conversation_id,
+        prompt_content=request.prompt_content,
+        bearer_token=token_data.bearer_token,
+        source_id=request.source_id,
+        public=request.public,
     )

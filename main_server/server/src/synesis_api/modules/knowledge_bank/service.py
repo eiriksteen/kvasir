@@ -1,12 +1,13 @@
 from sqlalchemy import select
 
 from synesis_api.database.service import fetch_all
-from synesis_api.modules.pipeline.models import (
+from synesis_api.modules.function.models import (
     function, function_input_structure, function_output_structure, function_output_variable
 )
-from synesis_schemas.main_server import FunctionBare
+from synesis_api.modules.model.models import model
+from synesis_api.modules.model_sources.models import model_source
 from synesis_api.utils.rag_utils import embed
-from synesis_schemas.main_server import FunctionQueryResult, QueryRequest
+from synesis_schemas.main_server import QueryRequest, FunctionQueryResult, ModelQueryResult, ModelSourceQueryResult, FunctionBare, ModelBare, ModelSourceBare
 
 
 async def query_functions(query_request: QueryRequest) -> FunctionQueryResult:
@@ -41,4 +42,38 @@ async def query_functions(query_request: QueryRequest) -> FunctionQueryResult:
         input_structures=fn_inputs,
         output_structures=fn_outputs,
         output_variables=fn_output_variables) for f in fns]
+    )
+
+
+async def query_models(query_request: QueryRequest) -> ModelQueryResult:
+
+    query_vector = (await embed([query_request.query]))[0]
+
+    model_query = select(
+        model
+    ).order_by(
+        model.c.embedding.cosine_distance(query_vector)
+    ).limit(query_request.k)
+
+    models = await fetch_all(model_query)
+
+    return ModelQueryResult(query_name=query_request.query_name, models=[ModelBare(
+        **m) for m in models]
+    )
+
+
+async def query_model_sources(query_request: QueryRequest) -> ModelSourceQueryResult:
+
+    query_vector = (await embed([query_request.query]))[0]
+
+    model_source_query = select(
+        model_source
+    ).order_by(
+        model_source.c.embedding.cosine_distance(query_vector)
+    ).limit(query_request.k)
+
+    model_sources = await fetch_all(model_source_query)
+
+    return ModelSourceQueryResult(query_name=query_request.query_name, model_sources=[ModelSourceBare(
+        **m) for m in model_sources]
     )

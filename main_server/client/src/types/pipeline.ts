@@ -82,73 +82,37 @@ export interface PipelineWithFunctions extends Pipeline {
   functions: FunctionWithoutEmbedding[];
 }
 
-export interface Modality {
-  id: UUID;
-  name: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Task {
-  id: UUID;
-  name: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Source {
-  id: UUID;
-  name: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ProgrammingLanguage {
-  id: UUID;
-  name: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ProgrammingLanguageVersion {
-  id: UUID;
-  programmingLanguageId: UUID;
-  version: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface Model {
   id: UUID;
   name: string;
   description: string;
   ownerId: UUID;
   public: boolean;
-  modalityId: UUID;
-  sourceId: UUID;
-  programmingLanguageVersionId: UUID;
-  setupScriptPath: string;
-  configScriptPath: string;
-  inputDescription: string;
-  outputDescription: string;
-  configParameters: Record<string, unknown>;
+  modality: string;
+  source: string;
+  programmingLanguageWithVersion: string;
+  setupScriptPath?: string;
+  defaultConfig?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+  inferenceFunctionId: UUID;
+  trainingFunctionId: UUID;
+  task: string;
+  embedding: number[];
+  inferenceFunction: FunctionWithoutEmbedding;
+  trainingFunction: FunctionWithoutEmbedding;
+}
+
+
+export interface ModelEntity {
+  id: UUID;
+  modelId: UUID;
+  projectId: UUID;
+  weightsSaveDir?: string;
+  config?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface ModelTask {
-  id: UUID;
-  modelId: UUID;
-  taskId: UUID;
-  inferenceScriptPath: string;
-  trainingScriptPath: string;
-  inferenceFunctionId: UUID;
-  trainingFunctionId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
+
 

@@ -18,7 +18,7 @@ class RunnerBase(ABC):
 
     def __init__(
             self,
-            agent: Agent,
+            agent: Optional[Agent],
             user_id: str,
             bearer_token: str,
             run_id: Optional[uuid.UUID] = None):
@@ -48,6 +48,9 @@ class RunnerBase(ABC):
         output_type: Optional[OutputSpec] = None,
         message_history: Optional[List[ModelMessage]] = None,
     ) -> AgentRunResult:
+
+        assert self.agent is not None, "Agent is not set"
+
         async with self.agent.iter(
                 prompt_content,
                 deps=deps,

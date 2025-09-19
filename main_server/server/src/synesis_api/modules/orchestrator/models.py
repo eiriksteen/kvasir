@@ -69,6 +69,18 @@ data_source_context = Table(
 )
 
 
+model_source_context = Table(
+    "model_source_context",
+    metadata,
+    Column("context_id", UUID(as_uuid=True),
+           ForeignKey("orchestrator.chat_context.id"), nullable=False),
+    Column("model_source_id", UUID(as_uuid=True),
+           ForeignKey("model_sources.model_source.id"), nullable=False),
+    PrimaryKeyConstraint("context_id", "model_source_id"),
+    schema="orchestrator"
+)
+
+
 dataset_context = Table(
     "dataset_context",
     metadata,
@@ -101,5 +113,17 @@ analysis_context = Table(
     Column("analysis_id", UUID(as_uuid=True),
            ForeignKey("analysis.analysis_jobs_results.job_id"), nullable=False),
     PrimaryKeyConstraint("context_id", "analysis_id"),
+    schema="orchestrator"
+)
+
+
+model_entity_context = Table(
+    "model_entity_context",
+    metadata,
+    Column("context_id", UUID(as_uuid=True),
+           ForeignKey("orchestrator.chat_context.id"), nullable=False),
+    Column("model_entity_id", UUID(as_uuid=True),
+           ForeignKey("model.model_entity.id"), nullable=False),
+    PrimaryKeyConstraint("context_id", "model_entity_id"),
     schema="orchestrator"
 )

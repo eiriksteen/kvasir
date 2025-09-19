@@ -20,43 +20,55 @@ from .project import (
     RemoveEntityFromProject,
 )
 
+
 # Pipeline schemas
-from .pipeline.create import (
-    FunctionInputStructureCreate,
-    FunctionOutputStructureCreate,
-    FunctionOutputVariableCreate,
-    FunctionCreate,
-    PipelineCreate,
-    ModelCreate,
-)
-
-from .pipeline.api import (
-    Function,
-    FunctionBare,
+from .pipeline import (
+    PipelineInDB,
+    PipelineRunInDB,
+    FunctionInPipelineInDB,
+    PeriodicScheduleInDB,
+    OnEventScheduleInDB,
+    PipelineRunObjectGroupResultInDB,
+    PipelineRunVariablesResultInDB,
     PipelineFull,
-    ModelBare,
-    ModelTaskBare,
+    PipelineCreate,
 )
 
-from .pipeline.io import (
+from .function import (
+    FunctionInDB,
     FunctionInputStructureInDB,
     FunctionOutputStructureInDB,
     FunctionOutputVariableInDB,
-    PipelineRunObjectGroupResultInDB,
-    PipelineRunVariablesResultInDB,
+    FunctionBare,
+    FunctionCreate,
+    FunctionOutputVariableCreate,
+    FunctionInputStructureCreate,
+    FunctionOutputStructureCreate,
 )
 
-from .pipeline.pipeline import (
-    PipelineInDB,
-    PipelineRunInDB,
-    FunctionInDB,
-    FunctionInPipelineInDB,
+from .model import (
+    ModelInDB,
+    ModelEntityInDB,
+    ModelEntityFull,
+    ModelCreate,
+    ModelEntityCreate,
+    ModelBare,
+    SUPPORTED_MODALITIES_TYPE,
+    SUPPORTED_TASK_TYPE,
 )
 
-from .pipeline.schedule import (
-    PeriodicScheduleInDB,
-    OnEventScheduleInDB,
+from .model_sources import (
+    ModelSourceInDB,
+    PypiModelSourceInDB,
+    PypiModelSourceCreate,
+    ModelSourceCreate,
+    PypiModelSourceFull,
+    ModelSource,
+    ModelSourceBare,
+    SUPPORTED_MODEL_SOURCES,
+    MODEL_SOURCE_TYPE_TO_MODEL_SOURCE_CLASS,
 )
+
 
 # Data Objects schemas
 from .data_objects import (
@@ -86,6 +98,10 @@ from .data_objects import (
     VariableGroupInDB,
     VariableInDB,
     VariableGroupFull,
+    DatasetSources,
+    DatasetFromDataSourceInDB,
+    DatasetFromDatasetInDB,
+    DatasetFromPipelineInDB,
 )
 
 # Data Sources schemas
@@ -142,6 +158,7 @@ from .orchestrator import (
     ChatPydanticMessageInDB,
     ContextInDB,
     DataSourceContextInDB,
+    ModelSourceContextInDB,
     DatasetContextInDB,
     PipelineContextInDB,
     AnalysisContextInDB,
@@ -150,12 +167,23 @@ from .orchestrator import (
     ContextCreate,
     UserChatMessageCreate,
     ConversationCreate,
+    ProjectGraph,
+    DataSourceInGraph,
+    ModelSourceInGraph,
+    DatasetInGraph,
+    PipelineInGraph,
+    AnalysisInGraph,
+    ModelEntityInGraph,
+    CreationSettings,
 )
 
 # Knowledge Bank schemas
 from .knowledge_bank import (
     SearchFunctionsRequest,
-    SearchFunctionsResponse,
+    SearchModelsRequest,
+    SearchModelSourcesRequest,
+    ModelQueryResult,
+    ModelSourceQueryResult,
     QueryRequest,
     FunctionQueryResult,
 )

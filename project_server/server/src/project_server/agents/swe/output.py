@@ -25,6 +25,8 @@ class ConfigOutput(BaseModel):
 
 
 class ImplementationOutput(BaseModel):
+    script_name: str
+    function_name: str
     code_explanation: str
 
 

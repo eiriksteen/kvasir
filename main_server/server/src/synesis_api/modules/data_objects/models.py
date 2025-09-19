@@ -30,6 +30,39 @@ dataset = Table(
 )
 
 
+dataset_from_data_source = Table(
+    "dataset_from_data_source",
+    metadata,
+    Column("data_source_id", UUID, ForeignKey(
+        "data_sources.data_source.id"), primary_key=True, nullable=False),
+    Column("dataset_id", UUID, ForeignKey(
+        "data_objects.dataset.id"), primary_key=True, nullable=False),
+    schema="data_objects"
+)
+
+
+dataset_from_dataset = Table(
+    "dataset_from_dataset",
+    metadata,
+    Column("source_dataset_id", UUID, ForeignKey(
+        "data_objects.dataset.id"), primary_key=True, nullable=False),
+    Column("dataset_id", UUID, ForeignKey(
+        "data_objects.dataset.id"), primary_key=True, nullable=False),
+    schema="data_objects"
+)
+
+
+dataset_from_pipeline = Table(
+    "dataset_from_pipeline",
+    metadata,
+    Column("pipeline_id", UUID, ForeignKey(
+        "pipeline.pipeline.id"), primary_key=True, nullable=False),
+    Column("dataset_id", UUID, ForeignKey(
+        "data_objects.dataset.id"), primary_key=True, nullable=False),
+    schema="data_objects"
+)
+
+
 data_object = Table(
     "data_object",
     metadata,

@@ -3,7 +3,7 @@ from pydantic_ai import RunContext, ModelRetry
 from pydantic import field_validator, BaseModel
 
 from synesis_data_structures.time_series.definitions import get_first_level_structure_ids
-from synesis_schemas.main_server import PipelineCreate, FunctionInputStructureCreate, FunctionOutputStructureCreate, FunctionOutputVariableCreate, ModelTaskBare
+from synesis_schemas.main_server import PipelineCreate, FunctionInputStructureCreate, FunctionOutputStructureCreate, FunctionOutputVariableCreate
 
 
 # Schema outputs
@@ -21,7 +21,6 @@ class DetailedFunctionDescription(BaseModel):
     input_structures: List[FunctionInputStructureCreate]
     output_structures: List[FunctionOutputStructureCreate]
     output_variables: List[FunctionOutputVariableCreate]
-    output_models: List[ModelTaskBare]
 
 
 class ImplementationFeedbackOutput(BaseModel):

@@ -1,24 +1,28 @@
+import { UUID } from "crypto";
+
 export type NodeType = "data_source" | "dataset" | "analysis" | "pipeline";
 
 export interface FrontendNode {
-  id: string;
-  projectId: string;
+  id: UUID;
+  projectId: UUID;
   xPosition: number;
   yPosition: number;
   type: NodeType;
-  dataSourceId: string | null;
-  datasetId: string | null;
-  analysisId: string | null; 
-  pipelineId: string | null;
+  dataSourceId: UUID | null;
+  datasetId: UUID | null;
+  analysisId: UUID | null; 
+  pipelineId: UUID | null;
+  modelId: UUID | null;
 }
 
 export interface FrontendNodeCreate {
-  projectId: string;
+  projectId: UUID;
   xPosition: number | null;
   yPosition: number | null;
   type: NodeType;
-  dataSourceId: string | null;
-  datasetId: string | null;
-  analysisId: string | null; 
-  pipelineId: string | null;
+  dataSourceId: UUID | null;
+  datasetId: UUID | null;
+  analysisId: UUID | null; 
+  pipelineId: UUID | null;
+  modelId: UUID | null;
 }

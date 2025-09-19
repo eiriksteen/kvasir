@@ -2,7 +2,7 @@ import json
 import uuid
 import pandas as pd
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 from dataclasses import asdict
 
 from synesis_data_structures.time_series.df_dataclasses import TimeSeriesStructure, TimeSeriesAggregationStructure
@@ -16,9 +16,9 @@ from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_AGGREGATION_STRUCTURE
 )
 
-from project_server.dataset_manager.abstract_dataset_manager import AbstractDatasetManager, DatasetCreate
+from project_server.dataset_manager.abstract_dataset_manager import AbstractDatasetManager
 from project_server.dataset_manager.dataclasses import ObjectGroupWithRawData, DatasetWithRawData, DatasetCreateWithRawData
-from synesis_schemas.main_server import DatasetFull
+from synesis_schemas.main_server import DatasetFull, DatasetSources
 from project_server.client.requests.data_objects import get_object_group, get_dataset
 
 
@@ -41,9 +41,21 @@ class LocalDatasetManager(AbstractDatasetManager):
             variable_groups=[]
         )
 
-    async def upload_dataset(self, dataset_create: DatasetCreateWithRawData, output_json: bool = False) -> Union[str, DatasetFull]:
+    async def upload_dataset(
+            self,
+            dataset_create: DatasetCreateWithRawData,
+            data_source_ids: List[uuid.UUID],
+            source_dataset_ids: List[uuid.UUID],
+            pipeline_ids: List[uuid.UUID],
+            output_json: bool = False) -> Union[str, DatasetFull]:
 
-        dataset_api, group_dataframe_save_paths, variable_group_save_paths = await self._upload_dataset_metadata_to_main_server(dataset_create)
+        sources = DatasetSources(
+            data_source_ids=data_source_ids,
+            source_dataset_ids=source_dataset_ids,
+            pipeline_ids=pipeline_ids
+        )
+
+        dataset_api, group_dataframe_save_paths, variable_group_save_paths = await self._upload_dataset_metadata_to_main_server(dataset_create, sources)
 
         for save_path, dataframe in group_dataframe_save_paths:
             assert isinstance(

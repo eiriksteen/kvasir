@@ -18,6 +18,21 @@ class DatasetInDB(BaseModel):
     updated_at: datetime
 
 
+class DatasetFromDataSourceInDB(BaseModel):
+    data_source_id: uuid.UUID
+    dataset_id: uuid.UUID
+
+
+class DatasetFromDatasetInDB(BaseModel):
+    source_dataset_id: uuid.UUID
+    dataset_id: uuid.UUID
+
+
+class DatasetFromPipelineInDB(BaseModel):
+    pipeline_id: uuid.UUID
+    dataset_id: uuid.UUID
+
+
 class DataObjectInDB(BaseModel):
     id: uuid.UUID
     name: str
@@ -140,14 +155,22 @@ class VariableGroupFull(VariableGroupInDB):
     variables: List[VariableInDB]
 
 
+class DatasetSources(BaseModel):
+    data_source_ids: List[uuid.UUID]
+    dataset_ids: List[uuid.UUID]
+    pipeline_ids: List[uuid.UUID]
+
+
 class DatasetFull(DatasetInDB):
     object_groups: List[ObjectGroupInDB]
     variable_groups: List[VariableGroupFull]
+    sources: DatasetSources
 
 
 class DatasetFullWithFeatures(DatasetInDB):
     object_groups: List[ObjectGroupWithFeatures]
     variable_groups: List[VariableGroupFull]
+    sources: DatasetSources
 
 
 class ObjectGroupWithEntitiesAndFeatures(ObjectGroupWithFeatures):
@@ -198,3 +221,4 @@ class DatasetCreate(BaseModel):
     description: str
     object_groups: List[ObjectGroupCreate]
     variable_groups: List[VariableGroupCreate]
+    sources: DatasetSources

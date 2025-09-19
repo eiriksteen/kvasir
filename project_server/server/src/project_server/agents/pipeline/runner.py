@@ -125,6 +125,7 @@ class PipelineAgentRunner(RunnerBase):
                         "I have been tasked to compose a data processing pipeline. For context, this is my full task description:\n\n" +
                         f"'{PIPELINE_AGENT_SYSTEM_PROMPT}'\n\n" +
                         f"Now I need you to implement a function as part of the pipeline. You need to implement:\n\n{fn_spec_output.model_dump_json()}\n\n" +
+                        "Give the function the name specified in the spec!"
                         "Go!"
                     )
 
@@ -206,7 +207,7 @@ class PipelineAgentRunner(RunnerBase):
                                     implementation_script_path),
                                 setup_script_path=str(
                                     setup_script_path) if setup_script_path else None,
-                                default_config=swe_result.config.config_dict if swe_result.config else None,
+                                default_args=swe_result.config.config_dict if swe_result.config else None,
                                 type=fn_spec_output.type,
                                 input_structures=[inp.model_dump()
                                                   for inp in fn_spec_output.input_structures],

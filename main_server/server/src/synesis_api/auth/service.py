@@ -20,6 +20,8 @@ from synesis_api.modules.orchestrator.models import conversation
 from synesis_api.modules.runs.models import run
 from synesis_api.modules.data_objects.models import dataset, object_group, data_object
 from synesis_api.modules.data_sources.models import data_source
+from synesis_api.modules.project.models import project
+from synesis_api.modules.model_sources.models import model_source
 from synesis_api.app_secrets import PRIVATE_KEY_FILE_PATH, PUBLIC_KEY_FILE_PATH
 from synesis_api.database.service import fetch_one, execute, fetch_all
 
@@ -199,6 +201,11 @@ async def user_owns_object_group(user_id: uuid.UUID, object_group_id: uuid.UUID)
     return object_group_record is not None
 
 
+async def user_owns_project(user_id: uuid.UUID, project_id: uuid.UUID) -> bool:
+    project_record = await fetch_one(select(project).where(project.c.id == project_id, project.c.user_id == user_id))
+    return project_record is not None
+
+
 async def user_owns_time_series(user_id: uuid.UUID, time_series_id: uuid.UUID) -> bool:
     owner_id = await fetch_one(select(
         dataset.c.user_id
@@ -218,3 +225,8 @@ async def user_owns_time_series(user_id: uuid.UUID, time_series_id: uuid.UUID) -
 async def user_owns_data_source(user_id: uuid.UUID, data_source_id: uuid.UUID) -> bool:
     data_source_record = await fetch_one(select(data_source).where(data_source.c.id == data_source_id, data_source.c.user_id == user_id))
     return data_source_record is not None
+
+
+async def user_can_access_model_source(user_id: uuid.UUID, model_source_id: uuid.UUID) -> bool:
+    model_source_record = await fetch_one(select(model_source).where(model_source.c.id == model_source_id, model_source.c.user_id == user_id))
+    return model_source_record is not None or model_source_record["is_public"]

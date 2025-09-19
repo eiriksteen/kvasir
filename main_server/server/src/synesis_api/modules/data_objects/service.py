@@ -15,7 +15,10 @@ from synesis_api.modules.data_objects.models import (
     feature_in_group,
     time_series_aggregation_input,
     variable_group,
-    variable
+    variable,
+    dataset_from_data_source,
+    dataset_from_dataset,
+    dataset_from_pipeline
 )
 from synesis_schemas.main_server import (
     FeatureCreate,
@@ -38,6 +41,10 @@ from synesis_schemas.main_server import (
     VariableGroupInDB,
     VariableInDB,
     VariableGroupFull,
+    DatasetSources,
+    DatasetFromDataSourceInDB,
+    DatasetFromDatasetInDB,
+    DatasetFromPipelineInDB,
 )
 from synesis_api.database.service import execute, fetch_one, fetch_all
 
@@ -96,6 +103,25 @@ async def create_dataset(
     )
 
     await execute(insert(dataset).values(dataset_record.model_dump()), commit_after=True)
+
+    # Create the sources
+    from_data_source_records, from_dataset_records, from_pipeline_records = [], [], []
+    for source in dataset_create.sources.data_source_ids:
+        from_data_source_records.append(DatasetFromDataSourceInDB(
+            dataset_id=dataset_record.id,
+            data_source_id=source))
+    for source in dataset_create.sources.dataset_ids:
+        from_dataset_records.append(DatasetFromDatasetInDB(
+            dataset_id=dataset_record.id,
+            source_dataset_id=source))
+    for source in dataset_create.sources.pipeline_ids:
+        from_pipeline_records.append(DatasetFromPipelineInDB(
+            dataset_id=dataset_record.id,
+            pipeline_id=source))
+
+    await execute(insert(dataset_from_data_source).values(from_data_source_records), commit_after=True)
+    await execute(insert(dataset_from_dataset).values(from_dataset_records), commit_after=True)
+    await execute(insert(dataset_from_pipeline).values(from_pipeline_records), commit_after=True)
 
     # Variables to collect object groups for the response
     object_group_records = []
@@ -333,13 +359,39 @@ async def get_user_datasets(
     if not datasets_result:
         return []
 
-    # Get all object groups for these datasets
+    # Get all data source, source dataset, and pipeline IDs
+    source_ids_query = select(dataset_from_data_source.c.data_source_id).where(
+        dataset_from_data_source.c.dataset_id.in_(
+            [d["id"] for d in datasets_result])
+    )
+    source_ids_result = await fetch_all(source_ids_query)
+
+    source_dataset_ids_query = select(dataset_from_dataset.c.source_dataset_id).where(
+        dataset_from_dataset.c.dataset_id.in_(
+            [d["id"] for d in datasets_result])
+    )
+    source_dataset_ids_result = await fetch_all(source_dataset_ids_query)
+
+    pipeline_ids_query = select(dataset_from_pipeline.c.pipeline_id).where(
+        dataset_from_pipeline.c.dataset_id.in_(
+            [d["id"] for d in datasets_result])
+    )
+    pipeline_ids_result = await fetch_all(pipeline_ids_query)
+
+    # Get all object groups
     dataset_ids = [d["id"] for d in datasets_result]
     object_groups_query = select(object_group).where(
         object_group.c.dataset_id.in_(dataset_ids)
     )
     object_groups_result = await fetch_all(object_groups_query)
 
+    object_groups = [ObjectGroupInDB(**group)
+                     for group in object_groups_result]
+
+    if include_features:
+        object_groups = await _add_features_to_object_groups(object_groups, max_features=max_features)
+
+    # Get all variable groups
     variable_groups_query = select(variable_group).where(
         variable_group.c.dataset_id.in_(dataset_ids)
     )
@@ -357,18 +409,22 @@ async def get_user_datasets(
     variables = [VariableInDB(**variable)
                  for variable in variables_result]
 
-    # Group object groups by dataset_id
-    object_groups = [ObjectGroupInDB(**group)
-                     for group in object_groups_result]
-    if include_features:
-        object_groups = await _add_features_to_object_groups(object_groups, max_features=max_features)
-
+    # Prepare the final records
     result_records = []
     for dataset_result in datasets_result:
         dataset_obj = DatasetInDB(**dataset_result)
 
         object_groups = [
             group for group in object_groups if group.dataset_id == dataset_obj.id]
+
+        sources = DatasetSources(
+            data_source_ids=[rec["data_source_id"]
+                             for rec in source_ids_result if rec["dataset_id"] == dataset_obj.id],
+            dataset_ids=[rec["source_dataset_id"]
+                         for rec in source_dataset_ids_result if rec["dataset_id"] == dataset_obj.id],
+            pipeline_ids=[rec["pipeline_id"]
+                          for rec in pipeline_ids_result if rec["dataset_id"] == dataset_obj.id]
+        )
 
         variable_groups = [
             group for group in variable_groups if group.dataset_id == dataset_obj.id]
@@ -385,13 +441,15 @@ async def get_user_datasets(
             record = DatasetFullWithFeatures(
                 **dataset_obj.model_dump(),
                 object_groups=object_groups,
-                variable_groups=variable_groups_full
+                variable_groups=variable_groups_full,
+                sources=sources
             )
         else:
             record = DatasetFull(
                 **dataset_obj.model_dump(),
                 object_groups=object_groups,
-                variable_groups=variable_groups_full
+                variable_groups=variable_groups_full,
+                sources=sources
             )
 
         result_records.append(record)

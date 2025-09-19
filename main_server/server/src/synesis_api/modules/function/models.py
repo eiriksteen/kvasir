@@ -1,0 +1,107 @@
+import uuid
+from datetime import timezone, datetime
+from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean, CheckConstraint, Integer, Float
+from sqlalchemy.dialects.postgresql import JSONB
+from pgvector.sqlalchemy import Vector
+
+from synesis_api.database.core import metadata
+from synesis_api.app_secrets import EMBEDDING_DIM
+from synesis_data_structures.time_series.definitions import get_first_level_structure_ids
+
+
+# Build the constraint string with proper quotes
+structure_ids = get_first_level_structure_ids()
+structure_constraint = "structure_id IN (" + \
+    ", ".join(f"'{id}'" for id in structure_ids) + ")"
+
+function_type_constraint = "type IN ('inference', 'training', 'computation', 'tool')"
+
+
+function = Table(
+    "function",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           default=uuid.uuid4,
+           primary_key=True),
+    Column("name", String, nullable=False),
+    Column("description", String, nullable=False),
+    Column("embedding", Vector(dim=EMBEDDING_DIM), nullable=False),
+    Column("implementation_script_path", String, nullable=False),
+    Column("setup_script_path", String, nullable=True),
+    Column("default_args", JSONB, nullable=True),
+    # Inference, training, computation, tool
+    Column("type", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    CheckConstraint(function_type_constraint),
+    schema="function"
+)
+
+
+function_input_structure = Table(
+    "function_input_structure",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           default=uuid.uuid4,
+           primary_key=True),
+    Column("function_id", UUID(as_uuid=True),
+           ForeignKey("function.function.id"),
+           nullable=False),
+    Column("structure_id", String, nullable=False),
+    Column("name", String, nullable=False),
+    Column("description", String, nullable=True),
+    Column("required", Boolean, nullable=False),
+    CheckConstraint(structure_constraint),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="function"
+)
+
+
+function_output_structure = Table(
+    "function_output_structure",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           default=uuid.uuid4,
+           primary_key=True),
+    Column("name", String, nullable=False),
+    Column("function_id", UUID(as_uuid=True),
+           ForeignKey("function.function.id"),
+           nullable=False),
+    Column("structure_id", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    Column("description", String, nullable=True),
+    CheckConstraint(structure_constraint),
+    schema="function"
+)
+
+
+function_output_variable = Table(
+    "function_output_variable",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           default=uuid.uuid4,
+           primary_key=True),
+    Column("name", String, nullable=False),
+    Column("function_id", UUID(as_uuid=True),
+           ForeignKey("function.function.id"),
+           nullable=False),
+    Column("python_type", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    Column("description", String, nullable=True),
+    schema="function"
+)

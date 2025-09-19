@@ -26,7 +26,6 @@ from .requests.pipeline import (
     get_user_pipelines,
     get_user_pipeline,
     post_pipeline,
-    post_function
 )
 
 from .requests.orchestrator import (
@@ -69,7 +68,23 @@ from .requests.project import (
 )
 
 from .requests.knowledge_bank import (
-    post_search_functions
+    post_search_functions,
+    post_search_models,
+    post_search_model_sources
+)
+
+from .requests.function import (
+    post_function
+)
+
+from .requests.model import (
+    post_model,
+    post_model_entity
+)
+
+from .requests.model_sources import (
+    get_model_source,
+    post_model_source
 )
 
 # Export all functions and classes
@@ -100,6 +115,15 @@ __all__ = [
     "get_user_pipeline",
     "post_pipeline",
     "post_function",
+    "post_model",
+    "post_model_entity",
+
+    # Function functions
+    "post_function",
+
+    # Model functions
+    "post_model",
+    "post_model_entity",
 
     # Orchestrator functions
     "post_conversation",

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 
@@ -19,3 +19,11 @@ class RunPipelineRequest(BaseModel):
     project_id: UUID
     conversation_id: UUID
     prompt_content: str
+
+
+class RunModelIntegrationRequest(BaseModel):
+    project_id: UUID
+    conversation_id: UUID
+    prompt_content: str
+    public: bool
+    source_id: Optional[UUID] = None

@@ -10,8 +10,7 @@ from project_server.dataset_manager.dataclasses import (
     ObjectGroupCreateWithRawData,
     DatasetWithRawData,
     ObjectGroupWithRawData,
-    VariableGroupCreateWithRawData,
-    RawVariableCreate
+    VariableGroupCreateWithRawData
 )
 from project_server.client import ProjectClient
 from project_server.client.requests.data_objects import post_dataset
@@ -23,7 +22,8 @@ from synesis_schemas.main_server import (
     ObjectGroupCreate,
     MetadataDataframe,
     VariableGroupCreate,
-    VariableCreate
+    VariableCreate,
+    DatasetSources
 )
 
 
@@ -65,7 +65,14 @@ class AbstractDatasetManager(ABC):
         """
 
     @abstractmethod
-    async def upload_dataset(self, dataset: DatasetCreateWithRawData, output_json: bool = False) -> Union[str, DatasetWithRawData]:
+    async def upload_dataset(
+        self,
+        dataset: DatasetCreateWithRawData,
+        data_source_ids: List[uuid.UUID],
+        source_dataset_ids: List[uuid.UUID],
+        pipeline_ids: List[uuid.UUID],
+        output_json: bool = False
+    ) -> Union[str, DatasetWithRawData]:
         """
         - Upload dataset to main server
         NB: Implementation must call self._upload_dataset_metadata_to_main_server(dataset)
@@ -73,7 +80,7 @@ class AbstractDatasetManager(ABC):
 
     # Private methods
 
-    async def _upload_dataset_metadata_to_main_server(self, dataset_create: DatasetCreateWithRawData) -> Tuple[DatasetFull, List[Tuple[Path, pd.DataFrame]], List[Tuple[Path, dict]]]:
+    async def _upload_dataset_metadata_to_main_server(self, dataset_create: DatasetCreateWithRawData, sources: DatasetSources) -> Tuple[DatasetFull, List[Tuple[Path, pd.DataFrame]], List[Tuple[Path, dict]]]:
         """
         Upload dataset metadata to main server
         """
@@ -85,7 +92,8 @@ class AbstractDatasetManager(ABC):
             name=dataset_create.name,
             description=dataset_create.description,
             object_groups=[],
-            variable_groups=[]
+            variable_groups=[],
+            sources=sources
         )
 
         dataset_path = INTEGRATED_DATA_DIR / str(uuid.uuid4())

@@ -1,7 +1,7 @@
 from typing import List
 
 from project_server.client import ProjectClient
-from synesis_schemas.main_server import PipelineCreate, PipelineFull, FunctionCreate, FunctionInDB, PipelineInDB
+from synesis_schemas.main_server import PipelineCreate, PipelineFull, PipelineInDB
 
 
 async def get_user_pipelines(client: ProjectClient) -> List[PipelineInDB]:
@@ -20,9 +20,3 @@ async def post_pipeline(client: ProjectClient, pipeline_data: PipelineCreate) ->
     """Create a new pipeline"""
     response = await client.send_request("post", "/pipeline/pipeline", json=pipeline_data.model_dump(mode="json"))
     return PipelineInDB(**response.body)
-
-
-async def post_function(client: ProjectClient, function_data: FunctionCreate) -> FunctionInDB:
-    """Create a new function"""
-    response = await client.send_request("post", "/pipeline/function", json=function_data.model_dump(mode="json"))
-    return FunctionInDB(**response.body)

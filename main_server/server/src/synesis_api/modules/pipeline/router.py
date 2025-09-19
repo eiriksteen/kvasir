@@ -4,8 +4,7 @@ from typing import List
 from synesis_api.auth.service import get_current_user
 from synesis_schemas.main_server import User
 from synesis_api.modules.pipeline.service import get_user_pipelines, get_user_pipeline_with_functions, create_pipeline
-from synesis_schemas.main_server import PipelineFull, PipelineCreate, FunctionCreate, FunctionInDB, PipelineInDB
-from synesis_api.modules.pipeline.service import create_function
+from synesis_schemas.main_server import PipelineFull, PipelineCreate, PipelineInDB
 
 router = APIRouter()
 
@@ -34,13 +33,3 @@ async def post_pipeline(
 
     pipeline = await create_pipeline(user.id, request)
     return pipeline
-
-
-@router.post("/function", response_model=FunctionInDB)
-async def post_function(
-    request: FunctionCreate,
-    _: User = Depends(get_current_user),
-) -> FunctionInDB:
-
-    function = await create_function(request)
-    return function

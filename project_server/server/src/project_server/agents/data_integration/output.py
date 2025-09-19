@@ -1,11 +1,10 @@
+import json
 import uuid
 from pydantic import BaseModel
 from pydantic_ai import RunContext, ModelRetry
 
 from project_server.agents.data_integration.deps import DataIntegrationAgentDeps
 from project_server.utils.code_utils import run_python_function_in_container, remove_print_statements_from_code
-
-import json
 
 
 class DataIntegrationAgentOutput(BaseModel):
@@ -45,7 +44,12 @@ async def submit_data_integration_output(
             f"dataset_manager = LocalDatasetManager('{ctx.deps.bearer_token}')"
         ),
         function_name="dataset_manager.upload_dataset",
-        input_variables=["dataset_create, True"],
+        input_variables=[
+            "dataset_create",
+            repr([ds.id for ds in ctx.deps.data_sources]),
+            "[]",
+            "[]",
+            "True"],
         print_output=True,
         async_function=True
     )

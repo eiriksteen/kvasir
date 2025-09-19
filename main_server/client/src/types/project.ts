@@ -11,6 +11,7 @@ export interface Project {
     datasetIds: UUID[];
     analysisIds: UUID[];
     pipelineIds: UUID[];
+    modelIds: UUID[];
 }
 
 export interface ProjectCreate {

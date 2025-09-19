@@ -32,6 +32,18 @@ project_data_source = Table(
 )
 
 
+project_model_source = Table(
+    "project_model_source",
+    metadata,
+    Column("project_id", UUID(as_uuid=True), ForeignKey(
+        "project.project.id"), nullable=False),
+    Column("model_source_id", UUID(as_uuid=True), ForeignKey(
+        "model_sources.model_source.id"), nullable=False),
+    PrimaryKeyConstraint("project_id", "model_source_id"),
+    schema="project"
+)
+
+
 project_dataset = Table(
     "project_dataset",
     metadata,
@@ -64,5 +76,17 @@ project_pipeline = Table(
     Column("pipeline_id", UUID(as_uuid=True), ForeignKey(
         "pipeline.pipeline.id"), nullable=False),
     PrimaryKeyConstraint("project_id", "pipeline_id"),
+    schema="project"
+)
+
+
+project_model = Table(
+    "project_model",
+    metadata,
+    Column("project_id", UUID(as_uuid=True), ForeignKey(
+        "project.project.id"), nullable=False),
+    Column("model_id", UUID(as_uuid=True), ForeignKey(
+        "model.model.id"), nullable=False),
+    PrimaryKeyConstraint("project_id", "model_id"),
     schema="project"
 )

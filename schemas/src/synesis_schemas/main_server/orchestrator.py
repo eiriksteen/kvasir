@@ -47,6 +47,11 @@ class DataSourceContextInDB(BaseModel):
     data_source_id: uuid.UUID
 
 
+class ModelSourceContextInDB(BaseModel):
+    context_id: uuid.UUID
+    model_source_id: uuid.UUID
+
+
 class DatasetContextInDB(BaseModel):
     context_id: uuid.UUID
     dataset_id: uuid.UUID
@@ -68,13 +73,73 @@ class AnalysisContextInDB(BaseModel):
 class Context(BaseModel):
     id: uuid.UUID
     data_source_ids: List[uuid.UUID] = []
+    model_source_ids: List[uuid.UUID] = []
     dataset_ids: List[uuid.UUID] = []
     pipeline_ids: List[uuid.UUID] = []
     analysis_ids: List[uuid.UUID] = []
+    model_entity_ids: List[uuid.UUID] = []
 
 
 class ChatMessage(ChatMessageInDB):
     context: Optional[Context] = None
+
+
+class DataSourceInGraph(BaseModel):
+    id: uuid.UUID
+    name: str
+    type: Literal["file"]
+    brief_description: str
+    connections_to: List[uuid.UUID] = []
+    connections_from: List[uuid.UUID] = []
+
+
+class ModelSourceInGraph(BaseModel):
+    id: uuid.UUID
+    name: str
+    brief_description: str
+    connections_to: List[uuid.UUID] = []
+    connections_from: List[uuid.UUID] = []
+
+
+class DatasetInGraph(BaseModel):
+    id: uuid.UUID
+    name: str
+    brief_description: str
+    connections_to: List[uuid.UUID] = []
+    connections_from: List[uuid.UUID] = []
+
+
+class PipelineInGraph(BaseModel):
+    id: uuid.UUID
+    name: str
+    brief_description: str
+    connections_to: List[uuid.UUID] = []
+    connections_from: List[uuid.UUID] = []
+
+
+class AnalysisInGraph(BaseModel):
+    id: uuid.UUID
+    name: str
+    brief_description: str
+    connections_to: List[uuid.UUID] = []
+    connections_from: List[uuid.UUID] = []
+
+
+class ModelEntityInGraph(BaseModel):
+    id: uuid.UUID
+    name: str
+    brief_description: str
+    connections_to: List[uuid.UUID] = []
+    connections_from: List[uuid.UUID] = []
+
+
+class ProjectGraph(BaseModel):
+    data_sources: List[DataSourceInGraph] = []
+    model_sources: List[ModelSourceInGraph] = []
+    datasets: List[DatasetInGraph] = []
+    pipelines: List[PipelineInGraph] = []
+    analyses: List[AnalysisInGraph] = []
+    model_entities: List[ModelEntityInGraph] = []
 
 
 # Create Models
@@ -82,15 +147,22 @@ class ChatMessage(ChatMessageInDB):
 
 class ContextCreate(BaseModel):
     data_source_ids: List[uuid.UUID] = []
+    model_source_ids: List[uuid.UUID] = []
     dataset_ids: List[uuid.UUID] = []
     pipeline_ids: List[uuid.UUID] = []
     analysis_ids: List[uuid.UUID] = []
+    model_entity_ids: List[uuid.UUID] = []
+
+
+class CreationSettings(BaseModel):
+    public: bool
 
 
 class UserChatMessageCreate(BaseModel):
     content: str
     conversation_id: uuid.UUID
     context: Optional[ContextCreate] = None
+    creation_settings: Optional[CreationSettings] = None
 
 
 class ConversationCreate(BaseModel):

@@ -27,7 +27,16 @@ from synesis_api.modules.orchestrator.models import (
     data_source_context
 )
 from synesis_api.modules.pipeline.models import (
-    pipeline, function, function_input_structure, function_output_structure, function_output_variable, pipeline_run_variables_result, function_in_pipeline
+    pipeline, pipeline_from_dataset, pipeline_from_model, pipeline_periodic_schedule, pipeline_on_event_schedule, pipeline_run, pipeline_inference_run_object_group_result, pipeline_run_variables_result, function_in_pipeline
+)
+from synesis_api.modules.function.models import (
+    function, function_input_structure, function_output_structure, function_output_variable
+)
+from synesis_api.modules.model.models import (
+    model, model_entity
+)
+from synesis_api.modules.model_sources.models import (
+    model_source, pypi_model_source
 )
 from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_pipelines, analysis_status_messages
 from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_pipeline, project_data_source
@@ -83,12 +92,22 @@ __all__ = [
     analysis_context,
     data_source_context,
     pipeline,
+    pipeline_from_dataset,
+    pipeline_from_model,
+    pipeline_periodic_schedule,
+    pipeline_on_event_schedule,
+    pipeline_run,
+    pipeline_inference_run_object_group_result,
+    pipeline_run_variables_result,
+    function_in_pipeline,
     function,
     function_input_structure,
     function_output_structure,
     function_output_variable,
-    pipeline_run_variables_result,
-    function_in_pipeline,
+    model,
+    model_entity,
+    model_source,
+    pypi_model_source,
     project,
     project_dataset,
     project_analysis,
@@ -109,7 +128,7 @@ target_metadata = metadata
 
 def include_name(name, type_, parent_names):
     if type_ == "schema":
-        return name in ["public", "auth", "data_sources", "runs", "data_objects", "analysis", "orchestrator", "pipeline", "project", "node"]
+        return name in ["public", "auth", "data_sources", "runs", "data_objects", "analysis", "orchestrator", "pipeline", "function", "model", "model_sources", "project", "node"]
     else:
         return True
 

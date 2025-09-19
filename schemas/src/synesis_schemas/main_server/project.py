@@ -37,11 +37,13 @@ class ProjectDetailsUpdate(BaseModel):
 
 class AddEntityToProject(BaseModel):
     project_id: UUID
-    entity_type: Literal["data_source", "dataset", "analysis", "pipeline"]
+    entity_type: Literal["data_source", "model_source", "dataset",
+                         "analysis", "pipeline", "model"]
     entity_id: UUID
 
 
 class RemoveEntityFromProject(BaseModel):
     project_id: UUID
-    entity_type: Literal["data_source", "dataset", "analysis", "pipeline"]
+    entity_type: Literal["data_source", "model_source", "dataset",
+                         "analysis", "pipeline", "model"]
     entity_id: UUID

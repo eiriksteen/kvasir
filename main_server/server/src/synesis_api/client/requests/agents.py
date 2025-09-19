@@ -1,5 +1,5 @@
 from synesis_api.client import MainServerClient
-from synesis_schemas.project_server import RunDataSourceAnalysisRequest, RunDataIntegrationRequest, RunPipelineRequest
+from synesis_schemas.project_server import RunDataSourceAnalysisRequest, RunDataIntegrationRequest, RunPipelineRequest, RunModelIntegrationRequest
 
 
 async def post_run_data_source_analysis(client: MainServerClient, request: RunDataSourceAnalysisRequest) -> None:
@@ -12,3 +12,7 @@ async def post_run_data_integration(client: MainServerClient, request: RunDataIn
 
 async def post_run_pipeline(client: MainServerClient, request: RunPipelineRequest) -> None:
     await client.send_request("post", "/agents/run-pipeline", json=request.model_dump(mode="json"))
+
+
+async def post_run_model_integration(client: MainServerClient, request: RunModelIntegrationRequest) -> None:
+    await client.send_request("post", "/agents/run-model-integration", json=request.model_dump(mode="json"))

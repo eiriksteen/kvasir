@@ -10,7 +10,6 @@ from synesis_schemas.main_server import (
     ChatMessageInDB,
     ConversationInDB,
     ConversationCreate,
-    RunCreate,
 )
 from synesis_api.modules.orchestrator.service import (
     create_conversation,
@@ -25,13 +24,18 @@ from synesis_api.modules.orchestrator.service import (
     update_conversation_name,
 )
 from synesis_api.modules.orchestrator.agent import orchestrator_agent
-from synesis_api.modules.orchestrator.agent.output import OrchestratorOutput
+from synesis_api.modules.orchestrator.agent.output import (
+    ChatHandoffOutput,
+    AnalysisHandoffOutput,
+    DataIntegrationHandoffOutput,
+    PipelineHandoffOutput,
+    ModelIntegrationHandoffOutput
+)
 from synesis_api.auth.service import get_current_user, user_owns_conversation
 from synesis_schemas.main_server import User
-from synesis_api.modules.runs.service import create_run
 from synesis_api.auth.service import oauth2_scheme
-from synesis_api.client import MainServerClient, post_run_data_integration, post_run_pipeline
-from synesis_schemas.project_server import RunDataIntegrationRequest, RunPipelineRequest
+from synesis_api.client import MainServerClient, post_run_data_integration, post_run_pipeline, post_run_model_integration
+from synesis_schemas.project_server import RunDataIntegrationRequest, RunPipelineRequest, RunModelIntegrationRequest
 
 
 router = APIRouter()
@@ -67,9 +71,8 @@ async def post_chat(
         "If launching an agent, choose between 'analysis', 'data_integration' or 'pipeline'. If not just choose 'chat'. \n\n" +
         "Do not launch any agent if the context is empty, tell the user to add some entities to the context.\n\n" +
         f"The context is:\n\n{context_message}",
-        message_history=messages, output_type=OrchestratorOutput)
-
-    handoff_agent = orchestrator_run.output.handoff_agent
+        message_history=messages
+    )
 
     async def stream_response():
 
@@ -108,15 +111,15 @@ async def post_chat(
         await create_chat_message(conversation_record.id, "assistant", response_message.content, response_message.context_id, response_message.id)
         await create_chat_message_pydantic(conversation_record.id, [orchestrator_run.new_messages_json(), result.new_messages_json()])
 
-        if handoff_agent != "chat":
+        if not isinstance(orchestrator_run.output, ChatHandoffOutput):
 
-            if handoff_agent == "analysis":
+            if isinstance(orchestrator_run.output, AnalysisHandoffOutput):
                 raise HTTPException(
                     status_code=501, detail="Analysis is not implemented yet")
 
             client = MainServerClient(token)
 
-            if handoff_agent == "data_integration":
+            if isinstance(orchestrator_run.output, DataIntegrationHandoffOutput):
 
                 await post_run_data_integration(client, RunDataIntegrationRequest(
                     project_id=conversation_record.project_id,
@@ -125,12 +128,22 @@ async def post_chat(
                     prompt_content=prompt.content
                 ))
 
-            elif handoff_agent == "pipeline":
+            elif isinstance(orchestrator_run.output, PipelineHandoffOutput):
 
                 await post_run_pipeline(client, RunPipelineRequest(
                     project_id=conversation_record.project_id,
                     conversation_id=conversation_record.id,
                     prompt_content=prompt.content,
+                ))
+
+            elif isinstance(orchestrator_run.output, ModelIntegrationHandoffOutput):
+
+                await post_run_model_integration(client, RunModelIntegrationRequest(
+                    project_id=conversation_record.project_id,
+                    conversation_id=conversation_record.id,
+                    prompt_content=prompt.content,
+                    public=prompt.creation_settings.public if prompt.creation_settings else False,
+                    source_id=orchestrator_run.output.source_id,
                 ))
 
         if is_new_conversation:

@@ -9,6 +9,8 @@ router = APIRouter()
 
 @router.post("/run-pipeline")
 async def run_pipeline(request: RunPipelineRequest):
+
+    # Run the pipeline and create a new enitity in the frontend for the results
     pass
 
 
