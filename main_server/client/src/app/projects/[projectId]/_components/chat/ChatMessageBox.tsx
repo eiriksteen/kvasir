@@ -7,9 +7,16 @@ import remarkGfm from 'remark-gfm';
 import { ChatMessage } from '@/types/orchestrator';
 import { Dataset } from '@/types/data-objects';
 import { useDatasets } from '@/hooks/useDatasets';
+import { UUID } from 'crypto';
 
-const ChatMessageBox = memo(({ message }: { message: ChatMessage }) => {
-  const { datasets } = useDatasets();
+interface ChatMessageBoxProps {
+  message: ChatMessage;
+  projectId: UUID;
+}
+
+
+const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
+  const { datasets } = useDatasets(projectId);
   // const { analysisJobResults } = useAnalysis();
 
   const hasContext = message.context && (

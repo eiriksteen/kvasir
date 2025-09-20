@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, UploadFile, HTTPException
 from synesis_api.modules.data_sources.service import (
     create_data_source,
     get_data_sources,
+    get_project_data_sources,
     create_data_source_analysis,
     create_data_source_details
 )
@@ -40,6 +41,14 @@ async def fetch_data_sources(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> List[DataSource]:
     return await get_data_sources(user_id=user.id)
+
+
+@router.get("/project-data-sources/{project_id}", response_model=List[DataSource])
+async def fetch_data_sources(
+    project_id: UUID,
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> List[DataSource]:
+    return await get_project_data_sources(user_id=user.id, project_id=project_id)
 
 
 @router.get("/data-sources-by-ids", response_model=List[DataSource])

@@ -54,6 +54,23 @@ class ModelEntityFromPipelineInDB(BaseModel):
 
 # API models
 
+class ModelWithoutEmbedding(ModelInDB):
+    id: UUID
+    name: str
+    description: str
+    owner_id: UUID
+    public: bool
+    modality: SUPPORTED_MODALITIES_TYPE
+    source_id: UUID
+    task: SUPPORTED_TASK_TYPE
+    programming_language_with_version: str
+    inference_function_id: UUID
+    training_function_id: UUID
+    created_at: datetime
+    updated_at: datetime
+    setup_script_path: Optional[str] = None
+    default_config: Optional[dict] = None
+
 
 class ModelBare(BaseModel):
     id: UUID
@@ -64,7 +81,7 @@ class ModelBare(BaseModel):
 
 
 class ModelEntityFull(ModelEntityInDB):
-    model: ModelInDB
+    model: ModelWithoutEmbedding
 
 
 # Create models

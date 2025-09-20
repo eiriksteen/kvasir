@@ -7,6 +7,7 @@ from sqlalchemy import select, insert
 from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.pipeline.models import pipeline, function_in_pipeline, pipeline_periodic_schedule
 from synesis_api.modules.function.models import function, function_input_structure, function_output_structure, function_output_variable
+from synesis_api.modules.project.service import get_pipeline_ids_in_project
 from synesis_schemas.main_server import (
     PipelineInDB,
     FunctionInPipelineInDB,
@@ -72,14 +73,6 @@ async def create_pipeline(
     return pipeline_obj
 
 
-async def get_user_pipelines(user_id: uuid.UUID) -> List[PipelineInDB]:
-    pipelines = await fetch_all(
-        select(pipeline).where(pipeline.c.user_id == user_id)
-    )
-    pipeline_objs = [PipelineInDB(**p) for p in pipelines]
-    return pipeline_objs
-
-
 async def get_user_pipelines_by_ids(user_id: uuid.UUID, pipeline_ids: List[uuid.UUID]) -> List[PipelineInDB]:
     pipelines = await fetch_all(
         select(pipeline).where(
@@ -88,6 +81,12 @@ async def get_user_pipelines_by_ids(user_id: uuid.UUID, pipeline_ids: List[uuid.
         )
     )
     return [PipelineInDB(**p) for p in pipelines]
+
+
+async def get_project_pipelines(user_id: uuid.UUID, project_id: uuid.UUID) -> List[PipelineInDB]:
+    pipeline_ids = await get_pipeline_ids_in_project(project_id)
+    pipelines = await get_user_pipelines_by_ids(user_id, pipeline_ids)
+    return pipelines
 
 
 async def get_user_pipeline_with_functions(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> PipelineFull:

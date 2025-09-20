@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
+from uuid import UUID
+from typing import List
 
-from synesis_schemas.main_server import ModelInDB, ModelCreate, ModelEntityInDB, ModelEntityCreate
+from synesis_schemas.main_server import ModelInDB, ModelCreate, ModelEntityInDB, ModelEntityCreate, ModelEntityFull, User
 from synesis_api.auth.service import get_current_user, user_owns_project
-from synesis_api.modules.model.service import create_model, create_model_entity
-from synesis_schemas.main_server import User
+from synesis_api.modules.model.service import create_model, create_model_entity, get_project_model_entities
 
 
 router = APIRouter()
@@ -30,3 +31,16 @@ async def post_model_entity(
 
     model_entity = await create_model_entity(request)
     return model_entity
+
+
+@router.get("/project-model-entities/{project_id}", response_model=List[ModelEntityFull])
+async def fetch_project_model_entities(
+    project_id: UUID,
+    user: User = Depends(get_current_user),
+) -> List[ModelEntityFull]:
+
+    if not user_owns_project(user.id, project_id):
+        raise HTTPException(
+            status_code=403, detail="Not authorized to access this project")
+
+    return await get_project_model_entities(project_id)

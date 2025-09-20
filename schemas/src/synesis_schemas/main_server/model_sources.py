@@ -24,7 +24,6 @@ class ModelSourceInDB(BaseModel):
 
 class PypiModelSourceInDB(BaseModel):
     id: UUID
-    model_source_id: UUID
     package_name: str
     package_version: str
     created_at: datetime

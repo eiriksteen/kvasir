@@ -160,7 +160,7 @@ async function createNode(token: string, node: FrontendNodeCreate): Promise<Fron
   return snakeToCamelKeys(data);
 }
 
-async function deleteNode(token: string, nodeId: string): Promise<string> {
+async function deleteNode(token: string, nodeId: UUID): Promise<UUID> {
   const response = await fetch(`${API_URL}/node/delete/${nodeId}`, {
     method: 'DELETE',
     headers: {
@@ -172,7 +172,8 @@ async function deleteNode(token: string, nodeId: string): Promise<string> {
     const errorText = await response.text();
     throw new Error(`Failed to delete node: ${response.status} ${errorText}`);
   }
-  return response.json();
+  const data = await response.json();
+  return snakeToCamelKeys(data);
 }
 
 
@@ -230,7 +231,7 @@ export const useProjects = () => {
   return { projects, mutateProjects, error, isLoading, triggerUpdateProject, triggerCreateNewProject };
 }
 
-export const useProject = (projectId: string) => {
+export const useProject = (projectId: UUID) => {
   const { data: session } = useSession();
   const { projects, mutateProjects, triggerUpdateProject } = useProjects();
 
@@ -283,11 +284,11 @@ export const useProject = (projectId: string) => {
   // Delete node
   const { trigger: deleteNodeTrigger } = useSWRMutation(
     session && project ? ['projectNodes', project.id] : null,
-    async (_, { arg }: { arg: string } ) => {
+    async (_, { arg }: { arg: UUID } ) => {
       return await deleteNode(session?.APIToken?.accessToken || '', arg);
     },
     {
-      populateCache: ( newData: string ) => {
+      populateCache: ( newData: UUID ) => {
         if (frontendNodes) {
           return frontendNodes.filter((node) => node.id !== newData);
         }
@@ -327,7 +328,7 @@ export const useProject = (projectId: string) => {
 
 
   // Unified function to add any entity to project
-  const addEntity = async (entityType: "data_source" | "dataset" | "analysis" | "pipeline", entityId: string) => {
+  const addEntity = async (entityType: "data_source" | "model_source" | "dataset" | "analysis" | "pipeline" | "model", entityId: UUID) => {
     if (!project) return;
 
     //const position = calculateNodePosition();
@@ -342,6 +343,8 @@ export const useProject = (projectId: string) => {
       datasetId: entityType === "dataset" ? entityId : null,
       analysisId: entityType === "analysis" ? entityId : null,
       pipelineId: entityType === "pipeline" ? entityId : null,
+      modelSourceId: entityType === "model_source" ? entityId : null,
+      modelId: entityType === "model" ? entityId : null,
     });
 
     // Update the project to include the entity
@@ -355,7 +358,7 @@ export const useProject = (projectId: string) => {
   };
 
   // Unified function to remove any entity from project
-  const removeEntity = async (entityType: "data_source" | "dataset" | "analysis" | "pipeline", entityId: string) => {
+  const removeEntity = async (entityType: "data_source" | "model_source" | "dataset" | "analysis" | "pipeline" | "model", entityId: UUID) => {
     if (!project) return;
 
     // Update the project to remove the entity
@@ -379,6 +382,12 @@ export const useProject = (projectId: string) => {
         break;
       case "pipeline":
         nodeToDelete = frontendNodes?.find(node => node.pipelineId === entityId);
+        break;
+      case "model_source":
+        nodeToDelete = frontendNodes?.find(node => node.modelSourceId === entityId);
+        break;
+      case "model":
+        nodeToDelete = frontendNodes?.find(node => node.modelId === entityId);
         break;
     }
     

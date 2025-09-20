@@ -6,6 +6,7 @@ import { useDataSources } from '@/hooks/useDataSources';
 import { useProject } from '@/hooks/useProject';
 import { DataSource } from '@/types/data-sources';
 import SourceTypeIcon from "@/app/data-sources/_components/SourceTypeIcon";
+import { UUID } from 'crypto';
 
 function DataSourceListItem({ dataSource, isFirst }: { dataSource: DataSource; isFirst: boolean }) {
 
@@ -26,7 +27,7 @@ function DataSourceListItem({ dataSource, isFirst }: { dataSource: DataSource; i
 
 interface AddDataSourceProps {
   onClose: () => void;
-  projectId: string;
+  projectId: UUID;
 }
 
 export default function AddDataSource({ onClose, projectId }: AddDataSourceProps) {

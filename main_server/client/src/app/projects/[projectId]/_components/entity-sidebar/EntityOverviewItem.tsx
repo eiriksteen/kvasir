@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import AddEntityIcon from '@/app/projects/[projectId]/_components/entity-sidebar/AddEntityIcon';
+import AddEntityButton from '@/app/projects/[projectId]/_components/entity-sidebar/AddEntityButton';
 
-type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source';
+type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_source' | 'model';
 
 interface EntityOverviewItemProps {
     title: string;
@@ -64,7 +64,9 @@ export default function EntityOverviewItem({ title, count, color, onToggle, onAd
         'Datasets': 'dataset',
         'Analysis': 'analysis',
         'Pipelines': 'pipeline',
-        'Data Sources': 'data_source'
+        'Data Sources': 'data_source',
+        'Model Sources': 'model_source',
+        'Models': 'model'
     };
     const itemType = itemTypeMap[title];
 
@@ -81,18 +83,10 @@ export default function EntityOverviewItem({ title, count, color, onToggle, onAd
                     {title}
                 </span>
             </div>
-            <button
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onAdd();
-                }}
-                className={`p-1.5 rounded-md inline-flex items-center justify-center min-w-[32px] min-h-[32px] ${colors.buttonBg} border ${colors.border} transition-all duration-200 ${colors.buttonHover} hover:scale-105`}
-                title={`Add ${title.slice(0, -1)}`}
-            >
-                <div className={colors.icon}>
-                    <AddEntityIcon type={itemType} />
-                </div>
-            </button>
+
+            <div className={colors.icon}>
+                <AddEntityButton type={itemType} onAdd={onAdd} />
+            </div>
         </div>
     );
 }

@@ -16,7 +16,7 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
   projectId,
 }) => {
 
-  const { conversations, isLoading, isError } = useConversations();
+  const { conversations, isLoading, isError } = useConversations(projectId);
   
   const { 
     conversation,

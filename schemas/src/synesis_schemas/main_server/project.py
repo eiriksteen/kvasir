@@ -13,9 +13,11 @@ class Project(BaseModel):
     created_at: datetime = datetime.now(timezone.utc)
     updated_at: datetime = datetime.now(timezone.utc)
     data_source_ids: List[UUID] = []
+    model_source_ids: List[UUID] = []
     dataset_ids: List[UUID] = []
     analysis_ids: List[UUID] = []
     pipeline_ids: List[UUID] = []
+    model_ids: List[UUID] = []
 
 
 class ProjectCreate(BaseModel):

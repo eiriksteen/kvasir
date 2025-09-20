@@ -32,6 +32,9 @@ from .pipeline import (
     PipelineRunVariablesResultInDB,
     PipelineFull,
     PipelineCreate,
+    PipelineSources,
+    PipelineFull,
+    PipelineCreate,
 )
 
 from .function import (
@@ -55,6 +58,7 @@ from .model import (
     ModelBare,
     SUPPORTED_MODALITIES_TYPE,
     SUPPORTED_TASK_TYPE,
+    ModelWithoutEmbedding,
 )
 
 from .model_sources import (

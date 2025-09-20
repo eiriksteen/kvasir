@@ -8,6 +8,7 @@ export interface Project {
     createdAt: string;
     updatedAt: string;
     dataSourceIds: UUID[];
+    modelSourceIds: UUID[];
     datasetIds: UUID[];
     analysisIds: UUID[];
     pipelineIds: UUID[];
@@ -26,12 +27,12 @@ export interface ProjectDetailsUpdate {
 
 export interface AddEntityToProject {
     projectId: UUID;
-    entityType: "data_source" | "dataset" | "analysis" | "pipeline";
+    entityType: "data_source" | "model_source" | "dataset" | "analysis" | "pipeline" | "model";
     entityId: UUID;
 }
 
 export interface RemoveEntityFromProject {
     projectId: UUID;
-    entityType: "data_source" | "dataset" | "analysis" | "pipeline";
+    entityType: "data_source" | "model_source" | "dataset" | "analysis" | "pipeline" | "model";
     entityId: UUID;
 }

@@ -5,8 +5,9 @@ from sqlalchemy import select, insert
 
 from synesis_api.database.service import fetch_all, execute
 from synesis_api.modules.model.models import model, model_entity
-from synesis_schemas.main_server import ModelInDB, ModelCreate, ModelEntityFull, ModelEntityInDB, ModelEntityCreate
+from synesis_schemas.main_server import ModelInDB, ModelCreate, ModelEntityFull, ModelEntityInDB, ModelEntityCreate, ModelWithoutEmbedding
 from synesis_api.utils.rag_utils import embed
+from synesis_api.modules.project.service import get_model_ids_in_project
 
 
 async def create_model(user_id: uuid.UUID, model_create: ModelCreate) -> ModelInDB:
@@ -60,5 +61,11 @@ async def get_user_model_entities_by_ids(model_entity_ids: List[uuid.UUID]) -> L
             (m for m in models if m["id"] == model_entity_record["model_id"]), None)
         if model_entity_record is not None and model_record is not None:
             model_entity_records.append(ModelEntityFull(
-                **model_entity_record, model=ModelInDB(**model_record)))
+                **model_entity_record, model=ModelWithoutEmbedding(**model_record)))
     return model_entity_records
+
+
+async def get_project_model_entities(project_id: uuid.UUID) -> List[ModelEntityFull]:
+    model_ids = await get_model_ids_in_project(project_id)
+    model_entities = await get_user_model_entities_by_ids(model_ids)
+    return model_entities

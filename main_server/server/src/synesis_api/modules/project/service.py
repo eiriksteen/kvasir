@@ -25,6 +25,48 @@ async def create_project(user_id: UUID, project_data: ProjectCreate) -> Project:
     )
 
 
+async def get_data_source_ids_in_project(project_id: UUID) -> List[UUID]:
+    query = select(project_data_source.c.data_source_id).where(
+        project_data_source.c.project_id == project_id)
+    result = await fetch_all(query)
+    return [data_source_id["data_source_id"] for data_source_id in result]
+
+
+async def get_model_source_ids_in_project(project_id: UUID) -> List[UUID]:
+    query = select(project_model_source.c.model_source_id).where(
+        project_model_source.c.project_id == project_id)
+    result = await fetch_all(query)
+    return [model_source_id["model_source_id"] for model_source_id in result]
+
+
+async def get_dataset_ids_in_project(project_id: UUID) -> List[UUID]:
+    query = select(project_dataset.c.dataset_id).where(
+        project_dataset.c.project_id == project_id)
+    result = await fetch_all(query)
+    return [dataset_id["dataset_id"] for dataset_id in result]
+
+
+async def get_analysis_ids_in_project(project_id: UUID) -> List[UUID]:
+    query = select(project_analysis.c.analysis_id).where(
+        project_analysis.c.project_id == project_id)
+    result = await fetch_all(query)
+    return [analysis_id["analysis_id"] for analysis_id in result]
+
+
+async def get_pipeline_ids_in_project(project_id: UUID) -> List[UUID]:
+    query = select(project_pipeline.c.pipeline_id).where(
+        project_pipeline.c.project_id == project_id)
+    result = await fetch_all(query)
+    return [pipeline_id["pipeline_id"] for pipeline_id in result]
+
+
+async def get_model_ids_in_project(project_id: UUID) -> List[UUID]:
+    query = select(project_model.c.model_id).where(
+        project_model.c.project_id == project_id)
+    result = await fetch_all(query)
+    return [model_id["model_id"] for model_id in result]
+
+
 async def get_project(project_id: UUID) -> Project | None:
     # Get project details
     query = select(project).where(project.c.id == project_id)
@@ -34,31 +76,21 @@ async def get_project(project_id: UUID) -> Project | None:
         return None
 
     # Get related IDs
-    data_source_query = select(project_data_source.c.data_source_id).where(
-        project_data_source.c.project_id == project_id)
-    dataset_query = select(project_dataset.c.dataset_id).where(
-        project_dataset.c.project_id == project_id)
-    analysis_query = select(project_analysis.c.analysis_id).where(
-        project_analysis.c.project_id == project_id)
-    pipeline_query = select(project_pipeline.c.pipeline_id).where(
-        project_pipeline.c.project_id == project_id)
-
-    data_source_result = await fetch_all(data_source_query)
-    dataset_result = await fetch_all(dataset_query)
-    analysis_result = await fetch_all(analysis_query)
-    pipeline_result = await fetch_all(pipeline_query)
+    data_source_ids = await get_data_source_ids_in_project(project_id)
+    model_source_ids = await get_model_source_ids_in_project(project_id)
+    dataset_ids = await get_dataset_ids_in_project(project_id)
+    analysis_ids = await get_analysis_ids_in_project(project_id)
+    pipeline_ids = await get_pipeline_ids_in_project(project_id)
+    model_ids = await get_model_ids_in_project(project_id)
 
     return Project(
-        id=project_row["id"],
-        user_id=project_row["user_id"],
-        name=project_row["name"],
-        description=project_row["description"],
-        created_at=project_row["created_at"],
-        updated_at=project_row["updated_at"],
-        data_source_ids=[row["data_source_id"] for row in data_source_result],
-        dataset_ids=[row["dataset_id"] for row in dataset_result],
-        analysis_ids=[row["analysis_id"] for row in analysis_result],
-        pipeline_ids=[row["pipeline_id"] for row in pipeline_result]
+        **project_row,
+        data_source_ids=data_source_ids,
+        model_source_ids=model_source_ids,
+        dataset_ids=dataset_ids,
+        analysis_ids=analysis_ids,
+        pipeline_ids=pipeline_ids,
+        model_ids=model_ids
     )
 
 

@@ -21,6 +21,7 @@ from synesis_api.modules.data_sources.models import (
 )
 from synesis_api.modules.data_objects.models import feature
 from synesis_api.database.service import execute, fetch_all
+from synesis_api.modules.project.service import get_data_source_ids_in_project
 from synesis_schemas.main_server import TabularFileDataSourceCreate, DataSourceAnalysisCreate, DataSourceCreate
 
 
@@ -126,6 +127,14 @@ async def get_data_sources(
             output_records.append(DataSourceInDB(**source_record))
 
     return output_records
+
+
+async def get_project_data_sources(
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+) -> List[DataSource]:
+    data_sources_ids_in_project = await get_data_source_ids_in_project(project_id)
+    return await get_data_sources(user_id=user_id, data_source_ids=data_sources_ids_in_project)
 
 
 # Add other data source types here

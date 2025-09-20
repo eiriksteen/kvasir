@@ -3,6 +3,7 @@ import useSWR from "swr";
 import { ConversationCreate, Conversation } from "@/types/orchestrator";
 import useSWRMutation from "swr/mutation";
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
+import { UUID } from "crypto";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -26,8 +27,8 @@ async function postConversation(token: string, conversationData: ConversationCre
   return snakeToCamelKeys(data);
 }
 
-async function fetchConversations(token: string): Promise<Conversation[]> {
-  const response = await fetch(`${API_URL}/orchestrator/conversations`, {
+async function fetchConversations(token: string, projectId: UUID): Promise<Conversation[]> {
+  const response = await fetch(`${API_URL}/orchestrator/project-conversations/${projectId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -44,13 +45,13 @@ async function fetchConversations(token: string): Promise<Conversation[]> {
   return snakeToCamelKeys(data);
 }
 
-export const useConversations = () => {
+export const useConversations = (projectId: UUID) => {
   const { data: session } = useSession();
   const { data: conversations, mutate: mutateConversations, error, isLoading } = useSWR(
-    session ? ["conversations"] : null, () => fetchConversations(session ? session.APIToken.accessToken : ""));
+    session ? ["conversations", projectId] : null, () => fetchConversations(session ? session.APIToken.accessToken : "", projectId));
 
   const { trigger: createConversation } = useSWRMutation(
-    session ? "conversations" : null, 
+    session ? ["conversations", projectId] : null, 
     async (_, { arg }: { arg: ConversationCreate }) => {
       if (!session) throw new Error("No session");
       

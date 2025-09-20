@@ -19,7 +19,7 @@ import { FrontendNode } from '@/types/node';
 import DatasetBox from '@/app/projects/[projectId]/_components/erd/DatasetBox';
 import AnalysisBox from '@/app/projects/[projectId]/_components/erd/AnalysisBox';
 import TransportEdge from '@/app/projects/[projectId]/_components/erd/TransportEdge';
-import { useDataSources } from '@/hooks/useDataSources';
+import { useProjectDataSources } from '@/hooks/useDataSources';
 import DataSourceBox from '@/app/projects/[projectId]/_components/erd/DataSourceBox';
 import { DataSource } from '@/types/data-sources';
 import FileInfoModal from '@/components/info-modals/FileInfoModal';
@@ -29,6 +29,7 @@ import { AnalysisJobResultMetadata } from '@/types/analysis';
 import PipelineBox from '@/app/projects/[projectId]/_components/erd/PipelineBox';
 import { Pipeline } from '@/types/pipeline';
 import PipelineInfoModal from '@/components/info-modals/PipelineInfoModal';
+import { UUID } from 'crypto';
 
 const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradientClass: string; onClick: () => void } }) => (
   <DataSourceBox 
@@ -73,14 +74,14 @@ const edgeTypes: EdgeTypes = {
 };
 
 interface EntityRelationshipDiagramProps {
-  projectId: string;
+  projectId: UUID;
 }
 
 export default function EntityRelationshipDiagram({ projectId }: EntityRelationshipDiagramProps) {
   const { project, frontendNodes, updatePosition } = useProject(projectId);
-  const { dataSources } = useDataSources();
-  const { datasets } = useDatasets();
-  const { pipelines } = usePipelines();
+  const { dataSources } = useProjectDataSources(projectId);
+  const { datasets } = useDatasets(projectId);
+  const { pipelines } = usePipelines(projectId);
   const { analysisJobResults } = useAnalysis();
   // const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
   const [selectedDataSource, setSelectedDataSource] = useState<DataSource | null>(null);
@@ -96,7 +97,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     }
 
     const dataSourceNodes = frontendNodes.map((frontendNode: FrontendNode) => {
-      const dataSource = dataSources.filter(d => project.dataSourceIds.includes(d.id)).find(d => d.id === frontendNode.dataSourceId);
+      const dataSource = dataSources.find(d => d.id === frontendNode.dataSourceId);
       if (!dataSource) return null;
       return {
         id: frontendNode.id,
@@ -112,7 +113,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     });
 
     const datasetNodes = frontendNodes.map((frontendNode: FrontendNode) => {
-      const dataset = datasets.filter(d => project.datasetIds.includes(d.id)).find(d => d.id === frontendNode.datasetId);
+      const dataset = datasets.find(d => d.id === frontendNode.datasetId);
       if (!dataset) return null;
       return {
         id: frontendNode.id,
@@ -129,7 +130,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
 
     const pipelineNodes = frontendNodes.map((frontendNode: FrontendNode) => {
 
-      const pipeline = pipelines.filter(p => project.pipelineIds.includes(p.id)).find(p => p.id === frontendNode.pipelineId);
+      const pipeline = pipelines.find(p => p.id === frontendNode.pipelineId);
       if (!pipeline) return null;
       return {
         id: frontendNode.id,
@@ -145,7 +146,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     });
 
     const analysisNodes = frontendNodes.map((frontendNode: FrontendNode) => {
-      const analysis = analysisJobResults.filter(a => project.analysisIds.includes(a.jobId)).find(a => a.jobId === frontendNode.analysisId);
+      const analysis = analysisJobResults.find(a => a.jobId === frontendNode.analysisId);
       if (!analysis) return null;
       return {
         id: frontendNode.id,
@@ -170,7 +171,6 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       return [];
     }
     return analysisJobResults
-      .filter(analysis => project.analysisIds.includes(analysis.jobId))
       .flatMap(analysis =>
         analysis.datasetIds.map(datasetId => {
           const sourceNode = frontendNodes.find(fn => fn.datasetId === datasetId);
@@ -260,7 +260,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       </ReactFlow>
       {/* {renderModal()} */}
       {selectedDataSource && <FileInfoModal dataSourceId={selectedDataSource.id} onClose={handleCloseDataSourceModal} />}
-      {selectedDataset && <DatasetInfoModal datasetId={selectedDataset.id} onClose={handleCloseDatasetModal} />}
+      {selectedDataset && <DatasetInfoModal datasetId={selectedDataset.id} onClose={handleCloseDatasetModal} projectId={projectId} />}
       {selectedPipeline && <PipelineInfoModal pipelineId={selectedPipeline.id} onClose={handleClosePipelineModal} />}
       {/* TODO: Add AnalysisInfoModal when available */}
     </div>

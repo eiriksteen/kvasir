@@ -8,6 +8,7 @@ import { UUID } from 'crypto';
 
 interface DatasetInfoModalProps {
   datasetId: UUID;
+  projectId: UUID;
   onClose: () => void;
 }   
 
@@ -19,10 +20,11 @@ type SelectedEntity = {
 
 export default function DatasetInfoModal({ 
   datasetId,
+  projectId,
   onClose
 }: DatasetInfoModalProps) {
 
-  const { dataset, objectGroups } = useDataset(datasetId);
+  const { dataset, objectGroups } = useDataset(datasetId, projectId);
   const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(new Set());
 

@@ -6,11 +6,13 @@ import { Dataset } from '@/types/data-objects';
 import { Pipeline } from '@/types/pipeline';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 import { DataSource } from '@/types/data-sources';
+import { ModelEntity } from '@/types/model';
+import { ModelSource } from '@/types/model-source';
 
-type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source';
+type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_source' | 'model';
 
 interface EntityItemProps {
-    item: Dataset | AnalysisJobResultMetadata | Pipeline | DataSource;
+    item: Dataset | AnalysisJobResultMetadata | Pipeline | DataSource | ModelSource | ModelEntity;
     type: ItemType;
     isInContext: boolean;
     onClick: () => void;
@@ -19,7 +21,8 @@ interface EntityItemProps {
 export default function EntityItem({ item, type, isInContext, onClick }: EntityItemProps) {
     const getTheme = (type: ItemType) => {
         switch (type) {
-            case 'data_source':
+            case 'model':
+            case 'model_source':
                 return {
                     bg: isInContext ? 'bg-emerald-500/10' : 'hover:bg-emerald-500/5',
                     icon: <Database size={11} />,
@@ -28,6 +31,7 @@ export default function EntityItem({ item, type, isInContext, onClick }: EntityI
                     hover: 'hover:bg-emerald-500/8'
                 };
             case 'dataset':
+            case 'data_source':
                 return {
                     bg: isInContext ? 'bg-blue-500/10' : 'hover:bg-blue-500/5',
                     icon: <Folder size={11} />,

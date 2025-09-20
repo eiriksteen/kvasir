@@ -3,11 +3,12 @@ import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import { Dataset, ObjectGroupWithObjectList } from "@/types/data-objects";
 import { snakeToCamelKeys } from "@/lib/utils";
+import { UUID } from "crypto";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-async function fetchDatasets(token: string): Promise<Dataset[]> {
-  const response = await fetch(`${API_URL}/data-objects/datasets?include_object_lists=0&include_features=1`, {
+async function fetchDatasets(token: string, projectId: UUID): Promise<Dataset[]> {
+  const response = await fetch(`${API_URL}/data-objects/project-datasets/${projectId}?include_object_lists=0&include_features=1`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -43,11 +44,11 @@ async function fetchObjectGroupsInDataset(token: string, datasetId: string): Pro
 }
 
 
-export const useDatasets = () => {
+export const useDatasets = (projectId: UUID) => {
   const { data: session } = useSession();
   const { data: datasets, mutate: mutateDatasets, error, isLoading } = useSWR(
-    session ? "datasets" : null, 
-    () => fetchDatasets(session ? session.APIToken.accessToken : ""),
+    session ? ["datasets", projectId] : null, 
+    () => fetchDatasets(session ? session.APIToken.accessToken : "", projectId),
     {
       // revalidateOnFocus: false,
       //revalidateOnReconnect: false,
@@ -64,9 +65,9 @@ export const useDatasets = () => {
 }; 
 
 
-export const useDataset = (datasetId: string) => {
+export const useDataset = (datasetId: UUID, projectId: UUID) => {
   const { data: session } = useSession();
-  const { datasets } = useDatasets();
+  const { datasets } = useDatasets(projectId);
 
   const dataset = useMemo(() => {
     return datasets?.find((dataset) => dataset.id === datasetId);

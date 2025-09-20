@@ -15,7 +15,7 @@ from synesis_api.modules.orchestrator.service import (
     create_conversation,
     get_chat_messages_pydantic,
     create_chat_message,
-    get_conversations,
+    get_project_conversations,
     create_context,
     create_chat_message_pydantic,
     get_context_message,
@@ -191,7 +191,7 @@ async def fetch_messages(
     return messages
 
 
-@router.get("/conversations")
-async def get_user_conversations(user: Annotated[User, Depends(get_current_user)] = None) -> List[ConversationInDB]:
-    conversations = await get_conversations(user.id)
+@router.get("/project-conversations/{project_id}")
+async def fetch_project_conversations(project_id: uuid.UUID, user: Annotated[User, Depends(get_current_user)] = None) -> List[ConversationInDB]:
+    conversations = await get_project_conversations(user.id, project_id)
     return conversations

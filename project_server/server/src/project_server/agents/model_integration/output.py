@@ -19,7 +19,7 @@ class ModelDescription(BaseModel):
     description: str
     modality: SUPPORTED_MODALITIES_TYPE
     programming_language_with_version: str
-    model_config: Dict[str, Any]
+    default_config: Dict[str, Any]
     task: SUPPORTED_TASK_TYPE
     training_function: ModelFunctionDescription
     inference_function: ModelFunctionDescription

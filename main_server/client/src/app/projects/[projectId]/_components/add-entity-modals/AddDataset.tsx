@@ -1,14 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Folder } from 'lucide-react';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { UUID } from 'crypto';
-import { useDataSources } from '@/hooks/useDataSources';
+import { useProjectDataSources } from '@/hooks/useDataSources';
 import { useProjectChat } from '@/hooks/useProjectChat';
 import { DataSource } from '@/types/data-sources';
 import SourceTypeIcon from "@/app/data-sources/_components/SourceTypeIcon";
-import { useProject } from '@/hooks/useProject';
 
 function DataSourceListItem({ dataSource, isFirst, isInContext }: { dataSource: DataSource; isFirst: boolean; isInContext: boolean }) {
   return (
@@ -42,19 +41,14 @@ export default function AddDataset({ onClose, projectId }: AddDatasetProps) {
   const [description, setDescription] = useState('');
   const [isSubmitting] = useState(false);
 
-  const { dataSources } = useDataSources();
+  const { dataSources } = useProjectDataSources(projectId);
   const { 
     dataSourcesInContext, 
     addDataSourceToContext, 
     removeDataSourceFromContext 
   } = useAgentContext(projectId);
 
-  const { project } = useProject(projectId);
   const { submitPrompt } = useProjectChat(projectId);
-
-  const dataSourcesInProject = useMemo(() => {
-    return dataSources?.filter((dataSource: DataSource) => project?.dataSourceIds.includes(dataSource.id));
-  }, [dataSources, project]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -108,9 +102,9 @@ export default function AddDataset({ onClose, projectId }: AddDatasetProps) {
             </div>
             
             <div className="overflow-y-auto max-h-[40vh]">
-              {dataSourcesInProject && dataSourcesInProject.length > 0 ? (
+              {dataSources && dataSources.length > 0 ? (
                 <div className="grid gap-0">
-                  {dataSourcesInProject.map((dataSource: DataSource, index: number) => {
+                  {dataSources.map((dataSource: DataSource, index: number) => {
                     const isInContext = dataSourcesInContext.some((d: DataSource) => d.id === dataSource.id);
                     return (
                       <div key={dataSource.id} onClick={() => handleDataSourceToggle(dataSource)}>

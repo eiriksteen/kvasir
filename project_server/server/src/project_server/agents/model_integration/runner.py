@@ -241,7 +241,7 @@ class ModelIntegrationAgentRunner(RunnerBase):
             description=model_spec_output.description,
             training_function_id=training_function_id,
             inference_function_id=inference_function_id,
-            default_config=model_spec_output.model_config,
+            default_config=model_spec_output.default_config,
             public=self.public,
             modality=model_spec_output.modality,
             source_id=model_source_id,
@@ -266,7 +266,7 @@ class ModelIntegrationAgentRunner(RunnerBase):
                 project_id=self.project_id,
                 weights_save_dir=None,
                 pipeline_id=None,
-                config=model_spec_output.model_config
+                config=model_spec_output.default_config
             ))
 
             await post_add_entity(self.project_client, AddEntityToProject(

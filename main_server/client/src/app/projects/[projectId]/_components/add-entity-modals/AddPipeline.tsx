@@ -46,7 +46,7 @@ export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
   const [scheduleConfig, setScheduleConfig] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const { datasets } = useDatasets();
+  const { datasets } = useDatasets(projectId);
   const { 
     datasetsInContext, 
     addDatasetToContext, 

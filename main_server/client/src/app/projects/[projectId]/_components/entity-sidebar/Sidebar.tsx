@@ -1,24 +1,30 @@
 'use client';
 
 import React from 'react';
-import { useState, useMemo } from 'react';
-import { Database, ChevronLeft, ChevronRight, BarChart3, Zap, Folder } from 'lucide-react';
+import { useState } from 'react';
+import { Database, ChevronLeft, ChevronRight, BarChart3, Zap, Folder, Package, Brain } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
-import { useAgentContext, useDatasets, usePipelines, useProject } from '@/hooks';
+import { useAgentContext, useDatasets, useModelSources, usePipelines, useProject } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 import AddDataSource from '@/app/projects/[projectId]/_components/add-entity-modals/AddDataSource';
 import AddAnalysis from '@/app/projects/[projectId]/_components/add-entity-modals/AddAnalysis';
-import { useDataSources } from '@/hooks/useDataSources';
+import { useProjectDataSources } from '@/hooks/useDataSources';
 import { DataSource } from '@/types/data-sources';
 import EntityItem from '@/app/projects/[projectId]/_components/entity-sidebar/EntityItem';
-import AddEntityIcon from '@/app/projects/[projectId]/_components/entity-sidebar/AddEntityIcon';
+import AddEntityButton from '@/app/projects/[projectId]/_components/entity-sidebar/AddEntityButton';
 import EntityOverviewItem from '@/app/projects/[projectId]/_components/entity-sidebar/EntityOverviewItem';
 import { UUID } from 'crypto';
 import AddDataset from '@/app/projects/[projectId]/_components/add-entity-modals/AddDataset';
 import AddPipeline from '@/app/projects/[projectId]/_components/add-entity-modals/AddPipeline';
 import { Pipeline } from '@/types/pipeline';
+import { useModelEntities } from '@/hooks/useModelEntities';
+import { ModelSource } from '@/types/model-source';
+import { ModelEntity } from '@/types/model';
+import AddModelSource from '@/app/projects/[projectId]/_components/add-entity-modals/AddModelSource';
+import AddModelEntity from '@/app/projects/[projectId]/_components/add-entity-modals/AddModelEntity';
+
 
 interface EntitySidebarProps {
     projectId: UUID;
@@ -30,11 +36,15 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
     const [showAddAnalysis, setShowAddAnalysis] = useState(false);
     const [showAddDatasetToProject, setShowAddDatasetToProject] = useState(false);
     const [showAddPipeline, setShowAddPipeline] = useState(false);
+    const [showAddModelSourceToProject, setShowAddModelSourceToProject] = useState(false);
+    const [showAddModelToProject, setShowAddModelToProject] = useState(false);
     const [expandedSections, setExpandedSections] = useState({
         datasets: false,
         analysis: false,
         pipelines: false,
-        data_sources: false
+        data_sources: false,
+        model_sources: false,
+        models: false
     });
     const { data: session } = useSession();
     const { project } = useProject(projectId);
@@ -50,40 +60,27 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
         removeAnalysisFromContext,
         pipelinesInContext,
         addPipelineToContext,
-        removePipelineFromContext
+        removePipelineFromContext,
+        modelSourcesInContext,
+        addModelSourceToContext,
+        removeModelSourceFromContext,
+        modelsInContext,
+        addModelToContext,
+        removeModelFromContext,
+
     } = useAgentContext(projectId);  
 
     if (!session) {
         redirect("/login");
     }
 
-    const { datasets } = useDatasets();
-    const { dataSources } = useDataSources();
-    const { pipelines } = usePipelines();
-    // const { analysisJobResults } = useAnalysis();
+    const { datasets } = useDatasets(projectId);
+    const { dataSources } = useProjectDataSources(projectId);
+    const { pipelines } = usePipelines(projectId);
+    const { models } = useModelEntities(projectId);
+    const { modelSources } = useModelSources(projectId);
+    const analyses: AnalysisJobResultMetadata[] = []
 
-    const filteredDataSources = useMemo(() => {
-        if (!project || !dataSources) return [];
-        return dataSources.filter(dataSource => 
-            project.dataSourceIds.includes(dataSource.id)
-        );
-    }, [project, dataSources]);
-
-    const filteredDatasets = useMemo(() => {
-        if (!project || !datasets) return [];
-        return datasets.filter(dataset => 
-            project.datasetIds.includes(dataset.id)
-        );
-    }, [project, datasets]);
-
-    const filteredAnalysis: AnalysisJobResultMetadata[] = []
-
-    const filteredPipelines = useMemo(() => {
-        if (!project || !pipelines) return [];
-        return pipelines.filter(pipeline => 
-            project.pipelineIds.includes(pipeline.id)
-        );
-    }, [project, pipelines]);
 
     const toggleSection = (section: keyof typeof expandedSections) => {
         setExpandedSections(prev => ({
@@ -129,6 +126,24 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
         }
     };
 
+    const handleModelSourceToggle = (modelSource: ModelSource) => {
+        const isActive = modelSourcesInContext.some((m: ModelSource) => m.id === modelSource.id);
+        if (isActive) {
+            removeModelSourceFromContext(modelSource);
+        } else {
+            addModelSourceToContext(modelSource);
+        }
+    };
+
+    const handleModelToggle = (model: ModelEntity) => {
+        const isActive = modelsInContext.some((m: ModelEntity) => m.id === model.id);
+        if (isActive) {
+            removeModelFromContext(model);
+        } else {
+            addModelToContext(model);
+        }
+    };
+
     const renderContent = () => {
         if (!project) {
             return (
@@ -141,21 +156,23 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
 
         return (
             <div className="flex flex-col h-full">
-
                 <div className="flex-1 overflow-y-auto">
+                    <div className="p-4">
+                        <h3 className='text-xs font-mono uppercase tracking-wider text-gray-400'> SOURCES </h3>
+                    </div>
 
                     {/* Data Sources Section */}
                     <div className="border-b border-gray-800">
                         <EntityOverviewItem
                             title="Data Sources"
-                            count={filteredDataSources?.length || 0}
+                            count={dataSources?.length || 0}
                             color="emerald"
                             onToggle={() => toggleSection('data_sources')}
                             onAdd={() => setShowAddDataSourceToProject(true)}
                         />
                         {expandedSections.data_sources && (
                             <div className="bg-emerald-500/5 border-l-2 border-emerald-500/20">
-                                {filteredDataSources?.map((dataSource) => (
+                                {dataSources?.map((dataSource) => (
                                     <EntityItem
                                         key={dataSource.id}
                                         item={dataSource}
@@ -164,7 +181,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                         onClick={() => handleDataSourceToggle(dataSource)}
                                     />
                                 ))}
-                                {filteredDataSources?.length === 0 && (
+                                {dataSources?.length === 0 && (
                                     <div className="px-3 py-4 text-center">
                                         <Database size={16} className="text-emerald-400/40 mx-auto mb-2" />
                                         <p className="text-xs text-gray-500">No data sources</p>
@@ -174,18 +191,46 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                         )}
                     </div>
 
+                    {/* Model Sources Section */}
+                    <div className="border-b border-gray-800">
+                        <EntityOverviewItem
+                            title="Model Sources"
+                            count={modelSources?.length || 0}
+                            color="emerald"
+                            onToggle={() => toggleSection('model_sources')}
+                            onAdd={() => setShowAddModelSourceToProject(true)}
+                        />
+                    </div>
+                    {expandedSections.model_sources && (
+                        <div className="bg-emerald-500/5 border-l-2 border-emerald-500/20">
+                            {modelSources?.map((modelSource) => (
+                                <EntityItem key={modelSource.id} item={modelSource} type="model_source" isInContext={modelSourcesInContext.some((m: ModelSource) => m.id === modelSource.id)} onClick={() => handleModelSourceToggle(modelSource)} />
+                            ))}
+                            {modelSources?.length === 0 && (
+                                <div className="px-3 py-4 text-center">
+                                    <Package size={16} className="text-emerald-400/40 mx-auto mb-2" />
+                                    <p className="text-xs text-gray-500">No model sources</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="p-4">
+                        <h3 className='text-xs font-mono uppercase tracking-wider text-gray-400'> ENTITIES </h3>
+                    </div>
+
                     {/* Datasets Section */}
                     <div className="border-b border-gray-800">
                         <EntityOverviewItem
                             title="Datasets"
-                            count={filteredDatasets?.length || 0}
+                            count={datasets?.length || 0}
                             color="blue"
                             onToggle={() => toggleSection('datasets')}
                             onAdd={() => setShowAddDatasetToProject(true)}
                         />
-                        {expandedSections.datasets && (
+                        {datasets && expandedSections.datasets && (
                             <div className="bg-blue-500/5 border-l-2 border-blue-500/20">
-                                {filteredDatasets
+                                {datasets
                                     .map((dataset) => (
                                         <EntityItem 
                                             key={dataset.id}
@@ -195,10 +240,34 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                             onClick={() => handleDatasetToggle(dataset)}
                                         />
                                     ))}
-                                {filteredDatasets.length === 0 && (
+                                {datasets.length === 0 && (
                                     <div className="px-3 py-4 text-center">
                                         <Folder size={16} className="text-blue-400/40 mx-auto mb-2" />
                                         <p className="text-xs text-gray-500">No datasets</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Models Section */}
+                    <div className="border-b border-gray-800">
+                        <EntityOverviewItem
+                            title="Models"
+                            count={models?.length || 0}
+                            color="emerald"
+                            onToggle={() => toggleSection('models')}
+                            onAdd={() => setShowAddModelToProject(true)}
+                        />
+                        {models && expandedSections.models && (
+                            <div className="bg-emerald-500/5 border-l-2 border-emerald-500/20">
+                                {models.map((model) => (
+                                    <EntityItem key={model.id} item={model} type="model" isInContext={modelsInContext.some((m: ModelEntity) => m.id === model.id)} onClick={() => handleModelToggle(model)} />
+                                ))}
+                                {models.length === 0 && (
+                                    <div className="px-3 py-4 text-center">
+                                        <Brain size={16} className="text-emerald-400/40 mx-auto mb-2" />
+                                        <p className="text-xs text-gray-500">No models</p>
                                     </div>
                                 )}
                             </div>
@@ -209,14 +278,14 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                     <div className="border-b border-gray-800">
                         <EntityOverviewItem
                             title="Analysis"
-                            count={filteredAnalysis.length}
+                            count={analyses.length}
                             color="purple"
                             onToggle={() => toggleSection('analysis')}
                             onAdd={() => setShowAddAnalysis(true)}
                         />
                         {expandedSections.analysis && (
                             <div className="bg-purple-500/5 border-l-2 border-purple-500/20">
-                                {filteredAnalysis.map((analysis) => (
+                                {analyses.map((analysis) => (
                                     <EntityItem
                                         key={analysis.jobId}
                                         item={analysis}
@@ -225,7 +294,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                         onClick={() => handleAnalysisToggle(analysis)}
                                     />
                                 ))}
-                                {filteredAnalysis.length === 0 && (
+                                {analyses.length === 0 && (
                                     <div className="px-3 py-4 text-center">
                                         <BarChart3 size={16} className="text-purple-400/40 mx-auto mb-2" />
                                         <p className="text-xs text-gray-500">No analysis</p>
@@ -235,18 +304,18 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                         )}
                     </div>
 
-                    {/* Automations Section */}
+                    {/* Pipeline Section */}
                     <div className="border-b border-gray-800">
                         <EntityOverviewItem
                             title="Pipelines"
-                            count={filteredPipelines.length}
+                            count={pipelines?.length || 0}
                             color="orange"
                             onToggle={() => toggleSection('pipelines')}
                             onAdd={() => setShowAddPipeline(true)}
                         />
-                        {expandedSections.pipelines && (
+                        {pipelines && expandedSections.pipelines && (
                             <div className="bg-orange-500/5 border-l-2 border-orange-500/20">
-                                {filteredPipelines.map((pipeline) => (
+                                {pipelines.map((pipeline) => (
                                     <EntityItem
                                         key={pipeline.id}
                                         item={pipeline}
@@ -255,7 +324,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                         onClick={() => handlePipelineToggle(pipeline)}
                                     />
                                 ))}
-                                {filteredPipelines.length === 0 && (
+                                {pipelines.length === 0 && (
                                     <div className="px-3 py-4 text-center">
                                         <Zap size={16} className="text-orange-400/40 mx-auto mb-2" />
                                         <p className="text-xs text-gray-500">No pipelines</p>
@@ -287,34 +356,16 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                     <div className="flex flex-col h-full">
                         {/* Collapsed content */}
                         <div className="flex flex-col items-center pt-3 gap-2">
-                            <button
-                                onClick={() => setShowAddDataSourceToProject(true)}
-                                className="p-2 rounded-md text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/40 transition-all duration-200 hover:scale-105"
-                                title="Add Data Source"
-                            >
-                                <AddEntityIcon type="data_source" size={14} />
-                            </button>
-                            <button
-                                onClick={() => setShowAddDatasetToProject(true)}
-                                className="p-2 rounded-md text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/40 transition-all duration-200 hover:scale-105"
-                                title="Add Dataset to Project"
-                            >
-                                <AddEntityIcon type="dataset" size={14} />
-                            </button>
-                            <button
-                                onClick={() => setShowAddAnalysis(true)}
-                                className="p-2 rounded-md text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500/40 transition-all duration-200 hover:scale-105"
-                                title="Add Analysis"
-                            >
-                                <AddEntityIcon type="analysis" size={14} />
-                            </button>
-                            <button
-                                onClick={() => setShowAddPipeline(true)}
-                                className="p-2 rounded-md text-orange-400 hover:text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 hover:border-orange-500/40 transition-all duration-200 hover:scale-105"
-                                title="Add Pipeline"
-                            >
-                                <AddEntityIcon type="pipeline" size={14} />
-                            </button>
+                            <AddEntityButton type="data_source" size={14} onAdd={() => setShowAddDataSourceToProject(true)} />
+                            <AddEntityButton type="model_source" size={14} onAdd={() => setShowAddModelSourceToProject(true)} />
+
+                            <div className="w-6 h-px bg-gray-700 my-4"></div>
+
+                            <AddEntityButton type="dataset" size={14} onAdd={() => setShowAddDatasetToProject(true)} />
+                            <AddEntityButton type="model" size={14} onAdd={() => setShowAddModelToProject(true)} />
+                            <AddEntityButton type="analysis" size={14} onAdd={() => setShowAddAnalysis(true)} />
+                            <AddEntityButton type="pipeline" size={14} onAdd={() => setShowAddPipeline(true)} />
+             
                         </div>
                         
                         {/* Collapse/expand button at bottom */}
@@ -348,6 +399,16 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
 
             {showAddPipeline && <AddPipeline
                 onClose={() => setShowAddPipeline(false)}
+                projectId={projectId}
+            />}
+
+            {showAddModelSourceToProject && <AddModelSource
+                onClose={() => setShowAddModelSourceToProject(false)}
+                projectId={projectId}
+            />}
+
+            {showAddModelToProject && <AddModelEntity   
+                onClose={() => setShowAddModelToProject(false)}
                 projectId={projectId}
             />}
         </div>

@@ -1,6 +1,6 @@
 import { UUID } from "crypto";
 
-export type NodeType = "data_source" | "dataset" | "analysis" | "pipeline";
+export type NodeType = "data_source" | "model_source" | "dataset" | "analysis" | "pipeline" | "model";
 
 export interface FrontendNode {
   id: UUID;
@@ -9,6 +9,7 @@ export interface FrontendNode {
   yPosition: number;
   type: NodeType;
   dataSourceId: UUID | null;
+  modelSourceId: UUID | null;
   datasetId: UUID | null;
   analysisId: UUID | null; 
   pipelineId: UUID | null;
@@ -21,6 +22,7 @@ export interface FrontendNodeCreate {
   yPosition: number | null;
   type: NodeType;
   dataSourceId: UUID | null;
+  modelSourceId: UUID | null;
   datasetId: UUID | null;
   analysisId: UUID | null; 
   pipelineId: UUID | null;

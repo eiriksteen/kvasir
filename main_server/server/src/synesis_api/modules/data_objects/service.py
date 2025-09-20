@@ -47,6 +47,7 @@ from synesis_schemas.main_server import (
     DatasetFromPipelineInDB,
 )
 from synesis_api.database.service import execute, fetch_one, fetch_all
+from synesis_api.modules.project.service import get_dataset_ids_in_project
 
 from synesis_data_structures.time_series.serialization import deserialize_parquet_to_dataframes
 from synesis_data_structures.time_series.definitions import (
@@ -433,7 +434,7 @@ async def get_user_datasets(
             group.id for group in variable_groups]]
 
         variable_groups_full = [VariableGroupFull(
-            **group,
+            **group.model_dump(),
             variables=variables
         ) for group in variable_groups]
 
@@ -492,6 +493,11 @@ async def get_object_groups_in_dataset_with_entities_and_features(dataset_id: uu
     object_groups_with_lists = await _add_object_lists_to_object_groups(object_groups_with_features)
 
     return object_groups_with_lists
+
+
+async def get_project_datasets(user_id: uuid.UUID, project_id: uuid.UUID, include_features: bool = False) -> List[Union[DatasetFullWithFeatures, DatasetFull]]:
+    dataset_ids = await get_dataset_ids_in_project(project_id)
+    return await get_user_datasets_by_ids(user_id, dataset_ids, include_features=include_features)
 
 
 async def get_object_group(

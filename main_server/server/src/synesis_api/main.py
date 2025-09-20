@@ -13,6 +13,9 @@ from synesis_api.modules.node.router import router as node_router
 from synesis_api.modules.pipeline.router import router as pipeline_router
 from synesis_api.modules.runs.router import router as runs_router
 from synesis_api.modules.knowledge_bank.router import router as knowledge_bank_router
+from synesis_api.modules.model.router import router as model_router
+from synesis_api.modules.model_sources.router import router as model_sources_router
+from synesis_api.modules.function.router import router as function_router
 
 
 @asynccontextmanager
@@ -88,6 +91,21 @@ app.include_router(runs_router,
 app.include_router(knowledge_bank_router,
                    prefix="/knowledge-bank",
                    tags=["Knowledge Bank"])
+
+
+app.include_router(model_router,
+                   prefix="/model",
+                   tags=["Model"])
+
+
+app.include_router(model_sources_router,
+                   prefix="/model-sources",
+                   tags=["Model Sources"])
+
+
+app.include_router(function_router,
+                   prefix="/function",
+                   tags=["Function"])
 
 
 @app.get("/")

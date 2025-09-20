@@ -92,11 +92,17 @@ class OnEventScheduleInDB(BaseModel):
 # API models
 
 
+class PipelineSources(BaseModel):
+    dataset_ids: List[UUID]
+    model_ids: List[UUID]
+
+
 class PipelineFull(PipelineInDB):
     functions: List[FunctionBare]
     runs: List[PipelineRunInDB] = []
     periodic_schedules: List[PeriodicScheduleInDB] = []
     on_event_schedules: List[OnEventScheduleInDB] = []
+    sources: PipelineSources
 
 # Create models
 

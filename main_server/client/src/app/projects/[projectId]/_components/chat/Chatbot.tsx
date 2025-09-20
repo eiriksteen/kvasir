@@ -266,7 +266,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
 
               return timelineItems.map((timelineItem) => {
                 if (timelineItem.type === 'message') {
-                  return <ChatMessageBox key={`msg-${timelineItem.item.id}`} message={timelineItem.item} />;
+                  return <ChatMessageBox key={`msg-${timelineItem.item.id}`} message={timelineItem.item} projectId={projectId} />;
                 } else {
                   return <RunBox key={`run-${timelineItem.item.id}`} runId={timelineItem.item.id} />;
                 }

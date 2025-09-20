@@ -1,3 +1,5 @@
+import { UUID } from "crypto";
+
 export interface AnalysisStep {
     stepName: string;
     stepDescription: string;
@@ -9,18 +11,18 @@ export interface AnalysisPlan {
 }
 
 export interface AnalysisStatusMessage {
-    id: string;
-    jobId: string;
+    id: UUID;
+    jobId: UUID;
     type: 'tool_call' | 'tool_result' | 'analysis_result' | 'user_prompt';
     message: string;
     createdAt: string;
 }
 
 export interface AnalysisJobResultMetadata {
-    jobId: string;
+    jobId: UUID;
     name: string;
-    datasetIds: string[];
-    pipelineIds: string[];
+    datasetIds: UUID[];
+    pipelineIds: UUID[];
     analysisPlan: AnalysisPlan;
     numberOfDatasets: number;
     numberOfPipelines: number;
@@ -30,10 +32,10 @@ export interface AnalysisJobResultMetadata {
 }
 
 export interface AnalysisRequest {
-    projectId: string;
-    datasetIds: string[];
-    analysisIds: string[];
-    pipelineIds: string[];
+    projectId: UUID;
+    datasetIds: UUID[];
+    analysisIds: UUID[];
+    pipelineIds: UUID[];
     prompt: string | null;
-    conversationId: string;
+    conversationId: UUID;
 }

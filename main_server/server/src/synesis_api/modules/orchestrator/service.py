@@ -67,11 +67,13 @@ async def update_conversation_name(conversation_id: uuid.UUID, name: str) -> Non
     await execute(conversation.update().where(conversation.c.id == conversation_id).values(name=name), commit_after=True)
 
 
-async def get_conversations(user_id: uuid.UUID) -> list[ConversationInDB]:
+async def get_project_conversations(user_id: uuid.UUID, project_id: uuid.UUID) -> list[ConversationInDB]:
 
     conversations = await fetch_all(
         select(conversation).where(
-            conversation.c.user_id == user_id).order_by(conversation.c.created_at.desc())
+            conversation.c.user_id == user_id,
+            conversation.c.project_id == project_id
+        ).order_by(conversation.c.created_at.desc())
     )
 
     return [ConversationInDB(**conversation) for conversation in conversations]

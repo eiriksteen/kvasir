@@ -5,11 +5,11 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Form, UploadFile
 
 from synesis_api.modules.data_objects.service import (
-    get_user_datasets,
     get_object_groups_in_dataset_with_entities_and_features,
     get_user_dataset_by_id,
     get_object_group,
-    create_dataset
+    create_dataset,
+    get_project_datasets
 )
 # from synesis_api.modules.data_objects.service import get_time_series_payload_data_by_id
 from synesis_schemas.main_server import (
@@ -46,13 +46,14 @@ async def submit_dataset(
     return dataset_record
 
 
-@router.get("/datasets", response_model=List[Union[DatasetFullWithFeatures, DatasetFull]])
+@router.get("/project-datasets/{project_id}", response_model=List[Union[DatasetFullWithFeatures, DatasetFull]])
 async def fetch_datasets(
+    project_id: UUID,
     include_features: bool = False,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> List[Union[DatasetFullWithFeatures, DatasetFull]]:
     """Get all datasets for the current user"""
-    return await get_user_datasets(user.id, include_features=include_features)
+    return await get_project_datasets(user.id, project_id, include_features=include_features)
 
 
 @router.get("/dataset/{dataset_id}", response_model=Union[DatasetFullWithFeatures, DatasetFull])

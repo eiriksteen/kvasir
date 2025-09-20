@@ -81,6 +81,12 @@ export interface ObjectGroupWithObjectList extends ObjectGroup {
     objects: (TimeSeries | TimeSeriesAggregation)[];
 }
 
+export type DatasetSources = {
+    dataSourceIDs: UUID[];
+    datasetIDs: UUID[];
+    pipelineIDs: UUID[];
+}
+
 export type Dataset = {
     id: UUID;
     userId: UUID;
@@ -91,6 +97,7 @@ export type Dataset = {
     updatedAt: string;
     objectGroups: ObjectGroup[];
     variableGroups: VariableGroupWithVariables[];
+    sources: DatasetSources;
 }
 
 

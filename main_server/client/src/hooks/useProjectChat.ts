@@ -71,7 +71,7 @@ export const useConversationMessages = (conversationId: UUID | null) => {
 
 export const useProjectChat = (projectId: UUID) => {
   const { data: session } = useSession();
-  const { conversations, createConversation, mutateConversations } = useConversations();
+  const { conversations, createConversation, mutateConversations } = useConversations(projectId);
   const { dataSourcesInContext, datasetsInContext, analysesInContext, pipelinesInContext } = useAgentContext(projectId);
 
   const { data: projectConversationId, mutate: setProjectConversationId } = useSWR(
