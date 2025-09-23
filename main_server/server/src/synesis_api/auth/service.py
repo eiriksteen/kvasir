@@ -4,7 +4,7 @@ import base64
 from typing import Annotated
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, or_
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
@@ -228,5 +228,5 @@ async def user_owns_data_source(user_id: uuid.UUID, data_source_id: uuid.UUID) -
 
 
 async def user_can_access_model_source(user_id: uuid.UUID, model_source_id: uuid.UUID) -> bool:
-    model_source_record = await fetch_one(select(model_source).where(model_source.c.id == model_source_id, model_source.c.user_id == user_id))
-    return model_source_record is not None or model_source_record["is_public"]
+    model_source_record = await fetch_one(select(model_source).where(model_source.c.id == model_source_id).where(or_(model_source.c.user_id == user_id, model_source.c.public == True)))
+    return model_source_record is not None

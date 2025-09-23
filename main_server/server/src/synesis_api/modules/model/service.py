@@ -7,7 +7,7 @@ from synesis_api.database.service import fetch_all, execute
 from synesis_api.modules.model.models import model, model_entity
 from synesis_schemas.main_server import ModelInDB, ModelCreate, ModelEntityFull, ModelEntityInDB, ModelEntityCreate, ModelWithoutEmbedding
 from synesis_api.utils.rag_utils import embed
-from synesis_api.modules.project.service import get_model_ids_in_project
+from synesis_api.modules.project.service import get_model_entity_ids_in_project
 
 
 async def create_model(user_id: uuid.UUID, model_create: ModelCreate) -> ModelInDB:
@@ -33,6 +33,8 @@ async def create_model_entity(model_entity_create: ModelEntityCreate) -> ModelEn
         id=uuid.uuid4(),
         model_id=model_entity_create.model_id,
         project_id=model_entity_create.project_id,
+        name=model_entity_create.name,
+        description=model_entity_create.description,
         weights_save_dir=model_entity_create.weights_save_dir,
         pipeline_id=model_entity_create.pipeline_id,
         config=model_entity_create.config,
@@ -66,6 +68,6 @@ async def get_user_model_entities_by_ids(model_entity_ids: List[uuid.UUID]) -> L
 
 
 async def get_project_model_entities(project_id: uuid.UUID) -> List[ModelEntityFull]:
-    model_ids = await get_model_ids_in_project(project_id)
+    model_ids = await get_model_entity_ids_in_project(project_id)
     model_entities = await get_user_model_entities_by_ids(model_ids)
     return model_entities

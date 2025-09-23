@@ -5,10 +5,11 @@ from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
+from pydantic_ai.providers.grok import GrokProvider
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 
-from project_server.app_secrets import MODEL_TO_USE, ANTHROPIC_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY, SUPPORTED_MODELS
+from project_server.app_secrets import MODEL_TO_USE, ANTHROPIC_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY, SUPPORTED_MODELS, XAI_API_KEY
 
 
 def get_model():
@@ -19,7 +20,8 @@ def get_model():
         "gemini-2.5-flash": "google",
         "o3": "openai",
         "gemini-2.5-pro": "google",
-        "gpt-5": "openai"
+        "gpt-5": "openai",
+        "grok-code-fast-1": "xai"
     }
 
     if model_id_to_provider_name[MODEL_TO_USE] == "anthropic":
@@ -30,6 +32,9 @@ def get_model():
         model = GoogleModel(model_name=MODEL_TO_USE, provider=provider)
     elif model_id_to_provider_name[MODEL_TO_USE] == "openai":
         provider = OpenAIProvider(api_key=OPENAI_API_KEY)
+        model = OpenAIChatModel(model_name=MODEL_TO_USE, provider=provider)
+    elif model_id_to_provider_name[MODEL_TO_USE] == "xai":
+        provider = GrokProvider(api_key=XAI_API_KEY)
         model = OpenAIChatModel(model_name=MODEL_TO_USE, provider=provider)
     else:
         raise ValueError(

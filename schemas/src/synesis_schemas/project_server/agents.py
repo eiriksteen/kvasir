@@ -26,4 +26,3 @@ class RunModelIntegrationRequest(BaseModel):
     conversation_id: UUID
     prompt_content: str
     public: bool
-    source_id: Optional[UUID] = None

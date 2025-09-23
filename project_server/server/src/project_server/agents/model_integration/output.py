@@ -1,8 +1,26 @@
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, field_validator
 
-from synesis_schemas.main_server import FunctionInputStructureCreate, FunctionOutputStructureCreate, FunctionOutputVariableCreate
+from synesis_schemas.main_server import FunctionInputStructureCreate, FunctionOutputStructureCreate, FunctionOutputVariableCreate, ModelCreate, ModelSourceCreate, PypiModelSourceCreate
 from synesis_schemas.main_server import SUPPORTED_MODALITIES_TYPE, SUPPORTED_TASK_TYPE
+
+
+MAX_PYPI_QUERIES = 5
+
+
+class SearchPypiPackagesOutput(BaseModel):
+    package_names: List[str]
+
+    @field_validator('package_names')
+    @classmethod
+    def validate_package_names(cls, v, info):
+        if len(v) > MAX_PYPI_QUERIES:
+            raise ValueError(
+                f"Too many package names: {len(v)}, max is {MAX_PYPI_QUERIES}")
+        return v
+
+
+# TODO: Add outputs to search github as well
 
 
 class ModelFunctionDescription(BaseModel):

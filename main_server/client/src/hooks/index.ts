@@ -7,4 +7,3 @@ export { useAnalysis } from '@/hooks/useAnalysis';
 export { useProjects, useProject } from '@/hooks/useProject';
 export { usePipelines } from '@/hooks/usePipelines';
 export { useModelEntities } from '@/hooks/useModelEntities';
-export { useModelSources } from '@/hooks/useModelSources';

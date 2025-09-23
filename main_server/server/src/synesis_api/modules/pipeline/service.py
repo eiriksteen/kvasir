@@ -1,21 +1,28 @@
 import uuid
 from datetime import datetime, timezone
-from typing import List
-from fastapi import HTTPException
+from typing import List, Optional
 from sqlalchemy import select, insert
 
-from synesis_api.database.service import fetch_all, execute, fetch_one
-from synesis_api.modules.pipeline.models import pipeline, function_in_pipeline, pipeline_periodic_schedule
-from synesis_api.modules.function.models import function, function_input_structure, function_output_structure, function_output_variable
-from synesis_api.modules.project.service import get_pipeline_ids_in_project
+from synesis_api.database.service import fetch_all, execute
+from synesis_api.modules.pipeline.models import (
+    pipeline,
+    function_in_pipeline,
+    pipeline_periodic_schedule,
+    pipeline_on_event_schedule,
+    pipeline_from_dataset,
+    pipeline_from_model,
+    pipeline_run
+)
+from synesis_api.modules.function.service import get_functions
 from synesis_schemas.main_server import (
     PipelineInDB,
     FunctionInPipelineInDB,
-    FunctionBare,
     PipelineFull,
     PeriodicScheduleInDB,
     PipelineCreate,
+    PipelineSources,
 )
+from synesis_api.modules.project.service import get_pipeline_ids_in_project
 
 
 async def create_pipeline(
@@ -73,77 +80,91 @@ async def create_pipeline(
     return pipeline_obj
 
 
-async def get_user_pipelines_by_ids(user_id: uuid.UUID, pipeline_ids: List[uuid.UUID]) -> List[PipelineInDB]:
-    pipelines = await fetch_all(
-        select(pipeline).where(
-            pipeline.c.user_id == user_id,
-            pipeline.c.id.in_(pipeline_ids)
-        )
-    )
-    return [PipelineInDB(**p) for p in pipelines]
+async def get_user_pipelines(
+    user_id: uuid.UUID,
+    pipeline_ids: Optional[List[uuid.UUID]] = None,
+    project_id: Optional[uuid.UUID] = None
+):
+
+    # pipelines bare
+    pipeline_query = select(pipeline).where(pipeline.c.user_id == user_id)
+
+    if pipeline_ids:
+        pipeline_query = pipeline_query.where(pipeline.c.id.in_(pipeline_ids))
+    if project_id:
+        pipeline_ids = await get_pipeline_ids_in_project(project_id)
+        pipeline_query = pipeline_query.where(pipeline.c.id.in_(pipeline_ids))
+
+    pipelines = await fetch_all(pipeline_query)
+    pipeline_ids = [p["id"] for p in pipelines]
+
+    # pipeline runs
+    pipeline_runs_query = select(pipeline_run).where(
+        pipeline_run.c.pipeline_id.in_(pipeline_ids))
+    pipeline_runs = await fetch_all(pipeline_runs_query)
+
+    # functions in the pipelines
+    functions_in_pipelines_query = select(function_in_pipeline).where(
+        function_in_pipeline.c.pipeline_id.in_(pipeline_ids)).order_by(function_in_pipeline.c.position)
+    functions_in_pipelines = await fetch_all(functions_in_pipelines_query)
+
+    function_records = await get_functions(
+        [f["function_id"] for f in functions_in_pipelines])
+
+    # schedules
+    periodic_schedules_query = select(pipeline_periodic_schedule).where(
+        pipeline_periodic_schedule.c.pipeline_id.in_(pipeline_ids))
+    on_event_schedules_query = select(pipeline_on_event_schedule).where(
+        pipeline_on_event_schedule.c.pipeline_id.in_(pipeline_ids))
+
+    periodic_schedules = await fetch_all(periodic_schedules_query)
+    on_event_schedules = await fetch_all(on_event_schedules_query)
+
+    # sources
+    dataset_sources_query = select(pipeline_from_dataset).where(
+        pipeline_from_dataset.c.pipeline_id.in_(pipeline_ids))
+    model_sources_query = select(pipeline_from_model).where(
+        pipeline_from_model.c.pipeline_id.in_(pipeline_ids))
+
+    dataset_sources = await fetch_all(dataset_sources_query)
+    model_sources = await fetch_all(model_sources_query)
+
+    output_objs = []
+    for pipe_id in pipeline_ids:
+        pipe_record = next(p for p in pipelines if p["id"] == pipe_id)
+        runs_records = [
+            r for r in pipeline_runs if r["pipeline_id"] == pipe_id]
+        periodic_schedules_records = [
+            s for s in periodic_schedules if s["pipeline_id"] == pipe_id]
+        on_event_schedules_records = [
+            s for s in on_event_schedules if s["pipeline_id"] == pipe_id]
+        dataset_sources_records = [
+            s for s in dataset_sources if s["pipeline_id"] == pipe_id]
+        model_sources_records = [
+            s for s in model_sources if s["pipeline_id"] == pipe_id]
+
+        function_ids_in_pipeline = [
+            f["function_id"] for f in functions_in_pipelines if f["pipeline_id"] == pipe_id]
+        functions_records = [
+            f for f in function_records if f.id in function_ids_in_pipeline]
+
+        output_objs.append(PipelineFull(
+            **pipe_record,
+            functions=functions_records,
+            runs=runs_records,
+            periodic_schedules=periodic_schedules_records,
+            on_event_schedules=on_event_schedules_records,
+            sources=PipelineSources(
+                dataset_ids=[s["dataset_id"] for s in dataset_sources_records],
+                model_ids=[s["model_id"] for s in model_sources_records]
+            )
+        ))
+    return output_objs
 
 
-async def get_project_pipelines(user_id: uuid.UUID, project_id: uuid.UUID) -> List[PipelineInDB]:
-    pipeline_ids = await get_pipeline_ids_in_project(project_id)
-    pipelines = await get_user_pipelines_by_ids(user_id, pipeline_ids)
-    return pipelines
+async def get_user_pipelines_by_ids(user_id: uuid.UUID, pipeline_ids: List[uuid.UUID]) -> List[PipelineFull]:
+    return await get_user_pipelines(user_id, pipeline_ids=pipeline_ids)
 
 
-async def get_user_pipeline_with_functions(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> PipelineFull:
-    pipeline_record = await fetch_one(
-        select(pipeline).where(
-            pipeline.c.id == pipeline_id,
-            pipeline.c.user_id == user_id
-        )
-    )
-
-    function_records = await fetch_all(
-        select(function).join(
-            function_in_pipeline, function.c.id == function_in_pipeline.c.function_id
-        ).where(
-            function_in_pipeline.c.pipeline_id == pipeline_id
-        ).order_by(
-            function_in_pipeline.c.position
-        )
-    )
-
-    if pipeline_record is None:
-        raise HTTPException(status_code=404, detail="Pipeline not found")
-
-    function_input_structures_records = await fetch_all(
-        select(function_input_structure).where(
-            function_input_structure.c.function_id.in_(
-                [f["id"] for f in function_records])
-        )
-    )
-
-    function_output_structures_records = await fetch_all(
-        select(function_output_structure).where(
-            function_output_structure.c.function_id.in_(
-                [f["id"] for f in function_records])
-        )
-    )
-
-    function_output_variables_records = await fetch_all(
-        select(function_output_variable).where(
-            function_output_variable.c.function_id.in_(
-                [f["id"] for f in function_records])
-        )
-    )
-
-    functions_with_inputs_and_outputs = []
-
-    for fn in function_records:
-        fn_inputs = [
-            fi for fi in function_input_structures_records if fi["function_id"] == fn["id"]]
-        fn_outputs = [
-            fo for fo in function_output_structures_records if fo["function_id"] == fn["id"]]
-        fn_output_variables = [
-            fo for fo in function_output_variables_records if fo["function_id"] == fn["id"]]
-        functions_with_inputs_and_outputs.append(
-            FunctionBare(**fn, input_structures=fn_inputs, output_structures=fn_outputs, output_variables=fn_output_variables))
-
-    return PipelineFull(
-        **pipeline_record,
-        functions=functions_with_inputs_and_outputs
-    )
+async def get_project_pipelines(user_id: uuid.UUID, project_id: uuid.UUID) -> List[PipelineFull]:
+    return await get_user_pipelines(user_id, project_id=project_id)

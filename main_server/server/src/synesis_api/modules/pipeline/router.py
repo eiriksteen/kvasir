@@ -4,13 +4,13 @@ from uuid import UUID
 
 from synesis_api.auth.service import get_current_user
 from synesis_schemas.main_server import User
-from synesis_api.modules.pipeline.service import get_project_pipelines, get_user_pipeline_with_functions, create_pipeline
+from synesis_api.modules.pipeline.service import get_project_pipelines, create_pipeline, get_user_pipelines_by_ids
 from synesis_schemas.main_server import PipelineFull, PipelineCreate, PipelineInDB
 
 router = APIRouter()
 
 
-@router.get("/project-pipelines/{project_id}", response_model=List[PipelineInDB])
+@router.get("/project-pipelines/{project_id}", response_model=List[PipelineFull])
 async def fetch_pipelines(project_id: UUID, user: User = Depends(get_current_user)) -> List[PipelineInDB]:
     pipelines = await get_project_pipelines(user.id, project_id)
     return pipelines
@@ -22,8 +22,8 @@ async def fetch_pipeline(
     user: User = Depends(get_current_user),
 ) -> PipelineFull:
 
-    pipe = await get_user_pipeline_with_functions(user.id, pipeline_id)
-    return pipe
+    pipe = await get_user_pipelines_by_ids(user.id, [pipeline_id])
+    return pipe[0]
 
 
 @router.post("/pipeline", response_model=PipelineInDB)

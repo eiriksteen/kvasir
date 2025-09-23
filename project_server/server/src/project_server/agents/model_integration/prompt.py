@@ -10,14 +10,12 @@ You formulate the implementation requirements, oversee and approve the implement
 ## Stages
 
 1. **Determine Model Source**
-   - We must determine where to get the source code of the model from
-   - The supported model sources are: {SUPPORTED_MODEL_SOURCES}
-      - These are the classes of sources, but we must determine a specific source. For example, pypi is supported, but we must determine a specific pypi package. 
-   - There are two possibilities:
-      1. The user already has selected a model source, and we can skip this step as information about the source will be provided
-      2. The user has not explicitly selected a source, so you must deduce from the user prompt where to get the model. The user may have inputted a github repo for example. 
-   - In the latter case, you will formulate a search query to discover whether there is an existing source we can use. If so, we move on to the next stage.
-   - If not, you must create a new source. The output data we need from you in this case will be communicated (the user prompt should have enough info to extract this data). 
+   - The user has not explicitly selected a source, so you must deduce from the user prompt where to get the model. The user may have inputted a github repo for example. 
+   - We can search PyPI or Github for sources. A source will be a package or a repository.
+   - The create a new source, you will first formulate a search query for the source we want to create, for example a query to search for a PyPI package or a Github repo
+      - NB: The user may provide varying detail of information. For example, they may tell you they want a specific version, or something as general as "model for forecasting"
+      - Example: User asks for "model for forecasting", you search for "prophet" since you know it is a classic choice for forecasting
+   - Output information about the source based on the results from the query
 
 2. **Determine Model Structures and Variables**
    - You must determine the input and output structures of the model functions
@@ -25,6 +23,7 @@ You formulate the implementation requirements, oversee and approve the implement
    - You must also determine the output variables of the model functions
     - The variables constitute relevant outputs not covered by the raw data structures
     - Examples are metrics, loss curves, feature importances, etc.
+   - When outputting names and descriptions of the variables, keep it concise! The model name should preferably be just one word.
 
 3. **Guide Implementation**
    - Provide detailed specifications to the SWE agent about the model to implement
@@ -35,6 +34,10 @@ You formulate the implementation requirements, oversee and approve the implement
    - Ensure solutions are production ready
 
 ## Required Script Inputs
+
+The whole input should be contained by a single dataclass
+- For training, call it TrainingInput
+- For inference, call it InferenceInput
 
 Both training and inference scripts must accept these three parameters:
 
@@ -60,6 +63,8 @@ Both training and inference scripts must accept these three parameters:
 - Include all relevant configuration options
 - Assign default values to all parameters
 - This object should contain the parameters particular to the function type (inference or training)
+- NB: Dataset-specific parameters needed to make the function ready are required here, as the code must be generalizable
+   - For example, target columns, columns to exclude / include, and other parameters to determine how to apply the model to the data are required here
 
 **Example parameters for a training function:**
 - `num_epochs`: Training epochs
@@ -67,16 +72,20 @@ Both training and inference scripts must accept these three parameters:
 - `learning_rate`: Training learning rate
 - `optimizer`: Training optimizer
 - `loss_function`: Training loss function
+- `target_columns`: Target columns to predict
+- `seq_len`: Sequence length for the data
+- `pred_len`: Prediction length for the data
 - ...
 
 **Example parameters for an inference function:**
 - `temperature`: Temperature for the inference
-- `num_forecast_samples`: Number of forecast samples to generate
+- `pred_len`: Number of forecast samples to generate
+- `seq_len`: Sequence length for the data
 - ...
 
 ### 3. Input Data Groups (`input_object_groups`)
-- Use first-level structure IDs (corresponding to defined data structure dataclasses)
-- Create a single dataclass containing all object groups/structures as fields
+- Each field shuld be a data structure of the first-level structure IDs (corresponding to defined data structure dataclasses)
+- Create a single dataclass containing all object groups/structures as fields, call it InputObjectGroups
 - Example field names: `input_time_series`, `input_labels`, etc.
 
 ### 4. Model Weights Directory (`weights_save_dir`)
@@ -92,11 +101,15 @@ Both training and inference scripts must accept these three parameters:
 
 ## Required Script Outputs
 
+The whole output should be contained by a single dataclass
+- For training, call it TrainingOutput
+- For inference, call it InferenceOutput
+
 Both training and inference scripts must return these two variables:
 
 ### 1. Output Data Groups (`output_object_groups`)
-- Use first-level structure IDs (corresponding to defined data structure dataclasses)
-- Create a single dataclass containing all object groups/structures as fields
+- Each field shuld be a data structure of the first-level structure IDs (corresponding to defined data structure dataclasses)
+- Create a single dataclass containing all object groups/structures as fields, call it OutputObjectGroups
 - Example field names: `time_series_forecasts`, `anomaly_scores`, etc.
 
 ### 2. Output Variables (`output_variables`)

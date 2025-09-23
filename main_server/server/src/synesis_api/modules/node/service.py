@@ -3,36 +3,33 @@ from typing import List, Literal, Optional, Dict, Any
 from sqlalchemy import select, insert, update, delete, func
 
 from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_api.modules.node.models import node, data_source_node, dataset_node, analysis_node, pipeline_node, model_node, model_source_node
+from synesis_api.modules.node.models import node, data_source_node, dataset_node, analysis_node, pipeline_node, model_entity_node
 from synesis_schemas.main_server import FrontendNode, FrontendNodeCreate
 
 
 NODE_TYPE_TABLES = {
     "data_source": data_source_node,
-    "model_source": model_source_node,
     "dataset": dataset_node,
     "analysis": analysis_node,
     "pipeline": pipeline_node,
-    "model": model_node
+    "model_entity": model_entity_node
 }
 
 NODE_TYPE_ID_FIELDS = {
     "data_source": "data_source_id",
-    "model_source": "model_source_id",
     "dataset": "dataset_id",
     "analysis": "analysis_id",
     "pipeline": "pipeline_id",
-    "model": "model_id"
+    "model_entity": "model_entity_id"
 }
 
 
 BASE_X_POSITIONS = {
     "data_source": 0,
-    "model_source": 100,
     "dataset": 200,
     "analysis": 300,
     "pipeline": 400,
-    "model": 500
+    "model_entity": 500
 }
 VERTICAL_SPACING = 100
 
@@ -46,15 +43,14 @@ def _build_frontend_node(node_row: Dict[str, Any], node_type: str, specific_id: 
         y_position=node_row["y_position"],
         type=node_type,
         data_source_id=specific_id if node_type == "data_source" else None,
-        model_source_id=specific_id if node_type == "model_source" else None,
         dataset_id=specific_id if node_type == "dataset" else None,
         analysis_id=specific_id if node_type == "analysis" else None,
         pipeline_id=specific_id if node_type == "pipeline" else None,
-        model_id=specific_id if node_type == "model" else None
+        model_entity_id=specific_id if node_type == "model_entity" else None
     )
 
 
-async def _create_node_position(project_id: UUID, node_type: Literal["data_source", "model_source", "dataset", "analysis", "pipeline", "model"]):
+async def _create_node_position(project_id: UUID, node_type: Literal["data_source", "dataset", "analysis", "pipeline", "model_entity"]):
     max_y_position = await fetch_one(select(func.max(node.c.y_position).label("max_y")).where(node.c.project_id == project_id, node.c.type == node_type))
 
     if max_y_position and max_y_position["max_y"] is not None:
@@ -104,11 +100,10 @@ async def create_node(frontend_node: FrontendNodeCreate) -> FrontendNode:
         y_position=y_position,
         type=frontend_node.type,
         data_source_id=frontend_node.data_source_id,
-        model_source_id=frontend_node.model_source_id,
         dataset_id=frontend_node.dataset_id,
         analysis_id=frontend_node.analysis_id,
         pipeline_id=frontend_node.pipeline_id,
-        model_id=frontend_node.model_id
+        model_entity_id=frontend_node.model_entity_id
     )
 
 
@@ -124,14 +119,14 @@ async def get_node(node_id: UUID) -> Optional[FrontendNode]:
         dataset_node.c.dataset_id,
         analysis_node.c.analysis_id,
         pipeline_node.c.pipeline_id,
-        model_node.c.model_id
+        model_entity_node.c.model_entity_id
     ).select_from(
         node
         .outerjoin(data_source_node, node.c.id == data_source_node.c.id)
         .outerjoin(dataset_node, node.c.id == dataset_node.c.id)
         .outerjoin(analysis_node, node.c.id == analysis_node.c.id)
         .outerjoin(pipeline_node, node.c.id == pipeline_node.c.id)
-        .outerjoin(model_node, node.c.id == model_node.c.id)
+        .outerjoin(model_entity_node, node.c.id == model_entity_node.c.id)
     ).where(node.c.id == node_id)
 
     row = await fetch_one(query)
@@ -153,19 +148,17 @@ async def get_project_nodes(project_id: UUID) -> List[FrontendNode]:
         node.c.y_position,
         node.c.type,
         data_source_node.c.data_source_id,
-        model_source_node.c.model_source_id,
         dataset_node.c.dataset_id,
         analysis_node.c.analysis_id,
         pipeline_node.c.pipeline_id,
-        model_node.c.model_id
+        model_entity_node.c.model_entity_id
     ).select_from(
         node
         .outerjoin(data_source_node, node.c.id == data_source_node.c.id)
-        .outerjoin(model_source_node, node.c.id == model_source_node.c.id)
+        .outerjoin(model_entity_node, node.c.id == model_entity_node.c.id)
         .outerjoin(dataset_node, node.c.id == dataset_node.c.id)
         .outerjoin(analysis_node, node.c.id == analysis_node.c.id)
         .outerjoin(pipeline_node, node.c.id == pipeline_node.c.id)
-        .outerjoin(model_node, node.c.id == model_node.c.id)
     ).where(node.c.project_id == project_id)
 
     rows = await fetch_all(query)

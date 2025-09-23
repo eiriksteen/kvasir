@@ -12,7 +12,7 @@ from synesis_api.modules.node.service import (
     update_node_position,
     delete_node,
 )
-from synesis_api.modules.project.service import get_project
+from synesis_api.auth.service import user_owns_project
 
 
 router = APIRouter()
@@ -25,10 +25,7 @@ async def create_new_node(
 ) -> FrontendNode:
     # Verify project exists and user has access
 
-    project = await get_project(node.project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    if project.user_id != user.id:
+    if not await user_owns_project(user.id, node.project_id):
         raise HTTPException(
             status_code=403, detail="Not authorized to access this project")
 
@@ -46,10 +43,7 @@ async def get_nodes_by_project(
     user: User = Depends(get_current_user)
 ) -> List[FrontendNode]:
     # Verify project exists and user has access
-    project = await get_project(project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    if project.user_id != user.id:
+    if not await user_owns_project(user.id, project_id):
         raise HTTPException(
             status_code=403, detail="Not authorized to access this project")
 
@@ -67,8 +61,7 @@ async def update_node_position_endpoint(
         raise HTTPException(status_code=404, detail="Node not found")
 
     # Verify user has access to the project
-    project = await get_project(node.project_id)
-    if project.user_id != user.id:
+    if not await user_owns_project(user.id, node.project_id):
         raise HTTPException(
             status_code=403, detail="Not authorized to update this node")
 
@@ -85,5 +78,15 @@ async def delete_node_endpoint(
     node_id: UUID,
     user: User = Depends(get_current_user)
 ) -> UUID:
+
+    check_node = await get_node(node_id)
+    if not check_node:
+        raise HTTPException(status_code=404, detail="Node not found")
+
+    if not await user_owns_project(user.id, check_node.project_id):
+        raise HTTPException(
+            status_code=403, detail="Not authorized to delete this node")
+
     await delete_node(node_id)
+
     return node_id

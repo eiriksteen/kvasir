@@ -30,6 +30,10 @@ import PipelineBox from '@/app/projects/[projectId]/_components/erd/PipelineBox'
 import { Pipeline } from '@/types/pipeline';
 import PipelineInfoModal from '@/components/info-modals/PipelineInfoModal';
 import { UUID } from 'crypto';
+import { ModelEntity } from '@/types/model';
+import { useModelEntities } from '@/hooks/useModelEntities';
+import ModelEntityBox from '@/app/projects/[projectId]/_components/erd/ModelEntityBox';
+import ModelInfoModal from '@/components/info-modals/ModelInfoModal';
 
 const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradientClass: string; onClick: () => void } }) => (
   <DataSourceBox 
@@ -62,11 +66,19 @@ const PipelineNodeWrapper = ({ data }: { data: { pipeline: Pipeline; onClick: ()
   />
 );
 
+const ModelEntityNodeWrapper = ({ data }: { data: { modelEntity: ModelEntity; onClick: () => void } }) => (
+  <ModelEntityBox 
+    modelEntity={data.modelEntity} 
+    onClick={data.onClick} 
+  />
+);
+
 const nodeTypes = {
   dataset: DatasetNodeWrapper,
   analysis: AnalysisNodeWrapper,
   dataSource: DataSourceNodeWrapper,
   pipeline: PipelineNodeWrapper,
+  modelEntity: ModelEntityNodeWrapper,
 };
 
 const edgeTypes: EdgeTypes = {
@@ -78,21 +90,25 @@ interface EntityRelationshipDiagramProps {
 }
 
 export default function EntityRelationshipDiagram({ projectId }: EntityRelationshipDiagramProps) {
+
   const { project, frontendNodes, updatePosition } = useProject(projectId);
   const { dataSources } = useProjectDataSources(projectId);
   const { datasets } = useDatasets(projectId);
   const { pipelines } = usePipelines(projectId);
+  const { modelEntities } = useModelEntities(projectId);
   const { analysisJobResults } = useAnalysis();
+
   // const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
   const [selectedDataSource, setSelectedDataSource] = useState<DataSource | null>(null);
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null);
   const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
+  const [selectedModelEntity, setSelectedModelEntity] = useState<ModelEntity | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
   // Memoize nodes
   const memoizedNodes = useMemo(() => {
-    if (!project || !datasets || !analysisJobResults || !dataSources || !pipelines) {
+    if (!project || !datasets || !analysisJobResults || !dataSources || !pipelines || !modelEntities) {
       return [];
     }
 
@@ -161,9 +177,25 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       } as Node;
     });
 
-    return [...datasetNodes.filter(Boolean), ...analysisNodes.filter(Boolean), ...dataSourceNodes.filter(Boolean), ...pipelineNodes.filter(Boolean)] as Node[];
+    const modelEntityNodes = frontendNodes.map((frontendNode: FrontendNode) => {
+      const modelEntity = modelEntities.find(m => m.id === frontendNode.modelEntityId);
+      if (!modelEntity) return null;
+      return {
+        id: frontendNode.id,
+        type: 'modelEntity',
+        position: { x: frontendNode.xPosition, y: frontendNode.yPosition },
+        data: {
+          label: modelEntity.name,
+          id: frontendNode.modelEntityId,
+          modelEntity: modelEntity,
+          onClick: () => setSelectedModelEntity(modelEntity)
+        },
+      } as Node;
+    });
 
-  }, [project, datasets, analysisJobResults, frontendNodes, dataSources, pipelines]);
+    return [...datasetNodes.filter(Boolean), ...analysisNodes.filter(Boolean), ...dataSourceNodes.filter(Boolean), ...pipelineNodes.filter(Boolean), ...modelEntityNodes.filter(Boolean)] as Node[];
+
+  }, [project, datasets, analysisJobResults, frontendNodes, dataSources, pipelines, modelEntities]);
 
   // Memoize edges
   const memoizedEdges = useMemo(() => {
@@ -235,6 +267,10 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     setSelectedPipeline(null);
   }, []);
 
+  const handleCloseModelEntityModal = useCallback(() => {
+    setSelectedModelEntity(null);
+  }, []);
+
   return (
     <div className="w-full h-screen">
       <ReactFlow
@@ -263,6 +299,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       {selectedDataset && <DatasetInfoModal datasetId={selectedDataset.id} onClose={handleCloseDatasetModal} projectId={projectId} />}
       {selectedPipeline && <PipelineInfoModal pipelineId={selectedPipeline.id} onClose={handleClosePipelineModal} />}
       {/* TODO: Add AnalysisInfoModal when available */}
+      {selectedModelEntity && <ModelInfoModal modelEntityId={selectedModelEntity.id} onClose={handleCloseModelEntityModal} projectId={projectId} />}
     </div>
   );
 };

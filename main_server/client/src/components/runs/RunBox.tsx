@@ -1,13 +1,13 @@
 import { UUID } from "crypto";
 import { useRun, useRunMessages } from "@/hooks/useRuns";
-import { BarChart3, Zap, Clock, CheckCircle, XCircle, Loader2, Folder } from "lucide-react";
+import { BarChart3, Zap, Clock, CheckCircle, XCircle, Loader2, Folder, Brain } from "lucide-react";
 import { useState } from "react";
 
 interface RunBoxProps {
   runId: UUID;
 }
 
-const getRunTheme = (type: 'data_integration' | 'analysis' | 'pipeline' | 'swe') => {
+const getRunTheme = (type: 'data_integration' | 'analysis' | 'pipeline' | 'swe' | 'model_integration') => {
 
 switch (type) {
     case 'data_integration':
@@ -43,6 +43,17 @@ switch (type) {
         statusBg: 'bg-orange-500/15',
         statusBorder: 'border-orange-400/30',
         hover: 'hover:bg-orange-500/10 cursor-pointer',
+    };
+    case 'model_integration':
+    return {
+        bg: 'bg-green-500/5',
+        border: 'border border-green-400/30',
+        icon: <Brain size={12} />,
+        iconColor: 'text-green-400',
+        textColor: 'text-gray-200',
+        statusBg: 'bg-green-500/15',
+        statusBorder: 'border-green-400/30',
+        hover: 'hover:bg-green-500/10 cursor-pointer',
     };
 }
 };

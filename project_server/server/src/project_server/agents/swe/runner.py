@@ -1,9 +1,9 @@
 import uuid
+import docker
 from typing import Literal, Optional, List
 from datetime import datetime, timezone
-import docker
 from pathlib import Path
-from pydantic_ai.agent import AgentRunResult
+from logging import Logger
 
 from project_server.redis import get_redis
 from project_server.agents.swe.agent import swe_agent
@@ -48,7 +48,8 @@ class SWEAgentRunner:
             create_new_container_on_start: bool = False,
             create_new_container_on_package_installation: bool = True,
             log=False,
-            structure_ids_to_inject: Optional[List[str]] = None
+            structure_ids_to_inject: Optional[List[str]] = None,
+            logger: Optional[Logger] = None
     ):
 
         self.swe_agent = swe_agent
@@ -83,7 +84,8 @@ class SWEAgentRunner:
             cwd=str(self.container_cwd),
             container_name=self.container_name,
             test_code_to_append_to_implementation=None,
-            structure_ids_to_inject=structure_ids_to_inject
+            structure_ids_to_inject=structure_ids_to_inject,
+            logger=logger
         )
 
     async def __call__(
@@ -116,6 +118,7 @@ class SWEAgentRunner:
             )
 
             self.implementation_result = None
+            self.tries = 0
 
             while not self.implementation_result:
 

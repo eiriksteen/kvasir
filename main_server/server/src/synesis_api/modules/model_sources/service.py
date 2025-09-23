@@ -5,12 +5,23 @@ from datetime import datetime
 from synesis_schemas.main_server import ModelSourceInDB, ModelSourceCreate, PypiModelSourceInDB, PypiModelSourceCreate, ModelSource, PypiModelSourceFull
 
 from synesis_api.modules.model_sources.models import model_source, pypi_model_source
-from synesis_api.modules.project.service import get_model_source_ids_in_project
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.utils.rag_utils import embed
 
 
 async def create_model_source(user_id: uuid.UUID, model_source_create: ModelSourceCreate) -> ModelSource:
+
+    # Check if source with the data exists:
+    if type(model_source_create) == PypiModelSourceCreate:
+        pypi_model_source_query = select(pypi_model_source.c.id).where(
+            pypi_model_source.c.package_name == model_source_create.package_name,
+            pypi_model_source.c.package_version == model_source_create.package_version,
+        )
+        pypi_model_source_record = await fetch_all(pypi_model_source_query)
+        fetched_ids = [record["id"] for record in pypi_model_source_record]
+        public_or_user_owned_results = (await get_user_or_public_model_sources_by_ids(user_id, fetched_ids))
+        if public_or_user_owned_results:
+            return public_or_user_owned_results[0]
 
     embedding = (await embed([f"{model_source_create.name}: {model_source_create.description}"]))[0]
 
@@ -43,7 +54,8 @@ async def create_model_source(user_id: uuid.UUID, model_source_create: ModelSour
 
         output_obj = PypiModelSourceFull(
             **model_source_record.model_dump(),
-            **pypi_model_source_record.model_dump()
+            package_name=pypi_model_source_record.package_name,
+            package_version=pypi_model_source_record.package_version
         )
 
     # TODO: Add more model source types with elifs here
@@ -91,7 +103,10 @@ async def get_user_or_public_model_sources_by_ids(user_id: uuid.UUID, model_sour
             pypi_model_source_record = PypiModelSourceInDB(
                 **next(record for record in pypi_model_source_records if record["id"] == source_id))
             output_objs.append(PypiModelSourceFull(
-                **base_obj.model_dump(), **pypi_model_source_record.model_dump()))
+                **base_obj.model_dump(),
+                package_name=pypi_model_source_record.package_name,
+                package_version=pypi_model_source_record.package_version
+            ))
         # elif: ... etc
 
     return output_objs
@@ -100,8 +115,3 @@ async def get_user_or_public_model_sources_by_ids(user_id: uuid.UUID, model_sour
 async def get_model_sources_by_ids(user_id: uuid.UUID, model_source_ids: List[uuid.UUID]) -> List[ModelSource]:
     records = await get_user_or_public_model_sources_by_ids(user_id, model_source_ids)
     return records
-
-
-async def get_project_model_sources(user_id: uuid.UUID, project_id: uuid.UUID) -> List[ModelSource]:
-    model_source_ids = await get_model_source_ids_in_project(project_id)
-    return await get_user_or_public_model_sources_by_ids(user_id, model_source_ids)

@@ -88,7 +88,6 @@ async def post_chat(
         context_in_db = None
         if prompt.context and len(prompt.context.data_source_ids) + len(prompt.context.dataset_ids) + len(prompt.context.pipeline_ids) + len(prompt.context.analysis_ids) > 0:
             context_in_db = await create_context(prompt.context)
-
             response_message.context_id = context_in_db.id
 
         async with orchestrator_agent.run_stream(
@@ -125,7 +124,7 @@ async def post_chat(
                     project_id=conversation_record.project_id,
                     conversation_id=conversation_record.id,
                     data_source_ids=prompt.context.data_source_ids,
-                    prompt_content=prompt.content
+                    prompt_content=orchestrator_run.output.deliverable_description
                 ))
 
             elif isinstance(orchestrator_run.output, PipelineHandoffOutput):
@@ -133,7 +132,7 @@ async def post_chat(
                 await post_run_pipeline(client, RunPipelineRequest(
                     project_id=conversation_record.project_id,
                     conversation_id=conversation_record.id,
-                    prompt_content=prompt.content,
+                    prompt_content=orchestrator_run.output.deliverable_description,
                 ))
 
             elif isinstance(orchestrator_run.output, ModelIntegrationHandoffOutput):
@@ -141,9 +140,8 @@ async def post_chat(
                 await post_run_model_integration(client, RunModelIntegrationRequest(
                     project_id=conversation_record.project_id,
                     conversation_id=conversation_record.id,
-                    prompt_content=prompt.content,
-                    public=prompt.creation_settings.public if prompt.creation_settings else False,
-                    source_id=orchestrator_run.output.source_id,
+                    prompt_content=orchestrator_run.output.deliverable_description,
+                    public=prompt.creation_settings.public if prompt.creation_settings else False
                 ))
 
         if is_new_conversation:

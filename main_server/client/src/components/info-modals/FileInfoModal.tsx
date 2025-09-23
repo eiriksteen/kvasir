@@ -68,8 +68,8 @@ export default function FileInfoModal({
       />
       <div className="fixed inset-4 z-50 flex items-center justify-center">
         <div className="w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden bg-black/50 rounded-lg">
-          <div className="rounded-xl border-2 border-emerald-500/20 shadow-xl shadow-emerald-500/10 h-full flex flex-col">
-            <div className="relative flex items-center p-4 border-b border-emerald-500/20 flex-shrink-0">
+          <div className="rounded-xl border-2 border-gray-500/20 shadow-xl shadow-gray-500/10 h-full flex flex-col">
+            <div className="relative flex items-center p-4 border-b border-gray-500/20 flex-shrink-0">
               <div className="ml-2">
                 <h3 className="text-sm font-mono tracking-wider text-gray-200">
                   {dataSource.name}
@@ -87,10 +87,10 @@ export default function FileInfoModal({
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
                 {/* Left Column - File Stats and Content Description */}
                 <div className="lg:col-span-1 flex flex-col gap-4 h-full overflow-y-auto">
-                  <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-emerald-500/20 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0">
+                  <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-gray-500/20 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0">
                     <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className="p-2 bg-emerald-500/20 rounded-lg">
-                        <BarChart3 size={18} className="text-emerald-400" />
+                      <div className="p-2 bg-gray-500/20 rounded-lg">
+                        <BarChart3 size={18} className="text-gray-400" />
                       </div>
                       <div>
                         <h3 className="text-sm font-semibold text-gray-200">

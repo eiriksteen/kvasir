@@ -10,14 +10,13 @@ class Project(BaseModel):
     user_id: UUID
     name: str
     description: str
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
     data_source_ids: List[UUID] = []
-    model_source_ids: List[UUID] = []
     dataset_ids: List[UUID] = []
     analysis_ids: List[UUID] = []
     pipeline_ids: List[UUID] = []
-    model_ids: List[UUID] = []
+    model_entity_ids: List[UUID] = []
+    created_at: datetime = datetime.now(timezone.utc)
+    updated_at: datetime = datetime.now(timezone.utc)
 
 
 class ProjectCreate(BaseModel):
@@ -39,13 +38,13 @@ class ProjectDetailsUpdate(BaseModel):
 
 class AddEntityToProject(BaseModel):
     project_id: UUID
-    entity_type: Literal["data_source", "model_source", "dataset",
-                         "analysis", "pipeline", "model"]
+    entity_type: Literal["data_source", "dataset",
+                         "analysis", "pipeline", "model_entity"]
     entity_id: UUID
 
 
 class RemoveEntityFromProject(BaseModel):
     project_id: UUID
-    entity_type: Literal["data_source", "model_source", "dataset",
-                         "analysis", "pipeline", "model"]
+    entity_type: Literal["data_source", "dataset",
+                         "analysis", "pipeline", "model_entity"]
     entity_id: UUID

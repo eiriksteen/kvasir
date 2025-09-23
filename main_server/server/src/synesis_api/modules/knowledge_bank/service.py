@@ -1,4 +1,6 @@
-from sqlalchemy import select
+from sqlalchemy import select, or_
+
+import uuid
 
 from synesis_api.database.service import fetch_all
 from synesis_api.modules.function.models import (
@@ -45,12 +47,14 @@ async def query_functions(query_request: QueryRequest) -> FunctionQueryResult:
     )
 
 
-async def query_models(query_request: QueryRequest) -> ModelQueryResult:
+async def query_models(user_id: uuid.UUID, query_request: QueryRequest) -> ModelQueryResult:
 
     query_vector = (await embed([query_request.query]))[0]
 
     model_query = select(
         model
+    ).where(
+        or_(model.c.owner_id == user_id, model.c.public == True)
     ).order_by(
         model.c.embedding.cosine_distance(query_vector)
     ).limit(query_request.k)
@@ -62,12 +66,14 @@ async def query_models(query_request: QueryRequest) -> ModelQueryResult:
     )
 
 
-async def query_model_sources(query_request: QueryRequest) -> ModelSourceQueryResult:
+async def query_model_sources(user_id: uuid.UUID, query_request: QueryRequest) -> ModelSourceQueryResult:
 
     query_vector = (await embed([query_request.query]))[0]
 
     model_source_query = select(
         model_source
+    ).where(
+        or_(model_source.c.user_id == user_id, model_source.c.public == True)
     ).order_by(
         model_source.c.embedding.cosine_distance(query_vector)
     ).limit(query_request.k)

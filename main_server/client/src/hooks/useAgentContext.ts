@@ -5,7 +5,6 @@ import useSWRMutation from "swr/mutation";
 import { AnalysisJobResultMetadata } from "@/types/analysis";
 import { DataSource } from "@/types/data-sources";
 import { ModelEntity } from "@/types/model";
-import { ModelSource } from "@/types/model-source";
 import { UUID } from "crypto";
 
 
@@ -15,8 +14,6 @@ const emptyDatasetsInContext: Dataset[] = [];
 const emptyPipelinesInContext: Pipeline[] = [];
 const emptyAnalysisesInContext: AnalysisJobResultMetadata[] = [];
 const emptyModelEntitiesInContext: ModelEntity[] = [];
-const emptyModelSourcesInContext: ModelSource[] = [];
-const emptyModelsInContext: ModelEntity[] = [];
 
 
 export const useAgentContext = (projectId: UUID) => {
@@ -24,10 +21,8 @@ export const useAgentContext = (projectId: UUID) => {
   const { data: dataSourcesInContext } = useSWR(["dataSourcesInContext", projectId], { fallbackData: emptyDataSourcesInContext });
   const { data: datasetsInContext } = useSWR(["datasetsInContext", projectId], { fallbackData: emptyDatasetsInContext });
   const { data: pipelinesInContext } = useSWR(["pipelinesInContext", projectId], { fallbackData: emptyPipelinesInContext });
-  const { data: modelsInContext } = useSWR(["modelsInContext", projectId], { fallbackData: emptyModelsInContext });
   const { data: analysesInContext } = useSWR(["analysisesInContext", projectId], { fallbackData: emptyAnalysisesInContext });
   const { data: modelEntitiesInContext } = useSWR(["modelEntitiesInContext", projectId], { fallbackData: emptyModelEntitiesInContext });
-  const { data: modelSourcesInContext } = useSWR(["modelSourcesInContext", projectId], { fallbackData: emptyModelSourcesInContext });
 
   const { trigger: addDataSourceToContext } = useSWRMutation(["dataSourcesInContext", projectId],
     async (_, { arg }: { arg: DataSource }) => {
@@ -51,25 +46,6 @@ export const useAgentContext = (projectId: UUID) => {
       }
     }
   );
-
-  const { trigger: addModelToContext } = useSWRMutation(["modelsInContext", projectId],
-    async (_, { arg }: { arg: ModelEntity }) => {
-      return arg;
-    },
-    {
-      populateCache: (newData: ModelEntity) => ([...(modelsInContext || []), newData])
-    }
-  );
-
-  const { trigger: removeModelFromContext } = useSWRMutation(["modelsInContext", projectId],
-    async (_, { arg }: { arg: ModelEntity }) => {
-      return arg;
-    },
-    {
-      populateCache: (newData: ModelEntity) => ([...(modelsInContext || []), newData])
-    }
-  );
-
 
   const { trigger: addDatasetToContext } = useSWRMutation(["datasetsInContext", projectId],
     async (_, { arg }: { arg: Dataset }) => {
@@ -168,28 +144,6 @@ export const useAgentContext = (projectId: UUID) => {
     }
   );
 
-  const { trigger: addModelSourceToContext } = useSWRMutation(["modelSourcesInContext", projectId],
-    async (_, { arg }: { arg: ModelSource }) => {
-      return arg;
-    },
-    {
-      populateCache: (newData: ModelSource) => ([...(modelSourcesInContext || []), newData])
-    }
-  );
-
-  const { trigger: removeModelSourceFromContext } = useSWRMutation(["modelSourcesInContext", projectId],
-    async (_, { arg }: { arg: ModelSource }) => {
-      return arg;
-    },
-    {
-      populateCache: (newData: ModelSource) => {
-        if (modelSourcesInContext) {
-          return modelSourcesInContext.filter((m: ModelSource) => m.id !== newData.id);
-        }
-        return [];
-      }
-    }
-  );
 
 
   return {
@@ -198,13 +152,9 @@ export const useAgentContext = (projectId: UUID) => {
     pipelinesInContext,
     analysesInContext,
     modelEntitiesInContext,
-    modelSourcesInContext,
-    modelsInContext,
     addDataSourceToContext,
     removeDataSourceFromContext,
     addDatasetToContext,
-    addModelToContext,
-    removeModelFromContext,
     removeDatasetFromContext,
     addPipelineToContext,
     removePipelineFromContext,
@@ -212,7 +162,5 @@ export const useAgentContext = (projectId: UUID) => {
     removeAnalysisFromContext,
     addModelEntityToContext,
     removeModelEntityFromContext,
-    addModelSourceToContext,
-    removeModelSourceFromContext
   };
 }; 

@@ -78,10 +78,10 @@ class PipelineAgentRunner(RunnerBase):
                 queries=search_run.output
             ))
 
-            logger.info(f"Function search results: {search_response.results}")
+            logger.info(f"Function search results: {search_response}")
 
             pipeline_run_result = await self._run_agent(
-                f"The search results are:\n\n{search_response.results}\n\n" +
+                f"The search results are:\n\n{search_response}\n\n" +
                 "Now determine whether these suffice to compose the final pipeline, or if new functions must be implemented. " +
                 "In case we need new ones, submit descriptions for each.",
                 output_type=[
@@ -140,7 +140,8 @@ class PipelineAgentRunner(RunnerBase):
                         self.bearer_token,
                         self.conversation_id,
                         self.run_id,
-                        structure_ids_to_inject=input_structure_ids+output_structure_ids
+                        structure_ids_to_inject=input_structure_ids+output_structure_ids,
+                        logger=logger
                     )
 
                     self.tries = 0

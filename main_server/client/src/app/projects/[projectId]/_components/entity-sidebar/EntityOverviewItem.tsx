@@ -3,7 +3,7 @@
 import React from 'react';
 import AddEntityButton from '@/app/projects/[projectId]/_components/entity-sidebar/AddEntityButton';
 
-type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_source' | 'model';
+type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_entity';
 
 interface EntityOverviewItemProps {
     title: string;
@@ -62,11 +62,10 @@ export default function EntityOverviewItem({ title, count, color, onToggle, onAd
     const colors = getColorClasses(color);
     const itemTypeMap: Record<string, ItemType> = {
         'Datasets': 'dataset',
-        'Analysis': 'analysis',
+        'Analyses': 'analysis',
         'Pipelines': 'pipeline',
         'Data Sources': 'data_source',
-        'Model Sources': 'model_source',
-        'Models': 'model'
+        'Models': 'model_entity',
     };
     const itemType = itemTypeMap[title];
 

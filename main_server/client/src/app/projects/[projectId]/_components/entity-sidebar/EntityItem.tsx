@@ -5,14 +5,12 @@ import { Database, BarChart3, Zap, Folder } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { Pipeline } from '@/types/pipeline';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
-import { DataSource } from '@/types/data-sources';
 import { ModelEntity } from '@/types/model';
-import { ModelSource } from '@/types/model-source';
 
-type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_source' | 'model';
+type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'model_entity';
 
 interface EntityItemProps {
-    item: Dataset | AnalysisJobResultMetadata | Pipeline | DataSource | ModelSource | ModelEntity;
+    item: Dataset | AnalysisJobResultMetadata | Pipeline | ModelEntity;
     type: ItemType;
     isInContext: boolean;
     onClick: () => void;
@@ -21,8 +19,7 @@ interface EntityItemProps {
 export default function EntityItem({ item, type, isInContext, onClick }: EntityItemProps) {
     const getTheme = (type: ItemType) => {
         switch (type) {
-            case 'model':
-            case 'model_source':
+            case 'model_entity':
                 return {
                     bg: isInContext ? 'bg-emerald-500/10' : 'hover:bg-emerald-500/5',
                     icon: <Database size={11} />,
@@ -31,7 +28,6 @@ export default function EntityItem({ item, type, isInContext, onClick }: EntityI
                     hover: 'hover:bg-emerald-500/8'
                 };
             case 'dataset':
-            case 'data_source':
                 return {
                     bg: isInContext ? 'bg-blue-500/10' : 'hover:bg-blue-500/5',
                     icon: <Folder size={11} />,
@@ -59,7 +55,6 @@ export default function EntityItem({ item, type, isInContext, onClick }: EntityI
     };
 
     const theme = getTheme(type);
-    const name = 'name' in item ? item.name : `Analysis ${(item as AnalysisJobResultMetadata).jobId.slice(0, 6)}`;
 
     return (
         <div
@@ -69,7 +64,7 @@ export default function EntityItem({ item, type, isInContext, onClick }: EntityI
             <div className={`flex-shrink-0 ${theme.iconColor}`}>
                 {theme.icon}
             </div>
-            <span className={`truncate ${theme.textColor} font-mono text-xs`}>{name}</span>
+            <span className={`truncate ${theme.textColor} font-mono text-xs`}>{item.name}</span>
         </div>
     );
 }

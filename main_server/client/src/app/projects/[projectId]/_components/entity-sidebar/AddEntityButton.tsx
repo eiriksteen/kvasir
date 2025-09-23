@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Database, Plus, BarChart3, Zap, Folder, Package, Brain } from 'lucide-react';
+import { Database, Plus, BarChart3, Zap, Folder, Brain } from 'lucide-react';
 
-type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_source' | 'model';
+type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_entity';
 
 interface AddEntityButtonProps {
     type: ItemType;
@@ -26,7 +26,7 @@ interface Style {
 
 
 export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityButtonProps) {
-    const getStyleFromType = (type: 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_source' | 'model'): Style => {
+    const getStyleFromType = (type: 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_entity'): Style => {
         switch (type) {
             case 'dataset':
                 return {
@@ -43,15 +43,15 @@ export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityBut
                 };
             case 'data_source':
                 return {
-                    bg: 'bg-blue-500/20',
-                    border: 'border-1 border-dashed border-blue-400/50',
+                    bg: 'bg-gray-600/20',
+                    border: 'border-gray-400/50',
                     text: 'text-gray-300',
-                    icon: 'text-blue-300',
-                    hover: 'hover:bg-blue-500/30',
-                    buttonHover: 'hover:bg-blue-500/40',
-                    buttonBg: 'bg-blue-500/15',
-                    plusBg: 'bg-blue-500',
-                    plusBorder: 'border-blue-400/30',
+                    icon: 'text-gray-300',
+                    hover: 'hover:bg-gray-600/30',
+                    buttonHover: 'hover:bg-gray-600/40',
+                    buttonBg: 'bg-gray-600/15',
+                    plusBg: 'bg-gray-500',
+                    plusBorder: 'border-gray-400/30',
                     symbol: <Database size={size} />,
                 };
             case 'analysis':
@@ -81,7 +81,7 @@ export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityBut
                     symbol: <Zap size={size} />,
 
                 };
-            case 'model':
+            case 'model_entity':
                 return {
                     bg: 'bg-emerald-500/20',
                     border: 'border-emerald-400/50',
@@ -94,27 +94,11 @@ export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityBut
                     plusBorder: 'border-emerald-400/30',
                     symbol: <Brain size={size} />,
                 };
-            case 'model_source':
-                return {
-                    bg: 'bg-emerald-500/20',
-                    border: 'border-1 border-dashed border-emerald-400/50',
-                    text: 'text-gray-300',
-                    icon: 'text-emerald-300',
-                    hover: 'hover:bg-emerald-500/30',
-                    buttonHover: 'hover:bg-emerald-500/40',
-                    buttonBg: 'bg-emerald-500/15',
-                    plusBg: 'bg-emerald-500',
-                    plusBorder: 'border-emerald-400/30',
-                    symbol: <Package size={size} />,
-                };
             }
         };
 
         const colors = getStyleFromType(type);
         const badgeClass = "absolute top-[-8px] right-[-8px] rounded-full p-0.5 z-10";
-
-        console.log(type);
-        console.log(colors);
 
         return (
             <button

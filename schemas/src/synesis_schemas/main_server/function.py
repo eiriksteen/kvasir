@@ -17,7 +17,7 @@ class FunctionInDB(BaseModel):
     embedding: List[float]
     type: Literal["inference", "training", "computation", "tool"]
     setup_script_path: Optional[str] = None
-    default_config: Optional[dict] = None
+    default_args: Optional[dict] = None
 
 
 class FunctionInputStructureInDB(BaseModel):
@@ -67,7 +67,7 @@ class FunctionBare(BaseModel):
     input_structures: List[FunctionInputStructureInDB]
     output_structures: List[FunctionOutputStructureInDB]
     output_variables: List[FunctionOutputVariableInDB]
-    default_config: Optional[dict] = None
+    default_args: Optional[dict] = None
 
 
 # Create models

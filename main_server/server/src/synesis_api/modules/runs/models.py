@@ -21,7 +21,7 @@ run = Table(
     Column("completed_at", DateTime(timezone=True), nullable=True),
     Column("run_name", String, nullable=True),
     CheckConstraint(
-        "type IN ('data_integration', 'analysis', 'pipeline', 'swe', 'data_source_analysis')", name="type_check"),
+        "type IN ('data_integration', 'analysis', 'pipeline', 'swe', 'data_source_analysis', 'model_integration')", name="type_check"),
     schema="runs"
 )
 

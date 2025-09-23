@@ -25,7 +25,7 @@ async def post_model_entity(
     user: User = Depends(get_current_user),
 ) -> ModelEntityInDB:
 
-    if not user_owns_project(user.id, request.project_id):
+    if not await user_owns_project(user.id, request.project_id):
         raise HTTPException(
             status_code=403, detail="Not authorized to modify this project")
 
@@ -39,7 +39,7 @@ async def fetch_project_model_entities(
     user: User = Depends(get_current_user),
 ) -> List[ModelEntityFull]:
 
-    if not user_owns_project(user.id, project_id):
+    if not await user_owns_project(user.id, project_id):
         raise HTTPException(
             status_code=403, detail="Not authorized to access this project")
 

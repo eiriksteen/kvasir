@@ -61,6 +61,7 @@ dependencies = [
     "taskiq[reload]",
     "taskiq-redis",
     "pydantic-ai",
+    "beautifulsoup4"
 ]
 
 [tool.setuptools]

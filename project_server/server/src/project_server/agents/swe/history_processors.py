@@ -12,22 +12,12 @@ def get_last_script_message_index(messages: list[ModelMessage]) -> dict[str, int
     Returns the index of the ToolCallPart message, not the ToolReturnPart.
     Returns -1 if no script modification is found.
     """
-    # script_tools = [
-    #     "write_script",
-    #     "replace_script_lines",
-    #     "add_script_lines",
-    #     "delete_script_lines"
-    # ]
 
     last_idx_per_script = {}
 
     for i in range(len(messages) - 1, -1, -1):
         message = messages[i]
 
-        # if isinstance(message, ModelResponse):
-        #     for part in message.parts:
-        #         if isinstance(part, ToolCallPart) and part.tool_name in script_tools:
-        #             return i
         if isinstance(message, ModelRequest):
             for part in message.parts:
                 if isinstance(part, ToolReturnPart):
@@ -41,7 +31,7 @@ def get_last_script_message_index(messages: list[ModelMessage]) -> dict[str, int
 
 
 async def keep_only_most_recent_script(
-        _: RunContext[SWEAgentDeps],
+        ctx: RunContext[SWEAgentDeps],
         messages: list[ModelMessage]) -> list[ModelMessage]:
     """
     Keep only the most recent script in the history.
@@ -78,6 +68,20 @@ async def keep_only_most_recent_script(
         updated_messages.append(message_to_add)
 
     updated_messages = updated_messages[::-1]
+
+    if ctx.deps.logger:
+        ctx.deps.logger.info(
+            "================================================")
+        ctx.deps.logger.info("THE UNMODIFIED MESSAGES ARE: ")
+        ctx.deps.logger.info(messages)
+        ctx.deps.logger.info(
+            "================================================")
+        ctx.deps.logger.info(
+            "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+        ctx.deps.logger.info("THE MESSAGES BEING SENT ARE: ")
+        ctx.deps.logger.info(updated_messages)
+        ctx.deps.logger.info(
+            "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 
     return updated_messages
 

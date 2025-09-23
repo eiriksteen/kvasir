@@ -2,7 +2,7 @@ from typing import List
 from uuid import UUID
 from sqlalchemy import select, delete, insert, update
 from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_pipeline, project_data_source, project_model, project_model_source
+from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_pipeline, project_data_source, project_model_entity
 from synesis_schemas.main_server import Project, ProjectCreate, ProjectDetailsUpdate, AddEntityToProject, RemoveEntityFromProject
 
 
@@ -32,13 +32,6 @@ async def get_data_source_ids_in_project(project_id: UUID) -> List[UUID]:
     return [data_source_id["data_source_id"] for data_source_id in result]
 
 
-async def get_model_source_ids_in_project(project_id: UUID) -> List[UUID]:
-    query = select(project_model_source.c.model_source_id).where(
-        project_model_source.c.project_id == project_id)
-    result = await fetch_all(query)
-    return [model_source_id["model_source_id"] for model_source_id in result]
-
-
 async def get_dataset_ids_in_project(project_id: UUID) -> List[UUID]:
     query = select(project_dataset.c.dataset_id).where(
         project_dataset.c.project_id == project_id)
@@ -60,11 +53,11 @@ async def get_pipeline_ids_in_project(project_id: UUID) -> List[UUID]:
     return [pipeline_id["pipeline_id"] for pipeline_id in result]
 
 
-async def get_model_ids_in_project(project_id: UUID) -> List[UUID]:
-    query = select(project_model.c.model_id).where(
-        project_model.c.project_id == project_id)
+async def get_model_entity_ids_in_project(project_id: UUID) -> List[UUID]:
+    query = select(project_model_entity.c.model_entity_id).where(
+        project_model_entity.c.project_id == project_id)
     result = await fetch_all(query)
-    return [model_id["model_id"] for model_id in result]
+    return [model_entity_id["model_entity_id"] for model_entity_id in result]
 
 
 async def get_project(project_id: UUID) -> Project | None:
@@ -77,20 +70,18 @@ async def get_project(project_id: UUID) -> Project | None:
 
     # Get related IDs
     data_source_ids = await get_data_source_ids_in_project(project_id)
-    model_source_ids = await get_model_source_ids_in_project(project_id)
     dataset_ids = await get_dataset_ids_in_project(project_id)
     analysis_ids = await get_analysis_ids_in_project(project_id)
     pipeline_ids = await get_pipeline_ids_in_project(project_id)
-    model_ids = await get_model_ids_in_project(project_id)
+    model_entity_ids = await get_model_entity_ids_in_project(project_id)
 
     return Project(
         **project_row,
         data_source_ids=data_source_ids,
-        model_source_ids=model_source_ids,
         dataset_ids=dataset_ids,
         analysis_ids=analysis_ids,
         pipeline_ids=pipeline_ids,
-        model_ids=model_ids
+        model_entity_ids=model_entity_ids
     )
 
 
@@ -123,11 +114,11 @@ async def add_entity_to_project(entity_data: AddEntityToProject) -> Project | No
             ),
             commit_after=True
         )
-    elif entity_type == "model_source":
+    elif entity_type == "model_entity":
         await execute(
-            insert(project_model_source).values(
+            insert(project_model_entity).values(
                 project_id=entity_data.project_id,
-                model_source_id=entity_id
+                model_entity_id=entity_id
             ),
             commit_after=True
         )
@@ -155,14 +146,6 @@ async def add_entity_to_project(entity_data: AddEntityToProject) -> Project | No
             ),
             commit_after=True
         )
-    elif entity_type == "model":
-        await execute(
-            insert(project_model).values(
-                project_id=entity_data.project_id,
-                model_id=entity_id
-            ),
-            commit_after=True
-        )
 
     return await get_project(entity_data.project_id)
 
@@ -177,14 +160,6 @@ async def remove_entity_from_project(entity_data: RemoveEntityFromProject) -> Pr
             delete(project_data_source).where(
                 project_data_source.c.project_id == entity_data.project_id,
                 project_data_source.c.data_source_id == entity_id
-            ),
-            commit_after=True
-        )
-    elif entity_type == "model_source":
-        await execute(
-            delete(project_model_source).where(
-                project_model_source.c.project_id == entity_data.project_id,
-                project_model_source.c.model_source_id == entity_id
             ),
             commit_after=True
         )
@@ -212,11 +187,11 @@ async def remove_entity_from_project(entity_data: RemoveEntityFromProject) -> Pr
             ),
             commit_after=True
         )
-    elif entity_type == "model":
+    elif entity_type == "model_entity":
         await execute(
-            delete(project_model).where(
-                project_model.c.project_id == entity_data.project_id,
-                project_model.c.model_id == entity_id
+            delete(project_model_entity).where(
+                project_model_entity.c.project_id == entity_data.project_id,
+                project_model_entity.c.model_entity_id == entity_id
             ),
             commit_after=True
         )
@@ -228,8 +203,8 @@ async def delete_project(project_id: UUID) -> bool:
     await execute(delete(project_dataset).where(project_dataset.c.project_id == project_id), commit_after=True)
     await execute(delete(project_analysis).where(project_analysis.c.project_id == project_id), commit_after=True)
     await execute(delete(project_pipeline).where(project_pipeline.c.project_id == project_id), commit_after=True)
-    await execute(delete(project_model).where(project_model.c.project_id == project_id), commit_after=True)
-    await execute(delete(project_model_source).where(project_model_source.c.project_id == project_id), commit_after=True)
+    await execute(delete(project_model_entity).where(project_model_entity.c.project_id == project_id), commit_after=True)
+    await execute(delete(project_data_source).where(project_data_source.c.project_id == project_id), commit_after=True)
     # Delete project
     query = delete(project).where(project.c.id == project_id)
     result = await execute(query, commit_after=True)

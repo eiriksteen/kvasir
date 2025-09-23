@@ -9,6 +9,7 @@ class ChatHandoffOutput(BaseModel):
 
 class AnalysisHandoffOutput(BaseModel):
     run_name: str
+    deliverable_description: str
     dataset_ids: Optional[List[uuid.UUID]] = None
     data_source_ids: Optional[List[uuid.UUID]] = None
 
@@ -27,6 +28,7 @@ class AnalysisHandoffOutput(BaseModel):
 
 class PipelineHandoffOutput(BaseModel):
     run_name: str
+    deliverable_description: str
     dataset_ids: List[uuid.UUID]
     model_ids: Optional[List[uuid.UUID]] = None
 
@@ -38,6 +40,7 @@ class PipelineHandoffOutput(BaseModel):
 
 class DataIntegrationHandoffOutput(BaseModel):
     run_name: str
+    deliverable_description: str
     data_source_ids: List[uuid.UUID] = []
     # For input datasets
     dataset_ids: List[uuid.UUID] = []
@@ -51,4 +54,4 @@ class DataIntegrationHandoffOutput(BaseModel):
 
 class ModelIntegrationHandoffOutput(BaseModel):
     run_name: str
-    source_id: Optional[uuid.UUID] = None
+    deliverable_description: str

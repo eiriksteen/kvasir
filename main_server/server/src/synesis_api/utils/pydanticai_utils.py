@@ -1,11 +1,12 @@
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.models.anthropic import AnthropicModel
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
+from pydantic_ai.providers.grok import GrokProvider
 
-from synesis_api.app_secrets import MODEL_TO_USE, ANTHROPIC_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY, SUPPORTED_MODELS
+from synesis_api.app_secrets import MODEL_TO_USE, ANTHROPIC_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY, SUPPORTED_MODELS, XAI_API_KEY
 
 
 def get_model():
@@ -16,7 +17,9 @@ def get_model():
         "gemini-2.5-flash": "google",
         "o3": "openai",
         "gemini-2.5-pro": "google",
-        "gpt-5": "openai"
+        "gpt-5": "openai",
+        "grok-code-fast-1": "xai",
+        "grok-4": "xai"
     }
 
     if model_id_to_provider_name[MODEL_TO_USE] == "anthropic":
@@ -27,7 +30,10 @@ def get_model():
         model = GoogleModel(model_name=MODEL_TO_USE, provider=provider)
     elif model_id_to_provider_name[MODEL_TO_USE] == "openai":
         provider = OpenAIProvider(api_key=OPENAI_API_KEY)
-        model = OpenAIModel(model_name=MODEL_TO_USE, provider=provider)
+        model = OpenAIChatModel(model_name=MODEL_TO_USE, provider=provider)
+    elif model_id_to_provider_name[MODEL_TO_USE] == "xai":
+        provider = GrokProvider(api_key=XAI_API_KEY)
+        model = OpenAIChatModel(model_name=MODEL_TO_USE, provider=provider)
     else:
         raise ValueError(
             f"Unsupported model: {MODEL_TO_USE}, supported models: {SUPPORTED_MODELS}")

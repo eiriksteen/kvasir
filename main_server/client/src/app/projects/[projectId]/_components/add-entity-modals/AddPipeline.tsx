@@ -170,7 +170,6 @@ export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
             />
           </div>
 
-
           {/* Dropdown with Run Schedule options */}
           <div className="mb-4 mt-8">
             <label htmlFor="runSchedule" className="block text-sm font-medium text-gray-200 mb-2">

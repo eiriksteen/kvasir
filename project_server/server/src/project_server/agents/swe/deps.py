@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Optional, Dict, List
+from logging import Logger
 
 
 @dataclass
@@ -14,3 +15,4 @@ class SWEAgentDeps:
     history_summary: Optional[str] = None
     test_code_to_append_to_implementation: Optional[str] = None
     structure_ids_to_inject: Optional[List[str]] = None
+    logger: Optional[Logger] = None

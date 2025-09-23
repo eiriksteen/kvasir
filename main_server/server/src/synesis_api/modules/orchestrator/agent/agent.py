@@ -24,6 +24,7 @@ orchestrator_agent = Agent(
         AnalysisHandoffOutput,
         PipelineHandoffOutput,
         DataIntegrationHandoffOutput,
-        ModelIntegrationHandoffOutput
+        ModelIntegrationHandoffOutput,
+        str
     ]
 )

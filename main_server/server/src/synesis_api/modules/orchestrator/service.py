@@ -181,9 +181,7 @@ async def create_context(
 ) -> Context:
     context_id = uuid.uuid4()
 
-    context_record = ContextInDB(
-        id=context_id,
-    )
+    context_record = ContextInDB(id=context_id)
 
     data_source_context_records = [
         DataSourceContextInDB(

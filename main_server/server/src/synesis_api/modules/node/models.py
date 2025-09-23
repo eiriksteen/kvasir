@@ -26,16 +26,6 @@ data_source_node = Table(
 )
 
 
-model_source_node = Table(
-    "model_source_node",
-    metadata,
-    Column("id", UUID(as_uuid=True), ForeignKey(
-        "node.node.id"), primary_key=True),
-    Column("model_source_id", UUID(as_uuid=True), ForeignKey(
-        "model_sources.model_source.id"), nullable=False),
-    schema="node"
-)
-
 # Dataset node table
 dataset_node = Table(
     "dataset_node",
@@ -69,13 +59,13 @@ pipeline_node = Table(
     schema="node"
 )
 
-# Model node table
-model_node = Table(
-    "model_node",
+# Model entity node table
+model_entity_node = Table(
+    "model_entity_node",
     metadata,
     Column("id", UUID(as_uuid=True), ForeignKey(
         "node.node.id"), primary_key=True),
-    Column("model_id", UUID(as_uuid=True), ForeignKey(
-        "model.model.id"), nullable=False),
+    Column("model_entity_id", UUID(as_uuid=True), ForeignKey(
+        "model.model_entity.id"), nullable=False),
     schema="node"
 )

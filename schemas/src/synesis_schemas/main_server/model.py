@@ -37,11 +37,14 @@ class ModelInDB(BaseModel):
 
 class ModelEntityInDB(BaseModel):
     id: UUID
+    name: str
+    description: str
     model_id: UUID
     created_at: datetime
     updated_at: datetime
     weights_save_dir: Optional[str] = None
     pipeline_id: Optional[UUID] = None
+    project_id: Optional[UUID] = None
     config: Optional[dict] = None
 
 
@@ -101,6 +104,8 @@ class ModelCreate(BaseModel):
 
 
 class ModelEntityCreate(BaseModel):
+    name: str
+    description: str
     model_id: UUID
     project_id: UUID
     weights_save_dir: Optional[str] = None

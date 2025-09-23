@@ -28,8 +28,6 @@ export default function DatasetInfoModal({
   const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(new Set());
 
-  console.log(dataset)
-
   // Prevent body scroll when modal is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';

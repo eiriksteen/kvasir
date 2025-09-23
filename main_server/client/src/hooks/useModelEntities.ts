@@ -3,6 +3,7 @@ import { useSession } from "next-auth/react";
 import { ModelEntity } from "@/types/model";
 import { snakeToCamelKeys } from "@/lib/utils";
 import { UUID } from "crypto";
+import { useMemo } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -28,9 +29,18 @@ export const useModelEntities = (projectId: UUID) => {
   const {data, error, isLoading} = useSWR(session ? ["model-entities", projectId] : null, () => fetchModelEntities(session ? session.APIToken.accessToken : "", projectId));
 
   return {
-    models: data,
+    modelEntities: data,
     isLoading,
     isError: error,
   };
 }; 
 
+export const useModelEntity = (projectId: UUID, modelEntityId: UUID) => {
+  const { modelEntities: models } = useModelEntities(projectId);
+
+  const modelEntity = useMemo(() => models?.find(modelEntity => modelEntity.id === modelEntityId), [models, modelEntityId]);
+
+  return {
+    modelEntity,
+  };
+};

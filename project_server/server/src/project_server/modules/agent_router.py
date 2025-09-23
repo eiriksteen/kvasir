@@ -70,6 +70,5 @@ async def run_model_integration(
         conversation_id=request.conversation_id,
         prompt_content=request.prompt_content,
         bearer_token=token_data.bearer_token,
-        source_id=request.source_id,
         public=request.public,
     )

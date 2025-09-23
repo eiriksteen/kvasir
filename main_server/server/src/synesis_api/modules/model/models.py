@@ -58,6 +58,8 @@ model_entity = Table(
     Column("model_id", UUID(as_uuid=True),
            ForeignKey("model.model.id"),
            nullable=False),
+    Column("name", String, nullable=False),
+    Column("description", String, nullable=False),
     # Weights save dir and pipeline id are null for non-trained models
     Column("weights_save_dir", String, nullable=True),
     Column("pipeline_id", UUID(as_uuid=True),

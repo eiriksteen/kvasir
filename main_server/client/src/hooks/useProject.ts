@@ -328,7 +328,7 @@ export const useProject = (projectId: UUID) => {
 
 
   // Unified function to add any entity to project
-  const addEntity = async (entityType: "data_source" | "model_source" | "dataset" | "analysis" | "pipeline" | "model", entityId: UUID) => {
+  const addEntity = async (entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity", entityId: UUID) => {
     if (!project) return;
 
     //const position = calculateNodePosition();
@@ -343,8 +343,7 @@ export const useProject = (projectId: UUID) => {
       datasetId: entityType === "dataset" ? entityId : null,
       analysisId: entityType === "analysis" ? entityId : null,
       pipelineId: entityType === "pipeline" ? entityId : null,
-      modelSourceId: entityType === "model_source" ? entityId : null,
-      modelId: entityType === "model" ? entityId : null,
+      modelEntityId: entityType === "model_entity" ? entityId : null,
     });
 
     // Update the project to include the entity
@@ -358,7 +357,7 @@ export const useProject = (projectId: UUID) => {
   };
 
   // Unified function to remove any entity from project
-  const removeEntity = async (entityType: "data_source" | "model_source" | "dataset" | "analysis" | "pipeline" | "model", entityId: UUID) => {
+  const removeEntity = async (entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity", entityId: UUID) => {
     if (!project) return;
 
     // Update the project to remove the entity
@@ -383,11 +382,8 @@ export const useProject = (projectId: UUID) => {
       case "pipeline":
         nodeToDelete = frontendNodes?.find(node => node.pipelineId === entityId);
         break;
-      case "model_source":
-        nodeToDelete = frontendNodes?.find(node => node.modelSourceId === entityId);
-        break;
-      case "model":
-        nodeToDelete = frontendNodes?.find(node => node.modelId === entityId);
+      case "model_entity":
+        nodeToDelete = frontendNodes?.find(node => node.modelEntityId === entityId);
         break;
     }
     
