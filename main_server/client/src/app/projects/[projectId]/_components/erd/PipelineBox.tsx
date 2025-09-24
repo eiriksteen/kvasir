@@ -1,5 +1,4 @@
 import React from 'react';
-import { Handle, Position } from '@xyflow/react';
 import { Zap } from 'lucide-react';
 import { Pipeline } from '@/types/pipeline';
 
@@ -33,7 +32,6 @@ export default function PipelineBox({ pipeline, onClick }: PipelineBoxProps) {
           <div className="text-sm font-mono text-gray-200 truncate">{pipeline.name}</div>
         </div>
       </div>
-      <Handle type="source" position={Position.Right} style={{ background: '#f97316' }} />
     </div>
   );
 }

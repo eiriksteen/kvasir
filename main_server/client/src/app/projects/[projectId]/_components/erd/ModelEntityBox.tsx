@@ -1,5 +1,4 @@
 import React from 'react';
-import { Handle, Position } from '@xyflow/react';
 import { Brain } from 'lucide-react';
 import { ModelEntity } from '@/types/model';
 
@@ -32,9 +31,7 @@ export default function ModelEntityBox({ modelEntity, onClick }: ModelEntityBoxP
       <div>
         <div className="text-sm font-mono text-gray-200 truncate">{modelEntity.name}</div>
       </div>
+      </div>
     </div>
-
-    <Handle type="source" position={Position.Right} style={{ background: '#10b981' }} />
-  </div>
   );
 }

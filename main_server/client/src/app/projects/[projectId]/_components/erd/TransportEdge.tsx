@@ -20,7 +20,7 @@ const TransportEdge = ({ id, sourceX, sourceY, targetX, targetY }: {
       <BaseEdge 
         id={id} 
         path={edgePath} 
-        style={{ stroke: '#6366f1', strokeWidth: 2 }} 
+        style={{ stroke: '#3b82f6', strokeWidth: 2 }} 
       />
     </>
   );

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Handle, Position } from '@xyflow/react';
 import { Dataset } from '@/types/data-objects';
 import { Folder } from 'lucide-react';
 
@@ -33,8 +32,6 @@ export default function DatasetBox({ dataset, onClick }: DatasetProps) {
         <div className="text-sm font-mono text-gray-200 truncate">{dataset.name}</div>
       </div>
     </div>
-
-    <Handle type="source" position={Position.Right} style={{ background: '#6366f1' }} />
   </div>
   );
 }

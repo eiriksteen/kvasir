@@ -1,5 +1,4 @@
-import React from 'react';
-import { Handle, Position } from '@xyflow/react';   
+import React from 'react';   
 import { Database } from 'lucide-react';
 import { DataSource } from '@/types/data-sources';
 
@@ -35,7 +34,6 @@ export default function DataSourceBox({ dataSource, gradientClass, onClick }: Da
       </div>
     </div>
 
-    <Handle type="source" position={Position.Right} style={{ background: '#6b7280' }} />
   </div>
   );
 }

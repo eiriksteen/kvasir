@@ -8,7 +8,9 @@ import {
     MarkerType,
     Edge,
     useNodesState,
-    useEdgesState
+    useEdgesState,
+    Handle,
+    Position
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useProject } from '@/hooks/useProject';
@@ -37,41 +39,61 @@ import ModelInfoModal from '@/components/info-modals/ModelInfoModal';
 import { useProjectGraph } from '@/hooks/useProjectGraph';
 
 const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradientClass: string; onClick: () => void } }) => (
-  <DataSourceBox 
-    dataSource={data.dataSource} 
-    gradientClass={data.gradientClass} 
-    onClick={data.onClick} 
-  />
+  <>
+    <DataSourceBox
+      dataSource={data.dataSource}
+      gradientClass={data.gradientClass}
+      onClick={data.onClick}
+    />
+    <Handle type="target" position={Position.Left} style={{ background: '#6b7280' }} />
+    <Handle type="source" position={Position.Right} style={{ background: '#6b7280' }} />
+  </>
 );
 
 // Wrapper component to adapt ReactFlow node props to Dataset component props
 const DatasetNodeWrapper = ({ data }: { data: { dataset: Dataset; onClick: () => void } }) => (
-  <DatasetBox 
-    dataset={data.dataset} 
-    onClick={data.onClick} 
-  />
+  <>
+    <DatasetBox
+      dataset={data.dataset}
+      onClick={data.onClick}
+    />
+    <Handle type="target" position={Position.Left} style={{ background: '#3b82f6' }} />
+    <Handle type="source" position={Position.Right} style={{ background: '#3b82f6' }} />
+  </>
 );
 
 // Wrapper component to adapt ReactFlow node props to Analysis component props
 const AnalysisNodeWrapper = ({ data }: { data: { analysis: AnalysisJobResultMetadata; onClick: () => void } }) => (
-  <AnalysisBox 
-    analysis={data.analysis} 
-    onClick={data.onClick} 
+  <>
+  <AnalysisBox
+    analysis={data.analysis}
+    onClick={data.onClick}
   />
+  <Handle type="target" position={Position.Left} style={{ background: '#8b5cf6' }} />
+  <Handle type="source" position={Position.Right} style={{ background: '#8b5cf6' }} />
+  </>
 );
 
 const PipelineNodeWrapper = ({ data }: { data: { pipeline: Pipeline; onClick: () => void } }) => (
-  <PipelineBox 
-    pipeline={data.pipeline} 
-    onClick={data.onClick} 
-  />
+  <>
+    <PipelineBox
+      pipeline={data.pipeline}
+      onClick={data.onClick}
+    />
+    <Handle type="target" position={Position.Left} style={{ background: '#f97316' }} />
+    <Handle type="source" position={Position.Right} style={{ background: '#f97316' }} />
+  </>
 );
 
 const ModelEntityNodeWrapper = ({ data }: { data: { modelEntity: ModelEntity; onClick: () => void } }) => (
-  <ModelEntityBox 
-    modelEntity={data.modelEntity} 
-    onClick={data.onClick} 
-  />
+  <>
+    <ModelEntityBox
+      modelEntity={data.modelEntity}
+      onClick={data.onClick}
+    />
+    <Handle type="target" position={Position.Left} style={{ background: '#10b981' }} />
+    <Handle type="source" position={Position.Right} style={{ background: '#10b981' }} />
+  </>
 );
 
 const nodeTypes = {
@@ -91,6 +113,21 @@ interface EntityRelationshipDiagramProps {
 }
 
 export default function EntityRelationshipDiagram({ projectId }: EntityRelationshipDiagramProps) {
+
+  const getEdgeColor = (sourceType: string): string => {
+    switch (sourceType) {
+      case 'dataSource':
+        return '#6b7280'; // Gray
+      case 'dataset':
+        return '#3b82f6'; // Blue (matches Tailwind blue-500)
+      case 'pipeline':
+        return '#f97316'; // Orange
+      case 'modelEntity':
+        return '#10b981'; // Emerald/Green
+      default:
+        return '#3b82f6'; // Default blue
+    }
+  };
 
   const { project, frontendNodes, updatePosition } = useProject(projectId);
   const { dataSources } = useProjectDataSources(projectId);
@@ -203,28 +240,130 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
 
   // Memoize edges
   const memoizedEdges = useMemo(() => {
-    if (!project || !analysisJobResults) {
+    if (!project || !projectGraph || !frontendNodes) {
       return [];
     }
-    return analysisJobResults
-      .flatMap(analysis =>
-        analysis.datasetIds.map(datasetId => {
-          const sourceNode = frontendNodes.find(fn => fn.datasetId === datasetId);
-          const targetNode = frontendNodes.find(fn => fn.analysisId === analysis.jobId);
+    const dataSourcesToDatasetsEdges = projectGraph?.dataSources
+      .flatMap(dataSource =>
+        dataSource.toDatasets.map(datasetId => {
+          const sourceNode = frontendNodes.find(fn => fn.dataSourceId === dataSource.id);
+          const targetNode = frontendNodes.find(fn => fn.datasetId === datasetId);
           if (!sourceNode?.id || !targetNode?.id) return null;
           return {
-            id: String(`e${datasetId}->${analysis.jobId}`),
+            id: String(`${dataSource.id}->${datasetId}`),
             source: sourceNode.id,
             target: targetNode.id,
             type: 'default',
             animated: true,
-            style: { stroke: '#6366f1', strokeWidth: 2 },
+            style: { stroke: getEdgeColor('dataSource'), strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed },
+
+          } as Edge;
+        })
+      )
+      .filter(Boolean) as Edge[];
+
+    const datasetsToAnalysesEdges = projectGraph?.datasets
+      .flatMap(dataset =>
+        dataset.toAnalyses.map(analysisId => {
+          const sourceNode = frontendNodes.find(fn => fn.datasetId === dataset.id);
+          const targetNode = frontendNodes.find(fn => fn.analysisId === analysisId);
+          if (!sourceNode?.id || !targetNode?.id) return null;
+          return {
+            id: String(`${dataset.id}->${analysisId}`),
+            source: sourceNode.id,
+            target: targetNode.id,
+            type: 'default',
+            animated: true,
+            style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
             markerEnd: { type: MarkerType.ArrowClosed },
           } as Edge;
         })
       )
       .filter(Boolean) as Edge[];
-  }, [project, frontendNodes, analysisJobResults]);
+
+    const datasetsToPipelinesEdges = projectGraph?.datasets
+      .flatMap(dataset =>
+        dataset.toPipelines.map(pipelineId => {
+          const sourceNode = frontendNodes.find(fn => fn.datasetId === dataset.id);
+          const targetNode = frontendNodes.find(fn => fn.pipelineId === pipelineId);
+          if (!sourceNode?.id || !targetNode?.id) return null;
+          return {
+            id: String(`${dataset.id}->${pipelineId}`),
+            source: sourceNode.id,
+            target: targetNode.id,
+            type: 'default',
+            animated: true,
+            style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed },
+          } as Edge;
+        })
+      )
+      .filter(Boolean) as Edge[];
+
+    const modelEntitiesToPipelinesEdges = projectGraph?.modelEntities
+      .flatMap(modelEntity =>
+        modelEntity.toPipelines.map(pipelineId => {
+          const sourceNode = frontendNodes.find(fn => fn.modelEntityId === modelEntity.id);
+          const targetNode = frontendNodes.find(fn => fn.pipelineId === pipelineId);
+          if (!sourceNode?.id || !targetNode?.id) return null;
+          return {
+            id: String(`${modelEntity.id}->${pipelineId}`),
+            source: sourceNode.id,
+            target: targetNode.id,
+            type: 'default',
+            animated: true,
+            style: { stroke: getEdgeColor('modelEntity'), strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed },
+          } as Edge;
+        })
+      )
+      .filter(Boolean) as Edge[];
+
+    const pipelinesToDatasetsEdges = projectGraph?.pipelines
+      .flatMap(pipeline =>
+        pipeline.toDatasets.map(datasetId => {
+          const sourceNode = frontendNodes.find(fn => fn.pipelineId === pipeline.id);
+          const targetNode = frontendNodes.find(fn => fn.datasetId === datasetId);
+          if (!sourceNode?.id || !targetNode?.id) return null;
+          return {
+            id: String(`${pipeline.id}->${datasetId}`),
+            source: sourceNode.id,
+            target: targetNode.id,
+            type: 'default',
+            animated: true,
+            style: { stroke: getEdgeColor('pipeline'), strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed },
+          } as Edge;
+        })
+      )
+      .filter(Boolean) as Edge[];
+
+    const pipelinesToModelEntitiesEdges = projectGraph?.pipelines
+      .flatMap(pipeline =>
+        pipeline.toModelEntities.map(modelEntityId => {
+          const sourceNode = frontendNodes.find(fn => fn.pipelineId === pipeline.id);
+          const targetNode = frontendNodes.find(fn => fn.modelEntityId === modelEntityId);
+          if (!sourceNode?.id || !targetNode?.id) return null;
+          return {
+            id: String(`${pipeline.id}->${modelEntityId}`),
+            source: sourceNode.id,
+            target: targetNode.id,
+            type: 'default',
+            animated: true,
+            style: { stroke: getEdgeColor('pipeline'), strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed },
+          } as Edge;
+        })
+      )
+      .filter(Boolean) as Edge[];
+
+
+    return [...dataSourcesToDatasetsEdges, ...datasetsToAnalysesEdges, ...datasetsToPipelinesEdges, ...modelEntitiesToPipelinesEdges, ...pipelinesToDatasetsEdges, ...pipelinesToModelEntitiesEdges];
+  }, [project, frontendNodes, projectGraph]);
+
+  // console.log(frontendNodes);
+  // console.log(memoizedEdges);
 
   // Only update nodes when memoizedNodes changes
   useEffect(() => {
@@ -294,7 +433,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
             background: '#0a101c',
             border: '1px solid #1d2d50'
           }}
-          nodeColor="#6366f1"
+          nodeColor="#3b82f6"
           maskColor="rgba(0, 0, 0, 0.1)"
         /> */}
       </ReactFlow>

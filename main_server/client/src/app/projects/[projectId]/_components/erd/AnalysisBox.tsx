@@ -1,5 +1,4 @@
 import React from 'react';
-import { Handle, Position } from '@xyflow/react';
 import { BarChart3 } from 'lucide-react';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 
@@ -33,7 +32,6 @@ export default function AnalysisBox({ analysis, onClick }: AnalysisBoxProps) {
           <div className="text-sm font-mono text-white truncate">{analysis.name}</div>
         </div>
       </div>
-      <Handle type="target" position={Position.Left} style={{ background: '#6366f1' }} />
     </div>
   );
 }
