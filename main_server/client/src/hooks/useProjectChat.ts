@@ -12,6 +12,7 @@ import { useConversations } from "@/hooks/useConversations";
 import { SSE } from 'sse.js';
 import { Pipeline } from "@/types/pipeline";
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
+import { ModelEntity } from "@/types/model";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -72,7 +73,7 @@ export const useConversationMessages = (conversationId: UUID | null) => {
 export const useProjectChat = (projectId: UUID) => {
   const { data: session } = useSession();
   const { conversations, createConversation, mutateConversations } = useConversations(projectId);
-  const { dataSourcesInContext, datasetsInContext, analysesInContext, pipelinesInContext } = useAgentContext(projectId);
+  const { dataSourcesInContext, datasetsInContext, analysesInContext, pipelinesInContext, modelEntitiesInContext } = useAgentContext(projectId);
 
   const { data: projectConversationId, mutate: setProjectConversationId } = useSWR(
     session ? ["project-conversation-id", projectId] : null, {fallbackData: null}
@@ -103,6 +104,7 @@ export const useProjectChat = (projectId: UUID) => {
         dataSourceIds: dataSourcesInContext?.map((dataSource: DataSource) => dataSource.id) || [],
         datasetIds: datasetsInContext?.map((dataset: Dataset) => dataset.id) || [],
         pipelineIds: pipelinesInContext?.map((pipeline: Pipeline) => pipeline.id) || [],
+        modelEntityIds: modelEntitiesInContext?.map((modelEntity: ModelEntity) => modelEntity.id) || [],
         analysisIds: analysesInContext?.map((analysis: AnalysisJobResultMetadata) => analysis.jobId) || [],
       };
 
@@ -157,6 +159,7 @@ export const useProjectChat = (projectId: UUID) => {
     datasetsInContext, 
     analysesInContext, 
     pipelinesInContext,
+    modelEntitiesInContext,
     conversationMessages, 
     projectConversationId, 
     projectId,

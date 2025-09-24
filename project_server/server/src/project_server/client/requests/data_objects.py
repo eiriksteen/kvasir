@@ -10,7 +10,8 @@ from synesis_schemas.main_server import (
     DatasetFullWithFeatures,
     ObjectGroupInDB,
     ObjectGroupWithFeatures,
-    ObjectGroupWithEntitiesAndFeatures
+    ObjectGroupWithEntitiesAndFeatures,
+    GetDatasetByIDsRequest
 )
 
 
@@ -25,9 +26,17 @@ async def post_dataset(client: ProjectClient, files: List[FileInput], metadata: 
     return DatasetFull(**response.body)
 
 
-async def get_datasets(client: ProjectClient, include_features: bool = False) -> List[Union[DatasetFullWithFeatures, DatasetFull]]:
-    response = await client.send_request("get", f"/data-objects/datasets?include_features={include_features}")
+async def get_project_datasets(client: ProjectClient, project_id: UUID, include_features: bool = False) -> List[Union[DatasetFullWithFeatures, DatasetFull]]:
+    response = await client.send_request("get", f"/data-objects/project-datasets/{project_id}?include_features={include_features}")
     if include_features:
+        return [DatasetFullWithFeatures(**ds) for ds in response.body]
+    else:
+        return [DatasetFull(**ds) for ds in response.body]
+
+
+async def get_datasets_by_ids(client: ProjectClient, request: GetDatasetByIDsRequest) -> List[Union[DatasetFullWithFeatures, DatasetFull]]:
+    response = await client.send_request("get", f"/data-objects/datasets-by-ids", json=request.model_dump(mode="json"))
+    if request.include_features:
         return [DatasetFullWithFeatures(**ds) for ds in response.body]
     else:
         return [DatasetFull(**ds) for ds in response.body]

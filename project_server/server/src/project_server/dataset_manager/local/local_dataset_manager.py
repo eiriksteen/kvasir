@@ -51,7 +51,7 @@ class LocalDatasetManager(AbstractDatasetManager):
 
         sources = DatasetSources(
             data_source_ids=data_source_ids,
-            source_dataset_ids=source_dataset_ids,
+            dataset_ids=source_dataset_ids,
             pipeline_ids=pipeline_ids
         )
 

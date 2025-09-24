@@ -47,14 +47,14 @@ class DataSourceContextInDB(BaseModel):
     data_source_id: uuid.UUID
 
 
-class ModelSourceContextInDB(BaseModel):
-    context_id: uuid.UUID
-    model_source_id: uuid.UUID
-
-
 class DatasetContextInDB(BaseModel):
     context_id: uuid.UUID
     dataset_id: uuid.UUID
+
+
+class ModelEntityContextInDB(BaseModel):
+    context_id: uuid.UUID
+    model_entity_id: uuid.UUID
 
 
 class PipelineContextInDB(BaseModel):
@@ -73,7 +73,6 @@ class AnalysisContextInDB(BaseModel):
 class Context(BaseModel):
     id: uuid.UUID
     data_source_ids: List[uuid.UUID] = []
-    model_source_ids: List[uuid.UUID] = []
     dataset_ids: List[uuid.UUID] = []
     pipeline_ids: List[uuid.UUID] = []
     analysis_ids: List[uuid.UUID] = []
@@ -89,53 +88,48 @@ class DataSourceInGraph(BaseModel):
     name: str
     type: Literal["file"]
     brief_description: str
-    connections_to: List[uuid.UUID] = []
-    connections_from: List[uuid.UUID] = []
-
-
-class ModelSourceInGraph(BaseModel):
-    id: uuid.UUID
-    name: str
-    brief_description: str
-    connections_to: List[uuid.UUID] = []
-    connections_from: List[uuid.UUID] = []
+    to_datasets: List[uuid.UUID] = []
+    to_analyses: List[uuid.UUID] = []
 
 
 class DatasetInGraph(BaseModel):
     id: uuid.UUID
     name: str
     brief_description: str
-    connections_to: List[uuid.UUID] = []
-    connections_from: List[uuid.UUID] = []
+    to_pipelines: List[uuid.UUID] = []
+    to_analyses: List[uuid.UUID] = []
+    from_data_sources: List[uuid.UUID] = []
+    from_datasets: List[uuid.UUID] = []
+    from_pipelines: List[uuid.UUID] = []
 
 
 class PipelineInGraph(BaseModel):
     id: uuid.UUID
     name: str
     brief_description: str
-    connections_to: List[uuid.UUID] = []
-    connections_from: List[uuid.UUID] = []
+    from_datasets: List[uuid.UUID] = []
+    from_model_entities: List[uuid.UUID] = []
+    to_datasets: List[uuid.UUID] = []
+    to_model_entities: List[uuid.UUID] = []
 
 
 class AnalysisInGraph(BaseModel):
     id: uuid.UUID
     name: str
     brief_description: str
-    connections_to: List[uuid.UUID] = []
-    connections_from: List[uuid.UUID] = []
+    from_datasets: List[uuid.UUID] = []
+    from_data_sources: List[uuid.UUID] = []
 
 
 class ModelEntityInGraph(BaseModel):
     id: uuid.UUID
     name: str
     brief_description: str
-    connections_to: List[uuid.UUID] = []
-    connections_from: List[uuid.UUID] = []
+    to_pipelines: List[uuid.UUID] = []
 
 
 class ProjectGraph(BaseModel):
     data_sources: List[DataSourceInGraph] = []
-    model_sources: List[ModelSourceInGraph] = []
     datasets: List[DatasetInGraph] = []
     pipelines: List[PipelineInGraph] = []
     analyses: List[AnalysisInGraph] = []
@@ -147,7 +141,6 @@ class ProjectGraph(BaseModel):
 
 class ContextCreate(BaseModel):
     data_source_ids: List[uuid.UUID] = []
-    model_source_ids: List[uuid.UUID] = []
     dataset_ids: List[uuid.UUID] = []
     pipeline_ids: List[uuid.UUID] = []
     analysis_ids: List[uuid.UUID] = []

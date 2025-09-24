@@ -34,6 +34,7 @@ import { ModelEntity } from '@/types/model';
 import { useModelEntities } from '@/hooks/useModelEntities';
 import ModelEntityBox from '@/app/projects/[projectId]/_components/erd/ModelEntityBox';
 import ModelInfoModal from '@/components/info-modals/ModelInfoModal';
+import { useProjectGraph } from '@/hooks/useProjectGraph';
 
 const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradientClass: string; onClick: () => void } }) => (
   <DataSourceBox 
@@ -97,6 +98,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
   const { pipelines } = usePipelines(projectId);
   const { modelEntities } = useModelEntities(projectId);
   const { analysisJobResults } = useAnalysis();
+  const { projectGraph } = useProjectGraph(projectId);
 
   // const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
   const [selectedDataSource, setSelectedDataSource] = useState<DataSource | null>(null);
@@ -105,6 +107,8 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
   const [selectedModelEntity, setSelectedModelEntity] = useState<ModelEntity | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+
+  console.log(projectGraph);
 
   // Memoize nodes
   const memoizedNodes = useMemo(() => {

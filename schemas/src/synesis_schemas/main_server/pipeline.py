@@ -24,8 +24,8 @@ class PipelineFromDatasetInDB(BaseModel):
     updated_at: datetime
 
 
-class PipelineFromModelInDB(BaseModel):
-    model_id: UUID
+class PipelineFromModelEntityInDB(BaseModel):
+    model_entity_id: UUID
     pipeline_id: UUID
     created_at: datetime
     updated_at: datetime
@@ -94,7 +94,7 @@ class OnEventScheduleInDB(BaseModel):
 
 class PipelineSources(BaseModel):
     dataset_ids: List[UUID]
-    model_ids: List[UUID]
+    model_entity_ids: List[UUID]
 
 
 class PipelineFull(PipelineInDB):
@@ -130,3 +130,5 @@ class PipelineCreate(BaseModel):
     functions: List[_FunctionInPipelineCreate]
     periodic_schedules: List[_PeriodicScheduleCreate]
     on_event_schedules: List[_OnEventScheduleCreate]
+    input_dataset_ids: List[UUID]
+    input_model_entity_ids: List[UUID] = []

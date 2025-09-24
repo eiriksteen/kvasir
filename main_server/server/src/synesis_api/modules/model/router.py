@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from uuid import UUID
 from typing import List
 
-from synesis_schemas.main_server import ModelInDB, ModelCreate, ModelEntityInDB, ModelEntityCreate, ModelEntityFull, User
+from synesis_schemas.main_server import ModelInDB, ModelCreate, ModelEntityInDB, ModelEntityCreate, ModelEntityFull, User, GetModelEntityByIDsRequest
 from synesis_api.auth.service import get_current_user, user_owns_project
-from synesis_api.modules.model.service import create_model, create_model_entity, get_project_model_entities
+from synesis_api.modules.model.service import create_model, create_model_entity, get_project_model_entities, get_user_model_entities_by_ids
 
 
 router = APIRouter()
@@ -44,3 +44,13 @@ async def fetch_project_model_entities(
             status_code=403, detail="Not authorized to access this project")
 
     return await get_project_model_entities(project_id)
+
+
+@router.get("/model-entities-by-ids", response_model=List[ModelEntityFull])
+async def fetch_model_entities_by_ids(
+    request: GetModelEntityByIDsRequest,
+    _: User = Depends(get_current_user),
+) -> List[ModelEntityFull]:
+
+    # TODO: Should add user id field to model entity to enable auth
+    return await get_user_model_entities_by_ids(request.model_entity_ids)

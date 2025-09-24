@@ -44,17 +44,27 @@ pipeline_from_dataset = Table(
            ForeignKey("data_objects.dataset.id"), primary_key=True, nullable=False),
     Column("pipeline_id", UUID(as_uuid=True),
            ForeignKey("pipeline.pipeline.id"), primary_key=True, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
     schema="pipeline"
 )
 
 
-pipeline_from_model = Table(
-    "pipeline_from_model",
+pipeline_from_model_entity = Table(
+    "pipeline_from_model_entity",
     metadata,
-    Column("model_id", UUID(as_uuid=True),
-           ForeignKey("model.model.id"), primary_key=True, nullable=False),
+    Column("model_entity_id", UUID(as_uuid=True),
+           ForeignKey("model.model_entity.id"), primary_key=True, nullable=False),
     Column("pipeline_id", UUID(as_uuid=True),
            ForeignKey("pipeline.pipeline.id"), primary_key=True, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
     schema="pipeline"
 )
 
@@ -122,8 +132,8 @@ pipeline_run = Table(
 )
 
 
-pipeline_inference_run_object_group_result = Table(
-    "pipeline_inference_run_object_group_result",
+pipeline_run_object_group_result = Table(
+    "pipeline_run_object_group_result",
     metadata,
     Column("id", UUID(as_uuid=True),
            default=uuid.uuid4,

@@ -56,7 +56,7 @@ class TabularFileDataSource(DataSourceInDB, TabularFileDataSourceInDB):
 
 
 # We include data source in db for the cases where the analysis agent hasn't yet finished the analysis to create the full data source object
-DataSource = Union[DataSourceInDB, TabularFileDataSource]
+DataSourceFull = Union[DataSourceInDB, TabularFileDataSource]
 
 
 class DetailedDataSourceRecords(BaseModel):

@@ -55,7 +55,9 @@ async def run_pipeline(
         project_id=request.project_id,
         conversation_id=request.conversation_id,
         prompt_content=request.prompt_content,
-        bearer_token=token_data.bearer_token
+        bearer_token=token_data.bearer_token,
+        input_dataset_ids=request.input_dataset_ids,
+        input_model_entity_ids=request.input_model_entity_ids
     )
 
 

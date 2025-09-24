@@ -107,22 +107,25 @@ async def create_dataset(
 
     # Create the sources
     from_data_source_records, from_dataset_records, from_pipeline_records = [], [], []
-    for source in dataset_create.sources.data_source_ids:
+    for source in list(set(dataset_create.sources.data_source_ids)):
         from_data_source_records.append(DatasetFromDataSourceInDB(
             dataset_id=dataset_record.id,
-            data_source_id=source))
-    for source in dataset_create.sources.dataset_ids:
+            data_source_id=source).model_dump())
+    for source in list(set(dataset_create.sources.dataset_ids)):
         from_dataset_records.append(DatasetFromDatasetInDB(
             dataset_id=dataset_record.id,
-            source_dataset_id=source))
-    for source in dataset_create.sources.pipeline_ids:
+            source_dataset_id=source).model_dump())
+    for source in list(set(dataset_create.sources.pipeline_ids)):
         from_pipeline_records.append(DatasetFromPipelineInDB(
             dataset_id=dataset_record.id,
-            pipeline_id=source))
+            pipeline_id=source).model_dump())
 
-    await execute(insert(dataset_from_data_source).values(from_data_source_records), commit_after=True)
-    await execute(insert(dataset_from_dataset).values(from_dataset_records), commit_after=True)
-    await execute(insert(dataset_from_pipeline).values(from_pipeline_records), commit_after=True)
+    if len(from_data_source_records) > 0:
+        await execute(insert(dataset_from_data_source).values(from_data_source_records), commit_after=True)
+    if len(from_dataset_records) > 0:
+        await execute(insert(dataset_from_dataset).values(from_dataset_records), commit_after=True)
+    if len(from_pipeline_records) > 0:
+        await execute(insert(dataset_from_pipeline).values(from_pipeline_records), commit_after=True)
 
     # Variables to collect object groups for the response
     object_group_records = []
@@ -337,7 +340,8 @@ async def create_dataset(
     return DatasetFull(
         **dataset_record.model_dump(),
         object_groups=object_group_records,
-        variable_groups=variable_group_full_records
+        variable_groups=variable_group_full_records,
+        sources=dataset_create.sources
     )
 
 
@@ -352,7 +356,7 @@ async def get_user_datasets(
     # Get all datasets for the user
     datasets_query = select(dataset).where(dataset.c.user_id == user_id)
 
-    if ids:
+    if ids is not None:
         datasets_query = datasets_query.where(dataset.c.id.in_(ids))
 
     datasets_result = await fetch_all(datasets_query)
@@ -361,19 +365,19 @@ async def get_user_datasets(
         return []
 
     # Get all data source, source dataset, and pipeline IDs
-    source_ids_query = select(dataset_from_data_source.c.data_source_id).where(
+    source_ids_query = select(dataset_from_data_source).where(
         dataset_from_data_source.c.dataset_id.in_(
             [d["id"] for d in datasets_result])
     )
     source_ids_result = await fetch_all(source_ids_query)
 
-    source_dataset_ids_query = select(dataset_from_dataset.c.source_dataset_id).where(
+    source_dataset_ids_query = select(dataset_from_dataset).where(
         dataset_from_dataset.c.dataset_id.in_(
             [d["id"] for d in datasets_result])
     )
     source_dataset_ids_result = await fetch_all(source_dataset_ids_query)
 
-    pipeline_ids_query = select(dataset_from_pipeline.c.pipeline_id).where(
+    pipeline_ids_query = select(dataset_from_pipeline).where(
         dataset_from_pipeline.c.dataset_id.in_(
             [d["id"] for d in datasets_result])
     )
@@ -498,6 +502,16 @@ async def get_object_groups_in_dataset_with_entities_and_features(dataset_id: uu
 async def get_project_datasets(user_id: uuid.UUID, project_id: uuid.UUID, include_features: bool = False) -> List[Union[DatasetFullWithFeatures, DatasetFull]]:
     dataset_ids = await get_dataset_ids_in_project(project_id)
     return await get_user_datasets_by_ids(user_id, dataset_ids, include_features=include_features)
+
+
+async def get_user_datasets_by_ids(
+        user_id: uuid.UUID,
+        dataset_ids: List[uuid.UUID] = [],
+        max_features: Optional[int] = None,
+        include_features: bool = False
+) -> List[Union[DatasetFullWithFeatures, DatasetFull]]:
+    """Get specific datasets for a user by IDs"""
+    return await get_user_datasets(user_id, ids=dataset_ids, include_features=include_features, max_features=max_features)
 
 
 async def get_object_group(

@@ -27,7 +27,7 @@ from synesis_api.modules.orchestrator.models import (
     data_source_context
 )
 from synesis_api.modules.pipeline.models import (
-    pipeline, pipeline_from_dataset, pipeline_from_model, pipeline_periodic_schedule, pipeline_on_event_schedule, pipeline_run, pipeline_inference_run_object_group_result, pipeline_run_variables_result, function_in_pipeline
+    pipeline, pipeline_from_dataset, pipeline_from_model_entity, pipeline_periodic_schedule, pipeline_on_event_schedule, pipeline_run, pipeline_run_object_group_result, pipeline_run_variables_result, function_in_pipeline
 )
 from synesis_api.modules.function.models import (
     function, function_input_structure, function_output_structure, function_output_variable
@@ -93,11 +93,11 @@ __all__ = [
     data_source_context,
     pipeline,
     pipeline_from_dataset,
-    pipeline_from_model,
+    pipeline_from_model_entity,
     pipeline_periodic_schedule,
     pipeline_on_event_schedule,
     pipeline_run,
-    pipeline_inference_run_object_group_result,
+    pipeline_run_object_group_result,
     pipeline_run_variables_result,
     function_in_pipeline,
     function,

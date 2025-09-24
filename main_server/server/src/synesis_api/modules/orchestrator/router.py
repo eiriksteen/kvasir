@@ -10,6 +10,7 @@ from synesis_schemas.main_server import (
     ChatMessageInDB,
     ConversationInDB,
     ConversationCreate,
+    ProjectGraph,
 )
 from synesis_api.modules.orchestrator.service import (
     create_conversation,
@@ -22,6 +23,7 @@ from synesis_api.modules.orchestrator.service import (
     get_chat_messages_with_context,
     get_conversation_by_id,
     update_conversation_name,
+    get_project_graph,
 )
 from synesis_api.modules.orchestrator.agent import orchestrator_agent
 from synesis_api.modules.orchestrator.agent.output import (
@@ -64,13 +66,15 @@ async def post_chat(
     # TODO: Important to optimize this, as it will blow up the context with repeated messages!
     # One option is to keep the full entity objects just for the current context, and collapse to the IDs and names for the past ones
     context_message = await get_context_message(user.id, prompt.context)
+    project_graph = await get_project_graph(user.id, conversation_record.project_id)
 
     orchestrator_run = await orchestrator_agent.run(
         f"The user prompt is: '{prompt.content}'. \n\n" +
         "Decide whether to launch an agent or just respond directly to the prompt. \n\n" +
         "If launching an agent, choose between 'analysis', 'data_integration' or 'pipeline'. If not just choose 'chat'. \n\n" +
         "Do not launch any agent if the context is empty, tell the user to add some entities to the context.\n\n" +
-        f"The context is:\n\n{context_message}",
+        f"The context is:\n\n{context_message}\n\n" +
+        f"The project graph is:\n\n{project_graph.model_dump_json()}",
         message_history=messages
     )
 
@@ -133,6 +137,8 @@ async def post_chat(
                     project_id=conversation_record.project_id,
                     conversation_id=conversation_record.id,
                     prompt_content=orchestrator_run.output.deliverable_description,
+                    input_dataset_ids=orchestrator_run.output.input_dataset_ids,
+                    input_model_entity_ids=orchestrator_run.output.input_model_entity_ids
                 ))
 
             elif isinstance(orchestrator_run.output, ModelIntegrationHandoffOutput):
@@ -145,7 +151,6 @@ async def post_chat(
                 ))
 
         if is_new_conversation:
-
             name = await orchestrator_agent.run(
                 f"The user wants to start a new conversation. The user has written this: '{prompt.content}'.\n\n" +
                 "What is the name of the conversation? Just give me the name of the conversation, no other text.\n\n" +
@@ -193,3 +198,9 @@ async def fetch_messages(
 async def fetch_project_conversations(project_id: uuid.UUID, user: Annotated[User, Depends(get_current_user)] = None) -> List[ConversationInDB]:
     conversations = await get_project_conversations(user.id, project_id)
     return conversations
+
+
+@router.get("/project-graph/{project_id}")
+async def fetch_project_graph(project_id: uuid.UUID, user: Annotated[User, Depends(get_current_user)] = None) -> ProjectGraph:
+    graph = await get_project_graph(user.id, project_id)
+    return graph

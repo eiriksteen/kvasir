@@ -177,6 +177,11 @@ class ObjectGroupWithEntitiesAndFeatures(ObjectGroupWithFeatures):
     objects: List[Union[TimeSeriesFull, TimeSeriesAggregationFull]]
 
 
+class GetDatasetByIDsRequest(BaseModel):
+    dataset_ids: List[uuid.UUID]
+    include_features: bool = False
+
+
 # Create schemas
 
 

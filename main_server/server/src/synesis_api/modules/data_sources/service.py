@@ -9,7 +9,7 @@ from synesis_schemas.main_server import (
     TabularFileDataSourceInDB,
     # FeatureInTabularFileInDB,
     DataSourceAnalysisInDB,
-    DataSource,
+    DataSourceFull,
     TabularFileDataSource,
     DetailedDataSourceRecords,
 )
@@ -91,7 +91,7 @@ async def create_data_source_analysis(analysis: DataSourceAnalysisCreate) -> Dat
 async def get_data_sources(
     data_source_ids: Optional[List[uuid.UUID]] = None,
     user_id: Optional[uuid.UUID] = None,
-) -> List[DataSource]:
+) -> List[DataSourceFull]:
     """Get a data source by ID, returning the most specific type"""
     # Get the base data source
 
@@ -132,7 +132,7 @@ async def get_data_sources(
 async def get_project_data_sources(
     user_id: uuid.UUID,
     project_id: uuid.UUID,
-) -> List[DataSource]:
+) -> List[DataSourceFull]:
     data_sources_ids_in_project = await get_data_source_ids_in_project(project_id)
     return await get_data_sources(user_id=user_id, data_source_ids=data_sources_ids_in_project)
 

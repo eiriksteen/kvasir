@@ -35,6 +35,8 @@ from .pipeline import (
     PipelineSources,
     PipelineFull,
     PipelineCreate,
+    PipelineFromDatasetInDB,
+    PipelineFromModelEntityInDB,
 )
 
 from .function import (
@@ -58,7 +60,8 @@ from .model import (
     ModelBare,
     SUPPORTED_MODALITIES_TYPE,
     SUPPORTED_TASK_TYPE,
-    ModelWithoutEmbedding,
+    ModelFull,
+    GetModelEntityByIDsRequest,
 )
 
 from .model_sources import (
@@ -106,6 +109,7 @@ from .data_objects import (
     DatasetFromDataSourceInDB,
     DatasetFromDatasetInDB,
     DatasetFromPipelineInDB,
+    GetDatasetByIDsRequest,
 )
 
 # Data Sources schemas
@@ -115,7 +119,7 @@ from .data_sources import (
     DataSourceAnalysisInDB,
     FeatureInTabularFileInDB,
     TabularFileDataSource,
-    DataSource,
+    DataSourceFull,
     DetailedDataSourceRecords,
     FileSavedResponse,
     TabularFileDataSourceCreate,
@@ -162,7 +166,7 @@ from .orchestrator import (
     ChatPydanticMessageInDB,
     ContextInDB,
     DataSourceContextInDB,
-    ModelSourceContextInDB,
+    ModelEntityContextInDB,
     DatasetContextInDB,
     PipelineContextInDB,
     AnalysisContextInDB,
@@ -173,11 +177,10 @@ from .orchestrator import (
     ConversationCreate,
     ProjectGraph,
     DataSourceInGraph,
-    ModelSourceInGraph,
+    ModelEntityInGraph,
     DatasetInGraph,
     PipelineInGraph,
     AnalysisInGraph,
-    ModelEntityInGraph,
     CreationSettings,
 )
 

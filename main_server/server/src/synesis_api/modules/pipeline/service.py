@@ -10,7 +10,7 @@ from synesis_api.modules.pipeline.models import (
     pipeline_periodic_schedule,
     pipeline_on_event_schedule,
     pipeline_from_dataset,
-    pipeline_from_model,
+    pipeline_from_model_entity,
     pipeline_run
 )
 from synesis_api.modules.function.service import get_functions
@@ -21,6 +21,8 @@ from synesis_schemas.main_server import (
     PeriodicScheduleInDB,
     PipelineCreate,
     PipelineSources,
+    PipelineFromDatasetInDB,
+    PipelineFromModelEntityInDB,
 )
 from synesis_api.modules.project.service import get_pipeline_ids_in_project
 
@@ -77,6 +79,24 @@ async def create_pipeline(
 
     await execute(insert(function_in_pipeline).values(fn_in_pipeline_records), commit_after=True)
 
+    pipeline_from_dataset_records = [PipelineFromDatasetInDB(
+        pipeline_id=pipeline_obj.id,
+        dataset_id=dataset_id,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
+    ).model_dump() for dataset_id in pipeline_create.input_dataset_ids]
+
+    await execute(insert(pipeline_from_dataset).values(pipeline_from_dataset_records), commit_after=True)
+
+    pipeline_from_model_records = [PipelineFromModelEntityInDB(
+        pipeline_id=pipeline_obj.id,
+        model_entity_id=model_entity_id,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
+    ).model_dump() for model_entity_id in pipeline_create.input_model_entity_ids]
+
+    await execute(insert(pipeline_from_model_entity).values(pipeline_from_model_records), commit_after=True)
+
     return pipeline_obj
 
 
@@ -123,8 +143,8 @@ async def get_user_pipelines(
     # sources
     dataset_sources_query = select(pipeline_from_dataset).where(
         pipeline_from_dataset.c.pipeline_id.in_(pipeline_ids))
-    model_sources_query = select(pipeline_from_model).where(
-        pipeline_from_model.c.pipeline_id.in_(pipeline_ids))
+    model_sources_query = select(pipeline_from_model_entity).where(
+        pipeline_from_model_entity.c.pipeline_id.in_(pipeline_ids))
 
     dataset_sources = await fetch_all(dataset_sources_query)
     model_sources = await fetch_all(model_sources_query)
@@ -156,7 +176,8 @@ async def get_user_pipelines(
             on_event_schedules=on_event_schedules_records,
             sources=PipelineSources(
                 dataset_ids=[s["dataset_id"] for s in dataset_sources_records],
-                model_ids=[s["model_id"] for s in model_sources_records]
+                model_entity_ids=[s["model_entity_id"]
+                                  for s in model_sources_records]
             )
         ))
     return output_objs

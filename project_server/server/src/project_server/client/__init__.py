@@ -51,10 +51,11 @@ from .requests.data_sources import (
 
 from .requests.data_objects import (
     post_dataset,
-    get_datasets,
+    get_project_datasets,
     get_dataset,
     get_object_group,
-    get_object_groups_in_dataset
+    get_object_groups_in_dataset,
+    get_datasets_by_ids
 )
 
 from .requests.project import (
@@ -79,7 +80,9 @@ from .requests.function import (
 
 from .requests.model import (
     post_model,
-    post_model_entity
+    post_model_entity,
+    get_project_model_entities,
+    get_model_entities_by_ids
 )
 
 from .requests.model_sources import (
@@ -124,6 +127,8 @@ __all__ = [
     # Model functions
     "post_model",
     "post_model_entity",
+    "get_project_model_entities",
+    "get_model_entities_by_ids",
 
     # Orchestrator functions
     "post_conversation",
@@ -145,7 +150,7 @@ __all__ = [
 
     # Data objects functions
     "post_dataset",
-    "get_datasets",
+    "get_project_datasets",
     "get_dataset",
     "get_object_group",
     "get_object_groups_in_dataset",

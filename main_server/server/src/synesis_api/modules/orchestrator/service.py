@@ -12,7 +12,7 @@ from synesis_schemas.main_server import (
     DatasetContextInDB,
     PipelineContextInDB,
     AnalysisContextInDB,
-    ModelSourceContextInDB,
+    ModelEntityContextInDB,
     ConversationInDB,
     ChatMessageInDB,
     ChatPydanticMessageInDB,
@@ -23,6 +23,10 @@ from synesis_schemas.main_server import (
     PipelineInGraph,
     AnalysisInGraph,
     ModelEntityInGraph,
+    DatasetFull,
+    PipelineFull,
+    ModelEntityFull,
+    DataSourceFull
 )
 
 from synesis_api.modules.orchestrator.models import (
@@ -34,24 +38,22 @@ from synesis_api.modules.orchestrator.models import (
     pipeline_context,
     analysis_context,
     data_source_context,
-    model_source_context,
     model_entity_context,
 )
 from synesis_api.database.service import fetch_all, execute, fetch_one
-from synesis_api.modules.data_objects.service import get_user_datasets_by_ids
+from synesis_api.modules.data_objects.service import get_user_datasets_by_ids, get_project_datasets
 # from synesis_api.modules.analysis.service import get_user_analyses_by_ids
-from synesis_api.modules.data_sources.service import get_data_sources
-from synesis_api.modules.pipeline.service import get_user_pipelines_by_ids
-from synesis_api.modules.model.service import get_user_model_entities_by_ids
-from synesis_api.modules.model_sources.service import get_user_or_public_model_sources_by_ids
+from synesis_api.modules.data_sources.service import get_data_sources, get_project_data_sources
+from synesis_api.modules.pipeline.service import get_user_pipelines_by_ids, get_project_pipelines
+from synesis_api.modules.model.service import get_user_model_entities_by_ids, get_project_model_entities
 
 
 async def create_conversation(
         conversation_create: ConversationCreate,
         user_id: uuid.UUID,
         name: str,
-        conversation_id: Optional[uuid.UUID] = None,
-) -> ConversationInDB:
+        conversation_id: Optional[uuid.UUID] = None) -> ConversationInDB:
+
     conversation_record = ConversationInDB(
         id=conversation_id if conversation_id else uuid.uuid4(),
         user_id=user_id,
@@ -191,20 +193,20 @@ async def create_context(
         for data_source_id in context_data.data_source_ids
     ]
 
-    model_source_context_records = [
-        ModelSourceContextInDB(
-            context_id=context_id,
-            model_source_id=model_source_id
-        )
-        for model_source_id in context_data.model_source_ids
-    ]
-
     dataset_context_records = [
         DatasetContextInDB(
             context_id=context_id,
             dataset_id=dataset_id
         )
         for dataset_id in context_data.dataset_ids
+    ]
+
+    model_entity_context_records = [
+        ModelEntityContextInDB(
+            context_id=context_id,
+            model_entity_id=model_entity_id
+        )
+        for model_entity_id in context_data.model_entity_ids
     ]
 
     pipeline_context_records = [
@@ -223,17 +225,17 @@ async def create_context(
         for analysis_id in context_data.analysis_ids
     ]
 
-    if len(dataset_context_records) == 0 and len(pipeline_context_records) == 0 and len(analysis_context_records) == 0 and len(data_source_context_records) == 0 and len(model_source_context_records) == 0:
+    if len(dataset_context_records) == 0 and len(pipeline_context_records) == 0 and len(analysis_context_records) == 0 and len(data_source_context_records) == 0 and len(model_entity_context_records) == 0:
         raise ValueError("No context records given to create")
     else:
         await execute(chat_context.insert().values(context_record.model_dump()), commit_after=True)
 
         if len(data_source_context_records) > 0:
             await execute(data_source_context.insert().values([record.model_dump() for record in data_source_context_records]), commit_after=True)
-        if len(model_source_context_records) > 0:
-            await execute(model_source_context.insert().values([record.model_dump() for record in model_source_context_records]), commit_after=True)
         if len(dataset_context_records) > 0:
             await execute(dataset_context.insert().values([record.model_dump() for record in dataset_context_records]), commit_after=True)
+        if len(model_entity_context_records) > 0:
+            await execute(model_entity_context.insert().values([record.model_dump() for record in model_entity_context_records]), commit_after=True)
         if len(pipeline_context_records) > 0:
             await execute(pipeline_context.insert().values([record.model_dump() for record in pipeline_context_records]), commit_after=True)
         if len(analysis_context_records) > 0:
@@ -245,7 +247,6 @@ async def create_context(
 async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
     datasets = []
     data_sources = []
-    model_sources = []
     pipelines = []
     analyses = []
     model_entities = []
@@ -254,20 +255,17 @@ async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
         datasets = await get_user_datasets_by_ids(user_id, context.dataset_ids, max_features=20)
     if len(context.data_source_ids) > 0:
         data_sources = await get_data_sources(context.data_source_ids)
-    if len(context.model_source_ids) > 0:
-        model_sources = await get_user_or_public_model_sources_by_ids(user_id, context.model_source_ids)
     if len(context.pipeline_ids) > 0:
         pipelines = await get_user_pipelines_by_ids(user_id, context.pipeline_ids)
     if len(context.analysis_ids) > 0:
         # analyses = await get_user_analyses_by_ids(user_id, context.analysis_ids)
         analyses = []
     if len(context.model_entity_ids) > 0:
-        model_entities = await get_user_model_entities_by_ids(user_id, context.model_entity_ids)
+        model_entities = await get_user_model_entities_by_ids(context.model_entity_ids)
 
     context_message = f"""
         <CONTEXT UPDATES>
         Data sources in context: {data_sources}
-        Model sources in context: {model_sources}
         Datasets in context: {datasets}
         Pipelines in context: {pipelines}
         Analyses in context: {analyses}
@@ -278,16 +276,98 @@ async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
     return context_message
 
 
-async def get_project_graph(project_id: uuid.UUID) -> ProjectGraph:
-    pass
-    # project_graph = ProjectGraph(
-    #     data_sources=await get_data_sources(),
-    #     datasets=await get_user_datasets_by_ids(user_id),
-    #     pipelines=await get_user_pipelines_by_ids(user_id),
-    #     analyses=#await get_user_analyses_by_ids(user_id),
-    #     model_entities=await get_user_model_entities_by_ids(user_id),
-    # )
-    # return project_graph
+async def get_project_graph(user_id: uuid.UUID, project_id: uuid.UUID) -> ProjectGraph:
+    data_sources = await get_project_data_sources(user_id, project_id)
+    datasets = await get_project_datasets(user_id, project_id, include_features=False)
+    pipelines = await get_project_pipelines(user_id, project_id)
+    analyses = []  # await get_project_analyses(project_id)
+    model_entities = await get_project_model_entities(project_id)
+
+    def _get_data_sources_in_graph(data_sources: List[DataSourceFull], datasets: List[DatasetFull]) -> List[DataSourceInGraph]:
+        objs = []
+        for ds in data_sources:
+            output_dataset_ids = [
+                dset.id for dset in datasets if ds.id in dset.sources.data_source_ids]
+            output_analysis_ids = []
+            objs.append(DataSourceInGraph(
+                id=ds.id,
+                name=ds.name,
+                type=ds.type,
+                brief_description=f"{ds.name} {ds.type} data source",
+                to_datasets=output_dataset_ids,
+                to_analyses=output_analysis_ids
+            ))
+        return objs
+
+    def _get_datasets_in_graph(datasets: List[DatasetFull], pipelines: List[PipelineFull]) -> List[DatasetInGraph]:
+        objs = []
+        for ds in datasets:
+            output_pipeline_ids = [
+                p.id for p in pipelines if ds.id in p.sources.dataset_ids]
+            output_analysis_ids = []
+
+            objs.append(DatasetInGraph(
+                id=ds.id,
+                name=ds.name,
+                brief_description=ds.description,
+                to_pipelines=output_pipeline_ids,
+                to_analyses=output_analysis_ids,
+                from_data_sources=ds.sources.data_source_ids,
+                from_datasets=ds.sources.dataset_ids,
+                from_pipelines=ds.sources.pipeline_ids
+            ))
+        return objs
+
+    def _get_pipelines_in_graph(pipelines: List[PipelineFull], datasets: List[DatasetFull], model_entities: List[ModelEntityFull]) -> List[PipelineInGraph]:
+        objs = []
+        for p in pipelines:
+            output_dataset_ids = [
+                ds.id for ds in datasets if p.id in ds.sources.pipeline_ids]
+            output_model_entity_ids = [
+                me.id for me in model_entities if p.id == me.pipeline_id]
+
+            objs.append(PipelineInGraph(
+                id=p.id,
+                name=p.name,
+                brief_description=p.description,
+                from_datasets=p.sources.dataset_ids,
+                from_model_entities=p.sources.model_entity_ids,
+                to_datasets=output_dataset_ids,
+                to_model_entities=output_model_entity_ids
+            ))
+        return objs
+
+    def _get_analyses_in_graph() -> List[AnalysisInGraph]:
+        return []
+
+    def _get_model_entities_in_graph(model_entities: List[ModelEntityFull], pipelines: List[PipelineFull]) -> List[ModelEntityInGraph]:
+        objs = []
+        for me in model_entities:
+            output_pipeline_ids = [
+                p.id for p in pipelines if me.id in p.sources.model_entity_ids]
+            objs.append(ModelEntityInGraph(
+                id=me.id,
+                name=me.name,
+                brief_description=me.description,
+                to_pipelines=output_pipeline_ids,
+            ))
+        return objs
+
+    data_sources_in_graph = _get_data_sources_in_graph(data_sources, datasets)
+    datasets_in_graph = _get_datasets_in_graph(datasets, pipelines)
+    pipelines_in_graph = _get_pipelines_in_graph(
+        pipelines, datasets, model_entities)
+    analyses_in_graph = _get_analyses_in_graph()
+    model_entities_in_graph = _get_model_entities_in_graph(
+        model_entities, pipelines)
+
+    return ProjectGraph(
+        data_sources=data_sources_in_graph,
+        datasets=datasets_in_graph,
+        pipelines=pipelines_in_graph,
+        analyses=analyses_in_graph,
+        model_entities=model_entities_in_graph
+    )
 
 
 async def _get_context_objects_from_ids(context_ids: list[uuid.UUID]) -> list[Context]:
@@ -297,11 +377,6 @@ async def _get_context_objects_from_ids(context_ids: list[uuid.UUID]) -> list[Co
     data_source_contexts = await fetch_all(
         select(data_source_context).where(
             data_source_context.c.context_id.in_(context_ids))
-    )
-
-    model_source_contexts = await fetch_all(
-        select(model_source_context).where(
-            model_source_context.c.context_id.in_(context_ids))
     )
 
     dataset_contexts = await fetch_all(
@@ -327,8 +402,6 @@ async def _get_context_objects_from_ids(context_ids: list[uuid.UUID]) -> list[Co
     for ctx_id in context_ids:
         data_source_ids = [dc['data_source_id']
                            for dc in data_source_contexts if dc['context_id'] == ctx_id]
-        model_source_ids = [ms['model_source_id']
-                            for ms in model_source_contexts if ms['context_id'] == ctx_id]
         dataset_ids = [dc['dataset_id']
                        for dc in dataset_contexts if dc['context_id'] == ctx_id]
         pipeline_ids = [ac['pipeline_id']
@@ -341,7 +414,6 @@ async def _get_context_objects_from_ids(context_ids: list[uuid.UUID]) -> list[Co
         context_data.append(Context(
             id=ctx_id,
             data_source_ids=data_source_ids,
-            model_source_ids=model_source_ids,
             dataset_ids=dataset_ids,
             pipeline_ids=pipeline_ids,
             analysis_ids=analysis_ids,

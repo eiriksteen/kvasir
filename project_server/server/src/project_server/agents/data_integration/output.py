@@ -41,6 +41,7 @@ async def submit_data_integration_output(
     out, err = await run_python_function_in_container(
         base_script=(
             f"{result.code}\n\nfrom project_server.dataset_manager.local.local_dataset_manager import LocalDatasetManager\n\n" +
+            "from uuid import UUID\n\n" +
             f"dataset_manager = LocalDatasetManager('{ctx.deps.bearer_token}')"
         ),
         function_name="dataset_manager.upload_dataset",

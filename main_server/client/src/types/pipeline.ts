@@ -6,7 +6,7 @@ import { FunctionWithoutEmbedding } from "./function";
 
 export interface PipelineSources {
   datasetIds: UUID[];
-  modelIds: UUID[];
+  modelEntityIds: UUID[];
 }
 
 export interface Pipeline {

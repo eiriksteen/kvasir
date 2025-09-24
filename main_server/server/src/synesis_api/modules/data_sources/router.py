@@ -11,7 +11,7 @@ from synesis_api.modules.data_sources.service import (
 )
 from synesis_schemas.main_server import (
     DataSourceInDB,
-    DataSource,
+    DataSourceFull,
     DataSourceAnalysisInDB,
     DataSourceAnalysisCreate,
     TabularFileDataSourceCreate,
@@ -36,26 +36,26 @@ router = APIRouter()
 # - Possibly simplify structure of router / service / agent
 
 
-@router.get("/data-sources", response_model=List[DataSource])
+@router.get("/data-sources", response_model=List[DataSourceFull])
 async def fetch_data_sources(
     user: Annotated[User, Depends(get_current_user)] = None
-) -> List[DataSource]:
+) -> List[DataSourceFull]:
     return await get_data_sources(user_id=user.id)
 
 
-@router.get("/project-data-sources/{project_id}", response_model=List[DataSource])
+@router.get("/project-data-sources/{project_id}", response_model=List[DataSourceFull])
 async def fetch_data_sources(
     project_id: UUID,
     user: Annotated[User, Depends(get_current_user)] = None
-) -> List[DataSource]:
+) -> List[DataSourceFull]:
     return await get_project_data_sources(user_id=user.id, project_id=project_id)
 
 
-@router.get("/data-sources-by-ids", response_model=List[DataSource])
+@router.get("/data-sources-by-ids", response_model=List[DataSourceFull])
 async def fetch_data_sources_by_ids(
     request: GetDataSourcesByIDsRequest,
     user: Annotated[User, Depends(get_current_user)] = None
-) -> List[DataSource]:
+) -> List[DataSourceFull]:
     return await get_data_sources(data_source_ids=request.data_source_ids, user_id=user.id)
 
 

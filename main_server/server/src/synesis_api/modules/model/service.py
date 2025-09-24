@@ -5,9 +5,10 @@ from sqlalchemy import select, insert
 
 from synesis_api.database.service import fetch_all, execute
 from synesis_api.modules.model.models import model, model_entity
-from synesis_schemas.main_server import ModelInDB, ModelCreate, ModelEntityFull, ModelEntityInDB, ModelEntityCreate, ModelWithoutEmbedding
+from synesis_schemas.main_server import ModelInDB, ModelCreate, ModelEntityFull, ModelEntityInDB, ModelEntityCreate, ModelFull
 from synesis_api.utils.rag_utils import embed
 from synesis_api.modules.project.service import get_model_entity_ids_in_project
+from synesis_api.modules.function.service import get_functions
 
 
 async def create_model(user_id: uuid.UUID, model_create: ModelCreate) -> ModelInDB:
@@ -48,23 +49,40 @@ async def create_model_entity(model_entity_create: ModelEntityCreate) -> ModelEn
 
 
 async def get_user_model_entities_by_ids(model_entity_ids: List[uuid.UUID]) -> List[ModelEntityFull]:
+
     model_entity_query = select(model_entity).where(
         model_entity.c.id.in_(model_entity_ids))
-    results = await fetch_all(model_entity_query)
-    model_query = select(model).where(
-        model.c.id.in_([e["model_id"] for e in results]))
-    models = await fetch_all(model_query)
+    model_entity_records = await fetch_all(model_entity_query)
 
-    model_entity_records = []
+    model_query = select(model).where(
+        model.c.id.in_([e["model_id"] for e in model_entity_records]))
+    model_records = await fetch_all(model_query)
+
+    function_objs = await get_functions(
+        [e["inference_function_id"] for e in model_records] +
+        [e["training_function_id"] for e in model_records]
+    )
+
+    model_entity_full_objs = []
     for entity_id in model_entity_ids:
         model_entity_record = next(
-            (e for e in results if e["id"] == entity_id), None)
+            (e for e in model_entity_records if e["id"] == entity_id), None)
         model_record = next(
-            (m for m in models if m["id"] == model_entity_record["model_id"]), None)
+            (m for m in model_records if m["id"] == model_entity_record["model_id"]), None)
+        inference_function = next(
+            (f for f in function_objs if f.id == model_record["inference_function_id"]), None)
+        training_function = next(
+            (f for f in function_objs if f.id == model_record["training_function_id"]), None)
         if model_entity_record is not None and model_record is not None:
-            model_entity_records.append(ModelEntityFull(
-                **model_entity_record, model=ModelWithoutEmbedding(**model_record)))
-    return model_entity_records
+            model_entity_full_objs.append(ModelEntityFull(
+                **model_entity_record,
+                model=ModelFull(
+                    **model_record,
+                    inference_function=inference_function,
+                    training_function=training_function)
+            ))
+
+    return model_entity_full_objs
 
 
 async def get_project_model_entities(project_id: uuid.UUID) -> List[ModelEntityFull]:

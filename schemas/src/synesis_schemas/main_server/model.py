@@ -4,6 +4,9 @@ from datetime import datetime
 from uuid import UUID
 
 
+from .function import FunctionBare
+
+
 SUPPORTED_MODALITIES_TYPE = Literal["time_series", "tabular", "multimodal",
                                     "image", "text", "audio", "video"]
 
@@ -57,7 +60,7 @@ class ModelEntityFromPipelineInDB(BaseModel):
 
 # API models
 
-class ModelWithoutEmbedding(ModelInDB):
+class ModelFull(ModelInDB):
     id: UUID
     name: str
     description: str
@@ -67,8 +70,8 @@ class ModelWithoutEmbedding(ModelInDB):
     source_id: UUID
     task: SUPPORTED_TASK_TYPE
     programming_language_with_version: str
-    inference_function_id: UUID
-    training_function_id: UUID
+    inference_function: FunctionBare
+    training_function: FunctionBare
     created_at: datetime
     updated_at: datetime
     setup_script_path: Optional[str] = None
@@ -84,7 +87,11 @@ class ModelBare(BaseModel):
 
 
 class ModelEntityFull(ModelEntityInDB):
-    model: ModelWithoutEmbedding
+    model: ModelFull
+
+
+class GetModelEntityByIDsRequest(BaseModel):
+    model_entity_ids: List[UUID]
 
 
 # Create models

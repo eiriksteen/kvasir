@@ -29,12 +29,13 @@ class AnalysisHandoffOutput(BaseModel):
 class PipelineHandoffOutput(BaseModel):
     run_name: str
     deliverable_description: str
-    dataset_ids: List[uuid.UUID]
-    model_ids: Optional[List[uuid.UUID]] = None
+    input_dataset_ids: List[uuid.UUID]
+    input_model_entity_ids: List[uuid.UUID] = []
 
     @model_validator(mode="after")
     def validate_dataset_ids(self) -> "PipelineHandoffOutput":
-        assert len(self.dataset_ids) > 0, "One or more dataset IDs are required"
+        assert len(
+            self.input_dataset_ids) > 0, "One or more dataset IDs are required"
         return self
 
 

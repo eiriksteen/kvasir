@@ -1,4 +1,4 @@
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, and_
 
 import uuid
 
@@ -12,7 +12,7 @@ from synesis_api.utils.rag_utils import embed
 from synesis_schemas.main_server import QueryRequest, FunctionQueryResult, ModelQueryResult, ModelSourceQueryResult, FunctionBare, ModelBare, ModelSourceBare
 
 
-async def query_functions(query_request: QueryRequest) -> FunctionQueryResult:
+async def query_functions(query_request: QueryRequest, exclude_model_functions: bool = True) -> FunctionQueryResult:
 
     query_vector = (await embed([query_request.query]))[0]
 
@@ -21,6 +21,10 @@ async def query_functions(query_request: QueryRequest) -> FunctionQueryResult:
     ).order_by(
         function.c.embedding.cosine_distance(query_vector)
     ).limit(query_request.k)
+
+    if exclude_model_functions:
+        function_query = function_query.where(
+            and_(function.c.type != "training", function.c.type != "inference"))
 
     fns = await fetch_all(function_query)
 

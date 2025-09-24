@@ -37,7 +37,7 @@ export interface Function {
   type: "inference" | "training" | "computation";
   implementationScriptPath: string;
   setupScriptPath?: string;
-  defaultConfig?: Record<string, unknown>;
+  defaultArgs?: Record<string, unknown>;
   description: string;
   createdAt: string;
   updatedAt: string;
@@ -50,8 +50,11 @@ export interface FunctionWithoutEmbedding {
   id: UUID;
   name: string;
   description: string;
-  defaultConfig?: Record<string, unknown>;
+  defaultArgs?: Record<string, unknown>;
   inputStructures: FunctionInputStructure[];
   outputStructures: FunctionOutputStructure[];
   outputVariables: FunctionOutputVariable[];
+  type: "inference" | "training" | "computation";
+  createdAt: string;
+  updatedAt: string;
 }

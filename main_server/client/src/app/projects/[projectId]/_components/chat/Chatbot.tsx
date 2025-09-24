@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Send, Plus, History, Database, X, BarChart, Zap } from 'lucide-react';
+import { Send, Plus, History, Database, X, BarChart, Zap, Brain } from 'lucide-react';
 import { useProjectChat } from '@/hooks';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { ChatHistory } from '@/app/projects/[projectId]/_components/chat/ChatHistory';
@@ -15,6 +15,7 @@ import RunBox from '@/components/runs/RunBox';
 import { Run } from '@/types/runs';
 import ChatMessageBox from '@/app/projects/[projectId]/_components/chat/ChatMessageBox';
 import { Pipeline } from '@/types/pipeline';
+import { ModelEntity } from '@/types/model';
 
 export default function Chatbot({ projectId }: { projectId: UUID }) {
   
@@ -34,6 +35,8 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
     removeAnalysisFromContext,
     pipelinesInContext,
     removePipelineFromContext,
+    modelEntitiesInContext,
+    removeModelEntityFromContext,
   } = useAgentContext(projectId);
 
   const { runsInConversation } = useRunsInConversation(conversation?.id || "");
@@ -220,6 +223,20 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                       {pipeline.name}
                       <button 
                         onClick={() => removePipelineFromContext(pipeline)}
+                        className="text-zinc-400 hover:text-white"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Model Entities */}
+                  {modelEntitiesInContext.map((modelEntity: ModelEntity) => (
+                    <div key={modelEntity.id} className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-emerald-900/30 text-emerald-300">
+                      <Brain size={12} />
+                      {modelEntity.name}
+                      <button 
+                        onClick={() => removeModelEntityFromContext(modelEntity)}
                         className="text-zinc-400 hover:text-white"
                       >
                         <X size={12} />

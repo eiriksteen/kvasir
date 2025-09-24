@@ -69,18 +69,6 @@ data_source_context = Table(
 )
 
 
-model_source_context = Table(
-    "model_source_context",
-    metadata,
-    Column("context_id", UUID(as_uuid=True),
-           ForeignKey("orchestrator.chat_context.id"), nullable=False),
-    Column("model_source_id", UUID(as_uuid=True),
-           ForeignKey("model_sources.model_source.id"), nullable=False),
-    PrimaryKeyConstraint("context_id", "model_source_id"),
-    schema="orchestrator"
-)
-
-
 dataset_context = Table(
     "dataset_context",
     metadata,

@@ -3,7 +3,7 @@ from pydantic import ValidationError
 
 from project_server.client import ProjectClient
 from synesis_schemas.main_server import (
-    DataSource,
+    DataSourceFull,
     DataSourceInDB,
     DataSourceAnalysisInDB,
     DataSourceAnalysisCreate,
@@ -14,12 +14,12 @@ from synesis_schemas.main_server import (
 )
 
 
-async def get_data_sources(client: ProjectClient) -> List[DataSource]:
+async def get_data_sources(client: ProjectClient) -> List[DataSourceFull]:
     response = await client.send_request("get", "/data-sources/data-sources")
-    return [DataSource(**ds) for ds in response.body]
+    return [DataSourceFull(**ds) for ds in response.body]
 
 
-async def get_data_sources_by_ids(client: ProjectClient, request: GetDataSourcesByIDsRequest) -> List[DataSource]:
+async def get_data_sources_by_ids(client: ProjectClient, request: GetDataSourcesByIDsRequest) -> List[DataSourceFull]:
     response = await client.send_request("get", f"/data-sources/data-sources-by-ids", json=request.model_dump(mode="json"))
     basic_model = DataSourceInDB
     detailed_models = [TabularFileDataSource]

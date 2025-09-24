@@ -16,6 +16,8 @@ Given a user's data process description and input data structure:
 3. Output the function descriptions
 4. Evaluate the search results and determine if the existing functions can fulfill the requirements to build the entire pipeline
 
+NB: We differentiate between model functions (for training and inference), and general processing functions. You will search for general functions. If you are to use a model, you will be provided the model spec including it's training and inference functions. 
+
 ### STAGE 2: Pipeline Definition
 Based on your evaluation, output one of two formats:
 

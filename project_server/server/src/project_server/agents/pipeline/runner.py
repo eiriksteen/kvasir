@@ -23,7 +23,9 @@ from project_server.client import (
     post_pipeline,
     post_function,
     post_search_functions,
-    post_run_message_pydantic
+    post_run_message_pydantic,
+    get_datasets_by_ids,
+    get_model_entities_by_ids
 )
 
 from project_server.agents.runner_base import RunnerBase
@@ -37,7 +39,9 @@ from synesis_schemas.main_server import (
     AddEntityToProject,
     FrontendNodeCreate,
     SearchFunctionsRequest,
-    QueryRequest
+    QueryRequest,
+    GetDatasetByIDsRequest,
+    GetModelEntityByIDsRequest
 )
 
 
@@ -49,11 +53,15 @@ class PipelineAgentRunner(RunnerBase):
             project_id: uuid.UUID,
             conversation_id: uuid.UUID,
             bearer_token: str,
+            input_dataset_ids: List[uuid.UUID],
+            input_model_entity_ids: List[uuid.UUID] = [],
             run_id: Optional[uuid.UUID] = None):
 
         super().__init__(pipeline_agent, user_id, bearer_token, run_id)
         self.project_id = project_id
         self.conversation_id = conversation_id
+        self.input_dataset_ids = input_dataset_ids
+        self.input_model_entity_ids = input_model_entity_ids
         self.tries = 0
         self.swe_runner = None
 
@@ -64,8 +72,14 @@ class PipelineAgentRunner(RunnerBase):
                 run = await post_run(self.project_client, RunCreate(type="pipeline", conversation_id=self.conversation_id))
                 self.run_id = run.id
 
+            input_datasets = await get_datasets_by_ids(self.project_client, GetDatasetByIDsRequest(dataset_ids=self.input_dataset_ids, include_features=True))
+            input_model_entities = await get_model_entities_by_ids(self.project_client, GetModelEntityByIDsRequest(model_entity_ids=self.input_model_entity_ids))
+
             search_run = await self.agent.run(
-                "Now search for relevant functions!",
+                f"The user has requested a pipeline with the following description: {prompt_content}\n\n" +
+                f"The input datasets are:\n\n{[ds.model_dump_json() for ds in input_datasets]}\n\n" +
+                f"The input model entities are:\n\n{[me.model_dump_json() for me in input_model_entities]}\n\n" +
+                "Now search for any relevant functions! If the model functions suffice, you can output an empty list.",
                 output_type=List[QueryRequest],
                 message_history=self.message_history
             )
@@ -258,8 +272,9 @@ class PipelineAgentRunner(RunnerBase):
             raise e
 
     async def _save_results(self, result: AgentRunResult):
-
         output: PipelineCreate = result.output
+        output.input_model_entity_ids = self.input_model_entity_ids
+        output.input_dataset_ids = self.input_dataset_ids
         pipeline_response = await post_pipeline(self.project_client, output)
 
         await post_add_entity(self.project_client, AddEntityToProject(
@@ -291,9 +306,18 @@ async def run_pipeline_task(
         project_id: uuid.UUID,
         conversation_id: uuid.UUID,
         prompt_content: str,
-        bearer_token: str):
+        bearer_token: str,
+        input_dataset_ids: List[uuid.UUID],
+        input_model_entity_ids: List[uuid.UUID] = []
+):
 
     runner = PipelineAgentRunner(
-        user_id, project_id, conversation_id, bearer_token)
+        user_id=user_id,
+        project_id=project_id,
+        conversation_id=conversation_id,
+        bearer_token=bearer_token,
+        input_dataset_ids=input_dataset_ids,
+        input_model_entity_ids=input_model_entity_ids
+    )
 
     await runner(prompt_content)

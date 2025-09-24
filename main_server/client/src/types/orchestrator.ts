@@ -5,6 +5,7 @@ export type Context = {
     datasetIds: UUID[];
     pipelineIds: UUID[];
     analysisIds: UUID[];
+    modelEntityIds: UUID[];
 }
 
 export type ChatMessage = {
@@ -33,4 +34,53 @@ export type Prompt = {
 
 export type ConversationCreate = {
     projectId: UUID;
+}
+
+export type DataSourceInGraph = {
+    id: UUID;
+    name: string;
+    brief_description: string;
+    toDatasets: UUID[];
+    toAnalyses: UUID[];
+}
+
+export type DatasetInGraph = {
+    id: UUID;
+    name: string;
+    brief_description: string;
+    toPipelines: UUID[];
+    toAnalyses: UUID[];
+}
+
+export type PipelineInGraph = {
+    id: UUID;
+    name: string;
+    brief_description: string;
+    fromDatasets: UUID[];
+    fromModelEntities: UUID[];
+    toDatasets: UUID[];
+    toModelEntities: UUID[];
+}
+
+export type AnalysisInGraph = {
+    id: UUID;
+    name: string;
+    brief_description: string;
+    fromDatasets: UUID[];
+    fromDataSources: UUID[];
+}
+
+export type ModelEntityInGraph = {
+    id: UUID;
+    name: string;
+    brief_description: string;
+    toPipelines: UUID[];
+}
+
+export type ProjectGraph = {
+    dataSources: DataSourceInGraph[];
+    datasets: DatasetInGraph[];
+    pipelines: PipelineInGraph[];
+    analyses: AnalysisInGraph[];
+    modelEntities: ModelEntityInGraph[];
 }

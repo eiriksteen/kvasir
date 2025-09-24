@@ -9,7 +9,8 @@ from synesis_api.modules.data_objects.service import (
     get_user_dataset_by_id,
     get_object_group,
     create_dataset,
-    get_project_datasets
+    get_project_datasets,
+    get_user_datasets_by_ids
 )
 # from synesis_api.modules.data_objects.service import get_time_series_payload_data_by_id
 from synesis_schemas.main_server import (
@@ -19,7 +20,8 @@ from synesis_schemas.main_server import (
     TimeSeriesFullWithRawData,
     ObjectGroupInDB,
     ObjectGroupWithFeatures,
-    ObjectGroupWithEntitiesAndFeatures
+    ObjectGroupWithEntitiesAndFeatures,
+    GetDatasetByIDsRequest
 )
 from synesis_schemas.main_server import User
 from synesis_api.auth.service import get_current_user, user_owns_dataset, user_owns_object_group
@@ -64,6 +66,15 @@ async def fetch_dataset(
 ) -> Union[DatasetFullWithFeatures, DatasetFull]:
     """Get a specific dataset by ID"""
     return await get_user_dataset_by_id(dataset_id, user.id, include_features=include_features)
+
+
+@router.get("/datasets-by-ids", response_model=List[Union[DatasetFullWithFeatures, DatasetFull]])
+async def fetch_datasets_by_ids(
+    request: GetDatasetByIDsRequest,
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> List[Union[DatasetFullWithFeatures, DatasetFull]]:
+    """Get a specific dataset by ID"""
+    return await get_user_datasets_by_ids(user.id, dataset_ids=request.dataset_ids, include_features=request.include_features, max_features=50)
 
 
 @router.get("/object-group/{group_id}", response_model=Union[ObjectGroupInDB, ObjectGroupWithFeatures, ObjectGroupWithEntitiesAndFeatures])
