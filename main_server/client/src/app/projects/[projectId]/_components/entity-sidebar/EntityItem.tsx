@@ -1,16 +1,17 @@
 'use client';
 
 import React from 'react';
-import { Database, BarChart3, Zap, Folder } from 'lucide-react';
+import { Database, BarChart3, Zap, Folder, HardDrive } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { Pipeline } from '@/types/pipeline';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
 import { ModelEntity } from '@/types/model';
+import { DataSource } from '@/types/data-sources';
 
-type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'model_entity';
+type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'model_entity' | 'data_source';
 
 interface EntityItemProps {
-    item: Dataset | AnalysisJobResultMetadata | Pipeline | ModelEntity;
+    item: Dataset | AnalysisJobResultMetadata | Pipeline | ModelEntity | DataSource;
     type: ItemType;
     isInContext: boolean;
     onClick: () => void;
@@ -50,6 +51,14 @@ export default function EntityItem({ item, type, isInContext, onClick }: EntityI
                     iconColor: 'text-[#840B08]',
                     textColor: 'text-gray-800',
                     hover: 'hover:bg-[#840B08]/20'
+                };
+            case 'data_source':
+                return {
+                    bg: isInContext ? 'bg-gray-200' : 'hover:bg-gray-100',
+                    icon: <HardDrive size={11} />,
+                    iconColor: 'text-gray-600',
+                    textColor: 'text-gray-800',
+                    hover: 'hover:bg-gray-200'
                 };
         }
     };

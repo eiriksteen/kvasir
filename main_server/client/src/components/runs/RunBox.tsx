@@ -12,48 +12,48 @@ const getRunTheme = (type: 'data_integration' | 'analysis' | 'pipeline' | 'swe' 
 switch (type) {
     case 'data_integration':
     return {
-        bg: 'bg-blue-500/5',
-        border: 'border border-blue-400/30',
+        bg: 'bg-[#0E4F70]/10',
+        border: 'border border-[#0E4F70]/30',
         icon: <Folder  size={12} />,
-        iconColor: 'text-blue-400',
+        iconColor: 'text-[#0E4F70]',
         textColor: 'text-gray-200',
-        statusBg: 'bg-blue-500/15',
-        statusBorder: 'border-blue-400/30',
-        hover: 'hover:bg-blue-500/10 cursor-pointer',
+        statusBg: 'bg-[#0E4F70]/15',
+        statusBorder: 'border-[#0E4F70]/30',
+        hover: 'hover:bg-[#0E4F70]/20 cursor-pointer',
     };
     case 'analysis':
     return {
-        bg: 'bg-purple-500/5',
-        border: 'border border-purple-400/30',
+        bg: 'bg-[#004806]/10',
+        border: 'border border-[#004806]/30',
         icon: <BarChart3 size={12} />,
-        iconColor: 'text-purple-400',
+        iconColor: 'text-[#004806]',
         textColor: 'text-gray-200',
-        statusBg: 'bg-purple-500/15',
-        statusBorder: 'border-purple-400/30',
-        hover: 'hover:bg-purple-500/10 cursor-pointer',
+        statusBg: 'bg-[#004806]/15',
+        statusBorder: 'border-[#004806]/30',
+        hover: 'hover:bg-[#004806]/20 cursor-pointer',
     };
     case 'pipeline':
     case 'swe':
     return {
-        bg: 'bg-orange-500/5',
-        border: 'border border-orange-400/30',
+        bg: 'bg-[#840B08]/10',
+        border: 'border border-[#840B08]/30',
         icon: <Zap size={12} />,
-        iconColor: 'text-orange-400',
+        iconColor: 'text-[#840B08]',
         textColor: 'text-gray-200',
-        statusBg: 'bg-orange-500/15',
-        statusBorder: 'border-orange-400/30',
-        hover: 'hover:bg-orange-500/10 cursor-pointer',
+        statusBg: 'bg-[#840B08]/15',
+        statusBorder: 'border-[#840B08]/30',
+        hover: 'hover:bg-[#840B08]/20 cursor-pointer',
     };
     case 'model_integration':
     return {
-        bg: 'bg-green-500/5',
-        border: 'border border-green-400/30',
+        bg: 'bg-[#491A32]/10',
+        border: 'border border-[#491A32]/30',
         icon: <Brain size={12} />,
-        iconColor: 'text-green-400',
+        iconColor: 'text-[#491A32]',
         textColor: 'text-gray-200',
-        statusBg: 'bg-green-500/15',
-        statusBorder: 'border-green-400/30',
-        hover: 'hover:bg-green-500/10 cursor-pointer',
+        statusBg: 'bg-[#491A32]/15',
+        statusBorder: 'border-[#491A32]/30',
+        hover: 'hover:bg-[#491A32]/20 cursor-pointer',
     };
 }
 };
@@ -63,31 +63,31 @@ switch (status) {
     case 'pending':
     return {
         icon: <Clock size={10} />,
-        text: 'Pending',
+        text: 'pending',
         color: 'text-yellow-400'
     };
     case 'running':
     return {
         icon: <Loader2 size={10} className="animate-spin" />,
-        text: 'Running',
-        color: 'text-blue-400'
+        text: 'running',
+        color: null
     };
     case 'completed':
     return {
         icon: <CheckCircle size={10} />,
-        text: 'Completed',
-        color: 'text-green-400'
+        text: 'completed',
+        color: 'text-green-600'
     };
     case 'failed':
     return {
         icon: <XCircle size={10} />,
-        text: 'Failed',
-        color: 'text-red-400'
+        text: 'failed',
+        color: 'text-red-600'
     };
     default:
     return {
         icon: <Clock size={10} />,
-        text: 'Unknown',
+        text: 'unknown',
         color: 'text-gray-400'
     };
     }
@@ -139,14 +139,14 @@ export default function RunBox({ runId }: RunBoxProps) {
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2">
         <div className={`px-2 py-0.5 rounded-md text-xs font-mono flex items-center gap-1 text-[10px]`}>
-          <div className={statusInfo.color}>
+          <div className={statusInfo.color || theme.iconColor}>
             {theme.icon}
           </div>
-          <span className={statusInfo.color}>
+          <span className={statusInfo.color || theme.iconColor}>
             {statusInfo.icon}
           </span>
-          <span className={statusInfo.color}>
-            {statusInfo.text} {run.type.replace('_', ' ')} agent
+          <span className={statusInfo.color || theme.iconColor}>
+            {run.type.replace('_', ' ')} {statusInfo.text}
           </span>
         </div>
 

@@ -2,9 +2,10 @@
 
 import React from 'react';
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, BarChart3, Zap, Folder, Brain } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BarChart3, Zap, Folder, Brain, HardDrive } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
-import { useAgentContext, useDatasets, usePipelines, useProject } from '@/hooks';
+import { DataSource } from '@/types/data-sources';
+import { useAgentContext, useDatasets, usePipelines, useProject, useProjectDataSources } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { AnalysisJobResultMetadata } from '@/types/analysis';
@@ -34,14 +35,19 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
     const [showAddPipeline, setShowAddPipeline] = useState(false);
     const [showAddModelToProject, setShowAddModelToProject] = useState(false);
     const [expandedSections, setExpandedSections] = useState({
+        dataSources: false,
         datasets: false,
         analysis: false,
         pipelines: false,
         models: false
     });
+    const [showEntities, setShowEntities] = useState(true);
     const { data: session } = useSession();
     const { project } = useProject(projectId);
     const {
+        dataSourcesInContext,
+        addDataSourceToContext,
+        removeDataSourceFromContext,
         datasetsInContext,
         addDatasetToContext,
         removeDatasetFromContext,
@@ -61,6 +67,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
         redirect("/login");
     }
 
+    const { dataSources } = useProjectDataSources(projectId);
     const { datasets } = useDatasets(projectId);
     const { pipelines } = usePipelines(projectId);
     const { modelEntities } = useModelEntities(projectId);
@@ -79,6 +86,15 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
             removeDatasetFromContext(dataset);
         } else {
             addDatasetToContext(dataset);
+        }
+    };
+
+    const handleDataSourceToggle = (dataSource: DataSource) => {
+        const isActive = dataSourcesInContext.some((ds: DataSource) => ds.id === dataSource.id);
+        if (isActive) {
+            removeDataSourceFromContext(dataSource);
+        } else {
+            addDataSourceToContext(dataSource);
         }
     };
 
@@ -124,15 +140,38 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
             <div className="flex flex-col h-full">
                 <div className="flex-1 overflow-y-auto">
                     {/* Data Sources Section */}
-                    <div className="flex items-center justify-between pl-4 pr-3 pt-2 pb-2 border-b border-[#000034] bg-gray-100">
-                        <h3 className='text-xs font-mono uppercase tracking-wider text-gray-900'> DATA SOURCES </h3>
-                        <AddEntityButton type="data_source" size={14} onAdd={() => setShowAddDataSourceToProject(true)} />
+                    <div className="border-b border-gray-400">
+                        <div className="flex items-center justify-between pl-4 pr-3 pt-2 pb-2 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors" onClick={() => toggleSection('dataSources')}>
+                            <h3 className='text-xs font-mono uppercase tracking-wider text-gray-900'> DATA SOURCES </h3>
+                            <AddEntityButton type="data_source" size={14} onAdd={() => setShowAddDataSourceToProject(true)} />
+                        </div>
+                        {dataSources && expandedSections.dataSources && (
+                            <div className="bg-gray-50 border-l-2 border-gray-600">
+                                {dataSources.map((dataSource) => (
+                                    <EntityItem
+                                        key={dataSource.id}
+                                        item={dataSource}
+                                        type="data_source"
+                                        isInContext={dataSourcesInContext.some((ds: DataSource) => ds.id === dataSource.id)}
+                                        onClick={() => handleDataSourceToggle(dataSource)}
+                                    />
+                                ))}
+                                {dataSources.length === 0 && (
+                                    <div className="px-3 py-4 text-center">
+                                        <HardDrive size={16} className="text-gray-400 mx-auto mb-2" />
+                                        <p className="text-xs text-gray-500">No data sources</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
-                    <div className="pl-4 pt-4 pb-4 border-b border-[#000034] bg-gray-100">
+                    <div className="pl-4 pt-4 pb-4 border-b border-gray-400 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors" onClick={() => setShowEntities(!showEntities)}>
                         <h3 className='text-xs font-mono uppercase tracking-wider text-gray-900'> ENTITIES </h3>
                     </div>
 
+                    {showEntities && (
+                        <>
                     {/* Datasets Section */}
                     <div className="border-b border-gray-200">
                         <EntityOverviewItem
@@ -247,6 +286,8 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                             </div>
                         )}
                     </div>
+                        </>
+                    )}
                 </div>
                     <div className="flex items-center justify-end px-3 py-2">
                     <button

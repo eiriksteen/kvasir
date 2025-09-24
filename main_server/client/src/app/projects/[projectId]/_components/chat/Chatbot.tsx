@@ -166,13 +166,13 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                   {dataSourcesInContext.map((dataSource: DataSource) => (
                     <div
                       key={dataSource.id}
-                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-gray-100 text-gray-700"
+                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-gray-200 text-gray-600"
                     >
                       <Database size={12} />
                       {dataSource.name}
-                      <button 
+                      <button
                         onClick={() => removeDataSourceFromContext(dataSource)}
-                        className="text-[#6b7280] hover:text-gray-400"
+                        className="text-gray-600 hover:text-gray-400"
                       >
                         <X size={12} />
                       </button>
