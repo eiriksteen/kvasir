@@ -130,11 +130,11 @@ export default function DatasetInfoModal({
                     {objectGroups && objectGroups[0].features?.length > 0 && (
                       <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-300 rounded-xl p-4 flex flex-col flex-1 min-h-0">
                         <div className="flex items-center gap-3 mb-3">
-                          <div className="p-2 bg-blue-100 rounded-lg">
-                            <List size={18} className="text-blue-600" />
+                          <div className="p-2 bg-[#0E4F70]/20 rounded-lg">
+                            <List size={18} className="text-[#0E4F70]" />
                           </div>
                           <h3 className="text-sm font-semibold text-gray-900">Features</h3>
-                          <span className="text-xs px-2 py-1 bg-blue-100 rounded-full text-blue-600 font-mono">
+                          <span className="text-xs px-2 py-1 bg-[#0E4F70]/20 rounded-full text-[#0E4F70] font-mono">
                             {objectGroups[0].features.length} feature(s)
                           </span>
                         </div>
@@ -157,11 +157,11 @@ export default function DatasetInfoModal({
                     <div className="lg:col-span-2">
                       <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-300 rounded-xl p-4 h-full flex flex-col">
                         <div className="flex items-center gap-3 mb-4">
-                          <div className="p-2 bg-blue-100 rounded-lg">
-                            <Layers size={18} className="text-blue-600" />
+                          <div className="p-2 bg-[#0E4F70]/20 rounded-lg">
+                            <Layers size={18} className="text-[#0E4F70]" />
                           </div>
                           <h3 className="text-sm font-semibold text-gray-900">Data Groups</h3>
-                          <span className="text-xs px-2 py-1 bg-blue-100 rounded-full text-blue-600 font-mono">
+                          <span className="text-xs px-2 py-1 bg-[#0E4F70]/20 rounded-full text-[#0E4F70] font-mono">
                             {objectGroups.length} group(s)
                           </span>
                         </div>
@@ -207,7 +207,7 @@ export default function DatasetInfoModal({
                                         <div 
                                           key={obj.id} 
                                           onClick={() => setSelectedEntity({id: obj.id, type: obj.type})}
-                                          className="group relative flex items-center gap-3 p-1 rounded-lg cursor-pointer transition-all duration-200 hover:bg-blue-500/10 hover:border-blue-500/30 border border-transparent">
+                                          className="group relative flex items-center gap-3 p-1 rounded-lg cursor-pointer transition-all duration-200 hover:bg-[#0E4F70]/10 hover:border-[#0E4F70]/30 border border-transparent">
                                           <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between mb-1">
                                               <div className="flex items-center gap-2">

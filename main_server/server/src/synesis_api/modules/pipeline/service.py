@@ -77,7 +77,8 @@ async def create_pipeline(
         )
         fn_in_pipeline_records.append(function_in_pipeline_obj.model_dump())
 
-    await execute(insert(function_in_pipeline).values(fn_in_pipeline_records), commit_after=True)
+    if len(fn_in_pipeline_records) > 0:
+        await execute(insert(function_in_pipeline).values(fn_in_pipeline_records), commit_after=True)
 
     pipeline_from_dataset_records = [PipelineFromDatasetInDB(
         pipeline_id=pipeline_obj.id,
@@ -86,7 +87,8 @@ async def create_pipeline(
         updated_at=datetime.now(timezone.utc)
     ).model_dump() for dataset_id in pipeline_create.input_dataset_ids]
 
-    await execute(insert(pipeline_from_dataset).values(pipeline_from_dataset_records), commit_after=True)
+    if len(pipeline_from_dataset_records) > 0:
+        await execute(insert(pipeline_from_dataset).values(pipeline_from_dataset_records), commit_after=True)
 
     pipeline_from_model_records = [PipelineFromModelEntityInDB(
         pipeline_id=pipeline_obj.id,
@@ -95,7 +97,8 @@ async def create_pipeline(
         updated_at=datetime.now(timezone.utc)
     ).model_dump() for model_entity_id in pipeline_create.input_model_entity_ids]
 
-    await execute(insert(pipeline_from_model_entity).values(pipeline_from_model_records), commit_after=True)
+    if len(pipeline_from_model_records) > 0:
+        await execute(insert(pipeline_from_model_entity).values(pipeline_from_model_records), commit_after=True)
 
     return pipeline_obj
 

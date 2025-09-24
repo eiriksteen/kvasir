@@ -21,35 +21,35 @@ export default function EntityItem({ item, type, isInContext, onClick }: EntityI
         switch (type) {
             case 'model_entity':
                 return {
-                    bg: isInContext ? 'bg-emerald-100' : 'hover:bg-emerald-50',
+                    bg: isInContext ? 'bg-[#491A32]/20' : 'hover:bg-[#491A32]/10',
                     icon: <Database size={11} />,
-                    iconColor: 'text-emerald-600',
+                    iconColor: 'text-[#491A32]',
                     textColor: 'text-gray-800',
-                    hover: 'hover:bg-emerald-100'
+                    hover: 'hover:bg-[#491A32]/20'
                 };
             case 'dataset':
                 return {
-                    bg: isInContext ? 'bg-blue-100' : 'hover:bg-blue-50',
+                    bg: isInContext ? 'bg-[#0E4F70]/20' : 'hover:bg-[#0E4F70]/10',
                     icon: <Folder size={11} />,
-                    iconColor: 'text-blue-600',
+                    iconColor: 'text-[#0E4F70]',
                     textColor: 'text-gray-800',
-                    hover: 'hover:bg-blue-100'
+                    hover: 'hover:bg-[#0E4F70]/20'
                 };
             case 'analysis':
                 return {
-                    bg: isInContext ? 'bg-purple-100' : 'hover:bg-purple-50',
+                    bg: isInContext ? 'bg-[#004806]/20' : 'hover:bg-[#004806]/10',
                     icon: <BarChart3 size={11} />,
-                    iconColor: 'text-purple-600',
+                    iconColor: 'text-[#004806]',
                     textColor: 'text-gray-800',
-                    hover: 'hover:bg-purple-100'
+                    hover: 'hover:bg-[#004806]/20'
                 };
             case 'pipeline':
                 return {
-                    bg: isInContext ? 'bg-orange-100' : 'hover:bg-orange-50',
+                    bg: isInContext ? 'bg-[#840B08]/20' : 'hover:bg-[#840B08]/10',
                     icon: <Zap size={11} />,
-                    iconColor: 'text-orange-600',
+                    iconColor: 'text-[#840B08]',
                     textColor: 'text-gray-800',
-                    hover: 'hover:bg-orange-100'
+                    hover: 'hover:bg-[#840B08]/20'
                 };
         }
     };

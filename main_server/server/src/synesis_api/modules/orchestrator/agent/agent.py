@@ -19,12 +19,5 @@ orchestrator_agent = Agent(
     model,
     system_prompt=ORCHESTRATOR_SYSTEM_PROMPT,
     model_settings=ModelSettings(temperature=0.0),
-    output_type=[
-        ChatHandoffOutput,
-        AnalysisHandoffOutput,
-        PipelineHandoffOutput,
-        DataIntegrationHandoffOutput,
-        ModelIntegrationHandoffOutput,
-        str
-    ]
+    # output_type defined when running
 )

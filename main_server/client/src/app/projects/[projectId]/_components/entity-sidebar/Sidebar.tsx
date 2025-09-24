@@ -124,12 +124,12 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
             <div className="flex flex-col h-full">
                 <div className="flex-1 overflow-y-auto">
                     {/* Data Sources Section */}
-                    <div className="flex items-center justify-between pl-4 pr-3 pt-2 pb-2 border-b border-gray-400 bg-gray-100">
+                    <div className="flex items-center justify-between pl-4 pr-3 pt-2 pb-2 border-b border-[#000034] bg-gray-100">
                         <h3 className='text-xs font-mono uppercase tracking-wider text-gray-900'> DATA SOURCES </h3>
                         <AddEntityButton type="data_source" size={14} onAdd={() => setShowAddDataSourceToProject(true)} />
                     </div>
 
-                    <div className="pl-4 pt-4 pb-4 border-b border-gray-400 bg-gray-100">
+                    <div className="pl-4 pt-4 pb-4 border-b border-[#000034] bg-gray-100">
                         <h3 className='text-xs font-mono uppercase tracking-wider text-gray-900'> ENTITIES </h3>
                     </div>
 
@@ -143,7 +143,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                             onAdd={() => setShowAddDatasetToProject(true)}
                         />
                         {datasets && expandedSections.datasets && (
-                            <div className="bg-blue-50 border-l-2 border-blue-200">
+                            <div className="bg-[#0E4F70]/10 border-l-2 border-[#0E4F70]">
                                 {datasets
                                     .map((dataset) => (
                                         <EntityItem 
@@ -156,7 +156,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                     ))}
                                 {datasets.length === 0 && (
                                     <div className="px-3 py-4 text-center">
-                                        <Folder size={16} className="text-blue-400/40 mx-auto mb-2" />
+                                        <Folder size={16} className="text-[#0E4F70]/40 mx-auto mb-2" />
                                         <p className="text-xs text-gray-500">No datasets</p>
                                     </div>
                                 )}
@@ -174,13 +174,13 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                             onAdd={() => setShowAddModelToProject(true)}
                         />
                         {modelEntities && expandedSections.models && (
-                            <div className="bg-emerald-50 border-l-2 border-emerald-200">
+                            <div className="bg-[#491A32]/10 border-l-2 border-[#491A32]">
                                 {modelEntities.map((model) => (
                                     <EntityItem key={model.id} item={model} type="model_entity" isInContext={modelEntitiesInContext.some((m: ModelEntity) => m.id === model.id)} onClick={() => handleModelToggle(model)} />
                                 ))}
                                 {modelEntities.length === 0 && (
                                     <div className="px-3 py-4 text-center">
-                                        <Brain size={16} className="text-emerald-400/40 mx-auto mb-2" />
+                                        <Brain size={16} className="text-[#491A32]/40 mx-auto mb-2" />
                                         <p className="text-xs text-gray-500">No models</p>
                                     </div>
                                 )}
@@ -198,7 +198,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                             onAdd={() => setShowAddAnalysis(true)}
                         />
                         {expandedSections.analysis && (
-                            <div className="bg-purple-50 border-l-2 border-purple-200">
+                            <div className="bg-[#004806]/10 border-l-2 border-[#004806]">
                                 {analyses.map((analysis) => (
                                     <EntityItem
                                         key={analysis.jobId}
@@ -210,7 +210,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                 ))}
                                 {analyses.length === 0 && (
                                     <div className="px-3 py-4 text-center">
-                                        <BarChart3 size={16} className="text-purple-400/40 mx-auto mb-2" />
+                                        <BarChart3 size={16} className="text-[#004806]/40 mx-auto mb-2" />
                                         <p className="text-xs text-gray-500">No analysis</p>
                                     </div>
                                 )}
@@ -228,7 +228,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                             onAdd={() => setShowAddPipeline(true)}
                         />
                         {pipelines && expandedSections.pipelines && (
-                            <div className="bg-orange-50 border-l-2 border-orange-200">
+                            <div className="bg-[#840B08]/10 border-l-2 border-[#840B08]">
                                 {pipelines.map((pipeline) => (
                                     <EntityItem
                                         key={pipeline.id}
@@ -240,7 +240,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                 ))}
                                 {pipelines.length === 0 && (
                                     <div className="px-3 py-4 text-center">
-                                        <Zap size={16} className="text-orange-400/40 mx-auto mb-2" />
+                                        <Zap size={16} className="text-[#840B08]/40 mx-auto mb-2" />
                                         <p className="text-xs text-gray-500">No pipelines</p>
                                     </div>
                                 )}
@@ -251,7 +251,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                     <div className="flex items-center justify-end px-3 py-2">
                     <button
                         onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="p-2 rounded-full text-gray-900 hover:text-gray-700 hover:bg-gray-200 border border-gray-400 bg-gray-100"
+                        className="p-2 rounded-full text-white hover:bg-[#000066] border border-gray-400 bg-[#000034]"
                         title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                     >
                         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -285,7 +285,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                         <div className="flex items-center justify-center px-3 py-2">
                             <button
                                 onClick={() => setIsCollapsed(!isCollapsed)}
-                                className="p-2 rounded-full text-gray-900 hover:text-gray-700 hover:bg-gray-200 border border-gray-400 bg-gray-100"
+                                className="p-2 rounded-full text-white hover:bg-[#000066] border border-gray-400 bg-[#000034]"
                                 title="Expand sidebar"
                             >
                                 <ChevronRight size={14} />

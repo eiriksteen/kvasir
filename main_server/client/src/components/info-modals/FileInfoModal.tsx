@@ -135,14 +135,14 @@ export default function FileInfoModal({
                     </div>
                   </div>
 
-                  <div className={`border border-blue-500/20 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0 ${
+                  <div className={`border border-gray-300 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0 ${
                     hasAnalysis && dataSource.analysis.contentDescription
                       ? 'bg-gradient-to-br from-gray-50 to-white'
                       : 'bg-gray-100'
                   }`}>
                     <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className="p-2 bg-blue-500/20 rounded-lg">
-                        <FileDescription size={18} className="text-blue-300" />
+                      <div className="p-2 bg-gray-500/20 rounded-lg">
+                        <FileDescription size={18} className="text-gray-600" />
                       </div>
                       <h3 className="text-sm font-semibold text-gray-900">Content Description</h3>
                     </div>
@@ -164,14 +164,14 @@ export default function FileInfoModal({
                 <div className="lg:col-span-1 flex flex-col gap-4 h-full overflow-y-auto">
                     <>
 
-                        <div className={`border border-orange-500/20 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0 ${
+                        <div className={`border border-gray-300 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0 ${
                           hasAnalysis && dataSource.analysis.qualityDescription
                             ? 'bg-gradient-to-br from-gray-50 to-white'
                             : 'bg-gray-100'
                         }`}>
                           <div className="flex items-center gap-3 flex-shrink-0">
-                            <div className="p-2 bg-orange-500/20 rounded-lg">
-                              <Shield size={18} className="text-orange-300" />
+                            <div className="p-2 bg-gray-500/20 rounded-lg">
+                              <Shield size={18} className="text-gray-600" />
                             </div>
                             <h3 className="text-sm font-semibold text-gray-900">Quality Assessment</h3>
                           </div>
@@ -187,14 +187,14 @@ export default function FileInfoModal({
                         </div>
 
 
-                        <div className={`border border-red-500/20 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0 ${
+                        <div className={`border border-gray-300 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0 ${
                           hasAnalysis && dataSource.analysis.cautions
                             ? 'bg-gradient-to-br from-gray-50 to-white'
                             : 'bg-gray-100'
                         }`}>
                           <div className="flex items-center gap-3 flex-shrink-0">
-                            <div className="p-2 bg-red-500/20 rounded-lg">
-                              <Shield size={18} className="text-red-300" />
+                            <div className="p-2 bg-gray-500/20 rounded-lg">
+                              <Shield size={18} className="text-gray-600" />
                             </div>
                             <h3 className="text-sm font-semibold text-gray-900">Cautions</h3>
                           </div>

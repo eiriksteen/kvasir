@@ -18,43 +18,43 @@ export default function EntityOverviewItem({ title, count, color, onToggle, onAd
         switch (color) {
             case 'blue':
                 return {
-                    bg: 'bg-blue-50',
-                    border: 'border-blue-200',
+                    bg: 'bg-[#0E4F70]/10',
+                    border: 'border-[#0E4F70]/20',
                     text: 'text-gray-700',
-                    icon: 'text-blue-600',
-                    hover: 'hover:bg-blue-100',
-                    buttonHover: 'hover:bg-blue-200',
-                    buttonBg: 'bg-blue-100',
+                    icon: 'text-[#0E4F70]',
+                    hover: 'hover:bg-[#0E4F70]/20',
+                    buttonHover: 'hover:bg-[#0E4F70]/30',
+                    buttonBg: 'bg-[#0E4F70]/20',
                 };
             case 'purple':
                 return {
-                    bg: 'bg-purple-50',
-                    border: 'border-purple-200',
+                    bg: 'bg-[#004806]/10',
+                    border: 'border-[#004806]/20',
                     text: 'text-gray-700',
-                    icon: 'text-purple-600',
-                    hover: 'hover:bg-purple-100',
-                    buttonHover: 'hover:bg-purple-200',
-                    buttonBg: 'bg-purple-100',
+                    icon: 'text-[#004806]',
+                    hover: 'hover:bg-[#004806]/20',
+                    buttonHover: 'hover:bg-[#004806]/30',
+                    buttonBg: 'bg-[#004806]/20',
                 };
             case 'orange':
                 return {
-                    bg: 'bg-orange-50',
-                    border: 'border-orange-200',
+                    bg: 'bg-[#840B08]/10',
+                    border: 'border-[#840B08]/20',
                     text: 'text-gray-700',
-                    icon: 'text-orange-600',
-                    hover: 'hover:bg-orange-100',
-                    buttonHover: 'hover:bg-orange-200',
-                    buttonBg: 'bg-orange-100',
+                    icon: 'text-[#840B08]',
+                    hover: 'hover:bg-[#840B08]/20',
+                    buttonHover: 'hover:bg-[#840B08]/30',
+                    buttonBg: 'bg-[#840B08]/20',
                 };
             case 'emerald':
                 return {
-                    bg: 'bg-emerald-50',
-                    border: 'border-emerald-200',
+                    bg: 'bg-[#491A32]/10',
+                    border: 'border-[#491A32]/20',
                     text: 'text-gray-700',
-                    icon: 'text-emerald-600',
-                    hover: 'hover:bg-emerald-100',
-                    buttonHover: 'hover:bg-emerald-200',
-                    buttonBg: 'bg-emerald-100',
+                    icon: 'text-[#491A32]',
+                    hover: 'hover:bg-[#491A32]/20',
+                    buttonHover: 'hover:bg-[#491A32]/30',
+                    buttonBg: 'bg-[#491A32]/20',
                 };
         }
     };

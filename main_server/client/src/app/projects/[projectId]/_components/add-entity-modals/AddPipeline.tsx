@@ -16,7 +16,7 @@ function DatasetListItem({ dataset, isFirst, isInContext }: { dataset: Dataset; 
   return (
     <div className={`group flex items-center gap-2 p-2 transition-all duration-200 cursor-pointer ${isFirst ? 'border-t border-gray-200' : ''} ${
       isInContext
-        ? 'bg-emerald-50 border-b border-emerald-200'
+        ? 'bg-[#0E4F70]/10 border-b border-[#0E4F70]/30'
         : 'bg-gray-50 border-b border-gray-200 hover:bg-gray-100'
     }`}>
       <div className="flex items-center gap-3 min-w-0">
@@ -28,7 +28,7 @@ function DatasetListItem({ dataset, isFirst, isInContext }: { dataset: Dataset; 
         </span>
       </div>
       {isInContext && (
-        <span className="text-xs text-emerald-600 font-mono ml-auto">✓</span>
+        <span className="text-xs text-[#0E4F70] font-mono ml-auto">✓</span>
       )}
     </div>
   );
@@ -110,7 +110,7 @@ export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="relative w-full max-w-2xl h-[80vh] bg-white border border-gray-300 rounded-lg shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-2xl h-[80vh] bg-white border border-[#840B08]/20 rounded-lg shadow-2xl overflow-hidden">
         <button
           onClick={onClose}
           className="absolute top-3 right-3 z-50 p-1 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"

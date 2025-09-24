@@ -52,22 +52,22 @@ export default function AnalysisInfoModal({ analysis, isSelected, onClick, isMod
                                 {/* Metadata Section - Fixed at top */}
                                 <div className="flex justify-between items-start mb-6">
                                     <div className="flex flex-col gap-4">
-                                        <div className="text-sm font-medium text-purple-300">Analysis Results</div>
+                                        <div className="text-sm font-medium text-[#004806]">Analysis Results</div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="flex items-center gap-2 text-zinc-400">
-                                                <Calendar size={14} className="text-purple-400" />
+                                                <Calendar size={14} className="text-[#004806]" />
                                                 <span className="text-xs">{new Date(analysis.createdAt).toLocaleDateString()}</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-zinc-400">
-                                                <Database size={14} className="text-purple-400" />
+                                                <Database size={14} className="text-[#004806]" />
                                                 <span className="text-xs">{analysis.numberOfDatasets} Datasets</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-zinc-400">
-                                                <Bot size={14} className="text-purple-400" />
+                                                <Bot size={14} className="text-[#004806]" />
                                                 <span className="text-xs">{analysis.numberOfPipelines} Pipelines</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-zinc-400">
-                                                <FileText size={14} className="text-purple-400" />
+                                                <FileText size={14} className="text-[#004806]" />
                                                 <span className="text-xs">PDF {analysis.pdfCreated ? "Available" : "Not Available"}</span>
                                             </div>
                                         </div>
@@ -87,8 +87,8 @@ export default function AnalysisInfoModal({ analysis, isSelected, onClick, isMod
                                             }}
                                             className={`p-1.5 rounded-full border shadow-md ${
                                                 isSelected
-                                                    ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white border-purple-500 shadow-purple-900/30'
-                                                    : 'bg-gradient-to-r from-[#1a1625] to-[#271a30] text-purple-300 hover:text-white hover:from-purple-600 hover:to-purple-700 border-[#271a30]'
+                                                    ? 'bg-gradient-to-r from-[#004806] to-[#004806]/80 text-white border-[#004806] shadow-[#004806]/30'
+                                                    : 'bg-gradient-to-r from-[#1a1625] to-[#271a30] text-[#004806] hover:text-white hover:from-[#004806]/80 hover:to-[#004806] border-[#004806]/50'
                                             }`}
                                             title={isSelected ? "Remove from context" : "Add to chat context"}
                                         >
@@ -99,8 +99,8 @@ export default function AnalysisInfoModal({ analysis, isSelected, onClick, isMod
 
                                 {/* Analysis Plan Section - Scrollable */}
                                 <div className="flex flex-col gap-3 flex-1 min-h-0">
-                                    <div className="text-sm font-medium text-purple-300">Analysis Plan</div>
-                                    <div className="bg-[#0a101c] rounded-lg border border-[#271a30] flex-1 min-h-0">
+                                    <div className="text-sm font-medium text-[#004806]">Analysis Plan</div>
+                                    <div className="bg-[#0a101c] rounded-lg border border-[#004806]/50 flex-1 min-h-0">
                                         <div className="p-4 pb-8 h-full overflow-y-auto custom-scrollbar">
                                             <div className="text-sm text-zinc-300 mb-3">
                                                 {analysis.analysisPlan.analysisOverview}
@@ -108,7 +108,7 @@ export default function AnalysisInfoModal({ analysis, isSelected, onClick, isMod
                                             <div className="space-y-2">
                                                 {analysis.analysisPlan.analysisPlan.map((step, index) => (
                                                     <div key={index} className="flex gap-3 text-sm">
-                                                        <div className="text-purple-400 font-medium min-w-[24px]">{index + 1}.</div>
+                                                        <div className="text-[#004806] font-medium min-w-[24px]">{index + 1}.</div>
                                                         <div className="text-zinc-400">
                                                             <div className="font-medium text-zinc-300">{step.stepName}</div>
                                                             <div className="text-xs mt-0.5">{step.stepDescription}</div>
@@ -137,28 +137,28 @@ export default function AnalysisInfoModal({ analysis, isSelected, onClick, isMod
         <>
             <div 
                 onClick={onClick}
-                className={`rounded-lg cursor-pointer bg-[#1a1625] border-2 h-full border-[#271a30] p-4`}
+                className={`rounded-lg cursor-pointer bg-[#1a1625] border-2 h-full border-[#004806]/50 p-4`}
             >
                 <div className="flex flex-col h-full">
                     {/* Metadata Section - Fixed at top */}
                     <div className="flex justify-between items-start mb-6">
                         <div className="flex flex-col gap-4">
-                            <div className="text-sm font-medium text-purple-300">Analysis Results</div>
+                            <div className="text-sm font-medium text-[#004806]">Analysis Results</div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="flex items-center gap-2 text-zinc-400">
-                                    <Calendar size={14} className="text-purple-400" />
+                                    <Calendar size={14} className="text-[#004806]" />
                                     <span className="text-xs">{new Date(analysis.createdAt).toLocaleDateString()}</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-zinc-400">
-                                    <Database size={14} className="text-purple-400" />
+                                    <Database size={14} className="text-[#004806]" />
                                     <span className="text-xs">{analysis.numberOfDatasets} Datasets</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-zinc-400">
-                                    <Bot size={14} className="text-purple-400" />
+                                    <Bot size={14} className="text-[#004806]" />
                                     <span className="text-xs">{analysis.numberOfPipelines} Pipelines</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-zinc-400">
-                                    <FileText size={14} className="text-purple-400" />
+                                    <FileText size={14} className="text-[#004806]" />
                                     <span className="text-xs">PDF {analysis.pdfCreated ? "Available" : "Not Available"}</span>
                                 </div>
                             </div>
@@ -178,8 +178,8 @@ export default function AnalysisInfoModal({ analysis, isSelected, onClick, isMod
                                 }}
                                 className={`p-1.5 rounded-full border shadow-md ${
                                     isSelected
-                                        ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white border-purple-500 shadow-purple-900/30'
-                                        : 'bg-gradient-to-r from-[#1a1625] to-[#271a30] text-purple-300 hover:text-white hover:from-purple-600 hover:to-purple-700 border-[#271a30]'
+                                        ? 'bg-gradient-to-r from-[#004806] to-[#004806]/80 text-white border-[#004806] shadow-[#004806]/30'
+                                        : 'bg-gradient-to-r from-[#1a1625] to-[#271a30] text-[#004806] hover:text-white hover:from-[#004806]/80 hover:to-[#004806] border-[#004806]/50'
                                 }`}
                                 title={isSelected ? "Remove from context" : "Add to chat context"}
                             >
@@ -190,8 +190,8 @@ export default function AnalysisInfoModal({ analysis, isSelected, onClick, isMod
 
                     {/* Analysis Plan Section - Scrollable */}
                     <div className="flex flex-col gap-3 flex-1 min-h-0">
-                        <div className="text-sm font-medium text-purple-300">Analysis Plan</div>
-                        <div className="bg-[#0a101c] rounded-lg border border-[#271a30] flex-1 min-h-0">
+                        <div className="text-sm font-medium text-[#004806]">Analysis Plan</div>
+                        <div className="bg-[#0a101c] rounded-lg border border-[#004806]/50 flex-1 min-h-0">
                             <div className="p-4 pb-8 h-full overflow-y-auto custom-scrollbar">
                                 <div className="text-sm text-zinc-300 mb-3">
                                     {analysis.analysisPlan.analysisOverview}
@@ -199,7 +199,7 @@ export default function AnalysisInfoModal({ analysis, isSelected, onClick, isMod
                                 <div className="space-y-2">
                                     {analysis.analysisPlan.analysisPlan.map((step, index) => (
                                         <div key={index} className="flex gap-3 text-sm">
-                                            <div className="text-purple-400 font-medium min-w-[24px]">{index + 1}.</div>
+                                            <div className="text-[#004806] font-medium min-w-[24px]">{index + 1}.</div>
                                             <div className="text-zinc-400">
                                                 <div className="font-medium text-zinc-300">{step.stepName}</div>
                                                 <div className="text-xs mt-0.5">{step.stepDescription}</div>

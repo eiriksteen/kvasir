@@ -57,8 +57,8 @@ const DatasetNodeWrapper = ({ data }: { data: { dataset: Dataset; onClick: () =>
       dataset={data.dataset}
       onClick={data.onClick}
     />
-    <Handle type="target" position={Position.Left} style={{ background: '#3b82f6' }} />
-    <Handle type="source" position={Position.Right} style={{ background: '#3b82f6' }} />
+    <Handle type="target" position={Position.Left} style={{ background: '#0E4F70' }} />
+    <Handle type="source" position={Position.Right} style={{ background: '#0E4F70' }} />
   </>
 );
 
@@ -69,8 +69,8 @@ const AnalysisNodeWrapper = ({ data }: { data: { analysis: AnalysisJobResultMeta
     analysis={data.analysis}
     onClick={data.onClick}
   />
-  <Handle type="target" position={Position.Left} style={{ background: '#8b5cf6' }} />
-  <Handle type="source" position={Position.Right} style={{ background: '#8b5cf6' }} />
+  <Handle type="target" position={Position.Left} style={{ background: '#004806' }} />
+  <Handle type="source" position={Position.Right} style={{ background: '#004806' }} />
   </>
 );
 
@@ -80,8 +80,8 @@ const PipelineNodeWrapper = ({ data }: { data: { pipeline: Pipeline; onClick: ()
       pipeline={data.pipeline}
       onClick={data.onClick}
     />
-    <Handle type="target" position={Position.Left} style={{ background: '#f97316' }} />
-    <Handle type="source" position={Position.Right} style={{ background: '#f97316' }} />
+    <Handle type="target" position={Position.Left} style={{ background: '#840B08' }} />
+    <Handle type="source" position={Position.Right} style={{ background: '#840B08' }} />
   </>
 );
 
@@ -91,8 +91,8 @@ const ModelEntityNodeWrapper = ({ data }: { data: { modelEntity: ModelEntity; on
       modelEntity={data.modelEntity}
       onClick={data.onClick}
     />
-    <Handle type="target" position={Position.Left} style={{ background: '#10b981' }} />
-    <Handle type="source" position={Position.Right} style={{ background: '#10b981' }} />
+    <Handle type="target" position={Position.Left} style={{ background: '#491A32' }} />
+    <Handle type="source" position={Position.Right} style={{ background: '#491A32' }} />
   </>
 );
 
@@ -117,15 +117,17 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
   const getEdgeColor = (sourceType: string): string => {
     switch (sourceType) {
       case 'dataSource':
-        return '#6b7280'; // Gray
+        return '#6b7280'; // Gray - unchanged
       case 'dataset':
-        return '#3b82f6'; // Blue (matches Tailwind blue-500)
+        return '#0E4F70'; // Dataset color
+      case 'analysis':
+        return '#004806'; // Analysis color
       case 'pipeline':
-        return '#f97316'; // Orange
+        return '#840B08'; // Pipeline color
       case 'modelEntity':
-        return '#10b981'; // Emerald/Green
+        return '#491A32'; // Model entity color
       default:
-        return '#3b82f6'; // Default blue
+        return '#0E4F70'; // Default dataset color
     }
   };
 

@@ -18,7 +18,7 @@ export default function DataSourceBox({ dataSource, gradientClass, onClick }: Da
     className={`px-3 py-3 shadow-md rounded-md border-2 border-gray-600 relative min-w-[120px] max-w-[180px] ${
       isDisabled
         ? 'cursor-default opacity-60'
-        : 'cursor-pointer hover:bg-gray-50 hover:border-gray-600'
+        : 'cursor-pointer hover:bg-[#6b7280]/10 hover:border-[#6b7280]'
     }`}
     onClick={onClick ? onClick : undefined}
   >

@@ -164,15 +164,15 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                 <>
                   {/* Data Sources */}
                   {dataSourcesInContext.map((dataSource: DataSource) => (
-                    <div 
+                    <div
                       key={dataSource.id}
-                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-emerald-100 text-emerald-700"
+                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-gray-100 text-gray-700"
                     >
                       <Database size={12} />
                       {dataSource.name}
                       <button 
                         onClick={() => removeDataSourceFromContext(dataSource)}
-                        className="text-gray-300 hover:text-white"
+                        className="text-[#6b7280] hover:text-gray-400"
                       >
                         <X size={12} />
                       </button>
@@ -181,15 +181,15 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
 
                   {/* Datasets */}
                   {datasetsInContext.map((dataset: Dataset) => (
-                    <div 
+                    <div
                       key={dataset.id}
-                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-blue-100 text-blue-700"
+                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
                     >
                       <Database size={12} />
                       {dataset.name}
                       <button 
                         onClick={() => removeDatasetFromContext(dataset)}
-                        className="text-gray-300 hover:text-white"
+                        className="text-[#0E4F70] hover:text-gray-400"
                       >
                         <X size={12} />
                       </button>
@@ -198,15 +198,15 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                   
                   {/* Analyses */}
                   {analysesInContext.map((analysis: AnalysisJobResultMetadata) => (
-                    <div 
+                    <div
                       key={analysis.jobId}
-                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-purple-100 text-purple-700"
+                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#004806]/20 text-[#004806]"
                     >
                       <BarChart size={12} />
                       Analysis {analysis.jobId.slice(0, 6)}
                       <button 
                         onClick={() => removeAnalysisFromContext(analysis)}
-                        className="text-gray-300 hover:text-white"
+                        className="text-[#004806] hover:text-gray-400"
                       >
                         <X size={12} />
                       </button>
@@ -215,15 +215,15 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
 
                   {/* Pipelines */}
                   {pipelinesInContext.map((pipeline: Pipeline) => (
-                    <div 
+                    <div
                       key={pipeline.id}
-                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-orange-100 text-orange-700"
+                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#840B08]/20 text-[#840B08]"
                     >
                       <Zap size={12} />
                       {pipeline.name}
                       <button 
                         onClick={() => removePipelineFromContext(pipeline)}
-                        className="text-gray-300 hover:text-white"
+                        className="text-[#840B08] hover:text-gray-400"
                       >
                         <X size={12} />
                       </button>
@@ -232,12 +232,12 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
 
                   {/* Model Entities */}
                   {modelEntitiesInContext.map((modelEntity: ModelEntity) => (
-                    <div key={modelEntity.id} className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-emerald-100 text-emerald-700">
+                    <div key={modelEntity.id} className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]">
                       <Brain size={12} />
                       {modelEntity.name}
                       <button 
                         onClick={() => removeModelEntityFromContext(modelEntity)}
-                        className="text-gray-300 hover:text-white"
+                        className="text-[#491A32] hover:text-gray-400"
                       >
                         <X size={12} />
                       </button>
@@ -295,7 +295,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
           </div>
 
           {/* Input area */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 z-10" style={{ backgroundColor: '#000034' }}>
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 z-10">
             <div className="flex rounded-full border border-gray-400 overflow-hidden shadow-inner" style={{ backgroundColor: '#000034' }}>
               <input
                 type="text"

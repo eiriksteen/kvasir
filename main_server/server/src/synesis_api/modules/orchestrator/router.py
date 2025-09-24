@@ -71,10 +71,14 @@ async def post_chat(
     orchestrator_run = await orchestrator_agent.run(
         f"The user prompt is: '{prompt.content}'. \n\n" +
         "Decide whether to launch an agent or just respond directly to the prompt. \n\n" +
-        "If launching an agent, choose between 'analysis', 'data_integration' or 'pipeline'. If not just choose 'chat'. \n\n" +
-        "Do not launch any agent if the context is empty, tell the user to add some entities to the context.\n\n" +
+        "If launching an agent, choose between 'analysis', 'data_integration' or 'pipeline'. If not just choose 'chat'. \n\n"
         f"The context is:\n\n{context_message}\n\n" +
         f"The project graph is:\n\n{project_graph.model_dump_json()}",
+        output_type=[ChatHandoffOutput,
+                     AnalysisHandoffOutput,
+                     PipelineHandoffOutput,
+                     DataIntegrationHandoffOutput,
+                     ModelIntegrationHandoffOutput],
         message_history=messages
     )
 
@@ -96,6 +100,7 @@ async def post_chat(
 
         async with orchestrator_agent.run_stream(
             "Now respond to the user! If you launched an agent, explain what you did. If not, just respond directly to the user prompt.",
+            output_type=str,
             message_history=messages+orchestrator_run.new_messages()
         ) as result:
             prev_text = ""
@@ -127,7 +132,7 @@ async def post_chat(
                 await post_run_data_integration(client, RunDataIntegrationRequest(
                     project_id=conversation_record.project_id,
                     conversation_id=conversation_record.id,
-                    data_source_ids=prompt.context.data_source_ids,
+                    data_source_ids=orchestrator_run.output.data_source_ids,
                     prompt_content=orchestrator_run.output.deliverable_description
                 ))
 

@@ -30,15 +30,15 @@ export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityBut
         switch (type) {
             case 'dataset':
                 return {
-                    bg: 'bg-blue-50',
-                    border: 'border-blue-600',
+                    bg: 'bg-[#0E4F70]/10',
+                    border: 'border-[#0E4F70]',
                     text: 'text-gray-700',
-                    icon: 'text-blue-600',
-                    hover: 'hover:bg-blue-100',
-                    buttonHover: 'hover:bg-blue-200',
-                    buttonBg: 'bg-blue-100',
-                    plusBg: 'bg-blue-600',
-                    plusBorder: 'border-blue-300',
+                    icon: 'text-[#0E4F70]',
+                    hover: 'hover:bg-[#0E4F70]/20',
+                    buttonHover: 'hover:bg-[#0E4F70]/30',
+                    buttonBg: 'bg-[#0E4F70]/10',
+                    plusBg: 'bg-[#0E4F70]',
+                    plusBorder: 'border-[#0E4F70]/50',
                     symbol: <Folder size={size} />,
                 };
             case 'data_source':
@@ -56,42 +56,42 @@ export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityBut
                 };
             case 'analysis':
                 return {
-                    bg: 'bg-purple-50',
-                    border: 'border-purple-600',
+                    bg: 'bg-[#004806]/10',
+                    border: 'border-[#004806]',
                     text: 'text-gray-700',
-                    icon: 'text-purple-600',
-                    hover: 'hover:bg-purple-100',
-                    buttonHover: 'hover:bg-purple-200',
-                    buttonBg: 'bg-purple-100',
-                    plusBg: 'bg-purple-600',
-                    plusBorder: 'border-purple-300',
+                    icon: 'text-[#004806]',
+                    hover: 'hover:bg-[#004806]/20',
+                    buttonHover: 'hover:bg-[#004806]/30',
+                    buttonBg: 'bg-[#004806]/10',
+                    plusBg: 'bg-[#004806]',
+                    plusBorder: 'border-[#004806]/50',
                     symbol: <BarChart3 size={size} />,
                 };
             case 'pipeline':
                 return {
-                    bg: 'bg-orange-50',
-                    border: 'border-orange-600',
+                    bg: 'bg-[#840B08]/10',
+                    border: 'border-[#840B08]',
                     text: 'text-gray-700',
-                    icon: 'text-orange-600',
-                    hover: 'hover:bg-orange-100',
-                    buttonHover: 'hover:bg-orange-200',
-                    buttonBg: 'bg-orange-100',
-                    plusBg: 'bg-orange-600',
-                    plusBorder: 'border-orange-300',
+                    icon: 'text-[#840B08]',
+                    hover: 'hover:bg-[#840B08]/20',
+                    buttonHover: 'hover:bg-[#840B08]/30',
+                    buttonBg: 'bg-[#840B08]/10',
+                    plusBg: 'bg-[#840B08]',
+                    plusBorder: 'border-[#840B08]/50',
                     symbol: <Zap size={size} />,
 
                 };
             case 'model_entity':
                 return {
-                    bg: 'bg-emerald-50',
-                    border: 'border-emerald-600',
+                    bg: 'bg-[#491A32]/10',
+                    border: 'border-[#491A32]',
                     text: 'text-gray-700',
-                    icon: 'text-emerald-600',
-                    hover: 'hover:bg-emerald-100',
-                    buttonHover: 'hover:bg-emerald-200',
-                    buttonBg: 'bg-emerald-100',
-                    plusBg: 'bg-emerald-600',
-                    plusBorder: 'border-emerald-300',
+                    icon: 'text-[#491A32]',
+                    hover: 'hover:bg-[#491A32]/20',
+                    buttonHover: 'hover:bg-[#491A32]/30',
+                    buttonBg: 'bg-[#491A32]/10',
+                    plusBg: 'bg-[#491A32]',
+                    plusBorder: 'border-[#491A32]/50',
                     symbol: <Brain size={size} />,
                 };
             }
