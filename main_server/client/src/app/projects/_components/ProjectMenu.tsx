@@ -62,8 +62,8 @@ export default function ProjectMenu() {
         {/* Header with Logo */}
         <div className="mb-12">
           <Image
-            src="/miyawtext.png"
-            alt="Miya Logo"
+            src="/kvasirwtext.png"
+            alt="Kvasir Logo"
             width={160}
             height={160}
             priority
@@ -75,14 +75,14 @@ export default function ProjectMenu() {
           {/* Open Project Button */}
           <button
             onClick={() => setShowOpenModal(true)}
-            className="group p-6 bg-zinc-900/50 border border-zinc-800 rounded-lg hover:bg-zinc-900/80 hover:border-zinc-700 transition-all duration-200"
+            className="group p-6 bg-gray-100 rounded-lg hover:bg-gray-200 hover:border-[#000028] transition-all duration-200"
           >
             <div className="flex flex-col items-center text-center space-y-3">
-              <div className="p-3 bg-zinc-800/50 rounded-lg border border-zinc-700/30">
-                <FolderGit2 size={20} className="text-zinc-400" />
+              <div className="p-3 bg-gray-100 rounded-lg border border-gray-200">
+                <FolderGit2 size={20} className="text-[#000034]" />
               </div>
               <div>
-                <h3 className="text-base font-medium text-zinc-100">Open project</h3>
+                <h3 className="text-base font-medium text-gray-800">Open project</h3>
               </div>
             </div>
           </button>
@@ -90,14 +90,14 @@ export default function ProjectMenu() {
           {/* Create Project Button */}
           <button
             onClick={() => setShowCreateModal(true)}
-            className="group p-6 bg-zinc-900/50 border border-zinc-800 rounded-lg hover:bg-zinc-900/80 hover:border-zinc-700 transition-all duration-200"
+            className="group p-6 bg-gray-100 rounded-lg hover:bg-gray-200 hover:border-[#000028] transition-all duration-200"
           >
             <div className="flex flex-col items-center text-center space-y-3">
-              <div className="p-3 bg-zinc-800/50 rounded-lg border border-zinc-700/30">
-                <Plus size={20} className="text-zinc-400" />
+              <div className="p-3 bg-gray-100 rounded-lg border border-gray-200">
+                <Plus size={20} className="text-[#000034]" />
               </div>
               <div>
-                <h3 className="text-base font-medium text-zinc-100">Create project</h3>
+                <h3 className="text-base font-medium text-gray-800">Create project</h3>
               </div>
             </div>
           </button>
@@ -107,12 +107,12 @@ export default function ProjectMenu() {
       {/* Open Project Modal */}
       {showOpenModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-              <h2 className="text-lg font-semibold text-zinc-100">Open Project</h2>
+          <div className="bg-gray-100 rounded-xl w-full max-w-2xl max-h-[80vh] overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4">
+              <h2 className="text-lg font-semibold text-gray-800">Open Project</h2>
               <button
                 onClick={() => setShowOpenModal(false)}
-                className="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-md transition-colors"
+                className="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-gray-200 rounded-md transition-colors"
               >
                 <X size={16} />
               </button>
@@ -125,32 +125,32 @@ export default function ProjectMenu() {
                     <button
                       key={project.id}
                       onClick={() => handleProjectSelect(project)}
-                      className="w-full p-4 text-left bg-zinc-800/30 border border-zinc-700/30 rounded-lg hover:bg-zinc-800/50 hover:border-zinc-700/50 transition-all duration-200 group"
+                      className="w-full p-4 text-left bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 hover:border-[#000034] transition-all duration-200 group"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-zinc-700/50 rounded-lg">
-                            <FolderGit2 size={16} className="text-zinc-400" />
+                          <div className="p-2 bg-gray-100 rounded-lg border border-gray-200">
+                            <FolderGit2 size={16} className="text-[#000034]" />
                           </div>
                           <div className="text-left">
-                            <h3 className="text-sm font-medium text-zinc-200">{project.name}</h3>
+                            <h3 className="text-sm font-medium text-gray-800">{project.name}</h3>
                             {project.description && (
-                              <p className="text-xs text-zinc-400 mt-1 line-clamp-1">{project.description}</p>
+                              <p className="text-xs text-gray-600 mt-1 line-clamp-1">{project.description}</p>
                             )}
                           </div>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-zinc-300 transition-colors" />
+                        <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-[#000034] transition-colors" />
                       </div>
                     </button>
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <div className="p-4 bg-zinc-800/30 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                    <FolderGit2 size={20} className="text-zinc-400" />
+                  <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center border-2 border-[#000034]">
+                    <FolderGit2 size={20} className="text-[#000034]" />
                   </div>
-                  <h3 className="text-base font-medium text-zinc-200 mb-2">No projects found</h3>
-                  <p className="text-sm text-zinc-400">Create your first project to get started</p>
+                  <h3 className="text-base font-medium text-gray-800 mb-2">No projects found</h3>
+                  <p className="text-sm text-gray-600">Create your first project to get started</p>
                 </div>
               )}
             </div>
@@ -161,12 +161,12 @@ export default function ProjectMenu() {
       {/* Create Project Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-              <h2 className="text-lg font-semibold text-zinc-100">Create New Project</h2>
+          <div className="bg-gray-100 rounded-xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4">
+              <h2 className="text-lg font-semibold text-gray-800">Create New Project</h2>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-md transition-colors"
+                className="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-gray-200 rounded-md transition-colors"
               >
                 <X size={16} />
               </button>
@@ -175,29 +175,13 @@ export default function ProjectMenu() {
             <div className="p-6">
               <form onSubmit={handleCreateProject} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">
-                    Project Name
-                  </label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Enter project name"
-                    className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200 text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-600 focus:border-zinc-600 transition-colors"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#000034] focus:border-[#000034] transition-colors"
                     required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wide">
-                    Description
-                  </label>
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Optional project description"
-                    className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200 text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-600 focus:border-zinc-600 transition-colors resize-none"
-                    rows={3}
                   />
                 </div>
 
@@ -219,7 +203,7 @@ export default function ProjectMenu() {
                   <button
                     type="submit"
                     disabled={isSubmitting || !name.trim()}
-                    className="px-6 py-2 bg-zinc-700 hover:bg-zinc-600 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center"
+                    className="px-6 py-2 bg-[#000034] hover:bg-[#000028] text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center border border-[#000034]"
                   >
                     {isSubmitting ? (
                       <>

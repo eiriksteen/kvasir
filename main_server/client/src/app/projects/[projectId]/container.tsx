@@ -21,7 +21,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
   // If no project is selected, show loading or return null
   if (!project) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-zinc-950">
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <div className="text-center">
           <div className="w-6 h-6 animate-spin text-zinc-400 mx-auto mb-3 border-2 border-zinc-600 border-t-zinc-400 rounded-full"></div>
           <p className="text-zinc-400 text-sm">Loading...</p>
@@ -32,11 +32,11 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
 
   // If a project is selected, show the main dashboard
   return (
-    <div className="flex flex-col h-full bg-zinc-950">
+    <div className="flex flex-col h-full bg-white">
       <UserHeader projectId={projectId}  />
       <div className="flex flex-1 h-[calc(100vh-3rem)]">
         <EntitySidebar projectId={projectId} />
-        <main className="flex-1 min-w-0 overflow-hidden">
+        <main className="flex-1 min-w-0 overflow-hidden bg-white">
           <ProjectView projectId={projectId} />
         </main>
         <div className="w-[400px] shrink-0">

@@ -11,9 +11,9 @@ function LoginContent() {
     return (
         <div className="grid pt-32 items-center justify-items-center min-h-screen font-[family-name:var(--font-geist-sans)]">
             <LoginForm />
-            <Link 
+            <Link
                 href="/register"
-                className="block text-center text-white hover:text-gray-300 mt-4 text-sm">
+                className="block text-center text-gray-600 hover:text-[#000034] mt-4 text-sm transition-colors">
                 Don&apos;t have an account? Register here
             </Link>
         </div>

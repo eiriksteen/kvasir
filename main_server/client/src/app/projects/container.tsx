@@ -11,7 +11,7 @@ interface SelectProjectContainerProps {
 
 function SelectProjectContent() {
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       <UserHeader projectId={undefined} />
       <div className="flex-1 flex items-center justify-center">
         <ProjectMenu/>

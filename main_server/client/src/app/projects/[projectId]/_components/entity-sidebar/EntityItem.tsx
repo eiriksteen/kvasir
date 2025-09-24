@@ -21,35 +21,35 @@ export default function EntityItem({ item, type, isInContext, onClick }: EntityI
         switch (type) {
             case 'model_entity':
                 return {
-                    bg: isInContext ? 'bg-emerald-500/10' : 'hover:bg-emerald-500/5',
+                    bg: isInContext ? 'bg-emerald-100' : 'hover:bg-emerald-50',
                     icon: <Database size={11} />,
-                    iconColor: 'text-emerald-400',
-                    textColor: 'text-gray-200',
-                    hover: 'hover:bg-emerald-500/8'
+                    iconColor: 'text-emerald-600',
+                    textColor: 'text-gray-800',
+                    hover: 'hover:bg-emerald-100'
                 };
             case 'dataset':
                 return {
-                    bg: isInContext ? 'bg-blue-500/10' : 'hover:bg-blue-500/5',
+                    bg: isInContext ? 'bg-blue-100' : 'hover:bg-blue-50',
                     icon: <Folder size={11} />,
-                    iconColor: 'text-blue-400',
-                    textColor: 'text-gray-200',
-                    hover: 'hover:bg-blue-500/8'
+                    iconColor: 'text-blue-600',
+                    textColor: 'text-gray-800',
+                    hover: 'hover:bg-blue-100'
                 };
             case 'analysis':
                 return {
-                    bg: isInContext ? 'bg-purple-500/10' : 'hover:bg-purple-500/5',
+                    bg: isInContext ? 'bg-purple-100' : 'hover:bg-purple-50',
                     icon: <BarChart3 size={11} />,
-                    iconColor: 'text-purple-400',
-                    textColor: 'text-gray-200',
-                    hover: 'hover:bg-purple-500/8'
+                    iconColor: 'text-purple-600',
+                    textColor: 'text-gray-800',
+                    hover: 'hover:bg-purple-100'
                 };
             case 'pipeline':
                 return {
-                    bg: isInContext ? 'bg-orange-500/10' : 'hover:bg-orange-500/5',
+                    bg: isInContext ? 'bg-orange-100' : 'hover:bg-orange-50',
                     icon: <Zap size={11} />,
-                    iconColor: 'text-orange-400',
-                    textColor: 'text-gray-200',
-                    hover: 'hover:bg-orange-500/8'
+                    iconColor: 'text-orange-600',
+                    textColor: 'text-gray-800',
+                    hover: 'hover:bg-orange-100'
                 };
         }
     };

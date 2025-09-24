@@ -18,43 +18,43 @@ export default function EntityOverviewItem({ title, count, color, onToggle, onAd
         switch (color) {
             case 'blue':
                 return {
-                    bg: 'bg-blue-500/20',
-                    border: 'border-blue-400/50',
-                    text: 'text-gray-300',
-                    icon: 'text-blue-300',
-                    hover: 'hover:bg-blue-500/30',
-                    buttonHover: 'hover:bg-blue-500/40',
-                    buttonBg: 'bg-blue-500/15',
+                    bg: 'bg-blue-50',
+                    border: 'border-blue-200',
+                    text: 'text-gray-700',
+                    icon: 'text-blue-600',
+                    hover: 'hover:bg-blue-100',
+                    buttonHover: 'hover:bg-blue-200',
+                    buttonBg: 'bg-blue-100',
                 };
             case 'purple':
                 return {
-                    bg: 'bg-purple-500/20',
-                    border: 'border-purple-400/50',
-                    text: 'text-gray-300',
-                    icon: 'text-purple-300',
-                    hover: 'hover:bg-purple-500/30',
-                    buttonHover: 'hover:bg-purple-500/40',
-                    buttonBg: 'bg-purple-500/15',
+                    bg: 'bg-purple-50',
+                    border: 'border-purple-200',
+                    text: 'text-gray-700',
+                    icon: 'text-purple-600',
+                    hover: 'hover:bg-purple-100',
+                    buttonHover: 'hover:bg-purple-200',
+                    buttonBg: 'bg-purple-100',
                 };
             case 'orange':
                 return {
-                    bg: 'bg-orange-500/20',
-                    border: 'border-orange-400/50',
-                    text: 'text-gray-300',
-                    icon: 'text-orange-300',
-                    hover: 'hover:bg-orange-500/30',
-                    buttonHover: 'hover:bg-orange-500/40',
-                    buttonBg: 'bg-orange-500/15',
+                    bg: 'bg-orange-50',
+                    border: 'border-orange-200',
+                    text: 'text-gray-700',
+                    icon: 'text-orange-600',
+                    hover: 'hover:bg-orange-100',
+                    buttonHover: 'hover:bg-orange-200',
+                    buttonBg: 'bg-orange-100',
                 };
             case 'emerald':
                 return {
-                    bg: 'bg-emerald-500/20',
-                    border: 'border-emerald-400/50',
-                    text: 'text-gray-300',
-                    icon: 'text-emerald-300',
-                    hover: 'hover:bg-emerald-500/30',
-                    buttonHover: 'hover:bg-emerald-500/40',
-                    buttonBg: 'bg-emerald-500/15',
+                    bg: 'bg-emerald-50',
+                    border: 'border-emerald-200',
+                    text: 'text-gray-700',
+                    icon: 'text-emerald-600',
+                    hover: 'hover:bg-emerald-100',
+                    buttonHover: 'hover:bg-emerald-200',
+                    buttonBg: 'bg-emerald-100',
                 };
         }
     };
@@ -75,7 +75,7 @@ export default function EntityOverviewItem({ title, count, color, onToggle, onAd
             onClick={onToggle}
         >
             <div className="flex items-center gap-3">
-                <span className="text-xs font-mono text-gray-400 bg-gray-800/50 px-1.5 py-0.5 rounded">
+                <span className="text-xs font-mono text-gray-600 bg-gray-200 px-1.5 py-0.5 rounded">
                     {count}
                 </span>
                 <span className={`text-xs font-mono ${colors.text}`}>

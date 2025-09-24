@@ -14,22 +14,22 @@ export default function AnalysisBox({ analysis, onClick }: AnalysisBoxProps) {
   
   return (
     <div
-      className={`px-3 py-3 shadow-md rounded-md bg-[#1a1625]/80 border-2 border-[#271a30] relative min-w-[120px] max-w-[180px] ${
+      className={`px-3 py-3 shadow-md rounded-md border-2 border-purple-600 relative min-w-[120px] max-w-[180px] ${
         isDisabled
           ? 'cursor-default opacity-60'
-          : 'cursor-pointer hover:bg-[#2a1c30] hover:border-[#3a1c40]'
+          : 'cursor-pointer hover:bg-purple-50 hover:border-purple-600'
       }`}
       onClick={onClick ? onClick : undefined}
     >
       <div className="flex flex-col">
         <div className="flex items-center mb-2">
-          <div className="rounded-full w-6 h-6 flex items-center justify-center bg-[#2a1c30] border border-purple-500/30 mr-2">
-            <BarChart3 className="w-3 h-3 text-purple-300" />
+          <div className="rounded-full w-6 h-6 flex items-center justify-center bg-purple-100 border border-purple-300 mr-2">
+            <BarChart3 className="w-3 h-3 text-purple-600" />
           </div>
-          <div className="text-purple-300 font-mono text-xs">Analysis</div>
+          <div className="text-purple-600 font-mono text-xs">Analysis</div>
         </div>
         <div>
-          <div className="text-sm font-mono text-white truncate">{analysis.name}</div>
+          <div className="text-sm font-mono text-gray-800 truncate">{analysis.name}</div>
         </div>
       </div>
     </div>

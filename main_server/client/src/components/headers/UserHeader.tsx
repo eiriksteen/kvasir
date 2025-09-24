@@ -10,12 +10,12 @@ import { Project } from '@/types/project';
 import { UUID } from 'crypto';
 
 interface UserHeaderProps {
-	projectId: UUID | undefined;
+	projectId: UUID;
 } 
 
 export default function UserHeader({ projectId }: UserHeaderProps) {
 	const { projects } = useProjects();
-	const { project } = useProject(projectId || '');
+	const { project } = useProject(projectId);
 	const [showProjectDropdown, setShowProjectDropdown] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
 	const router = useRouter();
@@ -44,16 +44,16 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 	};
 
 	return (
-		<header className="fixed top-0 left-0 right-0 z-50 bg-black">
+		<header className="fixed top-0 left-0 right-0 z-50 bg-white">
 			<div className="mx-auto px-4 sm:px-6 lg:pr-3">
 				<div className="flex items-center justify-between h-12">
 					{/* Logo and Project Title on the left */}
 					<div className="flex items-center space-x-4">
 						<Link href="/projects">
-							<div className="relative w-[25px] h-[25px]">
+							<div className="relative w-[20px] h-[20px]">
 								<Image
-									src="/miyaicon.png"
-									alt="Miya logo"
+									src="/kvasir-logo.png"
+									alt="Kvasir logo"
 									fill
 									priority
 									className="object-contain"
@@ -64,16 +64,16 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 						{/* Project Title with Slash */}
 						{project && (
 							<div className="flex items-center space-x-3">
-								<div className="text-zinc-500 text-lg font-light">/</div>
+								<div className="text-gray-800 text-lg font-light">/</div>
 								<div className="flex flex-col">
-									<div className="text-zinc-300 text-sm font-medium">
+									<div className="text-gray-800 text-sm font-medium">
 										{project.name}
 									</div>
-									{project.description && (
-										<div className="text-zinc-500 text-xs truncate max-w-[200px]">
+									{/* {project.description && (
+										<div className="text-gray-800 text-xs truncate max-w-[200px]">
 											{project.description}
 										</div>
-									)}
+									)} */}
 								</div>
 							</div>
 						)}
@@ -84,7 +84,7 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 						<div className="relative" ref={dropdownRef}>
 							<button
 								onClick={() => setShowProjectDropdown(!showProjectDropdown)}
-								className="text-zinc-400 hover:text-zinc-200 transition-colors px-3 py-1 rounded-md border border-zinc-700 hover:border-zinc-600 flex items-center space-x-1"
+								className="text-gray-800 hover:text-gray-200 transition-colors px-3 py-1 rounded-md border border-[#000034] flex items-center space-x-1"
 								title="Select Project"
 							>
 								<span className="text-sm font-medium">
@@ -95,7 +95,7 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 							
 							{/* Project Dropdown */}
 							{showProjectDropdown && (
-								<div className="absolute top-full right-0 mt-1 w-64 bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg z-50">
+								<div className="absolute top-full right-0 mt-1 w-64 bg-white border border-gray-300 rounded-lg shadow-lg z-50">
 									<div className="p-2">
 										{/* Projects List */}
 										<div className="max-h-48 overflow-y-auto">
@@ -105,27 +105,27 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 													onClick={() => handleProjectSelect(project)}
 													className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
 														project.id === projectId
-															? 'bg-zinc-700 text-zinc-200'
-															: 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+															? 'bg-blue-50 text-gray-900'
+															: 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
 													}`}
 												>
 													<div className="font-medium">{project.name}</div>
 													{project.description && (
-														<div className="text-xs text-zinc-500 mt-1 truncate">
+														<div className="text-xs text-gray-500 mt-1 truncate">
 															{project.description}
 														</div>
 													)}
 												</button>
 											))}
 										</div>
-										
+
 										{/* Divider */}
-										<div className="border-t border-zinc-800 mt-1 mb-1"></div>
-										
+										<div className="border-t border-gray-300 mt-1 mb-1"></div>
+
 										{/* Back to Menu Button */}
 										<button
 											onClick={handleBackToMenu}
-											className="w-full text-left px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 rounded transition-colors font-medium"
+											className="w-full text-left px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors font-medium"
 										>
 											← Back to Menu
 										</button>
@@ -135,7 +135,7 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 						</div>
 						<Link 
 							href="/data-sources"
-							className="p-2 rounded-lg hover:bg-purple-900/30 transition-colors duration-200 text-zinc-400 hover:text-zinc-200"
+							className="p-2 rounded-lg hover:bg-[#000034] transition-colors duration-200 text-[#000034] hover:text-gray-200"
 							title="Manage Data Sources"
 						>
 							<Database size={18} />

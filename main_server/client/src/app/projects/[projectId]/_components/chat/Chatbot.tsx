@@ -107,31 +107,31 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const isCollapsed = width <= MIN_WIDTH;
 
   return (
-    <div 
-      className="absolute right-0 h-screen text-white flex flex-col bg-gray-950/95 pt-12 border-l border-gray-800"
+    <div
+      className="absolute right-0 h-screen text-gray-800 flex flex-col bg-gray-100 pt-12 border-l border-gray-200"
       style={{ width: `${width}px` }}
     >
       {/* Drag handle */}
       <div 
         ref={dragHandleRef}
         onMouseDown={handleStartDrag}
-        className="absolute top-0 bottom-0 left-0 w-3 cursor-col-resize z-10 hover:bg-blue-500/10"
+        className="absolute top-0 bottom-0 left-0 w-3 cursor-col-resize z-10 hover:bg-blue-100"
       >
       </div>
 
       {!isCollapsed && (
         <>
           {/* Header with history button */}
-          <div className="border-b border-gray-800 bg-gray-900/50 p-3 flex justify-between items-center relative">
+          <div className="border-b border-gray-400 p-3 flex justify-between items-center relative bg-gray-100">
             <div className="flex-1 pl-1">
-              <h3 className="text-sm font-medium text-gray-300 animate-fade-in">
+              <h3 className="text-sm font-medium text-gray-900 animate-fade-in">
                 {conversation?.name || "Chat"}
               </h3>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setProjectConversationId(null)}
-                className="p-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 text-gray-300 hover:text-white"
+                className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
                 title="New Chat"
               >
                 <Plus size={18} />
@@ -139,7 +139,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
               <div className="relative">
                 <button
                   onClick={() => setShowChatHistory(!showChatHistory)}
-                  className="p-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 text-gray-300 hover:text-white"
+                  className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
                   title="Chat History"
                 >
                   <History size={18} />
@@ -155,10 +155,10 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
           </div>
 
           {/* Combined context bar */}
-          <div className="border-b border-gray-800 bg-gray-900/50 p-3">
+          <div className="border-b border-gray-400 p-3 bg-gray-100">
             <div className="flex justify-between items-center mb-2">
-              <h3 className="text-sm pl-1 pt-1 font-medium text-gray-300">Context</h3>
-              <h3 className="text-sm pl-1 pt-1 font-normal text-zinc-500">Select items from the left panel</h3>
+              <h3 className="text-sm pl-1 pt-1 font-medium text-gray-900">Context</h3>
+              <h3 className="text-sm pl-1 pt-1 font-normal text-gray-600">Select items from the left panel</h3>
             </div>
             <div className="flex flex-wrap gap-2">
                 <>
@@ -166,13 +166,13 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                   {dataSourcesInContext.map((dataSource: DataSource) => (
                     <div 
                       key={dataSource.id}
-                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-emerald-900/30 text-emerald-300"
+                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-emerald-100 text-emerald-700"
                     >
                       <Database size={12} />
                       {dataSource.name}
                       <button 
                         onClick={() => removeDataSourceFromContext(dataSource)}
-                        className="text-zinc-400 hover:text-white"
+                        className="text-gray-300 hover:text-white"
                       >
                         <X size={12} />
                       </button>
@@ -183,13 +183,13 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                   {datasetsInContext.map((dataset: Dataset) => (
                     <div 
                       key={dataset.id}
-                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-blue-900/30 text-blue-300"
+                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-blue-100 text-blue-700"
                     >
                       <Database size={12} />
                       {dataset.name}
                       <button 
                         onClick={() => removeDatasetFromContext(dataset)}
-                        className="text-zinc-400 hover:text-white"
+                        className="text-gray-300 hover:text-white"
                       >
                         <X size={12} />
                       </button>
@@ -200,13 +200,13 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                   {analysesInContext.map((analysis: AnalysisJobResultMetadata) => (
                     <div 
                       key={analysis.jobId}
-                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-purple-900/30 text-purple-300"
+                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-purple-100 text-purple-700"
                     >
                       <BarChart size={12} />
                       Analysis {analysis.jobId.slice(0, 6)}
                       <button 
                         onClick={() => removeAnalysisFromContext(analysis)}
-                        className="text-zinc-400 hover:text-white"
+                        className="text-gray-300 hover:text-white"
                       >
                         <X size={12} />
                       </button>
@@ -217,13 +217,13 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                   {pipelinesInContext.map((pipeline: Pipeline) => (
                     <div 
                       key={pipeline.id}
-                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-orange-900/30 text-orange-300"
+                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-orange-100 text-orange-700"
                     >
                       <Zap size={12} />
                       {pipeline.name}
                       <button 
                         onClick={() => removePipelineFromContext(pipeline)}
-                        className="text-zinc-400 hover:text-white"
+                        className="text-gray-300 hover:text-white"
                       >
                         <X size={12} />
                       </button>
@@ -232,12 +232,12 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
 
                   {/* Model Entities */}
                   {modelEntitiesInContext.map((modelEntity: ModelEntity) => (
-                    <div key={modelEntity.id} className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-emerald-900/30 text-emerald-300">
+                    <div key={modelEntity.id} className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-emerald-100 text-emerald-700">
                       <Brain size={12} />
                       {modelEntity.name}
                       <button 
                         onClick={() => removeModelEntityFromContext(modelEntity)}
-                        className="text-zinc-400 hover:text-white"
+                        className="text-gray-300 hover:text-white"
                       >
                         <X size={12} />
                       </button>
@@ -248,7 +248,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
           </div>
 
           {/* Messages container */}
-          <div 
+          <div
             ref={messagesContainerRef}
             className="flex-1 overflow-y-auto p-4 pb-24 scrollbar-thin scrollbar-thumb-gray-700"
             style={{ scrollBehavior: 'smooth' }}
@@ -295,22 +295,22 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
           </div>
 
           {/* Input area */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gray-900/90 backdrop-blur-sm p-4 border-t border-gray-800/20 z-10">
-            <div className="flex rounded-full bg-gray-800/70 overflow-hidden shadow-inner">
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 z-10" style={{ backgroundColor: '#000034' }}>
+            <div className="flex rounded-full border border-gray-400 overflow-hidden shadow-inner" style={{ backgroundColor: '#000034' }}>
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSubmitPrompt()}
                 placeholder="Ask a question..."
-                className="flex-1 bg-transparent px-4 py-3 outline-none text-white text-xs"
+                className="flex-1 bg-transparent px-4 py-3 outline-none text-xs text-white placeholder-gray-300"
               />
               <button 
                 onClick={handleSubmitPrompt}
                 className={`px-4 transition-all duration-300 ${
-                  input.trim() 
-                    ? 'text-blue-400 hover:text-blue-300'
-                    : 'text-zinc-500 cursor-not-allowed'
+                  input.trim()
+                    ? 'text-white hover:text-gray-200'
+                    : 'text-gray-400 cursor-not-allowed'
                 }`}
                 disabled={!input.trim()}
               >

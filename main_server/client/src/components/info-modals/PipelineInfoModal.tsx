@@ -20,7 +20,7 @@ function FunctionChainFlow({ pipeline }: FunctionChainFlowProps) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center">
         <Zap size={32} className="text-orange-400/40 mb-3" />
-        <p className="text-sm text-gray-400 mb-1">No functions in pipeline</p>
+        <p className="text-sm text-gray-600 mb-1">No functions in pipeline</p>
         <p className="text-xs text-gray-500">Add functions to see the data flow</p>
       </div>
     );
@@ -36,11 +36,11 @@ function FunctionChainFlow({ pipeline }: FunctionChainFlowProps) {
           <div key={functionItem.id} className="flex flex-col items-center space-y-1 w-full">
             {/* INPUT BOX */}
             {isFirst && (
-              <div className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 border border-gray-600/30 rounded-lg p-1.5 w-fit mx-auto px-3 pt-1">
+              <div className="bg-gradient-to-r from-gray-100 to-gray-50 border border-gray-300 rounded-lg p-1.5 w-fit mx-auto px-3 pt-1">
                 <div className="flex items-center justify-center gap-2">
-                  <Database size={12} className="text-gray-400 flex-shrink-0" />
-                  <span className="text-xs font-semibold text-gray-200">{functionItem.inputStructures[0].name}</span>
-                  <span className="text-[10px] font-mono text-gray-500 bg-gray-800/50 px-1 py-0.5 rounded border border-gray-700/50">{functionItem.inputStructures[0].structureId}</span>
+                  <Database size={12} className="text-gray-600 flex-shrink-0" />
+                  <span className="text-xs font-semibold text-gray-900">{functionItem.inputStructures[0].name}</span>
+                  <span className="text-[10px] font-mono text-gray-600 bg-gray-200 px-1 py-0.5 rounded border border-gray-300">{functionItem.inputStructures[0].structureId}</span>
                 </div>
               </div>
             )}
@@ -53,13 +53,13 @@ function FunctionChainFlow({ pipeline }: FunctionChainFlowProps) {
             </div>
 
             {/* FUNCTION BOX */}
-            <div className="bg-gradient-to-r from-orange-500/10 to-orange-600/10 border border-orange-500/30 rounded-lg p-2 w-fit mx-auto px-4 hover:border-orange-500/50 transition-all duration-200">
+            <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-300 rounded-lg p-2 w-fit mx-auto px-4 hover:border-orange-400 transition-all duration-200">
               <div className="flex items-center justify-center">
                 <div className="flex items-center gap-2">
-                  <div className="p-1 bg-orange-500/20 rounded-md">
-                    <Zap size={10} className="text-orange-300" />
+                  <div className="p-1 bg-orange-200 rounded-md">
+                    <Zap size={10} className="text-orange-600" />
                   </div>
-                  <h4 className="text-xs font-semibold text-gray-200">{functionItem.name}</h4>
+                  <h4 className="text-xs font-semibold text-gray-900">{functionItem.name}</h4>
                 </div>
               </div>
             </div>
@@ -72,11 +72,11 @@ function FunctionChainFlow({ pipeline }: FunctionChainFlowProps) {
             </div>
 
             {/* OUTPUT BOX */}
-            <div className="bg-gradient-to-r from-gray-800/50 to-gray-700/50 border border-gray-600/30 rounded-lg p-1.5 w-fit mx-auto px-3">
+            <div className="bg-gradient-to-r from-gray-100 to-gray-50 border border-gray-300 rounded-lg p-1.5 w-fit mx-auto px-3">
               <div className="flex items-center justify-center gap-2">
-                <Database size={12} className="text-gray-400 flex-shrink-0" />
-                <span className="text-xs font-semibold text-gray-200">{functionItem.outputStructures[0]?.name}</span>
-                <span className="text-[10px] font-mono text-gray-500 bg-gray-800/50 px-1 py-0.5 rounded border border-gray-700/50">{functionItem.outputStructures[0]?.structureId}</span>
+                <Database size={12} className="text-gray-600 flex-shrink-0" />
+                <span className="text-xs font-semibold text-gray-900">{functionItem.outputStructures[0]?.name}</span>
+                <span className="text-[10px] font-mono text-gray-600 bg-gray-200 px-1 py-0.5 rounded border border-gray-300">{functionItem.outputStructures[0]?.structureId}</span>
               </div>
             </div>
 
@@ -126,28 +126,28 @@ export default function PipelineInfoModal({
 
   return (
     <>
-      <div 
+      <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
         onClick={() => onClose()}
       />
       <div className="fixed inset-4 z-50 flex items-center justify-center">
-        <div className="w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden bg-black/50 rounded-lg">
-          <div className="rounded-xl border-2 border-orange-500/20 shadow-xl shadow-orange-500/10 h-full flex flex-col">
-            <div className="relative flex items-center p-6 border-b border-orange-500/20 flex-shrink-0">
+        <div className="w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden bg-white rounded-lg">
+          <div className="rounded-xl border-2 border-gray-300 shadow-xl h-full flex flex-col">
+            <div className="relative flex items-center p-6 border-b border-gray-300 flex-shrink-0">
               <div className="flex-1">
-                <h3 className="text-sm font-mono tracking-wider text-gray-200">
+                <h3 className="text-sm font-mono tracking-wider text-gray-900">
                   {pipeline.name}
                 </h3>
                 {pipeline.description && (
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-gray-600 mt-1">
                     {pipeline.description} • Created on {formatDate(pipeline.createdAt)}
                   </p>
                 )}
               </div>
-              
+
               <button
                 onClick={() => onClose()}
-                className="text-gray-400 hover:text-white transition-colors"
+                className="text-gray-500 hover:text-gray-700 transition-colors"
                 title="Close modal"
               >
                 <X size={20} />
@@ -160,12 +160,12 @@ export default function PipelineInfoModal({
 
                 {/* Function Chain Flow */}
                 <div className="lg:col-span-2 flex flex-col space-y-4 overflow-y-auto">
-                  <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-orange-500/20 rounded-xl p-4 flex flex-col flex-1 min-h-0">
+                  <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-300 rounded-xl p-4 flex flex-col flex-1 min-h-0">
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-orange-500/20 rounded-lg">
-                        <GitMerge className="w-4 h-4 text-orange-300" />
+                      <div className="p-2 bg-orange-100 rounded-lg">
+                        <GitMerge className="w-4 h-4 text-orange-600" />
                       </div>
-                      <h3 className="text-sm font-semibold text-gray-200">Function Chain</h3>
+                      <h3 className="text-sm font-semibold text-gray-900">Function Chain</h3>
                     </div>
                     <div className="flex-1 min-h-0 overflow-y-auto grid place-items-center">
                       <FunctionChainFlow pipeline={pipeline} />
@@ -176,15 +176,15 @@ export default function PipelineInfoModal({
                 <div className="lg:col-span-2 flex flex-col space-y-4">
 
                   {/* Runs */}
-                  <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-orange-500/20 rounded-xl p-4 flex flex-col flex-1 min-h-0">
+                  <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-300 rounded-xl p-4 flex flex-col flex-1 min-h-0">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-orange-500/20 rounded-lg">
-                          <SquarePlay className="w-4 h-4 text-orange-300" />
+                        <div className="p-2 bg-orange-100 rounded-lg">
+                          <SquarePlay className="w-4 h-4 text-orange-600" />
                         </div>
-                        <h3 className="text-sm font-semibold text-gray-200">Runs</h3>
+                        <h3 className="text-sm font-semibold text-gray-900">Runs</h3>
                       </div>
-                      
+
                       {/* Run Pipeline Button */}
                       <button
                         onClick={() => {
@@ -203,12 +203,12 @@ export default function PipelineInfoModal({
                   </div>
 
                   {/* Run Schedule */}
-                  <div className="bg-gradient-to-br from-zinc-900/80 to-zinc-800/40 border border-orange-500/20 rounded-xl p-4 flex flex-col flex-1 min-h-0">
+                  <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-300 rounded-xl p-4 flex flex-col flex-1 min-h-0">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-orange-500/20 rounded-lg">
-                        <Clock className="w-4 h-4 text-orange-300" />
+                      <div className="p-2 bg-orange-100 rounded-lg">
+                        <Clock className="w-4 h-4 text-orange-600" />
                       </div>
-                      <h3 className="text-sm font-semibold text-gray-200">Run Schedule</h3>
+                      <h3 className="text-sm font-semibold text-gray-900">Run Schedule</h3>
                     </div>
                     <div className="flex-1 min-h-0">
                       {/* Content for run schedule can be added here */}

@@ -103,7 +103,7 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
       case 'gitlab':
         return (
           <div className="mb-4">
-            <label htmlFor="repoUrl" className="block text-sm font-medium text-gray-200 mb-2">
+            <label htmlFor="repoUrl" className="block text-sm font-medium text-gray-900 mb-2">
               Repository URL
             </label>
             <input
@@ -112,7 +112,7 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
               value={fields.repoUrl || ''}
               onChange={(e) => handleFieldChange('repoUrl', e.target.value)}
               placeholder={`https://${selectedSource === 'github' ? 'github' : 'gitlab'}.com/username/repo`}
-              className="w-full p-2 bg-gray-900/50 border border-gray-800 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-sm"
+              className="w-full p-2 bg-gray-50 border border-gray-300 rounded text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#000034]/50 focus:border-[#000034]/50 transition-all duration-200 text-sm"
             />
           </div>
         );
@@ -121,7 +121,7 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
         return (
           <>
             <div className="mb-4">
-              <label htmlFor="packageName" className="block text-sm font-medium text-gray-200 mb-2">
+              <label htmlFor="packageName" className="block text-sm font-medium text-gray-900 mb-2">
                 Package Name
               </label>
               <input
@@ -130,11 +130,11 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
                 value={fields.packageName || ''}
                 onChange={(e) => handleFieldChange('packageName', e.target.value)}
                 placeholder="e.g., torch, transformers, sklearn"
-                className="w-full p-2 bg-gray-900/50 border border-gray-800 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-sm"
+                className="w-full p-2 bg-gray-50 border border-gray-300 rounded text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#000034]/50 focus:border-[#000034]/50 transition-all duration-200 text-sm"
               />
             </div>
             <div className="mb-4">
-              <label htmlFor="packageVersion" className="block text-sm font-medium text-gray-200 mb-2">
+              <label htmlFor="packageVersion" className="block text-sm font-medium text-gray-900 mb-2">
                 Version <span className="text-xs text-gray-500">(optional)</span>
               </label>
               <input
@@ -143,7 +143,7 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
                 value={fields.packageVersion || ''}
                 onChange={(e) => handleFieldChange('packageVersion', e.target.value)}
                 placeholder="e.g., 2.0.1, latest"
-                className="w-full p-2 bg-gray-900/50 border border-gray-800 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-sm"
+                className="w-full p-2 bg-gray-50 border border-gray-300 rounded text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#000034]/50 focus:border-[#000034]/50 transition-all duration-200 text-sm"
               />
             </div>
           </>
@@ -152,7 +152,7 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
       case 'huggingface':
         return (
           <div className="mb-4">
-            <label htmlFor="modelName" className="block text-sm font-medium text-gray-200 mb-2">
+            <label htmlFor="modelName" className="block text-sm font-medium text-gray-900 mb-2">
               Model Name
             </label>
             <input
@@ -161,7 +161,7 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
               value={fields.modelName || ''}
               onChange={(e) => handleFieldChange('modelName', e.target.value)}
               placeholder="e.g., bert-base-uncased, gpt2"
-              className="w-full p-2 bg-gray-900/50 border border-gray-800 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-sm"
+              className="w-full p-2 bg-gray-50 border border-gray-300 rounded text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#000034]/50 focus:border-[#000034]/50 transition-all duration-200 text-sm"
             />
           </div>
         );
@@ -186,22 +186,22 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-2xl h-[80vh] bg-gray-950 border border-[#101827] rounded-lg shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="relative w-full max-w-2xl h-[80vh] bg-white border border-gray-300 rounded-lg shadow-2xl overflow-hidden">
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 z-50 p-1 rounded-full text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+          className="absolute top-3 right-3 z-50 p-1 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
           title="Close (Esc)"
         >
           <X size={20} />
         </button>
 
         <div className="flex flex-col h-full p-4">
-          <h3 className="text-xs font-mono uppercase tracking-wider text-gray-400 mb-6">Add Model</h3>
+          <h3 className="text-xs font-mono uppercase tracking-wider text-gray-600 mb-6">Add Model</h3>
 
           {/* Model Source Selection */}
           <div className="mb-6">
-            <h4 className="text-sm font-medium text-gray-200 mb-3">Select Model Source</h4>
+            <h4 className="text-sm font-medium text-gray-900 mb-3">Select Model Source</h4>
             <div className="grid grid-cols-2 gap-2">
               {MODEL_SOURCES.map((source) => (
                 <button
@@ -209,12 +209,12 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
                   onClick={() => handleSourceSelect(source)}
                   className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 ${
                     selectedSource === source
-                      ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
-                      : 'bg-gray-900/50 border-gray-800 hover:bg-gray-800/50 hover:border-gray-700 text-gray-300'
+                      ? 'bg-gray-50 border-[#000034]/50 text-[#000034]'
+                      : 'bg-gray-50 border-gray-300 hover:bg-gray-100 hover:border-gray-400 text-gray-600'
                   }`}
                 >
                   <div className={`p-1 rounded ${
-                    selectedSource === source ? 'bg-blue-500/20' : 'bg-gray-800/50'
+                    selectedSource === source ? 'bg-[#000034]/20' : 'bg-gray-200'
                   }`}>
                     {getSourceIcon(source)}
                   </div>
@@ -233,7 +233,7 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
 
           {/* Model Description */}
           <div className="mb-4">
-            <label htmlFor="description" className="block text-sm font-medium text-gray-200 mb-2">
+            <label htmlFor="description" className="block text-sm font-medium text-gray-900 mb-2">
               Description <span className="text-xs text-gray-500">(optional)</span>
             </label>
             <textarea
@@ -241,16 +241,16 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optionally describe the model."
-              className="w-full h-24 p-2 bg-gray-900/50 border border-gray-800 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 resize-none text-sm"
+              className="w-full h-24 p-2 bg-gray-50 border border-gray-300 rounded text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#000034]/50 focus:border-[#000034]/50 transition-all duration-200 resize-none text-sm"
             />
           </div>
 
           {/* Submit Button */}
-          <div className="mt-auto border-t border-gray-800 pt-4">
+          <div className="mt-auto border-t border-gray-200 pt-4">
             <button
               onClick={handleSubmit}
               disabled={submitIsDisabled()}
-              className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium rounded-lg transition-all duration-200 disabled:cursor-not-allowed"
+              className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-[#000034] hover:bg-[#000044] disabled:bg-gray-300 disabled:text-gray-500 text-white font-medium rounded-lg transition-all duration-200 disabled:cursor-not-allowed"
             >
               <Package size={16} />
               Create Model

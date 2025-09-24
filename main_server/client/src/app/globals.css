@@ -5,6 +5,7 @@
   --foreground: #171717;
   --header-height: 45px;
   --accent-purple: #7e22ce;
+  --logo-navy: #000034;
 }
 
 @keyframes pulse {
@@ -41,8 +42,7 @@
 }
 
 body {
-  background: linear-gradient(135deg, #101217 0%, #1a1a2e 50%, #2e1065 100%);
-  background-attachment: fixed;
+  background: #ffffff;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   min-height: 100vh;
@@ -52,8 +52,6 @@ body {
 .reactflow-no-watermark .react-flow__attribution {
   display: none !important;
 }
-
-
 
 @keyframes fade-in {
   from {

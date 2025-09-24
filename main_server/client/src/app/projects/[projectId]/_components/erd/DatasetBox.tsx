@@ -14,10 +14,10 @@ export default function DatasetBox({ dataset, onClick }: DatasetProps) {
   
   return (
   <div
-    className={`px-3 py-3 shadow-md rounded-md bg-[#050a14] border-2 border-blue-500/20 relative min-w-[120px] max-w-[180px] ${
+    className={`px-3 py-3 shadow-md rounded-md border-2 border-blue-600 relative min-w-[120px] max-w-[180px] ${
       isDisabled
         ? 'cursor-default opacity-60'
-        : 'cursor-pointer hover:bg-blue-500/5 hover:border-blue-500/40'
+        : 'cursor-pointer hover:bg-blue-50 hover:border-blue-600'
     }`}
     onClick={onClick ? onClick : undefined}
   >
@@ -26,10 +26,10 @@ export default function DatasetBox({ dataset, onClick }: DatasetProps) {
         <div className={`rounded-full w-6 h-6 flex items-center justify-center bg-blue-500/10 border border-blue-400/30 mr-2`}>
           <Folder className="w-3 h-3 text-blue-400" />
         </div>
-        <div className="text-blue-400 font-mono text-xs">Dataset</div>
+        <div className="text-blue-600 font-mono text-xs">Dataset</div>
       </div>
       <div>
-        <div className="text-sm font-mono text-gray-200 truncate">{dataset.name}</div>
+        <div className="text-sm font-mono text-gray-800 truncate">{dataset.name}</div>
       </div>
     </div>
   </div>

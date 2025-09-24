@@ -32,31 +32,31 @@ export default function LoginForm() {
         <div>
         <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
             <Image
-            src="/miyawtext.png"
-            alt="miya logo"
+            src="/kvasirwtext.png"
+            alt="kvasir logo"
             width={180}
             height={38}
             priority
             />
-            <div className="bg-[rgb(104,16,255)] p-8 rounded-xl w-full max-w-sm">
+            <div className="bg-gray-100 p-8 rounded-xl w-full max-w-sm border border-gray-200">
             <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
                 <input
                 type="email"
                 name="email"
                 placeholder="Email"
-                className="w-full px-4 py-2 rounded-lg bg-black text-white"
+                className="w-full px-4 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#000034] focus:border-[#000034] transition-colors"
                 required
                 />
                 <input
                 type="password"
                 name="password"
                 placeholder="Password"
-                className="w-full px-4 py-2 rounded-lg bg-black text-white"
+                className="w-full px-4 py-2 rounded-lg bg-white border border-gray-300 text-gray-800 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#000034] focus:border-[#000034] transition-colors"
                 required
                 />
-                <button 
+                <button
                 type="submit"
-                className="bg-black text-white rounded-lg hover:bg-black/70 px-4 py-2 mt-2"
+                className="bg-[#000034] text-white rounded-lg hover:bg-[#000028] px-4 py-2 mt-2 transition-colors border border-[#000034]"
                 >
                 Sign In
                 </button>

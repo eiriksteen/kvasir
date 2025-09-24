@@ -35,15 +35,15 @@ export default function AnalysisInfoModal({ analysis, isSelected, onClick, isMod
     if (isModal) {
         return (
             <>
-                <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-                    <div className="relative flex w-full max-w-5xl h-[80vh] bg-gray-950 border border-[#101827] rounded-lg shadow-2xl overflow-hidden">
+                <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div className="relative flex w-full max-w-5xl h-[80vh] bg-white border border-gray-300 rounded-lg shadow-2xl overflow-hidden">
                         <div 
                             onClick={onClick}
-                            className={`rounded-lg cursor-pointer bg-[#1a1625] border-2 h-full border-[#271a30] p-4 relative`}
+                            className={`rounded-lg cursor-pointer bg-gray-50 border-2 h-full border-gray-300 p-4 relative`}
                         >
                             <button
                                 onClick={onClose}
-                                className="absolute top-3 right-3 z-50 p-1 rounded-full text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+                                className="absolute top-3 right-3 z-50 p-1 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                                 title="Close (Esc)"
                             >
                                 <X size={20} />

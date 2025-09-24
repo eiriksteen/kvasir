@@ -30,68 +30,68 @@ export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityBut
         switch (type) {
             case 'dataset':
                 return {
-                    bg: 'bg-blue-500/20',
-                    border: 'border-blue-400/50',
-                    text: 'text-gray-300',
-                    icon: 'text-blue-300',
-                    hover: 'hover:bg-blue-500/30',
-                    buttonHover: 'hover:bg-blue-500/40',
-                    buttonBg: 'bg-blue-500/15',
-                    plusBg: 'bg-blue-500',
-                    plusBorder: 'border-blue-400/30',
+                    bg: 'bg-blue-50',
+                    border: 'border-blue-600',
+                    text: 'text-gray-700',
+                    icon: 'text-blue-600',
+                    hover: 'hover:bg-blue-100',
+                    buttonHover: 'hover:bg-blue-200',
+                    buttonBg: 'bg-blue-100',
+                    plusBg: 'bg-blue-600',
+                    plusBorder: 'border-blue-300',
                     symbol: <Folder size={size} />,
                 };
             case 'data_source':
                 return {
-                    bg: 'bg-gray-600/20',
-                    border: 'border-gray-400/50',
-                    text: 'text-gray-300',
-                    icon: 'text-gray-300',
-                    hover: 'hover:bg-gray-600/30',
-                    buttonHover: 'hover:bg-gray-600/40',
-                    buttonBg: 'bg-gray-600/15',
-                    plusBg: 'bg-gray-500',
-                    plusBorder: 'border-gray-400/30',
+                    bg: 'bg-gray-50',
+                    border: 'border-gray-600',
+                    text: 'text-gray-700',
+                    icon: 'text-gray-600',
+                    hover: 'hover:bg-gray-100',
+                    buttonHover: 'hover:bg-gray-200',
+                    buttonBg: 'bg-gray-100',
+                    plusBg: 'bg-gray-600',
+                    plusBorder: 'border-gray-300',
                     symbol: <Database size={size} />,
                 };
             case 'analysis':
                 return {
-                    bg: 'bg-purple-500/20',
-                    border: 'border-purple-400/50',
-                    text: 'text-gray-300',
-                    icon: 'text-purple-300',
-                    hover: 'hover:bg-purple-500/30',
-                    buttonHover: 'hover:bg-purple-500/40',
-                    buttonBg: 'bg-purple-500/15',
-                    plusBg: 'bg-purple-500',
-                    plusBorder: 'border-purple-400/30',
+                    bg: 'bg-purple-50',
+                    border: 'border-purple-600',
+                    text: 'text-gray-700',
+                    icon: 'text-purple-600',
+                    hover: 'hover:bg-purple-100',
+                    buttonHover: 'hover:bg-purple-200',
+                    buttonBg: 'bg-purple-100',
+                    plusBg: 'bg-purple-600',
+                    plusBorder: 'border-purple-300',
                     symbol: <BarChart3 size={size} />,
                 };
             case 'pipeline':
                 return {
-                    bg: 'bg-orange-500/20',
-                    border: 'border-orange-400/50',
-                    text: 'text-gray-300',
-                    icon: 'text-orange-300',
-                    hover: 'hover:bg-orange-500/30',
-                    buttonHover: 'hover:bg-orange-500/40',
-                    buttonBg: 'bg-orange-500/15',
-                    plusBg: 'bg-orange-500',
-                    plusBorder: 'border-orange-400/30',
+                    bg: 'bg-orange-50',
+                    border: 'border-orange-600',
+                    text: 'text-gray-700',
+                    icon: 'text-orange-600',
+                    hover: 'hover:bg-orange-100',
+                    buttonHover: 'hover:bg-orange-200',
+                    buttonBg: 'bg-orange-100',
+                    plusBg: 'bg-orange-600',
+                    plusBorder: 'border-orange-300',
                     symbol: <Zap size={size} />,
 
                 };
             case 'model_entity':
                 return {
-                    bg: 'bg-emerald-500/20',
-                    border: 'border-emerald-400/50',
-                    text: 'text-gray-300',
-                    icon: 'text-emerald-300',
-                    hover: 'hover:bg-emerald-500/30',
-                    buttonHover: 'hover:bg-emerald-500/40',
-                    buttonBg: 'bg-emerald-500/15',
-                    plusBg: 'bg-emerald-500',
-                    plusBorder: 'border-emerald-400/30',
+                    bg: 'bg-emerald-50',
+                    border: 'border-emerald-600',
+                    text: 'text-gray-700',
+                    icon: 'text-emerald-600',
+                    hover: 'hover:bg-emerald-100',
+                    buttonHover: 'hover:bg-emerald-200',
+                    buttonBg: 'bg-emerald-100',
+                    plusBg: 'bg-emerald-600',
+                    plusBorder: 'border-emerald-300',
                     symbol: <Brain size={size} />,
                 };
             }
@@ -106,7 +106,7 @@ export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityBut
                     e.stopPropagation();
                     onAdd();
                 }}
-                className={`p-1.5 rounded-md inline-flex items-center justify-center min-w-[32px] min-h-[32px] ${colors.buttonBg} ${colors.border} transition-all duration-200 ${colors.buttonHover} hover:scale-105`}
+                className={`p-1.5 rounded-md inline-flex items-center justify-center min-w-[32px] min-h-[32px] ${colors.buttonBg} border ${colors.border} transition-all duration-200 ${colors.buttonHover} hover:scale-105`}
                 title={`Add ${type.slice(0, -1)}`}
             >
             <div className={colors.icon}>

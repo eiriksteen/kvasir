@@ -11,13 +11,13 @@ import { UUID } from 'crypto';
 function DataSourceListItem({ dataSource, isFirst }: { dataSource: DataSource; isFirst: boolean }) {
 
   return (
-    <div className={`group flex items-center gap-2 p-2 bg-gray-900/50 border-b border-gray-800 hover:bg-gray-800/50 transition-all duration-200 cursor-pointer ${isFirst ? 'border-t' : ''}`}>
+    <div className={`group flex items-center gap-2 p-2 bg-gray-50 border-b border-gray-200 hover:bg-gray-100 transition-all duration-200 cursor-pointer ${isFirst ? 'border-t border-gray-200' : ''}`}>
       {SourceTypeIcon(dataSource.type, 16)}
       <div className="flex items-center gap-3 min-w-0">
-        <h3 className="text-sm font-medium text-gray-200 truncate">
+        <h3 className="text-sm font-medium text-gray-900 truncate">
           {dataSource.name}
         </h3>
-        <span className="text-xs font-mono text-gray-500 bg-gray-800 px-2 py-1 rounded flex-shrink-0">
+        <span className="text-xs font-mono text-gray-600 bg-gray-200 px-2 py-1 rounded flex-shrink-0">
           {dataSource.type}
         </span>
       </div>
@@ -74,11 +74,11 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-2xl h-[80vh] bg-gray-950 border border-[#101827] rounded-lg shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="relative w-full max-w-2xl h-[80vh] bg-white border border-gray-300 rounded-lg shadow-2xl overflow-hidden">
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 z-50 p-1 rounded-full text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+          className="absolute top-3 right-3 z-50 p-1 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
           title="Close (Esc)"
         >
           <X size={20} />
@@ -86,7 +86,7 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
 
         <div className="flex flex-col h-full">
           <div className="p-4">
-            <h3 className="text-xs font-mono uppercase tracking-wider text-gray-400">Add Data Source</h3>
+            <h3 className="text-xs font-mono uppercase tracking-wider text-gray-600">Add Data Source</h3>
           </div>
 
           <div className="flex-grow overflow-y-auto">
@@ -104,9 +104,9 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
               </div>
             ) : (
               <div className="flex items-center justify-center pt-10 py-30">
-                <div className="text-center text-zinc-500">
+                <div className="text-center text-gray-500">
                   <Database size={48} className="mx-auto mb-4 opacity-50"/>
-                  <p className="font-medium text-zinc-400 text-lg">No data sources available</p>
+                  <p className="font-medium text-gray-600 text-lg">No data sources available</p>
                   <p className="text-sm mt-2">All your data sources are already in this project</p>
                 </div>
               </div>

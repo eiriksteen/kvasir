@@ -15,10 +15,10 @@ export default function DataSourceBox({ dataSource, gradientClass, onClick }: Da
   
   return (
   <div
-    className={`px-3 py-3 shadow-md rounded-md bg-[#050a14] border-2 border-gray-500/20 relative min-w-[120px] max-w-[180px] ${
+    className={`px-3 py-3 shadow-md rounded-md border-2 border-gray-600 relative min-w-[120px] max-w-[180px] ${
       isDisabled
         ? 'cursor-default opacity-60'
-        : 'cursor-pointer hover:bg-gray-500/5 hover:border-gray-500/40'
+        : 'cursor-pointer hover:bg-gray-50 hover:border-gray-600'
     }`}
     onClick={onClick ? onClick : undefined}
   >
@@ -27,10 +27,10 @@ export default function DataSourceBox({ dataSource, gradientClass, onClick }: Da
         <div className={`rounded-full w-6 h-6 flex items-center justify-center bg-gray-500/10 border border-gray-400/30 ${gradientClass || ''} mr-2`}>
           <Database className="w-3 h-3 text-gray-400" />
         </div>
-        <div className="text-gray-400 font-mono text-xs">Data Source</div>
+        <div className="text-gray-600 font-mono text-xs">Data Source</div>
       </div>
       <div>
-        <div className="text-xs font-mono text-gray-200 truncate">{dataSource.name}</div>
+        <div className="text-xs font-mono text-gray-800 truncate">{dataSource.name}</div>
       </div>
     </div>
 

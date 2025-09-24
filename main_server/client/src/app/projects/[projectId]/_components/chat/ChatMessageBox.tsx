@@ -28,10 +28,10 @@ const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
   // Different styling based on message type
   const getMessageStyles = () => {
       return {
-        container: `max-w-[80%] rounded-2xl px-4 py-3 shadow-md backdrop-blur-sm ${
-          message.role === 'user' 
-            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-tr-none' 
-            : 'bg-gray-950/40 text-white rounded-tl-none border border-gray-800/50'
+        container: `max-w-[80%] rounded-2xl px-4 py-3 shadow-md ${
+          message.role === 'user'
+            ? 'text-white rounded-tr-none'
+            : 'bg-white text-gray-800 rounded-tl-none border border-gray-200'
         }`,
         content: `text-xs leading-relaxed ${message.role === 'assistant' ? 'animate-fade-in' : ''}`
       };
@@ -44,7 +44,7 @@ const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
     <div 
       className={`mb-2 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
     >
-      <div className={styles.container}>
+      <div className={styles.container} style={message.role === 'user' ? { backgroundColor: '#000034' } : {}}>
 
         {hasContext && (
           <div className="mb-2 pb-2 border-b border-current/20">
@@ -53,7 +53,7 @@ const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
               {message.context?.datasetIds?.map((datasetId: string) => (
                 <div 
                   key={datasetId}
-                  className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-blue-900/50 text-blue-200"
+                  className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-blue-100 text-blue-700"
                 >
                   <Database size={10} />
                   {datasets?.find((dataset: Dataset) => dataset.id === datasetId)?.name}
@@ -75,7 +75,7 @@ const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
               {message.context?.pipelineIds?.map((pipelineId: string) => (
                 <div 
                   key={pipelineId}
-                  className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-orange-900/50 text-orange-200"
+                  className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-orange-100 text-orange-700"
                 >
                   <Zap size={10} />
                   Pipeline {pipelineId.slice(0, 6)}

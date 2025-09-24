@@ -14,10 +14,10 @@ export default function ModelEntityBox({ modelEntity, onClick }: ModelEntityBoxP
 
   return (
   <div
-    className={`px-3 py-3 shadow-md rounded-md bg-[#050a14] border-2 border-emerald-500/20 relative min-w-[120px] max-w-[180px] ${
+    className={`px-3 py-3 shadow-md rounded-md border-2 border-emerald-600 relative min-w-[120px] max-w-[180px] ${
       isDisabled
         ? 'cursor-default opacity-60'
-        : 'cursor-pointer hover:bg-emerald-500/5 hover:border-emerald-500/40'
+        : 'cursor-pointer hover:bg-emerald-50 hover:border-emerald-600'
     }`}
     onClick={onClick ? onClick : undefined}
   >
@@ -26,10 +26,10 @@ export default function ModelEntityBox({ modelEntity, onClick }: ModelEntityBoxP
         <div className="rounded-full w-6 h-6 flex items-center justify-center bg-emerald-500/10 border border-emerald-500/30 mr-2">
           <Brain className="w-3 h-3 text-emerald-400" />
         </div>
-        <div className="text-emerald-400 font-mono text-xs">Model</div>
+        <div className="text-emerald-600 font-mono text-xs">Model</div>
       </div>
       <div>
-        <div className="text-sm font-mono text-gray-200 truncate">{modelEntity.name}</div>
+        <div className="text-sm font-mono text-gray-800 truncate">{modelEntity.name}</div>
       </div>
       </div>
     </div>

@@ -131,16 +131,16 @@ export default function AddDataSourceModal({
       />
       
       <div className="fixed inset-4 z-50 flex items-center justify-center">
-        <div className="relative bg-[#050a14] rounded-xl border-2 border-[#101827] w-full max-w-6xl h-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+        <div className="relative bg-white rounded-xl border-2 border-gray-200 w-full max-w-6xl h-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="relative flex items-center p-6 border-b border-[#101827] flex-shrink-0">
+            <div className="relative flex items-center p-6 border-b border-gray-200 flex-shrink-0">
               {SourceTypeIcon(selectedSourceType, 16)}
-              <h3 className="text-base font-mono uppercase tracking-wider text-gray-400 flex-grow pl-3">
+              <h3 className="text-base font-mono uppercase tracking-wider text-gray-600 flex-grow pl-3">
                 Add {selectedSourceType}
               </h3>
               <button
                 onClick={onClose}
-                className="text-zinc-400 hover:text-zinc-300 transition-colors"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
                 title="Close modal"
               >
                 <X size={20} />
@@ -149,12 +149,12 @@ export default function AddDataSourceModal({
     
             <div className="space-y-6 relative flex-grow p-6 overflow-y-auto">
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Upload Files
                 </label>
                 <div
                   className={`border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors duration-200 min-h-[160px] flex items-center justify-center
-                    ${files.length > 0 ? 'border-blue-700/50 bg-blue-900/10' : 'border-zinc-700 hover:border-zinc-600 bg-[#0a101c]/30 hover:bg-[#0a101c]/60'}`}
+                    ${files.length > 0 ? 'border-[#000034]/50 bg-[#000034]/10' : 'border-gray-300 hover:border-[#000034] bg-gray-50 hover:bg-gray-100'}`}
                   onClick={() => fileInputRef.current?.click()}
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
@@ -168,27 +168,27 @@ export default function AddDataSourceModal({
                   />
 
                   {files.length > 0 ? (
-                    <div className="flex flex-col items-center text-zinc-200">
-                      <Check size={28} className="text-green-400 mb-2" />
+                    <div className="flex flex-col items-center text-gray-800">
+                      <Check size={28} className="text-green-600 mb-2" />
                       <p className="text-sm font-medium">
                         {files.length} file{files.length > 1 ? 's' : ''} selected
                       </p>
-                      <p className="text-xs text-zinc-400 mt-1">
+                      <p className="text-xs text-gray-600 mt-1">
                         Total size: {(files.reduce((acc, file) => acc + file.size, 0) / 1024).toFixed(1)} KB
                       </p>
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); resetForm(); }}
-                        className="mt-3 text-xs text-red-400 hover:underline"
+                        className="mt-3 text-xs text-red-600 hover:underline"
                       >
                         Clear selection
                       </button>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center text-zinc-400">
-                      <Upload size={28} className="text-zinc-500 mb-3" />
-                      <p className="text-sm font-medium text-zinc-300">Drag & drop a directory here</p>
-                      <p className="text-xs text-zinc-500 mt-1">Or click to browse and select a folder</p>
+                    <div className="flex flex-col items-center text-gray-600">
+                      <Upload size={28} className="text-gray-400 mb-3" />
+                      <p className="text-sm font-medium text-gray-700">Drag & drop a directory here</p>
+                      <p className="text-xs text-gray-500 mt-1">Or click to browse and select a folder</p>
                     </div>
                   )}
                 </div>
@@ -198,14 +198,14 @@ export default function AddDataSourceModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-5 py-2 bg-zinc-800/50 border border-zinc-700 text-zinc-300 rounded-md hover:bg-zinc-700/50 hover:border-zinc-600 transition-all"
+                  className="px-5 py-2 bg-gray-100 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-200 hover:border-gray-400 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isUploading || files.length === 0}
-                  className="px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-md hover:from-blue-500 hover:to-blue-600 transition-all shadow-md hover:shadow-lg border border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:from-zinc-600 disabled:to-zinc-700 disabled:border-zinc-500 flex items-center"
+                  className="px-5 py-2 bg-[#000034] text-white rounded-md hover:bg-[#000028] transition-all shadow-md hover:shadow-lg border border-[#000034] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:bg-gray-400 disabled:border-gray-400 flex items-center"
                 >
                   {isUploading ? (
                     <>
@@ -221,7 +221,7 @@ export default function AddDataSourceModal({
             </div>
 
             {uploadError && (
-              <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-md text-sm text-red-300 flex items-center">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800 flex items-center">
                 <AlertTriangle size={16} className="mr-2 flex-shrink-0"/>
                 {uploadError}
               </div>

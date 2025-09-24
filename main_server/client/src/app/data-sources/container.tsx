@@ -15,12 +15,12 @@ function SourcesPageContent() {
   const { dataSources, error, isLoading } = useDataSources();
 
   return (
-    <div className="flex h-full w-full bg-zinc-950 mt-12">
+    <div className="flex h-full w-full bg-white mt-12">
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-gray-900/50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-100">
           <div className="flex flex-col">
-            <h1 className="text-base font-mono uppercase tracking-wider text-gray-400 mb-0.5">
+            <h1 className="text-base font-mono uppercase tracking-wider text-gray-600 mb-0.5">
               Data Sources
             </h1>
           </div>
