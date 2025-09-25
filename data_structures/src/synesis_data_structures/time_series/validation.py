@@ -2,10 +2,9 @@ import pandas as pd
 from typing import Union
 from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_DATA_SECOND_LEVEL_ID,
-    TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID,
     TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID,
     TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID,
-    TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID,
+    ENTITY_METADATA_SECOND_LEVEL_ID,
     FEATURE_INFORMATION_SECOND_LEVEL_ID
 )
 from synesis_data_structures.time_series.df_dataclasses import (
@@ -35,7 +34,7 @@ def _validate_time_series_dataclass(data_structure: TimeSeriesStructure) -> None
     errors = []
 
     data_df = data_structure.time_series_data
-    metadata_df = data_structure.time_series_entity_metadata
+    metadata_df = data_structure.entity_metadata
     feature_info_df = data_structure.feature_information
 
     if data_df is None:
@@ -70,7 +69,7 @@ def _validate_time_series_dataclass(data_structure: TimeSeriesStructure) -> None
     if metadata_df is not None and not metadata_df.empty:
         if isinstance(metadata_df.index, pd.MultiIndex):
             errors.append(
-                f"{TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID} DataFrame must have single-level index")
+                f"{ENTITY_METADATA_SECOND_LEVEL_ID} DataFrame must have single-level index")
 
         data_entity_ids = set(data_df.index.get_level_values(0).unique())
         metadata_entity_ids = set(metadata_df.index.astype(str))
@@ -88,7 +87,7 @@ def _validate_time_series_dataclass(data_structure: TimeSeriesStructure) -> None
         for col in metadata_df.columns:
             if not _is_snake_case(col):
                 errors.append(
-                    f"Column '{col}' in {TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID} should follow snake_case naming convention")
+                    f"Column '{col}' in {ENTITY_METADATA_SECOND_LEVEL_ID} should follow snake_case naming convention")
 
     # Validate feature information if present
     if feature_info_df is not None and not feature_info_df.empty:
@@ -165,7 +164,7 @@ def _validate_time_series_aggregation_dataclass(data_structure: TimeSeriesAggreg
 
     outputs_df = data_structure.time_series_aggregation_outputs
     inputs_df = data_structure.time_series_aggregation_inputs
-    metadata_df = data_structure.time_series_aggregation_metadata
+    metadata_df = data_structure.entity_metadata
     feature_info_df = data_structure.feature_information
 
     if outputs_df is None:
@@ -232,7 +231,7 @@ def _validate_time_series_aggregation_dataclass(data_structure: TimeSeriesAggreg
     if metadata_df is not None and not metadata_df.empty:
         if isinstance(metadata_df.index, pd.MultiIndex):
             errors.append(
-                f"{TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID} DataFrame must have single-level index")
+                f"{ENTITY_METADATA_SECOND_LEVEL_ID} DataFrame must have single-level index")
 
         # Check that all aggregation IDs in outputs have corresponding metadata
         if 'id' in outputs_df.columns:
@@ -252,7 +251,7 @@ def _validate_time_series_aggregation_dataclass(data_structure: TimeSeriesAggreg
         for col in metadata_df.columns:
             if not _is_snake_case(col):
                 errors.append(
-                    f"Column '{col}' in {TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID} should follow snake_case naming convention")
+                    f"Column '{col}' in {ENTITY_METADATA_SECOND_LEVEL_ID} should follow snake_case naming convention")
 
     # Validate feature information if present
     if feature_info_df is not None and not feature_info_df.empty:

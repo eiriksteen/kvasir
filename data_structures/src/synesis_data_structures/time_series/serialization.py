@@ -9,15 +9,17 @@ from synesis_data_structures.time_series.schema import (
 )
 from synesis_data_structures.time_series.definitions import (
     FEATURE_INFORMATION_SECOND_LEVEL_ID,
-    TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID,
-    TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID,
+    ENTITY_METADATA_SECOND_LEVEL_ID,
+    TIME_SERIES_DATA_SECOND_LEVEL_ID,
     TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID,
     TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID,
     get_second_level_ids_for_structure
 )
 from synesis_data_structures.time_series.df_dataclasses import (
     TimeSeriesStructure,
-    TimeSeriesAggregationStructure
+    TimeSeriesAggregationStructure,
+    MetadataStructure,
+    TimeSeriesAggregationMetadataStructure
 )
 
 
@@ -64,17 +66,17 @@ def serialize_dataframes_to_parquet(data_structure: Union[TimeSeriesStructure, T
     if isinstance(data_structure, TimeSeriesStructure):
         first_level_id = "time_series"
         dataframes = {
-            "time_series_data": data_structure.time_series_data,
-            "time_series_entity_metadata": data_structure.time_series_entity_metadata,
-            "feature_information": data_structure.feature_information
+            TIME_SERIES_DATA_SECOND_LEVEL_ID: data_structure.time_series_data,
+            ENTITY_METADATA_SECOND_LEVEL_ID: data_structure.entity_metadata,
+            FEATURE_INFORMATION_SECOND_LEVEL_ID: data_structure.feature_information
         }
     elif isinstance(data_structure, TimeSeriesAggregationStructure):
         first_level_id = "time_series_aggregation"
         dataframes = {
-            "time_series_aggregation_outputs": data_structure.time_series_aggregation_outputs,
-            "time_series_aggregation_inputs": data_structure.time_series_aggregation_inputs,
-            "time_series_aggregation_metadata": data_structure.time_series_aggregation_metadata,
-            "feature_information": data_structure.feature_information
+            TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID: data_structure.time_series_aggregation_outputs,
+            TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID: data_structure.time_series_aggregation_inputs,
+            ENTITY_METADATA_SECOND_LEVEL_ID: data_structure.entity_metadata,
+            FEATURE_INFORMATION_SECOND_LEVEL_ID: data_structure.feature_information
         }
     else:
         raise ValueError(
@@ -107,7 +109,11 @@ def serialize_dataframes_to_parquet(data_structure: Union[TimeSeriesStructure, T
     return parquet_bytes
 
 
-def deserialize_parquet_to_dataframes(parquet_data: Dict[str, bytes], first_level_id: str) -> Union[TimeSeriesStructure, TimeSeriesAggregationStructure]:
+def deserialize_parquet_to_dataframes(
+    parquet_data: Dict[str, bytes],
+    first_level_id: str,
+    only_metadata: bool = False
+) -> Union[TimeSeriesStructure, TimeSeriesAggregationStructure, MetadataStructure, TimeSeriesAggregationMetadataStructure]:
     """
     Deserialize parquet data back to a dataclass data structure.
 
@@ -119,7 +125,7 @@ def deserialize_parquet_to_dataframes(parquet_data: Dict[str, bytes], first_leve
         first_level_id: The first level ID of the data structure
 
     Returns:
-        A TimeSeriesStructure or TimeSeriesAggregationStructure instance
+        A TimeSeriesStructure or TimeSeriesAggregationStructure or MetadataStructure or TimeSeriesAggregationMetadataStructure instance
     """
 
     # Get the expected second level IDs for this structure
@@ -143,22 +149,38 @@ def deserialize_parquet_to_dataframes(parquet_data: Dict[str, bytes], first_leve
 
     # Convert to appropriate dataclass
     if first_level_id == "time_series":
-        return TimeSeriesStructure(
-            time_series_data=dataframes.get("time_series_data"),
-            time_series_entity_metadata=dataframes.get(
-                "time_series_entity_metadata"),
-            feature_information=dataframes.get("feature_information")
+        metadata = MetadataStructure(
+            entity_metadata=dataframes.get(ENTITY_METADATA_SECOND_LEVEL_ID),
+            feature_information=dataframes.get(
+                FEATURE_INFORMATION_SECOND_LEVEL_ID)
         )
+        if only_metadata:
+            return metadata
+        else:
+            assert TIME_SERIES_DATA_SECOND_LEVEL_ID in dataframes, "No time series data provided, can only return metadata"
+            return TimeSeriesStructure(
+                time_series_data=dataframes.get(
+                    TIME_SERIES_DATA_SECOND_LEVEL_ID),
+                **metadata
+            )
+
     elif first_level_id == "time_series_aggregation":
-        return TimeSeriesAggregationStructure(
-            time_series_aggregation_outputs=dataframes.get(
-                "time_series_aggregation_outputs"),
+        metadata = MetadataStructure(
+            entity_metadata=dataframes.get(ENTITY_METADATA_SECOND_LEVEL_ID),
+            feature_information=dataframes.get(
+                FEATURE_INFORMATION_SECOND_LEVEL_ID),
             time_series_aggregation_inputs=dataframes.get(
-                "time_series_aggregation_inputs"),
-            time_series_aggregation_metadata=dataframes.get(
-                "time_series_aggregation_metadata"),
-            feature_information=dataframes.get("feature_information")
+                TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID)
         )
+        if only_metadata:
+            return metadata
+        else:
+            assert TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID in dataframes and TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID in dataframes, "No aggregation data provided, can only return metadata"
+            return TimeSeriesAggregationStructure(
+                time_series_aggregation_outputs=dataframes.get(
+                    TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID),
+                **metadata
+            )
     else:
         raise ValueError(f"Unsupported first level ID: {first_level_id}")
 
@@ -168,7 +190,7 @@ def deserialize_parquet_to_dataframes(parquet_data: Dict[str, bytes], first_leve
 def _serialize_time_series_dataclass_to_api_payload(data_structure: TimeSeriesStructure) -> List[TimeSeries]:
     """Convert TimeSeriesStructure to TimeSeries API payloads."""
     data_df = data_structure.time_series_data
-    metadata_df = data_structure.time_series_entity_metadata
+    metadata_df = data_structure.entity_metadata
     feature_info_df = data_structure.feature_information
 
     if data_df is None:
@@ -199,7 +221,7 @@ def _serialize_time_series_dataclass_to_api_payload(data_structure: TimeSeriesSt
         if metadata_df is not None and not metadata_df.empty and entity_id in metadata_df.index:
             entity_metadata = metadata_df.loc[entity_id]
             additional_variables = {
-                "entity_metadata": entity_metadata.to_dict()
+                ENTITY_METADATA_SECOND_LEVEL_ID: entity_metadata.to_dict()
             }
 
         # Prepare feature_information if available
@@ -235,7 +257,7 @@ def _serialize_time_series_aggregation_dataclass_to_api_payload(data_structure: 
     """Convert TimeSeriesAggregationStructure to TimeSeriesAggregation API payloads."""
     outputs_df = data_structure.time_series_aggregation_outputs
     inputs_df = data_structure.time_series_aggregation_inputs
-    metadata_df = data_structure.time_series_aggregation_metadata
+    metadata_df = data_structure.entity_metadata
     feature_info_df = data_structure.feature_information
 
     if outputs_df is None:
@@ -291,7 +313,7 @@ def _serialize_time_series_aggregation_dataclass_to_api_payload(data_structure: 
         if metadata_df is not None and not metadata_df.empty and str(agg_id) in metadata_df.index:
             agg_metadata = metadata_df.loc[str(agg_id)]
             additional_variables = {
-                "aggregation_metadata": agg_metadata.to_dict()
+                ENTITY_METADATA_SECOND_LEVEL_ID: agg_metadata.to_dict()
             }
 
         # Prepare feature_information for outputs if available

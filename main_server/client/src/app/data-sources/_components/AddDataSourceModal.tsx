@@ -1,0 +1,234 @@
+import { useDataSources } from "@/hooks/useDataSources";
+import { useSession } from "next-auth/react";
+import { useState, useRef, useEffect } from 'react';
+import { Plus, X, Upload, Check, AlertTriangle, Loader2 } from 'lucide-react';
+import { SupportedSource } from "@/types/data-sources";
+import SourceTypeIcon from "@/app/data-sources/_components/SourceTypeIcon";
+
+// Add Data Source Modal
+export default function AddDataSourceModal({ 
+  isOpen, 
+  onClose, 
+  selectedSourceType 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  selectedSourceType: SupportedSource | null; 
+  setSelectedSourceType: (sourceType: SupportedSource | null) => void; 
+}) {
+  const { triggerCreateFileDataSource } = useDataSources();
+  const { data: session } = useSession();
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  // Handle escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const selectedFiles = Array.from(e.target.files);
+
+      if (selectedFiles.length === 0) {
+        setUploadError("No files selected or directory is empty.");
+        setFiles([]);
+        return;
+      }
+
+      setFiles(selectedFiles);
+      setUploadError(null);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const droppedFiles = Array.from(e.dataTransfer.files);
+      setFiles(droppedFiles);
+      setUploadError(null);
+    }
+  };
+
+  const resetForm = () => {
+    setFiles([]);
+    setUploadError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (files.length === 0) {
+      setUploadError('Please select a directory containing files');
+      return;
+    }
+
+    if (!session) {
+      setUploadError('Session expired. Please log in again.');
+      return;
+    }
+
+    setUploadError(null);
+    setIsUploading(true);
+
+    try {
+      await triggerCreateFileDataSource({
+        files: files,
+      });
+      resetForm();
+      onClose();
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "An unknown error occurred during upload");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      resetForm();
+    }
+  }, [isOpen]);
+
+  if (!isOpen || !selectedSourceType) return null;
+
+  return (
+    <>
+      <div 
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+        onClick={onClose}
+      />
+      
+      <div className="fixed inset-4 z-50 flex items-center justify-center">
+        <div className="relative bg-white rounded-xl border-2 border-gray-200 w-full max-w-6xl h-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="relative flex items-center p-6 border-b border-gray-200 flex-shrink-0">
+              {SourceTypeIcon(selectedSourceType, 16)}
+              <h3 className="text-base font-mono uppercase tracking-wider text-gray-600 flex-grow pl-3">
+                Add {selectedSourceType}
+              </h3>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                title="Close modal"
+              >
+                <X size={20} />
+              </button>
+            </div>
+    
+            <div className="space-y-6 relative flex-grow p-6 overflow-y-auto">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Upload Files
+                </label>
+                <div
+                  className={`border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors duration-200 min-h-[160px] flex items-center justify-center
+                    ${files.length > 0 ? 'border-[#000034]/50 bg-[#000034]/10' : 'border-gray-300 hover:border-[#000034] bg-gray-50 hover:bg-gray-100'}`}
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                >
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"  
+                    {...({ webkitdirectory: "true", mozdirectory: "true", directory: "true", multiple: true })}
+                  />
+
+                  {files.length > 0 ? (
+                    <div className="flex flex-col items-center text-gray-800">
+                      <Check size={28} className="text-green-600 mb-2" />
+                      <p className="text-sm font-medium">
+                        {files.length} file{files.length > 1 ? 's' : ''} selected
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Total size: {(files.reduce((acc, file) => acc + file.size, 0) / 1024).toFixed(1)} KB
+                      </p>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); resetForm(); }}
+                        className="mt-3 text-xs text-red-600 hover:underline"
+                      >
+                        Clear selection
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center text-gray-600">
+                      <Upload size={28} className="text-gray-400 mb-3" />
+                      <p className="text-sm font-medium text-gray-700">Drag & drop a directory here</p>
+                      <p className="text-xs text-gray-500 mt-1">Or click to browse and select a folder</p>
+                    </div>
+                  )}
+                </div>
+              </div>  
+
+              <div className="flex justify-end pt-2 gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-5 py-2 bg-gray-100 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-200 hover:border-gray-400 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUploading || files.length === 0}
+                  className="px-5 py-2 bg-[#000034] text-white rounded-md hover:bg-[#000028] transition-all shadow-md hover:shadow-lg border border-[#000034] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:bg-gray-400 disabled:border-gray-400 flex items-center"
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin mr-2" /> Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={16} className="mr-1.5" />Add Data Source
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {uploadError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800 flex items-center">
+                <AlertTriangle size={16} className="mr-2 flex-shrink-0"/>
+                {uploadError}
+              </div>
+            )}
+          </form>
+        </div>
+      </div>
+    </>
+  );
+}

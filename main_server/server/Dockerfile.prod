@@ -1,0 +1,23 @@
+# NB: Assumes build context is the root of the project (where the docker-compose file is).
+
+FROM python:3.13-slim
+
+WORKDIR /app
+
+COPY schemas /app/schemas
+
+# Copy the data_structures package first for better caching
+COPY data_structures /app/data_structures
+
+# Copy the api project files
+COPY api /app
+
+# Install synesis data structures package from source and the main package
+RUN pip install --upgrade pip && \
+    pip install /app/data_structures && \
+    pip install -e /app/schemas && \
+    pip install -e .
+
+EXPOSE 8000
+
+CMD ["uvicorn", "src.synesis_api.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,123 @@
+'use client';
+
+import React from 'react';
+import { Database, Plus, BarChart3, Zap, Folder, Brain } from 'lucide-react';
+
+type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_entity';
+
+interface AddEntityButtonProps {
+    type: ItemType;
+    size?: number;
+    onAdd: () => void;
+}
+
+interface Style {
+    bg: string;
+    border: string;
+    text: string;
+    icon: string;
+    hover: string;
+    buttonHover: string;
+    buttonBg: string;
+    plusBg: string;
+    plusBorder: string;
+    symbol: React.ReactNode;
+}
+
+
+export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityButtonProps) {
+    const getStyleFromType = (type: 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_entity'): Style => {
+        switch (type) {
+            case 'dataset':
+                return {
+                    bg: 'bg-[#0E4F70]/10',
+                    border: 'border-[#0E4F70]',
+                    text: 'text-gray-700',
+                    icon: 'text-[#0E4F70]',
+                    hover: 'hover:bg-[#0E4F70]/20',
+                    buttonHover: 'hover:bg-[#0E4F70]/30',
+                    buttonBg: 'bg-[#0E4F70]/10',
+                    plusBg: 'bg-[#0E4F70]',
+                    plusBorder: 'border-[#0E4F70]/50',
+                    symbol: <Folder size={size} />,
+                };
+            case 'data_source':
+                return {
+                    bg: 'bg-gray-50',
+                    border: 'border-gray-600',
+                    text: 'text-gray-700',
+                    icon: 'text-gray-600',
+                    hover: 'hover:bg-gray-100',
+                    buttonHover: 'hover:bg-gray-200',
+                    buttonBg: 'bg-gray-100',
+                    plusBg: 'bg-gray-600',
+                    plusBorder: 'border-gray-300',
+                    symbol: <Database size={size} />,
+                };
+            case 'analysis':
+                return {
+                    bg: 'bg-[#004806]/10',
+                    border: 'border-[#004806]',
+                    text: 'text-gray-700',
+                    icon: 'text-[#004806]',
+                    hover: 'hover:bg-[#004806]/20',
+                    buttonHover: 'hover:bg-[#004806]/30',
+                    buttonBg: 'bg-[#004806]/10',
+                    plusBg: 'bg-[#004806]',
+                    plusBorder: 'border-[#004806]/50',
+                    symbol: <BarChart3 size={size} />,
+                };
+            case 'pipeline':
+                return {
+                    bg: 'bg-[#840B08]/10',
+                    border: 'border-[#840B08]',
+                    text: 'text-gray-700',
+                    icon: 'text-[#840B08]',
+                    hover: 'hover:bg-[#840B08]/20',
+                    buttonHover: 'hover:bg-[#840B08]/30',
+                    buttonBg: 'bg-[#840B08]/10',
+                    plusBg: 'bg-[#840B08]',
+                    plusBorder: 'border-[#840B08]/50',
+                    symbol: <Zap size={size} />,
+
+                };
+            case 'model_entity':
+                return {
+                    bg: 'bg-[#491A32]/10',
+                    border: 'border-[#491A32]',
+                    text: 'text-gray-700',
+                    icon: 'text-[#491A32]',
+                    hover: 'hover:bg-[#491A32]/20',
+                    buttonHover: 'hover:bg-[#491A32]/30',
+                    buttonBg: 'bg-[#491A32]/10',
+                    plusBg: 'bg-[#491A32]',
+                    plusBorder: 'border-[#491A32]/50',
+                    symbol: <Brain size={size} />,
+                };
+            }
+        };
+
+        const colors = getStyleFromType(type);
+        const badgeClass = "absolute top-[-8px] right-[-8px] rounded-full p-0.5 z-10";
+
+        return (
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onAdd();
+                }}
+                className={`p-1.5 rounded-md inline-flex items-center justify-center min-w-[32px] min-h-[32px] ${colors.buttonBg} border ${colors.border} transition-all duration-200 ${colors.buttonHover} hover:scale-105`}
+                title={`Add ${type.slice(0, -1)}`}
+            >
+            <div className={colors.icon}>
+                <div className="relative overflow-visible">
+                    {colors.symbol}
+                    <div className={badgeClass + " " + colors.plusBg + " border " + colors.plusBorder}>
+                        <Plus size={size * 0.35} className="text-white" />
+                    </div>
+                    </div>
+                </div>
+            </button>
+        );
+    };
+

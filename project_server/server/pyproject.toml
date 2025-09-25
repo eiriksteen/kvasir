@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "project-server"
+version = "0.1.0"
+description = "Project Server API"
+authors = [
+    { name = "Eirik Drage Steen", email = "eirik.drage.steen@gmail.com" }
+]
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "fastapi[standard]",
+    "uvicorn",
+    "pydantic",
+    "httpx",
+    "aiofiles",
+    "mcp[cli]",
+    "numpy",
+    "torch",
+    "pandas",
+    "scikit-learn",
+    "transformers",
+    "xgboost",
+    "lightgbm",
+    "catboost",
+    "tensorflow",
+    "keras",
+    "scipy",
+    "statsmodels",
+    "arch",
+    "prophet",
+    "tslearn",
+    "pyts",
+    "tsfresh",
+    "feature-engine",
+    "category-encoders",
+    "darts",
+    "sktime",
+    "pytest",
+    "black",
+    "flake8",
+    "pylint",
+    "mypy",
+    "requests",
+    "aiohttp",
+    "docker",
+    "redis",
+    "psycopg2-binary",
+    "sqlalchemy",
+    "PyJWT",
+    "cryptography",
+    "taskiq[reload]",
+    "taskiq-redis",
+    "pydantic-ai",
+    "beautifulsoup4"
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["project_server"]

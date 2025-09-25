@@ -1,0 +1,38 @@
+import Image from 'next/image';
+import { SupportedSource } from '@/types/data-sources';
+
+
+// type sourceTypeObject = {
+//     available: boolean,
+//     icon: React.ReactNode,
+// }
+
+type sourceInfo = {
+    available: boolean,
+}
+
+export const sourceTypes: Record<SupportedSource, sourceInfo> = {
+    'file': { available: true},
+    's3': { available: false},
+    'azure': { available: false},
+    'gcp': { available: false},
+    'psql': { available: false},
+    'mongodb': { available: false},
+};
+
+export default function SourceTypeIcon(sourceType: SupportedSource, size: number) {
+    switch (sourceType) {
+        case 'file':
+            return <Image src="/file.svg" alt="File" width={size} height={size} />;
+        case 's3':
+            return <Image src="/s3.png" alt="AWS S3" width={size} height={size} />;
+        case 'azure':
+            return <Image src="/azure.png" alt="Azure Blob Storage" width={size} height={size} />;
+        case 'gcp':
+            return <Image src="/gcloud.png" alt="Google Cloud Storage" width={size} height={size} />;
+        case 'psql':
+            return <Image src="/psql.png" alt="PostgreSQL Database" width={size} height={size} />;
+        case 'mongodb':
+            return <Image src="/MongoDB.svg" alt="MongoDB Database" width={size} height={size} />;
+    }
+}

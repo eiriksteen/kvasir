@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.0-pg17-bookworm
+    container_name: synesis-db
+    environment:
+      POSTGRES_DB: synesis
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  redis:
+    image: redis:latest
+    container_name: synesis-redis
+    networks:
+      - backend
+
+  backend:
+    &backend
+    build:
+      context: ../..
+      dockerfile: main_server/api/Dockerfile.prod  
+    container_name: synesis-backend
+    networks:
+      - backend
+      - frontend
+    depends_on:
+      - db
+      - redis
+
+  taskiq-worker:
+    <<: *backend
+    container_name: synesis-taskiq-worker
+    working_dir: /app/src
+    command: taskiq worker synesis_api.worker:broker -tp='**/runner.py' -fsd
+    networks:
+      - backend
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: main_server/client/Dockerfile.prod
+    container_name: synesis-client
+    networks:
+      - frontend
+    depends_on:
+      - backend
+
+  proxy:
+    image: nginx:latest
+    container_name: synesis-proxy
+    ports:
+      - "80:80"
+    networks:
+      - frontend
+    depends_on:
+      - backend
+      - frontend
+    volumes:
+      - type: bind
+        source: ../proxy/nginx.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
+
+volumes:
+  postgres_data:
+
+networks:
+  backend:
+    driver: bridge
+  frontend:
+    driver: bridge

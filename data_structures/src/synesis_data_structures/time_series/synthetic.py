@@ -183,7 +183,7 @@ def _generate_synthetic_time_series_data(
 
     return TimeSeriesStructure(
         time_series_data=time_series_data,
-        time_series_entity_metadata=time_series_entity_metadata,
+        entity_metadata=time_series_entity_metadata,
         feature_information=feature_information
     )
 
@@ -212,7 +212,7 @@ def _generate_synthetic_time_series_aggregation_data(
 
     # Extract the time series data
     ts_data = time_series_structure.time_series_data
-    ts_metadata = time_series_structure.time_series_entity_metadata
+    ts_metadata = time_series_structure.entity_metadata
 
     # Get unique entities and their data
     entities = ts_data.index.get_level_values('entity').unique()
@@ -399,6 +399,6 @@ def _generate_synthetic_time_series_aggregation_data(
     return TimeSeriesAggregationStructure(
         time_series_aggregation_outputs=aggregation_outputs_df,
         time_series_aggregation_inputs=aggregation_inputs_df,
-        time_series_aggregation_metadata=aggregation_metadata_df,
+        entity_metadata=aggregation_metadata_df,
         feature_information=aggregation_feature_information
     )
