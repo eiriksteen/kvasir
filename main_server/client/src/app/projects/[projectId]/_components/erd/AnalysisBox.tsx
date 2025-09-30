@@ -29,7 +29,7 @@ export default function AnalysisBox({ analysis, onClick }: AnalysisBoxProps) {
           <div className="text-[#004806] font-mono text-xs">Analysis</div>
         </div>
         <div>
-          <div className="text-sm font-mono text-gray-800 truncate">{analysis.name}</div>
+          <div className="text-xs font-mono text-gray-800 truncate">{analysis.name}</div>
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@ from fastapi import APIRouter, UploadFile, Form, File, Depends
 from uuid import UUID
 
 from synesis_schemas.project_server import FileSavedAPI
-from project_server.file_manager import file_manager
+from project_server.entity_manager import file_manager
 from project_server.auth import TokenData, decode_token
 
 

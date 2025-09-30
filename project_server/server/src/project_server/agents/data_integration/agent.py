@@ -13,14 +13,13 @@ model = get_model()
 
 data_integration_agent = Agent(
     model,
-    output_type=submit_data_integration_output,
     model_settings=ModelSettings(temperature=0),
     tools=[
         execute_python_code,
         get_data_structures_overview_tool,
         get_data_structure_description_tool
     ],
-    retries=5
+    retries=2
 )
 
 

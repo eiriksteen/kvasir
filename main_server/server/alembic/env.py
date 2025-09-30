@@ -27,10 +27,13 @@ from synesis_api.modules.orchestrator.models import (
     data_source_context
 )
 from synesis_api.modules.pipeline.models import (
-    pipeline, pipeline_from_dataset, pipeline_from_model_entity, pipeline_periodic_schedule, pipeline_on_event_schedule, pipeline_run, pipeline_run_object_group_result, pipeline_run_variables_result, function_in_pipeline
+    pipeline, pipeline_from_dataset, pipeline_from_model_entity, pipeline_periodic_schedule, pipeline_on_event_schedule, pipeline_run, pipeline_run_object_group_result,
+    pipeline_run_variable_group_result, function_in_pipeline, function_in_pipeline_object_group_mapping,
+    pipeline_object_group_output_to_save, pipeline_variable_group_output_to_save
 )
 from synesis_api.modules.function.models import (
-    function, function_input_structure, function_output_structure, function_output_variable
+    function, function_input_object_group_definition, function_output_object_group_definition, function_output_variable_definition,
+    function_definition
 )
 from synesis_api.modules.model.models import (
     model, model_entity
@@ -63,6 +66,8 @@ __all__ = [
     variable,
     data_source,
     tabular_file_data_source,
+    pipeline_object_group_output_to_save,
+    pipeline_variable_group_output_to_save,
     run,
     run_message,
     run_pydantic_message,
@@ -98,12 +103,14 @@ __all__ = [
     pipeline_on_event_schedule,
     pipeline_run,
     pipeline_run_object_group_result,
-    pipeline_run_variables_result,
+    pipeline_run_variable_group_result,
     function_in_pipeline,
+    function_in_pipeline_object_group_mapping,
+    function_definition,
     function,
-    function_input_structure,
-    function_output_structure,
-    function_output_variable,
+    function_input_object_group_definition,
+    function_output_object_group_definition,
+    function_output_variable_definition,
     model,
     model_entity,
     model_source,

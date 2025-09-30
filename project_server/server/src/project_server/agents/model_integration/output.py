@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, field_validator
 
-from synesis_schemas.main_server import FunctionInputStructureCreate, FunctionOutputStructureCreate, FunctionOutputVariableCreate, ModelCreate, ModelSourceCreate, PypiModelSourceCreate
+from synesis_schemas.main_server import FunctionInputObjectGroupDefinitionCreate, FunctionOutputObjectGroupDefinitionCreate, FunctionOutputVariableDefinitionCreate, ModelCreate, ModelSourceCreate, PypiModelSourceCreate
 from synesis_schemas.main_server import SUPPORTED_MODALITIES_TYPE, SUPPORTED_TASK_TYPE
 
 
@@ -27,9 +27,9 @@ class ModelFunctionDescription(BaseModel):
     name: str
     description: str
     default_args: Dict[str, Any]
-    input_structures: List[FunctionInputStructureCreate]
-    output_structures: List[FunctionOutputStructureCreate]
-    output_variables: List[FunctionOutputVariableCreate]
+    input_object_groups: List[FunctionInputObjectGroupDefinitionCreate]
+    output_object_groups: List[FunctionOutputObjectGroupDefinitionCreate]
+    output_variables: List[FunctionOutputVariableDefinitionCreate]
 
 
 class ModelDescription(BaseModel):

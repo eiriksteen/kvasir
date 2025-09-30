@@ -31,7 +31,7 @@ def get_last_script_message_index(messages: list[ModelMessage]) -> dict[str, int
 
 
 async def keep_only_most_recent_script(
-        ctx: RunContext[SWEAgentDeps],
+        _: RunContext[SWEAgentDeps],
         messages: list[ModelMessage]) -> list[ModelMessage]:
     """
     Keep only the most recent script in the history.
@@ -68,20 +68,6 @@ async def keep_only_most_recent_script(
         updated_messages.append(message_to_add)
 
     updated_messages = updated_messages[::-1]
-
-    if ctx.deps.logger:
-        ctx.deps.logger.info(
-            "================================================")
-        ctx.deps.logger.info("THE UNMODIFIED MESSAGES ARE: ")
-        ctx.deps.logger.info(messages)
-        ctx.deps.logger.info(
-            "================================================")
-        ctx.deps.logger.info(
-            "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-        ctx.deps.logger.info("THE MESSAGES BEING SENT ARE: ")
-        ctx.deps.logger.info(updated_messages)
-        ctx.deps.logger.info(
-            "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 
     return updated_messages
 

@@ -11,7 +11,10 @@ from synesis_api.modules.pipeline.models import (
     pipeline_on_event_schedule,
     pipeline_from_dataset,
     pipeline_from_model_entity,
-    pipeline_run
+    pipeline_run,
+    pipeline_object_group_output_to_save,
+    pipeline_variable_group_output_to_save,
+    function_in_pipeline_object_group_mapping
 )
 from synesis_api.modules.function.service import get_functions
 from synesis_schemas.main_server import (
@@ -23,6 +26,9 @@ from synesis_schemas.main_server import (
     PipelineSources,
     PipelineFromDatasetInDB,
     PipelineFromModelEntityInDB,
+    PipelineObjectGroupOutputToSaveInDB,
+    PipelineVariableGroupOutputToSaveInDB,
+    FunctionInPipelineObjectGroupMappingInDB,
 )
 from synesis_api.modules.project.service import get_pipeline_ids_in_project
 
@@ -37,6 +43,12 @@ async def create_pipeline(
         user_id=user_id,
         name=pipeline_create.name,
         description=pipeline_create.description,
+        implementation_script_path=pipeline_create.implementation_script_path,
+        args_dataclass_name=pipeline_create.args_dataclass_name,
+        input_dataclass_name=pipeline_create.input_dataclass_name,
+        output_dataclass_name=pipeline_create.output_dataclass_name,
+        output_variables_dataclass_name=pipeline_create.output_variables_dataclass_name,
+        args_dict=pipeline_create.args_dict,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
     )
@@ -64,21 +76,63 @@ async def create_pipeline(
     # TODO: Add on-event schedules
 
     fn_in_pipeline_records = []
+    output_object_group_to_save_records = []
+    output_variable_group_to_save_records = []
+    input_variable_mapping_records = []
 
-    for i, function in enumerate(pipeline_create.functions):
+    for pipeline_function_create in pipeline_create.functions:
         function_in_pipeline_obj = FunctionInPipelineInDB(
             id=uuid.uuid4(),
             pipeline_id=pipeline_obj.id,
-            function_id=function.function_id,
-            position=i,
-            config=function.config,
+            function_id=pipeline_function_create.function_id,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
         )
         fn_in_pipeline_records.append(function_in_pipeline_obj.model_dump())
 
+        for output_object_group_to_save_id in pipeline_function_create.output_object_groups_to_save_ids:
+            pipeline_object_group_output_to_save_obj = PipelineObjectGroupOutputToSaveInDB(
+                id=uuid.uuid4(),
+                pipeline_id=pipeline_obj.id,
+                object_group_desc_id=output_object_group_to_save_id,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
+            )
+            output_object_group_to_save_records.append(
+                pipeline_object_group_output_to_save_obj.model_dump())
+
+        for output_variable_group_to_save_id in pipeline_function_create.output_variable_groups_to_save_ids:
+            pipeline_variable_group_output_to_save_obj = PipelineVariableGroupOutputToSaveInDB(
+                id=uuid.uuid4(),
+                pipeline_id=pipeline_obj.id,
+                variable_group_desc_id=output_variable_group_to_save_id,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
+            )
+            output_variable_group_to_save_records.append(
+                pipeline_variable_group_output_to_save_obj.model_dump())
+
+        for input_variable_mapping in pipeline_function_create.input_variable_mappings:
+            pipeline_input_variable_mapping_obj = FunctionInPipelineObjectGroupMappingInDB(
+                id=uuid.uuid4(),
+                pipeline_id=pipeline_obj.id,
+                from_function_output_object_group_id=input_variable_mapping.from_function_output_object_group_id,
+                from_dataset_object_group_id=input_variable_mapping.from_dataset_object_group_id,
+                to_function_input_object_group_id=input_variable_mapping.to_function_input_object_group_id,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
+            )
+            input_variable_mapping_records.append(
+                pipeline_input_variable_mapping_obj.model_dump())
+
     if len(fn_in_pipeline_records) > 0:
         await execute(insert(function_in_pipeline).values(fn_in_pipeline_records), commit_after=True)
+    if len(output_object_group_to_save_records) > 0:
+        await execute(insert(pipeline_object_group_output_to_save).values(output_object_group_to_save_records), commit_after=True)
+    if len(output_variable_group_to_save_records) > 0:
+        await execute(insert(pipeline_variable_group_output_to_save).values(output_variable_group_to_save_records), commit_after=True)
+    if len(input_variable_mapping_records) > 0:
+        await execute(insert(function_in_pipeline_object_group_mapping).values(input_variable_mapping_records), commit_after=True)
 
     pipeline_from_dataset_records = [PipelineFromDatasetInDB(
         pipeline_id=pipeline_obj.id,
@@ -128,7 +182,7 @@ async def get_user_pipelines(
 
     # functions in the pipelines
     functions_in_pipelines_query = select(function_in_pipeline).where(
-        function_in_pipeline.c.pipeline_id.in_(pipeline_ids)).order_by(function_in_pipeline.c.position)
+        function_in_pipeline.c.pipeline_id.in_(pipeline_ids))
     functions_in_pipelines = await fetch_all(functions_in_pipelines_query)
 
     function_records = await get_functions(

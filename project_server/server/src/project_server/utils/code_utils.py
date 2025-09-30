@@ -1,12 +1,14 @@
 import re
-import json
+import ast
 import sys
 import asyncio
 import tempfile
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 from pylint import lint
 from io import StringIO
+
+from project_server.worker import logger
 
 
 def parse_code(python_code: str) -> str:
@@ -41,8 +43,9 @@ async def run_python_code_in_container(
     )
 
     out, err = await process.communicate(python_code_parsed.encode('utf-8'))
+    err_str = err.decode("utf-8") if process.returncode != 0 else ""
 
-    return out.decode("utf-8"), err.decode("utf-8")
+    return out.decode("utf-8"), err_str
 
 
 async def run_python_function_in_container(
@@ -53,7 +56,7 @@ async def run_python_function_in_container(
         source_module: Optional[str] = None,
         print_output: bool = False,
         async_function: bool = False
-):
+) -> Tuple[str, str]:
     """
     Run a Python function in the container. 
     Wrote this function to avoid writing raw code inside strings all over.
@@ -247,3 +250,58 @@ def remove_print_statements_from_code(code: str) -> str:
     cleaned_lines = [line for line in lines if line.strip()]
 
     return '\n'.join(cleaned_lines)
+
+
+def extract_dataclass_definition(source_code: str) -> List[str]:
+    tree = ast.parse(source_code)
+    dataclass_definitions = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            for decorator in node.decorator_list:
+                if isinstance(decorator, ast.Name) and decorator.id == "dataclass":
+                    source_segment = ast.get_source_segment(source_code, node)
+                    if source_segment:
+                        dataclass_definitions.append(source_segment)
+                elif isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Name) and decorator.func.id == "dataclass":
+                    source_segment = ast.get_source_segment(source_code, node)
+                    if source_segment:
+                        dataclass_definitions.append(source_segment)
+
+    return dataclass_definitions
+
+
+def extract_function_definitions(source_code: str) -> List[str]:
+    tree = ast.parse(source_code)
+    function_summaries = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            func_name = node.name
+
+            params = []
+            for arg in node.args.args:
+                param_name = arg.arg
+                param_type = ast.unparse(
+                    arg.annotation) if arg.annotation else "Any"
+                params.append(f"{param_name}: {param_type}")
+            for kwarg in node.args.kwonlyargs:
+                param_name = kwarg.arg
+                param_type = ast.unparse(
+                    kwarg.annotation) if kwarg.annotation else "Any"
+                params.append(f"{param_name}: {param_type} (keyword-only)")
+
+            return_type = ast.unparse(node.returns) if node.returns else "Any"
+
+            summary = f"Function: {func_name}\n\n"
+            summary += "  Parameters:\n"
+            if params:
+                for param in params:
+                    summary += f"    - {param}\n"
+            else:
+                summary += "    - None\n"
+            summary += f"\nReturn Type: {return_type}"
+
+            function_summaries.append(summary)
+
+    return function_summaries

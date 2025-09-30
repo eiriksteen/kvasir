@@ -5,7 +5,7 @@ from typing import Union, List, Tuple
 import pandas as pd
 from abc import ABC, abstractmethod
 
-from project_server.dataset_manager.dataclasses import (
+from .dataclasses import (
     DatasetCreateWithRawData,
     ObjectGroupCreateWithRawData,
     DatasetWithRawData,
@@ -14,7 +14,7 @@ from project_server.dataset_manager.dataclasses import (
 )
 from project_server.client import ProjectClient
 from project_server.client.requests.data_objects import post_dataset
-from project_server.client.client import FileInput
+from project_server.client import FileInput
 
 from synesis_schemas.main_server import (
     DatasetCreate,
@@ -68,9 +68,7 @@ class AbstractDatasetManager(ABC):
     async def upload_dataset(
         self,
         dataset: DatasetCreateWithRawData,
-        data_source_ids: List[uuid.UUID],
-        source_dataset_ids: List[uuid.UUID],
-        pipeline_ids: List[uuid.UUID],
+        sources: DatasetSources,
         output_json: bool = False
     ) -> Union[str, DatasetWithRawData]:
         """
@@ -133,16 +131,16 @@ class AbstractDatasetManager(ABC):
         group_save_paths: List[Tuple[Path, pd.DataFrame]] = []
 
         # Note that we only append the metadata files and not the raw data, since we keep the raw data here at the project server
-        if isinstance(group.structure, TimeSeriesStructure):
+        if isinstance(group.data, TimeSeriesStructure):
 
             time_series_save_path = group_save_path / \
                 f"{TIME_SERIES_DATA_SECOND_LEVEL_ID}.parquet"
             group_save_paths.append(
-                (time_series_save_path, group.structure.time_series_data))
+                (time_series_save_path, group.data.time_series_data))
 
-            if group.structure.entity_metadata is not None and not group.structure.entity_metadata.empty:
+            if group.data.entity_metadata is not None and not group.data.entity_metadata.empty:
                 buffer = BytesIO()
-                group.structure.entity_metadata.to_parquet(buffer, index=True)
+                group.data.entity_metadata.to_parquet(buffer, index=True)
                 buffer.seek(0)
                 filename = f"{ENTITY_METADATA_SECOND_LEVEL_ID}.parquet"
                 files.append(FileInput(
@@ -159,11 +157,11 @@ class AbstractDatasetManager(ABC):
                     )
                 )
                 group_save_paths.append(
-                    (group_save_path / filename, group.structure.entity_metadata))
+                    (group_save_path / filename, group.data.entity_metadata))
 
-            if group.structure.feature_information is not None and not group.structure.feature_information.empty:
+            if group.data.feature_information is not None and not group.data.feature_information.empty:
                 buffer = BytesIO()
-                group.structure.feature_information.to_parquet(
+                group.data.feature_information.to_parquet(
                     buffer, index=True)
                 buffer.seek(0)
                 filename = f"{FEATURE_INFORMATION_SECOND_LEVEL_ID}.parquet"
@@ -182,18 +180,18 @@ class AbstractDatasetManager(ABC):
                 )
 
                 group_save_paths.append(
-                    (group_save_path / filename, group.structure.feature_information))
+                    (group_save_path / filename, group.data.feature_information))
 
-        elif isinstance(group.structure, TimeSeriesAggregationStructure):
+        elif isinstance(group.data, TimeSeriesAggregationStructure):
 
             time_series_aggregation_outputs_save_path = group_save_path / \
                 f"{TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID}.parquet"
             group_save_paths.append(
-                (time_series_aggregation_outputs_save_path, group.structure.time_series_aggregation_outputs))
+                (time_series_aggregation_outputs_save_path, group.data.time_series_aggregation_outputs))
 
-            if group.structure.time_series_aggregation_inputs is not None and not group.structure.time_series_aggregation_inputs.empty:
+            if group.data.time_series_aggregation_inputs is not None and not group.data.time_series_aggregation_inputs.empty:
                 buffer = BytesIO()
-                group.structure.time_series_aggregation_inputs.to_parquet(
+                group.data.time_series_aggregation_inputs.to_parquet(
                     buffer, index=True)
                 buffer.seek(0)
                 filename = f"{TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID}.parquet"
@@ -212,11 +210,11 @@ class AbstractDatasetManager(ABC):
                     )
                 )
                 group_save_paths.append(
-                    (group_save_path / filename, group.structure.time_series_aggregation_inputs))
+                    (group_save_path / filename, group.data.time_series_aggregation_inputs))
 
-            if group.structure.entity_metadata is not None and not group.structure.entity_metadata.empty:
+            if group.data.entity_metadata is not None and not group.data.entity_metadata.empty:
                 buffer = BytesIO()
-                group.structure.entity_metadata.to_parquet(buffer, index=True)
+                group.data.entity_metadata.to_parquet(buffer, index=True)
                 buffer.seek(0)
                 filename = f"{ENTITY_METADATA_SECOND_LEVEL_ID}.parquet"
                 files.append(
@@ -235,11 +233,11 @@ class AbstractDatasetManager(ABC):
                 )
 
                 group_save_paths.append(
-                    (group_save_path / filename, group.structure.entity_metadata))
+                    (group_save_path / filename, group.data.entity_metadata))
 
-            if group.structure.feature_information is not None and not group.structure.feature_information.empty:
+            if group.data.feature_information is not None and not group.data.feature_information.empty:
                 buffer = BytesIO()
-                group.structure.feature_information.to_parquet(
+                group.data.feature_information.to_parquet(
                     buffer, index=True)
                 buffer.seek(0)
                 filename = f"{FEATURE_INFORMATION_SECOND_LEVEL_ID}.parquet"
@@ -259,7 +257,7 @@ class AbstractDatasetManager(ABC):
                 )
 
                 group_save_paths.append(
-                    (group_save_path / filename, group.structure.feature_information))
+                    (group_save_path / filename, group.data.feature_information))
 
         return object_group_create, files, group_save_paths
 

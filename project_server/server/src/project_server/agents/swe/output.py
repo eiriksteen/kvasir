@@ -1,10 +1,11 @@
-import ast
-from typing import List, Optional
+import uuid
+from typing import List, Optional, Set
 from pydantic import BaseModel
 from pydantic_ai import RunContext, ModelRetry
 
 from project_server.agents.swe.deps import SWEAgentDeps
 from project_server.utils.code_utils import run_shell_code_in_container, remove_line_numbers_from_script, run_python_code_in_container
+from project_server.worker import logger
 
 
 class PlanningOutput(BaseModel):
@@ -30,9 +31,16 @@ class ImplementationOutput(BaseModel):
     code_explanation: str
 
 
+class ModifiedScriptOutput(BaseModel):
+    script_name: str
+    original_script: str
+    new_script: str
+
+
 class ImplementationOutputFull(ImplementationOutput):
     script: str
     run_output: str
+    modified_scripts: List[ModifiedScriptOutput] = []
 
 
 class SWEAgentOutput(BaseModel):
@@ -42,7 +50,7 @@ class SWEAgentOutput(BaseModel):
     plan: Optional[PlanningOutput] = None
 
 
-async def submit_setup_output(ctx: RunContext[SWEAgentDeps], result: SetupAgentOutput) -> SetupAgentOutputWithScript:
+async def submit_setup_output(ctx: RunContext[SWEAgentDeps], file_name: str, result: SetupAgentOutput) -> SetupAgentOutputWithScript:
     """
     Validate and execute the setup script.
 
@@ -53,12 +61,11 @@ async def submit_setup_output(ctx: RunContext[SWEAgentDeps], result: SetupAgentO
     Returns:
         SetupOutput: The setup output.
     """
-    if not ctx.deps.current_scripts[ctx.deps.current_file_name]:
-        raise ModelRetry("No script written")
-
-    if ctx.deps.current_file_name != "setup.sh":
+    if not ctx.deps.current_scripts[file_name]:
         raise ModelRetry(
-            f"The current script is not the setup script, it must be named 'setup.sh'! The current script is {ctx.deps.current_file_name}")
+            f"Script {file_name} does not exist. The available scripts are: {list(ctx.deps.current_scripts.keys())}. To create a new script, call the write_script tool.")
+
+    script = ctx.deps.current_scripts[file_name]
 
     check_output, _ = await run_shell_code_in_container(
         f"pyenv versions | grep {result.python_version}",
@@ -85,8 +92,7 @@ async def submit_setup_output(ctx: RunContext[SWEAgentDeps], result: SetupAgentO
     if err:
         raise ModelRetry(f"Error setting global python version: {err}")
 
-    script = remove_line_numbers_from_script(
-        ctx.deps.current_scripts[ctx.deps.current_file_name])
+    script = remove_line_numbers_from_script(script)
 
     if not script.strip().startswith('#!/bin/bash') and not script.strip().startswith('#!/usr/bin/env bash'):
         raise ModelRetry(
@@ -113,37 +119,43 @@ async def submit_setup_output(ctx: RunContext[SWEAgentDeps], result: SetupAgentO
     )
 
 
-async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], result: ImplementationOutput) -> ImplementationOutputFull:
+async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name: str, result: ImplementationOutput) -> ImplementationOutputFull:
 
-    if not ctx.deps.current_file_name or not ctx.deps.current_scripts[ctx.deps.current_file_name]:
+    if file_name not in ctx.deps.current_scripts:
+        raise ModelRetry(
+            f"Script {file_name} does not exist. The available scripts are: {list(ctx.deps.current_scripts.keys())}. To create a new script, call the write_script tool.")
+
+    script = ctx.deps.current_scripts[file_name]
+
+    if not script:
         raise ModelRetry("No script written")
 
-    if ctx.deps.current_file_name != "implementation.py":
-        raise ModelRetry(
-            f"The current script is not the implementation script, it must be named 'implementation.py'! The current script is {ctx.deps.current_file_name}")
+    script = remove_line_numbers_from_script(script)
+    script_with_test_code = f"{script}\n\n{ctx.deps.test_code_to_append_to_implementation}" if ctx.deps.test_code_to_append_to_implementation else script
 
-    script = remove_line_numbers_from_script(
-        ctx.deps.current_scripts[ctx.deps.current_file_name])
+    if ctx.deps.log:
+        logger.info(
+            f"Running code to validate implementation:\n\n {script_with_test_code}")
 
-    if "run" not in script:
-        raise ModelRetry(
-            "No function named 'run' found in the implementation script")
+    out, err = await run_python_code_in_container(script_with_test_code, container_name=ctx.deps.container_name)
 
-    if "FunctionInput" not in script:
-        raise ModelRetry(
-            "No FunctionInput dataclass found in the implementation script")
-
-    if "FunctionOutput" not in script:
-        raise ModelRetry(
-            "No FunctionOutput dataclass found in the implementation script")
-
-    script_to_run = script
-    if ctx.deps.test_code_to_append_to_implementation:
-        script_to_run = f"{script}\n\n{ctx.deps.test_code_to_append_to_implementation}"
-
-    out, err = await run_python_code_in_container(script_to_run, container_name=ctx.deps.container_name)
+    if ctx.deps.log:
+        logger.info(f"Code execution output:\n\n {out}")
+        logger.info(f"Code execution error:\n\n {err}")
 
     if err:
         raise ModelRetry(f"Error executing code: {err}")
 
-    return ImplementationOutputFull(**result.model_dump(), script=script, run_output=out)
+    modified_scripts = []
+    if ctx.deps.input_scripts and ctx.deps.modified_scripts:
+        for modified_script_name in ctx.deps.modified_scripts:
+            if modified_script_name in ctx.deps.input_scripts:
+                original_script = ctx.deps.input_scripts[modified_script_name]
+                modified_script = ctx.deps.current_scripts[modified_script_name]
+                modified_scripts.append(ModifiedScriptOutput(
+                    script_name=modified_script_name,
+                    original_script=original_script,
+                    new_script=modified_script
+                ))
+
+    return ImplementationOutputFull(**result.model_dump(), script=script, run_output=out, modified_scripts=modified_scripts)

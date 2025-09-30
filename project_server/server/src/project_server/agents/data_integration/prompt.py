@@ -127,7 +127,7 @@ class DatasetCreateWithRawData:
     variable_groups: List[VariableGroupCreateWithRawData]
 ```
 
-To import these classes use: "from project_server.dataset_manager.dataclasses import ObjectGroupCreateWithRawData, VariableGroupCreateWithRawData, DatasetCreateWithRawData"
+To import these classes use: "from project_server.entity_manager import ObjectGroupCreateWithRawData, VariableGroupCreateWithRawData, DatasetCreateWithRawData"
 Remember: The structure definitions will be accessible through calling the relevant tools.
 
 - Output:

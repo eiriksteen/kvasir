@@ -6,24 +6,18 @@ from pydantic_ai.agent import AgentRunResult
 
 from project_server.agents.data_source_analysis.agent import data_source_analysis_agent, DataSourceAnalysisAgentDeps
 from project_server.agents.data_source_analysis.output import TabularFileAnalysisOutput, CallSWEToImplementFunctionOutput
-from project_server.worker import broker, logger
+from project_server.worker import broker
 from project_server.agents.swe.runner import SWEAgentRunner
 from project_server.agents.data_source_analysis.prompt import DATA_SOURCE_AGENT_SYSTEM_PROMPT
 from project_server.agents.swe.output import SWEAgentOutput
+from project_server.agents.runner_base import RunnerBase
 from project_server.client import (
-    ProjectClient,
     post_data_source_analysis,
     post_data_source_details,
-    post_run_message_pydantic,
-    post_run,
-    patch_run_status,
 )
 from synesis_schemas.main_server import (
     TabularFileDataSourceCreate,
-    DataSourceAnalysisCreate,
-    RunMessageCreatePydantic,
-    RunCreate,
-    RunStatusUpdate,
+    DataSourceAnalysisCreate
 )
 
 
@@ -32,30 +26,25 @@ class DataSourceAnalysisRunnerOutput(BaseModel):
     swe_outputs: List[SWEAgentOutput]
 
 
-class DataSourceAnalysisRunner:
+class DataSourceAnalysisRunner(RunnerBase):
 
     def __init__(self, user_id: str, source_id: uuid.UUID, file_path: str, bearer_token: str, run_id: Optional[uuid.UUID] = None):
-        self.data_source_agent = data_source_analysis_agent
-        self.user_id = user_id
+        super().__init__(agent=data_source_analysis_agent,
+                         user_id=user_id,
+                         bearer_token=bearer_token,
+                         run_id=run_id,
+                         run_type="data_source_analysis")
+
         self.source_id = source_id
-        self.logger = logger
-        self.run_id = run_id
         self.file_path = Path(file_path)
         self.swe_runner = SWEAgentRunner(user_id, bearer_token)
-        self.bearer_token = bearer_token
-        self.project_client = ProjectClient()
-        self.project_client.set_bearer_token(bearer_token)
 
     async def __call__(self) -> DataSourceAnalysisRunnerOutput:
 
         try:
-            if self.run_id is None:
-                run = await post_run(self.project_client, RunCreate(type="data_source_analysis"))
-                self.run_id = run.id
+            await self._create_run_if_not_exists()
 
-            deps = DataSourceAnalysisAgentDeps(file_path=self.file_path)
-
-            run_output, message_history, swe_outputs = None, [], []
+            run_output, swe_outputs = None, []
 
             current_prompt = (
                 f"Start analyzing the data source!\n\n" +
@@ -66,18 +55,16 @@ class DataSourceAnalysisRunner:
 
             while not isinstance(run_output, TabularFileAnalysisOutput):
 
-                run_result: AgentRunResult = await self.data_source_agent.run(
+                run_result: AgentRunResult = await self._run_agent(
                     current_prompt,
                     output_type=[CallSWEToImplementFunctionOutput,
                                  TabularFileAnalysisOutput],
-                    deps=deps,
-                    message_history=message_history
+                    deps=DataSourceAnalysisAgentDeps(file_path=self.file_path),
                 )
 
                 if isinstance(run_result.output, CallSWEToImplementFunctionOutput):
 
-                    logger.info(
-                        f"Calling SWE agent to implement function: {run_result.output}")
+                    await self._log_message(f"Calling SWE agent to implement function: {run_result.output}", "result", write_to_db=True)
 
                     deliverable_description = (
                         "I have been tasked to analyze a data source. For context, this is my full task description:\n\n" +
@@ -96,7 +83,7 @@ class DataSourceAnalysisRunner:
 
                     swe_output = await self.swe_runner(deliverable_description, test_code_to_append_to_implementation)
 
-                    logger.info(f"SWE run result: {swe_output}")
+                    await self._log_message(f"SWE run result: {swe_output}", "result", write_to_db=True)
 
                     current_prompt = (
                         "The software engineer agent has submitted a solution.\n" +
@@ -109,19 +96,14 @@ class DataSourceAnalysisRunner:
                     swe_outputs.append(swe_output)
 
                 run_output = run_result.output
-                message_history += run_result.new_messages()
 
-            logger.info(
-                f"Data source analysis agent run completed, saving results: {run_output.model_dump()}")
+            await self._log_message(f"Data source analysis agent run completed, saving results: {run_output.model_dump()}", "result", write_to_db=True)
 
             await self._save_results(run_result)
+            await self._complete_agent_run("Data source analysis agent run completed")
 
         except Exception as e:
-            await patch_run_status(self.project_client, RunStatusUpdate(
-                run_id=self.run_id,
-                status="failed"
-            ))
-            logger.error(f"Error running data source analysis agent: {e}")
+            await self._fail_agent_run(f"Error running data source analysis agent: {e}")
             raise e
 
         else:
@@ -150,20 +132,10 @@ class DataSourceAnalysisRunner:
             features=output.features,
         ))
 
-        await post_run_message_pydantic(self.project_client, RunMessageCreatePydantic(
-            run_id=self.run_id,
-            content=result.all_messages_json()
-        ))
-
-        await patch_run_status(self.project_client, RunStatusUpdate(
-            run_id=self.run_id,
-            status="completed"
-        ))
-
         # TODO: Save the SWE functions
 
 
-@broker.task(retry_on_error=False)
+@broker.task()
 async def run_data_source_analysis_task(
         user_id: uuid.UUID,
         source_id: uuid.UUID,

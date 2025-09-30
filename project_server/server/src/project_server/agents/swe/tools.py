@@ -5,9 +5,10 @@ from project_server.utils.code_utils import (
     replace_lines_in_script,
     add_lines_to_script_at_line,
     delete_lines_from_script,
-    run_pylint
+    remove_line_numbers_from_script,
 )
 from project_server.agents.swe.deps import SWEAgentDeps
+from project_server.entity_manager.file_manager import file_manager
 
 
 def write_script(ctx: RunContext[SWEAgentDeps], script: str, file_name: str) -> str:
@@ -25,34 +26,33 @@ def write_script(ctx: RunContext[SWEAgentDeps], script: str, file_name: str) -> 
         str: The script with line numbers.
     """
 
-    ctx.deps.current_file_name = file_name
-    ctx.deps.current_scripts[file_name] = add_line_numbers_to_script(script)
+    updated_script = add_line_numbers_to_script(script)
 
-    out = f"NEW SCRIPT: \n\n <begin_script file_name={ctx.deps.current_file_name}>\n\n {ctx.deps.current_scripts[file_name]}\n\n <end_script>"
+    ctx.deps.current_scripts[file_name] = updated_script
 
-    if ctx.deps.run_pylint:
-        linter_output = run_pylint(ctx.deps.current_scripts[file_name])
-        out += f"\n\n LINTER OUTPUT: \n\n <begin_linter_output>\n\n {linter_output}\n\n <end_linter_output>"
+    file_manager.save_function_script(
+        file_name, script, 0, is_temporary=True)
 
+    out = f"NEW SCRIPT: \n\n <begin_script file_name={file_name}>\n\n {updated_script}\n\n <end_script>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
-    out += f"\n\n The current script is {ctx.deps.current_file_name}. To switch scripts, call the switch_script tool."
+    out += f"\n\n The current scripts are: {list(ctx.deps.current_scripts.keys())}"
 
     return out
 
 
-def switch_script(ctx: RunContext[SWEAgentDeps], file_name: str) -> str:
+def read_script(ctx: RunContext[SWEAgentDeps], file_name: str) -> str:
     """
-    Switch to a different script.
+    Read a script from the current scripts.
     """
     if file_name not in ctx.deps.current_scripts:
         raise ModelRetry(
             f"Script {file_name} does not exist. The available scripts are: {list(ctx.deps.current_scripts.keys())}. To create a new script, call the write_script tool.")
 
-    ctx.deps.current_file_name = file_name
-    return f"SWITCHED TO SCRIPT: \n\n <begin_script file_name={ctx.deps.current_file_name}>\n\n {ctx.deps.current_scripts[file_name]}\n\n <end_script>"
+    out = f"READ SCRIPT: \n\n <begin_script file_name={file_name}>\n\n {ctx.deps.current_scripts[file_name]}\n\n <end_script>"
+    return out
 
 
-def replace_script_lines(ctx: RunContext[SWEAgentDeps], line_number_start: int, line_number_end: int, new_code: str) -> str:
+def replace_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, line_number_start: int, line_number_end: int, new_code: str) -> str:
     """
     Replace lines in the current script with new code.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -67,30 +67,37 @@ def replace_script_lines(ctx: RunContext[SWEAgentDeps], line_number_start: int, 
     Returns:
         str: The updated script.
     """
-    if not ctx.deps.current_scripts[ctx.deps.current_file_name]:
-        return "No script to modify"
+    if not ctx.deps.current_scripts[file_name]:
+        raise ModelRetry(
+            f"Script {file_name} does not exist. The available scripts are: {list(ctx.deps.current_scripts.keys())}. To create a new script, call the write_script tool.")
 
-    ctx.deps.current_scripts[ctx.deps.current_file_name] = replace_lines_in_script(
-        ctx.deps.current_scripts[ctx.deps.current_file_name],
+    script = ctx.deps.current_scripts[file_name]
+
+    updated_script = replace_lines_in_script(
+        script,
         line_number_start,
         line_number_end,
         new_code,
         script_has_line_numbers=True
     )
 
-    out = f"UPDATED SCRIPT: \n\n <begin_script file_name={ctx.deps.current_file_name}>\n\n {ctx.deps.current_scripts[ctx.deps.current_file_name]}\n\n <end_script>"
+    ctx.deps.current_scripts[file_name] = updated_script
 
-    if ctx.deps.run_pylint:
-        linter_output = run_pylint(
-            ctx.deps.current_scripts[ctx.deps.current_file_name])
-        out += f"\n\n LINTER OUTPUT: \n\n <begin_linter_output>\n\n {linter_output}\n\n <end_linter_output>"
+    file_manager.save_function_script(
+        file_name,
+        remove_line_numbers_from_script(updated_script),
+        0,
+        is_temporary=True)
 
+    ctx.deps.modified_scripts.add(file_name)
+
+    out = f"UPDATED SCRIPT: \n\n <begin_script file_name={file_name}>\n\n {updated_script}\n\n <end_script>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
 
     return out
 
 
-def add_script_lines(ctx: RunContext[SWEAgentDeps], new_code: str, start_line: int) -> str:
+def add_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, new_code: str, start_line: int) -> str:
     """
     Add lines to the current script at the given line number.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -104,29 +111,36 @@ def add_script_lines(ctx: RunContext[SWEAgentDeps], new_code: str, start_line: i
     Returns:
         str: The updated script.
     """
-    if not ctx.deps.current_scripts[ctx.deps.current_file_name]:
-        return "No script to modify"
+    if not ctx.deps.current_scripts[file_name]:
+        raise ModelRetry(
+            f"Script {file_name} does not exist. The available scripts are: {list(ctx.deps.current_scripts.keys())}. To create a new script, call the write_script tool.")
 
-    ctx.deps.current_scripts[ctx.deps.current_file_name] = add_lines_to_script_at_line(
-        ctx.deps.current_scripts[ctx.deps.current_file_name],
+    script = ctx.deps.current_scripts[file_name]
+
+    updated_script = add_lines_to_script_at_line(
+        script,
         new_code,
         start_line,
         script_has_line_numbers=True
     )
 
-    out = f"UPDATED SCRIPT: \n\n <begin_script file_name={ctx.deps.current_file_name}>\n\n {ctx.deps.current_scripts[ctx.deps.current_file_name]}\n\n <end_script>"
+    ctx.deps.current_scripts[file_name] = updated_script
 
-    if ctx.deps.run_pylint:
-        linter_output = run_pylint(
-            ctx.deps.current_scripts[ctx.deps.current_file_name])
-        out += f"\n\n LINTER OUTPUT: \n\n <begin_linter_output>\n\n {linter_output}\n\n <end_linter_output>"
+    file_manager.save_function_script(
+        file_name,
+        remove_line_numbers_from_script(updated_script),
+        0,
+        is_temporary=True)
 
+    ctx.deps.modified_scripts.add(file_name)
+
+    out = f"UPDATED SCRIPT: \n\n <begin_script file_name={file_name}>\n\n {updated_script}\n\n <end_script>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
 
     return out
 
 
-def delete_script_lines(ctx: RunContext[SWEAgentDeps], line_number_start: int, line_number_end: int) -> str:
+def delete_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, line_number_start: int, line_number_end: int) -> str:
     """
     Delete lines from the current script at the given line numbers.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -140,23 +154,30 @@ def delete_script_lines(ctx: RunContext[SWEAgentDeps], line_number_start: int, l
     Returns:    
         str: The updated script.
     """
-    if not ctx.deps.current_scripts[ctx.deps.current_file_name]:
-        return "No script to modify"
+    if not ctx.deps.current_scripts[file_name]:
+        raise ModelRetry(
+            f"Script {file_name} does not exist. The available scripts are: {list(ctx.deps.current_scripts.keys())}. To create a new script, call the write_script tool.")
 
-    ctx.deps.current_scripts[ctx.deps.current_file_name] = delete_lines_from_script(
-        ctx.deps.current_scripts[ctx.deps.current_file_name],
+    script = ctx.deps.current_scripts[file_name]
+
+    updated_script = delete_lines_from_script(
+        script,
         line_number_start,
         line_number_end,
         script_has_line_numbers=True
     )
 
-    out = f"UPDATED SCRIPT: \n\n <begin_script file_name={ctx.deps.current_file_name}>\n\n {ctx.deps.current_scripts[ctx.deps.current_file_name]}\n\n <end_script>"
+    ctx.deps.current_scripts[file_name] = updated_script
 
-    if ctx.deps.run_pylint:
-        linter_output = run_pylint(
-            ctx.deps.current_scripts[ctx.deps.current_file_name])
-        out += f"\n\n LINTER OUTPUT: \n\n <begin_linter_output>\n\n {linter_output}\n\n <end_linter_output>"
+    file_manager.save_function_script(
+        file_name,
+        remove_line_numbers_from_script(updated_script),
+        0,
+        is_temporary=True)
 
+    ctx.deps.modified_scripts.add(file_name)
+
+    out = f"UPDATED SCRIPT: \n\n <begin_script file_name={file_name}>\n\n {updated_script}\n\n <end_script>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
 
     return out

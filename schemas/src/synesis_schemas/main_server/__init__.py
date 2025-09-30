@@ -29,7 +29,7 @@ from .pipeline import (
     PeriodicScheduleInDB,
     OnEventScheduleInDB,
     PipelineRunObjectGroupResultInDB,
-    PipelineRunVariablesResultInDB,
+    PipelineRunVariableGroupResultInDB,
     PipelineFull,
     PipelineCreate,
     PipelineSources,
@@ -37,19 +37,36 @@ from .pipeline import (
     PipelineCreate,
     PipelineFromDatasetInDB,
     PipelineFromModelEntityInDB,
+    PipelineOutputDatasetInDB,
+    FunctionInPipelineObjectGroupMappingInDB,
+    PipelineObjectGroupOutputToSaveInDB,
+    PipelineVariableGroupOutputToSaveInDB,
+    InputVariableMappingCreate,
+    PeriodicScheduleCreate,
+    OnEventScheduleCreate,
+    FunctionInPipelineCreate,
+    PipelineInputMapping,
+    PipelineOutputMapping,
+    DatasetObjectGroupInputMapping,
+    ModelEntityInputMapping,
+    PipelineOutputObjectGroupMapping,
+    PipelineOutputVariableGroupMapping,
 )
 
 from .function import (
     FunctionInDB,
-    FunctionInputStructureInDB,
-    FunctionOutputStructureInDB,
-    FunctionOutputVariableInDB,
+    FunctionDefinitionInDB,
+    FunctionInputObjectGroupDefinitionInDB,
+    FunctionOutputObjectGroupDefinitionInDB,
+    FunctionOutputVariableDefinitionInDB,
     FunctionBare,
     FunctionCreate,
-    FunctionOutputVariableCreate,
-    FunctionInputStructureCreate,
-    FunctionOutputStructureCreate,
+    FunctionOutputVariableDefinitionCreate,
+    FunctionInputObjectGroupDefinitionCreate,
+    FunctionOutputObjectGroupDefinitionCreate,
+    FunctionUpdateCreate,
 )
+
 
 from .model import (
     ModelInDB,
@@ -63,6 +80,7 @@ from .model import (
     ModelFull,
     GetModelEntityByIDsRequest,
 )
+
 
 from .model_sources import (
     ModelSourceInDB,
@@ -188,9 +206,7 @@ from .orchestrator import (
 from .knowledge_bank import (
     SearchFunctionsRequest,
     SearchModelsRequest,
-    SearchModelSourcesRequest,
     ModelQueryResult,
-    ModelSourceQueryResult,
     QueryRequest,
     FunctionQueryResult,
 )

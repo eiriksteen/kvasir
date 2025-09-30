@@ -7,20 +7,32 @@ from uuid import UUID
 # DB models
 
 
-class FunctionInDB(BaseModel):
+class FunctionDefinitionInDB(BaseModel):
     id: UUID
     name: str
-    implementation_script_path: str
+    type: Literal["inference", "training", "computation", "tool"]
+    args_dataclass_name: str
+    input_dataclass_name: str
+    output_dataclass_name: str
+    output_variables_dataclass_name: str
     created_at: datetime
     updated_at: datetime
+
+
+class FunctionInDB(BaseModel):
+    id: UUID
+    definition_id: UUID
+    version: int
+    implementation_script_path: str
     description: str
     embedding: List[float]
-    type: Literal["inference", "training", "computation", "tool"]
     setup_script_path: Optional[str] = None
-    default_args: Optional[dict] = None
+    default_args_dict: Optional[dict] = None
+    created_at: datetime
+    updated_at: datetime
 
 
-class FunctionInputStructureInDB(BaseModel):
+class FunctionInputObjectGroupDefinitionInDB(BaseModel):
     id: UUID
     function_id: UUID
     structure_id: str
@@ -31,7 +43,7 @@ class FunctionInputStructureInDB(BaseModel):
     description: Optional[str] = None
 
 
-class FunctionOutputStructureInDB(BaseModel):
+class FunctionOutputObjectGroupDefinitionInDB(BaseModel):
     id: UUID
     name: str
     function_id: UUID
@@ -41,7 +53,7 @@ class FunctionOutputStructureInDB(BaseModel):
     description: Optional[str] = None
 
 
-class FunctionOutputVariableInDB(BaseModel):
+class FunctionOutputVariableDefinitionInDB(BaseModel):
     id: UUID
     name: str
     function_id: UUID
@@ -53,40 +65,46 @@ class FunctionOutputVariableInDB(BaseModel):
 
 # API models
 
-
-class Function(FunctionInDB):
-    input_structures: List[FunctionInputStructureInDB]
-    output_structures: List[FunctionOutputStructureInDB]
-    output_variables: List[FunctionOutputVariableInDB]
-
-
+# Merged function def and function
+# We don't inherit since we want to drop the embedding field (could implement that differently but this works)
 class FunctionBare(BaseModel):
     id: UUID
+    definition_id: UUID
     name: str
+    type: Literal["inference", "training", "computation", "tool"]
+    args_dataclass_name: str
+    input_dataclass_name: str
+    output_dataclass_name: str
+    output_variables_dataclass_name: str
+    version: int
+    implementation_script_path: str
     description: str
-    input_structures: List[FunctionInputStructureInDB]
-    output_structures: List[FunctionOutputStructureInDB]
-    output_variables: List[FunctionOutputVariableInDB]
-    default_args: Optional[dict] = None
+    setup_script_path: Optional[str] = None
+    default_args_dict: Optional[dict] = None
+    input_object_groups: List[FunctionInputObjectGroupDefinitionInDB]
+    output_object_groups: List[FunctionOutputObjectGroupDefinitionInDB]
+    output_variables: List[FunctionOutputVariableDefinitionInDB]
+    created_at: datetime
+    updated_at: datetime
 
 
 # Create models
 
 
-class FunctionOutputVariableCreate(BaseModel):
+class FunctionOutputVariableDefinitionCreate(BaseModel):
     name: str
     python_type: str
     description: Optional[str] = None
 
 
-class FunctionInputStructureCreate(BaseModel):
+class FunctionInputObjectGroupDefinitionCreate(BaseModel):
     structure_id: str
     name: str
     description: str
     required: bool
 
 
-class FunctionOutputStructureCreate(BaseModel):
+class FunctionOutputObjectGroupDefinitionCreate(BaseModel):
     structure_id: str
     name: str
     description: str
@@ -97,8 +115,28 @@ class FunctionCreate(BaseModel):
     description: str
     implementation_script_path: str
     type: Literal["inference", "training", "computation", "tool"]
-    input_structures: List[FunctionInputStructureCreate]
-    output_structures: List[FunctionOutputStructureCreate]
-    output_variables: List[FunctionOutputVariableCreate]
+    args_dataclass_name: str
+    input_dataclass_name: str
+    output_dataclass_name: str
+    output_variables_dataclass_name: str
+    input_object_group_descriptions: List[FunctionInputObjectGroupDefinitionCreate]
+    output_object_group_descriptions: List[FunctionOutputObjectGroupDefinitionCreate]
+    output_variables_descriptions: List[FunctionOutputVariableDefinitionCreate]
     setup_script_path: Optional[str] = None
-    default_args: Optional[dict] = None
+    default_args_dict: Optional[dict] = None
+
+
+class FunctionUpdateCreate(BaseModel):
+    definition_id: UUID
+    updated_description: Optional[str] = None
+    updated_setup_script_path: Optional[str] = None
+    updated_default_args_dict: Optional[dict] = None
+    updated_implementation_script_path: Optional[str] = None
+    input_object_group_descriptions_to_add: Optional[
+        List[FunctionInputObjectGroupDefinitionCreate]] = None
+    output_object_group_descriptions_to_add: Optional[
+        List[FunctionOutputObjectGroupDefinitionCreate]] = None
+    output_variables_descriptions_to_add: Optional[List[FunctionOutputVariableDefinitionCreate]] = None
+    input_object_group_descriptions_to_remove: Optional[List[UUID]] = None
+    output_object_group_descriptions_to_remove: Optional[List[UUID]] = None
+    output_variables_descriptions_to_remove: Optional[List[UUID]] = None

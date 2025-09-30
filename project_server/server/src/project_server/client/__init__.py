@@ -71,11 +71,11 @@ from .requests.project import (
 from .requests.knowledge_bank import (
     post_search_functions,
     post_search_models,
-    post_search_model_sources
 )
 
 from .requests.function import (
-    post_function
+    post_function,
+    post_update_function
 )
 
 from .requests.model import (
@@ -123,7 +123,7 @@ __all__ = [
 
     # Function functions
     "post_function",
-
+    "post_update_function",
     # Model functions
     "post_model",
     "post_model_entity",

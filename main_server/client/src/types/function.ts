@@ -1,9 +1,8 @@
 import { UUID } from "crypto";
 
 
-export interface FunctionInputStructure {
+export interface FunctionInputObjectGroupDesc {
   id: UUID;
-  position: number;
   functionId: UUID;
   structureId: string;
   name: string;
@@ -13,9 +12,8 @@ export interface FunctionInputStructure {
   updatedAt: string;
 }
 
-export interface FunctionOutputStructure {
+export interface FunctionOutputObjectGroupDesc {
   id: UUID;
-  position: number;
   functionId: UUID;
   structureId: string;
   name: string;
@@ -24,9 +22,8 @@ export interface FunctionOutputStructure {
   updatedAt: string;
 }
 
-export interface FunctionOutputVariable {
+export interface FunctionOutputVariableDesc {
   id: UUID;
-  position: number;
   functionId: UUID;
   variableId: string;
 }
@@ -41,20 +38,8 @@ export interface Function {
   description: string;
   createdAt: string;
   updatedAt: string;
-  inputStructures: FunctionInputStructure[];
-  outputStructures: FunctionOutputStructure[];
-  outputVariables: FunctionOutputVariable[];
+  inputObjectGroupDescriptions: FunctionInputObjectGroupDesc[];
+  outputObjectGroupDescriptions: FunctionOutputObjectGroupDesc[];
+  outputVariableDescriptions: FunctionOutputVariableDesc[];
 }
 
-export interface FunctionWithoutEmbedding {
-  id: UUID;
-  name: string;
-  description: string;
-  defaultArgs?: Record<string, unknown>;
-  inputStructures: FunctionInputStructure[];
-  outputStructures: FunctionOutputStructure[];
-  outputVariables: FunctionOutputVariable[];
-  type: "inference" | "training" | "computation";
-  createdAt: string;
-  updatedAt: string;
-}

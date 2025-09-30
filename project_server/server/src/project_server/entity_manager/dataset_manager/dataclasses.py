@@ -13,7 +13,7 @@ class ObjectGroupCreateWithRawData:
     entity_id_name: str
     description: str
     structure_type: str
-    structure: Union[TimeSeriesStructure, TimeSeriesAggregationStructure]
+    data: Union[TimeSeriesStructure, TimeSeriesAggregationStructure]
 
 
 @dataclass
@@ -49,7 +49,7 @@ class ObjectGroupWithRawData:
     save_path: Path
     created_at: datetime
     updated_at: datetime
-    structure: Union[TimeSeriesStructure, TimeSeriesAggregationStructure]
+    data: Union[TimeSeriesStructure, TimeSeriesAggregationStructure]
     original_id_name: Optional[str] = None
 
 

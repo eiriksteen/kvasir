@@ -1,24 +1,26 @@
 import uuid
 from typing import Optional
-from pydantic_ai.agent import AgentRunResult
 
-from project_server.file_manager import file_manager
+from project_server.entity_manager import file_manager
 from project_server.agents.model_integration.agent import model_integration_agent
 from project_server.agents.model_integration.prompt import MODEL_INTEGRATION_AGENT_SYSTEM_PROMPT
 from project_server.agents.model_integration.output import ModelDescription, ImplementationFeedbackOutput, SearchPypiPackagesOutput, PypiModelSourceCreate
+from project_server.app_secrets import MODEL_WEIGHTS_DIR
 
-from project_server.agents.model_integration.utils import search_pypi_package, verify_package_and_version_in_search_results
+from project_server.agents.model_integration.utils import (
+    search_pypi_package,
+    verify_package_and_version_in_search_results,
+    create_training_test_code_from_spec,
+    create_inference_test_code_from_spec
+)
 from project_server.agents.swe.runner import SWEAgentRunner
-from project_server.worker import broker, logger
+from project_server.worker import broker
 from project_server.app_secrets import SWE_MAX_TRIES
 from project_server.client import (
-    post_run,
-    patch_run_status,
     post_add_entity,
     post_create_node,
     post_function,
     post_model,
-    post_run_message_pydantic,
     post_model_entity,
     post_model_source,
 )
@@ -26,9 +28,6 @@ from project_server.client import (
 from project_server.agents.runner_base import RunnerBase
 
 from synesis_schemas.main_server import (
-    RunCreate,
-    RunMessageCreatePydantic,
-    RunStatusUpdate,
     AddEntityToProject,
     FrontendNodeCreate,
     FunctionCreate,
@@ -51,9 +50,15 @@ class ModelIntegrationAgentRunner(RunnerBase):
             public: bool = False
     ):
 
-        super().__init__(model_integration_agent, user_id, bearer_token, run_id)
-        self.project_id = project_id
-        self.conversation_id = conversation_id
+        super().__init__(
+            agent=model_integration_agent,
+            user_id=user_id,
+            bearer_token=bearer_token,
+            run_id=run_id,
+            run_type="model_integration",
+            conversation_id=conversation_id,
+            project_id=project_id
+        )
         self.tries = 0
         self.create_model_entity_on_completion = create_model_entity_on_completion
         self.public = public
@@ -63,26 +68,17 @@ class ModelIntegrationAgentRunner(RunnerBase):
         prompt_content: str
     ) -> ModelDescription:
 
-        if self.run_id is None:
-            run = await post_run(self.project_client, RunCreate(type="model_integration", conversation_id=self.conversation_id))
-            self.run_id = run.id
-
         try:
-            logger.info(
-                f"Starting model integration from prompt: {prompt_content}")
+            await self._log_message(f"Starting model integration from prompt: {prompt_content}", "result", write_to_db=True)
 
-            search_query_run = await self.agent.run(
+            await self._create_run_if_not_exists()
+
+            search_query_run = await self._run_agent(
                 f"We must integrate a model based on the following prompt: '{prompt_content}'\n\nNow search for the pip package or github repo to use!",
                 output_type=SearchPypiPackagesOutput,
-                message_history=self.message_history
             )
 
-            self.message_history += search_query_run.new_messages()
-
-            logger.info(
-                f"Searching for pypi packages: {search_query_run.output.package_names}")
-            await self._log_message_to_redis(
-                f"Searching for pypi packages: {search_query_run.output.package_names}", "result", write_to_db=True)
+            await self._log_message(f"Searching for pypi packages: {search_query_run.output.package_names}", "result", write_to_db=True)
 
             if isinstance(search_query_run.output, SearchPypiPackagesOutput):
                 pypi_search_results = []
@@ -92,16 +88,13 @@ class ModelIntegrationAgentRunner(RunnerBase):
                 raise ValueError(
                     "Invalid output type from search query run")
 
-            logger.info(f"Pypi search results: {pypi_search_results}")
+            await self._log_message(f"Pypi search results: {pypi_search_results}", "result", write_to_db=True)
 
             model_source_selection_run = await self._run_agent(
                 f"Here are the results from the search: {[r.model_dump_json() for r in pypi_search_results]}\n\n" +
                 "Pick a result and output its details!",
                 output_type=ModelSourceCreate,
-                message_history=self.message_history
             )
-
-            self.message_history += model_source_selection_run.new_messages()
 
             if type(model_source_selection_run.output) == PypiModelSourceCreate:
                 valid_package_and_version = verify_package_and_version_in_search_results(
@@ -109,7 +102,7 @@ class ModelIntegrationAgentRunner(RunnerBase):
                 if not valid_package_and_version:
                     raise RuntimeError(
                         "Agent hallucinated pypi package and version in search results")
-                await self._log_message_to_redis(
+                await self._log_message(
                     f"Found PyPI package {model_source_selection_run.output.package_name} version {model_source_selection_run.output.package_version}", "result", write_to_db=True)
             else:
                 raise RuntimeError("Only pypi supported for now")
@@ -122,19 +115,16 @@ class ModelIntegrationAgentRunner(RunnerBase):
                 "Now, using provided tools or your own knowledge, create a detailed implementation spec for the model.\n" +
                 "The SWE agent will automatically be launched when you give your spec. Let us have it first implement training, and then inference after you have approved the training implementation.",
                 output_type=ModelDescription,
-                message_history=self.message_history
             )
-
-            self.message_history += model_spec_run_result.new_messages()
 
             model_spec_output: ModelDescription = model_spec_run_result.output
 
             input_structure_ids = list(set([
-                input.structure_id for input in model_spec_output.training_function.input_structures + model_spec_output.inference_function.input_structures
+                input.structure_id for input in model_spec_output.training_function.input_object_groups + model_spec_output.inference_function.input_object_groups
             ]))
 
             output_structure_ids = list(set([
-                output.structure_id for output in model_spec_output.training_function.output_structures + model_spec_output.inference_function.output_structures
+                output.structure_id for output in model_spec_output.training_function.output_object_groups + model_spec_output.inference_function.output_object_groups
             ]))
 
             swe_runner = SWEAgentRunner(
@@ -143,14 +133,16 @@ class ModelIntegrationAgentRunner(RunnerBase):
                 self.conversation_id,
                 self.run_id,
                 structure_ids_to_inject=input_structure_ids+output_structure_ids,
-                logger=logger
+                inject_synthetic_data_descriptions=True,
+                log=True
             )
 
             fn_type_to_function_id = {}
+            test_model_weights_dir = MODEL_WEIGHTS_DIR / f"{uuid.uuid4()}"
 
             for function_type in ["training", "inference"]:
 
-                await self._log_message_to_redis(f"Calling SWE agent to implement {function_type} function", "result", write_to_db=True)
+                await self._log_message(f"Calling SWE agent to implement {function_type} function", "tool_call", write_to_db=True)
 
                 if function_type == "training":
                     swe_prompt = (
@@ -158,10 +150,15 @@ class ModelIntegrationAgentRunner(RunnerBase):
                         f"'{MODEL_INTEGRATION_AGENT_SYSTEM_PROMPT}'\n\n" +
                         f"Now I need you to implement the model. This is the spec:\n\n{model_spec_output.model_dump_json()}\n\n" +
                         "Give the functions the exact names specified in the spec." +
+                        "Remember to mkdir with exist_ok=True the weights_save_dir before saving the weights!" +
                         "Let's start with the training function. Go!"
                     )
+                    swe_test_code = create_training_test_code_from_spec(
+                        model_spec_output, test_model_weights_dir)
                 else:
                     swe_prompt = f"The training function has been approved! Now, implement the inference function. Recall the spec: {model_spec_output.model_dump_json()}"
+                    swe_test_code = create_inference_test_code_from_spec(
+                        model_spec_output, test_model_weights_dir)
 
                 self.tries = 0
                 implementation_approved = False
@@ -170,11 +167,13 @@ class ModelIntegrationAgentRunner(RunnerBase):
 
                     if self.tries >= SWE_MAX_TRIES:
                         raise RuntimeError(
-                            f"SWE agent failed to implement model {model_spec_output.name} after {SWE_MAX_TRIES} tries")
+                            f"SWE agent failed to implement model {model_spec_output.name} after {SWE_MAX_TRIES} tries\n" +
+                            f"Last SWE prompt: {swe_prompt}\n"
+                        )
 
                     self.tries += 1
 
-                    swe_result = await swe_runner(swe_prompt)
+                    swe_result = await swe_runner(swe_prompt, swe_test_code)
 
                     feedback_prompt = (
                         "The software engineer agent has submitted a solution.\n" +
@@ -182,24 +181,22 @@ class ModelIntegrationAgentRunner(RunnerBase):
                         "Decide whether to accept it, or reject it with feedback on what to fix before the solution is approved."
                     )
 
-                    logger.info(f"Feedback prompt: {feedback_prompt}")
+                    await self._log_message(f"Feedback prompt: {feedback_prompt}", "result", write_to_db=True)
 
                     feedback_run = await self._run_agent(
                         feedback_prompt,
                         output_type=ImplementationFeedbackOutput,
-                        message_history=self.message_history
                     )
 
-                    self.message_history += feedback_run.new_messages()
                     implementation_approved = feedback_run.output.approved
                     swe_prompt = feedback_run.output.feedback
 
-                    logger.info(
-                        f"Implementation approved: {implementation_approved}")
-                    logger.info(f"Feedback: {swe_prompt}")
+                    await self._log_message(
+                        f"Implementation approved: {implementation_approved}", "result", write_to_db=True)
+                    await self._log_message(f"Feedback: {swe_prompt}", "result", write_to_db=True)
 
                     if implementation_approved:
-                        await self._log_message_to_redis("Implementation approved, saving function", "result", write_to_db=True)
+                        await self._log_message("Implementation approved, saving function", "result", write_to_db=True)
                         save_dir_id = uuid.uuid4()
 
                         implementation_script_path = file_manager.save_function_script(
@@ -226,40 +223,34 @@ class ModelIntegrationAgentRunner(RunnerBase):
                                 implementation_script_path),
                             setup_script_path=str(
                                 setup_script_path) if setup_script_path else None,
-                            default_args=swe_result.config.config_dict if swe_result.config else None,
+                            default_args_dict=swe_result.config.config_dict if swe_result.config else None,
                             type=function_type,
-                            input_structures=[inp.model_dump()
-                                              for inp in fn_spec.input_structures],
-                            output_structures=[out.model_dump()
-                                               for out in fn_spec.output_structures],
-                            output_variables=[out.model_dump()
-                                              for out in fn_spec.output_variables]
+                            input_object_group_descriptions=[inp.model_dump()
+                                                             for inp in fn_spec.input_object_groups],
+                            output_object_group_descriptions=[out.model_dump()
+                                                              for out in fn_spec.output_object_groups],
+                            output_variables_descriptions=[out.model_dump()
+                                                           for out in fn_spec.output_variables]
                         ))
 
                         fn_type_to_function_id[function_type] = fn_response.id
 
                     else:
-                        await self._log_message_to_redis(
+                        await self._log_message(
                             f"Implementation rejected. Feedback: {swe_prompt}", "result", write_to_db=True)
 
-            await self._log_message_to_redis("All functions implemented, submitting model", "result", write_to_db=True)
-            await self._save_results(model_spec_run_result, fn_type_to_function_id["training"], fn_type_to_function_id["inference"], model_source.id)
-            await self._log_message_to_redis("Model submitted", "result", write_to_db=True)
+            test_model_weights_dir.rmdir()
+            await self._save_results(model_spec_output, fn_type_to_function_id["training"], fn_type_to_function_id["inference"], model_source.id)
+            await self._complete_agent_run("Model integration agent run completed")
 
             return model_spec_run_result.output
 
         except Exception as e:
-            await patch_run_status(self.project_client, RunStatusUpdate(
-                run_id=self.run_id,
-                status="failed"
-            ))
-
-            await self._log_message_to_redis(f"Error running model integration: {e}", "error", write_to_db=True)
-            logger.error(f"Error running model integration: {e}")
+            test_model_weights_dir.rmdir()
+            await self._fail_agent_run(f"Error running model integration: {e}")
             raise e
 
-    async def _save_results(self, result: AgentRunResult, training_function_id: uuid.UUID, inference_function_id: uuid.UUID, model_source_id: uuid.UUID):
-        model_spec_output: ModelDescription = result.output
+    async def _save_results(self, model_spec_output: ModelDescription, training_function_id: uuid.UUID, inference_function_id: uuid.UUID, model_source_id: uuid.UUID):
 
         model_response = await post_model(self.project_client, ModelCreate(
             name=model_spec_output.name,
@@ -272,16 +263,6 @@ class ModelIntegrationAgentRunner(RunnerBase):
             source_id=model_source_id,
             programming_language_with_version=model_spec_output.programming_language_with_version,
             task=model_spec_output.task
-        ))
-
-        await post_run_message_pydantic(self.project_client, RunMessageCreatePydantic(
-            run_id=self.run_id,
-            content=result.all_messages_json()
-        ))
-
-        await patch_run_status(self.project_client, RunStatusUpdate(
-            run_id=self.run_id,
-            status="completed"
         ))
 
         if self.create_model_entity_on_completion:

@@ -38,12 +38,3 @@ class SearchModelsRequest(BaseModel):
 class ModelQueryResult(BaseModel):
     query_name: str
     models: List[ModelBare]
-
-
-class SearchModelSourcesRequest(BaseModel):
-    queries: List[QueryRequest]
-
-
-class ModelSourceQueryResult(BaseModel):
-    query_name: str
-    model_sources: List[ModelSourceBare]

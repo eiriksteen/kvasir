@@ -29,7 +29,7 @@ export default function ModelEntityBox({ modelEntity, onClick }: ModelEntityBoxP
         <div className="text-[#491A32] font-mono text-xs">Model</div>
       </div>
       <div>
-        <div className="text-sm font-mono text-gray-800 truncate">{modelEntity.name}</div>
+        <div className="text-xs font-mono text-gray-800 truncate">{modelEntity.name}</div>
       </div>
       </div>
     </div>

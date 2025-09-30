@@ -42,10 +42,10 @@ class ModelEntityInDB(BaseModel):
     id: UUID
     name: str
     description: str
+    weights_save_dir: str
     model_id: UUID
     created_at: datetime
     updated_at: datetime
-    weights_save_dir: Optional[str] = None
     pipeline_id: Optional[UUID] = None
     project_id: Optional[UUID] = None
     config: Optional[dict] = None

@@ -29,7 +29,7 @@ export default function DatasetBox({ dataset, onClick }: DatasetProps) {
         <div className="text-[#0E4F70] font-mono text-xs">Dataset</div>
       </div>
       <div>
-        <div className="text-sm font-mono text-gray-800 truncate">{dataset.name}</div>
+        <div className="text-xs font-mono text-gray-800 truncate">{dataset.name}</div>
       </div>
     </div>
   </div>

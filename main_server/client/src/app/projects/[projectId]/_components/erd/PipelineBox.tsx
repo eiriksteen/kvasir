@@ -29,7 +29,7 @@ export default function PipelineBox({ pipeline, onClick }: PipelineBoxProps) {
         <div className="text-[#840B08] font-mono text-xs">Pipeline</div>
       </div>
       <div>
-        <div className="text-sm font-mono text-gray-800 truncate">{pipeline.name}</div>
+        <div className="text-xs font-mono text-gray-800 truncate">{pipeline.name}</div>
         </div>
       </div>
     </div>
