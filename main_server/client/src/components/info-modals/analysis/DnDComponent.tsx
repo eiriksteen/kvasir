@@ -28,13 +28,13 @@ const DnDComponent: React.FC<DnDComponentProps> = ({
       ref={setNodeRef}
       className={`w-full transition-all duration-200 ${
         isOver
-          ? 'h-8 bg-purple-500/20 border-2 border-purple-400 border-dashed rounded'
+          ? 'h-8 bg-[#0E4F70]/20 border-2 border-[#0E4F70] border-dashed rounded'
           : 'h-1 bg-transparent'
       }`}
     >
       {isOver ? (
         <div className="flex items-center justify-center h-full">
-          <div className="text-xs text-purple-300 font-medium">
+          <div className="text-xs text-[#0E4F70] font-medium">
             Drop here to reorder
           </div>
         </div>

@@ -76,13 +76,13 @@ const TocItem: React.FC<TocItemProps> = ({ section, level, expandedSections, onT
 
   return (
     <div className="w-full">
-      <div className="flex items-center gap-2 py-2 px-2 hover:bg-gray-800/50 rounded transition-colors">
+      <div className="flex items-center gap-2 py-2 px-2 hover:bg-gray-100 rounded transition-colors">
         <div 
           className="flex items-center gap-2 flex-1 cursor-pointer"
           onClick={() => onToggleExpanded(section.id)}
         >
           {/* <FileText size={12} className="text-gray-500 flex-shrink-0" /> */}
-          <span className="text-sm text-gray-300 truncate">{section.sectionName}</span>
+          <span className="text-sm text-gray-700 truncate">{section.sectionName}</span>
         </div>
         {onScrollToSection && (
           <button
@@ -90,7 +90,7 @@ const TocItem: React.FC<TocItemProps> = ({ section, level, expandedSections, onT
               e.stopPropagation();
               handleScrollToSection();
             }}
-            className="p-1 text-gray-400 hover:text-gray-200 transition-colors"
+            className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
             title="Scroll to section"
           >
             <ExternalLink size={12} />
@@ -98,7 +98,7 @@ const TocItem: React.FC<TocItemProps> = ({ section, level, expandedSections, onT
         )}
       </div>
       {isExpanded && hasChildren && (
-        <div className="ml-2 border-l border-gray-700">
+        <div className="ml-2 border-l border-gray-300">
           <div className="">
             {orderedChildSections.map((childSection) => (
               <TocItem
@@ -215,23 +215,23 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
     <div className="space-y-2">
       
       <div className="space-y-1">
-        <div className="p-2 hover:bg-gray-800/50 rounded transition-colors">
-          <div className="flex items-center gap-2 text-sm text-gray-300">
+        <div className="p-2 hover:bg-gray-100 rounded transition-colors">
+          <div className="flex items-center gap-2 text-sm text-gray-700">
             <FileText size={14} />
             <span className="truncate">{analysis?.name || 'Untitled Analysis'}</span>
           </div>
         </div>
         
-        <div className="p-2 hover:bg-gray-800/50 rounded transition-colors">
-          <div className="flex items-center gap-2 text-sm text-gray-300">
+        <div className="p-2 hover:bg-gray-100 rounded transition-colors">
+          <div className="flex items-center gap-2 text-sm text-gray-700">
             <Calendar size={14} />
             <span>Created: {analysis?.createdAt ? new Date(analysis.createdAt).toLocaleDateString() : 'Unknown'}</span>
           </div>
         </div>
         
         {analysis?.description && (
-          <div className="p-2 hover:bg-gray-800/50 rounded transition-colors">
-            <div className="flex items-start gap-2 text-sm text-gray-300">
+          <div className="p-2 hover:bg-gray-100 rounded transition-colors">
+            <div className="flex items-start gap-2 text-sm text-gray-700">
               <Info size={14} className="mt-0.5 flex-shrink-0" />
               <span className="text-xs">{analysis.description}</span>
             </div>
@@ -239,12 +239,12 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
         )}
       </div>
       
-      <div className="p-2 border-t border-gray-700 mt-4">
-        <h4 className="text-xs font-medium text-gray-400 mb-2">Actions</h4>
+      <div className="p-2 border-t border-gray-300 mt-4">
+        <h4 className="text-xs font-medium text-gray-600 mb-2">Actions</h4>
         <div className="space-y-1">
           <button
             onClick={handleAddAnalysisToContext}
-            className="w-full p-2 text-left text-sm text-gray-300 hover:bg-gray-700 rounded flex items-center gap-2"
+            className="w-full p-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
           >
             <ArrowRight size={14} className={`${analysisInContext ? 'rotate-180' : ''}`} />
             {analysisInContext ? 'Remove from context' : 'Add to context'}
@@ -252,7 +252,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
           
           <button
             onClick={() => setShowGenerateReportPopup(true)}
-            className="w-full p-2 text-left text-sm text-gray-300 hover:bg-gray-700 rounded flex items-center gap-2"
+            className="w-full p-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
           >
             <FileText size={14} />
             Generate PDF report
@@ -260,7 +260,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
           
           <button
             onClick={handleDeleteAnalysis}
-            className="w-full p-2 text-left text-sm text-red-300 hover:bg-gray-700 rounded flex items-center gap-2"
+            className="w-full p-2 text-left text-sm text-red-600 hover:bg-gray-100 rounded flex items-center gap-2"
           >
             <Trash2 size={14} />
             Delete analysis
@@ -272,10 +272,10 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
 
   if (!analysis) {
     return (
-      <div className="w-64 bg-gray-900 border-r border-gray-700 p-4 h-full flex items-center justify-center">
+      <div className="w-64 bg-white border-r border-gray-300 p-4 h-full flex items-center justify-center">
         <div className="text-center">
-          <FileText size={32} className="mx-auto text-zinc-600 mb-2" />
-          <p className="text-zinc-500 text-sm">Loading...</p>
+          <FileText size={32} className="mx-auto text-gray-600 mb-2" />
+          <p className="text-gray-500 text-sm">Loading...</p>
         </div>
       </div>
     );
@@ -284,10 +284,10 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   // Early return for collapsed state
   if (!isExpanded) {
     return (
-      <div className="w-8 bg-gray-900 border-r border-gray-700 flex flex-col h-full">
+      <div className="w-8 bg-white border-r border-gray-300 flex flex-col h-full">
         <button 
           onClick={() => setIsExpanded(true)}
-          className="p-2 text-gray-400 hover:text-gray-200 transition-colors"
+          className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
         >
           <ChevronRight size={16} />
         </button>
@@ -319,13 +319,13 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   }
 
   return (
-    <div className="w-64 bg-gray-900 border-r border-gray-700 flex flex-col h-full">
+    <div className="w-64 bg-white border-r border-gray-300 flex flex-col h-full">
       {/* Header */}
-      <div className="p-1 border-b border-gray-700 flex justify-center items-center flex-shrink-0 gap-1">
+      <div className="p-1 border-b border-gray-300 flex justify-center items-center flex-shrink-0 gap-1">
         {!showDetails && (
           <button
             onClick={expandCollapseAllSections}
-            className="p-1 text-gray-400 hover:text-gray-200 transition-colors" 
+            className="p-1 text-gray-600 hover:text-gray-900 transition-colors" 
             title="Expand all"
             >
             {(expandedSections.size === 0) ? (
@@ -338,7 +338,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
         {!showDetails && (
           <button
             onClick={() => setShowCreateRootSection(!showCreateRootSection)}
-            className="p-1 text-gray-400 hover:text-gray-200 transition-colors"
+            className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
             title="Add section"
           >
             <Plus size={16} />
@@ -404,8 +404,8 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
                   </div>
                 )}
                 <div className="text-center py-8">
-                  <FileText size={24} className="mx-auto text-zinc-600 mb-2" />
-                  <p className="text-zinc-500 text-xs">No sections yet</p>
+                  <FileText size={24} className="mx-auto text-gray-600 mb-2" />
+                  <p className="text-gray-500 text-xs">No sections yet</p>
                 </div>
               </div>
             )}

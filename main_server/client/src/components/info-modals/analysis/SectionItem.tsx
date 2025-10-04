@@ -154,7 +154,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
       {/* Section Header */}
       <div 
         ref={setNodeRef}
-        className={`flex items-center gap-2 py-2 hover:bg-gray-800/30 transition-colors rounded px-2 ${
+        className={`flex items-center gap-2 py-2 hover:bg-gray-100 transition-colors rounded px-2 ${
           isDragging ? 'opacity-50' : 'opacity-100'
         }`}
         style={{ 
@@ -163,10 +163,10 @@ const SectionItem: React.FC<SectionItemProps> = ({
         }}
       >
         {isDragging ? (
-          <div className="w-full h-8 bg-purple-900/30 flex items-center justify-center rounded-lg">
+          <div className="w-full h-8 bg-[#0E4F70]/20 flex items-center justify-center rounded-lg">
             <div className="flex items-center gap-2">
-              <Move size={16} className="text-purple-400 animate-pulse" />
-              <span className="text-sm text-purple-400">Moving section...</span>
+              <Move size={16} className="text-[#0E4F70] animate-pulse" />
+              <span className="text-sm text-[#0E4F70]">Moving section...</span>
             </div>
           </div>
         ) : (
@@ -194,7 +194,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="w-full px-2 py-1 text-sm rounded border border-gray-600 bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-gray-500"
+                    className="w-full px-2 py-1 text-sm rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                     placeholder="Section name..."
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleUpdateSection();
@@ -205,7 +205,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
                   <textarea
                     value={editDescription}
                     onChange={(e) => setEditDescription(e.target.value)}
-                    className="w-full px-2 py-1 text-sm rounded border border-gray-600 bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-gray-500 resize-none"
+                    className="w-full px-2 py-1 text-sm rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E4F70] resize-none"
                     placeholder="Section description (optional)..."
                     rows={2}
                     onKeyDown={(e) => {
@@ -217,7 +217,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
                     <button
                       onClick={handleCancelEdit}
                       disabled={isUpdating}
-                      className="flex-1 p-2 rounded-lg hover:bg-purple-900/30 transition-colors text-gray-400 hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       <X size={16} />
                       <span>Cancel</span>
@@ -225,7 +225,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
                     <button
                       onClick={handleUpdateSection}
                       disabled={isUpdating || !editName.trim()}
-                      className="flex-1 p-2 rounded-lg hover:bg-purple-900/30 transition-colors text-gray-400 hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {isUpdating ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                       <span>{isUpdating ? 'Saving...' : 'Save'}</span>
@@ -233,7 +233,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
                   </div>
                 </div>
               ) : (
-                <span className="text-sm text-purple-300 flex-1">
+                <span className="text-sm text-[#0E4F70] flex-1">
                   {section.sectionName} ({section.analysisResults.length})
                 </span>
               )}
@@ -246,18 +246,18 @@ const SectionItem: React.FC<SectionItemProps> = ({
                       e.stopPropagation();
                       setShowMenu(!showMenu);
                     }}
-                    className="p-1 text-gray-400 hover:text-gray-200 transition-colors"
+                    className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
                     title="More options"
                   >
                     <MoreVertical size={14} />
                   </button>
                 
                 {showMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50">
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-300 rounded-lg shadow-xl z-50">
                     <div className="py-1">
                       <div {...listeners} {...attributes}>
                         <button
-                          className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2"
+                          className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                           onClick={() => setShowMenu(false)}
                         >
                           <Move size={14} />
@@ -289,7 +289,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
                           setShowConfirm(true);
                           setShowMenu(false);
                         }}
-                        className="w-full px-3 py-2 text-left text-sm text-red-300 hover:bg-gray-700 flex items-center gap-2"
+                        className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2"
                       >
                         <Trash2 size={14} />
                         Delete section
@@ -319,7 +319,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
                 
                 {/* Section Description */}
                 {(section.sectionDescription && !showEditSection) && (
-                  <div className="text-sm text-gray-400 mb-3 leading-relaxed">
+                  <div className="text-sm text-gray-600 mb-3 leading-relaxed">
                     {section.sectionDescription}
                   </div>
                 )}

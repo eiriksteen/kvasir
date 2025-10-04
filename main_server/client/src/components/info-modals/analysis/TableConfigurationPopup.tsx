@@ -152,17 +152,17 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#0a101c] rounded-lg p-6 w-[600px] max-w-[95vw] max-h-[90vh] overflow-y-auto border border-[#271a30]">
-                <h3 className="text-xl font-semibold text-white mb-6">Configure Table</h3>
+            <div className="bg-white rounded-lg p-6 w-[600px] max-w-[95vw] max-h-[90vh] overflow-y-auto border border-gray-300">
+                <h3 className="text-xl font-semibold text-gray-900 mb-6">Configure Table</h3>
                 
                 {/* Tab Navigation */}
-                <div className="flex border-b border-[#271a30] mb-6">
+                <div className="flex border-b border-gray-300 mb-6">
                     <button
                         onClick={() => setActiveTab('data')}
                         className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
                             activeTab === 'data'
-                                ? 'text-purple-400 border-b-2 border-purple-400'
-                                : 'text-zinc-400 hover:text-white'
+                                ? 'text-[#0E4F70] border-b-2 border-[#0E4F70]'
+                                : 'text-gray-600 hover:text-gray-900'
                         }`}
                     >
                         Data
@@ -171,8 +171,8 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                         onClick={() => setActiveTab('metadata')}
                         className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
                             activeTab === 'metadata'
-                                ? 'text-purple-400 border-b-2 border-purple-400'
-                                : 'text-zinc-400 hover:text-white'
+                                ? 'text-[#0E4F70] border-b-2 border-[#0E4F70]'
+                                : 'text-gray-600 hover:text-gray-900'
                         }`}
                     >
                         Metadata
@@ -181,8 +181,8 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                         onClick={() => setActiveTab('display')}
                         className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
                             activeTab === 'display'
-                                ? 'text-purple-400 border-b-2 border-purple-400'
-                                : 'text-zinc-400 hover:text-white'
+                                ? 'text-[#0E4F70] border-b-2 border-[#0E4F70]'
+                                : 'text-gray-600 hover:text-gray-900'
                         }`}
                     >
                         Display
@@ -194,26 +194,26 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                         <div className="space-y-6">
                             {/* Title and Subtitle */}
                             <div>
-                                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Table Title
                                 </label>
                                 <input
                                     type="text"
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
-                                    className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                     placeholder="Enter table title"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Subtitle
                                 </label>
                                 <input
                                     type="text"
                                     value={subtitle}
                                     onChange={(e) => setSubtitle(e.target.value)}
-                                    className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                     placeholder="Enter subtitle (optional)"
                                 />
                             </div>
@@ -230,15 +230,15 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                                 
                                 <div className="space-y-3 max-h-48 overflow-y-auto">
                                     {availableColumns.map((columnName: string) => (
-                                        <div key={columnName} className="flex items-center gap-3 p-3 bg-[#1a1625] rounded border border-[#271a30]">
+                                        <div key={columnName} className="flex items-center gap-3 p-3 bg-gray-100 rounded border border-gray-300">
                                             <input
                                                 type="checkbox"
                                                 checked={selectedColumns.includes(columnName)}
                                                 onChange={() => toggleColumnSelection(columnName)}
-                                                className="w-4 h-4 text-purple-600 bg-[#0a101c] border-[#271a30] rounded focus:ring-purple-500"
+                                                className="w-4 h-4 text-[#0E4F70] bg-white border-gray-300 rounded focus:ring-[#0E4F70]"
                                             />
                                             
-                                            <span className="flex-1 text-white font-medium">
+                                            <span className="flex-1 text-gray-900 font-medium">
                                                 {columnName}
                                             </span>
                                             
@@ -246,7 +246,7 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                                                 type="text"
                                                 value={columnUnits[columnName] || ''}
                                                 onChange={(e) => updateColumnUnit(columnName, e.target.value || null)}
-                                                className="w-20 bg-[#0a101c] border border-[#271a30] rounded px-2 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                                className="w-20 bg-white border border-gray-300 rounded px-2 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#0E4F70]"
                                                 placeholder="Unit"
                                                 disabled={!selectedColumns.includes(columnName)}
                                             />
@@ -255,7 +255,7 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                                                 type="number"
                                                 value={columnSignificantDigits[columnName] || ''}
                                                 onChange={(e) => updateColumnSignificantDigits(columnName, e.target.value ? parseInt(e.target.value) : null)}
-                                                className="w-16 bg-[#0a101c] border border-[#271a30] rounded px-2 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                                className="w-16 bg-white border border-gray-300 rounded px-2 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#0E4F70]"
                                                 placeholder="Sig"
                                                 min="1"
                                                 max="15"
@@ -279,18 +279,18 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                                         onChange={(e) => setShowRowNumbers(e.target.checked)}
                                         className="w-4 h-4 text-purple-600 bg-[#1a1625] border-[#271a30] rounded focus:ring-purple-500"
                                     />
-                                    <span className="text-sm font-medium text-zinc-300">Show Row Numbers</span>
+                                    <span className="text-sm font-medium text-gray-700">Show Row Numbers</span>
                                 </div>
                                 
                                 <div className="mb-4">
-                                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Maximum Rows (leave empty for all)
                                     </label>
                                     <input
                                         type="number"
                                         value={maxRows || ''}
                                         onChange={(e) => setMaxRows(e.target.value ? parseInt(e.target.value) : null)}
-                                        className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                         placeholder="Maximum number of rows to display"
                                         min="1"
                                     />
@@ -298,7 +298,7 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                                 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
                                             Sort By Column
                                         </label>
                                         <select
@@ -315,7 +315,7 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
                                             Sort Order
                                         </label>
                                         <select
@@ -335,11 +335,11 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                     )}
                 </div>
 
-                <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-[#271a30]">
+                <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-300">
                     {table && (
                         <button
                             onClick={handleDeleteTable}
-                            className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
                         >
                             Delete Table
                         </button>
@@ -353,7 +353,7 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                     <button
                         onClick={handleConfirm}
                         disabled={!title || selectedColumns.length === 0}
-                        className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-4 py-2 bg-[#0E4F70] text-white rounded hover:bg-[#0E4F70]/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                         {table ? 'Update Table' : 'Create Table'}
                     </button>

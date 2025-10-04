@@ -71,18 +71,18 @@ export default function GenerateReportPopup({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="bg-[#1a1625] border border-purple-900/30 rounded-lg p-6 max-w-md w-full mx-4">
+      <div className="bg-white border border-gray-300 rounded-lg p-6 max-w-md w-full mx-4">
         {/* Header */}
         <div className="flex justify-between items-start mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-500/20 rounded-lg">
-              <FileText size={20} className="text-purple-400" />
+            <div className="p-2 bg-[#0E4F70]/20 rounded-lg">
+              <FileText size={20} className="text-[#0E4F70]" />
             </div>
-            <h3 className="text-lg font-medium text-white">Generate Report</h3>
+            <h3 className="text-lg font-medium text-gray-900">Generate Report</h3>
           </div>
           <button 
             onClick={onClose}
-            className="text-zinc-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-zinc-800/50"
+            className="text-gray-600 hover:text-gray-900 transition-colors p-1 rounded-lg hover:bg-gray-100"
           >
             <X size={20} />
           </button>
@@ -92,7 +92,7 @@ export default function GenerateReportPopup({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Filename Input */}
           <div className="space-y-2">
-            <label htmlFor="filename" className="block text-sm font-medium text-zinc-300">
+            <label htmlFor="filename" className="block text-sm font-medium text-gray-700">
               Report Filename
             </label>
             <input
@@ -101,26 +101,26 @@ export default function GenerateReportPopup({
               value={filename}
               onChange={(e) => setFilename(e.target.value)}
               placeholder="Enter report filename..."
-              className="w-full px-3 py-2 bg-zinc-900/50 border border-zinc-700/50 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-colors"
+              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70] focus:border-[#0E4F70] transition-colors"
               required
               disabled={isGeneratingReport}
             />
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-gray-500">
               The report will be saved with this filename
             </p>
           </div>
 
           {/* Include Code Toggle */}
-          <div className="flex items-center justify-between p-3 bg-zinc-900/30 border border-zinc-700/30 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-gray-100 border border-gray-300 rounded-lg">
             <div className="flex items-center gap-3">
               <div className="p-1.5 bg-blue-500/20 rounded-lg">
-                <Code size={16} className="text-blue-400" />
+                <Code size={16} className="text-blue-600" />
               </div>
               <div>
-                <label htmlFor="includeCode" className="block text-sm font-medium text-zinc-300">
+                <label htmlFor="includeCode" className="block text-sm font-medium text-gray-700">
                   Include Python Code
                 </label>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-gray-500">
                   Include the generated Python code in the report
                 </p>
               </div>
@@ -134,7 +134,7 @@ export default function GenerateReportPopup({
                 className="sr-only peer"
                 disabled={isGeneratingReport}
               />
-              <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 disabled:opacity-50"></div>
+              <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#0E4F70] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0E4F70] disabled:opacity-50"></div>
             </label>
           </div>
 
@@ -144,14 +144,14 @@ export default function GenerateReportPopup({
               type="button"
               onClick={onClose}
               disabled={isGeneratingReport}
-              className="px-4 py-2 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!filename.trim() || isGeneratingReport}
-              className="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              className="px-4 py-2 rounded-lg bg-[#0E4F70] text-white hover:bg-[#0E4F70]/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
               {isGeneratingReport ? (
                 <>

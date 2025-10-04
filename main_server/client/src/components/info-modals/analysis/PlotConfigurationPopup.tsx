@@ -252,17 +252,17 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#0a101c] rounded-lg p-6 w-[700px] max-w-[95vw] max-h-[90vh] overflow-y-auto border border-[#271a30]">
-                <h3 className="text-xl font-semibold text-white mb-6">Configure Plot</h3>
+            <div className="bg-white rounded-lg p-6 w-[700px] max-w-[95vw] max-h-[90vh] overflow-y-auto border border-gray-300">
+                <h3 className="text-xl font-semibold text-gray-900 mb-6">Configure Plot</h3>
                 
                 {/* Tab Navigation */}
-                <div className="flex border-b border-[#271a30] mb-6">
+                <div className="flex border-b border-gray-300 mb-6">
                     <button
                         onClick={() => setActiveTab('data')}
                         className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
                             activeTab === 'data'
-                                ? 'text-purple-400 border-b-2 border-purple-400'
-                                : 'text-zinc-400 hover:text-white'
+                                ? 'text-[#0E4F70] border-b-2 border-[#0E4F70]'
+                                : 'text-gray-600 hover:text-gray-900'
                         }`}
                     >
                         Data
@@ -271,8 +271,8 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                         onClick={() => setActiveTab('metadata')}
                         className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
                             activeTab === 'metadata'
-                                ? 'text-purple-400 border-b-2 border-purple-400'
-                                : 'text-zinc-400 hover:text-white'
+                                ? 'text-[#0E4F70] border-b-2 border-[#0E4F70]'
+                                : 'text-gray-600 hover:text-gray-900'
                         }`}
                     >
                         Metadata
@@ -281,8 +281,8 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                         onClick={() => setActiveTab('advanced')}
                         className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
                             activeTab === 'advanced'
-                                ? 'text-purple-400 border-b-2 border-purple-400'
-                                : 'text-zinc-400 hover:text-white'
+                                ? 'text-[#0E4F70] border-b-2 border-[#0E4F70]'
+                                : 'text-gray-600 hover:text-gray-900'
                         }`}
                     >
                         Advanced
@@ -294,26 +294,26 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                         <div className="space-y-6">
                             {/* Title and Subtitle */}
                             <div>
-                                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Plot Title
                                 </label>
                                 <input
                                     type="text"
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
-                                    className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                     placeholder="Enter plot title"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Subtitle
                                 </label>
                                 <input
                                     type="text"
                                     value={subtitle}
                                     onChange={(e) => setSubtitle(e.target.value)}
-                                    className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                     placeholder="Enter subtitle (optional)"
                                 />
                             </div>
@@ -324,13 +324,13 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                         <div className="space-y-6">
                             {/* X-Axis Column */}
                             <div>
-                                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     X-Axis Column
                                 </label>
                                 <select
                                     value={xAxisColumn?.name}
                                     onChange={(e) => handleXAxisChange(e.target.value)}
-                                    className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                 >
                                     {availableColumns.map((column) => (
                                         <option key={column} value={column}>
@@ -343,26 +343,26 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                             {/* Axis Names and Units */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
                                         X-Axis Name
                                     </label>
                                     <input
                                         type="text"
                                         value={xAxisName}
                                         onChange={(e) => setXAxisName(e.target.value)}
-                                        className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                         placeholder="X-axis label"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
                                         X-Axis Units
                                     </label>
                                     <input
                                         type="text"
                                         value={xAxisUnits}
                                         onChange={(e) => setXAxisUnits(e.target.value)}
-                                        className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                         placeholder="Units (e.g., days, months)"
                                     />
                                 </div>
@@ -386,20 +386,20 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                                 
                                 <div className="space-y-3 max-h-48 overflow-y-auto">
                                     {yAxisColumns.map((column: PlotColumn) => (
-                                        <div key={column.name} className="flex items-center gap-3 p-3 bg-[#1a1625] rounded border border-[#271a30]">
+                                        <div key={column.name} className="flex items-center gap-3 p-3 bg-gray-100 rounded border border-gray-300">
                                             <input
                                                 type="checkbox"
                                                 checked={column.enabled}
                                                 onChange={() => toggleColumn(column.name)}
-                                                className="w-4 h-4 text-purple-600 bg-[#1a1625] border-[#271a30] rounded focus:ring-purple-500"
+                                                className="w-4 h-4 text-[#0E4F70] bg-white border-gray-300 rounded focus:ring-[#0E4F70]"
                                             />
                                             
-                                            <span className="text-sm text-white min-w-[100px]">{column.name}</span>
+                                            <span className="text-sm text-gray-900 min-w-[100px]">{column.name}</span>
                                             
                                             <select
                                                 value={column.lineType}
                                                 onChange={(e) => updateColumnProperty(column.name, 'lineType', e.target.value)}
-                                                className="bg-[#0a101c] border border-[#271a30] rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                                className="bg-white border border-gray-300 rounded px-2 py-1 text-gray-900 text-sm focus:outline-none focus:ring-1 focus:ring-[#0E4F70]"
                                             >
                                                 {LINE_TYPES.map(type => (
                                                     <option key={type.value} value={type.value}>
@@ -412,14 +412,14 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                                                 type="color"
                                                 value={column.color}
                                                 onChange={(e) => updateColumnProperty(column.name, 'color', e.target.value)}
-                                                className="w-8 h-8 border border-[#271a30] rounded cursor-pointer"
+                                                className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
                                             />
 
                                             {yAxis2Enabled && (
                                                 <select
                                                     value={column.yAxisIndex}
                                                     onChange={(e) => updateColumnProperty(column.name, 'yAxisIndex', parseInt(e.target.value))}
-                                                    className="bg-[#0a101c] border border-[#271a30] rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                                    className="bg-white border border-gray-300 rounded px-2 py-1 text-gray-900 text-sm focus:outline-none focus:ring-1 focus:ring-[#0E4F70]"
                                                 >
                                                     <option value={0}>Y-Axis 1</option>
                                                     <option value={1}>Y-Axis 2</option>
@@ -438,26 +438,26 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                                 
                                 <div className="grid grid-cols-2 gap-4 mb-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
                                             Y-Axis 1 Name
                                         </label>
                                         <input
                                             type="text"
                                             value={yAxisName}
                                             onChange={(e) => setYAxisName(e.target.value)}
-                                            className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                            className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                             placeholder="Y-axis 1 label"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
                                             Y-Axis 1 Units
                                         </label>
                                         <input
                                             type="text"
                                             value={yAxisUnits}
                                             onChange={(e) => setYAxisUnits(e.target.value)}
-                                            className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                            className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                             placeholder="Units (e.g., °C, $, %)"
                                         />
                                     </div>
@@ -470,29 +470,29 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                                         onChange={(e) => setYAxisAuto(e.target.checked)}
                                         className="w-4 h-4 text-purple-600 bg-[#1a1625] border-[#271a30] rounded focus:ring-purple-500"
                                     />
-                                    <span className="text-sm text-zinc-300">Automatic range</span>
+                                    <span className="text-sm text-gray-700">Automatic range</span>
                                 </div>
                                 
                                 {!yAxisAuto && (
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-xs text-zinc-400 mb-1">Minimum</label>
+                                            <label className="block text-xs text-gray-600 mb-1">Minimum</label>
                                             <input
                                                 type="number"
                                                 value={yAxisMin}
                                                 onChange={(e) => setYAxisMin(e.target.value)}
-                                                className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                                 placeholder="Min value"
                                                 step="any"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs text-zinc-400 mb-1">Maximum</label>
+                                            <label className="block text-xs text-gray-600 mb-1">Maximum</label>
                                             <input
                                                 type="number"
                                                 value={yAxisMax}
                                                 onChange={(e) => setYAxisMax(e.target.value)}
-                                                className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                                 placeholder="Max value"
                                                 step="any"
                                             />
@@ -510,33 +510,33 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                                         onChange={(e) => setYAxis2Enabled(e.target.checked)}
                                         className="w-4 h-4 text-purple-600 bg-[#1a1625] border-[#271a30] rounded focus:ring-purple-500"
                                     />
-                                    <span className="text-sm font-medium text-zinc-300">Enable Second Y-Axis</span>
+                                    <span className="text-sm font-medium text-gray-700">Enable Second Y-Axis</span>
                                 </div>
                                 
                                 {yAxis2Enabled && (
                                     <div className="space-y-4">
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                                     Y-Axis 2 Name
                                                 </label>
                                                 <input
                                                     type="text"
                                                     value={yAxis2Name}
                                                     onChange={(e) => setYAxis2Name(e.target.value)}
-                                                    className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                    className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                                     placeholder="Y-axis 2 label"
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                                     Y-Axis 2 Units
                                                 </label>
                                                 <input
                                                     type="text"
                                                     value={yAxis2Units}
                                                     onChange={(e) => setYAxis2Units(e.target.value)}
-                                                    className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                    className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                                     placeholder="Units (e.g., °C, $, %)"
                                                 />
                                             </div>
@@ -547,9 +547,9 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                                                 type="checkbox"
                                                 checked={yAxis2Auto}
                                                 onChange={(e) => setYAxis2Auto(e.target.checked)}
-                                                className="w-4 h-4 text-purple-600 bg-[#1a1625] border-[#271a30] rounded focus:ring-purple-500"
+                                                className="w-4 h-4 text-[#0E4F70] bg-white border-gray-300 rounded focus:ring-[#0E4F70]"
                                             />
-                                            <span className="text-sm text-zinc-300">Automatic range</span>
+                                            <span className="text-sm text-gray-700">Automatic range</span>
                                         </div>
                                         
                                         {!yAxis2Auto && (
@@ -560,7 +560,7 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                                                         type="number"
                                                         value={yAxis2Min}
                                                         onChange={(e) => setYAxis2Min(e.target.value)}
-                                                        className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                        className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                                         placeholder="Min value"
                                                         step="any"
                                                     />
@@ -571,7 +571,7 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                                                         type="number"
                                                         value={yAxis2Max}
                                                         onChange={(e) => setYAxis2Max(e.target.value)}
-                                                        className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                        className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                                         placeholder="Max value"
                                                         step="any"
                                                     />
@@ -635,7 +635,7 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                                                                 type="checkbox"
                                                                 checked={line.includeInLegend}
                                                                 onChange={(e) => updateStraightLine(index, 'includeInLegend', e.target.checked)}
-                                                                className="w-4 h-4 text-purple-600 bg-[#1a1625] border-[#271a30] rounded focus:ring-purple-500"
+                                                                className="w-4 h-4 text-[#0E4F70] bg-white border-gray-300 rounded focus:ring-[#0E4F70]"
                                                                 title="Include in legend"
                                                             />
                                                         </div>
@@ -695,7 +695,7 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                                                                 type="checkbox"
                                                                 checked={area.includeInLegend}
                                                                 onChange={(e) => updateMarkArea(index, 'includeInLegend', e.target.checked)}
-                                                                className="w-4 h-4 text-purple-600 bg-[#1a1625] border-[#271a30] rounded focus:ring-purple-500"
+                                                                className="w-4 h-4 text-[#0E4F70] bg-white border-gray-300 rounded focus:ring-[#0E4F70]"
                                                                 title="Include in legend"
                                                             />
                                                         </div>
@@ -765,33 +765,33 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
                                         onChange={(e) => setSliderEnabled(e.target.checked)}
                                         className="w-4 h-4 text-purple-600 bg-[#1a1625] border-[#271a30] rounded focus:ring-purple-500"
                                     />
-                                    <span className="text-sm font-medium text-zinc-300">Add Slider</span>
+                                    <span className="text-sm font-medium text-gray-700">Add Slider</span>
                                 </div>
-                                <p className="text-xs text-zinc-400 ml-7">Add a slider control for interactive data exploration</p>
+                                <p className="text-xs text-gray-500 ml-7">Add a slider control for interactive data exploration</p>
                             </div>
                         </div>
                     )}
                 </div>
 
-                <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-[#271a30]">
+                <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-300">
                     {plot && (
                     <button
                         onClick={handleDeletePlot}
-                        className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                        className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
                         >
                             Delete Plot
                         </button>
                     )}
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                        className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleConfirm}
                         disabled={!xAxisColumn || yAxisColumns.filter(col => col.enabled).length === 0}
-                        className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-4 py-2 bg-[#0E4F70] text-white rounded hover:bg-[#0E4F70]/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                         {plot ? 'Update Plot' : 'Create Plot'}
                     </button>

@@ -62,7 +62,7 @@ const SectionItemCreate: React.FC<SectionItemCreateProps> = ({
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder="Section name..."
-            className="flex-1 px-2 py-1 mr-2 text-xs rounded border border-gray-600 bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-gray-500"
+            className="flex-1 px-2 py-1 mr-2 text-xs rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
             onKeyDown={e => {
               if (e.key === 'Enter') handleSubmit();
               if (e.key === 'Escape') onCancel();
@@ -72,14 +72,14 @@ const SectionItemCreate: React.FC<SectionItemCreateProps> = ({
           <button
             onClick={handleSubmit}
             disabled={isCreating || !name.trim()}
-            className="p-1 text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-1 text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isCreating ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
           </button>
           <button
             onClick={onCancel}
             disabled={isCreating}
-            className="p-1 text-gray-400 hover:text-gray-200 transition-colors disabled:cursor-not-allowed"
+            className="p-1 text-gray-600 hover:text-gray-900 transition-colors disabled:cursor-not-allowed"
           >
             <X size={12} /> 
           </button>
@@ -93,7 +93,7 @@ const SectionItemCreate: React.FC<SectionItemCreateProps> = ({
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Section name..."
-              className="flex-1 px-3 py-2 mr-3 text-sm rounded border border-gray-600 bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-gray-500"
+              className="flex-1 px-3 py-2 mr-3 text-sm rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
               onKeyDown={e => {
                 if (e.key === 'Enter') handleSubmit();
                 if (e.key === 'Escape') onCancel();
@@ -103,14 +103,14 @@ const SectionItemCreate: React.FC<SectionItemCreateProps> = ({
             <button
               onClick={handleSubmit}
               disabled={isCreating || !name.trim()}
-              className="p-1 text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1 text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
             </button>
             <button
               onClick={onCancel}
               disabled={isCreating}
-              className="p-1 text-gray-400 hover:text-gray-200 transition-colors disabled:cursor-not-allowed"
+              className="p-1 text-gray-600 hover:text-gray-900 transition-colors disabled:cursor-not-allowed"
             >
               <X size={16} /> 
             </button>
@@ -119,7 +119,7 @@ const SectionItemCreate: React.FC<SectionItemCreateProps> = ({
             value={description}
             onChange={e => setDescription(e.target.value)}
             placeholder="Section description (optional)..."
-            className="w-full px-3 py-2 text-sm rounded border border-gray-600 bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-gray-500 resize-none"
+            className="w-full px-3 py-2 text-sm rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E4F70] resize-none"
             rows={3}
             onKeyDown={e => {
               if (e.key === 'Escape') onCancel();

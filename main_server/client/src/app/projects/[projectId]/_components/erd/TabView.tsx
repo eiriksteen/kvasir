@@ -14,19 +14,19 @@ const TabView: React.FC<CustomTabViewProps> = ({ children, projectId }) => {
   const getTabIcon = (type: Tab['type']) => {
     switch (type) {
       case 'project':
-        return <Aperture size={16} className="mr-2" />;
+        return <Aperture size={16} className="mr-2 text-gray-900" />;
       case 'data_source':
-        return <Database size={16} className="mr-2" />;
+        return <Database size={16} className="mr-2 text-gray-900" />;
       case 'dataset':
-        return <Folder size={16} className="mr-2" />;
+        return <Folder size={16} className="mr-2 text-gray-900" />;
       case 'analysis':
-        return <BarChart3 size={16} className="mr-2" />;
+        return <BarChart3 size={16} className="mr-2 text-gray-900" />;
       case 'automation':
-        return <Bot size={16} className="mr-2" />;
+        return <Bot size={16} className="mr-2 text-gray-900" />;
       case 'pipeline':
-        return <Zap size={16} className="mr-2" />;
+        return <Zap size={16} className="mr-2 text-gray-900" />;
       case 'model_entity':
-        return <Brain size={16} className="mr-2" />;
+        return <Brain size={16} className="mr-2 text-gray-900" />;
       default:
         return null;
     }
@@ -34,18 +34,18 @@ const TabView: React.FC<CustomTabViewProps> = ({ children, projectId }) => {
   
   return (
     <div className="flex flex-col h-full w-full">
-      <div className="flex items-center bg-gray-950 border-b border-gray-800 text-gray-100 h-14">
+      <div className="flex items-center bg-gray-100 border-b border-gray-400 text-gray-900 h-14">
         {openTabs.map(tab => (
           <div
             key={tab.key}
-            className={`text-sm flex items-center px-2 py-1 cursor-pointer h-full ${activeTabKey === tab.key ? 'bg-gray-800 font-semibold' : 'hover:bg-gray-800'}`}
+            className={`text-sm flex items-center px-2 py-1 cursor-pointer h-full ${activeTabKey === tab.key ? 'bg-gray-400 font-semibold' : 'hover:bg-gray-200'}`}
             onClick={() => selectTab(tab.key)}
           >
             {getTabIcon(tab.type)}
             <span>{tab.label}</span>
             {tab.closable !== false && (
               <button
-                className="ml-1 text-gray-400 hover:text-red-400 focus:outline-none"
+                className="ml-1 text-gray-200 hover:text-gray-50 focus:outline-none"
                 onClick={e => {
                   e.stopPropagation();
                   closeTabByKey(tab.key);

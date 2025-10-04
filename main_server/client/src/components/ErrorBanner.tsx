@@ -36,7 +36,7 @@ export default function ErrorBanner({
   if (!isVisible) return null;
 
   return (
-    <div className="fixed top-4 right-4 w-[300px] z-[9999] bg-red-500 text-white p-3 rounded-lg shadow-lg">
+    <div className="fixed top-4 right-4 w-[300px] z-[9999] bg-red-400 text-white p-3 rounded-lg shadow-lg border border-red-500">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="text-xs font-medium break-words">
@@ -53,7 +53,7 @@ export default function ErrorBanner({
         </div>
         <button
           onClick={handleClose}
-          className="flex-shrink-0 p-1 hover:bg-red-600 rounded transition-colors"
+          className="flex-shrink-0 p-1 rounded transition-colors"
           aria-label="Close error banner"
         >
           <X size={12} />

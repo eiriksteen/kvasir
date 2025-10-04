@@ -54,29 +54,28 @@ export default function ModelInfoModal({
   }
 
   return (
-    <>
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-        onClick={() => onClose()}
-      />
-      <div className="fixed inset-4 z-50 flex items-center justify-center">
-        <div className="w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden bg-white rounded-lg">
-          <div className="rounded-xl border-2 border-gray-300 shadow-xl h-full flex flex-col">
-            <div className="relative flex items-center p-4 border-b border-gray-300 flex-shrink-0">
-              <div className="ml-2">
-                <h3 className="text-sm font-mono tracking-wider text-gray-900">
-                  {modelEntity.name}
-                </h3>
-              </div>
-              <button
-                onClick={() => onClose()}
-                className="absolute right-6 text-gray-500 hover:text-gray-700 transition-colors"
-                title="Close modal"
-              >
-                <X size={20} />
-              </button>
+    <div className="w-full h-full bg-white overflow-hidden">
+      <div className="bg-white h-full px-0 pb-2 relative">
+        <div className="flex flex-col h-full">
+          {/* Header Section */}
+          <div className="relative flex items-center p-4 border-b border-gray-300 flex-shrink-0">
+            <div className="ml-2">
+              <h3 className="text-sm font-mono tracking-wider text-gray-900">
+                {modelEntity.name}
+              </h3>
             </div>
-            <div className="p-4 flex-1 overflow-y-auto">
+            <button
+              onClick={() => onClose()}
+              className="absolute right-6 text-gray-500 hover:text-gray-700 transition-colors"
+              title="Close tab"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          
+          {/* Content Section */}
+          <div className="flex-1 min-h-0">
+            <div className="h-full p-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
                 {/* Left Column - Model Stats */}
                 <div className="lg:col-span-1 flex flex-col gap-4 h-full overflow-y-auto">
@@ -160,6 +159,6 @@ export default function ModelInfoModal({
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

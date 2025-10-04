@@ -150,7 +150,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
   // Update project tab label when project name changes
   useEffect(() => {
     if (project?.name) {
-      setProjectTabLabel(project.name);
+      setProjectTabLabel('');
     }
   }, [project?.name, setProjectTabLabel]);
 
@@ -416,7 +416,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
   
   if (activeTab?.type === 'project') {
     tabContent = (
-      <div className="w-full h-full">
+      <div className="w-full h-full bg-white">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -459,15 +459,13 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     );
   } 
   else if (activeTab?.type === 'analysis') {
-    const analysis = analysisObjects?.analysisObjects.find(a => a.id === activeTab.id);
-    if (analysis) {
-      tabContent = (
-        <AnalysisItem
-          analysis={analysis}
-          onClose={() => closeTabByKey(activeTab.key)}
-        />
-      );
-    }
+    tabContent = (
+      <AnalysisItem
+        analysisObjectId={activeTab.id as UUID}
+        projectId={projectId}
+        onClose={() => closeTabByKey(activeTab.key)}
+      />
+    );
   } 
   else if (activeTab?.type === 'pipeline') {
     tabContent = (
