@@ -184,3 +184,23 @@ async def _get_detailed_records(data_source_ids: List[uuid.UUID]) -> DetailedDat
     return DetailedDataSourceRecords(
         tabular_records=tabular_records_detailed
     )
+
+
+def simplify_datasource_overview(datasources: DetailedDataSourceRecords) -> list[dict]:
+    # TODO: Make this work with the new datasource structure
+    """
+    Simplify the dataset overview to a list of dictionaries.
+    """
+    datasource_overview = []
+    for datasource in datasources:
+        primary_object_group = datasource
+        feature_list = []
+        for feature in datasource.features:
+            simplified_feature = feature.model_dump(include={"name", "unit", "description", "type", "subtype", "scale"})
+            feature_list.append(simplified_feature)
+        simplified_object_group = primary_object_group.model_dump(include={"id", "type", "file_type", "num_rows", "num_columns"})
+
+        simplified_object_group["features"] = feature_list
+        datasource_overview.append(simplified_object_group)
+
+    return datasource_overview

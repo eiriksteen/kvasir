@@ -44,7 +44,7 @@ analysis_node = Table(
     Column("id", UUID(as_uuid=True), ForeignKey(
         "node.node.id"), primary_key=True),
     Column("analysis_id", UUID(as_uuid=True), ForeignKey(
-        "analysis.analysis_jobs_results.job_id"), nullable=False),
+        "analysis.analysis_objects.id"), nullable=False),
     schema="node"
 )
 

@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
     "@microsoft/fetch-event-source": "^2.0.1",
     "@xyflow/react": "^12.7.0",
     "date-fns": "^4.1.0",
@@ -24,11 +25,13 @@
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
+    "react-syntax-highlighter": "^15.6.6",
     "react-typed": "^2.0.12",
     "react-use-websocket": "^4.13.0",
     "remark-gfm": "^4.0.1",
     "sse.js": "^2.6.0",
-    "swr": "^2.3.3"
+    "swr": "^2.3.3",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -2,7 +2,7 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 COPY data_structures /app/data_structures
 

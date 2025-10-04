@@ -7,6 +7,8 @@ from synesis_api.auth.router import router as auth_router
 from synesis_api.modules.data_sources.router import router as data_sources_router
 from synesis_api.modules.orchestrator.router import router as orchestrator_router
 from synesis_api.modules.analysis.router import router as analysis_router
+from synesis_api.modules.tables.router import router as tables_router
+from synesis_api.modules.plots.router import router as plots_router
 from synesis_api.modules.data_objects.router import router as ontology_router
 from synesis_api.modules.project.router import router as project_router
 from synesis_api.modules.node.router import router as node_router
@@ -106,6 +108,14 @@ app.include_router(model_sources_router,
 app.include_router(function_router,
                    prefix="/function",
                    tags=["Function"])
+
+app.include_router(tables_router,
+                   prefix="/tables",
+                   tags=["Tables"])
+
+app.include_router(plots_router,
+                   prefix="/plots",
+                   tags=["Plots"])
 
 
 @app.get("/")

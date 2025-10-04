@@ -2,7 +2,7 @@ import uuid
 import pandas as pd
 from typing import List, Optional, Union
 from datetime import datetime, timezone
-from sqlalchemy import insert, select, and_
+from sqlalchemy import insert, select, and_, update
 from fastapi import UploadFile
 
 from synesis_api.modules.data_objects.models import (
@@ -632,3 +632,111 @@ async def _add_features_to_object_groups(groups: List[ObjectGroupInDB], max_feat
             **group.model_dump(), features=group_features))
 
     return result_records
+
+from synesis_schemas.main_server import AggregationObjectWithRawData, AggregationObjectInDB, AggregationObjectCreate, AggregationObjectUpdate
+from synesis_api.modules.data_objects.models import aggregation_object
+from fastapi import HTTPException
+from synesis_api.modules.analysis.service import get_analysis_result_by_id
+from synesis_api.modules.data_sources.service import get_data_sources
+from synesis_api.utils.file_utils import copy_file_or_directory_to_container, get_data_from_container_from_code
+from synesis_data_structures.time_series.serialization import serialize_raw_data_for_aggregation_object_for_api
+from synesis_api.app_secrets import DATASETS_SAVE_PATH, RAW_FILES_SAVE_DIR
+from pathlib import Path
+
+
+
+async def create_aggregation_object(aggregation_object_create: AggregationObjectCreate) -> AggregationObjectInDB:
+    id = uuid.uuid4()
+    aggregation_object_in_db = AggregationObjectInDB(
+        id=id,
+        name=aggregation_object_create.name,
+        description=aggregation_object_create.description,
+        analysis_result_id=aggregation_object_create.analysis_result_id,
+        created_at=datetime.now(),
+        updated_at=datetime.now()
+    )
+    
+    await execute(insert(aggregation_object).values(aggregation_object_in_db.model_dump()), commit_after=True)
+    return aggregation_object_in_db
+
+async def update_aggregation_object(aggregation_object_id: uuid.UUID, aggregation_object_update: AggregationObjectUpdate) -> AggregationObjectInDB:
+    aggregation_object_query = select(aggregation_object).where(aggregation_object.c.id == aggregation_object_id)
+    aggregation_object_result = await fetch_one(aggregation_object_query)
+    if not aggregation_object_result:
+        raise HTTPException(status_code=404, detail="Aggregation object not found")
+    await execute(update(aggregation_object).where(aggregation_object.c.id == aggregation_object_id).values(aggregation_object_update.model_dump()), commit_after=True)
+    return AggregationObjectInDB(**aggregation_object_result)
+
+async def get_aggregation_object(aggregation_object_id: uuid.UUID) -> AggregationObjectInDB:
+    aggregation_object_query = select(aggregation_object).where(aggregation_object.c.id == aggregation_object_id)
+    aggregation_object_result = await fetch_one(aggregation_object_query)
+    return AggregationObjectInDB(**aggregation_object_result)
+
+async def get_aggregation_object_by_analysis_result_id(analysis_result_id: uuid.UUID) -> AggregationObjectInDB:
+    aggregation_object_query = select(aggregation_object).where(aggregation_object.c.analysis_result_id == analysis_result_id)
+    aggregation_object_result = await fetch_one(aggregation_object_query)
+    if not aggregation_object_result:
+        raise HTTPException(status_code=404, detail="Aggregation object not found")
+    return AggregationObjectInDB(**aggregation_object_result)
+
+
+def simplify_dataset_overview(datasets: List[Union[DatasetFullWithFeatures, DatasetFull]]) -> list[dict]:
+    """
+    Simplify the dataset overview to a list of dictionaries.
+    """
+    # TODO: Make this work with the new dataset structure
+    datasets_overview = []
+    for dataset in datasets:
+        primary_object_group = dataset.primary_object_group
+        feature_list = []
+        for feature in primary_object_group.features:
+            simplified_feature = feature.model_dump(include={"name", "unit", "description", "type", "subtype", "scale"})
+            feature_list.append(simplified_feature)
+        simplified_object_group = primary_object_group.model_dump(include={"dataset_id", "name", "description", "features", "structure_type", "original_id_name"})
+
+        simplified_object_group["features"] = feature_list
+        datasets_overview.append(simplified_object_group)
+
+    return datasets_overview
+
+
+async def get_aggregation_object_payload_data_by_analysis_result_id(
+    user_id: uuid.UUID,
+    analysis_result_id: uuid.UUID,
+) -> AggregationObjectWithRawData:
+    aggregation_object_in_db = await get_aggregation_object_by_analysis_result_id(analysis_result_id)
+
+    analysis_result = await get_analysis_result_by_id(analysis_result_id)
+
+    datasets = await get_user_datasets_by_ids(user_id, analysis_result.dataset_ids)
+    for idx, dataset in enumerate(datasets):
+        file_path = DATASETS_SAVE_PATH / \
+            f"{user_id}" / \
+            f"{dataset.id}" / \
+            f"{dataset.primary_object_group.id}" / \
+            f"{dataset.primary_object_group.structure_type}_data.parquet"
+        container_save_path = Path("/tmp") / f"dataset_{idx}.parquet"
+
+        out, err = await copy_file_or_directory_to_container(file_path, container_save_path)
+
+    data_sources = await get_data_sources(analysis_result.data_source_ids)
+    for idx, data_source in enumerate(data_sources):
+        file_path = RAW_FILES_SAVE_DIR / \
+            f"{user_id}" / \
+            f"{data_source.id}" / \
+            f"{data_source.name}"
+        print("copying data source:", file_path)
+        container_save_path = Path("/tmp") / f"data_source_{idx}.csv"
+        out, err = await copy_file_or_directory_to_container(file_path, container_save_path)
+
+    output_data = await get_data_from_container_from_code(analysis_result.python_code, analysis_result.output_variable)
+
+    output_data = serialize_raw_data_for_aggregation_object_for_api(output_data)
+
+
+    payload = AggregationObjectWithRawData(
+        **aggregation_object_in_db.model_dump(),
+        data=output_data,
+    )
+
+    return payload
