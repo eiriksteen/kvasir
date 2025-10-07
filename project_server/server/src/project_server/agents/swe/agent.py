@@ -10,10 +10,13 @@ from project_server.agents.swe.tools import (
     add_script_lines,
     delete_script_lines,
 )
-from project_server.agents.swe.utils import describe_function_scripts
+from project_server.agents.shared_tools import get_data_structures_overview_tool, get_data_structure_description_tool
 from project_server.agents.swe.history_processors import keep_only_most_recent_script
 from project_server.utils.pydanticai_utils import get_model
 from project_server.app_secrets import SANDBOX_PYPROJECT_PATH
+from project_server.agents.swe.utils import describe_available_scripts
+from project_server.worker import logger
+
 from synesis_data_structures.time_series.definitions import get_data_structure_description
 from synesis_data_structures.time_series.synthetic import get_synthetic_data_description
 
@@ -32,9 +35,8 @@ swe_agent = Agent(
         replace_script_lines,
         add_script_lines,
         delete_script_lines,
-        # get_data_structures_overview,
-        # get_data_structure_description
-        # Add extra tools during runtime with FunctionToolset
+        get_data_structures_overview_tool,
+        get_data_structure_description_tool
     ],
     retries=10,
     history_processors=[
@@ -78,9 +80,11 @@ def swe_agent_system_prompt(ctx: RunContext[SWEAgentDeps]) -> str:
                 f"The synthetic data description is:\n\n[START_OF_SYNTHETIC_DATA_DESCRIPTIONS]{synthetic_data_descriptions}[END_OF_SYNTHETIC_DATA_DESCRIPTIONS]\n\n"
             )
 
-    if ctx.deps.input_scripts and len(ctx.deps.input_scripts) > 0:
-        script_section = f"Here is a description of the scripts and corresponding functions available to you: {describe_function_scripts(ctx.deps.input_scripts)}"
-    else:
-        script_section = ""
+    script_section = ""
+    if ctx.deps.functions_injected or ctx.deps.models_injected:
+        script_section += f"Here are all the scripts available to you, and the docstrings for the functions and models in the scripts:\n\n{describe_available_scripts(ctx.deps.functions_injected, ctx.deps.models_injected)}"
+
+    logger.info(
+        f"SWE agent system prompt:\n\n{env_section}\n\n{structure_description_section}\n\n{synthetic_data_section}\n\n{script_section}")
 
     return f"{SWE_AGENT_SYSTEM_PROMPT}\n\n{env_section}\n\n{structure_description_section}\n\n{synthetic_data_section}\n\n{script_section}"

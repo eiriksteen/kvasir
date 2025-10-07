@@ -14,7 +14,8 @@ from project_server.entity_manager.file_manager import file_manager
 def write_script(ctx: RunContext[SWEAgentDeps], script: str, file_name: str) -> str:
     """
     Write a new script to a file. 
-    The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
+    An UUID will be prepended to the filename to ensure it is unique. 
+    The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback. 
 
     Args:
         ctx: The context.
@@ -27,11 +28,11 @@ def write_script(ctx: RunContext[SWEAgentDeps], script: str, file_name: str) -> 
     """
 
     updated_script = add_line_numbers_to_script(script)
+    file_storage = file_manager.save_temporary_script(
+        file_name, script, "function")
 
-    ctx.deps.current_scripts[file_name] = updated_script
-
-    file_manager.save_function_script(
-        file_name, script, 0, is_temporary=True)
+    ctx.deps.new_scripts.add(file_storage.filename)
+    ctx.deps.current_scripts[file_storage.filename] = updated_script
 
     out = f"NEW SCRIPT: \n\n <begin_script file_name={file_name}>\n\n {updated_script}\n\n <end_script>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
@@ -67,7 +68,7 @@ def replace_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, line_num
     Returns:
         str: The updated script.
     """
-    if not ctx.deps.current_scripts[file_name]:
+    if file_name not in ctx.deps.current_scripts:
         raise ModelRetry(
             f"Script {file_name} does not exist. The available scripts are: {list(ctx.deps.current_scripts.keys())}. To create a new script, call the write_script tool.")
 
@@ -83,13 +84,15 @@ def replace_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, line_num
 
     ctx.deps.current_scripts[file_name] = updated_script
 
-    file_manager.save_function_script(
+    file_manager.save_temporary_script(
         file_name,
         remove_line_numbers_from_script(updated_script),
-        0,
-        is_temporary=True)
+        "function",
+        overwrite=True
+    )
 
-    ctx.deps.modified_scripts.add(file_name)
+    if file_name in ctx.deps.input_scripts:
+        ctx.deps.modified_scripts.add(file_name)
 
     out = f"UPDATED SCRIPT: \n\n <begin_script file_name={file_name}>\n\n {updated_script}\n\n <end_script>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
@@ -111,7 +114,7 @@ def add_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, new_code: st
     Returns:
         str: The updated script.
     """
-    if not ctx.deps.current_scripts[file_name]:
+    if file_name not in ctx.deps.current_scripts:
         raise ModelRetry(
             f"Script {file_name} does not exist. The available scripts are: {list(ctx.deps.current_scripts.keys())}. To create a new script, call the write_script tool.")
 
@@ -126,13 +129,15 @@ def add_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, new_code: st
 
     ctx.deps.current_scripts[file_name] = updated_script
 
-    file_manager.save_function_script(
+    file_manager.save_temporary_script(
         file_name,
         remove_line_numbers_from_script(updated_script),
-        0,
-        is_temporary=True)
+        "function",
+        overwrite=True
+    )
 
-    ctx.deps.modified_scripts.add(file_name)
+    if file_name in ctx.deps.input_scripts:
+        ctx.deps.modified_scripts.add(file_name)
 
     out = f"UPDATED SCRIPT: \n\n <begin_script file_name={file_name}>\n\n {updated_script}\n\n <end_script>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
@@ -154,7 +159,7 @@ def delete_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, line_numb
     Returns:    
         str: The updated script.
     """
-    if not ctx.deps.current_scripts[file_name]:
+    if file_name not in ctx.deps.current_scripts:
         raise ModelRetry(
             f"Script {file_name} does not exist. The available scripts are: {list(ctx.deps.current_scripts.keys())}. To create a new script, call the write_script tool.")
 
@@ -169,13 +174,15 @@ def delete_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, line_numb
 
     ctx.deps.current_scripts[file_name] = updated_script
 
-    file_manager.save_function_script(
+    file_manager.save_temporary_script(
         file_name,
         remove_line_numbers_from_script(updated_script),
-        0,
-        is_temporary=True)
+        "function",
+        overwrite=True
+    )
 
-    ctx.deps.modified_scripts.add(file_name)
+    if file_name in ctx.deps.input_scripts:
+        ctx.deps.modified_scripts.add(file_name)
 
     out = f"UPDATED SCRIPT: \n\n <begin_script file_name={file_name}>\n\n {updated_script}\n\n <end_script>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."

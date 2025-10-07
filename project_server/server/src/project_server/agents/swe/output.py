@@ -1,5 +1,4 @@
-import uuid
-from typing import List, Optional, Set
+from typing import List, Optional
 from pydantic import BaseModel
 from pydantic_ai import RunContext, ModelRetry
 
@@ -26,21 +25,26 @@ class ConfigOutput(BaseModel):
 
 
 class ImplementationOutput(BaseModel):
-    script_name: str
-    function_name: str
+    main_script_filename: str
     code_explanation: str
 
 
+class NewScriptOutput(BaseModel):
+    filename: str
+    script: str
+
+
 class ModifiedScriptOutput(BaseModel):
-    script_name: str
+    filename: str
     original_script: str
     new_script: str
 
 
 class ImplementationOutputFull(ImplementationOutput):
-    script: str
+    main_script: str
     run_output: str
     modified_scripts: List[ModifiedScriptOutput] = []
+    new_scripts: List[NewScriptOutput] = []
 
 
 class SWEAgentOutput(BaseModel):
@@ -146,6 +150,13 @@ async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name:
     if err:
         raise ModelRetry(f"Error executing code: {err}")
 
+    new_scripts = []
+    if ctx.deps.new_scripts:
+        for new_script_name in ctx.deps.new_scripts:
+            new_script = ctx.deps.current_scripts[new_script_name]
+            new_scripts.append(NewScriptOutput(
+                filename=new_script_name, script=new_script))
+
     modified_scripts = []
     if ctx.deps.input_scripts and ctx.deps.modified_scripts:
         for modified_script_name in ctx.deps.modified_scripts:
@@ -153,9 +164,9 @@ async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name:
                 original_script = ctx.deps.input_scripts[modified_script_name]
                 modified_script = ctx.deps.current_scripts[modified_script_name]
                 modified_scripts.append(ModifiedScriptOutput(
-                    script_name=modified_script_name,
+                    filename=modified_script_name,
                     original_script=original_script,
                     new_script=modified_script
                 ))
 
-    return ImplementationOutputFull(**result.model_dump(), script=script, run_output=out, modified_scripts=modified_scripts)
+    return ImplementationOutputFull(**result.model_dump(), main_script=script, run_output=out, modified_scripts=modified_scripts, new_scripts=new_scripts)

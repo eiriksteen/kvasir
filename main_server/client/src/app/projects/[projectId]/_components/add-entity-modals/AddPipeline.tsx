@@ -23,9 +23,6 @@ function DatasetListItem({ dataset, isFirst, isInContext }: { dataset: Dataset; 
         <h3 className="text-sm font-medium text-gray-900 truncate">
           {dataset.name}
         </h3>
-        <span className="text-xs font-mono text-gray-600 bg-gray-200 px-2 py-1 rounded flex-shrink-0">
-          {dataset.modality}
-        </span>
       </div>
       {isInContext && (
         <span className="text-xs text-[#0E4F70] font-mono ml-auto">✓</span>

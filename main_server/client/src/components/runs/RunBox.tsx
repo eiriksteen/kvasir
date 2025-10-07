@@ -131,7 +131,7 @@ export default function RunBox({ runId }: RunBoxProps) {
     return <div>Run not found</div>;
   }
 
-  const theme = getRunTheme(run.type);
+  const theme = getRunTheme(run.type as 'data_integration' | 'analysis' | 'pipeline' | 'swe' | 'model_integration');
   const statusInfo = getStatusInfo(run.status);
 
   return (

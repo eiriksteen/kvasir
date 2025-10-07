@@ -72,6 +72,7 @@ data_object = Table(
         "data_objects.object_group.id"), nullable=True),
     Column("original_id", String, nullable=True),
     Column("name", String, nullable=True),
+    Column("structure_type", String, nullable=False),
     Column("description", String, nullable=True),
     # Flexible field, can for example store object metadata
     Column("additional_variables", JSONB, nullable=True),
@@ -79,6 +80,7 @@ data_object = Table(
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
+    CheckConstraint(structure_constraint),
     schema="data_objects",
 )
 
@@ -106,22 +108,45 @@ object_group = Table(
 )
 
 
-# This table is to store additional variables relevant to a dataset. They will be stored as key value pairs in a json file.
-variable = Table(
-    "variable",
+time_series_object_group = Table(
+    "time_series_object_group",
     metadata,
-    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
-    Column("variable_group_id", UUID, ForeignKey(
-        "data_objects.variable_group.id"), nullable=False),
-    Column("name", String, nullable=False),
-    Column("python_type", String, nullable=False),
-    Column("description", String, nullable=False),
+    Column("id", UUID(as_uuid=True), ForeignKey(
+        "data_objects.object_group.id"), primary_key=True, default=uuid.uuid4),
+    Column("time_series_df_schema", String, nullable=False),
+    Column("time_series_df_head", String, nullable=False),
+    Column("entity_metadata_df_schema", String, nullable=False),
+    Column("entity_metadata_df_head", String, nullable=False),
+    Column("feature_information_df_schema", String, nullable=False),
+    Column("feature_information_df_head", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
     schema="data_objects"
 )
+
+
+time_series_aggregation_object_group = Table(
+    "time_series_aggregation_object_group",
+    metadata,
+    Column("id", UUID(as_uuid=True), ForeignKey(
+        "data_objects.object_group.id"), primary_key=True, default=uuid.uuid4),
+    Column("time_series_aggregation_outputs_df_schema", String, nullable=False),
+    Column("time_series_aggregation_outputs_df_head", String, nullable=False),
+    Column("time_series_aggregation_inputs_df_schema", String, nullable=False),
+    Column("time_series_aggregation_inputs_df_head", String, nullable=False),
+    Column("entity_metadata_df_schema", String, nullable=False),
+    Column("entity_metadata_df_head", String, nullable=False),
+    Column("feature_information_df_schema", String, nullable=False),
+    Column("feature_information_df_head", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="data_objects"
+)
+
 
 variable_group = Table(
     "variable_group",

@@ -17,18 +17,32 @@ class ObjectGroupCreateWithRawData:
 
 
 @dataclass
-class RawVariableCreate:
-    name: str
-    python_type: str
-    description: str
+class TimeSeriesObjectGroupCreateWithRawData(ObjectGroupCreateWithRawData):
+    time_series_df_schema: str
+    time_series_df_head: str
+    entity_metadata_df_schema: str
+    entity_metadata_df_head: str
+    feature_information_df_schema: str
+    feature_information_df_head: str
+
+
+@dataclass
+class TimeSeriesAggregationObjectGroupCreateWithRawData(ObjectGroupCreateWithRawData):
+    time_series_aggregation_outputs_df_schema: str
+    time_series_aggregation_outputs_df_head: str
+    time_series_aggregation_inputs_df_schema: str
+    time_series_aggregation_inputs_df_head: str
+    entity_metadata_df_schema: str
+    entity_metadata_df_head: str
+    feature_information_df_schema: str
+    feature_information_df_head: str
 
 
 @dataclass
 class VariableGroupCreateWithRawData:
     name: str
     description: str
-    variables: List[RawVariableCreate]
-    data: Dict[str, Any]
+    data: Dict[str, Any] | object
 
 
 @dataclass
@@ -36,6 +50,15 @@ class DatasetCreateWithRawData:
     name: str
     description: str
     object_groups: List[ObjectGroupCreateWithRawData]
+    variable_groups: List[VariableGroupCreateWithRawData]
+
+
+@dataclass
+class DatasetCreateWithRawDataFull:
+    name: str
+    description: str
+    object_groups: List[Union[TimeSeriesObjectGroupCreateWithRawData,
+                              TimeSeriesAggregationObjectGroupCreateWithRawData]]
     variable_groups: List[VariableGroupCreateWithRawData]
 
 
@@ -71,7 +94,7 @@ class DatasetVariableGroupWithRawData:
     name: str
     description: str
     variables: List[DatasetVariable]
-    data: Dict[str, Any]
+    data: Dict[str, Any] | object
 
 
 @dataclass

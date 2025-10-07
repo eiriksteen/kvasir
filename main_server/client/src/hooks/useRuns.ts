@@ -1,4 +1,4 @@
-import { Run, RunMessage } from "@/types/runs";
+import { Run, RunMessageInDB } from "@/types/runs";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import useSWR, { useSWRConfig } from "swr";
@@ -27,7 +27,7 @@ async function fetchRuns(token: string): Promise<Run[]> {
   return snakeToCamelKeys(data);
 } 
 
-async function fetchRunMessages(token: string, runId: string): Promise<RunMessage[]> {
+async function fetchRunMessages(token: string, runId: string): Promise<RunMessageInDB[]> {
   const response = await fetch(`${API_URL}/runs/messages/${runId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -197,7 +197,7 @@ export const useRunMessages = (runId: string) => {
         const eventSource = createRunMessagesEventSource(session ? session.APIToken.accessToken : "", runId)
 
         eventSource.onmessage = (ev) => {
-          const streamedMessage: RunMessage = snakeToCamelKeys(JSON.parse(ev.data));
+          const streamedMessage: RunMessageInDB = snakeToCamelKeys(JSON.parse(ev.data));
           next(null, () => {
             mutateRunMessages([...(runMessages || []), streamedMessage], {revalidate: false});
             return undefined;

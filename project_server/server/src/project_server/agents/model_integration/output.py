@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, field_validator
 
-from synesis_schemas.main_server import FunctionInputObjectGroupDefinitionCreate, FunctionOutputObjectGroupDefinitionCreate, FunctionOutputVariableDefinitionCreate, ModelCreate, ModelSourceCreate, PypiModelSourceCreate
+from synesis_schemas.main_server import ModelFunctionCreate
 from synesis_schemas.main_server import SUPPORTED_MODALITIES_TYPE, SUPPORTED_TASK_TYPE
 
 
@@ -23,24 +23,18 @@ class SearchPypiPackagesOutput(BaseModel):
 # TODO: Add outputs to search github as well
 
 
-class ModelFunctionDescription(BaseModel):
-    name: str
-    description: str
-    default_args: Dict[str, Any]
-    input_object_groups: List[FunctionInputObjectGroupDefinitionCreate]
-    output_object_groups: List[FunctionOutputObjectGroupDefinitionCreate]
-    output_variables: List[FunctionOutputVariableDefinitionCreate]
-
-
 class ModelDescription(BaseModel):
     name: str
+    python_class_name: str
     description: str
     modality: SUPPORTED_MODALITIES_TYPE
-    programming_language_with_version: str
-    default_config: Dict[str, Any]
     task: SUPPORTED_TASK_TYPE
-    training_function: ModelFunctionDescription
-    inference_function: ModelFunctionDescription
+    programming_language_with_version: str
+    model_class_docstring: str
+    training_function: ModelFunctionCreate
+    inference_function: ModelFunctionCreate
+    default_config: dict
+    config_schema: dict
 
 
 class ImplementationFeedbackOutput(BaseModel):

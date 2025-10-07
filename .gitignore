@@ -20,4 +20,4 @@ pipeline_scripts
 data_storage
 script_storage
 .ssh
-weights
+*weights

@@ -3,8 +3,9 @@ from typing import Optional, Literal, List
 from datetime import datetime
 from uuid import UUID
 
-from .function import FunctionBare
-from .data_objects import ObjectGroupCreate, VariableGroupCreate
+from .function import FunctionWithoutEmbedding
+from .data_objects import ObjectGroup
+from .runs import RunInDB
 
 # DB models
 
@@ -13,6 +14,14 @@ class PipelineInDB(BaseModel):
     id: UUID
     user_id: UUID
     name: str
+    python_function_name: str
+    filename: str
+    module_path: str
+    description: str
+    docstring: str
+    args: dict
+    args_schema: dict
+    output_variables_schema: dict
     implementation_script_path: str
     args_dataclass_name: str
     input_dataclass_name: str
@@ -20,32 +29,32 @@ class PipelineInDB(BaseModel):
     output_variables_dataclass_name: str
     created_at: datetime
     updated_at: datetime
-    description: Optional[str] = None
-    args_dict: Optional[dict] = None
 
 
-class PipelineFromDatasetInDB(BaseModel):
-    dataset_id: UUID
+class ObjectGroupInPipelineInDB(BaseModel):
     pipeline_id: UUID
+    object_group_id: UUID
+    code_variable_name: str
     created_at: datetime
     updated_at: datetime
 
 
-class PipelineFromModelEntityInDB(BaseModel):
+class FunctionInPipelineInDB(BaseModel):
+    pipeline_id: UUID
+    function_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class ModelEntityInPipelineInDB(BaseModel):
     model_entity_id: UUID
     pipeline_id: UUID
+    code_variable_name: str
     created_at: datetime
     updated_at: datetime
 
 
-class PipelineOutputDatasetInDB(BaseModel):
-    dataset_id: UUID
-    pipeline_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class PeriodicScheduleInDB(BaseModel):
+class PipelinePeriodicScheduleInDB(BaseModel):
     id: UUID
     pipeline_id: UUID
     start_time: datetime
@@ -56,33 +65,24 @@ class PeriodicScheduleInDB(BaseModel):
     updated_at: datetime
 
 
-class FunctionInPipelineInDB(BaseModel):
+# Not yet supported
+# Would need to have the SWE agent create a script to listen for the event, then deploy it at some frequency
+class PipelineOnEventScheduleInDB(BaseModel):
     id: UUID
     pipeline_id: UUID
-    function_id: UUID
+    event_listener_script_path: str
+    event_description: str
     created_at: datetime
     updated_at: datetime
 
 
-class FunctionInPipelineObjectGroupMappingInDB(BaseModel):
+class PipelineOutputObjectGroupDefinitionInDB(BaseModel):
     id: UUID
     pipeline_id: UUID
-    to_function_input_object_group_id: UUID
-    from_function_output_object_group_id: Optional[UUID] = None
-    created_at: datetime
-    updated_at: datetime
-
-
-class PipelineObjectGroupOutputToSaveInDB(BaseModel):
-    pipeline_id: UUID
-    object_group_desc_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class PipelineVariableGroupOutputToSaveInDB(BaseModel):
-    pipeline_id: UUID
-    variable_group_desc_id: UUID
+    name: str
+    structure_id: str
+    description: str
+    output_entity_id_name: str
     created_at: datetime
     updated_at: datetime
 
@@ -90,38 +90,60 @@ class PipelineVariableGroupOutputToSaveInDB(BaseModel):
 class PipelineRunInDB(BaseModel):
     id: UUID
     pipeline_id: UUID
-    status: Literal["pending", "running", "completed", "failed"]
+    status: Literal["running", "completed", "failed"]
     start_time: datetime
-    end_time: datetime
+    end_time: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
 
-class PipelineRunObjectGroupResultInDB(BaseModel):
-    id: UUID
-    pipeline_run_id: UUID
-    object_group_id: UUID
-    output_to_save_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class PipelineRunVariableGroupResultInDB(BaseModel):
-    id: UUID
-    pipeline_run_id: UUID
-    variable_group_id: UUID
-    output_to_save_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-# Not yet supported
-# Would need to have the SWE agent create a script to listen for the event, then deploy it at some frequency
-class OnEventScheduleInDB(BaseModel):
-    id: UUID
+class PipelineOutputDatasetInDB(BaseModel):
     pipeline_id: UUID
-    event_listener_script_path: str
-    event_description: str
+    dataset_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class PipelineOutputModelEntityInDB(BaseModel):
+    pipeline_id: UUID
+    model_entity_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class PipelineGraphNodeInDB(BaseModel):
+    id: UUID
+    type: Literal['dataset', 'function', 'model_entity']
+    pipeline_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class PipelineGraphEdgeInDB(BaseModel):
+    from_node_id: UUID
+    to_node_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class PipelineGraphDatasetNodeInDB(BaseModel):
+    id: UUID
+    dataset_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class PipelineGraphFunctionNodeInDB(BaseModel):
+    id: UUID
+    function_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class PipelineGraphModelEntityNodeInDB(BaseModel):
+    id: UUID
+    model_entity_id: UUID
+    function_type: Literal["training", "inference"]
     created_at: datetime
     updated_at: datetime
 
@@ -134,47 +156,61 @@ class PipelineSources(BaseModel):
     model_entity_ids: List[UUID]
 
 
+class PipelineGraphNode(BaseModel):
+    id: UUID
+    entity_id: UUID
+    type: Literal['dataset', 'function', 'model_entity']
+    model_function_type: Optional[Literal["training", "inference"]] = None
+    from_model_entity_ids: List[UUID]
+    from_function_ids: List[UUID]
+    from_dataset_ids: List[UUID]
+
+
+class PipelineGraph(BaseModel):
+    nodes: List[PipelineGraphNode]
+
+
 class PipelineFull(PipelineInDB):
-    functions: List[FunctionBare]
-    runs: List[PipelineRunInDB] = []
-    periodic_schedules: List[PeriodicScheduleInDB] = []
-    on_event_schedules: List[OnEventScheduleInDB] = []
+    functions: List[FunctionWithoutEmbedding]
+    model_entities: List[ModelEntityInPipelineInDB]
+    runs: List[RunInDB] = []
+    periodic_schedules: List[PipelinePeriodicScheduleInDB] = []
+    on_event_schedules: List[PipelineOnEventScheduleInDB] = []
+    computational_graph: PipelineGraph
     sources: PipelineSources
+    input_object_groups: List[ObjectGroup]
+    output_object_group_definitions: List[PipelineOutputObjectGroupDefinitionInDB]
 
 
-class DatasetObjectGroupInputMapping(BaseModel):
-    dataset_name: str
-    dataset_object_group_name: str
-    pipeline_input_variable_name: str
+class PipelineRunStatusUpdate(BaseModel):
+    status: Literal["running", "completed", "failed"]
 
 
-class ModelEntityInputMapping(BaseModel):
-    pipeline_input_weights_dir_variable_name: str
-    # If none, we create one
-    model_entity_weights_dir_name: Optional[str] = None
+class PipelineRunDatasetOutputCreate(BaseModel):
+    dataset_id: UUID
 
 
-class PipelineInputMapping(BaseModel):
-    from_dataset_object_groups: List[DatasetObjectGroupInputMapping]
-    from_model_entities: List[ModelEntityInputMapping]
-
-
-class PipelineOutputObjectGroupMapping(BaseModel):
-    output_object_group_variable_name: str
-    output_create: ObjectGroupCreate
-
-
-class PipelineOutputVariableGroupMapping(BaseModel):
-    output_variable_group_variable_name: str
-    output_create: VariableGroupCreate
-
-
-class PipelineOutputMapping(BaseModel):
-    output_object_groups: List[PipelineOutputObjectGroupMapping]
-    output_variable_groups: List[PipelineOutputVariableGroupMapping]
+class PipelineRunModelEntityOutputCreate(BaseModel):
+    model_entity_id: UUID
 
 
 # Create models
+
+class ObjectGroupInPipelineCreate(BaseModel):
+    object_group_id: UUID
+    code_variable_name: str
+
+
+class ModelEntityInPipelineCreate(BaseModel):
+    model_entity_id: UUID
+    code_variable_name: str
+
+
+class PipelineOutputObjectGroupDefinitionCreate(BaseModel):
+    name: str
+    structure_id: str
+    description: str
+    output_entity_id_name: str
 
 
 class PeriodicScheduleCreate(BaseModel):
@@ -188,30 +224,38 @@ class OnEventScheduleCreate(BaseModel):
     event_description: str
 
 
-class InputVariableMappingCreate(BaseModel):
-    to_function_input_object_group_id: UUID
-    from_function_output_object_group_id: Optional[UUID] = None
-    from_dataset_object_group_id: Optional[UUID] = None
+class PipelineNodeCreate(BaseModel):
+    entity_id: UUID
+    type: Literal['dataset', 'function', 'model_entity']
+    model_function_type: Optional[Literal["training", "inference"]] = None
+    from_model_entity_ids: List[UUID]
+    from_function_ids: List[UUID]
+    from_dataset_ids: List[UUID]
 
 
-class FunctionInPipelineCreate(BaseModel):
-    function_id: UUID
-    input_variable_mappings: List[InputVariableMappingCreate]
-    output_object_groups_to_save_ids: List[UUID]
-    output_variable_groups_to_save_ids: List[UUID]
+class PipelineGraphCreate(BaseModel):
+    nodes: List[PipelineNodeCreate]
 
 
 class PipelineCreate(BaseModel):
     name: str
+    python_function_name: str
+    filename: str
+    docstring: str
+    module_path: str
     description: str
     implementation_script_path: str
     args_dataclass_name: str
     input_dataclass_name: str
     output_dataclass_name: str
     output_variables_dataclass_name: str
-    functions: List[FunctionInPipelineCreate]
+    args_schema: dict
+    args: dict
+    output_variables_schema: dict
     periodic_schedules: List[PeriodicScheduleCreate]
     on_event_schedules: List[OnEventScheduleCreate]
-    input_dataset_ids: List[UUID]
-    args_dict: Optional[dict] = None
-    input_model_entity_ids: Optional[List[UUID]] = None
+    computational_graph: PipelineGraphCreate
+    function_ids: List[UUID]
+    input_model_entities: List[ModelEntityInPipelineCreate]
+    input_object_groups: List[ObjectGroupInPipelineCreate]
+    output_object_group_definitions: List[PipelineOutputObjectGroupDefinitionCreate]

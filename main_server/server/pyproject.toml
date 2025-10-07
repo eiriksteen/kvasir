@@ -55,7 +55,8 @@ dependencies = [
     "taskiq-redis",
     "pgvector",
     "google-generativeai",
-    "cryptography"
+    "cryptography",
+    "jsonschema"
 ]
 
 [tool.setuptools]

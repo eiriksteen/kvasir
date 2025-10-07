@@ -21,13 +21,20 @@ class FunctionDefinitionInDB(BaseModel):
 
 class FunctionInDB(BaseModel):
     id: UUID
-    definition_id: UUID
     version: int
+    filename: str
+    python_function_name: str
+    definition_id: UUID
+    default_args: dict
+    args_schema: dict
+    output_variables_schema: dict
+    newest_update_description: str
     implementation_script_path: str
+    module_path: str
+    docstring: str
     description: str
     embedding: List[float]
     setup_script_path: Optional[str] = None
-    default_args_dict: Optional[dict] = None
     created_at: datetime
     updated_at: datetime
 
@@ -40,7 +47,7 @@ class FunctionInputObjectGroupDefinitionInDB(BaseModel):
     required: bool
     created_at: datetime
     updated_at: datetime
-    description: Optional[str] = None
+    description: str
 
 
 class FunctionOutputObjectGroupDefinitionInDB(BaseModel):
@@ -50,51 +57,39 @@ class FunctionOutputObjectGroupDefinitionInDB(BaseModel):
     structure_id: str
     created_at: datetime
     updated_at: datetime
-    description: Optional[str] = None
-
-
-class FunctionOutputVariableDefinitionInDB(BaseModel):
-    id: UUID
-    name: str
-    function_id: UUID
-    python_type: str
-    created_at: datetime
-    updated_at: datetime
-    description: Optional[str] = None
+    description: str
 
 
 # API models
 
 # Merged function def and function
 # We don't inherit since we want to drop the embedding field (could implement that differently but this works)
-class FunctionBare(BaseModel):
+class FunctionWithoutEmbedding(BaseModel):
     id: UUID
     definition_id: UUID
-    name: str
-    type: Literal["inference", "training", "computation", "tool"]
-    args_dataclass_name: str
-    input_dataclass_name: str
-    output_dataclass_name: str
-    output_variables_dataclass_name: str
     version: int
+    args_schema: dict
+    default_args: dict
+    output_variables_schema: dict
+    newest_update_description: str
+    filename: str
+    module_path: str
+    python_function_name: str
     implementation_script_path: str
+    docstring: str
     description: str
     setup_script_path: Optional[str] = None
-    default_args_dict: Optional[dict] = None
-    input_object_groups: List[FunctionInputObjectGroupDefinitionInDB]
-    output_object_groups: List[FunctionOutputObjectGroupDefinitionInDB]
-    output_variables: List[FunctionOutputVariableDefinitionInDB]
     created_at: datetime
     updated_at: datetime
 
 
+class FunctionFull(FunctionWithoutEmbedding):
+    definition: FunctionDefinitionInDB
+    input_object_groups: List[FunctionInputObjectGroupDefinitionInDB]
+    output_object_groups: List[FunctionOutputObjectGroupDefinitionInDB]
+
+
 # Create models
-
-
-class FunctionOutputVariableDefinitionCreate(BaseModel):
-    name: str
-    python_type: str
-    description: Optional[str] = None
 
 
 class FunctionInputObjectGroupDefinitionCreate(BaseModel):
@@ -108,35 +103,46 @@ class FunctionOutputObjectGroupDefinitionCreate(BaseModel):
     structure_id: str
     name: str
     description: str
+    output_entity_id_name: str
 
 
 class FunctionCreate(BaseModel):
     name: str
+    python_function_name: str
+    docstring: str
     description: str
+    filename: str
+    module_path: str
+    args_schema: dict
+    default_args: dict
+    output_variables_schema: dict
     implementation_script_path: str
     type: Literal["inference", "training", "computation", "tool"]
     args_dataclass_name: str
     input_dataclass_name: str
     output_dataclass_name: str
     output_variables_dataclass_name: str
-    input_object_group_descriptions: List[FunctionInputObjectGroupDefinitionCreate]
-    output_object_group_descriptions: List[FunctionOutputObjectGroupDefinitionCreate]
-    output_variables_descriptions: List[FunctionOutputVariableDefinitionCreate]
+    input_object_groups: List[FunctionInputObjectGroupDefinitionCreate]
+    output_object_group_definitions: List[FunctionOutputObjectGroupDefinitionCreate]
     setup_script_path: Optional[str] = None
-    default_args_dict: Optional[dict] = None
 
 
 class FunctionUpdateCreate(BaseModel):
     definition_id: UUID
+    updated_python_function_name: Optional[str] = None
+    updates_made_description: str
     updated_description: Optional[str] = None
+    updated_docstring: Optional[str] = None
     updated_setup_script_path: Optional[str] = None
-    updated_default_args_dict: Optional[dict] = None
+    updated_default_args: Optional[dict] = None
+    updated_args_schema: Optional[dict] = None
+    updated_output_variables_schema: Optional[dict] = None
+    updated_filename: Optional[str] = None
+    updated_module_path: Optional[str] = None
     updated_implementation_script_path: Optional[str] = None
-    input_object_group_descriptions_to_add: Optional[
+    input_object_groups_to_add: Optional[
         List[FunctionInputObjectGroupDefinitionCreate]] = None
-    output_object_group_descriptions_to_add: Optional[
+    output_object_group_definitions_to_add: Optional[
         List[FunctionOutputObjectGroupDefinitionCreate]] = None
-    output_variables_descriptions_to_add: Optional[List[FunctionOutputVariableDefinitionCreate]] = None
-    input_object_group_descriptions_to_remove: Optional[List[UUID]] = None
-    output_object_group_descriptions_to_remove: Optional[List[UUID]] = None
-    output_variables_descriptions_to_remove: Optional[List[UUID]] = None
+    input_object_groups_to_remove: Optional[List[UUID]] = None
+    output_object_group_definitions_to_remove: Optional[List[UUID]] = None

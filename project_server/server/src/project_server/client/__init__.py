@@ -26,6 +26,10 @@ from .requests.pipeline import (
     get_user_pipelines,
     get_user_pipeline,
     post_pipeline,
+    post_pipeline_output_model_entity,
+    post_pipeline_output_dataset,
+    post_pipeline_run_object,
+    patch_pipeline_run_status
 )
 
 from .requests.orchestrator import (
@@ -82,7 +86,8 @@ from .requests.model import (
     post_model,
     post_model_entity,
     get_project_model_entities,
-    get_model_entities_by_ids
+    get_model_entities_by_ids,
+    patch_model_entity_config
 )
 
 from .requests.model_sources import (
@@ -117,18 +122,24 @@ __all__ = [
     "get_user_pipelines",
     "get_user_pipeline",
     "post_pipeline",
+    "post_pipeline_output_model_entity",
+    "post_pipeline_output_dataset",
+    "patch_pipeline_run_status",
     "post_function",
     "post_model",
     "post_model_entity",
+    "post_pipeline_run_object",
 
     # Function functions
     "post_function",
     "post_update_function",
+
     # Model functions
     "post_model",
     "post_model_entity",
     "get_project_model_entities",
     "get_model_entities_by_ids",
+    "patch_model_entity_config",
 
     # Orchestrator functions
     "post_conversation",

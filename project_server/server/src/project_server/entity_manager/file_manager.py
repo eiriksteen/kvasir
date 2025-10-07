@@ -1,12 +1,39 @@
 import uuid
 from pathlib import Path
+from typing import Optional, Literal
+from dataclasses import dataclass
 
-from project_server.app_secrets import RAW_DATA_DIR, SCRIPTS_DIR, SCRIPTS_MODULE, SCRIPTS_MODULE_TMP
+from project_server.app_secrets import (
+    RAW_DATA_DIR,
+    FUNCTIONS_DIR,
+    FUNCTIONS_DIR_TMP,
+    MODELS_DIR,
+    MODELS_DIR_TMP,
+    PIPELINES_DIR,
+    PIPELINES_DIR_TMP,
+    DATA_INTEGRATION_DIR,
+    DATA_INTEGRATION_DIR_TMP,
+    FUNCTIONS_MODULE,
+    FUNCTIONS_MODULE_TMP,
+    MODELS_MODULE,
+    MODELS_MODULE_TMP,
+    PIPELINES_MODULE,
+    PIPELINES_MODULE_TMP,
+    DATA_INTEGRATION_MODULE,
+    DATA_INTEGRATION_MODULE_TMP
+)
+
+
+@dataclass
+class ScriptStorage:
+    filename: str
+    script_path: Path
+    module_path: str
+    setup_script_path: Optional[Path] = None
 
 
 class FileManager:
 
-    # TODO: Add support for other file types
     def save_raw_data_file(self, file_id: uuid.UUID, filename: str, file_content: bytes) -> Path:
         file_path = RAW_DATA_DIR / f"{file_id}" / f"{filename}"
         file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -17,7 +44,6 @@ class FileManager:
         return file_path
 
     def get_raw_data_file_path(self, file_id: uuid.UUID) -> Path:
-
         if not (RAW_DATA_DIR / f"{file_id}").exists():
             raise FileNotFoundError(
                 f"Directory {RAW_DATA_DIR / f"{file_id}"} does not exist")
@@ -28,56 +54,126 @@ class FileManager:
 
         return list((RAW_DATA_DIR / f"{file_id}").iterdir())[0]
 
-    def delete_raw_data_file(self, file_id: uuid.UUID) -> None:
-        file_path = RAW_DATA_DIR / f"{file_id}"
+    def save_model_script(
+            self,
+            python_model_name: str,
+            script_content: str,
+            version: int,
+            setup_script_content: Optional[str] = None) -> ScriptStorage:
 
-        for file in file_path.iterdir():
-            file.unlink()
+        filename = f"{python_model_name}_v{version}.py"
+        file_path = MODELS_DIR / filename
+        file_path.write_text(script_content)
 
-        file_path.rmdir()
+        setup_file_path = None
+        if setup_script_content:
+            setup_file_path = MODELS_DIR / \
+                f"{python_model_name}_v{version}_setup.sh"
+            setup_file_path.write_text(setup_script_content)
 
-    def save_pipeline_script(self, pipeline_name: str, script_content: str) -> Path:
+        module_path = f"{MODELS_MODULE}.{python_model_name}_v{version}"
+
+        return ScriptStorage(filename=filename, script_path=file_path, setup_script_path=setup_file_path, module_path=module_path)
+
+    def save_function_script(
+            self,
+            python_function_name: str,
+            script_content: str,
+            version: int,
+            setup_script_content: Optional[str] = None) -> ScriptStorage:
+
+        filename = f"{python_function_name}_v{version}.py"
+        file_path = FUNCTIONS_DIR / filename
+        file_path.write_text(script_content)
+
+        setup_file_path = None
+        if setup_script_content:
+            setup_file_path = FUNCTIONS_DIR / \
+                f"{python_function_name}_v{version}_setup.sh"
+            setup_file_path.write_text(setup_script_content)
+
+        module_path = f"{FUNCTIONS_MODULE}.{python_function_name}_v{version}"
+
+        return ScriptStorage(filename=filename, script_path=file_path, setup_script_path=setup_file_path, module_path=module_path)
+
+    def save_pipeline_script(self, python_function_name: str, script_content: str, setup_script_content: Optional[str] = None) -> ScriptStorage:
         # We have a unique index on the function name, so we can use it to save the script
-        base_dir = SCRIPTS_DIR / "pipelines"
-        base_dir.mkdir(parents=True, exist_ok=True)
-        filename = f"{pipeline_name}_{uuid.uuid4()}.py"
-        file_path = base_dir / filename
+        pipe_uuid = uuid.uuid4()
+        filename = f"{python_function_name}_{pipe_uuid}.py"
+        file_path = PIPELINES_DIR / filename
         file_path.write_text(script_content)
 
-        return file_path
+        setup_file_path = None
+        if setup_script_content:
+            setup_file_path = PIPELINES_DIR / \
+                f"{python_function_name}_{pipe_uuid}_setup.sh"
+            setup_file_path.write_text(setup_script_content)
 
-    def save_function_script(self, function_name: str, script_content: str, version: int, is_temporary: bool = False, is_setup: bool = False) -> Path:
-        # We have a unique index on the function name, so we can use it to save the script
-        base_dir = SCRIPTS_DIR / \
-            "functions" if not is_temporary else SCRIPTS_DIR / "functions_tmp"
-        base_dir.mkdir(parents=True, exist_ok=True)
-        filename = f"{function_name}_v{version}.py" if not is_setup else f"{function_name}_v{version}_setup.sh"
-        file_path = base_dir / filename
+        module_path = f"{PIPELINES_MODULE}.{python_function_name}_{pipe_uuid}"
+
+        return ScriptStorage(filename=filename, script_path=file_path, setup_script_path=setup_file_path, module_path=module_path)
+
+    def save_data_integration_script(
+            self,
+            data_integration_id: uuid.UUID,
+            script_content: str,
+            setup_script_content: Optional[str] = None) -> ScriptStorage:
+
+        filename = f"data_integration_{data_integration_id}.py"
+        file_path = DATA_INTEGRATION_DIR / filename
         file_path.write_text(script_content)
 
-        return file_path
+        setup_file_path = None
+        if setup_script_content:
+            setup_file_path = DATA_INTEGRATION_DIR / \
+                f"data_integration_{data_integration_id}_setup.sh"
+            setup_file_path.write_text(setup_script_content)
 
-    def save_data_integration_script(self, data_integration_id: uuid.UUID, filename: str, script_content: str) -> Path:
-        file_path = SCRIPTS_DIR / "data_integration" / \
-            f"{data_integration_id}" / f"{filename}"
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(script_content)
+        module_path = f"{DATA_INTEGRATION_MODULE}.data_integration_{data_integration_id}"
 
-        return file_path
+        return ScriptStorage(filename=filename, script_path=file_path, setup_script_path=setup_file_path, module_path=module_path)
 
-    def get_function_script_path(self, function_name: str, version: int, is_temporary: bool = False) -> Path:
-        base_dir = SCRIPTS_DIR / \
-            "functions" if not is_temporary else SCRIPTS_DIR / "functions_tmp"
-        return base_dir / f"{function_name}_v{version}.py"
+    def save_temporary_script(
+            self,
+            filename: str,
+            script_content: str,
+            script_type: Literal["function", "model", "pipeline", "data_integration"],
+            overwrite: bool = False
+    ) -> ScriptStorage:
 
-    def get_function_script_module(self, function_name: str, version: int, is_temporary: bool = False) -> str:
-        module = SCRIPTS_MODULE if not is_temporary else SCRIPTS_MODULE_TMP
-        return f"{module}.{function_name}_v{version}.py"
+        if script_type == "function":
+            base_dir = FUNCTIONS_DIR_TMP
+            base_module = FUNCTIONS_MODULE_TMP
+        elif script_type == "model":
+            base_dir = MODELS_DIR_TMP
+            base_module = MODELS_MODULE_TMP
+        elif script_type == "pipeline":
+            base_dir = PIPELINES_DIR_TMP
+            base_module = PIPELINES_MODULE_TMP
+        elif script_type == "data_integration":
+            base_dir = DATA_INTEGRATION_DIR_TMP
+            base_module = DATA_INTEGRATION_MODULE_TMP
 
-    def delete_function_script(self, function_name: str, version: int, is_temporary: bool = False) -> None:
-        file_path = self.get_function_script_path(
-            function_name, version, is_temporary=is_temporary)
-        file_path.unlink(missing_ok=True)
+        target_filename = filename if overwrite else f"id_{uuid.uuid4()}_{filename}"
+        script_path = base_dir / target_filename
+        script_path.write_text(script_content)
+        # :-3 to remove the .py extension
+        module_path = f"{base_module}.{target_filename[:-3]}"
+
+        return ScriptStorage(filename=target_filename, script_path=script_path, module_path=module_path)
+
+    def delete_temporary_script(self, filename_uuid: str, script_type: Literal["function", "model", "pipeline", "data_integration"]) -> None:
+        if script_type == "function":
+            base_dir = FUNCTIONS_DIR_TMP
+        elif script_type == "model":
+            base_dir = MODELS_DIR_TMP
+        elif script_type == "pipeline":
+            base_dir = PIPELINES_DIR_TMP
+        elif script_type == "data_integration":
+            base_dir = DATA_INTEGRATION_DIR_TMP
+
+        script_path = base_dir / filename_uuid
+        script_path.unlink()
 
 
 file_manager = FileManager()

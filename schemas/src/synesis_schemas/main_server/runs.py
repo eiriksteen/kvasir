@@ -9,8 +9,7 @@ from pydantic import BaseModel
 class RunInDB(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
-    type: Literal["data_integration", "analysis",
-                  "pipeline", "swe", "data_source_analysis", "model_integration"]
+    type: str
     status: str
     started_at: datetime
     conversation_id: Optional[uuid.UUID] = None
@@ -86,10 +85,10 @@ class Run(RunInDB):
 # Create Models
 
 class RunCreate(BaseModel):
-    type: Literal["data_integration", "analysis",
-                  "pipeline", "swe", "data_source_analysis", "model_integration"]
+    type: str
     conversation_id: Optional[uuid.UUID] = None
     parent_run_id: Optional[uuid.UUID] = None
+    pipeline_id: Optional[uuid.UUID] = None
     run_name: Optional[str] = None
 
 

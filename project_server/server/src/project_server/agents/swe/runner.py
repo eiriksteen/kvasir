@@ -1,7 +1,6 @@
 import uuid
 import docker
 from typing import Optional, List
-from dataclasses import dataclass
 from pathlib import Path
 
 from project_server.agents.swe.agent import swe_agent
@@ -14,7 +13,7 @@ from project_server.agents.swe.output import (
     submit_implementation_output,
     ConfigOutput
 )
-from project_server.agents.swe.deps import SWEAgentDeps, ScriptToInject
+from project_server.agents.swe.deps import SWEAgentDeps, FunctionToInject, ModelToInject
 from project_server.utils.code_utils import run_shell_code_in_container
 from project_server.agents.runner_base import RunnerBase
 from project_server.entity_manager import file_manager
@@ -32,10 +31,11 @@ class SWEAgentRunner(RunnerBase):
             run_id: Optional[uuid.UUID] = None,
             create_new_container_on_start: bool = False,
             create_new_container_on_package_installation: bool = True,
-            log=False,
+            log: bool = False,
             structure_ids_to_inject: Optional[List[str]] = None,
             inject_synthetic_data_descriptions: bool = False,
-            scripts_to_inject: Optional[List[ScriptToInject]] = None
+            functions_to_inject: Optional[List[FunctionToInject]] = None,
+            models_to_inject: Optional[List[ModelToInject]] = None
     ):
 
         super().__init__(
@@ -57,7 +57,8 @@ class SWEAgentRunner(RunnerBase):
         self.log = log
         self.container_name = "project-sandbox"
         self.container_cwd = Path("/app")
-        self.scripts_to_inject = scripts_to_inject
+        self.functions_to_inject = functions_to_inject
+        self.models_to_inject = models_to_inject
         self.structure_ids_to_inject = structure_ids_to_inject
         self.inject_synthetic_data_descriptions = inject_synthetic_data_descriptions
         # TODO: Implement these
@@ -86,7 +87,8 @@ class SWEAgentRunner(RunnerBase):
                 f"Your instruction is:\n\n'{prompt_content}'\n\n" +
                 "Now choose your action. Create an implementation plan, write the setup script, write the config script, or the final implementation. " +
                 "In case you have been provided feedback, choose your action based on it. Only redo the steps deemed necessary by the feedback. " +
-                "NB: The setup script must be written and completed before the final implementation."
+                "NB: The setup script must be written and completed before the final implementation." +
+                ""
             )
 
             self.implementation_result = None
@@ -106,13 +108,13 @@ class SWEAgentRunner(RunnerBase):
                 )
 
                 if isinstance(run_result.output, PlanningOutput):
-                    self.plan_result = run_result
+                    self.plan_result = run_result.output
                     if self.log:
                         await self._log_message("Plan complete", "result")
                         await self._log_message(f"Plan result: {self.plan_result}", "result", write_to_db=True)
 
                 # elif isinstance(run_result.output, SetupAgentOutputWithScript):
-                #     self.setup_result = run_result
+                #     self.setup_result = run_result.output
                 #     await self._install_python_version(run_result.output.python_version)
                 #     await self._run_setup_script(run_result.output.script)
                 #     if self.log:
@@ -120,18 +122,36 @@ class SWEAgentRunner(RunnerBase):
                 #         logger.info(f"Setup result: {self.setup_result}")
 
                 elif isinstance(run_result.output, ConfigOutput):
-                    self.config_result = run_result
+                    self.config_result = run_result.output
                     if self.log:
                         await self._log_message("Config complete", "result")
                         await self._log_message(f"Config result: {self.config_result}", "result", write_to_db=True)
 
                 elif isinstance(run_result.output, ImplementationOutputFull):
-                    self.implementation_result = run_result
+                    run_output: ImplementationOutputFull = run_result.output
 
-                    # Replace "functions_tmp" with "functions" in the script
-                    script = self.implementation_result.output.script
-                    self.implementation_result.output.script = script.replace(
-                        "functions_tmp", "functions")
+                    # Replace "functions_tmp" and "models_tmp" with "functions" and "models" in the script
+                    main_script = run_output.main_script
+                    main_script_updated = main_script.replace(
+                        "functions_tmp", "functions").replace(
+                        "models_tmp", "models")
+                    run_output.main_script = main_script_updated
+
+                    for new_script in run_output.new_scripts:
+                        script = new_script.script
+                        script_updated = script.replace(
+                            "functions_tmp", "functions").replace(
+                            "models_tmp", "models")
+                        new_script.script = script_updated
+
+                    for modified_script in run_output.modified_scripts:
+                        script = modified_script.new_script
+                        script_updated = script.replace(
+                            "functions_tmp", "functions").replace(
+                            "models_tmp", "models")
+                        modified_script.new_script = script_updated
+
+                    self.implementation_result = run_output
 
                     if self.log:
                         await self._log_message(
@@ -147,10 +167,10 @@ class SWEAgentRunner(RunnerBase):
             await self._complete_agent_run("SWE agent run completed")
 
             return SWEAgentOutput(
-                plan=self.plan_result.output if self.plan_result else None,
-                setup=self.setup_result.output if self.setup_result else None,
-                config=self.config_result.output if self.config_result else None,
-                implementation=self.implementation_result.output,
+                plan=self.plan_result if self.plan_result else None,
+                setup=self.setup_result if self.setup_result else None,
+                config=self.config_result if self.config_result else None,
+                implementation=self.implementation_result,
             )
 
         except Exception as e:
@@ -163,12 +183,13 @@ class SWEAgentRunner(RunnerBase):
             raise e
 
     def delete_temporary_scripts(self) -> None:
-        for script_name in list(self.deps.current_scripts.keys()):
-            file_manager.delete_function_script(
-                script_name, 0, is_temporary=True)
-            self.deps.current_scripts.pop(script_name)
-            if script_name in self.deps.input_scripts:
-                self.deps.input_scripts.pop(script_name)
+        for filename in list(self.deps.current_scripts.keys()):
+            if filename in [m.filename for m in self.deps.models_injected]:
+                file_manager.delete_temporary_script(
+                    filename, "model")
+            else:
+                file_manager.delete_temporary_script(
+                    filename, "function")
 
     def _prepare_deps(self) -> SWEAgentDeps:
 
@@ -178,25 +199,62 @@ class SWEAgentRunner(RunnerBase):
             test_code_to_append_to_implementation=None,
             structure_ids_to_inject=self.structure_ids_to_inject,
             inject_synthetic_data_descriptions=self.inject_synthetic_data_descriptions,
-            input_scripts=self.scripts_to_inject,
             log=self.log,
-            modified_scripts=set()
+            modified_scripts=set(),
+            input_scripts={},
+            current_scripts={},
+            new_scripts=set(),
         )
 
-        if self.scripts_to_inject:
-            assert len(self.scripts_to_inject) == len(set(
-                [function_def.script_name for function_def in self.scripts_to_inject])), "All function names must be unique"
+        if self.functions_to_inject:
+            assert len(self.functions_to_inject) == len(set(
+                [function_def.filename for function_def in self.functions_to_inject])), "All function names must be unique"
 
-            deps.input_scripts = {}
-            deps.current_scripts = {}
-            for function_def in self.scripts_to_inject:
+            functions_injected = []
+            for function_def in self.functions_to_inject:
                 with open(function_def.script_path, "r") as f:
                     script_content = f.read()
 
-                deps.input_scripts[function_def.script_name] = script_content
-                deps.current_scripts[function_def.script_name] = script_content
-                file_manager.save_function_script(
-                    function_def.script_name, script_content, 0, is_temporary=True)
+                function_storage = file_manager.save_temporary_script(
+                    function_def.filename, script_content, "function")
+
+                functions_injected.append(FunctionToInject(
+                    filename=function_storage.filename,
+                    script_path=function_storage.script_path,
+                    docstring=function_def.docstring,
+                    module=function_storage.module_path
+                ))
+
+                deps.input_scripts[function_storage.filename] = script_content
+                deps.current_scripts[function_storage.filename] = script_content
+
+            deps.functions_injected = functions_injected
+
+        if self.models_to_inject:
+            assert len(self.models_to_inject) == len(set(
+                [model_def.filename for model_def in self.models_to_inject])), "All model names must be unique"
+
+            models_injected = []
+            for model_def in self.models_to_inject:
+                with open(model_def.script_path, "r") as f:
+                    script_content = f.read()
+
+                model_storage = file_manager.save_temporary_script(
+                    model_def.filename, script_content, "model")
+
+                models_injected.append(ModelToInject(
+                    filename=model_storage.filename,
+                    script_path=model_storage.script_path,
+                    module=model_storage.module_path,
+                    model_class_docstring=model_def.model_class_docstring,
+                    training_function_docstring=model_def.training_function_docstring,
+                    inference_function_docstring=model_def.inference_function_docstring
+                ))
+
+                deps.input_scripts[model_storage.filename] = script_content
+                deps.current_scripts[model_storage.filename] = script_content
+
+            deps.models_injected = models_injected
 
         return deps
 

@@ -1,8 +1,8 @@
-from typing import List, Literal, Union
+from typing import List
 from pydantic import field_validator
 from pydantic import BaseModel
 
-from synesis_schemas.main_server import FunctionBare, ModelBare, ModelSourceBare
+from synesis_schemas.main_server import FunctionFull, ModelFull
 
 
 KNOWLEDGE_BANK_MAX_K = 30
@@ -28,7 +28,7 @@ class SearchFunctionsRequest(BaseModel):
 
 class FunctionQueryResult(BaseModel):
     query_name: str
-    functions: List[FunctionBare]
+    functions: List[FunctionFull]
 
 
 class SearchModelsRequest(BaseModel):
@@ -37,4 +37,4 @@ class SearchModelsRequest(BaseModel):
 
 class ModelQueryResult(BaseModel):
     query_name: str
-    models: List[ModelBare]
+    models: List[ModelFull]

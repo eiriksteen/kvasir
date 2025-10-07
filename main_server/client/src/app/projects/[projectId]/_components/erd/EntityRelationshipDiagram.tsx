@@ -74,11 +74,12 @@ const AnalysisNodeWrapper = ({ data }: { data: { analysis: AnalysisJobResultMeta
   </>
 );
 
-const PipelineNodeWrapper = ({ data }: { data: { pipeline: Pipeline; onClick: () => void } }) => (
+const PipelineNodeWrapper = ({ data }: { data: { pipeline: Pipeline; onClick: () => void, handleRunClick: () => void } }) => (
   <>
     <PipelineBox
       pipeline={data.pipeline}
       onClick={data.onClick}
+      handleRunClick={data.handleRunClick}
     />
     <Handle type="target" position={Position.Left} style={{ background: '#840B08' }} />
     <Handle type="source" position={Position.Right} style={{ background: '#840B08' }} />
@@ -134,7 +135,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
   const { project, frontendNodes, updatePosition } = useProject(projectId);
   const { dataSources } = useProjectDataSources(projectId);
   const { datasets } = useDatasets(projectId);
-  const { pipelines } = usePipelines(projectId);
+  const { pipelines, triggerRunPipeline } = usePipelines(projectId);
   const { modelEntities } = useModelEntities(projectId);
   const { analysisJobResults } = useAnalysis();
   const { projectGraph } = useProjectGraph(projectId);
@@ -199,7 +200,8 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
           label: pipeline.name,
           id: frontendNode.pipelineId,
           pipeline: pipeline,
-          onClick: () => setSelectedPipeline(pipeline)
+          onClick: () => setSelectedPipeline(pipeline),
+          handleRunClick: () => triggerRunPipeline({projectId: projectId, pipelineId: pipeline.id})
         },
       } as Node;
     });
@@ -238,7 +240,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
 
     return [...datasetNodes.filter(Boolean), ...analysisNodes.filter(Boolean), ...dataSourceNodes.filter(Boolean), ...pipelineNodes.filter(Boolean), ...modelEntityNodes.filter(Boolean)] as Node[];
 
-  }, [project, datasets, analysisJobResults, frontendNodes, dataSources, pipelines, modelEntities]);
+  }, [project, datasets, analysisJobResults, frontendNodes, dataSources, pipelines, modelEntities, triggerRunPipeline, projectId]);
 
   // Memoize edges
   const memoizedEdges = useMemo(() => {

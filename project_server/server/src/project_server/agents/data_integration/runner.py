@@ -82,7 +82,6 @@ class DataIntegrationRunner(RunnerBase):
 
         python_code_path = file_manager.save_data_integration_script(
             self.run_id,
-            "data_integration.py",
             output.code
         )
 

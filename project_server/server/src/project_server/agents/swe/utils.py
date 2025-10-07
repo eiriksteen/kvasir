@@ -1,26 +1,31 @@
-from typing import Dict
+from typing import List
 
-from project_server.utils.code_utils import extract_function_definitions, extract_dataclass_definition
-from project_server.entity_manager import file_manager
+from project_server.agents.swe.deps import FunctionToInject, ModelToInject
 
 
-def describe_function_scripts(input_scripts: Dict[str, str]) -> str:
-    function_descriptions = []
-    for script_name, script in input_scripts.items():
-        function_definitions = extract_function_definitions(script)
-        dataclass_definitions = extract_dataclass_definition(script)
-        script_module = file_manager.get_function_script_module(
-            script_name, 0, is_temporary=True)
+def describe_available_scripts(functions: List[FunctionToInject], models: List[ModelToInject]) -> str:
 
+    script_descriptions = []
+    for function in functions:
         function_description = (
-            f"Description of script {script_name} contents:\n\n" +
-            f"Function definitions:\n\n" +
-            f"\n\n".join(function_definitions) +
-            f"\n\nDataclass definitions:\n\n" +
-            f"\n\n".join(dataclass_definitions) +
-            f"Import module (NB: You must remember to use the full module path when importing the script): {script_module}"
+            f"Description of script {function.filename} contents:\n\n" +
+            f"Function docstring:\n\n" +
+            f"{function.docstring}\n\n" +
+            f"Import module (NB: You must remember to use this entire module path when importing the script): {function.module}"
         )
+        script_descriptions.append(function_description)
 
-        function_descriptions.append(function_description)
+    for model in models:
+        model_description = (
+            f"Description of script {model.filename} contents:\n\n" +
+            f"Model class docstring:\n\n" +
+            f"{model.model_class_docstring}\n\n" +
+            f"Training function docstring:\n\n" +
+            f"{model.training_function_docstring}\n\n" +
+            f"Inference function docstring:\n\n" +
+            f"{model.inference_function_docstring}\n\n" +
+            f"Import module (NB: You must remember to use this entire module path when importing the script): {model.module}"
+        )
+        script_descriptions.append(model_description)
 
-    return "\n\n".join(function_descriptions)
+    return "\n\n".join(script_descriptions)

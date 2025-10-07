@@ -22,6 +22,8 @@ from synesis_api.modules.data_objects.models import dataset, object_group, data_
 from synesis_api.modules.data_sources.models import data_source
 from synesis_api.modules.project.models import project
 from synesis_api.modules.model_sources.models import model_source
+from synesis_api.modules.model.models import model_entity
+from synesis_api.modules.pipeline.models import pipeline, pipeline_run
 from synesis_api.app_secrets import PRIVATE_KEY_FILE_PATH, PUBLIC_KEY_FILE_PATH
 from synesis_api.database.service import fetch_one, execute, fetch_all
 
@@ -230,3 +232,21 @@ async def user_owns_data_source(user_id: uuid.UUID, data_source_id: uuid.UUID) -
 async def user_can_access_model_source(user_id: uuid.UUID, model_source_id: uuid.UUID) -> bool:
     model_source_record = await fetch_one(select(model_source).where(model_source.c.id == model_source_id).where(or_(model_source.c.user_id == user_id, model_source.c.public == True)))
     return model_source_record is not None
+
+
+async def user_owns_model_entity(user_id: uuid.UUID, model_entity_id: uuid.UUID) -> bool:
+    model_entity_record = await fetch_one(select(model_entity).where(model_entity.c.id == model_entity_id, model_entity.c.user_id == user_id))
+    return model_entity_record is not None
+
+
+async def user_owns_pipeline(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> bool:
+    pipeline_record = await fetch_one(select(pipeline).where(pipeline.c.id == pipeline_id, pipeline.c.user_id == user_id))
+    return pipeline_record is not None
+
+
+async def user_owns_pipeline_run(user_id: uuid.UUID, pipeline_run_id: uuid.UUID) -> bool:
+    pipeline_run_record = await fetch_one(
+        select(pipeline_run).join(pipeline, pipeline_run.c.pipeline_id ==
+                                  pipeline.c.id).where(pipeline.c.user_id == user_id)
+    )
+    return pipeline_run_record is not None

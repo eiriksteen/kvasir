@@ -36,20 +36,11 @@ class DatasetFromPipelineInDB(BaseModel):
 class DataObjectInDB(BaseModel):
     id: uuid.UUID
     name: str
+    structure_type: str
     group_id: Optional[uuid.UUID] = None
     original_id: Optional[str] = None
     description: Optional[str] = None
     additional_variables: Optional[Dict[str, Any]] = None
-    created_at: datetime
-    updated_at: datetime
-
-
-class VariableInDB(BaseModel):
-    id: uuid.UUID
-    variable_group_id: uuid.UUID
-    name: str
-    description: str
-    python_type: str
     created_at: datetime
     updated_at: datetime
 
@@ -84,6 +75,32 @@ class ObjectGroupInDB(BaseModel):
     created_at: datetime
     updated_at: datetime
     original_id_name: Optional[str] = None
+
+
+class TimeSeriesObjectGroupInDB(BaseModel):
+    id: uuid.UUID
+    time_series_df_schema: str
+    time_series_df_head: str
+    entity_metadata_df_schema: str
+    entity_metadata_df_head: str
+    feature_information_df_schema: str
+    feature_information_df_head: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class TimeSeriesAggregationObjectGroupInDB(BaseModel):
+    id: uuid.UUID
+    time_series_aggregation_outputs_df_schema: str
+    time_series_aggregation_outputs_df_head: str
+    time_series_aggregation_inputs_df_schema: str
+    time_series_aggregation_inputs_df_head: str
+    entity_metadata_df_schema: str
+    entity_metadata_df_head: str
+    feature_information_df_schema: str
+    feature_information_df_head: str
+    created_at: datetime
+    updated_at: datetime
 
 
 class VariableGroupInDB(BaseModel):
@@ -128,31 +145,14 @@ class FeatureWithSource(FeatureInDB):
     source: Literal["data", "metadata"]
 
 
-class ObjectGroupWithFeatures(ObjectGroupInDB):
+class ObjectGroup(ObjectGroupInDB):
+    structure_fields: Union[TimeSeriesObjectGroupInDB,
+                            TimeSeriesAggregationObjectGroupInDB]
     features: List[FeatureWithSource]
 
 
-class TimeSeriesFull(DataObjectInDB, TimeSeriesInDB):
-    type: Literal["time_series"] = "time_series"
-
-
-class TimeSeriesFullWithRawData(TimeSeriesFull):
-    data: Dict[str, List[Tuple[datetime, Union[float, int]]]]
-    features: Dict[str, Feature]
-
-
-class TimeSeriesAggregationFull(DataObjectInDB, TimeSeriesAggregationInDB):
-    type: Literal["time_series_aggregation"] = "time_series_aggregation"
-
-
-class TimeSeriesAggregationFullWithRawData(TimeSeriesAggregationFull):
-    input_data: Dict[Tuple[uuid.UUID, str], Tuple[datetime, datetime]]
-    output_data: Dict[str, List[Union[float, int]]]
-    features: Dict[str, Feature]
-
-
-class VariableGroupFull(VariableGroupInDB):
-    variables: List[VariableInDB]
+class DataObject(DataObjectInDB):
+    structure_fields: Union[TimeSeriesInDB, TimeSeriesAggregationInDB]
 
 
 class DatasetSources(BaseModel):
@@ -161,25 +161,18 @@ class DatasetSources(BaseModel):
     pipeline_ids: List[uuid.UUID]
 
 
-class DatasetFull(DatasetInDB):
-    object_groups: List[ObjectGroupInDB]
-    variable_groups: List[VariableGroupFull]
+class Dataset(DatasetInDB):
+    object_groups: List[ObjectGroup]
+    variable_groups: List[VariableGroupInDB]
     sources: DatasetSources
 
 
-class DatasetFullWithFeatures(DatasetInDB):
-    object_groups: List[ObjectGroupWithFeatures]
-    variable_groups: List[VariableGroupFull]
-    sources: DatasetSources
-
-
-class ObjectGroupWithEntitiesAndFeatures(ObjectGroupWithFeatures):
-    objects: List[Union[TimeSeriesFull, TimeSeriesAggregationFull]]
+class ObjectGroupWithObjects(ObjectGroup):
+    objects: List[DataObject]
 
 
 class GetDatasetByIDsRequest(BaseModel):
     dataset_ids: List[uuid.UUID]
-    include_features: bool = False
 
 
 # Create schemas
@@ -208,22 +201,37 @@ class ObjectGroupCreate(BaseModel):
     metadata_dataframes: List[MetadataDataframe]
 
 
-class VariableCreate(BaseModel):
-    name: str
-    python_type: str
-    description: str
+class TimeSeriesObjectGroupCreate(ObjectGroupCreate):
+    time_series_df_schema: str
+    time_series_df_head: str
+    entity_metadata_df_schema: str
+    entity_metadata_df_head: str
+    feature_information_df_schema: str
+    feature_information_df_head: str
+
+
+class TimeSeriesAggregationObjectGroupCreate(ObjectGroupCreate):
+    time_series_aggregation_outputs_df_schema: str
+    time_series_aggregation_outputs_df_head: str
+    time_series_aggregation_inputs_df_schema: str
+    time_series_aggregation_inputs_df_head: str
+    entity_metadata_df_schema: str
+    entity_metadata_df_head: str
+    feature_information_df_schema: str
+    feature_information_df_head: str
 
 
 class VariableGroupCreate(BaseModel):
     name: str
     description: str
     save_path: str
-    variables: List[VariableCreate]
+    data: Dict[str, Any]
 
 
 class DatasetCreate(BaseModel):
     name: str
     description: str
-    object_groups: List[ObjectGroupCreate]
+    object_groups: List[Union[TimeSeriesObjectGroupCreate,
+                              TimeSeriesAggregationObjectGroupCreate]]
     variable_groups: List[VariableGroupCreate]
     sources: DatasetSources

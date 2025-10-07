@@ -1,37 +1,53 @@
 import React from 'react';
-import { Zap } from 'lucide-react';
+import { Zap, Play } from 'lucide-react';
 import { Pipeline } from '@/types/pipeline';
 
 interface PipelineBoxProps {
   pipeline: Pipeline;
   onClick?: () => void;
-  // if null, click is disabled
-  // also remove hovering effect to make it look like a disabled button
+  handleRunClick?: () => void;
 }
 
-export default function PipelineBox({ pipeline, onClick }: PipelineBoxProps) {
+export default function PipelineBox({ pipeline, onClick, handleRunClick }: PipelineBoxProps) {
   const isDisabled = !onClick;
+
   
   return (
-    <div
-    className={`px-3 py-3 shadow-md rounded-md border-2 border-[#840B08] relative min-w-[120px] max-w-[180px] ${
-      isDisabled
-        ? 'cursor-default opacity-60'
-        : 'cursor-pointer hover:bg-[#840B08]/10 hover:border-[#840B08]'
-    }`}
-      onClick={onClick ? onClick : undefined}
-    >
-      <div className="flex flex-col">
-        <div className="flex items-center mb-2">
-          <div className="rounded-full w-6 h-6 flex items-center justify-center bg-[#840B08]/10 border border-[#840B08]/30 mr-2">
-            <Zap className="w-3 h-3 text-[#840B08]" />
+    <div className="flex shadow-md border-2 border-[#840B08] rounded-md min-w-[100px] max-w-[280px] overflow-hidden">
+      {/* Main box content */}
+      <div
+        className={`px-3 py-3 flex-1 min-w-0 ${
+          isDisabled
+            ? 'cursor-default opacity-60'
+            : 'cursor-pointer hover:bg-[#840B08]/10'
+        }`}
+        onClick={onClick ? onClick : undefined}
+      >
+        <div className="flex flex-col">
+          <div className="flex items-center mb-2">
+            <div className="rounded-full w-6 h-6 flex items-center justify-center bg-[#840B08]/10 border border-[#840B08]/30 mr-2">
+              <Zap className="w-3 h-3 text-[#840B08]" />
+            </div>
+            <div className="text-[#840B08] font-mono text-xs">Pipeline</div>
           </div>
-        <div className="text-[#840B08] font-mono text-xs">Pipeline</div>
-      </div>
-      <div>
-        <div className="text-xs font-mono text-gray-800 truncate">{pipeline.name}</div>
+          <div>
+            <div className="text-xs font-mono text-gray-800 truncate">{pipeline.name}</div>
+          </div>
         </div>
       </div>
+      
+      {/* Run button */}
+      <button
+        onClick={handleRunClick ? handleRunClick : undefined}
+        className={`w-12 px-3 py-3 border-l-2 border-[#840B08] flex-shrink-0 ${
+          isDisabled
+            ? 'cursor-default opacity-60'
+            : 'cursor-pointer hover:bg-[#840B08]/10'
+        } flex items-center justify-center transition-colors`}
+        disabled={isDisabled}
+      >
+        <Play className="w-4 h-4 text-[#840B08] fill-[#840B08]" />
+      </button>
     </div>
   );
 }

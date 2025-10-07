@@ -19,7 +19,7 @@ from synesis_schemas.main_server import (
     DataSourceCreate,
     GetDataSourcesByIDsRequest
 )
-from synesis_schemas.project_server import RunDataSourceAnalysisRequest
+from synesis_schemas.project_server import RunDataSourceAnalysisAgentRequest
 from synesis_schemas.main_server import User
 from synesis_api.auth.service import get_current_user, user_owns_data_source
 # from synesis_api.agents.data_source_analysis.runner import run_data_source_analysis_task
@@ -72,7 +72,7 @@ async def post_file_data_source(
     file_response = await post_file(client, file_content, data_source_record.id)
 
     # Run agent to populate missing data source fields requiring analysis
-    await post_run_data_source_analysis(client, RunDataSourceAnalysisRequest(
+    await post_run_data_source_analysis(client, RunDataSourceAnalysisAgentRequest(
         data_source_id=data_source_record.id,
         file_path=file_response.file_path
     ))

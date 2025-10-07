@@ -23,9 +23,9 @@ from synesis_schemas.main_server import (
     PipelineInGraph,
     AnalysisInGraph,
     ModelEntityInGraph,
-    DatasetFull,
+    Dataset,
     PipelineFull,
-    ModelEntityFull,
+    ModelEntityWithModelDef,
     DataSourceFull
 )
 
@@ -41,7 +41,7 @@ from synesis_api.modules.orchestrator.models import (
     model_entity_context,
 )
 from synesis_api.database.service import fetch_all, execute, fetch_one
-from synesis_api.modules.data_objects.service import get_user_datasets_by_ids, get_project_datasets
+from synesis_api.modules.data_objects.service import get_user_datasets, get_project_datasets
 # from synesis_api.modules.analysis.service import get_user_analyses_by_ids
 from synesis_api.modules.data_sources.service import get_data_sources, get_project_data_sources
 from synesis_api.modules.pipeline.service import get_user_pipelines_by_ids, get_project_pipelines
@@ -252,7 +252,7 @@ async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
     model_entities = []
 
     if len(context.dataset_ids) > 0:
-        datasets = await get_user_datasets_by_ids(user_id, context.dataset_ids, max_features=20)
+        datasets = await get_user_datasets(user_id, context.dataset_ids, max_features=20)
     if len(context.data_source_ids) > 0:
         data_sources = await get_data_sources(context.data_source_ids)
     if len(context.pipeline_ids) > 0:
@@ -261,7 +261,7 @@ async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
         # analyses = await get_user_analyses_by_ids(user_id, context.analysis_ids)
         analyses = []
     if len(context.model_entity_ids) > 0:
-        model_entities = await get_user_model_entities_by_ids(context.model_entity_ids)
+        model_entities = await get_user_model_entities_by_ids(user_id, context.model_entity_ids)
 
     context_message = f"""
         <CONTEXT UPDATES>
@@ -278,12 +278,12 @@ async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
 
 async def get_project_graph(user_id: uuid.UUID, project_id: uuid.UUID) -> ProjectGraph:
     data_sources = await get_project_data_sources(user_id, project_id)
-    datasets = await get_project_datasets(user_id, project_id, include_features=False)
+    datasets = await get_project_datasets(user_id, project_id)
     pipelines = await get_project_pipelines(user_id, project_id)
     analyses = []  # await get_project_analyses(project_id)
-    model_entities = await get_project_model_entities(project_id)
+    model_entities = await get_project_model_entities(user_id, project_id)
 
-    def _get_data_sources_in_graph(data_sources: List[DataSourceFull], datasets: List[DatasetFull]) -> List[DataSourceInGraph]:
+    def _get_data_sources_in_graph(data_sources: List[DataSourceFull], datasets: List[Dataset]) -> List[DataSourceInGraph]:
         objs = []
         for ds in data_sources:
             output_dataset_ids = [
@@ -299,7 +299,7 @@ async def get_project_graph(user_id: uuid.UUID, project_id: uuid.UUID) -> Projec
             ))
         return objs
 
-    def _get_datasets_in_graph(datasets: List[DatasetFull], pipelines: List[PipelineFull]) -> List[DatasetInGraph]:
+    def _get_datasets_in_graph(datasets: List[Dataset], pipelines: List[PipelineFull]) -> List[DatasetInGraph]:
         objs = []
         for ds in datasets:
             output_pipeline_ids = [
@@ -318,7 +318,7 @@ async def get_project_graph(user_id: uuid.UUID, project_id: uuid.UUID) -> Projec
             ))
         return objs
 
-    def _get_pipelines_in_graph(pipelines: List[PipelineFull], datasets: List[DatasetFull], model_entities: List[ModelEntityFull]) -> List[PipelineInGraph]:
+    def _get_pipelines_in_graph(pipelines: List[PipelineFull], datasets: List[Dataset], model_entities: List[ModelEntityWithModelDef]) -> List[PipelineInGraph]:
         objs = []
         for p in pipelines:
             output_dataset_ids = [
@@ -340,7 +340,7 @@ async def get_project_graph(user_id: uuid.UUID, project_id: uuid.UUID) -> Projec
     def _get_analyses_in_graph() -> List[AnalysisInGraph]:
         return []
 
-    def _get_model_entities_in_graph(model_entities: List[ModelEntityFull], pipelines: List[PipelineFull]) -> List[ModelEntityInGraph]:
+    def _get_model_entities_in_graph(model_entities: List[ModelEntityWithModelDef], pipelines: List[PipelineFull]) -> List[ModelEntityInGraph]:
         objs = []
         for me in model_entities:
             output_pipeline_ids = [

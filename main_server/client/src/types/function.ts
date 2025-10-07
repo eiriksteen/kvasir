@@ -1,45 +1,25 @@
 import { UUID } from "crypto";
 
+// API Models - Only what's used in frontend
 
-export interface FunctionInputObjectGroupDesc {
+export interface FunctionWithoutEmbedding {
   id: UUID;
-  functionId: UUID;
-  structureId: string;
-  name: string;
-  required: boolean;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface FunctionOutputObjectGroupDesc {
-  id: UUID;
-  functionId: UUID;
-  structureId: string;
-  name: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface FunctionOutputVariableDesc {
-  id: UUID;
-  functionId: UUID;
-  variableId: string;
-}
-
-export interface Function {
-  id: UUID;
-  name: string;
-  type: "inference" | "training" | "computation";
+  definitionId: UUID;
+  version: number;
+  argsSchema: Record<string, unknown>;
+  defaultArgs: Record<string, unknown>;
+  outputVariablesSchema: Record<string, unknown>;
+  newestUpdateDescription: string;
+  filename: string;
+  modulePath: string;
+  pythonFunctionName: string;
   implementationScriptPath: string;
-  setupScriptPath?: string;
-  defaultArgs?: Record<string, unknown>;
+  docstring: string;
   description: string;
+  setupScriptPath?: string | null;
   createdAt: string;
   updatedAt: string;
-  inputObjectGroupDescriptions: FunctionInputObjectGroupDesc[];
-  outputObjectGroupDescriptions: FunctionOutputObjectGroupDesc[];
-  outputVariableDescriptions: FunctionOutputVariableDesc[];
 }
 
+// Type alias for backward compatibility
+export type Function = FunctionWithoutEmbedding;

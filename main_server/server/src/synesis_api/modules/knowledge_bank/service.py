@@ -6,7 +6,8 @@ from synesis_api.database.service import fetch_all
 from synesis_api.modules.function.models import function, function_definition
 from synesis_api.modules.model.models import model
 from synesis_api.utils.rag_utils import embed
-from synesis_schemas.main_server import QueryRequest, FunctionQueryResult, ModelQueryResult, ModelBare
+from synesis_schemas.main_server import QueryRequest, FunctionQueryResult, ModelQueryResult
+from synesis_api.modules.model.service import get_models
 
 
 async def query_functions(query_request: QueryRequest, exclude_model_functions: bool = True) -> FunctionQueryResult:
@@ -47,15 +48,13 @@ async def query_models(user_id: uuid.UUID, query_request: QueryRequest) -> Model
     query_vector = (await embed([query_request.query]))[0]
 
     model_query = select(
-        model
+        model.c.id
     ).where(
         or_(model.c.owner_id == user_id, model.c.public == True)
     ).order_by(
         model.c.embedding.cosine_distance(query_vector)
     ).limit(query_request.k)
 
-    models = await fetch_all(model_query)
+    models = await get_models(model_query)
 
-    return ModelQueryResult(query_name=query_request.query_name, models=[ModelBare(
-        **m) for m in models]
-    )
+    return ModelQueryResult(query_name=query_request.query_name, models=models)

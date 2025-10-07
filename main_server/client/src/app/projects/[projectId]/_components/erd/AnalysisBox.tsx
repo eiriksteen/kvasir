@@ -14,7 +14,7 @@ export default function AnalysisBox({ analysis, onClick }: AnalysisBoxProps) {
   
   return (
     <div
-      className={`px-3 py-3 shadow-md rounded-md border-2 border-[#004806] relative min-w-[120px] max-w-[180px] ${
+      className={`px-3 py-3 shadow-md rounded-md border-2 border-[#004806] relative min-w-[100px] max-w-[220px] ${
         isDisabled
           ? 'cursor-default opacity-60'
           : 'cursor-pointer hover:bg-[#004806]/10 hover:border-[#004806]'

@@ -36,8 +36,8 @@ from synesis_api.modules.orchestrator.agent.output import (
 from synesis_api.auth.service import get_current_user, user_owns_conversation
 from synesis_schemas.main_server import User
 from synesis_api.auth.service import oauth2_scheme
-from synesis_api.client import MainServerClient, post_run_data_integration, post_run_pipeline, post_run_model_integration
-from synesis_schemas.project_server import RunDataIntegrationRequest, RunPipelineRequest, RunModelIntegrationRequest
+from synesis_api.client import MainServerClient, post_run_data_integration, post_run_pipeline_agent, post_run_model_integration
+from synesis_schemas.project_server import RunDataIntegrationAgentRequest, RunPipelineAgentRequest, RunModelIntegrationAgentRequest
 
 
 router = APIRouter()
@@ -129,7 +129,7 @@ async def post_chat(
 
             if isinstance(orchestrator_run.output, DataIntegrationHandoffOutput):
 
-                await post_run_data_integration(client, RunDataIntegrationRequest(
+                await post_run_data_integration(client, RunDataIntegrationAgentRequest(
                     project_id=conversation_record.project_id,
                     conversation_id=conversation_record.id,
                     data_source_ids=orchestrator_run.output.data_source_ids,
@@ -138,7 +138,7 @@ async def post_chat(
 
             elif isinstance(orchestrator_run.output, PipelineHandoffOutput):
 
-                await post_run_pipeline(client, RunPipelineRequest(
+                await post_run_pipeline_agent(client, RunPipelineAgentRequest(
                     project_id=conversation_record.project_id,
                     conversation_id=conversation_record.id,
                     prompt_content=orchestrator_run.output.deliverable_description,
@@ -148,7 +148,7 @@ async def post_chat(
 
             elif isinstance(orchestrator_run.output, ModelIntegrationHandoffOutput):
 
-                await post_run_model_integration(client, RunModelIntegrationRequest(
+                await post_run_model_integration(client, RunModelIntegrationAgentRequest(
                     project_id=conversation_record.project_id,
                     conversation_id=conversation_record.id,
                     prompt_content=orchestrator_run.output.deliverable_description,

@@ -1,39 +1,101 @@
 import { UUID } from "crypto";
-import { FunctionWithoutEmbedding } from "./function";
 
+export type SupportedModality = "time_series" | "tabular" | "multimodal" | "image" | "text" | "audio" | "video";
+export type SupportedTask = "forecasting" | "classification" | "regression" | "clustering" | "anomaly_detection" | "generation" | "segmentation";
 
-export interface Model {
+// DB Models needed by API types
+
+export interface ModelDefinitionInDB {
   id: UUID;
   name: string;
-  description: string;
-  ownerId: UUID;
+  modality: SupportedModality;
+  task: SupportedTask;
   public: boolean;
-  modality: string;
-  sourceId: UUID;
-  programmingLanguageWithVersion: string;
-  setupScriptPath?: string;
-  defaultConfig?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
-  inferenceFunctionId: UUID;
-  trainingFunctionId: UUID;
-  task: string;
-  embedding: number[];
-  inferenceFunction: FunctionWithoutEmbedding;
-  trainingFunction: FunctionWithoutEmbedding;
 }
 
+export interface ModelFunctionInDB {
+  id: UUID;
+  docstring: string;
+  argsSchema: Record<string, unknown>;
+  defaultArgs: Record<string, unknown>;
+  outputVariablesSchema: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
 
-export interface ModelEntity {
+export interface ModelFunctionInputObjectGroupDefinitionInDB {
+  id: UUID;
+  functionId: UUID;
+  structureId: string;
+  name: string;
+  required: boolean;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ModelFunctionOutputObjectGroupDefinitionInDB {
+  id: UUID;
+  functionId: UUID;
+  name?: string | null;
+  structureId: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ModelEntityInDB {
   id: UUID;
   name: string;
+  userId: UUID;
   description: string;
   modelId: UUID;
-  projectId: UUID;
-  weightsSaveDir?: string;
-  pipelineId?: UUID;
-  config?: Record<string, unknown>;
+  config: Record<string, unknown>;
+  weightsSaveDir?: string | null;
+  pipelineId?: UUID | null;
   createdAt: string;
   updatedAt: string;
-  model: Model;
 }
+
+// API Models
+
+export interface ModelFunctionFull extends ModelFunctionInDB {
+  inputObjectGroups: ModelFunctionInputObjectGroupDefinitionInDB[];
+  outputObjectGroups: ModelFunctionOutputObjectGroupDefinitionInDB[];
+}
+
+export interface ModelFull {
+  id: UUID;
+  definitionId: UUID;
+  version: number;
+  filename: string;
+  modulePath: string;
+  pythonClassName: string;
+  description: string;
+  newestUpdateDescription: string;
+  userId: UUID;
+  sourceId: UUID;
+  programmingLanguageWithVersion: string;
+  implementationScriptPath: string;
+  setupScriptPath?: string | null;
+  modelClassDocstring: string;
+  trainingFunctionId: UUID;
+  inferenceFunctionId: UUID;
+  defaultConfig: Record<string, unknown>;
+  configSchema: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+  definition: ModelDefinitionInDB;
+  trainingFunction: ModelFunctionFull;
+  inferenceFunction: ModelFunctionFull;
+}
+
+export interface ModelEntityWithModelDef extends ModelEntityInDB {
+  model: ModelFull;
+}
+
+// Type aliases for usage in components
+export type Model = ModelFull;
+export type ModelEntity = ModelEntityWithModelDef;
