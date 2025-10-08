@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from project_server.modules.storage_router import router as storage_router
+from project_server.modules.file_router import router as file_router
 from project_server.modules.pipeline_router import router as pipeline_router
 from project_server.modules.agent_router import router as agents_router
+from project_server.modules.data_object_router import router as data_object_router
 
 app = FastAPI(
     title="Project Server API",
@@ -22,6 +23,8 @@ app.add_middleware(
 )
 
 
-app.include_router(storage_router, prefix="/storage", tags=["Storage"])
+app.include_router(file_router, prefix="/file", tags=["File"])
+app.include_router(data_object_router,
+                   prefix="/data-object", tags=["Data Object"])
 app.include_router(pipeline_router, prefix="/pipeline", tags=["Pipeline"])
 app.include_router(agents_router, prefix="/agents", tags=["Agents"])

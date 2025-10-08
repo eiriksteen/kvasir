@@ -147,6 +147,7 @@ from .data_objects import (
     TimeSeriesObjectGroupCreate,
     TimeSeriesAggregationObjectGroupCreate,
     ObjectGroupWithObjects,
+    DataObjectWithParentGroup,
 )
 
 # Data Sources schemas

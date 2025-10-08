@@ -155,6 +155,10 @@ class DataObject(DataObjectInDB):
     structure_fields: Union[TimeSeriesInDB, TimeSeriesAggregationInDB]
 
 
+class DataObjectWithParentGroup(DataObject):
+    object_group: ObjectGroup
+
+
 class DatasetSources(BaseModel):
     data_source_ids: List[uuid.UUID]
     dataset_ids: List[uuid.UUID]

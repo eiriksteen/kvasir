@@ -9,7 +9,9 @@ from synesis_schemas.main_server import (
     Dataset,
     ObjectGroup,
     ObjectGroupWithObjects,
-    GetDatasetByIDsRequest
+    GetDatasetByIDsRequest,
+    DataObjectWithParentGroup,
+    DataObject
 )
 
 
@@ -50,3 +52,11 @@ async def get_object_group(client: ProjectClient, group_id: UUID, include_object
 async def get_object_groups_in_dataset(client: ProjectClient, dataset_id: UUID) -> List[ObjectGroupWithObjects]:
     response = await client.send_request("get", f"/data-objects/object-groups-in-dataset/{dataset_id}")
     return [ObjectGroupWithObjects(**group) for group in response.body]
+
+
+async def get_data_object(client: ProjectClient, object_id: UUID, include_object_group: bool = False) -> Union[DataObjectWithParentGroup, DataObject]:
+    response = await client.send_request("get", f"/data-objects/data-object/{object_id}?include_object_group={include_object_group}")
+    if include_object_group:
+        return DataObjectWithParentGroup(**response.body)
+    else:
+        return DataObject(**response.body)

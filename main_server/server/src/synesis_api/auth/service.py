@@ -203,6 +203,14 @@ async def user_owns_object_group(user_id: uuid.UUID, object_group_id: uuid.UUID)
     return object_group_record is not None
 
 
+async def user_owns_data_object(user_id: uuid.UUID, data_object_id: uuid.UUID) -> bool:
+    data_object_record = await fetch_one(select(data_object
+                                                ).join(object_group, data_object.c.group_id == object_group.c.id
+                                                       ).join(dataset, object_group.c.dataset_id == dataset.c.id
+                                                              ).where(data_object.c.id == data_object_id, dataset.c.user_id == user_id))
+    return data_object_record is not None
+
+
 async def user_owns_project(user_id: uuid.UUID, project_id: uuid.UUID) -> bool:
     project_record = await fetch_one(select(project).where(project.c.id == project_id, project.c.user_id == user_id))
     return project_record is not None

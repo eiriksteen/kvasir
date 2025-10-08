@@ -6,6 +6,7 @@ import pandas as pd
 from pathlib import Path
 from dataclasses import asdict
 from io import BytesIO, StringIO
+from datetime import datetime
 from typing import Union, List, Tuple
 
 from project_server.entity_manager.dataset_manager.dataclasses import (
@@ -16,10 +17,9 @@ from project_server.entity_manager.dataset_manager.dataclasses import (
     VariableGroupCreateWithRawData
 )
 from project_server.client import ProjectClient
-from project_server.client.requests.data_objects import post_dataset, get_object_group, get_dataset
+from project_server.client.requests.data_objects import post_dataset, get_object_group, get_dataset, get_data_object
 from project_server.client import FileInput
 from project_server.app_secrets import INTEGRATED_DATA_DIR
-from project_server.worker import logger
 
 from synesis_schemas.main_server import (
     DatasetCreate,
@@ -33,6 +33,8 @@ from synesis_schemas.main_server import (
 
 
 from synesis_data_structures.time_series.df_dataclasses import TimeSeriesStructure, TimeSeriesAggregationStructure
+from synesis_data_structures.time_series.schema import TimeSeries
+from synesis_data_structures.time_series.serialization import serialize_dataframes_to_api_payloads
 from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_DATA_SECOND_LEVEL_ID,
     ENTITY_METADATA_SECOND_LEVEL_ID,
@@ -44,6 +46,7 @@ from synesis_data_structures.time_series.definitions import (
 )
 
 
+# This class sometimes returns API schemas (for sending through the API) and other times dataclasses (for use in sandbox code) and should maybe be split or streamlined
 class LocalDatasetManager:
 
     def __init__(self, bearer_token: str):
@@ -66,6 +69,19 @@ class LocalDatasetManager:
             object_groups=object_groups,
             variable_groups=[]
         )
+
+    async def get_time_series_data_object_with_raw_data(self, time_series_id: uuid.UUID, start_date: datetime, end_date: datetime) -> TimeSeries:
+        # TODO: Make more efficient
+        data_object = await get_data_object(self.client, time_series_id, include_object_group=True)
+        entity_id = data_object.original_id
+        obj_group = await self.get_data_group_with_raw_data(data_object.object_group.id)
+        assert isinstance(
+            obj_group.data, TimeSeriesStructure), "Object group data is not a time series data structure"
+        df = obj_group.data.time_series_data
+        df_sliced = df.loc[([entity_id], slice(start_date, end_date)), :]
+        obj_group.data.time_series_data = df_sliced
+
+        return serialize_dataframes_to_api_payloads(obj_group.data)[0]
 
     async def upload_dataset(
             self,

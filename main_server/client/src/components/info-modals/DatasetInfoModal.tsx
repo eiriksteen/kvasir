@@ -28,6 +28,9 @@ export default function DatasetInfoModal({
   const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(new Set());
 
+  console.log("DATASET", dataset);
+  console.log("OBJECT GROUPS", objectGroups);
+
   // Prevent body scroll when modal is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -206,7 +209,7 @@ export default function DatasetInfoModal({
                                 </button>
                                 
                                 {isOpen && (
-                                  <div className="border-t border-gray-300 bg-zinc-800/30">
+                                  <div className="border-t border-gray-300 bg-gray-50">
                                     <div className="p-2 space-y-2">
                                       {group.objects?.map((obj: DataObject) => {
                                         const objIsTimeSeries = isTimeSeries(obj);

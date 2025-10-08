@@ -1,6 +1,7 @@
-from typing import Annotated
+from typing import Annotated, Optional
 from fastapi import APIRouter, UploadFile, Form, File, Depends
 from uuid import UUID
+from datetime import datetime
 
 from synesis_schemas.project_server import FileSavedAPI
 from project_server.entity_manager import file_manager
@@ -23,5 +24,3 @@ async def file_data_source(
     file_saved = FileSavedAPI(file_id=id, file_path=str(file_path))
 
     return file_saved
-
-    #

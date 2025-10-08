@@ -10,7 +10,8 @@ from synesis_api.modules.data_objects.service import (
     get_object_group,
     create_dataset,
     get_project_datasets,
-    get_user_datasets
+    get_user_datasets,
+    get_data_object
 )
 # from synesis_api.modules.data_objects.service import get_time_series_payload_data_by_id
 from synesis_schemas.main_server import (
@@ -18,11 +19,15 @@ from synesis_schemas.main_server import (
     Dataset,
     GetDatasetByIDsRequest,
     ObjectGroup,
-    ObjectGroupWithObjects
+    ObjectGroupWithObjects,
+    DataObjectWithParentGroup,
+    DataObject
 )
 from synesis_schemas.main_server import User
-from synesis_api.auth.service import get_current_user, user_owns_dataset, user_owns_object_group
-
+from synesis_data_structures.time_series.schema import TimeSeries
+from synesis_api.auth.service import get_current_user, user_owns_dataset, user_owns_object_group, user_owns_data_object
+from synesis_api.client import MainServerClient, get_time_series_data
+from synesis_api.auth.service import oauth2_scheme
 
 router = APIRouter()
 
@@ -88,7 +93,6 @@ async def fetch_object_group(
 @router.get("/object-groups-in-dataset/{dataset_id}", response_model=List[ObjectGroupWithObjects])
 async def fetch_object_groups_in_dataset(
     dataset_id: UUID,
-    include_objects: bool = True,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> List[ObjectGroupWithObjects]:
     """Get a specific object group by ID"""
@@ -97,26 +101,36 @@ async def fetch_object_groups_in_dataset(
         raise HTTPException(
             status_code=403, detail="Not authorized to access this dataset")
 
-    return await get_object_groups(dataset_id=dataset_id, include_objects=include_objects)
+    return await get_object_groups(dataset_id=dataset_id, include_objects=True)
 
 
-@router.get("/time-series-data/{time_series_id}")
-async def fetch_time_series_data(
-    time_series_id: UUID,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
+@router.get("/data-object/{object_id}", response_model=Union[DataObjectWithParentGroup, DataObject])
+async def fetch_data_object(
+    object_id: UUID,
+    include_object_group: bool = False,
     user: Annotated[User, Depends(get_current_user)] = None
-):
+) -> Union[DataObjectWithParentGroup, DataObject]:
+    """Get a data object"""
 
-    raise HTTPException(status_code=501, detail="Not implemented")
+    if not await user_owns_data_object(user.id, object_id):
+        raise HTTPException(
+            status_code=403, detail="Not authorized to access this data object")
 
-    # if not await user_owns_time_series(user.id, time_series_id):
-    #     raise HTTPException(
-    #         status_code=403, detail="User does not own dataset")
+    return await get_data_object(object_id, include_object_group=include_object_group)
 
-    # time_series = await get_time_series_payload_data_by_id(user.id, time_series_id, start_date, end_date)
 
-    # if not time_series:
-    #     raise HTTPException(status_code=404, detail="Time series not found")
+@router.get("/time-series-data/{time_series_id}", response_model=TimeSeries)
+async def get_time_series_data_from_project_server(
+        time_series_id: UUID,
+        start_date: Optional[datetime] = None,
+        end_date: datetime = datetime.now(),
+        user: Annotated[User, Depends(get_current_user)] = None,
+        token: str = Depends(oauth2_scheme)) -> TimeSeries:
 
-    # return time_series
+    if not await user_owns_data_object(user.id, time_series_id):
+        raise HTTPException(
+            status_code=403, detail="Not authorized to access this data object")
+
+    client = MainServerClient(token)
+    time_series = await get_time_series_data(client, time_series_id, start_date, end_date)
+    return time_series

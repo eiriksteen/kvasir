@@ -56,7 +56,7 @@ const TimeSeriesChart = ({ timeSeriesId }: TimeSeriesChartProps) => {
     legend: {
       data: Object.keys(timeSeriesData.features),
       textStyle: {
-        color: "#e5e7eb",
+        color: "#000000",
       },
       top: 30,
     },
@@ -76,7 +76,7 @@ const TimeSeriesChart = ({ timeSeriesId }: TimeSeriesChartProps) => {
         },
       },
       axisLabel: {
-        color: "#9ca3af",
+        color: "#000000",
         formatter: function (value: string) {
           // Format timestamp for display
           return new Date(value).toLocaleString();
@@ -97,7 +97,7 @@ const TimeSeriesChart = ({ timeSeriesId }: TimeSeriesChartProps) => {
         },
       },
       axisLabel: {
-        color: "#9ca3af",
+        color: "#000000",
       },
     },
     series: Object.keys(timeSeriesData.features).map((featureName) => ({
