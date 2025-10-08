@@ -33,6 +33,7 @@ from synesis_schemas.main_server import (
 from synesis_schemas.project_server import RunPipelineRequest
 from project_server.auth import TokenData, decode_token
 from project_server.agents.pipeline.agent import pipeline_agent
+from project_server.worker import logger
 
 
 router = APIRouter()
@@ -60,7 +61,9 @@ async def run_pipeline_task(
             pipeline_code = f.read()
 
         weights_save_dir_dict = {
-            me.id: str(MODEL_WEIGHTS_DIR / f"{uuid.uuid4()}")for me in model_entities}
+            me.id: str(MODEL_WEIGHTS_DIR / f"{uuid.uuid4()}")
+            for me in model_entities if me.weights_save_dir is None
+        }
 
         for weights_save_dir in weights_save_dir_dict.values():
             Path(weights_save_dir).mkdir(parents=True, exist_ok=True)
@@ -97,6 +100,9 @@ async def run_pipeline_task(
             dataset_id=out_obj.id
         ))
 
+        logger.info(
+            f"Weights save dir dict: {weights_save_dir_dict}")
+
         new_model_entities = [
             await post_model_entity(client, ModelEntityCreate(
                 model_id=me.model.id,
@@ -106,7 +112,7 @@ async def run_pipeline_task(
                 pipeline_id=pipeline_id,
                 config={**me.config,
                         "weights_save_dir": weights_save_dir_dict[me.id]}
-            )) for me in model_entities
+            )) for me in model_entities if me.id in weights_save_dir_dict
         ]
 
         for model_entity in new_model_entities:

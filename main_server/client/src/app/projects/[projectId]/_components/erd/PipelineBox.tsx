@@ -1,15 +1,25 @@
 import React from 'react';
-import { Zap, Play } from 'lucide-react';
-import { Pipeline } from '@/types/pipeline';
+import { Zap, Play, Square } from 'lucide-react';
+import { Pipeline, PipelineRunInDB } from '@/types/pipeline';
 
 interface PipelineBoxProps {
   pipeline: Pipeline;
   onClick?: () => void;
   handleRunClick?: () => void;
+  pipelineRuns: PipelineRunInDB[]; 
 }
 
-export default function PipelineBox({ pipeline, onClick, handleRunClick }: PipelineBoxProps) {
+export default function PipelineBox({ pipeline, pipelineRuns, onClick, handleRunClick }: PipelineBoxProps) {
   const isDisabled = !onClick;
+  
+  // Check if there's a running pipeline
+  const isRunning = pipelineRuns.some(
+    run => run.status === 'running' || run.status === 'pending'
+  );
+  
+  const handleStopClick = () => {
+    console.log('Stop pipeline clicked:', pipeline.id);
+  };
 
   
   return (
@@ -36,9 +46,9 @@ export default function PipelineBox({ pipeline, onClick, handleRunClick }: Pipel
         </div>
       </div>
       
-      {/* Run button */}
+      {/* Run/Stop button */}
       <button
-        onClick={handleRunClick ? handleRunClick : undefined}
+        onClick={isRunning ? handleStopClick : (handleRunClick ? handleRunClick : undefined)}
         className={`w-12 px-3 py-3 border-l-2 border-[#840B08] flex-shrink-0 ${
           isDisabled
             ? 'cursor-default opacity-60'
@@ -46,7 +56,16 @@ export default function PipelineBox({ pipeline, onClick, handleRunClick }: Pipel
         } flex items-center justify-center transition-colors`}
         disabled={isDisabled}
       >
-        <Play className="w-4 h-4 text-[#840B08] fill-[#840B08]" />
+        {isRunning ? (
+          <div className="relative w-6 h-6 flex items-center justify-center">
+            {/* Loading spinner circle */}
+            <div className="w-6 h-6 rounded-full border-2 border-[#840B08]/20 border-t-[#840B08] animate-spin" />
+            {/* Stop square in the center */}
+            <Square className="absolute w-2 h-2 text-[#840B08] fill-[#840B08]" />
+          </div>
+        ) : (
+          <Play className="w-4 h-4 text-[#840B08] fill-[#840B08]" />
+        )}
       </button>
     </div>
   );

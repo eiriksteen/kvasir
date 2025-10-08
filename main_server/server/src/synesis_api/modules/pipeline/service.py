@@ -4,7 +4,6 @@ from typing import List, Optional, Literal
 from sqlalchemy import select, insert, or_, and_
 
 from synesis_api.database.service import fetch_all, execute, fetch_one
-from synesis_api.modules.runs.models import run
 from synesis_api.modules.pipeline.models import (
     pipeline,
     function_in_pipeline,
@@ -240,8 +239,8 @@ async def get_user_pipelines(
     pipeline_ids = [p["id"] for p in pipelines]
 
     # pipeline runs
-    pipeline_runs_query = select(run).where(
-        run.c.pipeline_id.in_(pipeline_ids))
+    pipeline_runs_query = select(pipeline_run).where(
+        pipeline_run.c.pipeline_id.in_(pipeline_ids))
     pipeline_runs = await fetch_all(pipeline_runs_query)
 
     # functions in the pipelines
@@ -390,7 +389,7 @@ async def get_pipeline_runs(
 
     pipeline_runs_query = select(pipeline_run
                                  ).join(pipeline, pipeline_run.c.pipeline_id == pipeline.c.id
-                                        ).where(pipeline_run.c.user_id == user_id)
+                                        ).where(pipeline.c.user_id == user_id)
 
     if pipeline_ids is not None:
         pipeline_runs_query = pipeline_runs_query.where(

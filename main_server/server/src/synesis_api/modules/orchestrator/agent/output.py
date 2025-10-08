@@ -3,7 +3,7 @@ from typing import Optional, List
 from pydantic import model_validator, BaseModel
 
 
-class ChatHandoffOutput(BaseModel):
+class NoHandoffOutput(BaseModel):
     pass
 
 

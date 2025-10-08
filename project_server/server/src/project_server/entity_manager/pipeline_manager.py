@@ -81,9 +81,17 @@ class PipelineManager:
             out_dict[variable_name] = group.data
 
         for model_entity in model_entities:
-            assert model_entity.id in weights_save_dirs, "Model entity weights save dir not found"
-            model_entity.config["weights_save_dir"] = Path(
-                weights_save_dirs[model_entity.id])
+
+            if model_entity.id in weights_save_dirs:
+                model_entity.config["weights_save_dir"] = Path(
+                    weights_save_dirs[model_entity.id])
+            elif model_entity.weights_save_dir is None:
+                raise ValueError(
+                    "No existing weights save dir found and no weights save dir provided")
+            else:
+                model_entity.config["weights_save_dir"] = Path(
+                    model_entity.weights_save_dir)
+
             variable_name = next(
                 m.code_variable_name for m in input_model_entities if m.model_entity_id == model_entity.id)
             out_dict[f"{variable_name}_config"] = model_entity.config

@@ -4,7 +4,7 @@ from sqlalchemy import select, or_, and_, func
 from synesis_api.modules.function.service import get_functions
 from synesis_api.database.service import fetch_all
 from synesis_api.modules.function.models import function, function_definition
-from synesis_api.modules.model.models import model
+from synesis_api.modules.model.models import model, model_definition
 from synesis_api.utils.rag_utils import embed
 from synesis_schemas.main_server import QueryRequest, FunctionQueryResult, ModelQueryResult
 from synesis_api.modules.model.service import get_models
@@ -49,12 +49,15 @@ async def query_models(user_id: uuid.UUID, query_request: QueryRequest) -> Model
 
     model_query = select(
         model.c.id
+    ).join(
+        model_definition, model.c.definition_id == model_definition.c.id
     ).where(
-        or_(model.c.owner_id == user_id, model.c.public == True)
+        or_(model.c.user_id == user_id, model_definition.c.public == True)
     ).order_by(
         model.c.embedding.cosine_distance(query_vector)
     ).limit(query_request.k)
 
-    models = await get_models(model_query)
+    model_records = await fetch_all(model_query)
+    models = await get_models([m["id"] for m in model_records])
 
     return ModelQueryResult(query_name=query_request.query_name, models=models)

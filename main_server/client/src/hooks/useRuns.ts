@@ -87,7 +87,7 @@ export const useRuns = () => {
 
 
   const { data: runs, mutate: mutateRuns } = useSWR(
-    session ? ["runs"] : null, 
+    session ? "runs" : null, 
     () => fetchRuns(session ? session.APIToken.accessToken : ""), 
     {
       onSuccess: (runs: Run[]) => {

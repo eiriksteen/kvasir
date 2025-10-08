@@ -1,11 +1,10 @@
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel
 from typing import Optional, Literal, List
 from datetime import datetime
 from uuid import UUID
 
 from .function import FunctionWithoutEmbedding
 from .data_objects import ObjectGroup
-from .runs import RunInDB
 
 # DB models
 
@@ -173,7 +172,7 @@ class PipelineGraph(BaseModel):
 class PipelineFull(PipelineInDB):
     functions: List[FunctionWithoutEmbedding]
     model_entities: List[ModelEntityInPipelineInDB]
-    runs: List[RunInDB] = []
+    runs: List[PipelineRunInDB] = []
     periodic_schedules: List[PipelinePeriodicScheduleInDB] = []
     on_event_schedules: List[PipelineOnEventScheduleInDB] = []
     computational_graph: PipelineGraph

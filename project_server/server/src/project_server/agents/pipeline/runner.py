@@ -173,6 +173,7 @@ class PipelineAgentRunner(RunnerBase):
         models_unfitted = [
             me for me in self.input_model_entities if me.weights_save_dir is None]
 
+        configurations: List[ModelConfiguration] = []
         if len(models_unfitted) > 0:
             await self._log_message("Configuring model(s)", "result", write_to_db=True)
 
@@ -185,8 +186,7 @@ class PipelineAgentRunner(RunnerBase):
             )
 
             assert len(model_configurations_run.output) == len(models_unfitted)
-
-            configurations: List[ModelConfiguration] = model_configurations_run.output
+            configurations = model_configurations_run.output
 
             for config in configurations:
                 model_entity_id = next(

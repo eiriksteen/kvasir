@@ -138,18 +138,12 @@ class SWEAgentRunner(RunnerBase):
                     run_output.main_script = main_script_updated
 
                     for new_script in run_output.new_scripts:
-                        script = new_script.script
-                        script_updated = script.replace(
-                            "functions_tmp", "functions").replace(
-                            "models_tmp", "models")
-                        new_script.script = script_updated
+                        new_script.script = file_manager.clean_temporary_script(
+                            new_script.script)
 
                     for modified_script in run_output.modified_scripts:
-                        script = modified_script.new_script
-                        script_updated = script.replace(
-                            "functions_tmp", "functions").replace(
-                            "models_tmp", "models")
-                        modified_script.new_script = script_updated
+                        modified_script.new_script = file_manager.clean_temporary_script(
+                            modified_script.new_script)
 
                     self.implementation_result = run_output
 

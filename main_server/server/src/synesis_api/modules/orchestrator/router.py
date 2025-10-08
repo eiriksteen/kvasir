@@ -27,7 +27,7 @@ from synesis_api.modules.orchestrator.service import (
 )
 from synesis_api.modules.orchestrator.agent import orchestrator_agent
 from synesis_api.modules.orchestrator.agent.output import (
-    ChatHandoffOutput,
+    NoHandoffOutput,
     AnalysisHandoffOutput,
     DataIntegrationHandoffOutput,
     PipelineHandoffOutput,
@@ -38,7 +38,7 @@ from synesis_schemas.main_server import User
 from synesis_api.auth.service import oauth2_scheme
 from synesis_api.client import MainServerClient, post_run_data_integration, post_run_pipeline_agent, post_run_model_integration
 from synesis_schemas.project_server import RunDataIntegrationAgentRequest, RunPipelineAgentRequest, RunModelIntegrationAgentRequest
-
+from synesis_api.modules.orchestrator.agent.deps import OrchestatorAgentDeps
 
 router = APIRouter()
 
@@ -71,14 +71,18 @@ async def post_chat(
     orchestrator_run = await orchestrator_agent.run(
         f"The user prompt is: '{prompt.content}'. \n\n" +
         "Decide whether to launch an agent or just respond directly to the prompt. \n\n" +
-        "If launching an agent, choose between 'analysis', 'data_integration' or 'pipeline'. If not just choose 'chat'. \n\n"
+        "If launching an agent, choose between 'analysis', 'data_integration' or 'pipeline'. If not just choose no handoff. \n\n"
         f"The context is:\n\n{context_message}\n\n" +
         f"The project graph is:\n\n{project_graph.model_dump_json()}",
-        output_type=[ChatHandoffOutput,
+        output_type=[NoHandoffOutput,
                      AnalysisHandoffOutput,
                      PipelineHandoffOutput,
                      DataIntegrationHandoffOutput,
                      ModelIntegrationHandoffOutput],
+        deps=OrchestatorAgentDeps(
+            user_id=user.id,
+            project_id=conversation_record.project_id
+        ),
         message_history=messages
     )
 
@@ -101,6 +105,10 @@ async def post_chat(
         async with orchestrator_agent.run_stream(
             "Now respond to the user! If you launched an agent, explain what you did. If not, just respond directly to the user prompt.",
             output_type=str,
+            deps=OrchestatorAgentDeps(
+                user_id=user.id,
+                project_id=conversation_record.project_id
+            ),
             message_history=messages+orchestrator_run.new_messages()
         ) as result:
             prev_text = ""
@@ -119,7 +127,7 @@ async def post_chat(
         await create_chat_message(conversation_record.id, "assistant", response_message.content, response_message.context_id, response_message.id)
         await create_chat_message_pydantic(conversation_record.id, [orchestrator_run.new_messages_json(), result.new_messages_json()])
 
-        if not isinstance(orchestrator_run.output, ChatHandoffOutput):
+        if not isinstance(orchestrator_run.output, NoHandoffOutput):
 
             if isinstance(orchestrator_run.output, AnalysisHandoffOutput):
                 raise HTTPException(

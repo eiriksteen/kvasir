@@ -44,6 +44,17 @@ export interface PipelineOutputObjectGroupDefinitionInDB {
   updatedAt: string;
 }
 
+export interface PipelineRunInDB {
+  id: UUID;
+  pipelineId: UUID;
+  status: string;
+  startTime: string;
+  endTime: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
 // API Models
 
 export interface PipelineSources {

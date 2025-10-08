@@ -23,6 +23,8 @@ from project_server.app_secrets import (
     DATA_INTEGRATION_MODULE_TMP
 )
 
+TMP_FILENAME_SPLITTER = "_fn_"
+
 
 @dataclass
 class ScriptStorage:
@@ -98,7 +100,7 @@ class FileManager:
 
     def save_pipeline_script(self, python_function_name: str, script_content: str, setup_script_content: Optional[str] = None) -> ScriptStorage:
         # We have a unique index on the function name, so we can use it to save the script
-        pipe_uuid = uuid.uuid4()
+        pipe_uuid = str(uuid.uuid4()).replace("-", "")
         filename = f"{python_function_name}_{pipe_uuid}.py"
         file_path = PIPELINES_DIR / filename
         file_path.write_text(script_content)
@@ -119,17 +121,18 @@ class FileManager:
             script_content: str,
             setup_script_content: Optional[str] = None) -> ScriptStorage:
 
-        filename = f"data_integration_{data_integration_id}.py"
+        str_uuid = str(data_integration_id).replace("-", "")
+        filename = f"data_integration_{str_uuid}.py"
         file_path = DATA_INTEGRATION_DIR / filename
         file_path.write_text(script_content)
 
         setup_file_path = None
         if setup_script_content:
             setup_file_path = DATA_INTEGRATION_DIR / \
-                f"data_integration_{data_integration_id}_setup.sh"
+                f"data_integration_{str_uuid}_setup.sh"
             setup_file_path.write_text(setup_script_content)
 
-        module_path = f"{DATA_INTEGRATION_MODULE}.data_integration_{data_integration_id}"
+        module_path = f"{DATA_INTEGRATION_MODULE}.data_integration_{str_uuid}"
 
         return ScriptStorage(filename=filename, script_path=file_path, setup_script_path=setup_file_path, module_path=module_path)
 
@@ -154,7 +157,8 @@ class FileManager:
             base_dir = DATA_INTEGRATION_DIR_TMP
             base_module = DATA_INTEGRATION_MODULE_TMP
 
-        target_filename = filename if overwrite else f"id_{uuid.uuid4()}_{filename}"
+        str_uuid = str(uuid.uuid4()).replace("-", "")
+        target_filename = filename if overwrite else f"id_{str_uuid}{TMP_FILENAME_SPLITTER}{filename}"
         script_path = base_dir / target_filename
         script_path.write_text(script_content)
         # :-3 to remove the .py extension
@@ -174,6 +178,30 @@ class FileManager:
 
         script_path = base_dir / filename_uuid
         script_path.unlink()
+
+    def clean_temporary_script(self, script_content: str) -> str:
+        TMP_MODULES = [FUNCTIONS_MODULE_TMP, MODELS_MODULE_TMP,
+                       PIPELINES_MODULE_TMP, DATA_INTEGRATION_MODULE_TMP]
+        PROD_MODULES = [FUNCTIONS_MODULE, MODELS_MODULE,
+                        PIPELINES_MODULE, DATA_INTEGRATION_MODULE]
+        script_lines = script_content.splitlines()
+        cleaned_lines = []
+
+        for line in script_lines:
+
+            idx = next((i for i, x in enumerate(TMP_MODULES) if x in line), -1)
+
+            if idx != -1:
+                module_components = line.split(".")
+                filename = module_components[-1]
+                filename_cleaned = filename.split(TMP_FILENAME_SPLITTER)[-1]
+                module_cleaned = (".".join(
+                    module_components[:-1]) + "." + filename_cleaned).replace(TMP_MODULES[idx], PROD_MODULES[idx])
+                cleaned_lines.append(module_cleaned)
+            else:
+                cleaned_lines.append(line)
+
+        return "\n".join(cleaned_lines)
 
 
 file_manager = FileManager()

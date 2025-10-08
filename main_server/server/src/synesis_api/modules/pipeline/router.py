@@ -40,9 +40,14 @@ async def fetch_pipelines(project_id: UUID, user: User = Depends(get_current_use
     return await get_project_pipelines(user.id, project_id)
 
 
+@router.get("/pipelines/runs", response_model=List[PipelineRunInDB])
+async def fetch_pipeline_runs(user: User = Depends(get_current_user)) -> List[PipelineRunInDB]:
+    return await get_pipeline_runs(user.id)
+
+
 @router.get("/pipelines/{pipeline_id}", response_model=PipelineFull)
 async def fetch_pipeline(
-    pipeline_id: str,
+    pipeline_id: UUID,
     user: User = Depends(get_current_user),
 ) -> PipelineFull:
     return (await get_user_pipelines_by_ids(user.id, [pipeline_id]))[0]
