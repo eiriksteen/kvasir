@@ -42,10 +42,10 @@ from synesis_api.modules.orchestrator.models import (
 )
 from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.data_objects.service import get_user_datasets_by_ids, get_project_datasets
-# from synesis_api.modules.analysis.service import get_user_analyses_by_ids
 from synesis_api.modules.data_sources.service import get_data_sources, get_project_data_sources
 from synesis_api.modules.pipeline.service import get_user_pipelines_by_ids, get_project_pipelines
 from synesis_api.modules.model.service import get_user_model_entities_by_ids, get_project_model_entities
+from synesis_api.modules.analysis.service import get_simplified_overview_for_context_message
 
 
 async def create_conversation(
@@ -258,7 +258,7 @@ async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
     if len(context.pipeline_ids) > 0:
         pipelines = await get_user_pipelines_by_ids(user_id, context.pipeline_ids)
     if len(context.analysis_ids) > 0:
-        # analyses = await get_user_analyses_by_ids(user_id, context.analysis_ids)
+        analyses = await get_simplified_overview_for_context_message(user_id, context.analysis_ids)
         analyses = []
     if len(context.model_entity_ids) > 0:
         model_entities = await get_user_model_entities_by_ids(context.model_entity_ids)

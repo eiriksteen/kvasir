@@ -1,0 +1,129 @@
+from typing import List, Union, Literal
+from synesis_schemas.main_server import (
+    DatasetFullWithFeatures, 
+    DatasetFull, 
+    AnalysisResult
+)
+import uuid
+import time
+from synesis_schemas.main_server import AnalysisStatusMessage
+from project_server.redis import get_redis
+from datetime import datetime
+
+def simplify_dataset_overview(datasets: List[Union[DatasetFullWithFeatures, DatasetFull]]) -> list[dict]:
+    """
+    Simplify the dataset overview to a list of dictionaries.
+    """
+    # TODO: Make this work with the new dataset structure
+    datasets_overview = []
+    for dataset in datasets:
+        first_object_group = dataset.object_groups[0] # this is not completely correct, fix this if we want to keep this simplify approach.
+        feature_list = []
+        for feature in first_object_group.features:
+            simplified_feature = feature.model_dump(include={"name", "unit", "description", "type", "subtype", "scale"})
+            feature_list.append(simplified_feature)
+        simplified_object_group = first_object_group.model_dump(include={"dataset_id", "name", "description", "features", "structure_type", "original_id_name"})
+
+        simplified_object_group["features"] = feature_list
+        datasets_overview.append(simplified_object_group)
+
+    return datasets_overview
+
+
+def get_relevant_metadata_for_prompt(metadata_list: list[dict], datatype: Literal["data_source", "dataset"]) -> str:
+    context_part = ""
+    if datatype == "data_source":
+        for idx, metadata_dict in enumerate(metadata_list):
+            context_part += f"""The following is some inforation about data source {idx}:
+                This is the path to the data source: '/tmp/data_source_{idx}.csv'
+                This is some additional information about the data source: {metadata_dict}\n\n"""
+    elif datatype == "dataset":
+        for idx, metadata_dict in enumerate(metadata_list):
+            if metadata_dict["structure_type"] == "time_series":
+                original_id_name = metadata_dict["original_id_name"]
+                context_part += f"""The following is some information about dataset {idx}:
+                    This is the path to the data: '/tmp/dataset_{idx}.parquet'
+                    This is some additional information about the data: {metadata_dict}
+                    Also note that the data is a multiindex dataframe. Where the first level is '{original_id_name}' and the second level is 'timestamp' \n\n"""
+            else:
+                return "Modality not supported yet\n\n"
+    return context_part
+
+async def post_analysis_result_to_redis(message: AnalysisResult, run_id: uuid.UUID):
+    redis_stream = get_redis()
+    
+    analysis_status_message = AnalysisStatusMessage(
+        id=uuid.uuid4(),
+        run_id=run_id,
+        result=message,
+        created_at=datetime.now()
+    )
+
+    message_dict = analysis_status_message.model_dump(mode="json")
+    message_dict['result'] = message.model_dump_json()
+    await redis_stream.xadd(str(run_id) + "-result", message_dict)
+
+async def simulate_streaming_output(output: AnalysisResult, run_id: uuid.UUID) -> str:
+    """
+    Simulate a streaming output by adding a delay between each character.
+    """
+    streamed_analysis_result = AnalysisResult(**output.model_dump())
+    streamed_analysis_result.analysis = ""
+    streamed_analysis_result.python_code = ""
+    index = 0
+    while streamed_analysis_result.analysis != output.analysis:
+        if index < len(output.analysis):
+            streamed_analysis_result.analysis = output.analysis[:index]
+        else:
+            streamed_analysis_result.analysis = output.analysis
+        if index < len(output.python_code):
+            streamed_analysis_result.python_code = output.python_code[:index]
+        else:
+            streamed_analysis_result.python_code = output.python_code
+        index += 5
+        await post_analysis_result_to_redis(streamed_analysis_result, run_id)
+        time.sleep(0.01)
+
+
+# def simplify_datasource_overview(datasources: DetailedDataSourceRecords) -> list[dict]:
+#     # Datasource object is already simplified now, so this function is not needed anymore.
+#     """
+#     Simplify the dataset overview to a list of dictionaries.
+#     """
+#     datasource_overview = []
+#     for datasource in datasources:
+#         primary_object_group = datasource
+#         feature_list = []
+#         for feature in datasource.features:
+#             simplified_feature = feature.model_dump(include={"name", "unit", "description", "type", "subtype", "scale"})
+#             feature_list.append(simplified_feature)
+#         simplified_object_group = primary_object_group.model_dump(include={"id", "type", "file_type", "num_rows", "num_columns"})
+
+#         simplified_object_group["features"] = feature_list
+#         datasource_overview.append(simplified_object_group)
+
+#     return datasource_overview
+
+
+
+
+if __name__ == "__main__":
+    import asyncio
+    from project_server.client import get_data_sources_by_ids, get_datasets_by_ids, ProjectClient
+    from rich import print as rich_print
+    from synesis_schemas.main_server import GetDataSourcesByIDsRequest
+    from synesis_schemas.main_server import GetDatasetByIDsRequest
+    bearer_token = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiYzJhZjhiMC1lNDg1LTRhOWQtYTBmMS0yZDc3NmM2ZmJjMTUiLCJleHAiOjE3NTk3NDQ5NDF9.2Is31sq8Qa2Oni2ZuaHMFONEKndUhfg_js4QxNsKgxL7F6AYbV8JR2NC5IZh_0P2cTgW7E0gwIVMc9LGsgsErw"
+    project_client = ProjectClient(bearer_token=bearer_token)
+
+
+    data_soruce_id = "3036cbe4-c2e9-443f-96e9-54bc75fdb938"
+    data_sources = asyncio.run(get_data_sources_by_ids(project_client, GetDataSourcesByIDsRequest(data_source_ids=[data_soruce_id])))
+    rich_print(get_relevant_metadata_for_prompt(data_sources, "data_source"))
+    # rich_print(data_sources)
+
+
+    dataset_id = "5adaaa24-5345-4176-b797-234afbb714e3"
+    datasets = asyncio.run(get_datasets_by_ids(project_client, GetDatasetByIDsRequest(dataset_ids=[dataset_id], include_features=True)))
+    # rich_print(datasets)
+    # rich_print(simplify_dataset_overview(datasets))

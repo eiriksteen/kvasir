@@ -149,7 +149,7 @@ export async function fetchAnalysisObject(token: string, analysisObjectId: strin
 }
 
 export async function createNotebookSection(token: string, analysisObjectId: string, notebookSectionCreate: NotebookSectionCreate): Promise<NotebookSection> {
-  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/add-section`, {
+  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/create-section`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -186,8 +186,8 @@ export async function updateNotebookSection(token: string, analysisObjectId: str
   return snakeToCamelKeys(data);
 }
 
-export async function updateAnalysisResult(token: string, analysisObjectId: string, analysisResultId: string, analysisResultUpdate: AnalysisResultUpdate): Promise<AnalysisResult> {
-  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/analysis-result/${analysisResultId}`, {
+export async function updateAnalysisResult(token: string, analysisResultId: string, analysisResultUpdate: AnalysisResultUpdate): Promise<AnalysisResult> {
+  const response = await fetch(`${API_URL}/analysis/analysis-result/${analysisResultId}`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -515,7 +515,6 @@ export const useAnalysisObject = (projectId: UUID, analysisObjectId: UUID) => {
     async (_, { arg }: { arg: { analysisResultId: UUID, analysisResultUpdate: AnalysisResultUpdate } }): Promise<AnalysisResult> => {
       const analysisResult: AnalysisResult = await updateAnalysisResult(
         session ? session.APIToken.accessToken : "", 
-        analysisObjectId,
         arg.analysisResultId,
         arg.analysisResultUpdate
       );

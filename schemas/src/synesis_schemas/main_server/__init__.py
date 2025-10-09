@@ -204,6 +204,8 @@ from .tables import (
     BaseTable,
     TableCreate,
     TableUpdate,
+    TableColumn,
+    TableConfig,
 )
 
 
@@ -212,6 +214,11 @@ from .plots import (
     BasePlot,
     PlotCreate,
     PlotUpdate,
+    PlotConfig,
+    PlotColumn,
+    StraightLine,
+    MarkArea,
+    PREDEFINED_COLORS,
 )
 
 # Analysis schemas
@@ -235,4 +242,5 @@ from .analysis import (
     GenerateReportRequest,
     MoveRequest,
     AnalysisObjectList,
+    AnalysisResultFindRequest,
 )

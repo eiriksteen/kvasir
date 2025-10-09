@@ -316,11 +316,15 @@ async def create_analysis_run(analysis_result_id: uuid.UUID, run_id: uuid.UUID) 
 
 
 async def create_section(notebook_section_create: NotebookSectionCreate) -> NotebookSectionInDB:
-    last_type, last_id = await get_last_element_in_section(notebook_section_create.parent_section_id, notebook_section_create.notebook_id)
+    analysis_object = await fetch_one(
+        select(analysis_objects).where(analysis_objects.c.id == notebook_section_create.analysis_object_id)
+    )
+    last_type, last_id = await get_last_element_in_section(notebook_section_create.parent_section_id, analysis_object["notebook_id"])
 
     notebook_section = NotebookSectionInDB(
         id=uuid.uuid4(),
         **notebook_section_create.model_dump(),
+        notebook_id=analysis_object["notebook_id"]
     )
     await execute(
         insert(notebook_sections).values(

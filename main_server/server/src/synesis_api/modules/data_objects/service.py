@@ -3,7 +3,7 @@ import pandas as pd
 from typing import List, Optional, Union
 from datetime import datetime, timezone
 from sqlalchemy import insert, select, and_, update
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 
 from synesis_api.modules.data_objects.models import (
     dataset,
@@ -18,7 +18,8 @@ from synesis_api.modules.data_objects.models import (
     variable,
     dataset_from_data_source,
     dataset_from_dataset,
-    dataset_from_pipeline
+    dataset_from_pipeline,
+    aggregation_object
 )
 from synesis_schemas.main_server import (
     FeatureCreate,
@@ -45,16 +46,26 @@ from synesis_schemas.main_server import (
     DatasetFromDataSourceInDB,
     DatasetFromDatasetInDB,
     DatasetFromPipelineInDB,
+    AggregationObjectWithRawData, 
+    AggregationObjectInDB, 
+    AggregationObjectCreate, 
+    AggregationObjectUpdate
 )
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.project.service import get_dataset_ids_in_project
 
-from synesis_data_structures.time_series.serialization import deserialize_parquet_to_dataframes
+from synesis_data_structures.time_series.serialization import deserialize_parquet_to_dataframes, serialize_raw_data_for_aggregation_object_for_api
 from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_STRUCTURE,
     TIME_SERIES_AGGREGATION_STRUCTURE
 )
 from synesis_api.utils.time_series_utils import make_timezone_aware
+
+from synesis_api.modules.analysis.service import get_analysis_result_by_id
+from synesis_api.modules.data_sources.service import get_data_sources
+from synesis_api.utils.file_utils import copy_file_or_directory_to_container, get_data_from_container_from_code
+from synesis_api.app_secrets import DATASETS_SAVE_PATH, RAW_FILES_SAVE_DIR
+from pathlib import Path
 
 
 async def create_features(features: List[FeatureCreate]) -> List[FeatureInDB]:
@@ -633,17 +644,6 @@ async def _add_features_to_object_groups(groups: List[ObjectGroupInDB], max_feat
 
     return result_records
 
-from synesis_schemas.main_server import AggregationObjectWithRawData, AggregationObjectInDB, AggregationObjectCreate, AggregationObjectUpdate
-from synesis_api.modules.data_objects.models import aggregation_object
-from fastapi import HTTPException
-from synesis_api.modules.analysis.service import get_analysis_result_by_id
-from synesis_api.modules.data_sources.service import get_data_sources
-from synesis_api.utils.file_utils import copy_file_or_directory_to_container, get_data_from_container_from_code
-from synesis_data_structures.time_series.serialization import serialize_raw_data_for_aggregation_object_for_api
-from synesis_api.app_secrets import DATASETS_SAVE_PATH, RAW_FILES_SAVE_DIR
-from pathlib import Path
-
-
 
 async def create_aggregation_object(aggregation_object_create: AggregationObjectCreate) -> AggregationObjectInDB:
     id = uuid.uuid4()
@@ -679,25 +679,6 @@ async def get_aggregation_object_by_analysis_result_id(analysis_result_id: uuid.
         raise HTTPException(status_code=404, detail="Aggregation object not found")
     return AggregationObjectInDB(**aggregation_object_result)
 
-
-def simplify_dataset_overview(datasets: List[Union[DatasetFullWithFeatures, DatasetFull]]) -> list[dict]:
-    """
-    Simplify the dataset overview to a list of dictionaries.
-    """
-    # TODO: Make this work with the new dataset structure
-    datasets_overview = []
-    for dataset in datasets:
-        primary_object_group = dataset.primary_object_group
-        feature_list = []
-        for feature in primary_object_group.features:
-            simplified_feature = feature.model_dump(include={"name", "unit", "description", "type", "subtype", "scale"})
-            feature_list.append(simplified_feature)
-        simplified_object_group = primary_object_group.model_dump(include={"dataset_id", "name", "description", "features", "structure_type", "original_id_name"})
-
-        simplified_object_group["features"] = feature_list
-        datasets_overview.append(simplified_object_group)
-
-    return datasets_overview
 
 
 async def get_aggregation_object_payload_data_by_analysis_result_id(

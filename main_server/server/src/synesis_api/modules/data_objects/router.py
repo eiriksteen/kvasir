@@ -10,7 +10,11 @@ from synesis_api.modules.data_objects.service import (
     get_object_group,
     create_dataset,
     get_project_datasets,
-    get_user_datasets_by_ids
+    get_user_datasets_by_ids,
+    get_aggregation_object_by_analysis_result_id,
+    update_aggregation_object,
+    create_aggregation_object
+
 )
 # from synesis_api.modules.data_objects.service import get_time_series_payload_data_by_id
 from synesis_schemas.main_server import (
@@ -21,7 +25,9 @@ from synesis_schemas.main_server import (
     ObjectGroupInDB,
     ObjectGroupWithFeatures,
     ObjectGroupWithEntitiesAndFeatures,
-    GetDatasetByIDsRequest
+    GetDatasetByIDsRequest,
+    AggregationObjectUpdate,
+    AggregationObjectCreate
 )
 from synesis_schemas.main_server import User
 from synesis_api.auth.service import get_current_user, user_owns_dataset, user_owns_object_group
@@ -127,3 +133,35 @@ async def fetch_time_series_data(
     #     raise HTTPException(status_code=404, detail="Time series not found")
 
     # return time_series
+
+
+@router.post("/aggregation-object")
+async def create_aggregation_object_endpoint(
+    aggregation_object_create,
+    user: Annotated[User, Depends(get_current_user)] = None
+):
+    aggregation_object = AggregationObjectCreate(**aggregation_object_create) if isinstance(aggregation_object_create, dict) else aggregation_object_create
+    result = await create_aggregation_object(aggregation_object)
+    return result
+
+
+@router.put("/aggregation-object/{aggregation_object_id}")
+async def update_aggregation_object_endpoint(
+    aggregation_object_id: UUID,
+    aggregation_object_update,
+    user: Annotated[User, Depends(get_current_user)] = None
+):
+    aggregation_update = AggregationObjectUpdate(**aggregation_object_update) if isinstance(aggregation_object_update, dict) else aggregation_object_update
+    result = await update_aggregation_object(aggregation_object_id, aggregation_update)
+    return result
+
+
+@router.get("/aggregation-object/analysis-result/{analysis_result_id}")
+async def get_aggregation_object_by_analysis_result_id_endpoint(
+    analysis_result_id: UUID,
+    user: Annotated[User, Depends(get_current_user)] = None
+):
+    result = await get_aggregation_object_by_analysis_result_id(analysis_result_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Aggregation object not found")
+    return result

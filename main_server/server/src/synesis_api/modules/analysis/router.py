@@ -1,7 +1,7 @@
 import uuid
 import time
 import redis
-from typing import Annotated
+from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse, Response
 from pathlib import Path
@@ -17,7 +17,8 @@ from synesis_schemas.main_server import (
     AnalysisObjectSmall,
     AnalysisResult,
     GenerateReportRequest,
-    MoveRequest
+    MoveRequest,
+    AnalysisResultFindRequest
 )
 from synesis_api.auth.service import get_current_user, user_owns_runs
 from synesis_api.modules.analysis.service import (
@@ -35,7 +36,11 @@ from synesis_api.modules.analysis.service import (
     add_analysis_result_to_section,
     generate_notebook_report,
     move_element as move_element_service,
-    delete_analysis_result as delete_analysis_result_service
+    delete_analysis_result as delete_analysis_result_service,
+    get_analysis_results_by_ids,
+    get_analysis_result_by_id,
+    create_analysis_run,
+    create_analysis_result
 )
 from synesis_schemas.main_server import User
 from synesis_api.modules.node.service import get_node_by_analysis_object_id
@@ -223,8 +228,8 @@ async def analysis_agent_sse(
 
     return StreamingResponse(stream_run_updates(), media_type="text/event-stream")
     
-@router.post("/analysis-object/{analysis_object_id}/add-section", response_model=NotebookSection)
-async def add_section_endpoint(
+@router.post("/analysis-object/{analysis_object_id}/create-section", response_model=NotebookSection)
+async def create_section_endpoint(
     analysis_object_id: uuid.UUID,
     section_create: NotebookSectionCreate,
     user: Annotated[User, Depends(get_current_user)] = None,
@@ -314,18 +319,12 @@ async def move_element(
     return
 
 
-@router.put("/analysis-object/{analysis_object_id}/analysis-result/{analysis_result_id}", response_model=AnalysisResult)
+@router.put("/analysis-result/{analysis_result_id}", response_model=AnalysisResult)
 async def update_analysis_result_endpoint(
-    analysis_object_id: uuid.UUID,
     analysis_result_id: uuid.UUID,
     analysis_result_update: AnalysisResultUpdate,
     user: Annotated[User, Depends(get_current_user)] = None,
 ) -> AnalysisResult:
-    if not await check_user_owns_analysis_object(user.id, analysis_object_id):
-        raise HTTPException(
-            status_code=403, 
-            detail="You do not have permission to access this analysis object"  
-        )
     
     return await update_analysis_result_by_id(analysis_result_id, analysis_result_update)
 
@@ -342,3 +341,40 @@ async def delete_analysis_result_endpoint(
         )
     await delete_analysis_result_service(analysis_result_id)
     return
+
+
+@router.post("/analysis-result", response_model=AnalysisResult)
+async def create_analysis_result_endpoint(
+    analysis_result: AnalysisResult,
+    user: Annotated[User, Depends(get_current_user)] = None,
+) -> AnalysisResult:
+    return await create_analysis_result(analysis_result)
+
+
+@router.post("/analysis-result/{analysis_result_id}/run")
+async def create_analysis_run_endpoint(
+    analysis_result_id: uuid.UUID,
+    run_id: uuid.UUID,
+    user: Annotated[User, Depends(get_current_user)] = None,
+):
+    await create_analysis_run(analysis_result_id, run_id)
+    return {"message": "Analysis run created successfully"}
+
+
+@router.get("/analysis-result/{analysis_result_id}", response_model=AnalysisResult)
+async def get_analysis_result_endpoint(
+    analysis_result_id: uuid.UUID,
+    user: Annotated[User, Depends(get_current_user)] = None,
+) -> AnalysisResult:
+    result = await get_analysis_result_by_id(analysis_result_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Analysis result not found")
+    return result
+
+
+@router.post("/analysis-results/by-ids", response_model=List[AnalysisResult])
+async def get_analysis_results_by_ids_endpoint(
+    analysis_result_find_request: AnalysisResultFindRequest,
+    user: Annotated[User, Depends(get_current_user)] = None,
+) -> List[AnalysisResult]:
+    return await get_analysis_results_by_ids(analysis_result_find_request.analysis_result_ids)

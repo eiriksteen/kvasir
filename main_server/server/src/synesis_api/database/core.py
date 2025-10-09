@@ -14,7 +14,7 @@ engine = create_async_engine(
 naming_convention = {
   "ix": "ix_%(column_0_label)s",
   "uq": "uq_%(table_name)s_%(column_0_name)s",
-  "ck": "ck_%(table_name)s", # I am not sure if this is correct, it does not seem unique?
+#   "ck": "ck_%(table_name)s", # I am not sure if this is correct, it does not seem unique?
   "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
   "pk": "pk_%(table_name)s"
 }

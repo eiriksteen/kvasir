@@ -100,8 +100,13 @@ class AnalysisObjectCreate(BaseModel):
     project_id: UUID
     description: str | None = None
 
+class AnalysisResultUpdate(BaseModel):
+    analysis: str | None = None
+    python_code: str | None = None
+
+
 class NotebookSectionCreate(BaseModel):
-    notebook_id: UUID
+    analysis_object_id: UUID
     section_name: str
     section_description: str | None = None
     parent_section_id: UUID | None = None
@@ -114,9 +119,6 @@ class NotebookSectionUpdate(BaseModel):
     section_name: str | None = None
     section_description: str | None = None
 
-class AnalysisResultUpdate(BaseModel):
-    analysis: str | None = None
-
 class GenerateReportRequest(BaseModel):
     filename: str
     include_code: bool
@@ -127,3 +129,6 @@ class MoveRequest(BaseModel):
     moving_element_id: UUID
     next_element_type: Literal['analysis_result', 'notebook_section'] | None = None
     next_element_id: UUID | None = None
+
+class AnalysisResultFindRequest(BaseModel):
+    analysis_result_ids: List[UUID]
