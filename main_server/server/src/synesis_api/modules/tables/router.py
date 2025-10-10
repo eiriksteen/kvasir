@@ -27,7 +27,7 @@ async def create_table_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put("/update-table/{table_id}", response_model=BaseTable)
+@router.patch("/update-table/{table_id}", response_model=BaseTable)
 async def update_table_endpoint(
     table_id: uuid.UUID,
     table_update: TableUpdate, 

@@ -67,7 +67,7 @@ export async function fetchPlotsByAnalysisResultEndpoint(token: string, analysis
 
 export async function updatePlotEndpoint(token: string, plotId: string, plotUpdate: any): Promise<any> {
   const response = await fetch(`${API_URL}/plots/${plotId}`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

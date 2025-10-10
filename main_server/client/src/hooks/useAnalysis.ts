@@ -169,7 +169,7 @@ export async function createNotebookSection(token: string, analysisObjectId: str
 
 export async function updateNotebookSection(token: string, analysisObjectId: string, sectionId: string, sectionUpdate: NotebookSectionUpdate): Promise<NotebookSection> {
   const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/section/${sectionId}`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -188,7 +188,7 @@ export async function updateNotebookSection(token: string, analysisObjectId: str
 
 export async function updateAnalysisResult(token: string, analysisResultId: string, analysisResultUpdate: AnalysisResultUpdate): Promise<AnalysisResult> {
   const response = await fetch(`${API_URL}/analysis/analysis-result/${analysisResultId}`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -223,7 +223,7 @@ export async function deleteNotebookSectionEndpoint(token: string, analysisObjec
 
 export async function changeAnalysisResultSectionEndpoint(token: string, analysisResultId: string, newSectionId: string, oldSectionId: string): Promise<void> {
   const response = await fetch(`${API_URL}/analysis/analysis-result/${analysisResultId}/new-section/${newSectionId}/old-section/${oldSectionId}`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -242,7 +242,7 @@ export async function changeAnalysisResultSectionEndpoint(token: string, analysi
 
 export async function reorderNotebookSections(token: string, analysisObjectId: string, sectionReorderRequest: SectionReorderRequest): Promise<void> {
   const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/reorder-sections`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -262,7 +262,7 @@ export async function reorderNotebookSections(token: string, analysisObjectId: s
 
 export async function moveNotebookSections(token: string, analysisObjectId: string, sectionMoveRequest: SectionMoveRequest): Promise<void> {
   const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/move-sections`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -300,7 +300,7 @@ export async function getAnalysisResultDataEndpoint(token: string, analysisObjec
 
 export async function moveElementEndpoint(token: string, analysisObjectId: string, moveRequest: MoveRequest): Promise<void> {
   const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/move-element`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

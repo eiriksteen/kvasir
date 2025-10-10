@@ -50,7 +50,7 @@ async def get_plots_by_analysis_result_endpoint(
     return await get_plots_by_analysis_result_id(analysis_result_id)
 
 
-@router.put("/{plot_id}", response_model=BasePlot)
+@router.patch("/{plot_id}", response_model=BasePlot)
 async def update_plot_endpoint(
     plot_id: uuid.UUID,
     plot_update: PlotUpdate,

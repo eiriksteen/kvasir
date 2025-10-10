@@ -67,7 +67,7 @@ export async function fetchTablesByAnalysisResultEndpoint(token: string, analysi
 
 export async function updateTableEndpoint(token: string, tableId: string, tableUpdate: TableUpdate): Promise<BaseTable> {
   const response = await fetch(`${API_URL}/tables/update-table/${tableId}`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

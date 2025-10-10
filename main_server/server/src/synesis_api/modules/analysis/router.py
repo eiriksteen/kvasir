@@ -242,7 +242,7 @@ async def create_section_endpoint(
     
     return await create_section(section_create)
 
-@router.put("/analysis-object/{analysis_object_id}/section/{section_id}", response_model=NotebookSection)
+@router.patch("/analysis-object/{analysis_object_id}/section/{section_id}", response_model=NotebookSection)
 async def update_section_endpoint(
     analysis_object_id: uuid.UUID,
     section_id: uuid.UUID,
@@ -304,7 +304,7 @@ async def get_data_for_analysis_result(
     
     return payload
 
-@router.put("/analysis-object/{analysis_object_id}/move-element")
+@router.patch("/analysis-object/{analysis_object_id}/move-element")
 async def move_element(
     analysis_object_id: uuid.UUID,
     move_request: MoveRequest,
@@ -319,7 +319,7 @@ async def move_element(
     return
 
 
-@router.put("/analysis-result/{analysis_result_id}", response_model=AnalysisResult)
+@router.patch("/analysis-result/{analysis_result_id}", response_model=AnalysisResult)
 async def update_analysis_result_endpoint(
     analysis_result_id: uuid.UUID,
     analysis_result_update: AnalysisResultUpdate,
