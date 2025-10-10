@@ -26,8 +26,6 @@ from synesis_api.modules.analysis.service import (
     get_analysis_object_by_id,
     get_analysis_objects_small_by_project_id,
     delete_analysis_object,
-    add_dataset_to_analysis_object,
-    remove_dataset_from_analysis_object,
     check_user_owns_analysis_object,
     delete_notebook_section_recursive,
     create_section,
@@ -35,6 +33,7 @@ from synesis_api.modules.analysis.service import (
     update_analysis_result_by_id,
     add_analysis_result_to_section,
     generate_notebook_report,
+    get_notebook_by_id,
     move_element as move_element_service,
     delete_analysis_result as delete_analysis_result_service,
     get_analysis_results_by_ids,
@@ -98,32 +97,6 @@ async def delete_analysis_object_endpoint(
     return await delete_analysis_object(analysis_object_id, node_id, user.id)
 
 
-# TODO: Decide what to do with this endpoint
-@router.post("/analysis-object/{analysis_object_id}/datasets/{dataset_id}")
-async def add_dataset_to_analysis(
-    analysis_object_id: uuid.UUID,
-    dataset_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None
-):
-    if not await check_user_owns_analysis_object(user.id, analysis_object_id):
-        raise HTTPException(
-            status_code=403, 
-            detail="You do not have permission to add datasets to this analysis object"
-        )
-    
-    await add_dataset_to_analysis_object(analysis_object_id, dataset_id)
-    return {"message": "Dataset added to analysis object"}
-
-# TODO: Decide what to do with this endpoint
-@router.delete("/analysis-object/{analysis_object_id}/datasets/{dataset_id}")
-async def remove_dataset_from_analysis(
-    analysis_object_id: uuid.UUID,
-    dataset_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None
-):
-    await remove_dataset_from_analysis_object(analysis_object_id, dataset_id)
-    return
-
 
 @router.post("/analysis-object/{analysis_object_id}/generate-report", response_class=FileResponse)
 async def generate_report_endpoint(
@@ -138,9 +111,10 @@ async def generate_report_endpoint(
         )
     
     analysis_object = await get_analysis_object_by_id(analysis_object_id)
+    notebook = await get_notebook_by_id(analysis_object.notebook_id)
     
     # Generate markdown report content
-    report_content = await generate_notebook_report(analysis_object, generate_report_request.include_code, user.id)
+    report_content = await generate_notebook_report(analysis_object, notebook, generate_report_request.include_code, user.id)
     
     # Convert markdown to HTML
     html_content = convert_markdown_to_html(report_content)
