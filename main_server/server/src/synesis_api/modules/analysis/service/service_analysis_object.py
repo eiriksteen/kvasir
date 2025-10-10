@@ -2,6 +2,8 @@ import uuid
 from fastapi import HTTPException
 from sqlalchemy import select, insert, delete
 from typing import List
+
+
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.analysis.models import (
     analysis_object, 
@@ -15,13 +17,12 @@ from synesis_schemas.main_server import (
     AnalysisObjectInDB, 
     AnalysisObjectSmall,
     AnalysisObjectList,
+    RemoveEntityFromProject
 )
 from synesis_api.modules.node.service import delete_node
 from synesis_api.modules.project.service import remove_entity_from_project
-from synesis_schemas.main_server import RemoveEntityFromProject
-from synesis_api.modules.analysis.utils import deep_exclude
-
-from .service_notebook import (
+from synesis_api.modules.analysis.service.service_utils import deep_exclude
+from synesis_api.modules.analysis.service.service_notebook import (
     create_notebook,
     get_notebook_by_id,
     delete_notebook_section_recursive,

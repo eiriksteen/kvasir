@@ -1,6 +1,8 @@
 import uuid
 from sqlalchemy import update, select, insert, delete
 from typing import List
+
+
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.analysis.models import (
     analysis_object, 
@@ -17,8 +19,7 @@ from synesis_schemas.main_server import (
     AnalysisResultInDB,
     AnalysisResultUpdate
 )
-
-from .service_utils import (
+from synesis_api.modules.analysis.service.service_utils import (
     get_last_element_in_section,
     get_prev_element,
 )

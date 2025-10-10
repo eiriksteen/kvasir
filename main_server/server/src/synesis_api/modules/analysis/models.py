@@ -1,8 +1,10 @@
-from sqlalchemy import Column, String, ForeignKey, Table, UUID, Float
-from synesis_api.database.core import metadata
-from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean
-from synesis_api.database.core import metadata
 import uuid
+from sqlalchemy import Column, String, ForeignKey, Table, UUID, Float
+from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean
+
+
+from synesis_api.database.core import metadata
+from synesis_api.database.core import metadata
 
 analysis_object = Table(
     "analysis_object",

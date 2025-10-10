@@ -1,6 +1,8 @@
-from sqlalchemy import Column, ForeignKey, Table, UUID, JSON
-from synesis_api.database.core import metadata
 import uuid
+from sqlalchemy import Column, ForeignKey, Table, UUID, JSON
+
+
+from synesis_api.database.core import metadata
 
 # Main plots table
 plot = Table(

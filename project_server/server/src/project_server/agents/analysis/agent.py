@@ -4,9 +4,12 @@ from datetime import datetime
 from pydantic import ValidationError, Field, BaseModel
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.settings import ModelSettings
-from project_server.agents.analysis.prompt import ANALYSIS_AGENT_SYSEM_PROMPT
 from dataclasses import dataclass
 from typing import List, Literal
+from pydantic_ai.messages import ModelMessage
+
+
+from project_server.agents.analysis.prompt import ANALYSIS_AGENT_SYSEM_PROMPT
 from project_server.client import (
     ProjectClient,
     get_project,
@@ -16,6 +19,22 @@ from project_server.client import (
 from synesis_schemas.main_server import (
     GetDatasetByIDsRequest,
     GetDataSourcesByIDsRequest,
+    AnalysisResult, 
+    NotebookSectionCreate, 
+    AnalysisStatusMessage,
+    MoveRequest,
+    NotebookSectionUpdate,
+    AnalysisResultFindRequest,
+    AnalysisResultUpdate,
+    PlotCreate, 
+    PREDEFINED_COLORS, 
+    PlotConfig,
+    TableCreate, 
+    TableConfig, 
+    TableColumn,
+    ContextCreate,
+    AggregationObjectCreate, 
+    AggregationObjectUpdate
 )
 from project_server.agents.analysis.utils import simplify_dataset_overview, get_relevant_metadata_for_prompt
 from project_server.client import (
@@ -41,28 +60,12 @@ from project_server.client import (
     create_chat_message_pydantic_request, 
     create_context_request,
 )
-from synesis_schemas.main_server import (
-    AnalysisResult, 
-    NotebookSectionCreate, 
-    AnalysisStatusMessage,
-    MoveRequest,
-    NotebookSectionUpdate,
-    AnalysisResultFindRequest,
-    AnalysisResultUpdate,
-)
 from synesis_schemas.project_server import RunAnalysisRequest
 from project_server.client.requests.plots import create_plot
-from synesis_schemas.main_server import PlotCreate, PREDEFINED_COLORS, PlotConfig
 from project_server.client.requests.tables import create_table
-from synesis_schemas.main_server import TableCreate, TableConfig, TableColumn
-
 from project_server.agents.analysis.helper_agent import analysis_helper_agent, HelperAgentDeps
-from synesis_schemas.main_server import ContextCreate
-from pydantic_ai.messages import ModelMessage
 from project_server.redis import get_redis
-
 from project_server.utils.pydanticai_utils import get_model
-from synesis_schemas.main_server import AggregationObjectCreate, AggregationObjectUpdate
 from project_server.worker import logger
 
 

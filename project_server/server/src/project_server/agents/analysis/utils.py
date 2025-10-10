@@ -1,14 +1,16 @@
 from typing import List, Union, Literal
+import uuid
+import time
+from datetime import datetime
+
+
+from project_server.redis import get_redis
 from synesis_schemas.main_server import (
     DatasetFullWithFeatures, 
     DatasetFull, 
-    AnalysisResult
+    AnalysisResult,
+    AnalysisStatusMessage
 )
-import uuid
-import time
-from synesis_schemas.main_server import AnalysisStatusMessage
-from project_server.redis import get_redis
-from datetime import datetime
 
 def simplify_dataset_overview(datasets: List[Union[DatasetFullWithFeatures, DatasetFull]]) -> list[dict]:
     """

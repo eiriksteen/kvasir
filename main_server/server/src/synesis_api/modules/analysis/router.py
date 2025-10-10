@@ -5,6 +5,11 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse, Response
 from pathlib import Path
+from starlette.background import BackgroundTask
+import aiofiles
+# from weasyprint import HTML
+
+
 from synesis_schemas.main_server import (
     AnalysisObject, 
     AnalysisObjectCreate, 
@@ -18,7 +23,9 @@ from synesis_schemas.main_server import (
     AnalysisResult,
     GenerateReportRequest,
     MoveRequest,
-    AnalysisResultFindRequest
+    AnalysisResultFindRequest,
+    User,
+    AggregationObjectWithRawData
 )
 from synesis_api.auth.service import get_current_user, user_owns_runs
 from synesis_api.modules.analysis.service import (
@@ -41,15 +48,10 @@ from synesis_api.modules.analysis.service import (
     create_analysis_run,
     create_analysis_result
 )
-from synesis_schemas.main_server import User
 from synesis_api.modules.node.service import get_node_by_analysis_object_id
 from synesis_api.redis import get_redis
-from starlette.background import BackgroundTask
-import aiofiles
 from synesis_api.utils.markdown_utils import convert_markdown_to_html
-# from weasyprint import HTML
 from synesis_api.modules.data_objects.service import get_aggregation_object_payload_data_by_analysis_result_id
-from synesis_schemas.main_server import AggregationObjectWithRawData
 
 router = APIRouter()
 

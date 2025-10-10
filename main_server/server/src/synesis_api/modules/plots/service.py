@@ -1,19 +1,21 @@
 import uuid
 from typing import List, Optional, Dict, Any, List
 from fastapi import HTTPException
-from sqlalchemy import select, insert, update, delete
-from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_api.modules.plots.models import plots
-from synesis_schemas.main_server import BasePlot, PlotCreate, PlotUpdate
-from datetime import datetime
 import math
-from synesis_schemas.main_server import AggregationObjectWithRawData
-from synesis_schemas.main_server import BasePlot
+from datetime import datetime
 from pyecharts import options as opts
 from pyecharts.charts import Line, Bar, Scatter
 from pyecharts.globals import ThemeType
 from pyecharts.render import make_snapshot
 from snapshot_selenium import snapshot
+from sqlalchemy import select, insert, update, delete
+
+
+from synesis_api.database.service import execute, fetch_one, fetch_all
+from synesis_api.modules.plots.models import plot
+from synesis_schemas.main_server import BasePlot, PlotCreate, PlotUpdate
+from synesis_schemas.main_server import AggregationObjectWithRawData
+from synesis_schemas.main_server import BasePlot
 
 
 async def create_plot(plot_create: PlotCreate) -> BasePlot:
@@ -23,7 +25,7 @@ async def create_plot(plot_create: PlotCreate) -> BasePlot:
     )
 
     await execute(
-        insert(plots).values(**plot.model_dump()),
+        insert(plot).values(**plot.model_dump()),
         commit_after=True
     )
     
@@ -32,7 +34,7 @@ async def create_plot(plot_create: PlotCreate) -> BasePlot:
 
 async def get_plot_by_id(plot_id: uuid.UUID) -> Optional[BasePlot]:
     result = await fetch_one(
-        select(plots).where(plots.c.id == plot_id)
+        select(plot).where(plot.c.id == plot_id)
     )
     
     if result is None:
@@ -43,7 +45,7 @@ async def get_plot_by_id(plot_id: uuid.UUID) -> Optional[BasePlot]:
 
 async def get_plots_by_analysis_result_id(analysis_result_id: uuid.UUID) -> List[BasePlot]:
     results = await fetch_all(
-        select(plots).where(plots.c.analysis_result_id == analysis_result_id)
+        select(plot).where(plot.c.analysis_result_id == analysis_result_id)
     )
     
     return [BasePlot(**result) for result in results]
@@ -58,7 +60,7 @@ async def update_plot(plot_id: uuid.UUID, plot_update: PlotUpdate) -> Optional[B
     
     # Update the plot
     await execute(
-        update(plots).where(plots.c.id == plot_id).values(**plot_update.model_dump()),
+        update(plot).where(plot.c.id == plot_id).values(**plot_update.model_dump()),
         commit_after=True
     )
     # Return updated plot
@@ -74,7 +76,7 @@ async def delete_plot(plot_id: uuid.UUID) -> bool:
     
     # Delete the plot
     await execute(
-        delete(plots).where(plots.c.id == plot_id),
+        delete(plot).where(plot.c.id == plot_id),
         commit_after=True
     )
     

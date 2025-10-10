@@ -1,6 +1,7 @@
 from typing import List
 from uuid import UUID
 
+
 from project_server.client import ProjectClient
 from synesis_schemas.main_server import FrontendNode, FrontendNodeCreate
 

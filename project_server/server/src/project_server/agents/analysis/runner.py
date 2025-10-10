@@ -1,9 +1,13 @@
 import uuid
 import asyncio
 from typing import Tuple, List, Literal, Optional
+from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import SystemPromptPart, ModelRequest
+from datetime import datetime, timezone
+
+
 from project_server.agents.analysis.prompt import ANALYSIS_AGENT_SYSEM_PROMPT
 from project_server.agents.analysis.agent import analysis_agent, AnalysisDeps
 from project_server.worker import logger, broker
@@ -17,13 +21,12 @@ from pydantic_ai.messages import (
 #     create_chat_message,
 #     update_run_status
 # )
-from pydantic import BaseModel
 from project_server.agents.runner_base import RunnerBase
 from synesis_schemas.project_server import RunAnalysisRequest
 from project_server.client import ProjectClient, post_run_message, post_run, patch_run_status
 from project_server.redis import get_redis
 from synesis_schemas.main_server import RunMessageCreate, RunCreate, RunStatusUpdate
-from datetime import datetime, timezone
+
 
 
 

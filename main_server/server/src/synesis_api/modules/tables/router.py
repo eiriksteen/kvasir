@@ -2,14 +2,19 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Annotated
 import uuid
 
+
 from synesis_api.modules.tables.service import (
     create_table,
     update_table,
     delete_table,
     get_tables_by_analysis_result_id
 )
-from synesis_schemas.main_server import BaseTable, TableCreate, TableUpdate
-from synesis_schemas.main_server import User
+from synesis_schemas.main_server import (
+    BaseTable, 
+    TableCreate, 
+    TableUpdate, 
+    User
+)
 from synesis_api.auth.service import get_current_user
 
 router = APIRouter()

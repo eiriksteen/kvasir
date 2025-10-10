@@ -1,7 +1,14 @@
 import uuid
 from typing import List, Annotated
 from fastapi import APIRouter, Depends, HTTPException
-from synesis_schemas.main_server import BasePlot, PlotCreate, PlotUpdate
+
+
+from synesis_schemas.main_server import (
+    BasePlot, 
+    PlotCreate, 
+    PlotUpdate, 
+    User
+)
 from synesis_api.modules.plots.service import (
     create_plot,
     get_plot_by_id,
@@ -10,7 +17,6 @@ from synesis_api.modules.plots.service import (
     delete_plot
 )
 from synesis_api.auth.service import get_current_user
-from synesis_schemas.main_server import User
 
 router = APIRouter()
 

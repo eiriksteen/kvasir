@@ -2,6 +2,8 @@ import uuid
 from fastapi import HTTPException
 from sqlalchemy import update, select, insert, delete, and_
 from typing import List
+
+
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.analysis.models import (
     analysis_object, 
@@ -18,12 +20,11 @@ from synesis_schemas.main_server import (
     MoveRequest,
     NotebookSectionUpdate,
 )
-
-from .service_utils import (
+from synesis_api.modules.analysis.service.service_utils import (
     get_last_element_in_section,
     get_prev_element,
 )
-from .service_analysis_result import (
+from synesis_api.modules.analysis.service.service_analysis_result import (
     get_analysis_result_by_id,
     get_analysis_results_by_section_id,
     delete_analysis_result,
