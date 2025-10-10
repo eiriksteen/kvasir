@@ -238,6 +238,6 @@ aggregation_object = Table(
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
-    Column("analysis_result_id", UUID, ForeignKey("analysis.analysis_results.id"), nullable=True),  # Foreign key to analysis_result.id
+    Column("analysis_result_id", UUID, ForeignKey("analysis.analysis_result.id"), nullable=True),  # Foreign key to analysis_result.id
     schema="data_objects"
 )

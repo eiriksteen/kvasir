@@ -4,9 +4,8 @@ from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolea
 from synesis_api.database.core import metadata
 import uuid
 
-# New analysis_objects table
-analysis_objects = Table(
-    "analysis_objects",
+analysis_object = Table(
+    "analysis_object",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
@@ -25,9 +24,8 @@ analysis_objects = Table(
     schema="analysis",
 )
 
-# New notebooks table
-notebooks = Table(
-    "notebooks",
+notebook = Table(
+    "notebook",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
@@ -35,28 +33,27 @@ notebooks = Table(
     schema="analysis",
 )
 
-# New notebook_sections table
-notebook_sections = Table(
-    "notebook_sections",
+notebook_section = Table(
+    "notebook_section",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
            default=uuid.uuid4),
     Column("notebook_id", UUID(as_uuid=True),
-           ForeignKey("analysis.notebooks.id"),
+           ForeignKey("analysis.notebook.id"),
            nullable=False),
     Column("section_name", String, nullable=False),
     Column("section_description", String, nullable=True),
     Column("next_type", String, nullable=True),  # 'analysis_result' or 'notebook_section'
     Column("next_id", UUID(as_uuid=True), nullable=True),
     Column("parent_section_id", UUID(as_uuid=True),
-           ForeignKey("analysis.notebook_sections.id"),
+           ForeignKey("analysis.notebook_section.id"),
            nullable=True),
     schema="analysis",
 )
 
-analysis_status_messages = Table(
-    "analysis_status_messages",
+analysis_status_message = Table(
+    "analysis_status_message",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
@@ -68,20 +65,20 @@ analysis_status_messages = Table(
     Column("message", String, nullable=False),
     Column("created_at", DateTime, nullable=False),
     Column("analysis_result_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis_results.id"),
+           ForeignKey("analysis.analysis_result.id"),
            nullable=False),
     schema="analysis",
 )
 
 # TODO: Delete?
-analysis_objects_datasets = Table(
-    "analysis_objects_datasets",
+analysis_objects_dataset = Table(
+    "analysis_objects_dataset",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
            default=uuid.uuid4),
     Column("analysis_object_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis_objects.id"),
+           ForeignKey("analysis.analysis_object.id"),
            nullable=False),
     Column("dataset_id", UUID(as_uuid=True),
            ForeignKey("data_objects.dataset.id"),
@@ -89,8 +86,8 @@ analysis_objects_datasets = Table(
     schema="analysis",
 )
 
-analysis_results = Table(
-    "analysis_results",
+analysis_result = Table(
+    "analysis_result",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
@@ -99,20 +96,20 @@ analysis_results = Table(
     Column("python_code", String, nullable=True),
     Column("output_variable", String, nullable=True),
     Column("input_variable", String, nullable=True),
-    Column("section_id", UUID(as_uuid=True), ForeignKey("analysis.notebook_sections.id"), nullable=True,),
+    Column("section_id", UUID(as_uuid=True), ForeignKey("analysis.notebook_section.id"), nullable=True,),
     Column("next_type", String, nullable=True),  # 'analysis_result' or 'notebook_section'
     Column("next_id", UUID(as_uuid=True), nullable=True),
     schema="analysis",
 )
 
-analysis_results_datasets = Table(
-    "analysis_results_datasets",
+analysis_results_dataset = Table(
+    "analysis_results_dataset",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
            default=uuid.uuid4),
     Column("analysis_result_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis_results.id"),
+           ForeignKey("analysis.analysis_result.id"),
            nullable=False),
     Column("dataset_id", UUID(as_uuid=True),
            ForeignKey("data_objects.dataset.id"),
@@ -120,14 +117,14 @@ analysis_results_datasets = Table(
     schema="analysis",
 )
 
-analysis_results_data_sources = Table(
-    "analysis_results_data_sources",
+analysis_result_data_source = Table(
+    "analysis_result_data_source",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
            default=uuid.uuid4),
     Column("analysis_result_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis_results.id"),
+           ForeignKey("analysis.analysis_result.id"),
            nullable=False),
     Column("data_source_id", UUID(as_uuid=True),
            ForeignKey("data_sources.data_source.id"),
@@ -135,14 +132,14 @@ analysis_results_data_sources = Table(
     schema="analysis",
 )
 
-analysis_result_runs = Table(
-    "analysis_result_runs",
+analysis_result_run = Table(
+    "analysis_result_run",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
            default=uuid.uuid4),
     Column("analysis_result_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis_results.id"),
+           ForeignKey("analysis.analysis_result.id"),
            nullable=False),
     Column("run_id", UUID(as_uuid=True),
            ForeignKey("runs.run.id"),

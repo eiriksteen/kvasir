@@ -50,7 +50,7 @@ project_analysis = Table(
     Column("project_id", UUID(as_uuid=True), ForeignKey(
         "project.project.id"), nullable=False),
     Column("analysis_id", UUID(as_uuid=True), ForeignKey(
-        "analysis.analysis_objects.id"), nullable=False),
+        "analysis.analysis_object.id"), nullable=False),
     PrimaryKeyConstraint("project_id", "analysis_id"),
     schema="project"
 )

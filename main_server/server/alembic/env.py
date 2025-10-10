@@ -38,11 +38,11 @@ from synesis_api.modules.model.models import (
 from synesis_api.modules.model_sources.models import (
     model_source, pypi_model_source
 )
-from synesis_api.modules.analysis.models import analysis_status_messages, analysis_objects, analysis_results, analysis_results_datasets, analysis_objects_datasets, analysis_result_runs, notebook_sections, notebooks
+from synesis_api.modules.analysis.models import analysis_status_message, analysis_object, analysis_result, analysis_results_dataset, analysis_objects_dataset, analysis_result_run, notebook_section, notebook
 from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_pipeline, project_data_source
 from synesis_api.modules.node.models import node, dataset_node, analysis_node, pipeline_node
-from synesis_api.modules.tables.models import tables
-from synesis_api.modules.plots.models import plots
+from synesis_api.modules.tables.models import table
+from synesis_api.modules.plots.models import plot
 from synesis_api.app_secrets import DATABASE_URL
 from synesis_api.database.core import metadata
 
@@ -82,14 +82,14 @@ __all__ = [
     time_series,
     time_series_aggregation,
     time_series_aggregation_input,
-    analysis_objects,
-    analysis_results,
-    analysis_results_datasets,
-    analysis_objects_datasets,
-    analysis_result_runs,
-    notebook_sections,
-    notebooks,
-    analysis_status_messages,
+    analysis_object,
+    analysis_result,
+    analysis_results_dataset,
+    analysis_objects_dataset,
+    analysis_result_run,
+    notebook_section,
+    notebook,
+    analysis_status_message,
     chat_message,
     chat_pydantic_message,
     conversation,
@@ -124,8 +124,8 @@ __all__ = [
     dataset_node,
     analysis_node,
     pipeline_node,
-    tables,
-    plots,
+    table,
+    plot,
 ]
 
 # add your model's MetaData object here

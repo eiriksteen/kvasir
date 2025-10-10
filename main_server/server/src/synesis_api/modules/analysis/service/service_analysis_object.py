@@ -4,9 +4,9 @@ from sqlalchemy import select, insert, delete
 from typing import List
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.analysis.models import (
-    analysis_objects, 
-    notebook_sections,
-    notebooks,
+    analysis_object, 
+    notebook_section,
+    notebook,
 )
 from synesis_api.modules.orchestrator.models import analysis_context
 from synesis_schemas.main_server import (
@@ -41,7 +41,7 @@ async def create_analysis_object(analysis_object_create: AnalysisObjectCreate, u
     )
 
     await execute(
-        insert(analysis_objects).values(
+        insert(analysis_object).values(
             **analysis_object.model_dump(exclude={"dataset_ids"})
         ),
         commit_after=True
@@ -51,7 +51,7 @@ async def create_analysis_object(analysis_object_create: AnalysisObjectCreate, u
 
 async def get_analysis_object_by_id(analysis_object_id: uuid.UUID) -> AnalysisObject:
     result = await fetch_one(
-        select(analysis_objects).where(analysis_objects.c.id == analysis_object_id)
+        select(analysis_object).where(analysis_object.c.id == analysis_object_id)
     )
     if result is None:
         raise HTTPException(
@@ -65,7 +65,7 @@ async def get_analysis_object_by_id(analysis_object_id: uuid.UUID) -> AnalysisOb
 
 async def get_analysis_objects_small_by_project_id(project_id: uuid.UUID) -> AnalysisObjectList:
     results = await fetch_all(
-        select(analysis_objects).where(analysis_objects.c.project_id == project_id)
+        select(analysis_object).where(analysis_object.c.project_id == project_id)
     )
     
     analysis_objects_list = []
@@ -77,9 +77,9 @@ async def get_analysis_objects_small_by_project_id(project_id: uuid.UUID) -> Ana
 
 async def get_user_analysis_objects_by_ids(user_id: uuid.UUID, analysis_ids: List[uuid.UUID]) -> List[AnalysisObject]:
     results = await fetch_all(
-        select(analysis_objects).where(
-            analysis_objects.c.user_id == user_id,
-            analysis_objects.c.id.in_(analysis_ids)
+        select(analysis_object).where(
+            analysis_object.c.user_id == user_id,
+            analysis_object.c.id.in_(analysis_ids)
         )
     )
     
@@ -99,9 +99,9 @@ async def delete_analysis_object(analysis_object_id: uuid.UUID, node_id: uuid.UU
     analysis_object = await get_analysis_object_by_id(analysis_object_id)
 
     sections_to_delete = await fetch_all(
-        select(notebook_sections).where(
-            notebook_sections.c.notebook_id == analysis_object.notebook.id,
-            notebook_sections.c.parent_section_id == None
+        select(notebook_section).where(
+            notebook_section.c.notebook_id == analysis_object.notebook.id,
+            notebook_section.c.parent_section_id == None
         )
     )
     
@@ -120,12 +120,12 @@ async def delete_analysis_object(analysis_object_id: uuid.UUID, node_id: uuid.UU
     )
     
     await execute(
-        delete(notebooks).where(notebooks.c.id == analysis_object.notebook.id),
+        delete(notebook).where(notebook.c.id == analysis_object.notebook.id),
         commit_after=True
     )
     
     await execute(
-        delete(analysis_objects).where(analysis_objects.c.id == analysis_object_id),
+        delete(analysis_object).where(analysis_object.c.id == analysis_object_id),
         commit_after=True
     )
     

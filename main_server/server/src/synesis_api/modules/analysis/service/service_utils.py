@@ -4,8 +4,8 @@ from sqlalchemy import select, and_
 from typing import List, Tuple, Literal
 from synesis_api.database.service import fetch_one
 from synesis_api.modules.analysis.models import (
-    analysis_results, 
-    notebook_sections,
+    analysis_result, 
+    notebook_section,
 )
 from synesis_schemas.main_server import (
     AnalysisObjectInDB, 
@@ -15,12 +15,12 @@ from synesis_schemas.main_server import (
 )
 
 async def get_prev_element(this_id: uuid.UUID, this_type: Literal['analysis_result', 'notebook_section'], section_id: uuid.UUID) -> Tuple[Literal['analysis_result', 'notebook_section'], uuid.UUID] | Tuple[None, None]:
-    analysis_result = await fetch_one(select(analysis_results).where(and_(analysis_results.c.next_type == this_type, analysis_results.c.next_id == this_id, analysis_results.c.section_id == section_id)))
-    if analysis_result:
-        return "analysis_result", analysis_result["id"]
-    notebook_section = await fetch_one(select(notebook_sections).where(and_(notebook_sections.c.next_type == this_type, notebook_sections.c.next_id == this_id, notebook_sections.c.parent_section_id == section_id)))
-    if notebook_section:
-        return "notebook_section", notebook_section["id"]
+    analysis_result_from_db = await fetch_one(select(analysis_result).where(and_(analysis_result.c.next_type == this_type, analysis_result.c.next_id == this_id, analysis_result.c.section_id == section_id)))
+    if analysis_result_from_db:
+        return "analysis_result", analysis_result_from_db["id"]
+    notebook_section_from_db = await fetch_one(select(notebook_section).where(and_(notebook_section.c.next_type == this_type, notebook_section.c.next_id == this_id, notebook_section.c.parent_section_id == section_id)))
+    if notebook_section_from_db:
+        return "notebook_section", notebook_section_from_db["id"]
     return None, None
 
 
@@ -30,13 +30,13 @@ async def get_last_element_in_section(section_id: uuid.UUID, notebook_id: uuid.U
     id of the element which does not have a next element.
     """
     result = await fetch_one(
-        select(analysis_results).where(and_(analysis_results.c.section_id == section_id, analysis_results.c.next_id == None))
+        select(analysis_result).where(and_(analysis_result.c.section_id == section_id, analysis_result.c.next_id == None))
     )
     if result:
         return "analysis_result", result["id"]
     # Only need the notebook_id if we are getting the last element in a section that is a root section (no parent section) otherwise it may get a section from a different analysis object/notebook
     result = await fetch_one(
-        select(notebook_sections).where(and_(notebook_sections.c.parent_section_id == section_id, notebook_sections.c.next_id == None, notebook_sections.c.notebook_id == notebook_id))
+        select(notebook_section).where(and_(notebook_section.c.parent_section_id == section_id, notebook_section.c.next_id == None, notebook_section.c.notebook_id == notebook_id))
     )
     if result:
         return "notebook_section", result["id"]

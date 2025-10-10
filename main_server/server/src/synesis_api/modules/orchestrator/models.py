@@ -99,7 +99,7 @@ analysis_context = Table(
     Column("context_id", UUID(as_uuid=True),
            ForeignKey("orchestrator.chat_context.id"), nullable=False),
     Column("analysis_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis_objects.id"), nullable=False),
+           ForeignKey("analysis.analysis_object.id"), nullable=False),
     PrimaryKeyConstraint("context_id", "analysis_id"),
     schema="orchestrator"
 )
