@@ -72,7 +72,6 @@ class AnalysisResultModelResponse(BaseModel):
     python_code: str | None = Field(default=None, description="The python code that was used to generate the analysis result. This code should be executable and should be able to run in a python container.")
     input_variable: str | None = Field(default=None, description="The variable that was used to to generate the analysis result. This is a string of the variable name.")
     output_variable: str | None = Field(default=None, description="The variable that is most relevant to the analysis. This variable is likely the last variable in the code.")
-    # dataset_ids: List[uuid.UUID] = Field(default=[], description="The ids of the datasets that were used to generate the analysis result. This should be the same as the dataset_ids in the analysis request.")
 
 class AggregationObjectCreateResponse(BaseModel):
     name: str
@@ -156,8 +155,6 @@ async def search_through_analysis_objects(ctx: RunContext[AnalysisDeps]) -> str:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
     """
     analysis_objects = await get_analysis_objects_by_project_request(ctx.deps.client, ctx.deps.analysis_request.project_id)
-    # logger.info("analysis_objects: ", analysis_objects)
-    # analysis_objects_overview = [analysis_object.model_dump(include={"id": True, "name": True, "analysis_plan": {"analysis_overview": True}}) for analysis_object in analysis_objects]
 
     analysis_objects_message = f"""
         <Available analysis objects>
@@ -241,10 +238,7 @@ async def create_notebook_section(ctx: RunContext[AnalysisDeps], section_create:
     try:
         section_ids = []
         for section in section_create: # Must have synchronous creation of sections to avoid race conditions
-            # logger.info("section: ", section)
-            # logger.info("analysis_object_id: ", analysis_object_id)
             section_in_db = await create_section_request(ctx.deps.client, section.analysis_object_id, section)
-            # logger.info("section_in_db: ", section_in_db)
             section_ids.append(section_in_db.id)
         return f"Notebook sections successfully created. Section ids: {section_ids}"
     except Exception as e:

@@ -111,12 +111,9 @@ async def get_child_sections(parent_section_id: uuid.UUID | None) -> List[Notebo
     return [NotebookSectionInDB(**result) for result in results]
 
 async def delete_notebook_section_recursive(section_id: uuid.UUID) -> None:
-    # Find all child sections
     child_sections = await get_child_sections(section_id)
-    # Recursively delete all child sections first
     for child in child_sections:
         await delete_notebook_section_recursive(child.id)
-    # Delete the current section (and its analysis results)
     await delete_notebook_section(section_id)
 
 
@@ -141,15 +138,12 @@ async def get_notebook_by_id(notebook_id: uuid.UUID) -> Notebook:
             status_code=404, detail="Notebook not found"
         )
     
-    # Get notebook sections
     notebook_sections = await get_notebook_sections_by_notebook_id(notebook_id)
     
     return Notebook(**result, notebook_sections=notebook_sections)
 
 
 async def get_notebook_sections_by_notebook_id(notebook_id: uuid.UUID) -> List[NotebookSection]:
-    """Get all notebook sections for a given notebook_id"""
-    # Get root level sections (those with no parent)
     results = await fetch_all(
         select(notebook_sections).where(
             and_(
@@ -161,9 +155,7 @@ async def get_notebook_sections_by_notebook_id(notebook_id: uuid.UUID) -> List[N
     
     sections = []
     for result in results:
-        # Get analysis results for this section
         analysis_results = await get_analysis_results_by_section_id(result["id"])
-        # Get child sections (recursive)
         child_sections = await get_child_sections_recursive(result["id"])
         
         sections.append(NotebookSection(
@@ -176,8 +168,6 @@ async def get_notebook_sections_by_notebook_id(notebook_id: uuid.UUID) -> List[N
 
 
 async def get_child_sections_recursive(section_id: uuid.UUID) -> List[NotebookSection]:
-    """Get all child sections recursively for a given section_id"""
-    # Get direct child sections
     results = await fetch_all(
         select(notebook_sections).where(
             notebook_sections.c.parent_section_id == section_id
@@ -186,9 +176,7 @@ async def get_child_sections_recursive(section_id: uuid.UUID) -> List[NotebookSe
     
     sections = []
     for result in results:
-        # Get analysis results for this child section
         analysis_results = await get_analysis_results_by_section_id(result["id"])
-        # Get grandchild sections (recursive)
         grandchild_sections = await get_child_sections_recursive(result["id"])
         
         sections.append(NotebookSection(
@@ -221,8 +209,6 @@ async def update_section(section_id: uuid.UUID, section_update: NotebookSectionU
 
 
 async def move_element(move_request: MoveRequest) -> None:
-    # Think you need to separate the case when changing section.
-
     # Get the moving element
     if move_request.moving_element_type == "analysis_result":
         moving_element = await get_analysis_result_by_id(move_request.moving_element_id)

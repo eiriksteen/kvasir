@@ -141,12 +141,6 @@ async def create_analysis_run(analysis_result_id: uuid.UUID, run_id: uuid.UUID) 
     )
 
 
-
-
-
-
-
-
 async def delete_analysis_result(analysis_result_id: uuid.UUID) -> None:
     current_analysis_result = await get_analysis_result_by_id(analysis_result_id)
     previous_type, previous_id = await get_prev_element(analysis_result_id, "analysis_result", current_analysis_result.section_id)
@@ -193,16 +187,6 @@ async def delete_analysis_result(analysis_result_id: uuid.UUID) -> None:
     )
 
 
-
-
-
-
-
-
-
-
-
-
 async def get_analysis_result_by_id(analysis_result_id: uuid.UUID) -> AnalysisResult:
     result = await fetch_one(
         select(analysis_results).where(analysis_results.c.id == analysis_result_id)
@@ -247,11 +231,7 @@ async def get_analysis_results_by_ids(analysis_result_ids: List[uuid.UUID]) -> L
     return analysis_results_list
 
 
-
-
-
 async def update_analysis_result(analysis_result: AnalysisResult) -> AnalysisResult:
-    # Extract only the database columns from the model
     update_data = AnalysisResultInDB(**analysis_result.model_dump())
     
     await execute(

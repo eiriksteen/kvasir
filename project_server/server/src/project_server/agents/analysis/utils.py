@@ -103,27 +103,3 @@ async def simulate_streaming_output(output: AnalysisResult, run_id: uuid.UUID) -
 #         datasource_overview.append(simplified_object_group)
 
 #     return datasource_overview
-
-
-
-
-if __name__ == "__main__":
-    import asyncio
-    from project_server.client import get_data_sources_by_ids, get_datasets_by_ids, ProjectClient
-    from rich import print as rich_print
-    from synesis_schemas.main_server import GetDataSourcesByIDsRequest
-    from synesis_schemas.main_server import GetDatasetByIDsRequest
-    bearer_token = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiYzJhZjhiMC1lNDg1LTRhOWQtYTBmMS0yZDc3NmM2ZmJjMTUiLCJleHAiOjE3NTk3NDQ5NDF9.2Is31sq8Qa2Oni2ZuaHMFONEKndUhfg_js4QxNsKgxL7F6AYbV8JR2NC5IZh_0P2cTgW7E0gwIVMc9LGsgsErw"
-    project_client = ProjectClient(bearer_token=bearer_token)
-
-
-    data_soruce_id = "3036cbe4-c2e9-443f-96e9-54bc75fdb938"
-    data_sources = asyncio.run(get_data_sources_by_ids(project_client, GetDataSourcesByIDsRequest(data_source_ids=[data_soruce_id])))
-    rich_print(get_relevant_metadata_for_prompt(data_sources, "data_source"))
-    # rich_print(data_sources)
-
-
-    dataset_id = "5adaaa24-5345-4176-b797-234afbb714e3"
-    datasets = asyncio.run(get_datasets_by_ids(project_client, GetDatasetByIDsRequest(dataset_ids=[dataset_id], include_features=True)))
-    # rich_print(datasets)
-    # rich_print(simplify_dataset_overview(datasets))

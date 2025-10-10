@@ -96,10 +96,8 @@ async def get_simplified_overview_for_context_message(user_id: uuid.UUID, analys
     return simplified_overview
 
 async def delete_analysis_object(analysis_object_id: uuid.UUID, node_id: uuid.UUID, user_id: uuid.UUID) -> uuid.UUID:
-    # Get the analysis object to access user_id
     analysis_object = await get_analysis_object_by_id(analysis_object_id)
 
-    # Delete all sections and their mappings
     sections_to_delete = await fetch_all(
         select(notebook_sections).where(
             notebook_sections.c.notebook_id == analysis_object.notebook.id,
@@ -112,25 +110,20 @@ async def delete_analysis_object(analysis_object_id: uuid.UUID, node_id: uuid.UU
     for section_id in section_ids:
         await delete_notebook_section_recursive(section_id)
     
-    # Delete node
     await delete_node(node_id)
 
-    # Delete from project_analysis
     await remove_entity_from_project(analysis_object.project_id, RemoveEntityFromProject(entity_type="analysis", entity_id=analysis_object_id))
 
-    # Delete from analysis context
     await execute(
         delete(analysis_context).where(analysis_context.c.analysis_id == analysis_object_id),
         commit_after=True
     )
     
-    # Delete the notebook
     await execute(
         delete(notebooks).where(notebooks.c.id == analysis_object.notebook.id),
         commit_after=True
     )
     
-    # Delete from analysis_objects
     await execute(
         delete(analysis_objects).where(analysis_objects.c.id == analysis_object_id),
         commit_after=True
