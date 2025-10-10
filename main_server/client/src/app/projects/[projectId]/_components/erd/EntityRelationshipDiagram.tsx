@@ -32,7 +32,6 @@ import ModelEntityBox from '@/app/projects/[projectId]/_components/erd/ModelEnti
 import ModelInfoModal from '@/components/info-modals/ModelInfoModal';
 import { useProjectGraph } from '@/hooks/useProjectGraph';
 import { useTabContext } from '@/hooks/useTabContext';
-import TabView from '@/app/projects/[projectId]/_components/erd/TabView';
 import AnalysisItem from '@/components/info-modals/analysis/AnalysisItem';
 
 import { DataSource } from '@/types/data-sources';
@@ -485,11 +484,5 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     );
   }
 
-  return (
-    <div className="w-full h-screen flex flex-col pt-10">
-      <TabView projectId={projectId}>
-        {tabContent}
-      </TabView>
-    </div>
-  );
+  return tabContent;
 };

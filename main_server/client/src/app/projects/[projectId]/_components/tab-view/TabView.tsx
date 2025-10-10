@@ -33,7 +33,7 @@ const TabView: React.FC<CustomTabViewProps> = ({ children, projectId }) => {
   };
   
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex flex-col h-full w-full pt-10">
       <div className="flex items-center bg-gray-100 border-b border-gray-400 text-gray-900 h-14">
         {openTabs.map(tab => (
           <div
