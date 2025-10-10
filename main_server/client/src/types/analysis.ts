@@ -80,7 +80,7 @@ export interface ReportOutlineRequest {
 }
 
 export interface NotebookSectionCreate {
-    notebookId: UUID;
+    analysisObjectId: UUID;
     sectionName: string;
     sectionDescription: string | null;
     parentSectionId: UUID | null;

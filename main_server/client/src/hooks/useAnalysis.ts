@@ -472,7 +472,7 @@ export const useAnalysisObject = (projectId: UUID, analysisObjectId: UUID) => {
       }
 
       const notebookSectionCreate: NotebookSectionCreate = {
-        notebookId: currentAnalysisObject.notebook.id,
+        analysisObjectId: analysisObjectId,
         sectionName: arg.sectionName,
         sectionDescription: arg.sectionDescription,
         parentSectionId: arg.parentSectionId

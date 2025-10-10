@@ -65,7 +65,7 @@ async def create_section(notebook_section_create: NotebookSectionCreate) -> Note
             ),
             commit_after=True
         )
-    return notebook_section
+    return notebook_section_in_db
 
 
 async def get_notebook_section_by_id(section_id: uuid.UUID) -> NotebookSectionInDB:
@@ -119,16 +119,16 @@ async def delete_notebook_section_recursive(section_id: uuid.UUID) -> None:
 
 
 async def create_notebook() -> NotebookInDB:
-    notebook = NotebookInDB(
+    notebook_in_db = NotebookInDB(
         id=uuid.uuid4()
     )
     await execute(
         insert(notebook).values(
-            **notebook.model_dump()
+            **notebook_in_db.model_dump()
         ),
         commit_after=True
     )
-    return notebook
+    return notebook_in_db
 
 async def get_notebook_by_id(notebook_id: uuid.UUID) -> Notebook:
     result = await fetch_one(

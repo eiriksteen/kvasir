@@ -32,7 +32,7 @@ async def create_section_request(client: ProjectClient, analysis_object_id: uuid
 
 
 async def update_section_request(client: ProjectClient, analysis_object_id: uuid.UUID, section_id: uuid.UUID, section_update: NotebookSectionUpdate) -> NotebookSection:
-    response = await client.send_request("put", f"/analysis/analysis-object/{analysis_object_id}/section/{section_id}", json=section_update.model_dump(mode="json"))
+    response = await client.send_request("patch", f"/analysis/analysis-object/{analysis_object_id}/section/{section_id}", json=section_update.model_dump(mode="json"))
     return NotebookSection(**response.body)
 
 
@@ -51,11 +51,11 @@ async def get_data_for_analysis_result_request(client: ProjectClient, analysis_o
 
 
 async def move_element_request(client: ProjectClient, analysis_object_id: uuid.UUID, move_request: MoveRequest) -> None:
-    await client.send_request("put", f"/analysis/analysis-object/{analysis_object_id}/move-element", json=move_request.model_dump(mode="json"))
+    await client.send_request("patch", f"/analysis/analysis-object/{analysis_object_id}/move-element", json=move_request.model_dump(mode="json"))
 
 
 async def update_analysis_result_request(client: ProjectClient, analysis_result_id: uuid.UUID, analysis_result_update: AnalysisResultUpdate) -> AnalysisResult:
-    response = await client.send_request("put", f"/analysis/analysis-result/{analysis_result_id}", json=analysis_result_update.model_dump(mode="json"))
+    response = await client.send_request("patch", f"/analysis/analysis-result/{analysis_result_id}", json=analysis_result_update.model_dump(mode="json"))
     return AnalysisResult(**response.body)
 
 

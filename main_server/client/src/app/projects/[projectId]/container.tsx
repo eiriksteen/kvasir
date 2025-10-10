@@ -39,7 +39,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
         <EntitySidebar projectId={projectId} />
         <main className="flex-1 min-w-0 overflow-hidden bg-white">
           <TabView projectId={projectId}>
-            <ProjectView projectId={projectId} />
+              <ProjectView projectId={projectId} />
           </TabView>
         </main>
         <div className="w-[400px] shrink-0">
@@ -53,7 +53,9 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
 export default function ProjectContainer({ projectId, session }: DashboardProps) {
   return (
     <SessionProvider session={session} basePath="/next-api/api/auth">
-      <DashboardContent projectId={projectId} />
+      <div className="h-screen">
+        <DashboardContent projectId={projectId} />
+      </div>
     </SessionProvider>
   );
 } 

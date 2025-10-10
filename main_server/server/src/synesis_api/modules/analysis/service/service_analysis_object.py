@@ -32,23 +32,23 @@ from synesis_api.modules.analysis.service.service_notebook import (
 async def create_analysis_object(analysis_object_create: AnalysisObjectCreate, user_id: uuid.UUID) -> AnalysisObjectInDB:
 
     analysis_object_id = uuid.uuid4()
-    notebook = await create_notebook()
+    notebook_in_db = await create_notebook()
 
-    analysis_object = AnalysisObjectInDB(
+    analysis_object_in_db = AnalysisObjectInDB(
         id=analysis_object_id,
         user_id=user_id,
-        notebook_id=notebook.id,
+        notebook_id=notebook_in_db.id,
         **analysis_object_create.model_dump(),
     )
 
     await execute(
         insert(analysis_object).values(
-            **analysis_object.model_dump(exclude={"dataset_ids"})
+            **analysis_object_in_db.model_dump(exclude={"dataset_ids"})
         ),
         commit_after=True
     )
 
-    return analysis_object
+    return analysis_object_in_db
 
 async def get_analysis_object_by_id(analysis_object_id: uuid.UUID) -> AnalysisObject:
     result = await fetch_one(
