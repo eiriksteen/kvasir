@@ -36,7 +36,7 @@ from synesis_schemas.main_server import (
     AggregationObjectCreate, 
     AggregationObjectUpdate
 )
-from project_server.agents.analysis.utils import simplify_dataset_overview, get_relevant_metadata_for_prompt
+from project_server.agents.analysis.utils import simplify_dataset_overview, get_relevant_metadata_for_prompt, post_analysis_result_to_redis
 from project_server.client import (
     get_analysis_objects_by_project_request,
     get_analysis_object_request,
@@ -445,7 +445,7 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
                     next_id=current_analysis_result.next_id,
                     section_id=current_analysis_result.section_id,
                 )
-                await simulate_streaming_output(analysis_result, ctx.deps.analysis_request.run_id)
+                await post_analysis_result_to_redis(analysis_result, ctx.deps.analysis_request.run_id)
             except ValidationError:
                 continue
     aggregation_object_result = await analysis_helper_agent.run(
@@ -553,7 +553,7 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
 #                     next_id=current_analysis_result.next_id,
 #                     section_id=current_analysis_result.section_id,
 #                 )
-#                 await simulate_streaming_output(analysis_result, ctx.deps.analysis_request.run_id)
+#                 await post_analysis_result_to_redis(analysis_result, ctx.deps.analysis_request.run_id)
 #             except ValidationError:
 #                 continue
 
