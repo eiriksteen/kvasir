@@ -14,6 +14,7 @@ from synesis_schemas.main_server import (
     AnalysisResult,
     NotebookSection,
     Notebook,
+    AnalysisObject
 )
 
 async def get_prev_element(this_id: uuid.UUID, this_type: Literal['analysis_result', 'notebook_section'], section_id: uuid.UUID) -> Tuple[Literal['analysis_result', 'notebook_section'], uuid.UUID] | Tuple[None, None]:
@@ -43,8 +44,6 @@ async def get_last_element_in_section(section_id: uuid.UUID, notebook_id: uuid.U
     if result:
         return "notebook_section", result["id"]
     return None, None
-
-
 
 
 def build_ordered_list(sections: List[NotebookSection], results: List[AnalysisResult], first_id: uuid.UUID | None, first_type: str | None) -> List[dict]:
@@ -81,6 +80,35 @@ def build_ordered_list(sections: List[NotebookSection], results: List[AnalysisRe
     
     return ordered_list
 
+
+def _get_dataset_ids_from_section(section: NotebookSection) -> List[uuid.UUID]:
+    dataset_ids = []
+    for section in section.notebook_sections:
+        dataset_ids.extend(_get_dataset_ids_from_section(section))
+    for result in section.analysis_results:
+        dataset_ids.extend(result.dataset_ids)
+    return dataset_ids
+
+def get_dataset_ids_from_analysis_object(analysis_object: AnalysisObject) -> List[uuid.UUID]:
+    dataset_ids = []
+    for section in analysis_object.notebook.notebook_sections:
+        dataset_ids.extend(_get_dataset_ids_from_section(section))
+    return dataset_ids
+
+
+def _get_data_source_ids_from_section(section: NotebookSection) -> List[uuid.UUID]:
+    data_source_ids = []
+    for section in section.notebook_sections:
+        data_source_ids.extend(_get_data_source_ids_from_section(section))
+    for result in section.analysis_results:
+        data_source_ids.extend(result.data_source_ids)
+    return data_source_ids
+
+def get_data_source_ids_from_analysis_object(analysis_object: AnalysisObject) -> List[uuid.UUID]:
+    data_source_ids = []
+    for section in analysis_object.notebook.notebook_sections:
+        data_source_ids.extend(_get_data_source_ids_from_section(section))
+    return data_source_ids
 
 async def generate_notebook_report(analysis_object: AnalysisObjectInDB, notebook: Notebook, include_code: bool, user_id: uuid.UUID) -> str:
     """

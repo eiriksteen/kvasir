@@ -75,6 +75,17 @@ async def get_analysis_objects_small_by_project_id(project_id: uuid.UUID) -> Ana
     
     return AnalysisObjectList(analysis_objects=analysis_objects_list)
 
+async def get_analysis_objects_by_project_id(project_id: uuid.UUID) -> List[AnalysisObject]:
+    results = await fetch_all(
+        select(analysis_object).where(analysis_object.c.project_id == project_id)
+    )
+    
+    analysis_objects_list = []
+    for result in results:
+        notebook = await get_notebook_by_id(result["notebook_id"])
+        analysis_objects_list.append(AnalysisObject(**result, notebook=notebook))
+    
+    return analysis_objects_list
 
 async def get_user_analysis_objects_by_ids(user_id: uuid.UUID, analysis_ids: List[uuid.UUID]) -> List[AnalysisObject]:
     results = await fetch_all(

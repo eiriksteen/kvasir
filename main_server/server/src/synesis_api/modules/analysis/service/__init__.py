@@ -2,6 +2,7 @@ from .service_analysis_object import (
     create_analysis_object,
     get_analysis_object_by_id,
     get_analysis_objects_small_by_project_id,
+    get_analysis_objects_by_project_id,
     get_user_analysis_objects_by_ids,
     get_simplified_overview_for_context_message,
     delete_analysis_object,
@@ -44,6 +45,8 @@ from .service_utils import (
     section_to_markdown,
     analysis_result_to_markdown,
     deep_exclude,
+    get_dataset_ids_from_analysis_object,
+    get_data_source_ids_from_analysis_object,
 )
 
 from .service_plot import (

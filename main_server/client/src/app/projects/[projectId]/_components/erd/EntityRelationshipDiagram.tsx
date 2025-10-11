@@ -277,14 +277,52 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       )
       .filter(Boolean) as Edge[];
 
-    const datasetsToAnalysesEdges = projectGraph?.datasets
-      .flatMap(dataset =>
-        dataset.toAnalyses.map(analysisId => {
-          const sourceNode = frontendNodes.find(fn => fn.datasetId === dataset.id);
-          const targetNode = frontendNodes.find(fn => fn.analysisId === analysisId);
+    // const datasetsToAnalysesEdges = projectGraph?.datasets
+    //   .flatMap(dataset =>
+    //     dataset.toAnalyses.map(analysisId => {
+    //       const sourceNode = frontendNodes.find(fn => fn.datasetId === dataset.id);
+    //       const targetNode = frontendNodes.find(fn => fn.analysisId === analysisId);
+    //       if (!sourceNode?.id || !targetNode?.id) return null;
+    //       return {
+    //         id: String(`${dataset.id}->${analysisId}`),
+    //         source: sourceNode.id,
+    //         target: targetNode.id,
+    //         type: 'default',
+    //         animated: true,
+    //         style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
+    //         markerEnd: { type: MarkerType.ArrowClosed },
+    //       } as Edge;
+    //     })
+    //   )
+    //   .filter(Boolean) as Edge[];
+
+    const datasetsToAnalysesEdges = projectGraph?.analyses
+      .flatMap(analysis =>
+        analysis.fromDatasets.map(datasetId => {
+          const sourceNode = frontendNodes.find(fn => fn.datasetId === datasetId);
+          const targetNode = frontendNodes.find(fn => fn.analysisId === analysis.id);
           if (!sourceNode?.id || !targetNode?.id) return null;
           return {
-            id: String(`${dataset.id}->${analysisId}`),
+            id: String(`${datasetId}->${analysis.id}`),
+            source: sourceNode.id,
+            target: targetNode.id,
+            type: 'default',
+            animated: true,
+            style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed },
+          } as Edge;
+        })
+      )
+      .filter(Boolean) as Edge[];
+    
+    const dataSourcesToAnalysesEdges = projectGraph?.analyses
+      .flatMap(analysis =>
+        analysis.fromDataSources.map(dataSourceId => {
+          const sourceNode = frontendNodes.find(fn => fn.dataSourceId === dataSourceId);
+          const targetNode = frontendNodes.find(fn => fn.analysisId === analysis.id);
+          if (!sourceNode?.id || !targetNode?.id) return null;
+          return {
+            id: String(`${dataSourceId}->${analysis.id}`),
             source: sourceNode.id,
             target: targetNode.id,
             type: 'default',
@@ -373,7 +411,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       .filter(Boolean) as Edge[];
 
 
-    return [...dataSourcesToDatasetsEdges, ...datasetsToAnalysesEdges, ...datasetsToPipelinesEdges, ...modelEntitiesToPipelinesEdges, ...pipelinesToDatasetsEdges, ...pipelinesToModelEntitiesEdges];
+    return [...dataSourcesToDatasetsEdges, ...datasetsToAnalysesEdges, ...dataSourcesToAnalysesEdges, ...datasetsToPipelinesEdges, ...modelEntitiesToPipelinesEdges, ...pipelinesToDatasetsEdges, ...pipelinesToModelEntitiesEdges];
   }, [project, frontendNodes, projectGraph]);
 
   // console.log(frontendNodes);
