@@ -12,7 +12,7 @@ from sqlalchemy import select, insert, update, delete
 
 
 from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_api.modules.plots.models import plot
+from synesis_api.modules.analysis.models import plot
 from synesis_schemas.main_server import BasePlot, PlotCreate, PlotUpdate
 from synesis_schemas.main_server import AggregationObjectWithRawData
 from synesis_schemas.main_server import BasePlot

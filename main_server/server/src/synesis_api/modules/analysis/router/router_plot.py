@@ -9,7 +9,7 @@ from synesis_schemas.main_server import (
     PlotUpdate, 
     User
 )
-from synesis_api.modules.plots.service import (
+from synesis_api.modules.analysis.service import (
     create_plot,
     get_plot_by_id,
     get_plots_by_analysis_result_id,
@@ -23,7 +23,7 @@ router = APIRouter()
 
 # TODO: Add security checks to all endpoints (check they own the analysis result)
 
-@router.post("/", response_model=BasePlot)
+@router.post("/plot", response_model=BasePlot)
 async def create_plot_endpoint(
     plot_create: PlotCreate,
     user: Annotated[User, Depends(get_current_user)] = None
@@ -33,7 +33,7 @@ async def create_plot_endpoint(
     return await create_plot(plot_create)
 
 
-@router.get("/{plot_id}", response_model=BasePlot)
+@router.get("/plot/{plot_id}", response_model=BasePlot)
 async def get_plot_endpoint(
     plot_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None
@@ -46,7 +46,7 @@ async def get_plot_endpoint(
     return plot
 
 
-@router.get("/analysis-result/{analysis_result_id}", response_model=List[BasePlot])
+@router.get("/plot/analysis-result/{analysis_result_id}", response_model=List[BasePlot])
 async def get_plots_by_analysis_result_endpoint(
     analysis_result_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None
@@ -56,7 +56,7 @@ async def get_plots_by_analysis_result_endpoint(
     return await get_plots_by_analysis_result_id(analysis_result_id)
 
 
-@router.patch("/{plot_id}", response_model=BasePlot)
+@router.patch("/plot/{plot_id}", response_model=BasePlot)
 async def update_plot_endpoint(
     plot_id: uuid.UUID,
     plot_update: PlotUpdate,
@@ -71,7 +71,7 @@ async def update_plot_endpoint(
     return await update_plot(plot_id, plot_update)
 
 
-@router.delete("/{plot_id}")
+@router.delete("/plot/{plot_id}")
 async def delete_plot_endpoint(
     plot_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None

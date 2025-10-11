@@ -10,7 +10,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 // routes for plots
 
 export async function createPlotEndpoint(token: string, plotCreate: any): Promise<any> {
-  const response = await fetch(`${API_URL}/plots/`, {
+  const response = await fetch(`${API_URL}/analysis/plot/`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -30,7 +30,7 @@ export async function createPlotEndpoint(token: string, plotCreate: any): Promis
 }
 
 export async function fetchPlotEndpoint(token: string, plotId: string): Promise<any> {
-  const response = await fetch(`${API_URL}/plots/${plotId}`, {
+  const response = await fetch(`${API_URL}/analysis/plot/${plotId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -48,7 +48,7 @@ export async function fetchPlotEndpoint(token: string, plotId: string): Promise<
 }
 
 export async function fetchPlotsByAnalysisResultEndpoint(token: string, analysisResultId: string): Promise<any[]> {
-  const response = await fetch(`${API_URL}/plots/analysis-result/${analysisResultId}`, {
+  const response = await fetch(`${API_URL}/analysis/plot/analysis-result/${analysisResultId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -66,8 +66,8 @@ export async function fetchPlotsByAnalysisResultEndpoint(token: string, analysis
 }
 
 export async function updatePlotEndpoint(token: string, plotId: string, plotUpdate: any): Promise<any> {
-  const response = await fetch(`${API_URL}/plots/${plotId}`, {
-    method: 'PATCH',
+  const response = await fetch(`${API_URL}/analysis/plot/${plotId}`, {
+    method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -86,7 +86,7 @@ export async function updatePlotEndpoint(token: string, plotId: string, plotUpda
 }
 
 export async function deletePlotEndpoint(token: string, plotId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/plots/${plotId}`, {
+  const response = await fetch(`${API_URL}/analysis/plot/${plotId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`

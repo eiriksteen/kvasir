@@ -4,7 +4,7 @@ from sqlalchemy import select, insert, update, delete
 
 
 from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_api.modules.tables.models import table
+from synesis_api.modules.analysis.models import table
 from synesis_schemas.main_server import BaseTable, TableCreate, TableUpdate
 
 

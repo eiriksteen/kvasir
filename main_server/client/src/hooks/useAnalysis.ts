@@ -281,7 +281,7 @@ export async function moveNotebookSections(token: string, analysisObjectId: stri
 
 export async function getAnalysisResultDataEndpoint(token: string, analysisObjectId: string, analysisResultId: string): Promise<AggregationObjectWithRawData> {
   const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/analysis-result/${analysisResultId}/get-data`, {
-    method: 'POST',
+    method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`
     }

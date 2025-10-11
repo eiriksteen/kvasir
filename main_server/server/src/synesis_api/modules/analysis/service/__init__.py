@@ -46,3 +46,19 @@ from .service_utils import (
     analysis_result_to_markdown,
     deep_exclude,
 )
+
+from .service_plot import (
+    create_plot,
+    get_plot_by_id,
+    get_plots_by_analysis_result_id,
+    update_plot,
+    delete_plot,
+)
+
+from .service_table import (
+    create_table,
+    get_table_by_id,
+    get_tables_by_analysis_result_id,
+    update_table,
+    delete_table,
+)

@@ -3,24 +3,19 @@ from typing import List, Annotated
 import uuid
 
 
-from synesis_api.modules.tables.service import (
+from synesis_api.modules.analysis.service import (
     create_table,
     update_table,
     delete_table,
     get_tables_by_analysis_result_id
 )
-from synesis_schemas.main_server import (
-    BaseTable, 
-    TableCreate, 
-    TableUpdate, 
-    User
-)
+from synesis_schemas.main_server import BaseTable, TableCreate, TableUpdate, User
 from synesis_api.auth.service import get_current_user
 
 router = APIRouter()
 
 
-@router.post("/create-table", response_model=BaseTable)
+@router.post("/table/create-table", response_model=BaseTable)
 async def create_table_endpoint(
     table_create: TableCreate,
     user: Annotated[User, Depends(get_current_user)] = None
@@ -32,7 +27,7 @@ async def create_table_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.patch("/update-table/{table_id}", response_model=BaseTable)
+@router.patch("/table/update-table/{table_id}", response_model=BaseTable)
 async def update_table_endpoint(
     table_id: uuid.UUID,
     table_update: TableUpdate, 
@@ -47,7 +42,7 @@ async def update_table_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/delete-table/{table_id}")
+@router.delete("/table/delete-table/{table_id}")
 async def delete_table_endpoint(
     table_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None
@@ -60,7 +55,7 @@ async def delete_table_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/get-tables-by-analysis-result-id/{analysis_result_id}", response_model=List[BaseTable])
+@router.get("/table/get-tables-by-analysis-result-id/{analysis_result_id}", response_model=List[BaseTable])
 async def get_tables_by_analysis_result_id_endpoint(
     analysis_result_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None

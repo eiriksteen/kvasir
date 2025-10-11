@@ -12,8 +12,8 @@ from synesis_api.modules.analysis.models import (
     analysis_result_run,
     analysis_result_data_source,
 )
-from synesis_api.modules.plots.models import plot
-from synesis_api.modules.tables.models import table
+from synesis_api.modules.analysis.models import plot
+from synesis_api.modules.analysis.models import table
 from synesis_schemas.main_server import (
     AnalysisResult,
     AnalysisResultInDB,
