@@ -9,7 +9,6 @@ from synesis_api.modules.analysis.models import (
     analysis_result, 
     analysis_results_dataset,
     notebook_section,
-    analysis_result_run,
     analysis_result_data_source,
 )
 from synesis_api.modules.analysis.models import plot
@@ -132,15 +131,6 @@ async def check_user_owns_analysis_object(user_id: uuid.UUID, analysis_object_id
     return result is not None
 
 
-async def create_analysis_run(analysis_result_id: uuid.UUID, run_id: uuid.UUID) -> None:
-    await execute(
-        insert(analysis_result_run).values(
-            analysis_result_id=analysis_result_id,
-            run_id=run_id
-        ),
-        commit_after=True
-    )
-
 
 async def delete_analysis_result(analysis_result_id: uuid.UUID) -> None:
     current_analysis_result = await get_analysis_result_by_id(analysis_result_id)
@@ -167,10 +157,6 @@ async def delete_analysis_result(analysis_result_id: uuid.UUID) -> None:
     )
     await execute(
         delete(analysis_result_data_source).where(analysis_result_data_source.c.analysis_result_id == analysis_result_id),
-        commit_after=True
-    )
-    await execute(
-        delete(analysis_result_run).where(analysis_result_run.c.analysis_result_id == analysis_result_id),
         commit_after=True
     )
     await execute(

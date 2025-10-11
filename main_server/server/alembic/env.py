@@ -38,11 +38,9 @@ from synesis_api.modules.model.models import (
 from synesis_api.modules.model_sources.models import (
     model_source, pypi_model_source
 )
-from synesis_api.modules.analysis.models import analysis_status_message, analysis_object, analysis_result, analysis_results_dataset, analysis_objects_dataset, analysis_result_run, notebook_section, notebook
+from synesis_api.modules.analysis.models import analysis_status_message, analysis_object, analysis_result, analysis_result_dataset, analysis_result_data_source, notebook_section, notebook, plot, table
 from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_pipeline, project_data_source
 from synesis_api.modules.node.models import node, dataset_node, analysis_node, pipeline_node
-from synesis_api.modules.tables.models import table
-from synesis_api.modules.plots.models import plot
 from synesis_api.app_secrets import DATABASE_URL
 from synesis_api.database.core import metadata
 
@@ -84,9 +82,8 @@ __all__ = [
     time_series_aggregation_input,
     analysis_object,
     analysis_result,
-    analysis_results_dataset,
-    analysis_objects_dataset,
-    analysis_result_run,
+    analysis_result_dataset,
+    analysis_result_data_source,
     notebook_section,
     notebook,
     analysis_status_message,

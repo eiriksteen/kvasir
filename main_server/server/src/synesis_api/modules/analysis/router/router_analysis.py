@@ -45,7 +45,6 @@ from synesis_api.modules.analysis.service import (
     delete_analysis_result as delete_analysis_result_service,
     get_analysis_results_by_ids,
     get_analysis_result_by_id,
-    create_analysis_run,
     create_analysis_result
 )
 from synesis_api.modules.node.service import get_node_by_analysis_object_id
@@ -328,15 +327,6 @@ async def create_analysis_result_endpoint(
 ) -> AnalysisResult:
     return await create_analysis_result(analysis_result)
 
-
-@router.post("/analysis-result/{analysis_result_id}/run")
-async def create_analysis_run_endpoint(
-    analysis_result_id: uuid.UUID,
-    run_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None,
-):
-    await create_analysis_run(analysis_result_id, run_id)
-    return {"message": "Analysis run created successfully"}
 
 
 @router.get("/analysis-result/{analysis_result_id}", response_model=AnalysisResult)

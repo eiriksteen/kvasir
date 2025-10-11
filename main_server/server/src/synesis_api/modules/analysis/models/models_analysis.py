@@ -72,21 +72,6 @@ analysis_status_message = Table(
     schema="analysis",
 )
 
-# TODO: Delete?
-analysis_objects_dataset = Table(
-    "analysis_objects_dataset",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           primary_key=True,
-           default=uuid.uuid4),
-    Column("analysis_object_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis_object.id"),
-           nullable=False),
-    Column("dataset_id", UUID(as_uuid=True),
-           ForeignKey("data_objects.dataset.id"),
-           nullable=False),
-    schema="analysis",
-)
 
 analysis_result = Table(
     "analysis_result",
@@ -104,8 +89,8 @@ analysis_result = Table(
     schema="analysis",
 )
 
-analysis_results_dataset = Table(
-    "analysis_results_dataset",
+analysis_result_dataset = Table(
+    "analysis_result_dataset",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
@@ -130,21 +115,6 @@ analysis_result_data_source = Table(
            nullable=False),
     Column("data_source_id", UUID(as_uuid=True),
            ForeignKey("data_sources.data_source.id"),
-           nullable=False),
-    schema="analysis",
-)
-
-analysis_result_run = Table(
-    "analysis_result_run",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           primary_key=True,
-           default=uuid.uuid4),
-    Column("analysis_result_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis_result.id"),
-           nullable=False),
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"),
            nullable=False),
     schema="analysis",
 )

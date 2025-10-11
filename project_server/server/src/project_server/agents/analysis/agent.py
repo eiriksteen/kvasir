@@ -49,14 +49,11 @@ from project_server.client import (
     update_analysis_result_request,
     delete_analysis_result_request,
     create_analysis_result_request,
-    create_analysis_run_request,
     get_analysis_result_by_id_request,
     get_analysis_results_by_ids_request,
-
     create_aggregation_object_request, 
     update_aggregation_object_request, 
     get_aggregation_object_by_analysis_result_id_request,
-
     create_chat_message_pydantic_request, 
     create_context_request,
 )
@@ -376,7 +373,6 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
         data_source_ids (List[uuid.UUID]): List of the IDs of the datasources to use for the analysis.
     """
     current_analysis_result = await get_analysis_result_by_id_request(ctx.deps.client, analysis_result_id)
-    await create_analysis_run_request(ctx.deps.client, analysis_result_id, ctx.deps.run_id)
 
     datasets = await get_datasets_by_ids(ctx.deps.client, GetDatasetByIDsRequest(dataset_ids=dataset_ids, include_features=True))
     simplified_datasets = simplify_dataset_overview(datasets)

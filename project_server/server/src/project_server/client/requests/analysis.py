@@ -68,10 +68,6 @@ async def create_analysis_result_request(client: ProjectClient, analysis_result:
     return AnalysisResult(**response.body)
 
 
-async def create_analysis_run_request(client: ProjectClient, analysis_result_id: uuid.UUID, run_id: uuid.UUID) -> None:
-    await client.send_request("post", f"/analysis/analysis-result/{analysis_result_id}/run?run_id={run_id}")
-
-
 async def get_analysis_result_by_id_request(client: ProjectClient, analysis_result_id: uuid.UUID) -> AnalysisResult:
     response = await client.send_request("get", f"/analysis/analysis-result/{analysis_result_id}")
     return AnalysisResult(**response.body)

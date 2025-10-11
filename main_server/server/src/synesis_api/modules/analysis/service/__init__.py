@@ -13,7 +13,6 @@ from .service_analysis_result import (
     get_data_source_ids_by_analysis_result_id,
     get_dataset_ids_by_analysis_result_id,
     check_user_owns_analysis_object,
-    create_analysis_run,
     delete_analysis_result,
     get_analysis_result_by_id,
     get_analysis_results_by_section_id,
