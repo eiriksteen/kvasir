@@ -243,7 +243,7 @@ export default function RunBox({ runId, projectId }: RunBoxProps) {
                         key={datasetId}
                         className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
                       >
-                        <Database size={12} />
+                        <Folder size={12} />
                         {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
                       </div>
                     ))}
@@ -288,7 +288,7 @@ export default function RunBox({ runId, projectId }: RunBoxProps) {
                         key={datasetId}
                         className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
                       >
-                        <Database size={12} />
+                        <Folder size={12} />
                         {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
                       </div>
                     ))}

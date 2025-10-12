@@ -60,6 +60,14 @@ def _validate_time_series_dataclass(data_structure: TimeSeriesStructure) -> None
             errors.append(
                 "Level 1 of MultiIndex must contain datetime objects")
 
+    # Validate that all data columns are numeric (int or float)
+    for col in data_df.columns:
+        col_dtype = data_df[col].dtype
+        if not pd.api.types.is_numeric_dtype(col_dtype):
+            errors.append(
+                f"Column '{col}' in {TIME_SERIES_DATA_SECOND_LEVEL_ID} must be numeric (int or float), got: {col_dtype}. "
+                f"Categorical features should be stored as 0-indexed integers with string labels defined in {FEATURE_INFORMATION_SECOND_LEVEL_ID}.")
+
     # Validate entity metadata
 
     if isinstance(metadata_df.index, pd.MultiIndex):
@@ -146,12 +154,14 @@ def _validate_time_series_aggregation_dataclass(data_structure: TimeSeriesAggreg
         errors.append(
             f"{TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID} DataFrame must have at least one output value column")
 
+    # Validate that all output columns (except 'id') are numeric (int or float)
     for col in outputs_df.columns:
         if col != 'id':
             col_dtype = outputs_df[col].dtype
             if not pd.api.types.is_numeric_dtype(col_dtype):
                 errors.append(
-                    f"Output value column '{col}' in {TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID} must be numeric, got: {col_dtype}")
+                    f"Output value column '{col}' in {TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID} must be numeric (int or float), got: {col_dtype}. "
+                    f"Categorical features should be stored as 0-indexed integers with string labels defined in {FEATURE_INFORMATION_SECOND_LEVEL_ID}.")
 
     # Validate inputs DataFrame if present
     if inputs_df is not None and not inputs_df.empty:
