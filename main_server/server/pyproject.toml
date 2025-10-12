@@ -56,7 +56,7 @@ dependencies = [
     "pgvector",
     "google-generativeai",
     "cryptography",
-    "jsonschema"
+    "jsonschema",
     "weasyprint",
     "pyecharts",
     "snapshot-selenium"

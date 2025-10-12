@@ -9,7 +9,7 @@ from typing import List, Literal
 from pydantic_ai.messages import ModelMessage
 
 
-from project_server.agents.analysis.prompt import ANALYSIS_AGENT_SYSEM_PROMPT
+from project_server.agents.analysis.prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
 from project_server.client import (
     ProjectClient,
     get_project,
@@ -19,21 +19,21 @@ from project_server.client import (
 from synesis_schemas.main_server import (
     GetDatasetByIDsRequest,
     GetDataSourcesByIDsRequest,
-    AnalysisResult, 
-    NotebookSectionCreate, 
+    AnalysisResult,
+    NotebookSectionCreate,
     AnalysisStatusMessage,
     MoveRequest,
     NotebookSectionUpdate,
     AnalysisResultFindRequest,
     AnalysisResultUpdate,
-    PlotCreate, 
-    PREDEFINED_COLORS, 
+    PlotCreate,
+    PREDEFINED_COLORS,
     PlotConfig,
-    TableCreate, 
-    TableConfig, 
+    TableCreate,
+    TableConfig,
     TableColumn,
     ContextCreate,
-    AggregationObjectCreate, 
+    AggregationObjectCreate,
     AggregationObjectUpdate
 )
 from project_server.agents.analysis.utils import simplify_dataset_overview, get_relevant_metadata_for_prompt, post_analysis_result_to_redis
@@ -51,10 +51,10 @@ from project_server.client import (
     create_analysis_result_request,
     get_analysis_result_by_id_request,
     get_analysis_results_by_ids_request,
-    create_aggregation_object_request, 
-    update_aggregation_object_request, 
+    create_aggregation_object_request,
+    update_aggregation_object_request,
     get_aggregation_object_by_analysis_result_id_request,
-    create_chat_message_pydantic_request, 
+    create_chat_message_pydantic_request,
     create_context_request,
 )
 from synesis_schemas.project_server import RunAnalysisRequest
@@ -66,29 +66,41 @@ from project_server.utils.pydanticai_utils import get_model
 from project_server.worker import logger
 
 
-
 class AnalysisResultModelResponse(BaseModel):
-    analysis: str = Field(description="This should be a short explanation and interpretation of the result of the analysis. This should be in github flavored markdown format.")
-    python_code: str | None = Field(default=None, description="The python code that was used to generate the analysis result. This code should be executable and should be able to run in a python container.")
-    input_variable: str | None = Field(default=None, description="The variable that was used to to generate the analysis result. This is a string of the variable name.")
-    output_variable: str | None = Field(default=None, description="The variable that is most relevant to the analysis. This variable is likely the last variable in the code.")
+    analysis: str = Field(
+        description="This should be a short explanation and interpretation of the result of the analysis. This should be in github flavored markdown format.")
+    python_code: str | None = Field(
+        default=None, description="The python code that was used to generate the analysis result. This code should be executable and should be able to run in a python container.")
+    input_variable: str | None = Field(
+        default=None, description="The variable that was used to to generate the analysis result. This is a string of the variable name.")
+    output_variable: str | None = Field(
+        default=None, description="The variable that is most relevant to the analysis. This variable is likely the last variable in the code.")
+
 
 class AggregationObjectCreateResponse(BaseModel):
     name: str
     description: str
 
+
 class AnalysisResultMoveRequest(BaseModel):
-    analysis_result_id: uuid.UUID = Field(description="The ID of the analysis result.")
-    next_element_type: Literal['analysis_result', 'notebook_section'] = Field(description="The type of the next element.")
-    next_element_id: uuid.UUID = Field(description="The ID of the next element.")
-    new_section_id: uuid.UUID = Field(description="The ID of the new parent section.")
+    analysis_result_id: uuid.UUID = Field(
+        description="The ID of the analysis result.")
+    next_element_type: Literal['analysis_result', 'notebook_section'] = Field(
+        description="The type of the next element.")
+    next_element_id: uuid.UUID = Field(
+        description="The ID of the next element.")
+    new_section_id: uuid.UUID = Field(
+        description="The ID of the new parent section.")
 
 
 class SectionMoveRequest(BaseModel):
     section_id: uuid.UUID = Field(description="The ID of the section.")
-    next_element_type: Literal['analysis_result', 'notebook_section'] = Field(description="The type of the next element.")
-    next_element_id: uuid.UUID = Field(description="The ID of the next element.")
-    new_section_id: uuid.UUID | None = Field(description="The ID of the new parent section (should be None if the section is to be a root section).")
+    next_element_type: Literal['analysis_result', 'notebook_section'] = Field(
+        description="The type of the next element.")
+    next_element_id: uuid.UUID = Field(
+        description="The ID of the next element.")
+    new_section_id: uuid.UUID | None = Field(
+        description="The ID of the new parent section (should be None if the section is to be a root section).")
 
 
 @dataclass
@@ -97,17 +109,17 @@ class AnalysisDeps:
     client: ProjectClient
     run_id: uuid.UUID
 
+
 model = get_model()
 
 analysis_agent = Agent(
     model,
-    system_prompt=ANALYSIS_AGENT_SYSEM_PROMPT,
+    system_prompt=ANALYSIS_AGENT_SYSTEM_PROMPT,
     deps_type=AnalysisDeps,
     name="Analysis Agent",
     model_settings=ModelSettings(temperature=0.1),
     retries=3
 )
-
 
 
 @analysis_agent.tool
@@ -121,13 +133,14 @@ async def search_through_datasets(ctx: RunContext[AnalysisDeps]) -> str:
     project = await get_project(ctx.deps.analysis_request.project_id)
     datasets = await get_datasets_by_ids(ctx.deps.client, GetDatasetByIDsRequest(dataset_ids=project.dataset_ids))
     datasets_overview = simplify_dataset_overview(datasets)
-    
+
     dataset_message = f"""
         <Available datasets>
         {datasets_overview}
         </Available datasets>
     """
     return dataset_message
+
 
 @analysis_agent.tool
 async def search_through_data_sources(ctx: RunContext[AnalysisDeps]) -> str:
@@ -145,6 +158,7 @@ async def search_through_data_sources(ctx: RunContext[AnalysisDeps]) -> str:
         </Available data sources>
     """
     return data_source_message
+
 
 @analysis_agent.tool
 async def search_through_analysis_objects(ctx: RunContext[AnalysisDeps]) -> str:
@@ -194,9 +208,9 @@ def search_knowledge_bank(prompt: str) -> List[str]:
         List[str]: The relevant analysis steps for the given prompt.
     """
     # TODO: use the knowledge bank to get relevant analysis steps from the prompt
-    return ["Regression analysis", 
-            "Correlation analysis", 
-            "ANOVA analysis", 
+    return ["Regression analysis",
+            "Correlation analysis",
+            "ANOVA analysis",
             "Clustering analysis",
             "Checking for missing values",
             "Checking quantiles",
@@ -205,7 +219,7 @@ def search_knowledge_bank(prompt: str) -> List[str]:
             "Checking for homoscedasticity",
             "Checking for multicollinearity",
             "Checking for autocorrelation",
-    ]
+            ]
 
 
 @analysis_agent.tool
@@ -220,10 +234,11 @@ async def add_analysis_result_to_notebook_section(ctx: RunContext[AnalysisDeps],
         analysis_result_id (uuid.UUID): The ID of the analysis result.
     """
     try:
-        await add_analysis_result_to_section_request(ctx.deps.client, analysis_object_id, notebook_section_id, analysis_result_id)  
+        await add_analysis_result_to_section_request(ctx.deps.client, analysis_object_id, notebook_section_id, analysis_result_id)
         return "Analysis result successfully added to notebook section"
     except Exception as e:
         return f"Error adding analysis result to notebook section: {e}"
+
 
 @analysis_agent.tool
 async def create_notebook_section(ctx: RunContext[AnalysisDeps], section_create: List[NotebookSectionCreate]) -> str:
@@ -234,15 +249,16 @@ async def create_notebook_section(ctx: RunContext[AnalysisDeps], section_create:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
         analysis_object_id (uuid.UUID): The ID of the analysis object.
         section_create (List[NotebookSectionCreate]): The sections to create.
-    """ 
+    """
     try:
         section_ids = []
-        for section in section_create: # Must have synchronous creation of sections to avoid race conditions
+        for section in section_create:  # Must have synchronous creation of sections to avoid race conditions
             section_in_db = await create_section_request(ctx.deps.client, section.analysis_object_id, section)
             section_ids.append(section_in_db.id)
         return f"Notebook sections successfully created. Section ids: {section_ids}"
     except Exception as e:
         return f"Error creating notebook section: {e}"
+
 
 @analysis_agent.tool
 async def move_analysis_result(ctx: RunContext[AnalysisDeps], analysis_object_id: uuid.UUID, analysis_result_move_requests: List[AnalysisResultMoveRequest]) -> str:
@@ -268,6 +284,7 @@ async def move_analysis_result(ctx: RunContext[AnalysisDeps], analysis_object_id
     except Exception as e:
         return f"Error moving analysis results to sections: {e}"
 
+
 @analysis_agent.tool
 async def delete_notebook_section(ctx: RunContext[AnalysisDeps], analysis_object_id: uuid.UUID, section_id: uuid.UUID) -> str:
     """
@@ -283,6 +300,7 @@ async def delete_notebook_section(ctx: RunContext[AnalysisDeps], analysis_object
         return "Notebook section successfully deleted"
     except Exception as e:
         return f"Error deleting notebook section: {e}"
+
 
 @analysis_agent.tool
 async def edit_section_name(ctx: RunContext[AnalysisDeps], analysis_object_id: uuid.UUID, section_id: uuid.UUID, new_name: str) -> str:
@@ -304,6 +322,7 @@ async def edit_section_name(ctx: RunContext[AnalysisDeps], analysis_object_id: u
     except Exception as e:
         return f"Error editing section name: {e}"
 
+
 @analysis_agent.tool
 async def move_sections(ctx: RunContext[AnalysisDeps], analysis_object_id: uuid.UUID, section_move_requests: List[SectionMoveRequest]) -> str:
     """
@@ -315,7 +334,8 @@ async def move_sections(ctx: RunContext[AnalysisDeps], analysis_object_id: uuid.
         section_move_requests (List[SectionMoveRequest]): The requests to move sections.
     """
     try:
-        for section_move_request in section_move_requests: # Must have synchronous movement of sections to avoid race conditions
+        # Must have synchronous movement of sections to avoid race conditions
+        for section_move_request in section_move_requests:
             section_move_request = MoveRequest(
                 moving_element_type="notebook_section",
                 moving_element_id=section_move_request.section_id,
@@ -328,6 +348,7 @@ async def move_sections(ctx: RunContext[AnalysisDeps], analysis_object_id: uuid.
         return "Notebook sections successfully moved to new parent sections"
     except Exception as e:
         return f"Error moving section: {e}"
+
 
 @analysis_agent.tool
 async def create_empty_analysis_result(ctx: RunContext[AnalysisDeps], section_id: uuid.UUID) -> str:
@@ -349,11 +370,12 @@ async def create_empty_analysis_result(ctx: RunContext[AnalysisDeps], section_id
         next_id=None,
         section_id=section_id
     )
-    try: 
+    try:
         analysis_result_in_db = await create_analysis_result_request(ctx.deps.client, analysis_result)
         return f"Empty analysis result successfully created. Analysis result id: {analysis_result_in_db.id}"
     except Exception as e:
         return f"Error creating empty analysis result: {e}"
+
 
 @analysis_agent.tool
 async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_result_id: uuid.UUID, prompt: str, dataset_ids: List[uuid.UUID], data_source_ids: List[uuid.UUID]) -> str:
@@ -384,23 +406,25 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
         raise ValueError("No datasets or data sources found")
 
     if len(data_sources) > 0:
-        context_part += get_relevant_metadata_for_prompt(data_sources, "data_source")
+        context_part += get_relevant_metadata_for_prompt(
+            data_sources, "data_source")
 
     if len(datasets) > 0:
-        context_part += get_relevant_metadata_for_prompt(simplified_datasets, "dataset")
-
-
+        context_part += get_relevant_metadata_for_prompt(
+            simplified_datasets, "dataset")
 
     helper_agent_deps = HelperAgentDeps(
         user_id=ctx.deps.analysis_request.user_id,
         dataset_ids=dataset_ids,
-        group_ids=[dataset.object_groups[0].id for dataset in datasets], # TODO: fix this
-        second_level_structure_ids=[dataset.object_groups[0].structure_type + "_data" for dataset in datasets],
+        # TODO: fix this
+        group_ids=[dataset.object_groups[0].id for dataset in datasets],
+        second_level_structure_ids=[
+            dataset.object_groups[0].structure_type + "_data" for dataset in datasets],
         data_source_ids=data_source_ids,
         data_source_names=[data_source.name for data_source in data_sources]
     )
 
-    ### Delete this after fixing raw data transfer
+    # Delete this after fixing raw data transfer
     analysis_result_synth = AnalysisResult(
         id=analysis_result_id,
         analysis='The mean temp is 42',
@@ -434,7 +458,7 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
             try:
                 output = await result.validate_structured_output(
                     message,
-                    allow_partial= not last
+                    allow_partial=not last
                 )
                 analysis_result = AnalysisResult(
                     id=analysis_result_id,
@@ -453,15 +477,14 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
         message_history=result.new_messages(),
         output_type=AggregationObjectCreateResponse
     )
-    
+
     aggregation_object_create = AggregationObjectCreate(
-        name = aggregation_object_result.output.name,
+        name=aggregation_object_result.output.name,
         description=aggregation_object_result.output.description,
         analysis_result_id=analysis_result_id
     )
 
     aggregation_object_in_db = await create_aggregation_object_request(project_client, aggregation_object_create)
-
 
     pydantic_messages_to_db = result.new_messages_json()
     await create_chat_message_pydantic_request(project_client, ctx.deps.analysis_request.conversation_id, [pydantic_messages_to_db])
@@ -472,7 +495,7 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
     )
 
     await create_context_request(project_client, context)
-    await update_analysis_result_request(project_client, analysis_result_id, analysis_result) 
+    await update_analysis_result_request(project_client, analysis_result_id, analysis_result)
 
     return f"Analysis result successfully created."
 
@@ -494,7 +517,7 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
 #         dataset_ids (List[uuid.UUID]): List of the IDs of the datasets to use for the analysis.
 #         data_source_ids (List[uuid.UUID]): List of the IDs of the datasources to use for the analysis.
 #     """
-    
+
 #     await create_analysis_run(analysis_result_id, ctx.deps.analysis_request.run_id)
 #     current_analysis_result = await get_analysis_result_by_id(analysis_result_id)
 
@@ -506,7 +529,7 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
 #     simplified_datasets = simplify_dataset_overview(datasets)
 #     data_sources = await get_data_sources_by_ids(data_source_ids)
 #     simplified_data_sources = simplify_datasource_overview(data_sources)
-    
+
 #     context_part = ""
 
 #     if len(simplified_datasets) == 0 and len(simplified_data_sources) == 0:
@@ -580,10 +603,8 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
 #     )
 
 #     await create_context(context)
-#     await update_analysis_result(analysis_result) 
+#     await update_analysis_result(analysis_result)
 #     return f"Analysis result successfully edited."
-
-
 
 
 @analysis_agent.tool
@@ -623,7 +644,7 @@ async def plot_analysis_result(ctx: RunContext[AnalysisDeps], analysis_result_id
         "title": title,
         "x_axis_column": x_axis_column,
         "y_axis_columns": y_axis_columns_list
-        }
+    }
     plot_config = PlotConfig(**plot_config)
     plot_create = PlotCreate(
         analysis_result_id=analysis_result_id,
@@ -631,6 +652,7 @@ async def plot_analysis_result(ctx: RunContext[AnalysisDeps], analysis_result_id
     )
     await create_plot(ctx.deps.client, plot_create)
     return "Analysis result successfully plotted"
+
 
 @analysis_agent.tool
 async def create_table_for_analysis_result(ctx: RunContext[AnalysisDeps], analysis_result_id: uuid.UUID, columns_to_include: List[str], title: str) -> str:
@@ -655,5 +677,3 @@ async def create_table_for_analysis_result(ctx: RunContext[AnalysisDeps], analys
     )
     await create_table(ctx.deps.client, table_create)
     return "Successfully created a table of the analysis result"
-
-

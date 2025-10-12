@@ -21,20 +21,15 @@ import AnalysisBox from '@/app/projects/[projectId]/_components/erd/AnalysisBox'
 import TransportEdge from '@/app/projects/[projectId]/_components/erd/TransportEdge';
 import { useProjectDataSources } from '@/hooks/useDataSources';
 import DataSourceBox from '@/app/projects/[projectId]/_components/erd/DataSourceBox';
-import FileInfoModal from '@/components/info-modals/FileInfoModal';
-import DatasetInfoModal from '@/components/info-modals/DatasetInfoModal';
 import PipelineBox from '@/app/projects/[projectId]/_components/erd/PipelineBox';
 import { Pipeline, PipelineRunInDB } from '@/types/pipeline';
-import PipelineInfoModal from '@/components/info-modals/PipelineInfoModal';
 import { UUID } from 'crypto';
 import { ModelEntity } from '@/types/model';
 import { useModelEntities } from '@/hooks/useModelEntities';
 import ModelEntityBox from '@/app/projects/[projectId]/_components/erd/ModelEntityBox';
-import ModelInfoModal from '@/components/info-modals/ModelInfoModal';
 import { useProjectGraph } from '@/hooks/useProjectGraph';
 import { computeBoxEdgeLocations } from '@/app/projects/[projectId]/_components/erd/computeBoxEdgeLocations';
 import { useTabContext } from '@/hooks/useTabContext';
-import AnalysisItem from '@/components/info-modals/analysis/AnalysisItem';
 import { DataSource } from '@/types/data-sources';
 import { Dataset } from '@/types/data-objects';
 import { AnalysisObjectSmall } from '@/types/analysis';
@@ -171,7 +166,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
   const { modelEntities } = useModelEntities(projectId);
   const { analysisObjects } = useAnalysis(projectId);
   const { projectGraph } = useProjectGraph(projectId);
-  const { openTab, openTabs, activeTabKey, closeTabByKey, setProjectTabLabel } = useTabContext(projectId);
+  const { openTab, setProjectTabLabel } = useTabContext(projectId);
   
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -510,80 +505,29 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     }
   }, [frontendNodes, updatePosition]);
 
-  // Tab content rendering
-  let tabContent: React.ReactNode = null;
-  const activeTab = openTabs.find(tab => tab.key === activeTabKey);
-  
-  if (activeTab?.type === 'project') {
-    tabContent = (
-      <div className="w-full h-full bg-white">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          fitView
-          onNodeDragStop={handleNodeDragStop}
-          className="reactflow-no-watermark"
-        >
-          {/* <Controls /> */}
-          {/* <MiniMap 
-            style={{
-              background: '#0a101c',
-              border: '1px solid #1d2d50'
-            }}
-            nodeColor="#3b82f6"
-            maskColor="rgba(0, 0, 0, 0.1)"
-          /> */}
-        </ReactFlow>
-      </div>
-    );
-  } 
-  else if (activeTab?.type === 'data_source') {
-    tabContent = (
-      <FileInfoModal
-        dataSourceId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
-      />
-    );
-  } 
-  else if (activeTab?.type === 'dataset') {
-    tabContent = (
-      <DatasetInfoModal
-        datasetId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
-        projectId={projectId}
-      />
-    );
-  } 
-  else if (activeTab?.type === 'analysis') {
-    tabContent = (
-      <AnalysisItem
-        analysisObjectId={activeTab.id as UUID}
-        projectId={projectId}
-        onClose={() => closeTabByKey(activeTab.key)}
-      />
-    );
-  } 
-  else if (activeTab?.type === 'pipeline') {
-    tabContent = (
-      <PipelineInfoModal
-        pipelineId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
-      />
-    );
-  } 
-  else if (activeTab?.type === 'model_entity') {
-    tabContent = (
-      <ModelInfoModal
-        modelEntityId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
-        projectId={projectId}
-      />
-    );
-  }
-
-  return tabContent;
+  return (
+    <div className="w-full h-full bg-white">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        fitView
+        onNodeDragStop={handleNodeDragStop}
+        className="reactflow-no-watermark"
+      >
+        {/* <Controls /> */}
+        {/* <MiniMap 
+          style={{
+            background: '#0a101c',
+            border: '1px solid #1d2d50'
+          }}
+          nodeColor="#3b82f6"
+          maskColor="rgba(0, 0, 0, 0.1)"
+        /> */}
+      </ReactFlow>
+    </div>
+  );
 };

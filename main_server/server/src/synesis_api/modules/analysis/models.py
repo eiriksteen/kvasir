@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, ForeignKey, Table, UUID, Float
+from sqlalchemy import Column, String, ForeignKey, Table, UUID, Float, JSON
 from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean
 
 
@@ -21,7 +21,8 @@ analysis_object = Table(
     Column("name", String, nullable=False),
     Column("description", String, nullable=True),
     Column("created_at", DateTime, nullable=False),
-    Column("report_generated", Boolean, nullable=False, default=False), # TODO: delete?
+    Column("report_generated", Boolean, nullable=False,
+           default=False),  # TODO: delete?
     Column("notebook_id", UUID(as_uuid=True), nullable=False),
     schema="analysis",
 )
@@ -46,7 +47,8 @@ notebook_section = Table(
            nullable=False),
     Column("section_name", String, nullable=False),
     Column("section_description", String, nullable=True),
-    Column("next_type", String, nullable=True),  # 'analysis_result' or 'notebook_section'
+    # 'analysis_result' or 'notebook_section'
+    Column("next_type", String, nullable=True),
     Column("next_id", UUID(as_uuid=True), nullable=True),
     Column("parent_section_id", UUID(as_uuid=True),
            ForeignKey("analysis.notebook_section.id"),
@@ -83,8 +85,10 @@ analysis_result = Table(
     Column("python_code", String, nullable=True),
     Column("output_variable", String, nullable=True),
     Column("input_variable", String, nullable=True),
-    Column("section_id", UUID(as_uuid=True), ForeignKey("analysis.notebook_section.id"), nullable=True,),
-    Column("next_type", String, nullable=True),  # 'analysis_result' or 'notebook_section'
+    Column("section_id", UUID(as_uuid=True), ForeignKey(
+        "analysis.notebook_section.id"), nullable=True,),
+    # 'analysis_result' or 'notebook_section'
+    Column("next_type", String, nullable=True),
     Column("next_id", UUID(as_uuid=True), nullable=True),
     schema="analysis",
 )
@@ -117,4 +121,25 @@ analysis_result_data_source = Table(
            ForeignKey("data_sources.data_source.id"),
            nullable=False),
     schema="analysis",
+)
+
+plot = Table(
+    'plot',
+    metadata,
+    Column('id', UUID, primary_key=True, default=uuid.uuid4),
+    Column('analysis_result_id', UUID, ForeignKey(
+        'analysis.analysis_result.id'), nullable=False),
+    Column('plot_config', JSON, nullable=False),
+    schema='analysis',
+)
+
+
+table = Table(
+    'table',
+    metadata,
+    Column('id', UUID, primary_key=True, default=uuid.uuid4),
+    Column('analysis_result_id', UUID, ForeignKey(
+        'analysis.analysis_result.id'), nullable=False),
+    Column('table_config', JSON, nullable=False),
+    schema='analysis',
 )

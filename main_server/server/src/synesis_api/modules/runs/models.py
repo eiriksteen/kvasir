@@ -107,7 +107,7 @@ analysis_in_run = Table(
     Column("run_id", UUID(as_uuid=True),
            ForeignKey("runs.run.id"), primary_key=True),
     Column("analysis_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis_jobs_results.job_id"), primary_key=True),
+           ForeignKey("analysis.analysis_object.id"), primary_key=True),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
     schema="runs"
