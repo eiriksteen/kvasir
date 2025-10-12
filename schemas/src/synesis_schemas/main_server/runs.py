@@ -6,16 +6,30 @@ from pydantic import BaseModel
 
 # DB Models
 
+
+class RunSpecificationInDB(BaseModel):
+    id: uuid.UUID
+    run_id: uuid.UUID
+    run_name: str
+    plan_and_deliverable_description_for_user: str
+    plan_and_deliverable_description_for_agent: str
+    questions_for_user: Optional[str] = None
+    configuration_defaults_description: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
 class RunInDB(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
-    type: str
-    status: str
+    type: Literal["data_integration", "model_integration",
+                  "swe", "pipeline", "analysis", "data_source_analysis"]
+    status: Literal["pending", "running", "completed", "failed"]
     started_at: datetime
     conversation_id: Optional[uuid.UUID] = None
+    project_id: Optional[uuid.UUID] = None
     parent_run_id: Optional[uuid.UUID] = None
     completed_at: Optional[datetime] = None
-    run_name: Optional[str] = None
 
 
 class RunMessageInDB(BaseModel):
@@ -33,63 +47,70 @@ class RunPydanticMessageInDB(BaseModel):
     created_at: datetime = datetime.now(timezone.utc)
 
 
-class DataSourceInIntegrationRunInDB(BaseModel):
+class DataSourceInRunInDB(BaseModel):
     run_id: uuid.UUID
     data_source_id: uuid.UUID
     created_at: datetime
 
 
-class DataIntegrationRunInputInDB(BaseModel):
-    run_id: uuid.UUID
-    target_dataset_description: str
-    created_at: datetime
-    updated_at: datetime
-
-
-class ModelIntegrationRunInputInDB(BaseModel):
-    run_id: uuid.UUID
-    model_id_str: str
-    source: Literal["github", "pip", "source_code"]
-
-
-class DataIntegrationRunResultInDB(BaseModel):
+class DatasetInRunInDB(BaseModel):
     run_id: uuid.UUID
     dataset_id: uuid.UUID
-    code_explanation: str
-    python_code_path: str
+    created_at: datetime
 
 
-class ModelIntegrationRunResultInDB(BaseModel):
+class ModelEntityInRunInDB(BaseModel):
     run_id: uuid.UUID
-    model_id: uuid.UUID
+    model_entity_id: uuid.UUID
+    created_at: datetime
+
+
+class PipelineInRunInDB(BaseModel):
+    run_id: uuid.UUID
+    pipeline_id: uuid.UUID
+    created_at: datetime
 
 
 # API Models
 
 
-class DataIntegrationRunInput(BaseModel):
-    run_id: uuid.UUID
-    target_dataset_description: str
+class RunEntityIds(BaseModel):
     data_source_ids: List[uuid.UUID] = []
-
-
-RunInput = Union[DataIntegrationRunInput, ModelIntegrationRunInputInDB]
-RunResult = Union[DataIntegrationRunResultInDB, ModelIntegrationRunResultInDB]
+    dataset_ids: List[uuid.UUID] = []
+    model_entity_ids: List[uuid.UUID] = []
+    pipeline_ids: List[uuid.UUID] = []
 
 
 class Run(RunInDB):
-    input: Optional[RunInput] = None
-    result: Optional[RunResult] = None
+    spec: Optional[RunSpecificationInDB] = None
+    inputs: Optional[RunEntityIds] = None
+    outputs: Optional[RunEntityIds] = None
 
 
 # Create Models
 
+
+class RunSpecificationCreate(BaseModel):
+    run_name: str
+    plan_and_deliverable_description_for_user: str
+    plan_and_deliverable_description_for_agent: str
+    questions_for_user: Optional[str] = None
+    configuration_defaults_description: Optional[str] = None
+
+
 class RunCreate(BaseModel):
-    type: str
+    type: Literal["data_integration", "model_integration",
+                  "swe", "pipeline", "analysis", "data_source_analysis"]
+    initial_status: Literal["pending", "running",
+                            "completed", "failed"] = "pending"
+    project_id: Optional[uuid.UUID] = None
     conversation_id: Optional[uuid.UUID] = None
     parent_run_id: Optional[uuid.UUID] = None
-    pipeline_id: Optional[uuid.UUID] = None
-    run_name: Optional[str] = None
+    spec: Optional[RunSpecificationCreate] = None
+    data_sources_in_run: List[uuid.UUID] = []
+    datasets_in_run: List[uuid.UUID] = []
+    model_entities_in_run: List[uuid.UUID] = []
+    pipelines_in_run: List[uuid.UUID] = []
 
 
 class RunMessageCreate(BaseModel):
@@ -101,19 +122,6 @@ class RunMessageCreate(BaseModel):
 class RunMessageCreatePydantic(BaseModel):
     content: bytes
     run_id: uuid.UUID
-
-
-class DataIntegrationRunInputCreate(BaseModel):
-    run_id: uuid.UUID
-    target_dataset_description: str
-    data_source_ids: List[uuid.UUID]
-
-
-class DataIntegrationRunResultCreate(BaseModel):
-    run_id: uuid.UUID
-    dataset_id: uuid.UUID
-    code_explanation: str
-    python_code_path: str
 
 
 # Update Models

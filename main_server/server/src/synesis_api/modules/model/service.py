@@ -230,6 +230,8 @@ async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> M
             "default_config"],
         config_schema=model_update.updated_config_schema if model_update.updated_config_schema else existing_model[
             "config_schema"],
+        module_path=model_update.updated_module_path if model_update.updated_module_path else existing_model[
+            "module_path"],
         training_function_id=training_function_id,
         inference_function_id=inference_function_id,
         embedding=embedding,
@@ -314,6 +316,12 @@ async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> M
                 model_function_output_object_group_definition.c.id.in_(
                     model_update.updated_inference_function.output_object_group_definitions_to_remove)
             ), commit_after=True)
+
+    # Handle model entities updates
+    if model_update.model_entities_to_update:
+        await execute(
+            update(model_entity).where(model_entity.c.id.in_(
+                model_update.model_entities_to_update)).values(model_id=model_obj.id), commit_after=True)
 
     return (await get_models([model_obj.id]))[0]
 
@@ -409,6 +417,16 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[ModelFull]:
 
 
 async def create_model_entity(user_id: uuid.UUID, model_entity_create: ModelEntityCreate) -> ModelEntityInDB:
+
+    config_schema = await fetch_one(select(model.c.config_schema).where(model.c.id == model_entity_create.model_id))
+
+    try:
+        jsonschema.validate(model_entity_create.config,
+                            config_schema["config_schema"])
+    except jsonschema.ValidationError as e:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid config: {e.message}, schema: {config_schema['config_schema']}")
+
     model_entity_obj = ModelEntityInDB(
         id=uuid.uuid4(),
         user_id=user_id,

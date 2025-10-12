@@ -1,4 +1,5 @@
 import uuid
+import pytz
 from typing import List, Optional, Dict, Union
 from datetime import datetime, timezone
 from sqlalchemy import insert, select
@@ -54,7 +55,6 @@ from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_STRUCTURE,
     TIME_SERIES_AGGREGATION_STRUCTURE
 )
-from synesis_api.utils.time_series_utils import make_timezone_aware
 
 
 async def create_features(features: List[FeatureCreate]) -> List[FeatureInDB]:
@@ -214,10 +214,10 @@ async def create_dataset(
 
         if structure.feature_information is not None:
             features_info = structure.feature_information.reset_index()
-            await create_features(features=[FeatureCreate(**record) for record in features_info.to_dict(orient="records")])
+            await create_features(features=[FeatureCreate(**record) for record in features_info.reset_index().to_dict(orient="records")])
 
             feature_in_group_dumps = []
-            for record in features_info.to_dict(orient="records"):
+            for record in features_info.reset_index().to_dict(orient="records"):
                 feature_in_group_dumps.append(FeatureInGroupInDB(
                     group_id=object_group_record.id,
                     feature_name=record["name"],
@@ -260,11 +260,11 @@ async def create_dataset(
 
                 # Extract timestamp values and make them timezone-aware
                 entity_timezone = fixed_metadata.loc[entity_id, 'timezone']
-                start_timestamp = make_timezone_aware(
+                start_timestamp = _make_timezone_aware(
                     fixed_metadata.loc[entity_id, 'start_timestamp'],
                     entity_timezone
                 )
-                end_timestamp = make_timezone_aware(
+                end_timestamp = _make_timezone_aware(
                     fixed_metadata.loc[entity_id, 'end_timestamp'],
                     entity_timezone
                 )
@@ -650,3 +650,22 @@ async def _get_features_per_group_id(group_ids: List[uuid.UUID], max_features: O
         result_dict[group_id] = group_features
 
     return result_dict
+
+
+def _make_timezone_aware(dt: datetime, timezone_str: str) -> datetime:
+    """Convert a naive datetime to timezone-aware using the provided timezone string.
+
+    Args:
+        dt: The datetime object to convert (may be naive)
+        timezone_str: The timezone string (e.g., 'UTC', 'America/New_York')
+
+    Returns:
+        Timezone-aware datetime object
+    """
+    if dt.tzinfo is not None:
+        # Already timezone-aware, return as-is
+        return dt
+
+    # Convert naive datetime to timezone-aware
+    tz = pytz.timezone(timezone_str)
+    return tz.localize(dt)

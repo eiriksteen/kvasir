@@ -9,6 +9,7 @@ from io import BytesIO, StringIO
 from datetime import datetime
 from typing import Union, List, Tuple
 
+from project_server.utils.time_series_utils import convert_datetime_to_target_tz
 from project_server.entity_manager.dataset_manager.dataclasses import (
     DatasetCreateWithRawData,
     ObjectGroupCreateWithRawData,
@@ -20,7 +21,7 @@ from project_server.client import ProjectClient
 from project_server.client.requests.data_objects import post_dataset, get_object_group, get_dataset, get_data_object
 from project_server.client import FileInput
 from project_server.app_secrets import INTEGRATED_DATA_DIR
-
+from project_server.worker import logger
 from synesis_schemas.main_server import (
     DatasetCreate,
     Dataset,
@@ -44,6 +45,27 @@ from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_STRUCTURE,
     TIME_SERIES_AGGREGATION_STRUCTURE
 )
+
+
+def _get_df_schema_and_head(df: pd.DataFrame | None) -> Tuple[str | None, str | None]:
+    """
+    Extract schema info and head string from a dataframe.
+
+    Args:
+        df: The dataframe to extract info from, or None
+
+    Returns:
+        A tuple of (schema_string, head_string). Returns (None, None) if df is None or empty.
+    """
+    if df is None or df.empty:
+        return None, None
+
+    buffer = StringIO()
+    df.info(buf=buffer)
+    schema = buffer.getvalue()
+    head = df.head().to_string()
+
+    return schema, head
 
 
 # This class sometimes returns API schemas (for sending through the API) and other times dataclasses (for use in sandbox code) and should maybe be split or streamlined
@@ -78,6 +100,9 @@ class LocalDatasetManager:
         assert isinstance(
             obj_group.data, TimeSeriesStructure), "Object group data is not a time series data structure"
         df = obj_group.data.time_series_data
+        # Convert start and end date to match the timezone of the dataframe (which may be None)
+        start_date = convert_datetime_to_target_tz(start_date, df)
+        end_date = convert_datetime_to_target_tz(end_date, df)
         df_sliced = df.loc[([entity_id], slice(start_date, end_date)), :]
         obj_group.data.time_series_data = df_sliced
 
@@ -127,6 +152,9 @@ class LocalDatasetManager:
 
         dataset_path = INTEGRATED_DATA_DIR / str(uuid.uuid4())
         dataset_path.mkdir(parents=True, exist_ok=True)
+
+        logger.info("GROUP")
+        logger.info(dataset_create.object_groups)
 
         # Process annotated object groups
         for group in dataset_create.object_groups:
@@ -211,17 +239,12 @@ class LocalDatasetManager:
                 group_save_paths.append(
                     (group_save_path / filename, group.data.feature_information))
 
-            buffer = StringIO()
-            group.data.time_series_data.info(buf=buffer)
-            ts_schema = buffer.getvalue()
-
-            buffer = StringIO()
-            group.data.entity_metadata.info(buf=buffer)
-            em_schema = buffer.getvalue()
-
-            buffer = StringIO()
-            group.data.feature_information.info(buf=buffer)
-            fi_schema = buffer.getvalue()
+            ts_schema, ts_head = _get_df_schema_and_head(
+                group.data.time_series_data)
+            em_schema, em_head = _get_df_schema_and_head(
+                group.data.entity_metadata)
+            fi_schema, fi_head = _get_df_schema_and_head(
+                group.data.feature_information)
 
             object_group_create = TimeSeriesObjectGroupCreate(
                 name=group.name,
@@ -231,11 +254,11 @@ class LocalDatasetManager:
                 save_path=str(group_save_path),
                 metadata_dataframes=metadata_dataframes,
                 time_series_df_schema=ts_schema,
-                time_series_df_head=group.data.time_series_data.head().to_string(),
+                time_series_df_head=ts_head,
                 entity_metadata_df_schema=em_schema,
-                entity_metadata_df_head=group.data.entity_metadata.head().to_string(),
+                entity_metadata_df_head=em_head,
                 feature_information_df_schema=fi_schema,
-                feature_information_df_head=group.data.feature_information.head().to_string()
+                feature_information_df_head=fi_head
             )
 
         elif group.structure_type == TIME_SERIES_AGGREGATION_STRUCTURE.first_level_id:
@@ -317,18 +340,14 @@ class LocalDatasetManager:
                 group_save_paths.append(
                     (group_save_path / filename, group.data.feature_information))
 
-            buffer = StringIO()
-            group.data.time_series_aggregation_outputs.info(buf=buffer)
-            ts_agg_outputs_schema = buffer.getvalue()
-            buffer = StringIO()
-            group.data.time_series_aggregation_inputs.info(buf=buffer)
-            ts_agg_inputs_schema = buffer.getvalue()
-            buffer = StringIO()
-            group.data.entity_metadata.info(buf=buffer)
-            em_schema = buffer.getvalue()
-            buffer = StringIO()
-            group.data.feature_information.info(buf=buffer)
-            fi_schema = buffer.getvalue()
+            ts_agg_outputs_schema, ts_agg_outputs_head = _get_df_schema_and_head(
+                group.data.time_series_aggregation_outputs)
+            ts_agg_inputs_schema, ts_agg_inputs_head = _get_df_schema_and_head(
+                group.data.time_series_aggregation_inputs)
+            em_schema, em_head = _get_df_schema_and_head(
+                group.data.entity_metadata)
+            fi_schema, fi_head = _get_df_schema_and_head(
+                group.data.feature_information)
 
             object_group_create = TimeSeriesAggregationObjectGroupCreate(
                 name=group.name,
@@ -338,13 +357,13 @@ class LocalDatasetManager:
                 save_path=str(group_save_path),
                 metadata_dataframes=metadata_dataframes,
                 time_series_aggregation_outputs_df_schema=ts_agg_outputs_schema,
-                time_series_aggregation_outputs_df_head=group.data.time_series_aggregation_outputs.head().to_string(),
+                time_series_aggregation_outputs_df_head=ts_agg_outputs_head,
                 time_series_aggregation_inputs_df_schema=ts_agg_inputs_schema,
-                time_series_aggregation_inputs_df_head=group.data.time_series_aggregation_inputs.head().to_string(),
+                time_series_aggregation_inputs_df_head=ts_agg_inputs_head,
                 entity_metadata_df_schema=em_schema,
-                entity_metadata_df_head=group.data.entity_metadata.head().to_string(),
+                entity_metadata_df_head=em_head,
                 feature_information_df_schema=fi_schema,
-                feature_information_df_head=group.data.feature_information.head().to_string()
+                feature_information_df_head=fi_head
             )
 
         return object_group_create, files, group_save_paths
@@ -372,6 +391,8 @@ class LocalDatasetManager:
             if isinstance(value, dict):
                 serializable[key] = self._make_output_variables_serializable(
                     value)
+            elif isinstance(value, pd.Timestamp):
+                serializable[key] = value.isoformat()
             elif isinstance(value, torch.Tensor):
                 if value.numel() == 1:
                     serializable[key] = value.item()
@@ -386,16 +407,24 @@ class LocalDatasetManager:
                 serializable[key] = value.item()
             elif isinstance(value, list):
                 serializable[key] = [
-                    item.item() if isinstance(item, (np.floating, np.integer)) else item
+                    self._make_single_value_serializable(item)
                     for item in value
                 ]
             else:
                 serializable[key] = value
         return serializable
 
-    async def _read_structure(self, group_path: Path, structure_type: str) -> Union[TimeSeriesStructure, TimeSeriesAggregationStructure]:
-        """Read a structure from the local storage."""
+    def _make_single_value_serializable(self, value):
+        if isinstance(value, pd.Timestamp):
+            return value.isoformat()
+        elif isinstance(value, (np.floating, np.integer)):
+            return value.item()
+        elif isinstance(value, dict):
+            return self._make_output_variables_serializable(value)
+        else:
+            return value
 
+    async def _read_structure(self, group_path: Path, structure_type: str) -> Union[TimeSeriesStructure, TimeSeriesAggregationStructure]:
         if structure_type == TIME_SERIES_STRUCTURE.first_level_id:
             time_series_data = None
             entity_metadata = None

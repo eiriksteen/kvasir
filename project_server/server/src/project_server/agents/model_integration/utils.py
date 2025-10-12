@@ -69,10 +69,10 @@ def create_model_test_code_from_spec(model_spec_output: ModelDescription, model_
         model_spec_output.inference_function.input_object_groups,
     )
     return (
-        f"model_config = ModelConfig()\n\n" +
+        f"config = ModelConfig()\n\n" +
         f"model_weights_dir = Path('{str(model_weights_dir)}')\n\n" +
-        f"model_config.weights_save_dir = model_weights_dir\n\n" +
-        f"model = {model_spec_output.python_class_name}(model_config)\n" +
+        f"config.weights_save_dir = model_weights_dir\n\n" +
+        f"model = {model_spec_output.python_class_name}(config)\n" +
         f"{training_input_obj_definition}\n\n" +
         f"{inference_input_obj_definition}\n\n" +
         f"training_output = model.run_training(training_input_obj)\n" +

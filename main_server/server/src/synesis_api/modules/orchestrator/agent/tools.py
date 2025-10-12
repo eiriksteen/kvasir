@@ -1,5 +1,6 @@
 from pydantic_ai import RunContext
 from pydantic_ai.exceptions import ModelRetry
+from typing import Literal
 
 from synesis_schemas.main_server import QueryRequest, ModelQueryResult, ModelEntityCreate, ModelEntityInDB, AddEntityToProject, FrontendNodeCreate
 from synesis_api.modules.orchestrator.agent.deps import OrchestatorAgentDeps
@@ -7,6 +8,8 @@ from synesis_api.modules.knowledge_bank.service import query_models
 from synesis_api.modules.model.service import create_model_entity
 from synesis_api.modules.project.service import add_entity_to_project
 from synesis_api.modules.node.service import create_node
+from synesis_api.modules.knowledge_bank.service import get_task_guidelines
+from synesis_schemas.main_server import GetGuidelinesRequest
 
 
 async def search_existing_models(ctx: RunContext[OrchestatorAgentDeps], search_query: QueryRequest) -> ModelQueryResult:
@@ -28,3 +31,7 @@ async def add_model_entity_to_project(ctx: RunContext[OrchestatorAgentDeps], mod
     ))
 
     return new_model_entity
+
+
+def get_task_guidelines_tool(task: Literal["time_series_forecasting"]) -> str:
+    return get_task_guidelines(GetGuidelinesRequest(task=task))

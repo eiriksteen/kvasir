@@ -11,6 +11,8 @@ from synesis_schemas.main_server import (
     ConversationInDB,
     ConversationCreate,
     ProjectGraph,
+    RunCreate,
+    RunSpecificationCreate
 )
 from synesis_api.modules.orchestrator.service import (
     create_conversation,
@@ -23,16 +25,17 @@ from synesis_api.modules.orchestrator.service import (
     get_chat_messages_with_context,
     get_conversation_by_id,
     update_conversation_name,
-    get_project_graph,
+    get_project_graph
 )
 from synesis_api.modules.orchestrator.agent import orchestrator_agent
 from synesis_api.modules.orchestrator.agent.output import (
     NoHandoffOutput,
-    AnalysisHandoffOutput,
-    DataIntegrationHandoffOutput,
-    PipelineHandoffOutput,
-    ModelIntegrationHandoffOutput
+    AnalysisRunDescriptionOutput,
+    DataIntegrationRunDescriptionOutput,
+    PipelineRunDescriptionOutput,
+    ModelIntegrationRunDescriptionOutput
 )
+from synesis_api.modules.runs.service import create_run
 from synesis_api.auth.service import get_current_user, user_owns_conversation
 from synesis_schemas.main_server import User
 from synesis_api.auth.service import oauth2_scheme
@@ -75,10 +78,10 @@ async def post_chat(
         f"The context is:\n\n{context_message}\n\n" +
         f"The project graph is:\n\n{project_graph.model_dump_json()}",
         output_type=[NoHandoffOutput,
-                     AnalysisHandoffOutput,
-                     PipelineHandoffOutput,
-                     DataIntegrationHandoffOutput,
-                     ModelIntegrationHandoffOutput],
+                     AnalysisRunDescriptionOutput,
+                     PipelineRunDescriptionOutput,
+                     DataIntegrationRunDescriptionOutput,
+                     ModelIntegrationRunDescriptionOutput],
         deps=OrchestatorAgentDeps(
             user_id=user.id,
             project_id=conversation_record.project_id
@@ -127,41 +130,64 @@ async def post_chat(
         await create_chat_message(conversation_record.id, "assistant", response_message.content, response_message.context_id, response_message.id)
         await create_chat_message_pydantic(conversation_record.id, [orchestrator_run.new_messages_json(), result.new_messages_json()])
 
+        print("THE ORCHESTRATOR RUN OUTPUT", orchestrator_run.output)
+
         if not isinstance(orchestrator_run.output, NoHandoffOutput):
 
-            if isinstance(orchestrator_run.output, AnalysisHandoffOutput):
+            if isinstance(orchestrator_run.output, AnalysisRunDescriptionOutput):
                 raise HTTPException(
                     status_code=501, detail="Analysis is not implemented yet")
 
-            client = MainServerClient(token)
+            # client = MainServerClient(token)
 
-            if isinstance(orchestrator_run.output, DataIntegrationHandoffOutput):
+            if isinstance(orchestrator_run.output, DataIntegrationRunDescriptionOutput):
+                await create_run(
+                    user.id,
+                    RunCreate(
+                        type="data_integration",
+                        project_id=conversation_record.project_id,
+                        conversation_id=conversation_record.id,
+                        data_sources_in_run=orchestrator_run.output.data_source_ids,
+                        datasets_in_run=orchestrator_run.output.dataset_ids,
+                        spec=RunSpecificationCreate(
+                            run_name=orchestrator_run.output.run_name,
+                            plan_and_deliverable_description_for_agent=orchestrator_run.output.plan_and_deliverable_description_for_agent,
+                            plan_and_deliverable_description_for_user=orchestrator_run.output.plan_and_deliverable_description_for_user,
+                            questions_for_user=orchestrator_run.output.questions_for_user)
+                    ))
 
-                await post_run_data_integration(client, RunDataIntegrationAgentRequest(
-                    project_id=conversation_record.project_id,
-                    conversation_id=conversation_record.id,
-                    data_source_ids=orchestrator_run.output.data_source_ids,
-                    prompt_content=orchestrator_run.output.deliverable_description
-                ))
+            elif isinstance(orchestrator_run.output, PipelineRunDescriptionOutput):
+                await create_run(
+                    user.id,
+                    RunCreate(
+                        type="pipeline",
+                        project_id=conversation_record.project_id,
+                        conversation_id=conversation_record.id,
+                        datasets_in_run=orchestrator_run.output.input_dataset_ids,
+                        model_entities_in_run=orchestrator_run.output.input_model_entity_ids,
+                        spec=RunSpecificationCreate(
+                            run_name=orchestrator_run.output.run_name,
+                            plan_and_deliverable_description_for_agent=orchestrator_run.output.plan_and_deliverable_description_for_agent,
+                            plan_and_deliverable_description_for_user=orchestrator_run.output.plan_and_deliverable_description_for_user,
+                            questions_for_user=orchestrator_run.output.questions_for_user,
+                            configuration_defaults_description=orchestrator_run.output.configuration_defaults_description)
+                    ))
 
-            elif isinstance(orchestrator_run.output, PipelineHandoffOutput):
-
-                await post_run_pipeline_agent(client, RunPipelineAgentRequest(
-                    project_id=conversation_record.project_id,
-                    conversation_id=conversation_record.id,
-                    prompt_content=orchestrator_run.output.deliverable_description,
-                    input_dataset_ids=orchestrator_run.output.input_dataset_ids,
-                    input_model_entity_ids=orchestrator_run.output.input_model_entity_ids
-                ))
-
-            elif isinstance(orchestrator_run.output, ModelIntegrationHandoffOutput):
-
-                await post_run_model_integration(client, RunModelIntegrationAgentRequest(
-                    project_id=conversation_record.project_id,
-                    conversation_id=conversation_record.id,
-                    prompt_content=orchestrator_run.output.deliverable_description,
-                    public=prompt.creation_settings.public if prompt.creation_settings else False
-                ))
+            elif isinstance(orchestrator_run.output, ModelIntegrationRunDescriptionOutput):
+                await create_run(
+                    user.id,
+                    RunCreate(
+                        type="model_integration",
+                        project_id=conversation_record.project_id,
+                        conversation_id=conversation_record.id,
+                        spec=RunSpecificationCreate(
+                            run_name=orchestrator_run.output.run_name,
+                            plan_and_deliverable_description_for_agent=orchestrator_run.output.plan_and_deliverable_description_for_agent,
+                            plan_and_deliverable_description_for_user=orchestrator_run.output.plan_and_deliverable_description_for_user,
+                            questions_for_user=orchestrator_run.output.questions_for_user
+                        )
+                    )
+                )
 
         if is_new_conversation:
             name = await orchestrator_agent.run(

@@ -23,7 +23,7 @@ from project_server.app_secrets import (
     DATA_INTEGRATION_MODULE_TMP
 )
 
-TMP_FILENAME_SPLITTER = "_fn_"
+UUID_FILENAME_SPLITTER = "_fn_"
 
 
 @dataclass
@@ -56,109 +56,56 @@ class FileManager:
 
         return list((RAW_DATA_DIR / f"{file_id}").iterdir())[0]
 
-    def save_model_script(
-            self,
-            python_model_name: str,
-            script_content: str,
-            version: int,
-            setup_script_content: Optional[str] = None) -> ScriptStorage:
-
-        filename = f"{python_model_name}_v{version}.py"
-        file_path = MODELS_DIR / filename
-        file_path.write_text(script_content)
-
-        setup_file_path = None
-        if setup_script_content:
-            setup_file_path = MODELS_DIR / \
-                f"{python_model_name}_v{version}_setup.sh"
-            setup_file_path.write_text(setup_script_content)
-
-        module_path = f"{MODELS_MODULE}.{python_model_name}_v{version}"
-
-        return ScriptStorage(filename=filename, script_path=file_path, setup_script_path=setup_file_path, module_path=module_path)
-
-    def save_function_script(
-            self,
-            python_function_name: str,
-            script_content: str,
-            version: int,
-            setup_script_content: Optional[str] = None) -> ScriptStorage:
-
-        filename = f"{python_function_name}_v{version}.py"
-        file_path = FUNCTIONS_DIR / filename
-        file_path.write_text(script_content)
-
-        setup_file_path = None
-        if setup_script_content:
-            setup_file_path = FUNCTIONS_DIR / \
-                f"{python_function_name}_v{version}_setup.sh"
-            setup_file_path.write_text(setup_script_content)
-
-        module_path = f"{FUNCTIONS_MODULE}.{python_function_name}_v{version}"
-
-        return ScriptStorage(filename=filename, script_path=file_path, setup_script_path=setup_file_path, module_path=module_path)
-
-    def save_pipeline_script(self, python_function_name: str, script_content: str, setup_script_content: Optional[str] = None) -> ScriptStorage:
-        # We have a unique index on the function name, so we can use it to save the script
-        pipe_uuid = str(uuid.uuid4()).replace("-", "")
-        filename = f"{python_function_name}_{pipe_uuid}.py"
-        file_path = PIPELINES_DIR / filename
-        file_path.write_text(script_content)
-
-        setup_file_path = None
-        if setup_script_content:
-            setup_file_path = PIPELINES_DIR / \
-                f"{python_function_name}_{pipe_uuid}_setup.sh"
-            setup_file_path.write_text(setup_script_content)
-
-        module_path = f"{PIPELINES_MODULE}.{python_function_name}_{pipe_uuid}"
-
-        return ScriptStorage(filename=filename, script_path=file_path, setup_script_path=setup_file_path, module_path=module_path)
-
-    def save_data_integration_script(
-            self,
-            data_integration_id: uuid.UUID,
-            script_content: str,
-            setup_script_content: Optional[str] = None) -> ScriptStorage:
-
-        str_uuid = str(data_integration_id).replace("-", "")
-        filename = f"data_integration_{str_uuid}.py"
-        file_path = DATA_INTEGRATION_DIR / filename
-        file_path.write_text(script_content)
-
-        setup_file_path = None
-        if setup_script_content:
-            setup_file_path = DATA_INTEGRATION_DIR / \
-                f"data_integration_{str_uuid}_setup.sh"
-            setup_file_path.write_text(setup_script_content)
-
-        module_path = f"{DATA_INTEGRATION_MODULE}.data_integration_{str_uuid}"
-
-        return ScriptStorage(filename=filename, script_path=file_path, setup_script_path=setup_file_path, module_path=module_path)
-
-    def save_temporary_script(
+    def save_script(
             self,
             filename: str,
             script_content: str,
             script_type: Literal["function", "model", "pipeline", "data_integration"],
-            overwrite: bool = False
+            add_uuid: bool = False,
+            temporary: bool = False,
+            add_v1: bool = False,
+            increase_version_number: bool = False
     ) -> ScriptStorage:
 
         if script_type == "function":
-            base_dir = FUNCTIONS_DIR_TMP
-            base_module = FUNCTIONS_MODULE_TMP
+            base_dir = FUNCTIONS_DIR_TMP if temporary else FUNCTIONS_DIR
+            base_module = FUNCTIONS_MODULE_TMP if temporary else FUNCTIONS_MODULE
         elif script_type == "model":
-            base_dir = MODELS_DIR_TMP
-            base_module = MODELS_MODULE_TMP
+            base_dir = MODELS_DIR_TMP if temporary else MODELS_DIR
+            base_module = MODELS_MODULE_TMP if temporary else MODELS_MODULE
         elif script_type == "pipeline":
-            base_dir = PIPELINES_DIR_TMP
-            base_module = PIPELINES_MODULE_TMP
+            base_dir = PIPELINES_DIR_TMP if temporary else PIPELINES_DIR
+            base_module = PIPELINES_MODULE_TMP if temporary else PIPELINES_MODULE
         elif script_type == "data_integration":
-            base_dir = DATA_INTEGRATION_DIR_TMP
-            base_module = DATA_INTEGRATION_MODULE_TMP
+            base_dir = DATA_INTEGRATION_DIR_TMP if temporary else DATA_INTEGRATION_DIR
+            base_module = DATA_INTEGRATION_MODULE_TMP if temporary else DATA_INTEGRATION_MODULE
 
-        str_uuid = str(uuid.uuid4()).replace("-", "")
-        target_filename = filename if overwrite else f"id_{str_uuid}{TMP_FILENAME_SPLITTER}{filename}"
+        if add_v1:
+            assert ".py" in filename, "Filename must end with .py"
+            name, _ = filename.split(".py")
+            filename = f"{name}_v1.py"
+
+        if increase_version_number:
+            assert ".py" in filename, "Filename must end with .py"
+            name_with_version, _ = filename.split(".py")
+
+            try:
+                fname_underscore_split = name_with_version.split("_")
+                version_str = fname_underscore_split[-1]
+                version_num = int(version_str[1:])
+                name = "_".join(fname_underscore_split[:-1])
+            except Exception as e:
+                raise ValueError(
+                    f"Error extracting version number from filename: {filename}") from e
+
+            filename = f"{name}_v{version_num + 1}.py"
+
+        if add_uuid:
+            str_uuid = str(uuid.uuid4()).replace("-", "")
+            target_filename = f"id_{str_uuid}{UUID_FILENAME_SPLITTER}{filename}"
+        else:
+            target_filename = filename
+
         script_path = base_dir / target_filename
         script_path.write_text(script_content)
         # :-3 to remove the .py extension
@@ -166,42 +113,24 @@ class FileManager:
 
         return ScriptStorage(filename=target_filename, script_path=script_path, module_path=module_path)
 
-    def delete_temporary_script(self, filename_uuid: str, script_type: Literal["function", "model", "pipeline", "data_integration"]) -> None:
-        if script_type == "function":
-            base_dir = FUNCTIONS_DIR_TMP
-        elif script_type == "model":
-            base_dir = MODELS_DIR_TMP
-        elif script_type == "pipeline":
-            base_dir = PIPELINES_DIR_TMP
-        elif script_type == "data_integration":
-            base_dir = DATA_INTEGRATION_DIR_TMP
+    def delete_temporary_script(self, filename: str) -> None:
 
-        script_path = base_dir / filename_uuid
-        script_path.unlink()
+        for base_dir in [FUNCTIONS_DIR_TMP, MODELS_DIR_TMP, PIPELINES_DIR_TMP, DATA_INTEGRATION_DIR_TMP]:
+            script_path = base_dir / filename
+            if script_path.exists():
+                script_path.unlink()
 
     def clean_temporary_script(self, script_content: str) -> str:
         TMP_MODULES = [FUNCTIONS_MODULE_TMP, MODELS_MODULE_TMP,
                        PIPELINES_MODULE_TMP, DATA_INTEGRATION_MODULE_TMP]
         PROD_MODULES = [FUNCTIONS_MODULE, MODELS_MODULE,
                         PIPELINES_MODULE, DATA_INTEGRATION_MODULE]
-        script_lines = script_content.splitlines()
-        cleaned_lines = []
 
-        for line in script_lines:
+        for module_idx in range(len(TMP_MODULES)):
+            script_content = script_content.replace(
+                TMP_MODULES[module_idx], PROD_MODULES[module_idx])
 
-            idx = next((i for i, x in enumerate(TMP_MODULES) if x in line), -1)
-
-            if idx != -1:
-                module_components = line.split(".")
-                filename = module_components[-1]
-                filename_cleaned = filename.split(TMP_FILENAME_SPLITTER)[-1]
-                module_cleaned = (".".join(
-                    module_components[:-1]) + "." + filename_cleaned).replace(TMP_MODULES[idx], PROD_MODULES[idx])
-                cleaned_lines.append(module_cleaned)
-            else:
-                cleaned_lines.append(line)
-
-        return "\n".join(cleaned_lines)
+        return script_content
 
 
 file_manager = FileManager()

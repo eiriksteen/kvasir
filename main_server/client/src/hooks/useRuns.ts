@@ -6,6 +6,8 @@ import { SWRSubscriptionOptions } from "swr/subscription";
 import useSWRSubscription from "swr/subscription";
 import { SSE } from 'sse.js';
 import { snakeToCamelKeys } from "@/lib/utils";
+import { UUID } from "crypto";
+import useSWRMutation from "swr/mutation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -27,7 +29,7 @@ async function fetchRuns(token: string): Promise<Run[]> {
   return snakeToCamelKeys(data);
 } 
 
-async function fetchRunMessages(token: string, runId: string): Promise<RunMessageInDB[]> {
+async function fetchRunMessages(token: string, runId: UUID): Promise<RunMessageInDB[]> {
   const response = await fetch(`${API_URL}/runs/messages/${runId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -54,7 +56,7 @@ function createIncompleteRunsEventSource(token: string): SSE {
   });
 }
 
-function createRunMessagesEventSource(token: string, runId: string): SSE {
+function createRunMessagesEventSource(token: string, runId: UUID): SSE {
   return new SSE(`${API_URL}/runs/stream-messages/${runId}`, {
     method: 'GET',
     headers: {
@@ -62,6 +64,30 @@ function createRunMessagesEventSource(token: string, runId: string): SSE {
       'Content-Type': 'application/json'
     },
   });
+}
+
+
+
+
+
+export async function launchRun(token: string, runId: UUID): Promise<Run> {
+  const response = await fetch(`${API_URL}/runs/launch-run/${runId}`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to launch run', errorText);
+    throw new Error(`Failed to launch run: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+
 }
 
 
@@ -85,7 +111,6 @@ export const useRuns = () => {
   const { data: runState, mutate: mutateRunState } = useSWR(["runState"], {fallbackData: emptyRunState})
   const { mutate } = useSWRConfig()
 
-
   const { data: runs, mutate: mutateRuns } = useSWR(
     session ? "runs" : null, 
     () => fetchRuns(session ? session.APIToken.accessToken : ""), 
@@ -96,6 +121,26 @@ export const useRuns = () => {
           mutateRunState(newRunState, {revalidate: false});
         }
       }
+    }
+  )
+
+
+  const { trigger: triggerLaunchRun } = useSWRMutation(
+    session ? "runs" : null,
+    (_, { arg }: { arg: {runId: UUID} }) => launchRun(session ? session.APIToken.accessToken : "", arg.runId),
+    {
+      populateCache: (newRun) => {
+        // Replace run with newRun if run with same ID exists, else append newRun
+        if (runs) {
+          if (runs.some((run: Run) => run.id === newRun.id)) {
+            return runs.map((run: Run) => run.id === newRun.id ? newRun : run);
+          } else {
+            return [...runs, newRun];
+          }
+        }
+        return [newRun];
+      },
+      revalidate: false
     }
   )
 
@@ -155,31 +200,31 @@ export const useRuns = () => {
     }
   )
 
-  return { runs: runs || [], runState };
+  return { runs: runs || [], runState, triggerLaunchRun };
 };
 
 
 export const useRunsInConversation = (conversationId: string) => {
-  const { runs } = useRuns()
+  const { runs, triggerLaunchRun } = useRuns()
 
   const runsInConversation = useMemo(() => {
     return runs.filter((run: Run) => run.conversationId === conversationId)
   }, [runs, conversationId])
 
-  return { runsInConversation }
+  return { runsInConversation, triggerLaunchRun }
 }
 
-export const useRun = (runId: string) => {
-  const { runs } = useRuns()
+export const useRun = (runId: UUID) => {
+  const { runs, triggerLaunchRun } = useRuns()
 
   const run = useMemo(() => {
     return runs.find((run: Run) => run.id === runId)
   }, [runs, runId])
 
-  return { run }
+  return { run, triggerLaunchRun }
 }
 
-export const useRunMessages = (runId: string) => {
+export const useRunMessages = (runId: UUID) => {
   const { data: session } = useSession()
   const { run } = useRun(runId)
   const { data: runMessages, mutate: mutateRunMessages } = useSWR(session ? ["runMessages", runId] : null, () => fetchRunMessages(session ? session.APIToken.accessToken : "", runId))

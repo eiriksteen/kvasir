@@ -7,15 +7,11 @@ from project_server.worker import broker
 from project_server.agents.runner_base import RunnerBase
 from project_server.entity_manager import file_manager
 from project_server.client import (
-    post_data_integration_run_input,
-    post_data_integration_run_result,
     get_data_sources_by_ids,
     post_add_entity,
     post_create_node,
 )
 from synesis_schemas.main_server import (
-    DataIntegrationRunInputCreate,
-    DataIntegrationRunResultCreate,
     AddEntityToProject,
     FrontendNodeCreate,
     GetDataSourcesByIDsRequest
@@ -29,8 +25,8 @@ class DataIntegrationRunner(RunnerBase):
             user_id: str,
             project_id: uuid.UUID,
             conversation_id: uuid.UUID,
-            bearer_token: str,
-            run_id: uuid.UUID | None = None):
+            run_id: uuid.UUID,
+            bearer_token: str):
 
         super().__init__(
             agent=data_integration_agent,
@@ -51,12 +47,6 @@ class DataIntegrationRunner(RunnerBase):
         data_sources = await get_data_sources_by_ids(self.project_client, GetDataSourcesByIDsRequest(data_source_ids=data_source_ids))
         assert data_sources is not None, "No data sources found for the given IDs"
         await self._create_run_if_not_exists()
-
-        await post_data_integration_run_input(self.project_client, DataIntegrationRunInputCreate(
-            run_id=self.run_id,
-            target_dataset_description=prompt_content,
-            data_source_ids=data_source_ids
-        ))
 
         try:
             run = await self._run_agent(
@@ -80,17 +70,16 @@ class DataIntegrationRunner(RunnerBase):
 
     async def _save_results(self, output: DataIntegrationAgentOutputWithDatasetId) -> None:
 
-        python_code_path = file_manager.save_data_integration_script(
-            self.run_id,
-            output.code
+        file_manager.save_script(
+            f"data_integration_{self.run_id}.py",
+            output.code,
+            "data_integration",
+            add_uuid=False,
+            temporary=False,
+            add_v1=True
         )
 
-        await post_data_integration_run_result(self.project_client, DataIntegrationRunResultCreate(
-            run_id=self.run_id,
-            dataset_id=output.dataset_id,
-            code_explanation=output.code_explanation,
-            python_code_path=str(python_code_path)
-        ))
+        # TODO: deal with this
 
         await post_add_entity(self.project_client, AddEntityToProject(
             project_id=self.project_id,
@@ -110,6 +99,7 @@ async def run_data_integration_task(
         user_id: uuid.UUID,
         project_id: uuid.UUID,
         conversation_id: uuid.UUID,
+        run_id: uuid.UUID,
         data_source_ids: List[uuid.UUID],
         prompt_content: str,
         bearer_token: str):
@@ -118,6 +108,7 @@ async def run_data_integration_task(
         user_id,
         project_id,
         conversation_id,
+        run_id,
         bearer_token,
     )
 

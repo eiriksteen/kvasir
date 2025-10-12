@@ -4,6 +4,7 @@ from typing import Optional
 
 from project_server.entity_manager import file_manager, ScriptStorage
 from project_server.agents.model_integration.agent import model_integration_agent
+from project_server.agents.model_integration.deps import ModelIntegrationAgentDeps
 from project_server.agents.model_integration.prompt import MODEL_INTEGRATION_AGENT_SYSTEM_PROMPT
 from project_server.agents.model_integration.output import ModelDescription, ImplementationFeedbackOutput, SearchPypiPackagesOutput
 from project_server.app_secrets import MODEL_WEIGHTS_DIR
@@ -43,8 +44,8 @@ class ModelIntegrationAgentRunner(RunnerBase):
             user_id: str,
             project_id: uuid.UUID,
             conversation_id: uuid.UUID,
+            run_id: uuid.UUID,
             bearer_token: str,
-            run_id: Optional[uuid.UUID] = None,
             create_model_entity_on_completion: bool = True,
             public: bool = False
     ):
@@ -73,6 +74,7 @@ class ModelIntegrationAgentRunner(RunnerBase):
             search_query_run = await self._run_agent(
                 f"We must integrate a model based on the following prompt: '{prompt_content}'\n\nNow search for the pip package or github repo to use!",
                 output_type=SearchPypiPackagesOutput,
+                deps=ModelIntegrationAgentDeps(client=self.project_client)
             )
 
             await self._log_message(f"Searching for pypi packages: {search_query_run.output.package_names}", "result", write_to_db=True)
@@ -91,6 +93,7 @@ class ModelIntegrationAgentRunner(RunnerBase):
                 f"Here are the results from the search: {[r.model_dump_json() for r in pypi_search_results]}\n\n" +
                 "Pick a result and output its details!",
                 output_type=ModelSourceCreate,
+                deps=ModelIntegrationAgentDeps(client=self.project_client)
             )
 
             if type(model_source_selection_run.output) == PypiModelSourceCreate:
@@ -111,7 +114,8 @@ class ModelIntegrationAgentRunner(RunnerBase):
                 f"The source of the model is {model_source.model_dump_json()}\n" +
                 "Now, using provided tools or your own knowledge, create a detailed implementation spec for the model.\n" +
                 "The SWE agent will automatically be launched when you give your spec. Let us have it first implement training, and then inference after you have approved the training implementation.",
-                output_type=ModelDescription
+                output_type=ModelDescription,
+                deps=ModelIntegrationAgentDeps(client=self.project_client)
             )
 
             model_spec_output: ModelDescription = model_spec_run_result.output
@@ -172,6 +176,7 @@ class ModelIntegrationAgentRunner(RunnerBase):
                 feedback_run = await self._run_agent(
                     feedback_prompt,
                     output_type=ImplementationFeedbackOutput,
+                    deps=ModelIntegrationAgentDeps(client=self.project_client)
                 )
 
                 implementation_approved = feedback_run.output.approved
@@ -184,15 +189,22 @@ class ModelIntegrationAgentRunner(RunnerBase):
                 if implementation_approved:
                     await self._log_message("Implementation approved, saving model", "result", write_to_db=True)
 
-                    model_script = file_manager.save_model_script(
-                        model_spec_output.python_class_name,
+                    swe_result = swe_runner.get_final_output()
+
+                    model_script = file_manager.save_script(
+                        f"{model_spec_output.python_class_name}.py",
                         swe_result.implementation.main_script,
-                        0
+                        "model",
+                        add_uuid=True,
+                        temporary=False,
+                        add_v1=True
                     )
 
                     model_spec_run_final = await self._run_agent(
                         f"Now that the the implementation is approved, please output an updated spec to reflect any changes the SWE might have made to the spec during the implementation.\n\n",
-                        output_type=ModelDescription
+                        output_type=ModelDescription,
+                        deps=ModelIntegrationAgentDeps(
+                            client=self.project_client)
                     )
 
                     await self._save_results(model_spec_run_final.output, model_source.id, model_script)
@@ -259,6 +271,7 @@ async def run_model_integration_task(
         user_id: uuid.UUID,
         project_id: uuid.UUID,
         conversation_id: uuid.UUID,
+        run_id: uuid.UUID,
         prompt_content: str,
         bearer_token: str,
         public: bool,
@@ -268,6 +281,7 @@ async def run_model_integration_task(
         user_id=user_id,
         project_id=project_id,
         conversation_id=conversation_id,
+        run_id=run_id,
         bearer_token=bearer_token,
         public=public,
     )

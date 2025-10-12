@@ -1,9 +1,10 @@
 import uuid
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import List, Tuple
 
 from project_server.entity_manager import file_manager
 from project_server.agents.pipeline.agent import pipeline_agent
+from project_server.agents.pipeline.deps import PipelineAgentDeps
 from project_server.agents.pipeline.prompt import PIPELINE_AGENT_SYSTEM_PROMPT
 from project_server.agents.pipeline.output import (
     FunctionsInPipelineOutput,
@@ -14,7 +15,8 @@ from project_server.agents.pipeline.output import (
     SearchFunctionsOutput,
     PipelineImplementationSpec,
     ModelConfiguration,
-    FunctionUpdateOutput
+    FunctionUpdateOutput,
+    ModelUpdateOutput
 )
 from project_server.agents.swe.runner import SWEAgentRunner, SWEAgentOutput
 from project_server.agents.swe.deps import FunctionToInject, ModelToInject
@@ -29,7 +31,8 @@ from project_server.client import (
     get_model_entities_by_ids,
     post_function,
     post_update_function,
-    patch_model_entity_config
+    patch_model_entity_config,
+    post_update_model
 )
 from project_server.agents.runner_base import RunnerBase
 from project_server.agents.pipeline.sandbox_code import create_final_pipeline_script, create_test_code_from_spec
@@ -48,7 +51,8 @@ from synesis_schemas.main_server import (
     PipelineNodeCreate,
     PipelineGraphCreate,
     Dataset,
-    PipelineInDB
+    PipelineInDB,
+    ModelUpdateCreate
 )
 
 
@@ -59,10 +63,10 @@ class PipelineAgentRunner(RunnerBase):
             user_id: str,
             project_id: uuid.UUID,
             conversation_id: uuid.UUID,
+            run_id: uuid.UUID,
             bearer_token: str,
             input_dataset_ids: List[uuid.UUID],
-            input_model_entity_ids: List[uuid.UUID] = [],
-            run_id: Optional[uuid.UUID] = None):
+            input_model_entity_ids: List[uuid.UUID] = []):
 
         super().__init__(agent=pipeline_agent,
                          user_id=user_id,
@@ -87,9 +91,9 @@ class PipelineAgentRunner(RunnerBase):
             functions_to_use = await self._run_search_stage(prompt_content)
             await self._run_model_configuration_stage()
             _, pipeline_implementation = await self._run_pipeline_implementation_stage(functions_to_use)
-            new_functions, function_updates, pipeline_graph, final_spec = await self._run_pipeline_implementation_summary_stage()
+            new_functions, function_updates, model_updates, pipeline_graph, final_spec = await self._run_pipeline_implementation_summary_stage()
 
-            result = await self._save_results(functions_to_use, new_functions, final_spec, pipeline_implementation, function_updates, pipeline_graph)
+            result = await self._save_results(functions_to_use, new_functions, final_spec, pipeline_implementation, function_updates, model_updates, pipeline_graph)
             await self._complete_agent_run("Pipeline agent run completed")
 
             return result
@@ -114,7 +118,8 @@ class PipelineAgentRunner(RunnerBase):
             f"The input datasets are (pay attention to the df schema and head fields to understand the data you are working with):\n\n{[ds.model_dump_json() for ds in self.input_datasets]}\n\n" +
             f"The input model entities are:\n\n{[me.model_dump_json() for me in self.input_model_entities]}\n\n" +
             "Now search for any relevant functions! If the model functions suffice, you can output an empty list.",
-            output_type=SearchFunctionsOutput
+            output_type=SearchFunctionsOutput,
+            deps=PipelineAgentDeps(client=self.project_client)
         )
 
         search_output: SearchFunctionsOutput = search_run.output
@@ -128,8 +133,9 @@ class PipelineAgentRunner(RunnerBase):
 
         functions_to_use_run = await self._run_agent(
             f"The search results are:\n\n{search_response}\n\n" +
-            "Now determine which, if any, of the existing functions to use. Output the names (function definition name) of the functions to use. ",
-            output_type=FunctionsInPipelineOutput
+            "Now determine which, if any, of the existing functions to use. Output the python function names of the functions to use. ",
+            output_type=FunctionsInPipelineOutput,
+            deps=PipelineAgentDeps(client=self.project_client)
         )
 
         pipeline_output: FunctionsInPipelineOutput = functions_to_use_run.output
@@ -138,7 +144,7 @@ class PipelineAgentRunner(RunnerBase):
         if pipeline_output.existing_functions_to_use_names:
             for fn_name in pipeline_output.existing_functions_to_use_names:
                 existing_function = next(
-                    fn for query_result in search_response for fn in query_result.functions if fn.definition.name == fn_name
+                    fn for query_result in search_response for fn in query_result.functions if fn.python_function_name == fn_name
                 )
 
                 if not existing_function:
@@ -162,7 +168,8 @@ class PipelineAgentRunner(RunnerBase):
                 "Now, we must determine whether the fitted model configurations work with the pipeline requirements. " +
                 f"The fitted models and their configurations are: {'\n\n'.join([str({me.name: me.config}) for me in fitted_models])}" +
                 "Output True if the fitted models configurations work with the pipeline requirements, False otherwise.",
-                output_type=bool
+                output_type=bool,
+                deps=PipelineAgentDeps(client=self.project_client)
             )
 
             if not fitted_models_run.output:
@@ -179,10 +186,12 @@ class PipelineAgentRunner(RunnerBase):
 
             model_configurations_run = await self._run_agent(
                 "Now, we must determine the configurations for the unfitted models to enable using them in the pipeline. " +
+                "For the fixed parameters that should not be tuned, if the user has not provided a value, use reasonable default values which can be extracted through the get guidelines tool. " +
                 f"The unfitted models and their default configurations are: {'\n\n'.join(
                     [str({me.name: {'config': me.config}}) for me in models_unfitted])}" +
                 "Output the new configurations for each of the models.",
-                output_type=List[ModelConfiguration]
+                output_type=List[ModelConfiguration],
+                deps=PipelineAgentDeps(client=self.project_client)
             )
 
             assert len(model_configurations_run.output) == len(models_unfitted)
@@ -210,7 +219,8 @@ class PipelineAgentRunner(RunnerBase):
             "It is time to compose the final pipeline. " +
             "We will dispatch the software engineer agent to implement the pipeline. " +
             "Now provide a detailed implementation spec for the software engineer agent.",
-            output_type=submit_pipeline_spec_output
+            output_type=submit_pipeline_spec_output,
+            deps=PipelineAgentDeps(client=self.project_client)
         )
 
         def _extract_structure_ids_from_functions(functions: List[FunctionFull]) -> List[str]:
@@ -263,9 +273,8 @@ class PipelineAgentRunner(RunnerBase):
                 "I have been tasked to compose a data processing pipeline. For context, this is my full task description:\n\n" +
                 f"'{PIPELINE_AGENT_SYSTEM_PROMPT}'\n\n" +
                 f"Now I need you to implement the final pipeline. This is the spec :\n\n{pipeline_spec_run.output.model_dump_json()}\n\n" +
-                f"The functions available to you are:\n\n{'\n\n'.join([fn.model_dump_json() for fn in functions_to_use])}\n\n" +
-                f"The models available to you are:\n\n{'\n\n'.join([me.model_dump_json() for me in self.input_model_entities])}\n\n" +
                 "Use these functions. In case new ones are needed to build the pipeline, implement them. " +
+                "Define new files for the new functions. The main pipeline function should just wire together the inputs and outputs of the functions, not define new logic. " +
                 "Use the pipeline name in the spec to name the pipeline function. "
                 "Go!"
             )
@@ -291,7 +300,8 @@ class PipelineAgentRunner(RunnerBase):
 
                 feedback_run = await self._run_agent(
                     feedback_prompt,
-                    output_type=ImplementationFeedbackOutput
+                    output_type=ImplementationFeedbackOutput,
+                    deps=PipelineAgentDeps(client=self.project_client)
                 )
 
                 implementation_approved = feedback_run.output.approved
@@ -302,6 +312,7 @@ class PipelineAgentRunner(RunnerBase):
 
                 if implementation_approved:
                     swe_runner.delete_temporary_scripts()
+                    swe_output = swe_runner.get_final_output()
                     return pipeline_spec_run.output, swe_output
 
         except Exception as e:
@@ -310,33 +321,48 @@ class PipelineAgentRunner(RunnerBase):
 
     async def _run_pipeline_implementation_summary_stage(
         self
-    ) -> Tuple[List[FunctionImplementationSpec], List[FunctionUpdateCreate], PipelineGraphOutput, PipelineImplementationSpec]:
+    ) -> Tuple[List[FunctionImplementationSpec], List[FunctionUpdateCreate], List[ModelUpdateCreate], PipelineGraphOutput, PipelineImplementationSpec]:
         # Outputs the implementation summary
 
         new_functions_run = await self._run_agent(
-            "Now that the pipeline script has been approved, output information about which new functions have been created. "
-            "If no new functions have been created, output an empty list. The main function in the pipeline script should not be included here. ",
+            "Now that the pipeline script has been approved, output information about which new functions have been created. " +
+            "If no new functions have been created, output an empty list. The main function in the pipeline script should not be included here. " +
             "Go!",
-            output_type=List[FunctionImplementationSpec]
+            output_type=List[FunctionImplementationSpec],
+            deps=PipelineAgentDeps(client=self.project_client)
         )
 
         await self._log_message(
             f"New functions: {new_functions_run.output}", "result", write_to_db=True)
 
         updates_run = await self._run_agent(
-            "Now that the pipeline script has been approved, output information about which of the existing functions have been modified. "
+            "Now that the pipeline script has been approved, output information about which of the existing functions have been modified. " +
             "If no functions have been modified, output an empty list. " +
-            "NB: The definition_id points to the id of the function definition (not the function id).",
+            "NB: The definition_id points to the id of the function definition (not the function id). " +
             "Go!",
-            output_type=List[FunctionUpdateOutput]
+            output_type=List[FunctionUpdateOutput],
+            deps=PipelineAgentDeps(client=self.project_client)
         )
 
         await self._log_message(
             f"Function updates: {updates_run.output}", "result", write_to_db=True)
 
+        model_updates_run = await self._run_agent(
+            "Now that the pipeline script has been approved, output information about which of the existing models have been modified. " +
+            "If no models have been modified, output an empty list. " +
+            "NB: The definition_id points to the id of the model definition (not the model id). " +
+            "Go!",
+            output_type=List[ModelUpdateOutput],
+            deps=PipelineAgentDeps(client=self.project_client)
+        )
+
+        await self._log_message(
+            f"Model updates: {model_updates_run.output}", "result", write_to_db=True)
+
         graph_run = await self._run_agent(
             "Now, based on the code, output information about the computational graph of the pipeline. Go!",
-            output_type=PipelineGraphOutput
+            output_type=PipelineGraphOutput,
+            deps=PipelineAgentDeps(client=self.project_client)
         )
 
         await self._log_message(
@@ -344,10 +370,11 @@ class PipelineAgentRunner(RunnerBase):
 
         final_spec_run = await self._run_agent(
             "Now that you've documented the implementation, provide the final pipeline specification that reflects any changes made during implementation. This is the authoritative spec for what was actually built. Go!",
-            output_type=PipelineImplementationSpec
+            output_type=PipelineImplementationSpec,
+            deps=PipelineAgentDeps(client=self.project_client)
         )
 
-        return new_functions_run.output, updates_run.output, graph_run.output, final_spec_run.output
+        return new_functions_run.output, updates_run.output, model_updates_run.output, graph_run.output, final_spec_run.output
 
     def _get_new_functions_create(
         self,
@@ -359,14 +386,14 @@ class PipelineAgentRunner(RunnerBase):
 
         for fn_desc in new_functions:
             script = next(
-                (res.script for res in swe_output.implementation.new_scripts if res.filename[-len(fn_desc.filename):] == fn_desc.filename), None)
+                (res.script for res in swe_output.implementation.new_scripts if res.filename == fn_desc.filename), None)
 
             assert script is not None, f"Agent outputted a new script but no script for function {fn_desc.filename} found"
 
-            implementation_storage = file_manager.save_function_script(
-                fn_desc.python_function_name,
+            implementation_storage = file_manager.save_script(
+                fn_desc.filename,
                 script,
-                0
+                "function"
             )
 
             new_function = FunctionCreate(
@@ -396,13 +423,17 @@ class PipelineAgentRunner(RunnerBase):
             update = next(
                 (u for u in function_updates if u.definition_id == fn.definition.id), None)
             if update is not None:
-                new_script = next(
-                    (res.new_script for res in swe_output.implementation.modified_scripts if res.filename[-len(fn.filename):] == fn.filename), None)
+                new_script, new_filename = next(
+                    ((res.new_script, res.new_filename)
+                     for res in swe_output.implementation.modified_scripts if res.original_filename == fn.filename), (None, None))
 
                 assert new_script is not None, f"Agent outputted a modification but no new script for function {fn.filename} found"
 
-                implementation_storage = file_manager.save_function_script(
-                    fn.python_function_name, new_script, fn.version+1)
+                implementation_storage = file_manager.save_script(
+                    new_filename,
+                    new_script,
+                    "function"
+                )
 
                 functions_updated.append(FunctionUpdateCreate(
                     **update.model_dump(),
@@ -414,6 +445,42 @@ class PipelineAgentRunner(RunnerBase):
                 ))
 
         return functions_updated
+
+    def _get_model_updates_create(
+        self,
+        model_updates: List[ModelUpdateOutput],
+        models_used: List[ModelEntityWithModelDef],
+        swe_output: SWEAgentOutput
+    ) -> List[ModelUpdateCreate]:
+
+        models_updated = []
+
+        for model_entity in models_used:
+            update = next(
+                (u for u in model_updates if u.definition_id == model_entity.model.definition.id), None)
+            if update is not None:
+                new_script, new_filename = next(
+                    ((res.new_script, res.new_filename)
+                     for res in swe_output.implementation.modified_scripts if res.original_filename == model_entity.model.filename), (None, None))
+
+                assert new_script is not None, f"Agent outputted a modification but no new script for model {model_entity.model.filename} found"
+
+                implementation_storage = file_manager.save_script(
+                    new_filename,
+                    new_script,
+                    "model"
+                )
+
+                models_updated.append(ModelUpdateCreate(
+                    **update.model_dump(),
+                    updated_implementation_script_path=str(
+                        implementation_storage.script_path),
+                    updated_module_path=implementation_storage.module_path,
+                    updated_filename=Path(
+                        implementation_storage.script_path).name,
+                    model_entities_to_update=[model_entity.id]
+                ))
+        return models_updated
 
     def _graph_output_to_graph_create(
         self,
@@ -427,7 +494,7 @@ class PipelineAgentRunner(RunnerBase):
                 next(d for d in self.input_datasets if d.name == dataset_name).id for dataset_name in node.from_datasets
             ]
             from_function_ids = [
-                next(f for f in functions_used if f.definition.name == function_name).id for function_name in node.from_functions
+                next(f for f in functions_used if f.python_function_name == function_name).id for function_name in node.from_functions
             ]
             from_model_entity_ids = [
                 next(m for m in self.input_model_entities if m.name == model_entity_name).id for model_entity_name in node.from_model_entities
@@ -475,6 +542,7 @@ class PipelineAgentRunner(RunnerBase):
         final_pipeline_spec: PipelineImplementationSpec,
         pipeline_implementation: SWEAgentOutput,
         function_updates: List[FunctionUpdateOutput],
+        model_updates: List[ModelUpdateOutput],
         pipeline_graph: PipelineGraphOutput
     ) -> PipelineInDB:
         # TODO: Add validation to ensure the new scripts don't already exist
@@ -493,13 +561,22 @@ class PipelineAgentRunner(RunnerBase):
         for function_update in function_update_creates:
             await post_update_function(self.project_client, function_update)
 
+        model_update_creates = self._get_model_updates_create(
+            model_updates, self.input_model_entities, pipeline_implementation)
+
+        for model_update in model_update_creates:
+            await post_update_model(self.project_client, model_update)
+
         final_script = create_final_pipeline_script(
             pipeline_implementation.implementation.main_script, final_pipeline_spec, self.input_model_entities)
-        pipeline_script = file_manager.save_pipeline_script(
-            final_pipeline_spec.python_function_name, final_script)
+        pipeline_script = file_manager.save_script(
+            f"{final_pipeline_spec.python_function_name}.py", final_script, "pipeline", add_uuid=True, temporary=False)
 
-        computational_graph = self._graph_output_to_graph_create(
-            pipeline_graph, existing_functions + new_functions)
+        # computational_graph = self._graph_output_to_graph_create(
+        #     pipeline_graph, existing_functions + new_functions)
+
+        # TODO: Implement this
+        computational_graph = PipelineGraphCreate(nodes=[])
 
         pipeline_create = PipelineCreate(
             **final_pipeline_spec.model_dump(),
@@ -532,6 +609,7 @@ async def run_pipeline_agent_task(
         user_id: uuid.UUID,
         project_id: uuid.UUID,
         conversation_id: uuid.UUID,
+        run_id: uuid.UUID,
         prompt_content: str,
         bearer_token: str,
         input_dataset_ids: List[uuid.UUID],
@@ -542,9 +620,10 @@ async def run_pipeline_agent_task(
         user_id=user_id,
         project_id=project_id,
         conversation_id=conversation_id,
+        run_id=run_id,
         bearer_token=bearer_token,
         input_dataset_ids=input_dataset_ids,
-        input_model_entity_ids=input_model_entity_ids
+        input_model_entity_ids=input_model_entity_ids,
     )
 
     await runner(prompt_content)

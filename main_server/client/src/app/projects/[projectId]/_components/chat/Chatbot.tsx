@@ -285,7 +285,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                 if (timelineItem.type === 'message') {
                   return <ChatMessageBox key={`msg-${timelineItem.item.id}`} message={timelineItem.item} projectId={projectId} />;
                 } else {
-                  return <RunBox key={`run-${timelineItem.item.id}`} runId={timelineItem.item.id} />;
+                  return <RunBox key={`run-${timelineItem.item.id}`} runId={timelineItem.item.id} projectId={projectId} />;
                 }
               });
             })()}

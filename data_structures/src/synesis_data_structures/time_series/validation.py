@@ -13,7 +13,7 @@ from synesis_data_structures.time_series.df_dataclasses import (
 )
 
 
-def validate_dfs_structure(data_structure: Union[TimeSeriesStructure, TimeSeriesAggregationStructure]) -> None:
+def validate_object_group_structure(data_structure: Union[TimeSeriesStructure, TimeSeriesAggregationStructure]) -> None:
     """
     Validate a dataclass data structure.
 
@@ -60,99 +60,60 @@ def _validate_time_series_dataclass(data_structure: TimeSeriesStructure) -> None
             errors.append(
                 "Level 1 of MultiIndex must contain datetime objects")
 
-    for col in data_df.columns:
-        if not _is_snake_case(col):
+    # Validate entity metadata
+
+    if isinstance(metadata_df.index, pd.MultiIndex):
+        errors.append(
+            f"{ENTITY_METADATA_SECOND_LEVEL_ID} DataFrame must have single-level index")
+
+    data_entity_ids = set(data_df.index.get_level_values(0).unique())
+    metadata_entity_ids = set(metadata_df.index.astype(str))
+
+    for entity_id in data_entity_ids:
+        if entity_id not in metadata_entity_ids:
             errors.append(
-                f"Column '{col}' in {TIME_SERIES_DATA_SECOND_LEVEL_ID} should follow snake_case naming convention")
+                f"Entity ID '{entity_id}' in main data not found in metadata")
 
-    # Validate entity metadata if present
-    if metadata_df is not None and not metadata_df.empty:
-        if isinstance(metadata_df.index, pd.MultiIndex):
+    for entity_id in metadata_entity_ids:
+        if entity_id not in data_entity_ids:
             errors.append(
-                f"{ENTITY_METADATA_SECOND_LEVEL_ID} DataFrame must have single-level index")
+                f"Entity ID '{entity_id}' in metadata not found in main data")
 
-        data_entity_ids = set(data_df.index.get_level_values(0).unique())
-        metadata_entity_ids = set(metadata_df.index.astype(str))
+    # Validate required metadata columns
+    required_metadata_columns = ['num_timestamps', 'start_timestamp',
+                                 'end_timestamp', 'sampling_frequency', 'timezone']
+    missing_metadata_columns = [
+        col for col in required_metadata_columns if col not in metadata_df.columns]
+    if missing_metadata_columns:
+        errors.append(
+            f"Missing required columns in {ENTITY_METADATA_SECOND_LEVEL_ID}: {missing_metadata_columns}")
 
-        for entity_id in data_entity_ids:
-            if entity_id not in metadata_entity_ids:
+    # Validate sampling_frequency values
+    if 'sampling_frequency' in metadata_df.columns:
+        valid_frequencies = ['m', 'h', 'd', 'w', 'y', 'irr']
+        invalid_frequencies = metadata_df[~metadata_df['sampling_frequency'].isin(
+            valid_frequencies)]['sampling_frequency'].unique()
+        if len(invalid_frequencies) > 0:
+            errors.append(
+                f"Invalid sampling_frequency values in {ENTITY_METADATA_SECOND_LEVEL_ID}: {invalid_frequencies}. Must be one of {valid_frequencies}")
+
+    # Validate timestamp columns are datetime
+    for col in ['start_timestamp', 'end_timestamp']:
+        if col in metadata_df.columns:
+            if not pd.api.types.is_datetime64_any_dtype(metadata_df[col]):
                 errors.append(
-                    f"Entity ID '{entity_id}' in main data not found in metadata")
+                    f"Column '{col}' in {ENTITY_METADATA_SECOND_LEVEL_ID} must contain datetime objects")
 
-        for entity_id in metadata_entity_ids:
-            if entity_id not in data_entity_ids:
-                errors.append(
-                    f"Entity ID '{entity_id}' in metadata not found in main data")
-
-        for col in metadata_df.columns:
-            if not _is_snake_case(col):
-                errors.append(
-                    f"Column '{col}' in {ENTITY_METADATA_SECOND_LEVEL_ID} should follow snake_case naming convention")
+    # Validate num_timestamps is numeric
+    if 'num_timestamps' in metadata_df.columns:
+        if not pd.api.types.is_integer_dtype(metadata_df['num_timestamps']):
+            errors.append(
+                f"Column 'num_timestamps' in {ENTITY_METADATA_SECOND_LEVEL_ID} must be integer type")
 
     # Validate feature information if present
-    if feature_info_df is not None and not feature_info_df.empty:
-        if isinstance(feature_info_df.index, pd.MultiIndex):
-            errors.append(
-                f"{FEATURE_INFORMATION_SECOND_LEVEL_ID} DataFrame must have single-level index")
-
-        # Check that all data columns have corresponding feature information
-        data_columns = set(data_df.columns)
-        feature_names = set(feature_info_df.index.astype(str))
-
-        for col in data_columns:
-            if col not in feature_names:
-                errors.append(
-                    f"Feature '{col}' in {TIME_SERIES_DATA_SECOND_LEVEL_ID} not found in feature information")
-
-        # Validate required columns in feature information
-        required_columns = ['unit', 'description',
-                            'type', 'subtype', 'scale', 'source']
-        missing_columns = [
-            col for col in required_columns if col not in feature_info_df.columns]
-        if missing_columns:
-            errors.append(
-                f"Missing required columns in {FEATURE_INFORMATION_SECOND_LEVEL_ID}: {missing_columns}")
-
-        # Validate type values
-        if 'type' in feature_info_df.columns:
-            valid_types = ['numerical', 'categorical']
-            invalid_types = feature_info_df[~feature_info_df['type'].isin(
-                valid_types)]['type'].unique()
-            if len(invalid_types) > 0:
-                errors.append(
-                    f"Invalid type values in {FEATURE_INFORMATION_SECOND_LEVEL_ID}: {invalid_types}")
-
-        # Validate subtype values
-        if 'subtype' in feature_info_df.columns:
-            valid_subtypes = ['continuous', 'discrete']
-            invalid_subtypes = feature_info_df[~feature_info_df['subtype'].isin(
-                valid_subtypes)]['subtype'].unique()
-            if len(invalid_subtypes) > 0:
-                errors.append(
-                    f"Invalid subtype values in {FEATURE_INFORMATION_SECOND_LEVEL_ID}: {invalid_subtypes}")
-
-        # Validate scale values
-        if 'scale' in feature_info_df.columns:
-            valid_scales = ['ratio', 'interval', 'ordinal', 'nominal']
-            invalid_scales = feature_info_df[~feature_info_df['scale'].isin(
-                valid_scales)]['scale'].unique()
-            if len(invalid_scales) > 0:
-                errors.append(
-                    f"Invalid scale values in {FEATURE_INFORMATION_SECOND_LEVEL_ID}: {invalid_scales}")
-
-        # Validate source values
-        if 'source' in feature_info_df.columns:
-            valid_sources = ['data', 'metadata']
-            invalid_sources = feature_info_df[~feature_info_df['source'].isin(
-                valid_sources)]['source'].unique()
-            if len(invalid_sources) > 0:
-                errors.append(
-                    f"Invalid source values in {FEATURE_INFORMATION_SECOND_LEVEL_ID}: {invalid_sources}")
-
-        for col in feature_info_df.columns:
-            if not _is_snake_case(col):
-                errors.append(
-                    f"Column '{col}' in {FEATURE_INFORMATION_SECOND_LEVEL_ID} should follow snake_case naming convention")
+    data_columns = set(data_df.columns)
+    _validate_feature_information(
+        feature_info_df, data_columns, TIME_SERIES_DATA_SECOND_LEVEL_ID, errors)
 
     if errors:
         raise ValueError(f"TimeSeries validation failed: {'; '.join(errors)}")
@@ -180,11 +141,6 @@ def _validate_time_series_aggregation_dataclass(data_structure: TimeSeriesAggreg
     if not isinstance(outputs_df.index, pd.RangeIndex):
         errors.append(
             f"{TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID} DataFrame must have simple integer index")
-
-    for col in outputs_df.columns:
-        if not _is_snake_case(col):
-            errors.append(
-                f"Column '{col}' in {TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID} should follow snake_case naming convention")
 
     if len(outputs_df.columns) == 0:
         errors.append(
@@ -222,123 +178,129 @@ def _validate_time_series_aggregation_dataclass(data_structure: TimeSeriesAggreg
                     errors.append(
                         f"Column '{col}' in {TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID} must contain datetime objects")
 
-        for col in inputs_df.columns:
-            if not _is_snake_case(col):
-                errors.append(
-                    f"Column '{col}' in {TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID} should follow snake_case naming convention")
+    # Validate aggregation metadata
+    if isinstance(metadata_df.index, pd.MultiIndex):
+        errors.append(
+            f"{ENTITY_METADATA_SECOND_LEVEL_ID} DataFrame must have single-level index")
 
-    # Validate aggregation metadata if present
-    if metadata_df is not None and not metadata_df.empty:
-        if isinstance(metadata_df.index, pd.MultiIndex):
+    # Check that all aggregation IDs in outputs have corresponding metadata
+    if 'id' in outputs_df.columns:
+        output_agg_ids = set(outputs_df['id'].astype(str))
+        metadata_agg_ids = set(metadata_df.index.astype(str))
+
+        for agg_id in output_agg_ids:
+            if agg_id not in metadata_agg_ids:
+                errors.append(
+                    f"Aggregation ID '{agg_id}' in outputs not found in metadata")
+
+        for agg_id in metadata_agg_ids:
+            if agg_id not in output_agg_ids:
+                errors.append(
+                    f"Aggregation ID '{agg_id}' in metadata not found in outputs")
+
+        # Validate required metadata columns
+        required_metadata_columns = ['is_multi_series_computation']
+        missing_metadata_columns = [
+            col for col in required_metadata_columns if col not in metadata_df.columns]
+        if missing_metadata_columns:
             errors.append(
-                f"{ENTITY_METADATA_SECOND_LEVEL_ID} DataFrame must have single-level index")
+                f"Missing required columns in {ENTITY_METADATA_SECOND_LEVEL_ID}: {missing_metadata_columns}")
 
-        # Check that all aggregation IDs in outputs have corresponding metadata
-        if 'id' in outputs_df.columns:
-            output_agg_ids = set(outputs_df['id'].astype(str))
-            metadata_agg_ids = set(metadata_df.index.astype(str))
-
-            for agg_id in output_agg_ids:
-                if agg_id not in metadata_agg_ids:
-                    errors.append(
-                        f"Aggregation ID '{agg_id}' in outputs not found in metadata")
-
-            for agg_id in metadata_agg_ids:
-                if agg_id not in output_agg_ids:
-                    errors.append(
-                        f"Aggregation ID '{agg_id}' in metadata not found in outputs")
-
-        for col in metadata_df.columns:
-            if not _is_snake_case(col):
+        # Validate is_multi_series_computation is boolean
+        if 'is_multi_series_computation' in metadata_df.columns:
+            if not pd.api.types.is_bool_dtype(metadata_df['is_multi_series_computation']):
                 errors.append(
-                    f"Column '{col}' in {ENTITY_METADATA_SECOND_LEVEL_ID} should follow snake_case naming convention")
+                    f"Column 'is_multi_series_computation' in {ENTITY_METADATA_SECOND_LEVEL_ID} must be boolean type")
 
     # Validate feature information if present
-    if feature_info_df is not None and not feature_info_df.empty:
-        if isinstance(feature_info_df.index, pd.MultiIndex):
-            errors.append(
-                f"{FEATURE_INFORMATION_SECOND_LEVEL_ID} DataFrame must have single-level index")
-
-        # Check that all output columns have corresponding feature information
-        output_columns = set(
-            [col for col in outputs_df.columns if col != 'id'])
-        feature_names = set(feature_info_df.index.astype(str))
-
-        for col in output_columns:
-            if col not in feature_names:
-                errors.append(
-                    f"Feature '{col}' in {TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID} not found in feature information")
-
-        # Validate required columns in feature information
-        required_columns = ['unit', 'description',
-                            'type', 'subtype', 'scale', 'source']
-        missing_columns = [
-            col for col in required_columns if col not in feature_info_df.columns]
-        if missing_columns:
-            errors.append(
-                f"Missing required columns in {FEATURE_INFORMATION_SECOND_LEVEL_ID}: {missing_columns}")
-
-        # Validate type values
-        if 'type' in feature_info_df.columns:
-            valid_types = ['numerical', 'categorical']
-            invalid_types = feature_info_df[~feature_info_df['type'].isin(
-                valid_types)]['type'].unique()
-            if len(invalid_types) > 0:
-                errors.append(
-                    f"Invalid type values in {FEATURE_INFORMATION_SECOND_LEVEL_ID}: {invalid_types}")
-
-        # Validate subtype values
-        if 'subtype' in feature_info_df.columns:
-            valid_subtypes = ['continuous', 'discrete']
-            invalid_subtypes = feature_info_df[~feature_info_df['subtype'].isin(
-                valid_subtypes)]['subtype'].unique()
-            if len(invalid_subtypes) > 0:
-                errors.append(
-                    f"Invalid subtype values in {FEATURE_INFORMATION_SECOND_LEVEL_ID}: {invalid_subtypes}")
-
-        # Validate scale values
-        if 'scale' in feature_info_df.columns:
-            valid_scales = ['ratio', 'interval', 'ordinal', 'nominal']
-            invalid_scales = feature_info_df[~feature_info_df['scale'].isin(
-                valid_scales)]['scale'].unique()
-            if len(invalid_scales) > 0:
-                errors.append(
-                    f"Invalid scale values in {FEATURE_INFORMATION_SECOND_LEVEL_ID}: {invalid_scales}")
-
-        # Validate source values
-        if 'source' in feature_info_df.columns:
-            valid_sources = ['data', 'metadata']
-            invalid_sources = feature_info_df[~feature_info_df['source'].isin(
-                valid_sources)]['source'].unique()
-            if len(invalid_sources) > 0:
-                errors.append(
-                    f"Invalid source values in {FEATURE_INFORMATION_SECOND_LEVEL_ID}: {invalid_sources}")
-
-        for col in feature_info_df.columns:
-            if not _is_snake_case(col):
-                errors.append(
-                    f"Column '{col}' in {FEATURE_INFORMATION_SECOND_LEVEL_ID} should follow snake_case naming convention")
+    output_columns = set(
+        [col for col in outputs_df.columns if col != 'id'])
+    _validate_feature_information(
+        feature_info_df, output_columns, TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID, errors)
 
     if errors:
         raise ValueError(
             f"TimeSeriesAggregation validation failed: {'; '.join(errors)}")
 
 
-def _is_snake_case(text: str) -> bool:
-    """Check if a string follows snake_case naming convention."""
-    if not text or text.startswith('_') or text.endswith('_'):
-        return False
+def _validate_feature_information(
+    feature_info_df: pd.DataFrame,
+    expected_features: set,
+    source_df_name: str,
+    errors: list
+) -> None:
+    """
+    Validate feature information DataFrame structure and contents.
 
-    # Check for consecutive underscores
-    if '__' in text:
-        return False
+    Args:
+        feature_info_df: The feature information DataFrame to validate
+        expected_features: Set of feature names that should be present
+        source_df_name: Name of source DataFrame for error messages
+        errors: List to append error messages to
+    """
+    if isinstance(feature_info_df.index, pd.MultiIndex):
+        errors.append(
+            f"{FEATURE_INFORMATION_SECOND_LEVEL_ID} DataFrame must have single-level index")
 
-    # Check for uppercase letters (should be lowercase in snake_case)
-    if any(c.isupper() for c in text):
-        return False
+    # Validate index name
+    if feature_info_df.index.name != 'name':
+        errors.append(
+            f"{FEATURE_INFORMATION_SECOND_LEVEL_ID} DataFrame index must be named 'name', got: {feature_info_df.index.name}")
 
-    # Check for spaces or other non-alphanumeric characters except underscores
-    if any(c not in 'abcdefghijklmnopqrstuvwxyz0123456789_' for c in text.lower()):
-        return False
+    # Validate index dtype is string
+    if not pd.api.types.is_string_dtype(feature_info_df.index):
+        errors.append(
+            f"{FEATURE_INFORMATION_SECOND_LEVEL_ID} DataFrame index must be string type, got: {feature_info_df.index.dtype}")
 
-    return True
+    # Check that all expected features have corresponding feature information
+    feature_names = set(feature_info_df.index.astype(str))
+
+    for col in expected_features:
+        if col not in feature_names:
+            errors.append(
+                f"Feature '{col}' in {source_df_name} not found in feature information")
+
+    # Validate required columns in feature information
+    required_columns = ['unit', 'description',
+                        'type', 'subtype', 'scale', 'source']
+    missing_columns = [
+        col for col in required_columns if col not in feature_info_df.columns]
+    if missing_columns:
+        errors.append(
+            f"Missing required columns in {FEATURE_INFORMATION_SECOND_LEVEL_ID}: {missing_columns}")
+
+    # Validate type values
+    if 'type' in feature_info_df.columns:
+        valid_types = ['numerical', 'categorical']
+        invalid_types = feature_info_df[~feature_info_df['type'].isin(
+            valid_types)]['type'].unique()
+        if len(invalid_types) > 0:
+            errors.append(
+                f"Invalid type values in {FEATURE_INFORMATION_SECOND_LEVEL_ID}: {invalid_types}")
+
+    # Validate subtype values
+    if 'subtype' in feature_info_df.columns:
+        valid_subtypes = ['continuous', 'discrete']
+        invalid_subtypes = feature_info_df[~feature_info_df['subtype'].isin(
+            valid_subtypes)]['subtype'].unique()
+        if len(invalid_subtypes) > 0:
+            errors.append(
+                f"Invalid subtype values in {FEATURE_INFORMATION_SECOND_LEVEL_ID}: {invalid_subtypes}")
+
+    # Validate scale values
+    if 'scale' in feature_info_df.columns:
+        valid_scales = ['ratio', 'interval', 'ordinal', 'nominal']
+        invalid_scales = feature_info_df[~feature_info_df['scale'].isin(
+            valid_scales)]['scale'].unique()
+        if len(invalid_scales) > 0:
+            errors.append(
+                f"Invalid scale values in {FEATURE_INFORMATION_SECOND_LEVEL_ID}: {invalid_scales}")
+
+    # Validate source values
+    if 'source' in feature_info_df.columns:
+        valid_sources = ['data', 'metadata']
+        invalid_sources = feature_info_df[~feature_info_df['source'].isin(
+            valid_sources)]['source'].unique()
+        if len(invalid_sources) > 0:
+            errors.append(
+                f"Invalid source values in {FEATURE_INFORMATION_SECOND_LEVEL_ID}: {invalid_sources}")

@@ -89,32 +89,28 @@ async def create_pipeline(
             function_id=function_id,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
-        ) for function_id in pipeline_create.function_ids
+        ).model_dump() for function_id in pipeline_create.function_ids
     ]
 
     pipeline_input_object_group_from_dataset_records = []
     for group in pipeline_create.input_object_groups:
-        pipeline_input_object_group_from_dataset_obj = ObjectGroupInPipelineInDB(
+        pipeline_input_object_group_from_dataset_records.append(ObjectGroupInPipelineInDB(
             id=uuid.uuid4(),
             pipeline_id=pipeline_obj.id,
             **group.model_dump(),
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
-        )
-        pipeline_input_object_group_from_dataset_records.append(
-            pipeline_input_object_group_from_dataset_obj.model_dump())
+        ).model_dump())
 
     output_object_group_definition_records = []
     for group in pipeline_create.output_object_group_definitions:
-        pipeline_object_group_output_definition_obj = PipelineOutputObjectGroupDefinitionInDB(
+        output_object_group_definition_records.append(PipelineOutputObjectGroupDefinitionInDB(
             id=uuid.uuid4(),
             pipeline_id=pipeline_obj.id,
             **group.model_dump(),
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
-        )
-        output_object_group_definition_records.append(
-            pipeline_object_group_output_definition_obj.model_dump())
+        ).model_dump())
 
     if len(fn_in_pipeline_records) > 0:
         await execute(insert(function_in_pipeline).values(fn_in_pipeline_records), commit_after=True)

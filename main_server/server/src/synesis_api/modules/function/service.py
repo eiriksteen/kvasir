@@ -40,10 +40,6 @@ async def create_function(function_create: FunctionCreate) -> FunctionFull:
         newest_update_description="First version",
         definition_id=function_definition_obj.id,
         version=1,
-        implementation_script_path=str(
-            function_create.implementation_script_path),
-        setup_script_path=str(
-            function_create.setup_script_path) if function_create.setup_script_path else None,
         embedding=embedding,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
@@ -73,6 +69,7 @@ async def create_function(function_create: FunctionCreate) -> FunctionFull:
             id=uuid.uuid4(),
             function_id=function_obj.id,
             structure_id=output.structure_id,
+            output_entity_id_name=output.output_entity_id_name,
             name=output.name,
             description=output.description,
             created_at=datetime.now(timezone.utc),
@@ -143,6 +140,8 @@ async def update_function(function_update: FunctionUpdateCreate) -> FunctionFull
                 name=input.name,
                 description=input.description,
                 required=input.required,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
             ).model_dump() for input in function_update.input_object_groups_to_add
         ]
         await execute(insert(function_input_object_group_definition).values(input_object_group_definition_records), commit_after=True)
@@ -153,8 +152,11 @@ async def update_function(function_update: FunctionUpdateCreate) -> FunctionFull
                 id=uuid.uuid4(),
                 function_id=function_obj.id,
                 structure_id=output.structure_id,
+                output_entity_id_name=output.output_entity_id_name,
                 name=output.name,
                 description=output.description,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
             ).model_dump() for output in function_update.output_object_group_definitions_to_add
         ]
         await execute(insert(function_output_object_group_definition).values(output_object_group_definition_records), commit_after=True)

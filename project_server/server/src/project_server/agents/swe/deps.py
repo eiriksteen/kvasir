@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Set
 
+from project_server.client import ProjectClient
+
 
 @dataclass
 class FunctionToInject:
@@ -24,13 +26,15 @@ class ModelToInject:
 class SWEAgentDeps:
     cwd: str
     container_name: str
+    client: ProjectClient
     run_on_submit: bool = True
     run_pylint: bool = False
     history_cutoff_index: int = 1
     functions_injected: List[FunctionToInject] = field(default_factory=list)
     models_injected: List[ModelToInject] = field(default_factory=list)
     current_scripts: Dict[str, str] = field(default_factory=dict)
-    modified_scripts: Set[str] = field(default_factory=set)
+    modified_scripts_old_to_new_name: Dict[str, str] = field(
+        default_factory=dict)
     new_scripts: Set[str] = field(default_factory=set)
     input_scripts: Optional[Dict[str, str]] = None
     history_summary: Optional[str] = None

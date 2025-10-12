@@ -14,6 +14,8 @@ from synesis_schemas.main_server import (
     PipelineOutputObjectGroupDefinitionCreate,
     ObjectGroupInPipelineCreate,
     ModelEntityInPipelineCreate,
+    ModelFunctionInputObjectGroupDefinitionCreate,
+    ModelFunctionOutputObjectGroupDefinitionCreate,
 )
 
 
@@ -104,6 +106,24 @@ class FunctionUpdateOutput(BaseModel):
         List[FunctionInputObjectGroupDefinitionCreate]] = None
     output_object_group_definitions_to_add: Optional[
         List[FunctionOutputObjectGroupDefinitionCreate]] = None
+    input_object_groups_to_remove: Optional[List[uuid.UUID]] = None
+    output_object_group_definitions_to_remove: Optional[List[uuid.UUID]] = None
+
+
+class ModelUpdateOutput(BaseModel):
+    definition_id: uuid.UUID
+    updates_made_description: str
+    updated_python_class_name: Optional[str] = None
+    updated_description: Optional[str] = None
+    updated_docstring: Optional[str] = None
+    updated_setup_script_path: Optional[str] = None
+    updated_default_args: Optional[dict] = None
+    updated_args_schema: Optional[dict] = None
+    updated_output_variables_schema: Optional[dict] = None
+    input_object_groups_to_add: Optional[
+        List[ModelFunctionInputObjectGroupDefinitionCreate]] = None
+    output_object_group_definitions_to_add: Optional[
+        List[ModelFunctionOutputObjectGroupDefinitionCreate]] = None
     input_object_groups_to_remove: Optional[List[uuid.UUID]] = None
     output_object_group_definitions_to_remove: Optional[List[uuid.UUID]] = None
 

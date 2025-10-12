@@ -81,7 +81,6 @@ class PipelineManager:
             out_dict[variable_name] = group.data
 
         for model_entity in model_entities:
-
             if model_entity.id in weights_save_dirs:
                 model_entity.config["weights_save_dir"] = Path(
                     weights_save_dirs[model_entity.id])

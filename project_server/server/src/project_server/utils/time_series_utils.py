@@ -1,4 +1,5 @@
 import pytz
+import pandas as pd
 from datetime import datetime, tzinfo
 from typing import Literal
 
@@ -130,20 +131,17 @@ def timezone_str_to_tz_info(
     return pytz.timezone(timezone_str)
 
 
-def make_timezone_aware(dt: datetime, timezone_str: str) -> datetime:
-    """Convert a naive datetime to timezone-aware using the provided timezone string.
+def convert_datetime_to_target_tz(dt: datetime | None, target_df: pd.DataFrame) -> datetime | None:
+    df_tz = target_df.index.get_level_values(1).dtype.tz if hasattr(
+        target_df.index.get_level_values(1).dtype, 'tz') else None
 
-    Args:
-        dt: The datetime object to convert (may be naive)
-        timezone_str: The timezone string (e.g., 'UTC', 'America/New_York')
+    if dt is None:
+        return None
 
-    Returns:
-        Timezone-aware datetime object
-    """
-    if dt.tzinfo is not None:
-        # Already timezone-aware, return as-is
-        return dt
-
-    # Convert naive datetime to timezone-aware
-    tz = pytz.timezone(timezone_str)
-    return tz.localize(dt)
+    if df_tz is not None:
+        return dt.astimezone(df_tz)
+    else:
+        if dt.tzinfo is not None:
+            return dt.astimezone(pytz.UTC).replace(tzinfo=None)
+        else:
+            return dt

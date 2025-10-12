@@ -6,15 +6,15 @@ function sourceIsAboveTarget(sourceNode: FrontendNode, targetNode: FrontendNode)
 }
 
 function sourceIsToTheRightOfTarget(sourceNode: FrontendNode, targetNode: FrontendNode) {
-    return targetNode.xPosition + 200 < sourceNode.xPosition;
+    return targetNode.xPosition + 150 <= sourceNode.xPosition;
 }
 
 function sourceIsBelowTarget(sourceNode: FrontendNode, targetNode: FrontendNode) {
-    return sourceNode.yPosition > targetNode.yPosition;
+    return sourceNode.yPosition >= targetNode.yPosition;
 }
 
 function sourceIsToTheLeftOfTarget(sourceNode: FrontendNode, targetNode: FrontendNode) {
-    return sourceNode.xPosition < targetNode.xPosition - 200;
+    return sourceNode.xPosition < targetNode.xPosition - 150;
 }
 
 type Edge = {

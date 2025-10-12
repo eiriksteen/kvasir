@@ -13,8 +13,8 @@ from synesis_api.modules.data_sources.models import (
 )
 from synesis_api.modules.runs.models import (
     run, run_message, run_pydantic_message,
-    data_integration_run_input, data_integration_run_result,
-    data_source_in_run
+    data_source_in_run, dataset_in_run, model_entity_in_run, pipeline_in_run,
+    data_source_from_run, dataset_from_run, model_entity_from_run, pipeline_from_run
 )
 from synesis_api.modules.data_objects.models import (
     dataset, data_object, object_group,
@@ -73,8 +73,13 @@ __all__ = [
     run,
     run_message,
     run_pydantic_message,
-    data_integration_run_input,
-    data_integration_run_result,
+    dataset_in_run,
+    model_entity_in_run,
+    pipeline_in_run,
+    data_source_from_run,
+    dataset_from_run,
+    model_entity_from_run,
+    pipeline_from_run,
     data_source_in_run,
     data_source_analysis,
     feature_in_tabular_file,

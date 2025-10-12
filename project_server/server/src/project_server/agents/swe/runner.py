@@ -14,7 +14,7 @@ from project_server.agents.swe.output import (
     ConfigOutput
 )
 from project_server.agents.swe.deps import SWEAgentDeps, FunctionToInject, ModelToInject
-from project_server.utils.code_utils import run_shell_code_in_container
+from project_server.utils.code_utils import run_shell_code_in_container, add_line_numbers_to_script
 from project_server.agents.runner_base import RunnerBase
 from project_server.entity_manager import file_manager
 
@@ -128,24 +128,7 @@ class SWEAgentRunner(RunnerBase):
                         await self._log_message(f"Config result: {self.config_result}", "result", write_to_db=True)
 
                 elif isinstance(run_result.output, ImplementationOutputFull):
-                    run_output: ImplementationOutputFull = run_result.output
-
-                    # Replace "functions_tmp" and "models_tmp" with "functions" and "models" in the script
-                    main_script = run_output.main_script
-                    main_script_updated = main_script.replace(
-                        "functions_tmp", "functions").replace(
-                        "models_tmp", "models")
-                    run_output.main_script = main_script_updated
-
-                    for new_script in run_output.new_scripts:
-                        new_script.script = file_manager.clean_temporary_script(
-                            new_script.script)
-
-                    for modified_script in run_output.modified_scripts:
-                        modified_script.new_script = file_manager.clean_temporary_script(
-                            modified_script.new_script)
-
-                    self.implementation_result = run_output
+                    self.implementation_result = run_result.output
 
                     if self.log:
                         await self._log_message(
@@ -176,14 +159,35 @@ class SWEAgentRunner(RunnerBase):
                 self.new_container_created = False
             raise e
 
+    def get_final_output(self) -> SWEAgentOutput:
+        implementation_output = self.implementation_result
+        implementation_output.main_script = file_manager.clean_temporary_script(
+            implementation_output.main_script)
+
+        for new_script in implementation_output.new_scripts:
+            new_script.script = file_manager.clean_temporary_script(
+                new_script.script)
+
+        for modified_script in implementation_output.modified_scripts:
+            modified_script.new_script = file_manager.clean_temporary_script(
+                modified_script.new_script)
+
+        self.implementation_result = implementation_output
+
+        return SWEAgentOutput(
+            implementation=implementation_output,
+            setup=self.setup_result if self.setup_result else None,
+            config=self.config_result if self.config_result else None,
+            plan=self.plan_result if self.plan_result else None
+        )
+
     def delete_temporary_scripts(self) -> None:
+        # Delete current scripts
         for filename in list(self.deps.current_scripts.keys()):
-            if filename in [m.filename for m in self.deps.models_injected]:
-                file_manager.delete_temporary_script(
-                    filename, "model")
-            else:
-                file_manager.delete_temporary_script(
-                    filename, "function")
+            file_manager.delete_temporary_script(filename)
+        # Delete old scripts
+        for filename in list(self.deps.modified_scripts_old_to_new_name.keys()):
+            file_manager.delete_temporary_script(filename)
 
     def _prepare_deps(self) -> SWEAgentDeps:
 
@@ -194,7 +198,8 @@ class SWEAgentRunner(RunnerBase):
             structure_ids_to_inject=self.structure_ids_to_inject,
             inject_synthetic_data_descriptions=self.inject_synthetic_data_descriptions,
             log=self.log,
-            modified_scripts=set(),
+            client=self.project_client,
+            modified_scripts_old_to_new_name={},
             input_scripts={},
             current_scripts={},
             new_scripts=set(),
@@ -209,8 +214,8 @@ class SWEAgentRunner(RunnerBase):
                 with open(function_def.script_path, "r") as f:
                     script_content = f.read()
 
-                function_storage = file_manager.save_temporary_script(
-                    function_def.filename, script_content, "function")
+                function_storage = file_manager.save_script(
+                    function_def.filename, script_content, "function", add_uuid=False, temporary=True)
 
                 functions_injected.append(FunctionToInject(
                     filename=function_storage.filename,
@@ -219,8 +224,10 @@ class SWEAgentRunner(RunnerBase):
                     module=function_storage.module_path
                 ))
 
-                deps.input_scripts[function_storage.filename] = script_content
-                deps.current_scripts[function_storage.filename] = script_content
+                deps.input_scripts[function_storage.filename] = add_line_numbers_to_script(
+                    script_content)
+                deps.current_scripts[function_storage.filename] = add_line_numbers_to_script(
+                    script_content)
 
             deps.functions_injected = functions_injected
 
@@ -233,8 +240,8 @@ class SWEAgentRunner(RunnerBase):
                 with open(model_def.script_path, "r") as f:
                     script_content = f.read()
 
-                model_storage = file_manager.save_temporary_script(
-                    model_def.filename, script_content, "model")
+                model_storage = file_manager.save_script(
+                    model_def.filename, script_content, "model", add_uuid=False, temporary=True)
 
                 models_injected.append(ModelToInject(
                     filename=model_storage.filename,
@@ -245,8 +252,10 @@ class SWEAgentRunner(RunnerBase):
                     inference_function_docstring=model_def.inference_function_docstring
                 ))
 
-                deps.input_scripts[model_storage.filename] = script_content
-                deps.current_scripts[model_storage.filename] = script_content
+                deps.input_scripts[model_storage.filename] = add_line_numbers_to_script(
+                    script_content)
+                deps.current_scripts[model_storage.filename] = add_line_numbers_to_script(
+                    script_content)
 
             deps.models_injected = models_injected
 

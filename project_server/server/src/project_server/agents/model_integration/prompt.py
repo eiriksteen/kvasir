@@ -37,6 +37,7 @@ You formulate the implementation requirements, oversee and approve the implement
    - Approve or reject implementations with specific feedback
    - Ensure solutions are production ready
    - If the SWE made reasonable modifications to the spec during implementation, approve them
+   - Allow the SWE to set its own default parameters! It will be provided a synthetic data description to use for the default parameters, and its code won't run unless these default parameters are set. 
 
 5. **Finalize Model Specification**
    - After approving the implementation, provide the final model specification
@@ -57,17 +58,17 @@ The model must be implemented as a single class with the following structure:
 **Class Template:**
 ```python
 class [ModelName]:
-    def __init__(self, model_config: ModelConfig):
-        self.model_config = model_config
+    def __init__(self, config: ModelConfig):
+        self.config = config
         # Initialize any model-specific attributes here
     
     def run_training(self, training_input: TrainingInput) -> TrainingOutput:
         # Training implementation
-        # Save model weights to self.model_config.weights_save_dir
+        # Save model weights to self.config.weights_save_dir
         pass
     
     def load_trained_model(self):
-        # Load trained model from self.model_config.weights_save_dir
+        # Load trained model from self.config.weights_save_dir
         # This method must be called before run_inference if using a pre-trained model
         pass
     
@@ -82,14 +83,14 @@ class [ModelName]:
 The `load_trained_model(self)` method is critical for the inference workflow:
 
 **Requirements:**
-- Takes no parameters (uses `self.model_config.weights_save_dir` to locate saved weights)
+- Takes no parameters (uses `self.config.weights_save_dir` to locate saved weights)
 - Loads the trained model weights/state from the weights directory
 - Must be compatible with the weights saved during `run_training`
 - Should only be called after training has been completed
 - Must be called before `run_inference` when using a pre-trained model
 
 **Typical Inference Flow:**
-1. Instantiate model with config: `model = ModelClass(model_config)`
+1. Instantiate model with config: `model = ModelClass(config)`
 2. Load trained weights: `model.load_trained_model()`
 3. Run inference: `output = model.run_inference(inference_input)`
 
@@ -101,7 +102,7 @@ For both training and inference, the whole method input should be contained by d
 
 Both methods must accept these parameters via their input dataclasses:
 
-### 1. Model Configuration Parameters (`model_config`)
+### 1. Model Configuration Parameters (`config`)
 - Define as a dataclass with exhaustive parameters, call it ModelConfig
 - Include all relevant configuration options, and assign default values to all parameters
 - NB: There is just one mandatory parameter: `weights_save_dir`
@@ -194,24 +195,24 @@ class InferenceInput:
    input_time_series: TimeSeriesStructure
 
 class MyModel:
-    def __init__(self, model_config: ModelConfig):
-        self.model_config = model_config
+    def __init__(self, config: ModelConfig):
+        self.config = config
         # Initialize model components
     
     def run_training(self, training_input: TrainingInput) -> TrainingOutput:
-        # Access config via self.model_config
+        # Access config via self.config
         # Access training args via training_input.function_args
         # Access data via training_input.input_time_series, etc.
-        # Save model to self.model_config.weights_save_dir
+        # Save model to self.config.weights_save_dir
         pass
     
     def load_trained_model(self):
-        # Load model from self.model_config.weights_save_dir
+        # Load model from self.config.weights_save_dir
         # This prepares the model for inference after training
         pass
     
     def run_inference(self, inference_input: InferenceInput) -> InferenceOutput:
-        # Access config via self.model_config
+        # Access config via self.config
         # Access inference args via inference_input.function_args
         # Access data via inference_input.input_time_series, etc.
         pass
@@ -298,7 +299,7 @@ Example - Training Method Docstring:
 run_training(training_input) -> TrainingOutput
 
 Trains the Prophet model on historical time series data. Fits seasonal components, trend, 
-and holiday effects. Automatically saves model weights to self.model_config.weights_save_dir.
+and holiday effects. Automatically saves model weights to self.config.weights_save_dir.
 
 Args:
   training_input (TrainingInput): Input dataclass containing:

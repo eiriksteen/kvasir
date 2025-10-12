@@ -15,11 +15,12 @@ def _create_input_object(
     if model_entities:
         for model_entity in model_entities:
             config = model_entity.config
-            config["weights_save_dir"] = Path(config["weights_save_dir"])
+            config["weights_save_dir"] = Path(
+                config["weights_save_dir"]) if "weights_save_dir" in config and config["weights_save_dir"] is not None else None
             config_str = repr(config).replace("PosixPath", "Path")
             model_entity_in_pipeline = next(
                 m for m in spec.input_model_entities if m.model_entity_id == model_entity.id)
-            model_inputs_def += f"    {model_entity_in_pipeline.code_variable_name} = {model_entity.model.python_class_name}(model_config=ModelConfig(**{config_str})),\n"
+            model_inputs_def += f"    {model_entity_in_pipeline.code_variable_name} = {model_entity.model.python_class_name}(config=ModelConfig(**{config_str})),\n"
 
     code = (
         "from project_server.entity_manager import LocalDatasetManager\n\n" +
@@ -32,6 +33,38 @@ def _create_input_object(
     return code
 
 
+def _create_object_group_validation_code(
+    out_obj_variable_name: str,
+    spec: PipelineImplementationSpec,
+    num_tab_indents: int = 0
+) -> tuple[str, str]:
+    """
+    Generate validation code for output object groups.
+
+    Args:
+        out_obj_variable_name: The variable name containing the output object
+        spec: The pipeline implementation specification
+        num_tab_indents: Number of tab indentations for validation calls (not imports)
+
+    Returns:
+        Tuple of (import_statement, validation_calls)
+    """
+    if not spec.output_object_group_definitions:
+        return "", ""
+
+    indent = "    " * num_tab_indents
+
+    import_statement = "from synesis_data_structures.time_series.validation import validate_object_group_structure\n"
+
+    validation_calls = []
+    for output_def in spec.output_object_group_definitions:
+        validation_calls.append(
+            f"{indent}validate_object_group_structure({out_obj_variable_name}.{output_def.name})"
+        )
+
+    return import_statement, "\n".join(validation_calls)
+
+
 def create_test_code_from_spec(
         bearer_token: str,
         spec: PipelineImplementationSpec,
@@ -39,13 +72,20 @@ def create_test_code_from_spec(
     input_obj_definition = _create_input_object(
         bearer_token, spec, model_entities)
 
+    validation_import, validation_calls = _create_object_group_validation_code(
+        "output_obj", spec, num_tab_indents=1)
+
     code = (
         "import asyncio\n" +
-        "from pathlib import Path\n\n" +
+        "from pathlib import Path\n" +
+        validation_import +
+        "\n" +
         "async def run_test():\n" +
         "\n".join(f"    {line}" for line in input_obj_definition.split("\n")) + "\n\n" +
         f"    output_obj = {spec.python_function_name}(input_obj)\n" +
-        "    print(output_obj)\n\n" +
+        "    print(output_obj)\n" +
+        (f"\n{validation_calls}\n" if validation_calls else "") +
+        "\n" +
         "asyncio.run(run_test())\n"
     )
 
@@ -70,7 +110,7 @@ def create_final_pipeline_script(
             f"from {me.model.module_path} import ModelConfig as ModelConfig{me.model.python_class_name}" for me in model_entities) + "\n"
 
         model_inputs_def = ", ".join(
-            [f"{m_in_pipeline.code_variable_name}={me.model.python_class_name}(model_config=ModelConfig{me.model.python_class_name}(**inputs['{m_in_pipeline.code_variable_name}_config']))"
+            [f"{m_in_pipeline.code_variable_name}={me.model.python_class_name}(config=ModelConfig{me.model.python_class_name}(**inputs['{m_in_pipeline.code_variable_name}_config']))"
              for me, m_in_pipeline in zip(model_entities, spec.input_model_entities)])
 
     input_object_group_def = ", ".join(

@@ -81,10 +81,10 @@ class TimeSeriesObjectGroupInDB(BaseModel):
     id: uuid.UUID
     time_series_df_schema: str
     time_series_df_head: str
-    entity_metadata_df_schema: str
-    entity_metadata_df_head: str
-    feature_information_df_schema: str
-    feature_information_df_head: str
+    entity_metadata_df_schema: Optional[str] = None
+    entity_metadata_df_head: Optional[str] = None
+    feature_information_df_schema: Optional[str] = None
+    feature_information_df_head: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -95,10 +95,10 @@ class TimeSeriesAggregationObjectGroupInDB(BaseModel):
     time_series_aggregation_outputs_df_head: str
     time_series_aggregation_inputs_df_schema: str
     time_series_aggregation_inputs_df_head: str
-    entity_metadata_df_schema: str
-    entity_metadata_df_head: str
-    feature_information_df_schema: str
-    feature_information_df_head: str
+    entity_metadata_df_schema: Optional[str] = None
+    entity_metadata_df_head: Optional[str] = None
+    feature_information_df_schema: Optional[str] = None
+    feature_information_df_head: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -208,10 +208,10 @@ class ObjectGroupCreate(BaseModel):
 class TimeSeriesObjectGroupCreate(ObjectGroupCreate):
     time_series_df_schema: str
     time_series_df_head: str
-    entity_metadata_df_schema: str
-    entity_metadata_df_head: str
-    feature_information_df_schema: str
-    feature_information_df_head: str
+    entity_metadata_df_schema: Optional[str] = None
+    entity_metadata_df_head: Optional[str] = None
+    feature_information_df_schema: Optional[str] = None
+    feature_information_df_head: Optional[str] = None
 
 
 class TimeSeriesAggregationObjectGroupCreate(ObjectGroupCreate):
@@ -219,10 +219,10 @@ class TimeSeriesAggregationObjectGroupCreate(ObjectGroupCreate):
     time_series_aggregation_outputs_df_head: str
     time_series_aggregation_inputs_df_schema: str
     time_series_aggregation_inputs_df_head: str
-    entity_metadata_df_schema: str
-    entity_metadata_df_head: str
-    feature_information_df_schema: str
-    feature_information_df_head: str
+    entity_metadata_df_schema: Optional[str] = None
+    entity_metadata_df_head: Optional[str] = None
+    feature_information_df_schema: Optional[str] = None
+    feature_information_df_head: Optional[str] = None
 
 
 class VariableGroupCreate(BaseModel):

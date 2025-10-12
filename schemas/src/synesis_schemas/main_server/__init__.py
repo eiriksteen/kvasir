@@ -61,7 +61,7 @@ from .pipeline import (
     PipelineOutputModelEntityInDB,
     PipelineRunStatusUpdate,
     PipelineRunDatasetOutputCreate,
-    PipelineRunModelEntityOutputCreate,
+    PipelineRunModelEntityOutputCreate
 )
 
 from .function import (
@@ -169,23 +169,20 @@ from .data_sources import (
 # Runs schemas
 from .runs import (
     RunInDB,
+    RunSpecificationInDB,
+    RunSpecificationCreate,
     RunMessageInDB,
     RunPydanticMessageInDB,
-    DataSourceInIntegrationRunInDB,
-    DataIntegrationRunInputInDB,
-    ModelIntegrationRunInputInDB,
-    DataIntegrationRunResultInDB,
-    ModelIntegrationRunResultInDB,
-    DataIntegrationRunInput,
-    RunInput,
-    RunResult,
+    RunEntityIds,
     Run,
     RunCreate,
     RunMessageCreate,
     RunMessageCreatePydantic,
-    DataIntegrationRunInputCreate,
-    DataIntegrationRunResultCreate,
     RunStatusUpdate,
+    DataSourceInRunInDB,
+    DatasetInRunInDB,
+    ModelEntityInRunInDB,
+    PipelineInRunInDB,
 )
 
 # Node schemas
@@ -219,7 +216,7 @@ from .orchestrator import (
     DatasetInGraph,
     PipelineInGraph,
     AnalysisInGraph,
-    CreationSettings,
+    CreationSettings
 )
 
 # Knowledge Bank schemas
@@ -229,4 +226,5 @@ from .knowledge_bank import (
     ModelQueryResult,
     QueryRequest,
     FunctionQueryResult,
+    GetGuidelinesRequest
 )

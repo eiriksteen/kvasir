@@ -9,6 +9,7 @@ class RunDataSourceAnalysisAgentRequest(BaseModel):
 
 
 class RunDataIntegrationAgentRequest(BaseModel):
+    run_id: UUID
     project_id: UUID
     conversation_id: UUID
     data_source_ids: List[UUID]
@@ -16,6 +17,7 @@ class RunDataIntegrationAgentRequest(BaseModel):
 
 
 class RunPipelineAgentRequest(BaseModel):
+    run_id: UUID
     project_id: UUID
     conversation_id: UUID
     prompt_content: str
@@ -24,6 +26,7 @@ class RunPipelineAgentRequest(BaseModel):
 
 
 class RunModelIntegrationAgentRequest(BaseModel):
+    run_id: UUID
     project_id: UUID
     conversation_id: UUID
     prompt_content: str

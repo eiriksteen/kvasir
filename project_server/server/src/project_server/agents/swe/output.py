@@ -35,8 +35,9 @@ class NewScriptOutput(BaseModel):
 
 
 class ModifiedScriptOutput(BaseModel):
-    filename: str
+    original_filename: str
     original_script: str
+    new_filename: str
     new_script: str
 
 
@@ -129,12 +130,11 @@ async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name:
         raise ModelRetry(
             f"Script {file_name} does not exist. The available scripts are: {list(ctx.deps.current_scripts.keys())}. To create a new script, call the write_script tool.")
 
-    script = ctx.deps.current_scripts[file_name]
+    current_scripts_runnable = {}
+    for f, s in ctx.deps.current_scripts.items():
+        current_scripts_runnable[f] = remove_line_numbers_from_script(s)
 
-    if not script:
-        raise ModelRetry("No script written")
-
-    script = remove_line_numbers_from_script(script)
+    script = current_scripts_runnable[file_name]
     script_with_test_code = f"{script}\n\n{ctx.deps.test_code_to_append_to_implementation}" if ctx.deps.test_code_to_append_to_implementation else script
 
     if ctx.deps.log:
@@ -153,20 +153,21 @@ async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name:
     new_scripts = []
     if ctx.deps.new_scripts:
         for new_script_name in ctx.deps.new_scripts:
-            new_script = ctx.deps.current_scripts[new_script_name]
+            new_script = current_scripts_runnable[new_script_name]
             new_scripts.append(NewScriptOutput(
                 filename=new_script_name, script=new_script))
 
     modified_scripts = []
-    if ctx.deps.input_scripts and ctx.deps.modified_scripts:
-        for modified_script_name in ctx.deps.modified_scripts:
-            if modified_script_name in ctx.deps.input_scripts:
-                original_script = ctx.deps.input_scripts[modified_script_name]
-                modified_script = ctx.deps.current_scripts[modified_script_name]
-                modified_scripts.append(ModifiedScriptOutput(
-                    filename=modified_script_name,
-                    original_script=original_script,
-                    new_script=modified_script
-                ))
+    if ctx.deps.input_scripts and ctx.deps.modified_scripts_old_to_new_name:
+        for original_script_name, new_script_name in ctx.deps.modified_scripts_old_to_new_name.items():
+            assert original_script_name in ctx.deps.input_scripts, f"Original script {original_script_name} which has been modified not found in input scripts"
+            original_script = ctx.deps.input_scripts[original_script_name]
+            modified_script = current_scripts_runnable[new_script_name]
+            modified_scripts.append(ModifiedScriptOutput(
+                original_filename=original_script_name,
+                new_filename=new_script_name,
+                original_script=original_script,
+                new_script=modified_script
+            ))
 
     return ImplementationOutputFull(**result.model_dump(), main_script=script, run_output=out, modified_scripts=modified_scripts, new_scripts=new_scripts)

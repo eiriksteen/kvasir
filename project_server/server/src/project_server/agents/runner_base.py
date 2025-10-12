@@ -40,8 +40,7 @@ class RunnerBase(ABC):
         self.run_id = run_id
         self.bearer_token = bearer_token
         self.log_to_parent_run = log_to_parent_run
-        self.project_client = ProjectClient()
-        self.project_client.set_bearer_token(bearer_token)
+        self.project_client = ProjectClient(bearer_token)
         self.redis_stream = get_redis()
 
     @abstractmethod
@@ -57,7 +56,9 @@ class RunnerBase(ABC):
             run = await post_run(self.project_client, RunCreate(
                 type=self.run_type,
                 conversation_id=self.conversation_id,
-                parent_run_id=self.parent_run_id
+                project_id=self.project_id,
+                parent_run_id=self.parent_run_id,
+                initial_status="running"
             ))
             self.run_id = run.id
 

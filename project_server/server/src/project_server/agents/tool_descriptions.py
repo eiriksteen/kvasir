@@ -11,4 +11,5 @@ TOOL_DESCRIPTIONS = {
     "execute_python_code": "Running Python code",
     "run_pylint": "Running Pylint",
     "final_result": "Submitting final result",
+    "read_script": "Reading script",
 }

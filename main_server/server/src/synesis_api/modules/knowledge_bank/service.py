@@ -1,13 +1,15 @@
 import uuid
 from sqlalchemy import select, or_, and_, func
+from typing import Literal
 
 from synesis_api.modules.function.service import get_functions
 from synesis_api.database.service import fetch_all
 from synesis_api.modules.function.models import function, function_definition
 from synesis_api.modules.model.models import model, model_definition
 from synesis_api.utils.rag_utils import embed
-from synesis_schemas.main_server import QueryRequest, FunctionQueryResult, ModelQueryResult
+from synesis_schemas.main_server import QueryRequest, FunctionQueryResult, ModelQueryResult, GetGuidelinesRequest
 from synesis_api.modules.model.service import get_models
+from synesis_api.modules.knowledge_bank.guidelines import TIME_SERIES_FORECASTING_GUIDELINES
 
 
 async def query_functions(query_request: QueryRequest, exclude_model_functions: bool = True) -> FunctionQueryResult:
@@ -47,12 +49,24 @@ async def query_models(user_id: uuid.UUID, query_request: QueryRequest) -> Model
 
     query_vector = (await embed([query_request.query]))[0]
 
+    # For each model definition id, get the max model version
+    max_version_subquery = select(model.c.definition_id, func.max(model.c.version).label(
+        "newest_version")).group_by(model.c.definition_id).subquery("max_version_subquery")
+    model_id_of_max_version_subquery = select(model.c.id).join(
+        max_version_subquery,
+        and_(model.c.definition_id == max_version_subquery.c.definition_id,
+             model.c.version == max_version_subquery.c.newest_version)
+    )
+
     model_query = select(
         model.c.id
     ).join(
         model_definition, model.c.definition_id == model_definition.c.id
     ).where(
-        or_(model.c.user_id == user_id, model_definition.c.public == True)
+        and_(
+            model.c.id.in_(model_id_of_max_version_subquery),
+            or_(model.c.user_id == user_id, model_definition.c.public == True)
+        )
     ).order_by(
         model.c.embedding.cosine_distance(query_vector)
     ).limit(query_request.k)
@@ -61,3 +75,10 @@ async def query_models(user_id: uuid.UUID, query_request: QueryRequest) -> Model
     models = await get_models([m["id"] for m in model_records])
 
     return ModelQueryResult(query_name=query_request.query_name, models=models)
+
+
+def get_task_guidelines(request: GetGuidelinesRequest) -> str:
+    if request.task == "time_series_forecasting":
+        return TIME_SERIES_FORECASTING_GUIDELINES
+    else:
+        raise ValueError(f"Unsupported task: {request.task}")

@@ -55,6 +55,7 @@ class FunctionOutputObjectGroupDefinitionInDB(BaseModel):
     name: str
     function_id: UUID
     structure_id: str
+    output_entity_id_name: str
     created_at: datetime
     updated_at: datetime
     description: str

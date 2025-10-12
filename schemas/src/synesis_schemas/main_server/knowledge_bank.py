@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Literal
 from pydantic import field_validator
 from pydantic import BaseModel
 
@@ -38,3 +38,7 @@ class SearchModelsRequest(BaseModel):
 class ModelQueryResult(BaseModel):
     query_name: str
     models: List[ModelFull]
+
+
+class GetGuidelinesRequest(BaseModel):
+    task: Literal["time_series_forecasting"]

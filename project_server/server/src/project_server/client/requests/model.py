@@ -19,8 +19,8 @@ async def post_model(client: ProjectClient, model_data: ModelCreate) -> ModelFul
     return ModelFull(**response.body)
 
 
-async def patch_model(client: ProjectClient, model_id: UUID, request: ModelUpdateCreate) -> ModelFull:
-    response = await client.send_request("patch", f"/model/model/{model_id}", json=request.model_dump(mode="json"))
+async def post_update_model(client: ProjectClient, request: ModelUpdateCreate) -> ModelFull:
+    response = await client.send_request("post", f"/model/model/update", json=request.model_dump(mode="json"))
     return ModelFull(**response.body)
 
 

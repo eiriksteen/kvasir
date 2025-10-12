@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse, Response
 from typing import Annotated, List
 from pydantic import TypeAdapter
 
-from synesis_api.auth.service import get_current_user, user_owns_runs
+from synesis_api.auth.service import get_current_user, user_owns_runs, oauth2_scheme
 from synesis_schemas.main_server import User
 from synesis_api.redis import get_redis
 from synesis_api.app_secrets import SSE_MAX_TIMEOUT, SSE_MIN_SLEEP_TIME
@@ -18,11 +18,7 @@ from synesis_schemas.main_server import (
     RunMessageCreate,
     RunStatusUpdate,
     RunMessageCreatePydantic,
-    DataIntegrationRunInputCreate,
-    DataIntegrationRunInputInDB,
     RunPydanticMessageInDB,
-    DataIntegrationRunResultCreate,
-    DataIntegrationRunResultInDB,
     RunInDB
 )
 from synesis_api.modules.runs.service import (
@@ -32,10 +28,10 @@ from synesis_api.modules.runs.service import (
     create_run_message,
     update_run_status,
     create_run_message_pydantic,
-    create_data_integration_run_input,
     get_run_messages_pydantic,
-    create_data_integration_run_result
+    launch_run
 )
+from synesis_api.client import MainServerClient
 
 
 router = APIRouter()
@@ -59,6 +55,19 @@ async def post_run(
 
     run = await create_run(user.id, request)
     return run
+
+
+@router.post("/launch-run/{run_id}")
+async def post_launch_run(
+        run_id: uuid.UUID,
+        user: Annotated[User, Depends(get_current_user)] = None,
+        token: str = Depends(oauth2_scheme)) -> RunInDB:
+
+    if not await user_owns_runs(user.id, [run_id]):
+        raise HTTPException(
+            status_code=403, detail="You do not have permission to access this run")
+
+    return await launch_run(MainServerClient(token), run_id)
 
 
 @router.patch("/run-status")
@@ -193,7 +202,7 @@ async def stream_incomplete_runs(
     async def stream_incomplete_runs():
         prev_run_ids = []
         while True:
-            incomplete_runs = await get_runs(user.id, only_running=True, exclude_swe=exclude_swe)
+            incomplete_runs = await get_runs(user.id, filter_status=["running", "pending"], exclude_swe=exclude_swe)
 
             # Include recently stopped runs to ensure we don't miss the associated state changes
             # Could optionally listen for when a run id is removed from this list in the frontend, then mutate all jobs, but this is more efficient
@@ -211,29 +220,3 @@ async def stream_incomplete_runs(
             await asyncio.sleep(SSE_MIN_SLEEP_TIME)
 
     return StreamingResponse(stream_incomplete_runs(), media_type="text/event-stream")
-
-
-@router.post("/data-integration-run-input")
-async def post_data_integration_run_input(
-    request: DataIntegrationRunInputCreate,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> DataIntegrationRunInputInDB:
-
-    if not user or not await user_owns_runs(user.id, [request.run_id]):
-        raise HTTPException(
-            status_code=403, detail="You do not have permission to access this run")
-
-    return await create_data_integration_run_input(request)
-
-
-@router.post("/data-integration-run-result")
-async def post_data_integration_run_result(
-    request: DataIntegrationRunResultCreate,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> DataIntegrationRunResultInDB:
-
-    if not user or not await user_owns_runs(user.id, [request.run_id]):
-        raise HTTPException(
-            status_code=403, detail="You do not have permission to access this run")
-
-    return await create_data_integration_run_result(request)

@@ -2,6 +2,17 @@ import { UUID } from "crypto";
 
 // DB Models
 
+export interface RunSpecificationInDB {
+  id: UUID;
+  runName: string;
+  planAndDeliverableDescriptionForUser: string;
+  planAndDeliverableDescriptionForAgent: string;
+  questionsForUser?: string | null;
+  configurationDefaultsDescription?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface RunInDB {
   id: UUID;
   userId: UUID;
@@ -22,43 +33,17 @@ export interface RunMessageInDB {
   createdAt: string;
 }
 
-export interface DataIntegrationRunInputInDB {
-  runId: UUID;
-  targetDatasetDescription: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ModelIntegrationRunInputInDB {
-  runId: UUID;
-  modelIdStr: string;
-  source: "github" | "pip" | "source_code";
-}
-
-export interface DataIntegrationRunResultInDB {
-  runId: UUID;
-  datasetId: UUID;
-  codeExplanation: string;
-  pythonCodePath: string;
-}
-
-export interface ModelIntegrationRunResultInDB {
-  runId: UUID;
-  modelId: UUID;
-}
-
 // API Models
 
-export interface DataIntegrationRunInput {
-  runId: UUID;
-  targetDatasetDescription: string;
+export interface RunEntityIds {
   dataSourceIds: UUID[];
+  datasetIds: UUID[];
+  modelEntityIds: UUID[];
+  pipelineIds: UUID[];
 }
 
-export type RunInput = DataIntegrationRunInput | ModelIntegrationRunInputInDB;
-export type RunResult = DataIntegrationRunResultInDB | ModelIntegrationRunResultInDB;
-
 export interface Run extends RunInDB {
-  input?: RunInput | null;
-  result?: RunResult | null;
+  spec?: RunSpecificationInDB | null;
+  inputs?: RunEntityIds | null;
+  outputs?: RunEntityIds | null;
 }

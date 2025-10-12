@@ -1,4 +1,5 @@
 from pydantic_ai import RunContext, ModelRetry
+from typing import Literal
 
 from project_server.utils.code_utils import (
     add_line_numbers_to_script,
@@ -9,9 +10,49 @@ from project_server.utils.code_utils import (
 )
 from project_server.agents.swe.deps import SWEAgentDeps
 from project_server.entity_manager.file_manager import file_manager
+from project_server.worker import logger
 
 
-def write_script(ctx: RunContext[SWEAgentDeps], script: str, file_name: str) -> str:
+script_type_literal = Literal["function",
+                              "model",
+                              "pipeline",
+                              "data_integration"]
+
+
+def _save_script_with_version_handling(
+        ctx: RunContext[SWEAgentDeps],
+        file_name: str,
+        script_content: str,
+        script_type: script_type_literal):
+
+    # Determine if this is the first modification of an input script
+    if file_name in ctx.deps.input_scripts and file_name not in ctx.deps.modified_scripts_old_to_new_name:
+        increase_version_number = True
+    else:
+        increase_version_number = False
+
+    # Save the script with appropriate version handling
+    storage = file_manager.save_script(
+        file_name,
+        script_content,
+        script_type,
+        temporary=True,
+        add_uuid=False,
+        increase_version_number=increase_version_number
+    )
+
+    # Update context dependencies when version number increases
+    if increase_version_number:
+        ctx.deps.modified_scripts_old_to_new_name[file_name] = storage.filename
+        ctx.deps.current_scripts.pop(file_name)
+
+    logger.info(
+        f"CURRENT SCRIPT NAMES ARE: {list(ctx.deps.current_scripts.keys())}")
+
+    return storage
+
+
+def write_script(ctx: RunContext[SWEAgentDeps], script: str, file_name: str, script_type: script_type_literal) -> str:
     """
     Write a new script to a file. 
     An UUID will be prepended to the filename to ensure it is unique. 
@@ -27,14 +68,23 @@ def write_script(ctx: RunContext[SWEAgentDeps], script: str, file_name: str) -> 
         str: The script with line numbers.
     """
 
+    if not file_name.endswith(".py"):
+        raise ModelRetry(
+            f"File name must end with .py. Got: {file_name}")
+
+    if "v1" in file_name:
+        raise ModelRetry(
+            f"File name must not contain v1. Will be added automatically.")
+
     updated_script = add_line_numbers_to_script(script)
-    file_storage = file_manager.save_temporary_script(
-        file_name, script, "function")
+    file_storage = file_manager.save_script(
+        file_name, script, script_type, add_uuid=True, temporary=True, add_v1=True)
 
     ctx.deps.new_scripts.add(file_storage.filename)
     ctx.deps.current_scripts[file_storage.filename] = updated_script
 
     out = f"NEW SCRIPT: \n\n <begin_script file_name={file_name}>\n\n {updated_script}\n\n <end_script>"
+    out += f"You can now import it in your code from the module path: {file_storage.module_path}"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
     out += f"\n\n The current scripts are: {list(ctx.deps.current_scripts.keys())}"
 
@@ -53,7 +103,14 @@ def read_script(ctx: RunContext[SWEAgentDeps], file_name: str) -> str:
     return out
 
 
-def replace_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, line_number_start: int, line_number_end: int, new_code: str) -> str:
+def replace_script_lines(
+    ctx: RunContext[SWEAgentDeps],
+    file_name: str,
+    script_type: script_type_literal,
+    line_number_start: int,
+    line_number_end: int,
+    new_code: str
+) -> str:
     """
     Replace lines in the current script with new code.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -82,25 +139,23 @@ def replace_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, line_num
         script_has_line_numbers=True
     )
 
-    ctx.deps.current_scripts[file_name] = updated_script
-
-    file_manager.save_temporary_script(
+    storage = _save_script_with_version_handling(
+        ctx,
         file_name,
         remove_line_numbers_from_script(updated_script),
-        "function",
-        overwrite=True
+        script_type
     )
 
-    if file_name in ctx.deps.input_scripts:
-        ctx.deps.modified_scripts.add(file_name)
+    ctx.deps.current_scripts[storage.filename] = updated_script
 
-    out = f"UPDATED SCRIPT: \n\n <begin_script file_name={file_name}>\n\n {updated_script}\n\n <end_script>"
-    out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
+    out = f"UPDATED SCRIPT: \n\n <begin_script file_name={storage.filename}>\n\n {updated_script}\n\n <end_script>"
+    out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.\n"
+    out += "Note that the version number may have increased in case of updates. "
 
     return out
 
 
-def add_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, new_code: str, start_line: int) -> str:
+def add_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, script_type: script_type_literal, new_code: str, start_line: int) -> str:
     """
     Add lines to the current script at the given line number.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -127,25 +182,22 @@ def add_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, new_code: st
         script_has_line_numbers=True
     )
 
-    ctx.deps.current_scripts[file_name] = updated_script
-
-    file_manager.save_temporary_script(
+    storage = _save_script_with_version_handling(
+        ctx,
         file_name,
         remove_line_numbers_from_script(updated_script),
-        "function",
-        overwrite=True
+        script_type
     )
 
-    if file_name in ctx.deps.input_scripts:
-        ctx.deps.modified_scripts.add(file_name)
+    ctx.deps.current_scripts[storage.filename] = updated_script
 
-    out = f"UPDATED SCRIPT: \n\n <begin_script file_name={file_name}>\n\n {updated_script}\n\n <end_script>"
+    out = f"UPDATED SCRIPT: \n\n <begin_script file_name={storage.filename}>\n\n {updated_script}\n\n <end_script>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
 
     return out
 
 
-def delete_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, line_number_start: int, line_number_end: int) -> str:
+def delete_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, script_type: script_type_literal, line_number_start: int, line_number_end: int) -> str:
     """
     Delete lines from the current script at the given line numbers.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -172,19 +224,16 @@ def delete_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, line_numb
         script_has_line_numbers=True
     )
 
-    ctx.deps.current_scripts[file_name] = updated_script
-
-    file_manager.save_temporary_script(
+    storage = _save_script_with_version_handling(
+        ctx,
         file_name,
         remove_line_numbers_from_script(updated_script),
-        "function",
-        overwrite=True
+        script_type
     )
 
-    if file_name in ctx.deps.input_scripts:
-        ctx.deps.modified_scripts.add(file_name)
+    ctx.deps.current_scripts[storage.filename] = updated_script
 
-    out = f"UPDATED SCRIPT: \n\n <begin_script file_name={file_name}>\n\n {updated_script}\n\n <end_script>"
+    out = f"UPDATED SCRIPT: \n\n <begin_script file_name={storage.filename}>\n\n {updated_script}\n\n <end_script>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
 
     return out

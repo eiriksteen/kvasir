@@ -10,7 +10,7 @@ from project_server.agents.swe.tools import (
     add_script_lines,
     delete_script_lines,
 )
-from project_server.agents.shared_tools import get_data_structures_overview_tool, get_data_structure_description_tool
+from project_server.agents.shared_tools import get_data_structures_overview_tool, get_data_structure_description_tool, get_task_guidelines_tool
 from project_server.agents.swe.history_processors import keep_only_most_recent_script
 from project_server.utils.pydanticai_utils import get_model
 from project_server.app_secrets import SANDBOX_PYPROJECT_PATH
@@ -36,7 +36,8 @@ swe_agent = Agent(
         add_script_lines,
         delete_script_lines,
         get_data_structures_overview_tool,
-        get_data_structure_description_tool
+        get_data_structure_description_tool,
+        get_task_guidelines_tool
     ],
     retries=10,
     history_processors=[

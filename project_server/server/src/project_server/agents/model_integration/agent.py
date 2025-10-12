@@ -5,7 +5,8 @@ from project_server.utils.pydanticai_utils import get_model
 from project_server.agents.model_integration.prompt import MODEL_INTEGRATION_AGENT_SYSTEM_PROMPT
 from project_server.agents.shared_tools import (
     get_data_structures_overview_tool,
-    get_data_structure_description_tool
+    get_data_structure_description_tool,
+    get_task_guidelines_tool
 )
 
 
@@ -17,6 +18,7 @@ model_integration_agent = Agent(
     system_prompt=MODEL_INTEGRATION_AGENT_SYSTEM_PROMPT,
     model_settings=ModelSettings(temperature=0.0),
     tools=[get_data_structures_overview_tool,
-           get_data_structure_description_tool],
+           get_data_structure_description_tool,
+           get_task_guidelines_tool],
     retries=3
 )

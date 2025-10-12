@@ -39,6 +39,7 @@ async def run_data_integration(
         user_id=token_data.user_id,
         project_id=request.project_id,
         conversation_id=request.conversation_id,
+        run_id=request.run_id,
         data_source_ids=request.data_source_ids,
         prompt_content=request.prompt_content,
         bearer_token=token_data.bearer_token
@@ -54,6 +55,7 @@ async def run_pipeline(
         user_id=token_data.user_id,
         project_id=request.project_id,
         conversation_id=request.conversation_id,
+        run_id=request.run_id,
         prompt_content=request.prompt_content,
         bearer_token=token_data.bearer_token,
         input_dataset_ids=request.input_dataset_ids,
@@ -70,6 +72,7 @@ async def run_model_integration(
         user_id=token_data.user_id,
         project_id=request.project_id,
         conversation_id=request.conversation_id,
+        run_id=request.run_id,
         prompt_content=request.prompt_content,
         bearer_token=token_data.bearer_token,
         public=request.public,

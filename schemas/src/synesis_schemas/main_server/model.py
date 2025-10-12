@@ -221,6 +221,7 @@ class ModelUpdateCreate(BaseModel):
     updated_training_function: Optional[ModelFunctionUpdateCreate] = None
     updated_inference_function: Optional[ModelFunctionUpdateCreate] = None
     updated_config_schema: Optional[dict] = None
+    model_entities_to_update: Optional[List[UUID]] = None
 
 
 class ModelEntityCreate(BaseModel):
