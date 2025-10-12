@@ -61,29 +61,12 @@ export default function FileInfoModal({
   const hasAnalysis = hasFullData && dataSource.analysis;
 
   return (
-    <>
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-        onClick={() => onClose()}
-      />
-      <div className="fixed inset-4 z-50 flex items-center justify-center">
-        <div className="w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden bg-white rounded-lg">
-          <div className="rounded-xl border-2 border-gray-300 shadow-xl h-full flex flex-col">
-            <div className="relative flex items-center p-4 border-b border-gray-300 flex-shrink-0">
-              <div className="ml-2">
-                <h3 className="text-sm font-mono tracking-wider text-gray-900">
-                  {dataSource.name}
-                </h3>
-              </div>
-              <button
-                onClick={() => onClose()}
-                className="absolute right-6 text-gray-500 hover:text-gray-700 transition-colors"
-                title="Close modal"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-4 flex-1 overflow-y-auto">
+    <div className="w-full h-full bg-white overflow-hidden">
+      <div className="bg-white h-full px-0 pb-2 relative">
+        <div className="flex flex-col h-full">
+          {/* Content Section */}
+          <div className="flex-1 min-h-0">
+            <div className="h-full p-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
                 {/* Left Column - File Stats and Content Description */}
                 <div className="lg:col-span-1 flex flex-col gap-4 h-full overflow-y-auto">
@@ -156,66 +139,59 @@ export default function FileInfoModal({
                       }
                     </div>
                   </div>
-
-
                 </div>
 
                 {/* Right Column - More Analysis Information */}
                 <div className="lg:col-span-1 flex flex-col gap-4 h-full overflow-y-auto">
-                    <>
-
-                        <div className={`border border-gray-300 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0 ${
-                          hasAnalysis && dataSource.analysis.qualityDescription
-                            ? 'bg-gradient-to-br from-gray-50 to-white'
-                            : 'bg-gray-100'
-                        }`}>
-                          <div className="flex items-center gap-3 flex-shrink-0">
-                            <div className="p-2 bg-gray-500/20 rounded-lg">
-                              <Shield size={18} className="text-gray-600" />
-                            </div>
-                            <h3 className="text-sm font-semibold text-gray-900">Quality Assessment</h3>
-                          </div>
-                          <div className="overflow-y-auto pr-2 flex-1 min-h-0">
-                            { hasAnalysis && dataSource.analysis.qualityDescription ?
-                              <p className="text-sm text-gray-600 leading-relaxed">{dataSource.analysis.qualityDescription}</p>
-                              :
-                              <div className="flex items-center justify-center h-full">
-                                <p className="text-sm text-gray-600 leading-relaxed text-center font-medium">Working on it...</p>
-                              </div>
-                            }
-                          </div>
+                  <div className={`border border-gray-300 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0 ${
+                    hasAnalysis && dataSource.analysis.qualityDescription
+                      ? 'bg-gradient-to-br from-gray-50 to-white'
+                      : 'bg-gray-100'
+                  }`}>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="p-2 bg-gray-500/20 rounded-lg">
+                        <Shield size={18} className="text-gray-600" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-gray-900">Quality Assessment</h3>
+                    </div>
+                    <div className="overflow-y-auto pr-2 flex-1 min-h-0">
+                      { hasAnalysis && dataSource.analysis.qualityDescription ?
+                        <p className="text-sm text-gray-600 leading-relaxed">{dataSource.analysis.qualityDescription}</p>
+                        :
+                        <div className="flex items-center justify-center h-full">
+                          <p className="text-sm text-gray-600 leading-relaxed text-center font-medium">Working on it...</p>
                         </div>
+                      }
+                    </div>
+                  </div>
 
-
-                        <div className={`border border-gray-300 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0 ${
-                          hasAnalysis && dataSource.analysis.cautions
-                            ? 'bg-gradient-to-br from-gray-50 to-white'
-                            : 'bg-gray-100'
-                        }`}>
-                          <div className="flex items-center gap-3 flex-shrink-0">
-                            <div className="p-2 bg-gray-500/20 rounded-lg">
-                              <Shield size={18} className="text-gray-600" />
-                            </div>
-                            <h3 className="text-sm font-semibold text-gray-900">Cautions</h3>
-                          </div>
-                          <div className="overflow-y-auto pr-2 flex-1 min-h-0">
-                            {hasAnalysis && dataSource.analysis.cautions ?
-                              <p className="text-sm text-gray-600 leading-relaxed">{dataSource.analysis.cautions}</p>
-                              :
-                              <div className="flex items-center justify-center h-full">
-                                <p className="text-sm text-gray-600 leading-relaxed text-center font-medium">Working on it...</p>
-                              </div>
-                            }
-                          </div>
+                  <div className={`border border-gray-300 rounded-xl p-4 space-y-3 flex flex-col flex-1 min-h-0 ${
+                    hasAnalysis && dataSource.analysis.cautions
+                      ? 'bg-gradient-to-br from-gray-50 to-white'
+                      : 'bg-gray-100'
+                  }`}>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="p-2 bg-gray-500/20 rounded-lg">
+                        <Shield size={18} className="text-gray-600" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-gray-900">Cautions</h3>
+                    </div>
+                    <div className="overflow-y-auto pr-2 flex-1 min-h-0">
+                      {hasAnalysis && dataSource.analysis.cautions ?
+                        <p className="text-sm text-gray-600 leading-relaxed">{dataSource.analysis.cautions}</p>
+                        :
+                        <div className="flex items-center justify-center h-full">
+                          <p className="text-sm text-gray-600 leading-relaxed text-center font-medium">Working on it...</p>
                         </div>
-                    </>
-
+                      }
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

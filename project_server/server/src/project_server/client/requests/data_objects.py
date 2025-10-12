@@ -11,7 +11,10 @@ from synesis_schemas.main_server import (
     ObjectGroupWithObjects,
     GetDatasetByIDsRequest,
     DataObjectWithParentGroup,
-    DataObject
+    DataObject,
+    AggregationObjectCreate,
+    AggregationObjectUpdate,
+    AggregationObjectInDB
 )
 
 
@@ -60,3 +63,18 @@ async def get_data_object(client: ProjectClient, object_id: UUID, include_object
         return DataObjectWithParentGroup(**response.body)
     else:
         return DataObject(**response.body)
+
+
+async def create_aggregation_object_request(client: ProjectClient, aggregation_object_create: AggregationObjectCreate) -> AggregationObjectInDB:
+    response = await client.send_request("post", "/data-objects/aggregation-object", json=aggregation_object_create.model_dump(mode="json"))
+    return AggregationObjectInDB(**response.body)
+
+
+async def update_aggregation_object_request(client: ProjectClient, aggregation_object_id: UUID, aggregation_object_update: AggregationObjectUpdate) -> AggregationObjectInDB:
+    response = await client.send_request("put", f"/data-objects/aggregation-object/{aggregation_object_id}", json=aggregation_object_update.model_dump(mode="json"))
+    return AggregationObjectInDB(**response.body)
+
+
+async def get_aggregation_object_by_analysis_result_id_request(client: ProjectClient, analysis_result_id: UUID) -> AggregationObjectInDB:
+    response = await client.send_request("get", f"/data-objects/aggregation-object/analysis-result/{analysis_result_id}")
+    return AggregationObjectInDB(**response.body)

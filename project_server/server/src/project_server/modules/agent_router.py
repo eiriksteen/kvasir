@@ -5,13 +5,15 @@ from synesis_schemas.project_server import (
     RunDataSourceAnalysisAgentRequest,
     RunDataIntegrationAgentRequest,
     RunPipelineAgentRequest,
-    RunModelIntegrationAgentRequest
+    RunModelIntegrationAgentRequest,
+    RunAnalysisRequest
 )
 from project_server.auth import TokenData, decode_token
 from project_server.agents.data_integration.runner import run_data_integration_task
 from project_server.agents.data_source_analysis.runner import run_data_source_analysis_task
 from project_server.agents.pipeline.runner import run_pipeline_agent_task
 from project_server.agents.model_integration.runner import run_model_integration_task
+from project_server.agents.analysis.runner import run_analysis_task
 
 
 router = APIRouter()
@@ -76,4 +78,15 @@ async def run_model_integration(
         prompt_content=request.prompt_content,
         bearer_token=token_data.bearer_token,
         public=request.public,
+    )
+
+
+@router.post("/run-analysis")
+async def run_analysis(
+        request: RunAnalysisRequest,
+        token_data: Annotated[TokenData, Depends(decode_token)] = None
+):
+    await run_analysis_task.kiq(
+        analysis_request=request,
+        bearer_token=token_data.bearer_token
     )

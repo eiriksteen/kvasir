@@ -197,3 +197,11 @@ async def delete_node(node_id: UUID) -> bool:
     result = await execute(query, commit_after=True)
 
     return result.rowcount > 0
+
+
+async def get_node_by_analysis_object_id(analysis_object_id: UUID) -> Optional[UUID]:
+    query = select(analysis_node).where(analysis_node.c.analysis_id == analysis_object_id)
+    analysis_node_row = await fetch_one(query)
+    if analysis_node_row:
+        return analysis_node_row["id"]
+    return None

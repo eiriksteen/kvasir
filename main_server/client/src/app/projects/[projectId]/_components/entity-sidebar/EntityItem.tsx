@@ -4,14 +4,14 @@ import React from 'react';
 import { Brain, BarChart3, Zap, Folder, Database } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { Pipeline } from '@/types/pipeline';
-import { AnalysisJobResultMetadata } from '@/types/analysis';
+import { AnalysisObjectSmall } from '@/types/analysis';
 import { ModelEntity } from '@/types/model';
 import { DataSource } from '@/types/data-sources';
 
 type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'model_entity' | 'data_source';
 
 interface EntityItemProps {
-    item: Dataset | AnalysisJobResultMetadata | Pipeline | ModelEntity | DataSource;
+    item: Dataset | AnalysisObjectSmall | Pipeline | ModelEntity | DataSource;
     type: ItemType;
     isInContext: boolean;
     onClick: () => void;

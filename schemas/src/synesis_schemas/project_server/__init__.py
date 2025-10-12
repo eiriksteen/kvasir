@@ -1,3 +1,3 @@
-from .agents import RunDataSourceAnalysisAgentRequest, RunDataIntegrationAgentRequest, RunPipelineAgentRequest, RunModelIntegrationAgentRequest
+from .agent import RunDataSourceAnalysisAgentRequest, RunDataIntegrationAgentRequest, RunPipelineAgentRequest, RunModelIntegrationAgentRequest, RunAnalysisRequest
 from .pipeline import RunPipelineRequest, PipelineRunStatusUpdate
 from .storage import FileSavedAPI

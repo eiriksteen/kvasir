@@ -9,7 +9,7 @@ from .code_utils import (
     replace_lines_in_script,
     add_lines_to_script_at_line,
     delete_lines_from_script,
-    run_pylint
+    run_pylint,
 )
 
 
@@ -26,5 +26,11 @@ from .file_utils import (
     create_file_in_container_with_content,
     remove_from_container,
     list_directory_contents,
-    resolve_path_from_directory_name
+    resolve_path_from_directory_name,
+    get_data_from_container_from_code
+)
+
+from .pydanticai_utils import (
+    get_model,
+    pydantic_ai_bytes_to_messages,
 )

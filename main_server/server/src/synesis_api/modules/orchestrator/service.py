@@ -26,7 +26,8 @@ from synesis_schemas.main_server import (
     Dataset,
     PipelineFull,
     ModelEntityWithModelDef,
-    DataSourceFull
+    DataSourceFull,
+    AnalysisObject,
 )
 
 from synesis_api.modules.orchestrator.models import (
@@ -46,6 +47,12 @@ from synesis_api.modules.data_objects.service import get_user_datasets, get_proj
 from synesis_api.modules.data_sources.service import get_data_sources, get_project_data_sources
 from synesis_api.modules.pipeline.service import get_user_pipelines_by_ids, get_project_pipelines
 from synesis_api.modules.model.service import get_user_model_entities_by_ids, get_project_model_entities
+from synesis_api.modules.analysis.service import (
+    get_simplified_overview_for_context_message,
+    get_dataset_ids_from_analysis_object,
+    get_data_source_ids_from_analysis_object,
+    get_analysis_objects_by_project_id
+)
 
 
 async def create_conversation(
@@ -258,7 +265,7 @@ async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
     if len(context.pipeline_ids) > 0:
         pipelines = await get_user_pipelines_by_ids(user_id, context.pipeline_ids)
     if len(context.analysis_ids) > 0:
-        # analyses = await get_user_analyses_by_ids(user_id, context.analysis_ids)
+        analyses = await get_simplified_overview_for_context_message(user_id, context.analysis_ids)
         analyses = []
     if len(context.model_entity_ids) > 0:
         model_entities = await get_user_model_entities_by_ids(user_id, context.model_entity_ids)
@@ -280,8 +287,8 @@ async def get_project_graph(user_id: uuid.UUID, project_id: uuid.UUID) -> Projec
     data_sources = await get_project_data_sources(user_id, project_id)
     datasets = await get_project_datasets(user_id, project_id)
     pipelines = await get_project_pipelines(user_id, project_id)
-    analyses = []  # await get_project_analyses(project_id)
     model_entities = await get_project_model_entities(user_id, project_id)
+    analyses = await get_analysis_objects_by_project_id(project_id)
 
     def _get_data_sources_in_graph(data_sources: List[DataSourceFull], datasets: List[Dataset]) -> List[DataSourceInGraph]:
         objs = []
@@ -337,8 +344,22 @@ async def get_project_graph(user_id: uuid.UUID, project_id: uuid.UUID) -> Projec
             ))
         return objs
 
-    def _get_analyses_in_graph() -> List[AnalysisInGraph]:
-        return []
+    def _get_analyses_in_graph(analysis_object_list: List[AnalysisObject]) -> List[AnalysisInGraph]:
+        objs = []
+        for analysis_object in analysis_object_list:
+            analysis_object_dataset_ids = get_dataset_ids_from_analysis_object(
+                analysis_object)
+            analysis_object_data_source_ids = get_data_source_ids_from_analysis_object(
+                analysis_object)
+
+            objs.append(AnalysisInGraph(
+                id=analysis_object.id,
+                name=analysis_object.name,
+                brief_description=analysis_object.description,
+                from_datasets=analysis_object_dataset_ids,
+                from_data_sources=analysis_object_data_source_ids,
+            ))
+        return objs
 
     def _get_model_entities_in_graph(model_entities: List[ModelEntityWithModelDef], pipelines: List[PipelineFull]) -> List[ModelEntityInGraph]:
         objs = []
@@ -357,7 +378,7 @@ async def get_project_graph(user_id: uuid.UUID, project_id: uuid.UUID) -> Projec
     datasets_in_graph = _get_datasets_in_graph(datasets, pipelines)
     pipelines_in_graph = _get_pipelines_in_graph(
         pipelines, datasets, model_entities)
-    analyses_in_graph = _get_analyses_in_graph()
+    analyses_in_graph = _get_analyses_in_graph(analyses)
     model_entities_in_graph = _get_model_entities_in_graph(
         model_entities, pipelines)
 

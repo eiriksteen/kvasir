@@ -33,7 +33,9 @@ from .requests.pipeline import (
 from .requests.orchestrator import (
     post_conversation,
     get_messages,
-    get_conversations
+    get_conversations,
+    create_chat_message_pydantic_request,
+    create_context_request
 )
 
 from .requests.node import (
@@ -57,7 +59,10 @@ from .requests.data_objects import (
     get_dataset,
     get_object_group,
     get_object_groups_in_dataset,
-    get_datasets_by_ids
+    get_datasets_by_ids,
+    create_aggregation_object_request,
+    update_aggregation_object_request,
+    get_aggregation_object_by_analysis_result_id_request
 )
 
 from .requests.project import (
@@ -92,6 +97,37 @@ from .requests.model import (
 from .requests.model_sources import (
     get_model_source,
     post_model_source
+)
+
+from .requests.analysis import (
+    get_analysis_objects_by_project_request,
+    get_analysis_object_request,
+    create_section_request,
+    update_section_request,
+    delete_section_request,
+    add_analysis_result_to_section_request,
+    get_data_for_analysis_result_request,
+    move_element_request,
+    update_analysis_result_request,
+    delete_analysis_result_request,
+    create_analysis_result_request,
+    get_analysis_result_by_id_request,
+    get_analysis_results_by_ids_request
+)
+
+from .requests.plots import (
+    create_plot,
+    update_plot,
+    delete_plot,
+    get_plot,
+    get_plots_by_analysis_result
+)
+
+from .requests.tables import (
+    create_table,
+    get_tables_by_analysis_result_id,
+    delete_table,
+    update_table
 )
 
 # Export all functions and classes
@@ -144,6 +180,8 @@ __all__ = [
     "post_conversation",
     "get_messages",
     "get_conversations",
+    "create_chat_message_pydantic_request",
+    "create_context_request",
 
     # Node functions
     "post_create_node",
@@ -165,6 +203,9 @@ __all__ = [
     "get_object_group",
     "get_object_groups_in_dataset",
     "get_time_series_data",
+    "create_aggregation_object_request",
+    "update_aggregation_object_request",
+    "get_aggregation_object_by_analysis_result_id_request",
 
     # Project functions
     "post_create_project",
@@ -176,5 +217,34 @@ __all__ = [
     "get_user_projects",
 
     # Knowledge bank functions
-    "post_search_functions"
+    "post_search_functions",
+
+    # Analysis functions
+    "get_analysis_objects_by_project_request",
+    "get_analysis_object_request",
+    "create_section_request",
+    "update_section_request",
+    "delete_section_request",
+    "add_analysis_result_to_section_request",
+    "get_data_for_analysis_result_request",
+    "move_element_request",
+    "update_analysis_result_request",
+    "delete_analysis_result_request",
+    "create_analysis_result_request",
+    "create_analysis_run_request",
+    "get_analysis_result_by_id_request",
+    "get_analysis_results_by_ids_request"
+
+    # Plots functions
+    "create_plot",
+    "update_plot",
+    "delete_plot",
+    "get_plot",
+    "get_plots_by_analysis_result_id"
+
+    # Tables functions
+    "create_table",
+    "get_tables_by_analysis_result_id",
+    "delete_table",
+    "update_table"
 ]

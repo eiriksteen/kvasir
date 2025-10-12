@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from synesis_api.auth.router import router as auth_router
 from synesis_api.modules.data_sources.router import router as data_sources_router
 from synesis_api.modules.orchestrator.router import router as orchestrator_router
-from synesis_api.modules.analysis.router import router as analysis_router
+from synesis_api.modules.analysis.router import analysis_router, plot_router, table_router
 from synesis_api.modules.data_objects.router import router as ontology_router
 from synesis_api.modules.project.router import router as project_router
 from synesis_api.modules.node.router import router as node_router
@@ -106,6 +106,14 @@ app.include_router(model_sources_router,
 app.include_router(function_router,
                    prefix="/function",
                    tags=["Function"])
+
+app.include_router(table_router,
+                   prefix="/analysis",
+                   tags=["Analysis"])
+
+app.include_router(plot_router,
+                   prefix="/analysis",
+                   tags=["Analysis"])
 
 
 @app.get("/")

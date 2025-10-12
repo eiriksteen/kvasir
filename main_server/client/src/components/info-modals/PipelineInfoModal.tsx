@@ -117,39 +117,35 @@ export default function PipelineInfoModal({
   }
 
   return (
-    <>
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-        onClick={() => onClose()}
-      />
-      <div className="fixed inset-4 z-50 flex items-center justify-center">
-        <div className="w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden bg-white rounded-lg">
-          <div className="rounded-xl border-2 border-gray-300 shadow-xl h-full flex flex-col">
-            <div className="relative flex items-center p-6 border-b border-gray-300 flex-shrink-0">
-              <div className="flex-1">
-                <h3 className="text-sm font-mono tracking-wider text-gray-900">
-                  {pipeline.name}
-                </h3>
-                {pipeline.description && (
-                  <p className="text-xs text-gray-600 mt-1">
-                    {pipeline.description} • Created on {formatDate(pipeline.createdAt)}
-                  </p>
-                )}
-              </div>
-
-              <button
-                onClick={() => onClose()}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
-                title="Close modal"
-              >
-                <X size={20} />
-              </button>
+    <div className="w-full h-full bg-white overflow-hidden">
+      <div className="bg-white h-full px-0 pb-2 relative">
+        <div className="flex flex-col h-full">
+          {/* Header Section */}
+          <div className="relative flex items-center p-6 border-b border-gray-300 flex-shrink-0">
+            <div className="flex-1">
+              <h3 className="text-sm font-mono tracking-wider text-gray-900">
+                {pipeline.name}
+              </h3>
+              {pipeline.description && (
+                <p className="text-xs text-gray-600 mt-1">
+                  {pipeline.description} • Created on {formatDate(pipeline.createdAt)}
+                </p>
+              )}
             </div>
 
+            <button
+              onClick={() => onClose()}
+              className="text-gray-500 hover:text-gray-700 transition-colors"
+              title="Close tab"
+            >
+              <X size={20} />
+            </button>
+          </div>
 
-            <div className="p-4 flex-1 overflow-hidden">
+          {/* Content Section */}
+          <div className="flex-1 min-h-0">
+            <div className="h-full p-4">
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-full">
-
                 {/* Function Chain Flow */}
                 <div className="lg:col-span-2 flex flex-col space-y-4 overflow-y-auto">
                   <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-300 rounded-xl p-4 flex flex-col flex-1 min-h-0">
@@ -166,7 +162,6 @@ export default function PipelineInfoModal({
                 </div>
 
                 <div className="lg:col-span-2 flex flex-col space-y-4">
-
                   {/* Runs */}
                   <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-300 rounded-xl p-4 flex flex-col flex-1 min-h-0">
                     <div className="flex items-center justify-between mb-4">
@@ -223,6 +218,6 @@ export default function PipelineInfoModal({
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

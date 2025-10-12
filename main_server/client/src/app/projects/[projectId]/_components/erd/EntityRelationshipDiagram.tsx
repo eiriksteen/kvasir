@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import {
     ReactFlow,
     Node,
@@ -15,19 +15,14 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useProject } from '@/hooks/useProject';
 import { useDatasets, useAnalysis, usePipelines } from '@/hooks';
-// import DataVisualizer from '@/components/data-visualization/DataVisualizer';
-// import AnalysisItem from '@/components/analysis/AnalysisItem';
 import { FrontendNode } from '@/types/node';
 import DatasetBox from '@/app/projects/[projectId]/_components/erd/DatasetBox';
 import AnalysisBox from '@/app/projects/[projectId]/_components/erd/AnalysisBox';
 import TransportEdge from '@/app/projects/[projectId]/_components/erd/TransportEdge';
 import { useProjectDataSources } from '@/hooks/useDataSources';
 import DataSourceBox from '@/app/projects/[projectId]/_components/erd/DataSourceBox';
-import { DataSource } from '@/types/data-sources';
 import FileInfoModal from '@/components/info-modals/FileInfoModal';
-import { Dataset } from '@/types/data-objects';
 import DatasetInfoModal from '@/components/info-modals/DatasetInfoModal';
-import { AnalysisJobResultMetadata } from '@/types/analysis';
 import PipelineBox from '@/app/projects/[projectId]/_components/erd/PipelineBox';
 import { Pipeline, PipelineRunInDB } from '@/types/pipeline';
 import PipelineInfoModal from '@/components/info-modals/PipelineInfoModal';
@@ -38,6 +33,11 @@ import ModelEntityBox from '@/app/projects/[projectId]/_components/erd/ModelEnti
 import ModelInfoModal from '@/components/info-modals/ModelInfoModal';
 import { useProjectGraph } from '@/hooks/useProjectGraph';
 import { computeBoxEdgeLocations } from '@/app/projects/[projectId]/_components/erd/computeBoxEdgeLocations';
+import { useTabContext } from '@/hooks/useTabContext';
+import AnalysisItem from '@/components/info-modals/analysis/AnalysisItem';
+import { DataSource } from '@/types/data-sources';
+import { Dataset } from '@/types/data-objects';
+import { AnalysisObjectSmall } from '@/types/analysis';
 
 const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradientClass: string; onClick: () => void } }) => (
   <>
@@ -76,7 +76,7 @@ const DatasetNodeWrapper = ({ data }: { data: { dataset: Dataset; onClick: () =>
 );
 
 // Wrapper component to adapt ReactFlow node props to Analysis component props
-const AnalysisNodeWrapper = ({ data }: { data: { analysis: AnalysisJobResultMetadata; onClick: () => void } }) => (
+const AnalysisNodeWrapper = ({ data }: { data: { analysis: AnalysisObjectSmall; onClick: () => void } }) => (
   <>
   <AnalysisBox
     analysis={data.analysis}
@@ -169,20 +169,31 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
   const { datasets } = useDatasets(projectId);
   const { pipelines, triggerRunPipeline, pipelineRuns } = usePipelines(projectId);
   const { modelEntities } = useModelEntities(projectId);
-  const { analysisJobResults } = useAnalysis();
+  const { analysisObjects } = useAnalysis(projectId);
   const { projectGraph } = useProjectGraph(projectId);
-
-  // const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
-  const [selectedDataSource, setSelectedDataSource] = useState<DataSource | null>(null);
-  const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null);
-  const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
-  const [selectedModelEntity, setSelectedModelEntity] = useState<ModelEntity | null>(null);
+  const { openTab, openTabs, activeTabKey, closeTabByKey, setProjectTabLabel } = useTabContext(projectId);
+  
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
+  // Update project tab label when project name changes
+  useEffect(() => {
+    if (project?.name) {
+      setProjectTabLabel('');
+    }
+  }, [project?.name, setProjectTabLabel]);
+
+  // Handler to open tabs
+  const handleOpenTab = useCallback(
+    ({ type, id, label }: { type: 'data_source' | 'dataset' | 'analysis' | 'pipeline' | 'model_entity'; id: string; label: string }) => {
+      openTab({ type, id, label, closable: true });
+    },
+    [openTab]
+  );
+
   // Memoize nodes
   const memoizedNodes = useMemo(() => {
-    if (!project || !datasets || !analysisJobResults || !dataSources || !pipelines || !modelEntities) {
+    if (!project || !datasets || !analysisObjects || !dataSources || !pipelines || !modelEntities) {
       return [];
     }
 
@@ -197,7 +208,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
           label: dataSource.name,
           id: frontendNode.dataSourceId,
           dataSource: dataSource,
-          onClick: () => setSelectedDataSource(dataSource)
+          onClick: () => handleOpenTab({ type: 'data_source', id: dataSource.id, label: dataSource.name })
         },
       } as Node;
     });
@@ -213,7 +224,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
           label: dataset.name,
           id: frontendNode.datasetId,
           dataset: dataset,
-          onClick: () => setSelectedDataset(dataset)
+          onClick: () => handleOpenTab({ type: 'dataset', id: dataset.id, label: dataset.name })
         },
       } as Node;
     });
@@ -230,7 +241,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
           label: pipeline.name,
           id: frontendNode.pipelineId,
           pipeline: pipeline,
-          onClick: () => setSelectedPipeline(pipeline),
+          onClick: () => handleOpenTab({ type: 'pipeline', id: pipeline.id, label: pipeline.name }),
           handleRunClick: () => triggerRunPipeline({projectId: projectId, pipelineId: pipeline.id}),
           pipelineRuns: pipelineRuns.filter((p: PipelineRunInDB) => p.pipelineId === pipeline.id)
         },
@@ -238,7 +249,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     });
 
     const analysisNodes = frontendNodes.map((frontendNode: FrontendNode) => {
-      const analysis = analysisJobResults.find(a => a.jobId === frontendNode.analysisId);
+      const analysis = analysisObjects.analysisObjects.find(a => a.id === frontendNode.analysisId);
       if (!analysis) return null;
       return {
         id: frontendNode.id,
@@ -248,7 +259,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
           label: analysis.name,
           id: frontendNode.analysisId,
           analysis: analysis,
-          onClick: () => {} // TODO: Implement analysis modal when available
+          onClick: () => handleOpenTab({ type: 'analysis', id: analysis.id, label: analysis.name })
         },
       } as Node;
     });
@@ -264,14 +275,14 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
           label: modelEntity.name,
           id: frontendNode.modelEntityId,
           modelEntity: modelEntity,
-          onClick: () => setSelectedModelEntity(modelEntity)
+          onClick: () => handleOpenTab({ type: 'model_entity', id: modelEntity.id, label: modelEntity.name })
         },
       } as Node;
     });
 
     return [...datasetNodes.filter(Boolean), ...analysisNodes.filter(Boolean), ...dataSourceNodes.filter(Boolean), ...pipelineNodes.filter(Boolean), ...modelEntityNodes.filter(Boolean)] as Node[];
 
-  }, [project, datasets, analysisJobResults, frontendNodes, dataSources, pipelines, modelEntities, triggerRunPipeline, projectId, pipelineRuns]);
+  }, [project, datasets, analysisObjects, frontendNodes, dataSources, pipelines, modelEntities, handleOpenTab, triggerRunPipeline, projectId, pipelineRuns]);
 
   // Memoize edges - uses current node positions from nodes state
   const memoizedEdges = useMemo(() => {
@@ -314,20 +325,39 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       )
       .filter(Boolean) as Edge[];
 
-    const datasetsToAnalysesEdges = projectGraph?.datasets
-      .flatMap(dataset =>
-        dataset.toAnalyses.map(analysisId => {
-          const sourceNodeId = frontendNodes.find(fn => fn.datasetId === dataset.id)?.id;
-          const targetNodeId = frontendNodes.find(fn => fn.analysisId === analysisId)?.id;
-          if (!sourceNodeId || !targetNodeId) return null;
-          const sourceNode = getNodeWithCurrentPosition(sourceNodeId);
-          const targetNode = getNodeWithCurrentPosition(targetNodeId);
-          if (!sourceNode || !targetNode) return null;
+    const datasetsToAnalysesEdges = projectGraph?.analyses
+      .flatMap(analysis =>
+        analysis.fromDatasets.map(datasetId => {
+          const sourceNode = frontendNodes.find(fn => fn.datasetId === datasetId);
+          const targetNode = frontendNodes.find(fn => fn.analysisId === analysis.id);
+          if (!sourceNode?.id || !targetNode?.id) return null;
           const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
           return {
-            id: String(`${dataset.id}->${analysisId}`),
-            source: sourceNodeId,
-            target: targetNodeId,
+            id: String(`${datasetId}->${analysis.id}`),
+            source: sourceNode.id,
+            target: targetNode.id,
+            type: 'default',
+            animated: true,
+            style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed },
+            sourceHandle: edgeLocation.from,
+            targetHandle: edgeLocation.to,
+          } as Edge;
+        })
+      )
+      .filter(Boolean) as Edge[];
+    
+    const dataSourcesToAnalysesEdges = projectGraph?.analyses
+      .flatMap(analysis =>
+        analysis.fromDataSources.map(dataSourceId => {
+          const sourceNode = frontendNodes.find(fn => fn.dataSourceId === dataSourceId);
+          const targetNode = frontendNodes.find(fn => fn.analysisId === analysis.id);
+          if (!sourceNode?.id || !targetNode?.id) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
+          return {
+            id: String(`${dataSourceId}->${analysis.id}`),
+            source: sourceNode.id,
+            target: targetNode.id,
             type: 'default',
             animated: true,
             style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
@@ -440,7 +470,14 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       .filter(Boolean) as Edge[];
 
 
-    return [...dataSourcesToDatasetsEdges, ...datasetsToAnalysesEdges, ...datasetsToPipelinesEdges, ...modelEntitiesToPipelinesEdges, ...pipelinesToDatasetsEdges, ...pipelinesToModelEntitiesEdges];
+    return [
+      ...dataSourcesToDatasetsEdges, 
+      ...datasetsToAnalysesEdges, 
+      ...dataSourcesToAnalysesEdges, 
+      ...datasetsToPipelinesEdges, 
+      ...modelEntitiesToPipelinesEdges, 
+      ...pipelinesToDatasetsEdges, 
+      ...pipelinesToModelEntitiesEdges];
   }, [project, frontendNodes, projectGraph, getEdgeColor, nodes]);
 
   // Only update nodes when memoizedNodes changes
@@ -473,54 +510,80 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     }
   }, [frontendNodes, updatePosition]);
 
+  // Tab content rendering
+  let tabContent: React.ReactNode = null;
+  const activeTab = openTabs.find(tab => tab.key === activeTabKey);
+  
+  if (activeTab?.type === 'project') {
+    tabContent = (
+      <div className="w-full h-full bg-white">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          fitView
+          onNodeDragStop={handleNodeDragStop}
+          className="reactflow-no-watermark"
+        >
+          {/* <Controls /> */}
+          {/* <MiniMap 
+            style={{
+              background: '#0a101c',
+              border: '1px solid #1d2d50'
+            }}
+            nodeColor="#3b82f6"
+            maskColor="rgba(0, 0, 0, 0.1)"
+          /> */}
+        </ReactFlow>
+      </div>
+    );
+  } 
+  else if (activeTab?.type === 'data_source') {
+    tabContent = (
+      <FileInfoModal
+        dataSourceId={activeTab.id as UUID}
+        onClose={() => closeTabByKey(activeTab.key)}
+      />
+    );
+  } 
+  else if (activeTab?.type === 'dataset') {
+    tabContent = (
+      <DatasetInfoModal
+        datasetId={activeTab.id as UUID}
+        onClose={() => closeTabByKey(activeTab.key)}
+        projectId={projectId}
+      />
+    );
+  } 
+  else if (activeTab?.type === 'analysis') {
+    tabContent = (
+      <AnalysisItem
+        analysisObjectId={activeTab.id as UUID}
+        projectId={projectId}
+        onClose={() => closeTabByKey(activeTab.key)}
+      />
+    );
+  } 
+  else if (activeTab?.type === 'pipeline') {
+    tabContent = (
+      <PipelineInfoModal
+        pipelineId={activeTab.id as UUID}
+        onClose={() => closeTabByKey(activeTab.key)}
+      />
+    );
+  } 
+  else if (activeTab?.type === 'model_entity') {
+    tabContent = (
+      <ModelInfoModal
+        modelEntityId={activeTab.id as UUID}
+        onClose={() => closeTabByKey(activeTab.key)}
+        projectId={projectId}
+      />
+    );
+  }
 
-  // These are needed to ensure we don't need to click esc twice to close the modals
-
-  const handleCloseDatasetModal = useCallback(() => {
-    setSelectedDataset(null);
-  }, []);
-
-  const handleCloseDataSourceModal = useCallback(() => {
-    setSelectedDataSource(null);
-  }, []);
-
-  const handleClosePipelineModal = useCallback(() => {
-    setSelectedPipeline(null);
-  }, []);
-
-  const handleCloseModelEntityModal = useCallback(() => {
-    setSelectedModelEntity(null);
-  }, []);
-
-  return (
-    <div className="w-full h-screen">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        fitView
-        onNodeDragStop={handleNodeDragStop}
-        className="reactflow-no-watermark"
-      >
-        {/* <Controls /> */}
-        {/* <MiniMap 
-          style={{
-            background: '#0a101c',
-            border: '1px solid #1d2d50'
-          }}
-          nodeColor="#3b82f6"
-          maskColor="rgba(0, 0, 0, 0.1)"
-        /> */}
-      </ReactFlow>
-      {/* {renderModal()} */}
-      {selectedDataSource && <FileInfoModal dataSourceId={selectedDataSource.id} onClose={handleCloseDataSourceModal} />}
-      {selectedDataset && <DatasetInfoModal datasetId={selectedDataset.id} onClose={handleCloseDatasetModal} projectId={projectId} />}
-      {selectedPipeline && <PipelineInfoModal pipelineId={selectedPipeline.id} onClose={handleClosePipelineModal} />}
-      {/* TODO: Add AnalysisInfoModal when available */}
-      {selectedModelEntity && <ModelInfoModal modelEntityId={selectedModelEntity.id} onClose={handleCloseModelEntityModal} projectId={projectId} />}
-    </div>
-  );
+  return tabContent;
 };

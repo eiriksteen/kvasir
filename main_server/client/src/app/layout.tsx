@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { getSession } from "@/lib/getSession";
 import PublicHeader from "@/components/headers/PublicHeader";
+import ErrorProviderWrapper from "@/components/ErrorProvider";
 
 
 const geistSans = Geist({
@@ -35,10 +36,12 @@ export default async function RootLayout({
       </head> */}
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}>
-        {!session && <PublicHeader />}
+        <ErrorProviderWrapper>
+          {!session && <PublicHeader />}
           <main>
             {children}
           </main>
+        </ErrorProviderWrapper>
       </body>
     </html>
   );

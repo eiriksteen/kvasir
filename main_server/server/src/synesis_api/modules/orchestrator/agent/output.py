@@ -7,24 +7,22 @@ class NoHandoffOutput(BaseModel):
     pass
 
 
-class AnalysisRunDescriptionOutput(BaseModel):
+class AnalysisHandoffOutput(BaseModel):
     run_name: str
-    plan_and_deliverable_description_for_user: str
-    plan_and_deliverable_description_for_agent: str
-    questions_for_user: Optional[str] = None
-    dataset_ids: List[uuid.UUID] = []
-    data_source_ids: List[uuid.UUID] = []
+    deliverable_description: str
+    dataset_ids: Optional[List[uuid.UUID]] = None
+    data_source_ids: Optional[List[uuid.UUID]] = None
 
     @model_validator(mode="after")
-    def validate_dataset_ids(self) -> "AnalysisRunDescriptionOutput":
-        if self.dataset_ids:
-            assert self.data_source_ids, "Data source IDs are required when dataset IDs are provided"
+    def validate_dataset_ids(self) -> "AnalysisHandoffOutput":
+        if self.dataset_ids is not None:
+            assert self.data_source_ids is not None, "Data source IDs are required when dataset IDs are provided"
         return self
 
     @model_validator(mode="after")
-    def validate_data_source_ids(self) -> "AnalysisRunDescriptionOutput":
-        if self.data_source_ids:
-            assert self.dataset_ids, "Dataset IDs are required when data source IDs are provided"
+    def validate_data_source_ids(self) -> "AnalysisHandoffOutput":
+        if self.data_source_ids is not None:
+            assert self.dataset_ids is not None, "Dataset IDs are required when data source IDs are provided"
         return self
 
 
