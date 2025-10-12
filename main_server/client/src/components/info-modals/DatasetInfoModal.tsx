@@ -1,4 +1,4 @@
-import { X, Layers, ArrowLeft, ChevronDown, ChevronRight, Database, Calendar, List } from 'lucide-react';  
+import { Layers, ChevronDown, ChevronRight, Database, Calendar, List } from 'lucide-react';  
 import { useEffect, useState } from 'react';
 import { useDataset } from "@/hooks/useDatasets";
 import { ObjectGroupWithObjects, DataObject, TimeSeriesInDB } from "@/types/data-objects";
@@ -53,16 +53,6 @@ export default function DatasetInfoModal({
     return () => document.removeEventListener('keydown', handleEscape, { capture: true });
   }, [onClose]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
   const toggleGroup = (groupId: string) => {
     setExpandedGroupIds(prev => {
       const next = new Set(prev);
@@ -89,21 +79,20 @@ export default function DatasetInfoModal({
   return (
     <div className="w-full h-full bg-white overflow-hidden">
       <div className="bg-white h-full px-0 pb-2 relative">
-        <div className="flex flex-col h-full">
-          {/* Header Section */}
-          <div className="relative flex items-center p-4 border-b border-gray-300 flex-shrink-0">
-            <div className="ml-2 flex-1">
-              {dataset.description && (
-                <p className="text-xs text-gray-600 mt-1">
-                  {dataset.description} • Created on {formatDate(dataset.createdAt)}
-                </p>
-              )}
-            </div>
-          </div>
-          
+        <div className="flex-1 min-h-0 overflow-y-aut">
           {/* Content Section */}
           <div className="flex-1 min-h-0">
-            <div className="h-full p-4">
+            <div className="h-full p-4 space-y-4">
+              {/* Full Width Description */}
+              <div className="p-4 w-full">
+                {dataset.description ? (
+                  <p className="text-sm text-gray-700">
+                    {dataset.description}
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-400 italic">No description provided</p>
+                )}
+              </div>
               {selectedEntity && selectedEntity.type === "time_series" ? (
                 <div className="w-full h-full">
                   <TimeSeriesChart timeSeriesId={selectedEntity.id} />

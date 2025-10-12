@@ -140,8 +140,8 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
             <div className="flex flex-col h-full">
                 <div className="flex-1 overflow-y-auto">
                     {/* Data Sources Section */}
-                    <div className="border-b border-gray-400">
-                        <div className="flex items-center justify-between pl-4 pr-3 pt-2 pb-2 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors" onClick={() => toggleSection('dataSources')}>
+                    <div>
+                        <div className="flex items-center justify-between pl-4 pr-3 h-9 border-b border-t border-gray-400 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors" onClick={() => toggleSection('dataSources')}>
                             <h3 className='text-xs font-mono uppercase tracking-wider text-gray-900'> DATA SOURCES </h3>
                             <AddEntityButton type="data_source" size={14} onAdd={() => setShowAddDataSourceToProject(true)} />
                         </div>
@@ -166,7 +166,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                         )}
                     </div>
 
-                    <div className="pl-4 pt-4 pb-4 border-b border-gray-400 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors" onClick={() => setShowEntities(!showEntities)}>
+                    <div className="pl-4 h-9 border-b border-gray-400 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors flex items-center" onClick={() => setShowEntities(!showEntities)}>
                         <h3 className='text-xs font-mono uppercase tracking-wider text-gray-900'> ENTITIES </h3>
                     </div>
 
@@ -310,7 +310,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                 {isCollapsed && (
                     <div className="flex flex-col h-full">
                         {/* Data Source button at top */}
-                        <div className="flex flex-col items-center pt-3">
+                        <div className="flex items-center justify-center h-9 border-b border-t border-gray-400 bg-gray-100">
                             <AddEntityButton type="data_source" size={14} onAdd={() => setShowAddDataSourceToProject(true)} />
                         </div>
 

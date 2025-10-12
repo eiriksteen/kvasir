@@ -92,7 +92,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
       <div className="flex flex-1 h-[calc(100vh-3rem)]">
         <EntitySidebar projectId={projectId} />
         <main className="flex-1 min-w-0 overflow-hidden bg-white">
-          <div className="flex flex-col h-full w-full pt-12">
+          <div className="flex flex-col h-full w-full">
             <TabView projectId={projectId} />
             <div className="flex-1 overflow-auto bg-gray-950">
               {mainContent}
