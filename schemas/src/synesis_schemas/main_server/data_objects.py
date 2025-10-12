@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any, Union, Literal, Tuple
 from pydantic import BaseModel
 
-from synesis_data_structures.base_schema import Feature
+from synesis_data_structures.base_schema import Feature, AggregationOutput
 
 
 # DB Schemas
@@ -182,6 +182,23 @@ class GetDatasetByIDsRequest(BaseModel):
     include_features: bool = False
 
 
+class AggregationObjectInDB(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: str
+    created_at: datetime
+    updated_at: datetime
+    analysis_result_id: uuid.UUID | None = None # Foreign key to analysis_result.id 
+    # Other variabels used to reference where the aggregation was created. This is so you can run a script to get the raw data.
+    # For instance: in analysis result there is python code, this python code should be run to get the raw data. A serialization function is then applied to the raw data to get the final data structure.
+    # automation_id: uuid.UUID | None = None # Foreign key to automation.id
+    # script_path: str | None = None # The path to the script that defines the input and output of the aggregation
+
+
+class AggregationObjectWithRawData(AggregationObjectInDB):
+    data: AggregationOutput
+
+
 # Create schemas
 
 
@@ -227,3 +244,13 @@ class DatasetCreate(BaseModel):
     object_groups: List[ObjectGroupCreate]
     variable_groups: List[VariableGroupCreate]
     sources: DatasetSources
+
+
+class AggregationObjectCreate(BaseModel):
+    name: str
+    description: str
+    analysis_result_id: uuid.UUID | None = None # Do not need dataset_ids or data_source_ids here because they are already in the analysis result
+
+class AggregationObjectUpdate(BaseModel):
+    name: str
+    description: str

@@ -100,4 +100,26 @@ export type Dataset = {
     sources: DatasetSources;
 }
 
+export type RawDataStructure = {
+    data: Record<`${string},${string}`, Array<number | string | boolean | Date | null>>;
+}
+
+export interface AggregationObject {
+    id: UUID;
+    datasetId: UUID;
+    name: string;
+    description: string;
+    createdAt: string;
+    updatedAt: string;
+    analysisResultId: UUID | null;
+}
+
+export type AggregationOutput = {
+    outputData: RawDataStructure;
+}
+
+export type AggregationObjectWithRawData = AggregationObject & {
+    data: AggregationOutput;
+}
+
 

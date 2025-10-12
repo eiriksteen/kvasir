@@ -5,10 +5,10 @@ import { useState } from 'react';
 import { ChevronLeft, ChevronRight, BarChart3, Zap, Folder, Brain, HardDrive } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { DataSource } from '@/types/data-sources';
-import { useAgentContext, useDatasets, usePipelines, useProject, useProjectDataSources } from '@/hooks';
+import { useAgentContext, useAnalysis, useDatasets, usePipelines, useProject, useProjectDataSources } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import { AnalysisJobResultMetadata } from '@/types/analysis';
+import { AnalysisObjectSmall } from '@/types/analysis';
 import AddDataSource from '@/app/projects/[projectId]/_components/add-entity-modals/AddDataSource';
 import AddAnalysis from '@/app/projects/[projectId]/_components/add-entity-modals/AddAnalysis';
 import EntityItem from '@/app/projects/[projectId]/_components/entity-sidebar/EntityItem';
@@ -71,7 +71,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
     const { datasets } = useDatasets(projectId);
     const { pipelines } = usePipelines(projectId);
     const { modelEntities } = useModelEntities(projectId);
-    const analyses: AnalysisJobResultMetadata[] = []
+    const { analysisObjects } = useAnalysis(projectId);
 
     const toggleSection = (section: keyof typeof expandedSections) => {
         setExpandedSections(prev => ({
@@ -98,8 +98,8 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
         }
     };
 
-    const handleAnalysisToggle = (analysis: AnalysisJobResultMetadata) => {
-        const isActive = analysesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId);
+    const handleAnalysisToggle = (analysis: AnalysisObjectSmall) => {
+        const isActive = analysesInContext.some((a: AnalysisObjectSmall) => a.id === analysis.id);
         if (isActive) {
             removeAnalysisFromContext(analysis);
         } else {
@@ -231,23 +231,23 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                     <div className="border-b border-gray-200">
                         <EntityOverviewItem
                             title="Analyses"
-                            count={analyses.length}
+                            count={analysisObjects.analysisObjects.length}
                             color="purple"
                             onToggle={() => toggleSection('analysis')}
                             onAdd={() => setShowAddAnalysis(true)}
                         />
                         {expandedSections.analysis && (
                             <div className="bg-[#004806]/10 border-l-2 border-[#004806]">
-                                {analyses.map((analysis) => (
+                                {analysisObjects.analysisObjects.map((analysis) => (
                                     <EntityItem
-                                        key={analysis.jobId}
+                                        key={analysis.id}
                                         item={analysis}
                                         type="analysis"
-                                        isInContext={analysesInContext.some((a: AnalysisJobResultMetadata) => a.jobId === analysis.jobId)}
+                                        isInContext={analysesInContext.some((a: AnalysisObjectSmall) => a.id === analysis.id)}
                                         onClick={() => handleAnalysisToggle(analysis)}
                                     />
                                 ))}
-                                {analyses.length === 0 && (
+                                {analysisObjects.analysisObjects.length === 0 && (
                                     <div className="px-3 py-4 text-center">
                                         <BarChart3 size={16} className="text-[#004806]/40 mx-auto mb-2" />
                                         <p className="text-xs text-gray-500">No analysis</p>

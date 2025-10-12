@@ -1,7 +1,8 @@
 import pandas as pd
+import numpy as np
 import uuid
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Union, Dict
 from synesis_data_structures.time_series.schema import (
     TimeSeries,
@@ -21,6 +22,8 @@ from synesis_data_structures.time_series.df_dataclasses import (
     MetadataStructure,
     TimeSeriesAggregationMetadataStructure
 )
+from synesis_data_structures.base_schema import RawDataStructure, AggregationOutput
+from synesis_data_structures.utils import simplify_dtype
 
 
 # Functions to:
@@ -344,3 +347,53 @@ def _serialize_time_series_aggregation_dataclass_to_api_payload(data_structure: 
         payloads.append(payload)
 
     return payloads
+
+
+def serialize_dataframe_for_aggregation_object(data: pd.DataFrame) -> RawDataStructure:
+    data_dict = {}
+    new_names = []
+
+    counter = 0
+    for idx in data.index.names:
+        if idx is None:
+            new_names.append(f'index_{counter}')
+            counter += 1
+        else:
+            new_names.append(idx)
+    data.index.names = new_names
+    data = data.reset_index()
+
+    # Convert any NaN values to None before serializing
+    data = pd.DataFrame(
+        data=np.where(pd.isna(data), None, data),
+        columns=data.columns,
+        index=data.index
+    )
+
+    for col_name in data.columns:
+        col = data[col_name]
+        dtype = simplify_dtype(col.dtype)
+        
+        data_dict[(col.name, dtype)] = col.values.tolist()
+
+    return RawDataStructure(data=data_dict)
+
+
+def serialize_raw_data_for_aggregation_object_for_api(output_data: float | int | str | bool | datetime | timedelta | pd.DataFrame | pd.Series) -> AggregationOutput:
+    if isinstance(output_data, float | int | str | bool | datetime | timedelta):
+        rwd = AggregationOutput(
+            output_data=RawDataStructure({('output_data', type(output_data).__name__): [output_data]}),
+        )
+        return rwd
+    elif isinstance(output_data, pd.DataFrame):
+        transformed_output_data = serialize_dataframe_for_aggregation_object(output_data)
+        return AggregationOutput(
+            output_data=transformed_output_data,
+        )
+
+    elif isinstance(output_data, pd.Series):
+        output_data = output_data.to_frame(name='series')
+        transformed_output_data = serialize_dataframe_for_aggregation_object(output_data)
+        return AggregationOutput(
+            output_data=transformed_output_data,
+        )

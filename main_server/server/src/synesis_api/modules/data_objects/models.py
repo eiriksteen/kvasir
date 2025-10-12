@@ -227,3 +227,17 @@ time_series_aggregation_input = Table(
     CheckConstraint("start_timestamp < end_timestamp"),
     schema="data_objects"
 )
+
+aggregation_object = Table(
+    "aggregation_object",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
+    Column("name", String, nullable=False),
+    Column("description", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    Column("analysis_result_id", UUID, ForeignKey("analysis.analysis_result.id"), nullable=True),  # Foreign key to analysis_result.id
+    schema="data_objects"
+)

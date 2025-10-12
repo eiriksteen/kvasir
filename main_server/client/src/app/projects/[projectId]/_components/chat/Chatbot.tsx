@@ -7,7 +7,7 @@ import { useAgentContext } from '@/hooks/useAgentContext';
 import { ChatHistory } from '@/app/projects/[projectId]/_components/chat/ChatHistory';
 import { ChatMessage } from '@/types/orchestrator';
 import { Dataset } from '@/types/data-objects';
-import { AnalysisJobResultMetadata } from '@/types/analysis';
+import { AnalysisObjectSmall } from '@/types/analysis';
 import { DataSource } from '@/types/data-sources';
 import { UUID } from 'crypto';
 import { useRunsInConversation } from '@/hooks/useRuns';
@@ -197,13 +197,13 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                   ))}
                   
                   {/* Analyses */}
-                  {analysesInContext.map((analysis: AnalysisJobResultMetadata) => (
+                  {analysesInContext.map((analysis: AnalysisObjectSmall) => (
                     <div
-                      key={analysis.jobId}
+                      key={analysis.id}
                       className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#004806]/20 text-[#004806]"
                     >
                       <BarChart size={12} />
-                      Analysis {analysis.jobId.slice(0, 6)}
+                      {analysis.name}
                       <button 
                         onClick={() => removeAnalysisFromContext(analysis)}
                         className="text-[#004806] hover:text-gray-400"

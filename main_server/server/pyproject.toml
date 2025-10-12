@@ -55,7 +55,10 @@ dependencies = [
     "taskiq-redis",
     "pgvector",
     "google-generativeai",
-    "cryptography"
+    "cryptography",
+    "weasyprint",
+    "pyecharts",
+    "snapshot-selenium"
 ]
 
 [tool.setuptools]

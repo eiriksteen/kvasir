@@ -11,7 +11,10 @@ from synesis_schemas.main_server import (
     ConversationInDB,
     ConversationCreate,
     ProjectGraph,
+    ContextCreate,
+    ContextInDB,
 )
+from synesis_schemas.main_server.runs import Run
 from synesis_api.modules.orchestrator.service import (
     create_conversation,
     get_chat_messages_pydantic,
@@ -36,8 +39,8 @@ from synesis_api.modules.orchestrator.agent.output import (
 from synesis_api.auth.service import get_current_user, user_owns_conversation
 from synesis_schemas.main_server import User
 from synesis_api.auth.service import oauth2_scheme
-from synesis_api.client import MainServerClient, post_run_data_integration, post_run_pipeline, post_run_model_integration
-from synesis_schemas.project_server import RunDataIntegrationRequest, RunPipelineRequest, RunModelIntegrationRequest
+from synesis_api.client import MainServerClient, post_run_data_integration, post_run_pipeline, post_run_model_integration, post_run_analysis
+from synesis_schemas.project_server import RunDataIntegrationRequest, RunPipelineRequest, RunModelIntegrationRequest, RunAnalysisRequest
 
 
 router = APIRouter()
@@ -120,12 +123,24 @@ async def post_chat(
         await create_chat_message_pydantic(conversation_record.id, [orchestrator_run.new_messages_json(), result.new_messages_json()])
 
         if not isinstance(orchestrator_run.output, ChatHandoffOutput):
+            client = MainServerClient(token)
 
             if isinstance(orchestrator_run.output, AnalysisHandoffOutput):
-                raise HTTPException(
-                    status_code=501, detail="Analysis is not implemented yet")
 
-            client = MainServerClient(token)
+                analysis_request = RunAnalysisRequest(
+                    project_id=conversation_record.project_id,
+                    dataset_ids=prompt.context.dataset_ids,
+                    automation_ids= [], #prompt.context.automation_ids,
+                    analysis_ids=prompt.context.analysis_ids,
+                    prompt=prompt.content,
+                    user_id=user.id,
+                    message_history=messages,
+                    conversation_id=prompt.conversation_id,
+                    context_message=context_message,
+                    run_id=None
+                )
+                
+                await post_run_analysis(client, analysis_request)
 
             if isinstance(orchestrator_run.output, DataIntegrationHandoffOutput):
 
@@ -209,3 +224,26 @@ async def fetch_project_conversations(project_id: uuid.UUID, user: Annotated[Use
 async def fetch_project_graph(project_id: uuid.UUID, user: Annotated[User, Depends(get_current_user)] = None) -> ProjectGraph:
     graph = await get_project_graph(user.id, project_id)
     return graph
+
+
+@router.post("/chat-message-pydantic/{conversation_id}")
+async def create_chat_message_pydantic_endpoint(
+    conversation_id: uuid.UUID,
+    messages: List[bytes],
+    user: Annotated[User, Depends(get_current_user)] = None
+):
+    if not await user_owns_conversation(user.id, conversation_id):
+        raise HTTPException(
+            status_code=403, detail="You do not have access to this conversation")
+    
+    result = await create_chat_message_pydantic(conversation_id, messages)
+    return result
+
+
+@router.post("/context")
+async def create_context_endpoint(
+    context: ContextCreate,
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> ContextInDB:
+    result = await create_context(context)
+    return result

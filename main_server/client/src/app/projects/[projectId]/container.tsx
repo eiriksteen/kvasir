@@ -6,6 +6,7 @@ import EntitySidebar from "@/app/projects/[projectId]/_components/entity-sidebar
 import Chatbot from "@/app/projects/[projectId]/_components/chat/Chatbot";
 import UserHeader from "@/components/headers/UserHeader";
 import ProjectView from "@/app/projects/[projectId]/_components/erd/EntityRelationshipDiagram";
+import TabView from "@/app/projects/[projectId]/_components/tab-view/TabView";
 import { useProject } from "@/hooks/useProject";
 // import MainView from "@/components/MainView";
 import { UUID } from "crypto";
@@ -37,7 +38,9 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
       <div className="flex flex-1 h-[calc(100vh-3rem)]">
         <EntitySidebar projectId={projectId} />
         <main className="flex-1 min-w-0 overflow-hidden bg-white">
-          <ProjectView projectId={projectId} />
+          <TabView projectId={projectId}>
+              <ProjectView projectId={projectId} />
+          </TabView>
         </main>
         <div className="w-[400px] shrink-0">
           <Chatbot projectId={projectId} />
@@ -50,7 +53,9 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
 export default function ProjectContainer({ projectId, session }: DashboardProps) {
   return (
     <SessionProvider session={session} basePath="/next-api/api/auth">
-      <DashboardContent projectId={projectId} />
+      <div className="h-screen">
+        <DashboardContent projectId={projectId} />
+      </div>
     </SessionProvider>
   );
 } 

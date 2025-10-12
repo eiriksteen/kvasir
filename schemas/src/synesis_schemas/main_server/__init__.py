@@ -110,6 +110,10 @@ from .data_objects import (
     DatasetFromDatasetInDB,
     DatasetFromPipelineInDB,
     GetDatasetByIDsRequest,
+    AggregationObjectInDB,
+    AggregationObjectWithRawData,
+    AggregationObjectCreate,
+    AggregationObjectUpdate,
 )
 
 # Data Sources schemas
@@ -193,4 +197,50 @@ from .knowledge_bank import (
     ModelSourceQueryResult,
     QueryRequest,
     FunctionQueryResult,
+)
+
+# Tables schemas
+from .tables import (
+    BaseTable,
+    TableCreate,
+    TableUpdate,
+    TableColumn,
+    TableConfig,
+)
+
+
+# Plots schemas
+from .plots import (
+    BasePlot,
+    PlotCreate,
+    PlotUpdate,
+    PlotConfig,
+    PlotColumn,
+    StraightLine,
+    MarkArea,
+    PREDEFINED_COLORS,
+)
+
+# Analysis schemas
+from .analysis import (
+    AnalysisResult,
+    NotebookSection,
+    Notebook,
+    AnalysisObjectSmall,
+    AnalysisObject,
+    AnalysisStatusMessage,
+    AnalysisObjectInDB,
+    NotebookInDB,
+    NotebookSectionInDB,
+    AnalysisResultInDB,
+    AnalysisResultDatasetRelationInDB,
+    NotebookSectionAnalysisResultRelationInDB,
+    AnalysisObjectCreate,
+    NotebookSectionCreate,
+    NotebookSectionUpdate,
+    AnalysisResultUpdate,
+    GenerateReportRequest,
+    MoveRequest,
+    AnalysisObjectList,
+    AnalysisResultFindRequest,
 )

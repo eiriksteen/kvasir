@@ -1,9 +1,9 @@
 import React from 'react';
 import { BarChart3 } from 'lucide-react';
-import { AnalysisJobResultMetadata } from '@/types/analysis';
+import { AnalysisObjectSmall } from '@/types/analysis';
 
 interface AnalysisBoxProps {
-  analysis: AnalysisJobResultMetadata;
+  analysis: AnalysisObjectSmall;
   onClick?: () => void;
   // if null, click is disabled
   // also remove hovering effect to make it look like a disabled button

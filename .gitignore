@@ -2,6 +2,8 @@ data
 __pycache__
 .DS_Store
 *result*
+!*analysis_result*
+!*analysisresult*
 *egg*
 pretrained
 checkpoints

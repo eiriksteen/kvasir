@@ -19,7 +19,7 @@ from synesis_api.modules.runs.models import (
 from synesis_api.modules.data_objects.models import (
     dataset, data_object, object_group,
     feature, feature_in_group, time_series, time_series_aggregation,
-    time_series_aggregation_input, variable_group, variable
+    time_series_aggregation_input, variable_group, variable, aggregation_object
 )
 from synesis_api.modules.orchestrator.models import (
     chat_message, chat_pydantic_message, conversation,
@@ -38,7 +38,7 @@ from synesis_api.modules.model.models import (
 from synesis_api.modules.model_sources.models import (
     model_source, pypi_model_source
 )
-from synesis_api.modules.analysis.models import analysis_jobs_results, analysis_jobs_datasets, analysis_jobs_pipelines, analysis_status_messages
+from synesis_api.modules.analysis.models import analysis_status_message, analysis_object, analysis_result, analysis_result_dataset, analysis_result_data_source, notebook_section, notebook, plot, table
 from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_pipeline, project_data_source
 from synesis_api.modules.node.models import node, dataset_node, analysis_node, pipeline_node
 from synesis_api.app_secrets import DATABASE_URL
@@ -61,6 +61,7 @@ __all__ = [
     user_api_keys,
     variable_group,
     variable,
+    aggregation_object,
     data_source,
     tabular_file_data_source,
     run,
@@ -79,10 +80,13 @@ __all__ = [
     time_series,
     time_series_aggregation,
     time_series_aggregation_input,
-    analysis_jobs_results,
-    analysis_jobs_datasets,
-    analysis_jobs_pipelines,
-    analysis_status_messages,
+    analysis_object,
+    analysis_result,
+    analysis_result_dataset,
+    analysis_result_data_source,
+    notebook_section,
+    notebook,
+    analysis_status_message,
     chat_message,
     chat_pydantic_message,
     conversation,
@@ -117,6 +121,8 @@ __all__ = [
     dataset_node,
     analysis_node,
     pipeline_node,
+    table,
+    plot,
 ]
 
 # add your model's MetaData object here
@@ -128,7 +134,7 @@ target_metadata = metadata
 
 def include_name(name, type_, parent_names):
     if type_ == "schema":
-        return name in ["public", "auth", "data_sources", "runs", "data_objects", "analysis", "orchestrator", "pipeline", "function", "model", "model_sources", "project", "node"]
+        return name in ["public", "auth", "data_sources", "runs", "data_objects", "analysis", "orchestrator", "pipeline", "function", "model", "model_sources", "project", "node", "tables", "plots"]
     else:
         return True
 
