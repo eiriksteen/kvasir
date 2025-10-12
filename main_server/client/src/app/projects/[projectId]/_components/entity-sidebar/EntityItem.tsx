@@ -1,17 +1,17 @@
 'use client';
 
 import React from 'react';
-import { Database, BarChart3, Zap, Folder, HardDrive } from 'lucide-react';
+import { Brain, BarChart3, Zap, Folder, Database } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { Pipeline } from '@/types/pipeline';
-import { AnalysisJobResultMetadata } from '@/types/analysis';
+import { AnalysisObjectSmall } from '@/types/analysis';
 import { ModelEntity } from '@/types/model';
 import { DataSource } from '@/types/data-sources';
 
 type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'model_entity' | 'data_source';
 
 interface EntityItemProps {
-    item: Dataset | AnalysisJobResultMetadata | Pipeline | ModelEntity | DataSource;
+    item: Dataset | AnalysisObjectSmall | Pipeline | ModelEntity | DataSource;
     type: ItemType;
     isInContext: boolean;
     onClick: () => void;
@@ -23,7 +23,7 @@ export default function EntityItem({ item, type, isInContext, onClick }: EntityI
             case 'model_entity':
                 return {
                     bg: isInContext ? 'bg-[#491A32]/20' : 'hover:bg-[#491A32]/10',
-                    icon: <Database size={11} />,
+                    icon: <Brain size={11} />,
                     iconColor: 'text-[#491A32]',
                     textColor: 'text-gray-800',
                     hover: 'hover:bg-[#491A32]/20'
@@ -55,7 +55,7 @@ export default function EntityItem({ item, type, isInContext, onClick }: EntityI
             case 'data_source':
                 return {
                     bg: isInContext ? 'bg-gray-200' : 'hover:bg-gray-100',
-                    icon: <HardDrive size={11} />,
+                    icon: <Database size={11} />,
                     iconColor: 'text-gray-600',
                     textColor: 'text-gray-800',
                     hover: 'hover:bg-gray-200'

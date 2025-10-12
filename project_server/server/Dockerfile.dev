@@ -35,4 +35,4 @@ RUN pip install --upgrade pip && \
     pip install -e /app/schemas && \
     pip install -e .
 
-CMD ["uvicorn", "src.project_server.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-exclude", "/app/data_storage", "--reload-exclude", "/app/script_storage"] 
+CMD ["uvicorn", "src.project_server.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-exclude", "/app/data_storage", "--reload-exclude", "/app/src/project_server/script_storage"] 

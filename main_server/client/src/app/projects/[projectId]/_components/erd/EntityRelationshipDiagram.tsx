@@ -21,23 +21,18 @@ import AnalysisBox from '@/app/projects/[projectId]/_components/erd/AnalysisBox'
 import TransportEdge from '@/app/projects/[projectId]/_components/erd/TransportEdge';
 import { useProjectDataSources } from '@/hooks/useDataSources';
 import DataSourceBox from '@/app/projects/[projectId]/_components/erd/DataSourceBox';
-import FileInfoModal from '@/components/info-modals/FileInfoModal';
-import DatasetInfoModal from '@/components/info-modals/DatasetInfoModal';
 import PipelineBox from '@/app/projects/[projectId]/_components/erd/PipelineBox';
-import PipelineInfoModal from '@/components/info-modals/PipelineInfoModal';
+import { Pipeline, PipelineRunInDB } from '@/types/pipeline';
 import { UUID } from 'crypto';
 import { ModelEntity } from '@/types/model';
 import { useModelEntities } from '@/hooks/useModelEntities';
 import ModelEntityBox from '@/app/projects/[projectId]/_components/erd/ModelEntityBox';
-import ModelInfoModal from '@/components/info-modals/ModelInfoModal';
 import { useProjectGraph } from '@/hooks/useProjectGraph';
+import { computeBoxEdgeLocations } from '@/app/projects/[projectId]/_components/erd/computeBoxEdgeLocations';
 import { useTabContext } from '@/hooks/useTabContext';
-import AnalysisItem from '@/components/info-modals/analysis/AnalysisItem';
-
 import { DataSource } from '@/types/data-sources';
 import { Dataset } from '@/types/data-objects';
 import { AnalysisObjectSmall } from '@/types/analysis';
-import { Pipeline } from '@/types/pipeline';
 
 const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradientClass: string; onClick: () => void } }) => (
   <>
@@ -46,8 +41,14 @@ const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradi
       gradientClass={data.gradientClass}
       onClick={data.onClick}
     />
-    <Handle type="target" position={Position.Left} style={{ background: '#6b7280' }} />
-    <Handle type="source" position={Position.Right} style={{ background: '#6b7280' }} />
+    <Handle type="target" position={Position.Top} style={{ background: '#6b7280', left: 'calc(50% - 8px)' }} id="top-target" />
+    <Handle type="source" position={Position.Top} style={{ background: '#6b7280', left: 'calc(50% + 8px)' }} id="top-source" />
+    <Handle type="target" position={Position.Right} style={{ background: '#6b7280', top: 'calc(50% - 8px)' }} id="right-target" />
+    <Handle type="source" position={Position.Right} style={{ background: '#6b7280', top: 'calc(50% + 8px)' }} id="right-source" />
+    <Handle type="target" position={Position.Bottom} style={{ background: '#6b7280', left: 'calc(50% + 8px)' }} id="bottom-target" />
+    <Handle type="source" position={Position.Bottom} style={{ background: '#6b7280', left: 'calc(50% - 8px)' }} id="bottom-source" />
+    <Handle type="target" position={Position.Left} style={{ background: '#6b7280', top: 'calc(50% + 8px)' }} id="left-target" />
+    <Handle type="source" position={Position.Left} style={{ background: '#6b7280', top: 'calc(50% - 8px)' }} id="left-source" />
   </>
 );
 
@@ -58,8 +59,14 @@ const DatasetNodeWrapper = ({ data }: { data: { dataset: Dataset; onClick: () =>
       dataset={data.dataset}
       onClick={data.onClick}
     />
-    <Handle type="target" position={Position.Left} style={{ background: '#0E4F70' }} />
-    <Handle type="source" position={Position.Right} style={{ background: '#0E4F70' }} />
+    <Handle type="target" position={Position.Top} style={{ background: '#0E4F70', left: 'calc(50% - 8px)' }} id="top-target" />
+    <Handle type="source" position={Position.Top} style={{ background: '#0E4F70', left: 'calc(50% + 8px)' }} id="top-source" />
+    <Handle type="target" position={Position.Right} style={{ background: '#0E4F70', top: 'calc(50% - 8px)' }} id="right-target" />
+    <Handle type="source" position={Position.Right} style={{ background: '#0E4F70', top: 'calc(50% + 8px)' }} id="right-source" />
+    <Handle type="target" position={Position.Bottom} style={{ background: '#0E4F70', left: 'calc(50% + 8px)' }} id="bottom-target" />
+    <Handle type="source" position={Position.Bottom} style={{ background: '#0E4F70', left: 'calc(50% - 8px)' }} id="bottom-source" />
+    <Handle type="target" position={Position.Left} style={{ background: '#0E4F70', top: 'calc(50% + 8px)' }} id="left-target" />
+    <Handle type="source" position={Position.Left} style={{ background: '#0E4F70', top: 'calc(50% - 8px)' }} id="left-source" />
   </>
 );
 
@@ -70,19 +77,33 @@ const AnalysisNodeWrapper = ({ data }: { data: { analysis: AnalysisObjectSmall; 
     analysis={data.analysis}
     onClick={data.onClick}
   />
-  <Handle type="target" position={Position.Left} style={{ background: '#004806' }} />
-  <Handle type="source" position={Position.Right} style={{ background: '#004806' }} />
+  <Handle type="target" position={Position.Top} style={{ background: '#004806', left: 'calc(50% - 8px)' }} id="top-target" />
+  <Handle type="source" position={Position.Top} style={{ background: '#004806', left: 'calc(50% + 8px)' }} id="top-source" />
+  <Handle type="target" position={Position.Right} style={{ background: '#004806', top: 'calc(50% - 8px)' }} id="right-target" />
+  <Handle type="source" position={Position.Right} style={{ background: '#004806', top: 'calc(50% + 8px)' }} id="right-source" />
+  <Handle type="target" position={Position.Bottom} style={{ background: '#004806', left: 'calc(50% + 8px)' }} id="bottom-target" />
+  <Handle type="source" position={Position.Bottom} style={{ background: '#004806', left: 'calc(50% - 8px)' }} id="bottom-source" />
+  <Handle type="target" position={Position.Left} style={{ background: '#004806', top: 'calc(50% + 8px)' }} id="left-target" />
+  <Handle type="source" position={Position.Left} style={{ background: '#004806', top: 'calc(50% - 8px)' }} id="left-source" />
   </>
 );
 
-const PipelineNodeWrapper = ({ data }: { data: { pipeline: Pipeline; onClick: () => void } }) => (
+const PipelineNodeWrapper = ({ data }: { data: { pipeline: Pipeline; onClick: () => void, handleRunClick: () => void, pipelineRuns: PipelineRunInDB[] } }) => (
   <>
     <PipelineBox
       pipeline={data.pipeline}
       onClick={data.onClick}
+      handleRunClick={data.handleRunClick}
+      pipelineRuns={data.pipelineRuns}
     />
-    <Handle type="target" position={Position.Left} style={{ background: '#840B08' }} />
-    <Handle type="source" position={Position.Right} style={{ background: '#840B08' }} />
+    <Handle type="target" position={Position.Top} style={{ background: '#840B08', left: 'calc(50% - 8px)' }} id="top-target" />
+    <Handle type="source" position={Position.Top} style={{ background: '#840B08', left: 'calc(50% + 8px)' }} id="top-source" />
+    <Handle type="target" position={Position.Right} style={{ background: '#840B08', top: 'calc(50% - 8px)' }} id="right-target" />
+    <Handle type="source" position={Position.Right} style={{ background: '#840B08', top: 'calc(50% + 8px)' }} id="right-source" />
+    <Handle type="target" position={Position.Bottom} style={{ background: '#840B08', left: 'calc(50% + 8px)' }} id="bottom-target" />
+    <Handle type="source" position={Position.Bottom} style={{ background: '#840B08', left: 'calc(50% - 8px)' }} id="bottom-source" />
+    <Handle type="target" position={Position.Left} style={{ background: '#840B08', top: 'calc(50% + 8px)' }} id="left-target" />
+    <Handle type="source" position={Position.Left} style={{ background: '#840B08', top: 'calc(50% - 8px)' }} id="left-source" />
   </>
 );
 
@@ -92,8 +113,14 @@ const ModelEntityNodeWrapper = ({ data }: { data: { modelEntity: ModelEntity; on
       modelEntity={data.modelEntity}
       onClick={data.onClick}
     />
-    <Handle type="target" position={Position.Left} style={{ background: '#491A32' }} />
-    <Handle type="source" position={Position.Right} style={{ background: '#491A32' }} />
+    <Handle type="target" position={Position.Top} style={{ background: '#491A32', left: 'calc(50% - 8px)' }} id="top-target" />
+    <Handle type="source" position={Position.Top} style={{ background: '#491A32', left: 'calc(50% + 8px)' }} id="top-source" />
+    <Handle type="target" position={Position.Right} style={{ background: '#491A32', top: 'calc(50% - 8px)' }} id="right-target" />
+    <Handle type="source" position={Position.Right} style={{ background: '#491A32', top: 'calc(50% + 8px)' }} id="right-source" />
+    <Handle type="target" position={Position.Bottom} style={{ background: '#491A32', left: 'calc(50% + 8px)' }} id="bottom-target" />
+    <Handle type="source" position={Position.Bottom} style={{ background: '#491A32', left: 'calc(50% - 8px)' }} id="bottom-source" />
+    <Handle type="target" position={Position.Left} style={{ background: '#491A32', top: 'calc(50% + 8px)' }} id="left-target" />
+    <Handle type="source" position={Position.Left} style={{ background: '#491A32', top: 'calc(50% - 8px)' }} id="left-source" />
   </>
 );
 
@@ -115,7 +142,7 @@ interface EntityRelationshipDiagramProps {
 
 export default function EntityRelationshipDiagram({ projectId }: EntityRelationshipDiagramProps) {
 
-  const getEdgeColor = (sourceType: string): string => {
+  const getEdgeColor = useCallback((sourceType: string): string => {
     switch (sourceType) {
       case 'dataSource':
         return '#6b7280'; // Gray - unchanged
@@ -130,21 +157,19 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       default:
         return '#0E4F70'; // Default dataset color
     }
-  };
+  }, []);
 
   const { project, frontendNodes, updatePosition } = useProject(projectId);
   const { dataSources } = useProjectDataSources(projectId);
   const { datasets } = useDatasets(projectId);
-  const { pipelines } = usePipelines(projectId);
+  const { pipelines, triggerRunPipeline, pipelineRuns } = usePipelines(projectId);
   const { modelEntities } = useModelEntities(projectId);
   const { analysisObjects } = useAnalysis(projectId);
   const { projectGraph } = useProjectGraph(projectId);
-  const { openTab, openTabs, activeTabKey, closeTabByKey, setProjectTabLabel } = useTabContext(projectId);
+  const { openTab, setProjectTabLabel } = useTabContext(projectId);
   
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-
-  console.log(projectGraph);
 
   // Update project tab label when project name changes
   useEffect(() => {
@@ -211,7 +236,9 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
           label: pipeline.name,
           id: frontendNode.pipelineId,
           pipeline: pipeline,
-          onClick: () => handleOpenTab({ type: 'pipeline', id: pipeline.id, label: pipeline.name })
+          onClick: () => handleOpenTab({ type: 'pipeline', id: pipeline.id, label: pipeline.name }),
+          handleRunClick: () => triggerRunPipeline({projectId: projectId, pipelineId: pipeline.id}),
+          pipelineRuns: pipelineRuns.filter((p: PipelineRunInDB) => p.pipelineId === pipeline.id)
         },
       } as Node;
     });
@@ -250,51 +277,48 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
 
     return [...datasetNodes.filter(Boolean), ...analysisNodes.filter(Boolean), ...dataSourceNodes.filter(Boolean), ...pipelineNodes.filter(Boolean), ...modelEntityNodes.filter(Boolean)] as Node[];
 
-  }, [project, datasets, analysisObjects, frontendNodes, dataSources, pipelines, modelEntities, handleOpenTab]);
+  }, [project, datasets, analysisObjects, frontendNodes, dataSources, pipelines, modelEntities, handleOpenTab, triggerRunPipeline, projectId, pipelineRuns]);
 
-  // Memoize edges
+  // Memoize edges - uses current node positions from nodes state
   const memoizedEdges = useMemo(() => {
-    if (!project || !projectGraph || !frontendNodes) {
+    if (!project || !projectGraph || !frontendNodes || nodes.length === 0) {
       return [];
     }
+
+    // Helper to get node with current position from nodes state
+    const getNodeWithCurrentPosition = (nodeId: string) => {
+      const fn = frontendNodes.find(fn => fn.id === nodeId);
+      if (!fn) return null;
+      const currentNode = nodes.find(n => n.id === nodeId);
+      if (!currentNode) return fn;
+      return { ...fn, xPosition: currentNode.position.x, yPosition: currentNode.position.y };
+    };
+
     const dataSourcesToDatasetsEdges = projectGraph?.dataSources
       .flatMap(dataSource =>
         dataSource.toDatasets.map(datasetId => {
-          const sourceNode = frontendNodes.find(fn => fn.dataSourceId === dataSource.id);
-          const targetNode = frontendNodes.find(fn => fn.datasetId === datasetId);
-          if (!sourceNode?.id || !targetNode?.id) return null;
+          const sourceNodeId = frontendNodes.find(fn => fn.dataSourceId === dataSource.id)?.id;
+          const targetNodeId = frontendNodes.find(fn => fn.datasetId === datasetId)?.id;
+          if (!sourceNodeId || !targetNodeId) return null;
+          const sourceNode = getNodeWithCurrentPosition(sourceNodeId);
+          const targetNode = getNodeWithCurrentPosition(targetNodeId);
+          if (!sourceNode || !targetNode) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
           return {
             id: String(`${dataSource.id}->${datasetId}`),
-            source: sourceNode.id,
-            target: targetNode.id,
+            source: sourceNodeId,
+            target: targetNodeId,
             type: 'default',
             animated: true,
             style: { stroke: getEdgeColor('dataSource'), strokeWidth: 2 },
             markerEnd: { type: MarkerType.ArrowClosed },
+            sourceHandle: edgeLocation.from,
+            targetHandle: edgeLocation.to,
 
           } as Edge;
         })
       )
       .filter(Boolean) as Edge[];
-
-    // const datasetsToAnalysesEdges = projectGraph?.datasets
-    //   .flatMap(dataset =>
-    //     dataset.toAnalyses.map(analysisId => {
-    //       const sourceNode = frontendNodes.find(fn => fn.datasetId === dataset.id);
-    //       const targetNode = frontendNodes.find(fn => fn.analysisId === analysisId);
-    //       if (!sourceNode?.id || !targetNode?.id) return null;
-    //       return {
-    //         id: String(`${dataset.id}->${analysisId}`),
-    //         source: sourceNode.id,
-    //         target: targetNode.id,
-    //         type: 'default',
-    //         animated: true,
-    //         style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
-    //         markerEnd: { type: MarkerType.ArrowClosed },
-    //       } as Edge;
-    //     })
-    //   )
-    //   .filter(Boolean) as Edge[];
 
     const datasetsToAnalysesEdges = projectGraph?.analyses
       .flatMap(analysis =>
@@ -302,6 +326,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
           const sourceNode = frontendNodes.find(fn => fn.datasetId === datasetId);
           const targetNode = frontendNodes.find(fn => fn.analysisId === analysis.id);
           if (!sourceNode?.id || !targetNode?.id) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
           return {
             id: String(`${datasetId}->${analysis.id}`),
             source: sourceNode.id,
@@ -310,6 +335,8 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
             animated: true,
             style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
             markerEnd: { type: MarkerType.ArrowClosed },
+            sourceHandle: edgeLocation.from,
+            targetHandle: edgeLocation.to,
           } as Edge;
         })
       )
@@ -321,6 +348,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
           const sourceNode = frontendNodes.find(fn => fn.dataSourceId === dataSourceId);
           const targetNode = frontendNodes.find(fn => fn.analysisId === analysis.id);
           if (!sourceNode?.id || !targetNode?.id) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
           return {
             id: String(`${dataSourceId}->${analysis.id}`),
             source: sourceNode.id,
@@ -329,6 +357,8 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
             animated: true,
             style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
             markerEnd: { type: MarkerType.ArrowClosed },
+            sourceHandle: edgeLocation.from,
+            targetHandle: edgeLocation.to,
           } as Edge;
         })
       )
@@ -337,17 +367,23 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     const datasetsToPipelinesEdges = projectGraph?.datasets
       .flatMap(dataset =>
         dataset.toPipelines.map(pipelineId => {
-          const sourceNode = frontendNodes.find(fn => fn.datasetId === dataset.id);
-          const targetNode = frontendNodes.find(fn => fn.pipelineId === pipelineId);
-          if (!sourceNode?.id || !targetNode?.id) return null;
+          const sourceNodeId = frontendNodes.find(fn => fn.datasetId === dataset.id)?.id;
+          const targetNodeId = frontendNodes.find(fn => fn.pipelineId === pipelineId)?.id;
+          if (!sourceNodeId || !targetNodeId) return null;
+          const sourceNode = getNodeWithCurrentPosition(sourceNodeId);
+          const targetNode = getNodeWithCurrentPosition(targetNodeId);
+          if (!sourceNode || !targetNode) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
           return {
             id: String(`${dataset.id}->${pipelineId}`),
-            source: sourceNode.id,
-            target: targetNode.id,
+            source: sourceNodeId,
+            target: targetNodeId,
             type: 'default',
             animated: true,
             style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
             markerEnd: { type: MarkerType.ArrowClosed },
+            sourceHandle: edgeLocation.from,
+            targetHandle: edgeLocation.to,
           } as Edge;
         })
       )
@@ -356,17 +392,23 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     const modelEntitiesToPipelinesEdges = projectGraph?.modelEntities
       .flatMap(modelEntity =>
         modelEntity.toPipelines.map(pipelineId => {
-          const sourceNode = frontendNodes.find(fn => fn.modelEntityId === modelEntity.id);
-          const targetNode = frontendNodes.find(fn => fn.pipelineId === pipelineId);
-          if (!sourceNode?.id || !targetNode?.id) return null;
+          const sourceNodeId = frontendNodes.find(fn => fn.modelEntityId === modelEntity.id)?.id;
+          const targetNodeId = frontendNodes.find(fn => fn.pipelineId === pipelineId)?.id;
+          if (!sourceNodeId || !targetNodeId) return null;
+          const sourceNode = getNodeWithCurrentPosition(sourceNodeId);
+          const targetNode = getNodeWithCurrentPosition(targetNodeId);
+          if (!sourceNode || !targetNode) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
           return {
             id: String(`${modelEntity.id}->${pipelineId}`),
-            source: sourceNode.id,
-            target: targetNode.id,
+            source: sourceNodeId,
+            target: targetNodeId,
             type: 'default',
             animated: true,
             style: { stroke: getEdgeColor('modelEntity'), strokeWidth: 2 },
             markerEnd: { type: MarkerType.ArrowClosed },
+            sourceHandle: edgeLocation.from,
+            targetHandle: edgeLocation.to,
           } as Edge;
         })
       )
@@ -375,17 +417,23 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     const pipelinesToDatasetsEdges = projectGraph?.pipelines
       .flatMap(pipeline =>
         pipeline.toDatasets.map(datasetId => {
-          const sourceNode = frontendNodes.find(fn => fn.pipelineId === pipeline.id);
-          const targetNode = frontendNodes.find(fn => fn.datasetId === datasetId);
-          if (!sourceNode?.id || !targetNode?.id) return null;
+          const sourceNodeId = frontendNodes.find(fn => fn.pipelineId === pipeline.id)?.id;
+          const targetNodeId = frontendNodes.find(fn => fn.datasetId === datasetId)?.id;
+          if (!sourceNodeId || !targetNodeId) return null;
+          const sourceNode = getNodeWithCurrentPosition(sourceNodeId);
+          const targetNode = getNodeWithCurrentPosition(targetNodeId);
+          if (!sourceNode || !targetNode) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
           return {
             id: String(`${pipeline.id}->${datasetId}`),
-            source: sourceNode.id,
-            target: targetNode.id,
+            source: sourceNodeId,
+            target: targetNodeId,
             type: 'default',
             animated: true,
             style: { stroke: getEdgeColor('pipeline'), strokeWidth: 2 },
             markerEnd: { type: MarkerType.ArrowClosed },
+            sourceHandle: edgeLocation.from,
+            targetHandle: edgeLocation.to,
           } as Edge;
         })
       )
@@ -394,28 +442,38 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     const pipelinesToModelEntitiesEdges = projectGraph?.pipelines
       .flatMap(pipeline =>
         pipeline.toModelEntities.map(modelEntityId => {
-          const sourceNode = frontendNodes.find(fn => fn.pipelineId === pipeline.id);
-          const targetNode = frontendNodes.find(fn => fn.modelEntityId === modelEntityId);
-          if (!sourceNode?.id || !targetNode?.id) return null;
+          const sourceNodeId = frontendNodes.find(fn => fn.pipelineId === pipeline.id)?.id;
+          const targetNodeId = frontendNodes.find(fn => fn.modelEntityId === modelEntityId)?.id;
+          if (!sourceNodeId || !targetNodeId) return null;
+          const sourceNode = getNodeWithCurrentPosition(sourceNodeId);
+          const targetNode = getNodeWithCurrentPosition(targetNodeId);
+          if (!sourceNode || !targetNode) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
           return {
             id: String(`${pipeline.id}->${modelEntityId}`),
-            source: sourceNode.id,
-            target: targetNode.id,
+            source: sourceNodeId,
+            target: targetNodeId,
             type: 'default',
             animated: true,
             style: { stroke: getEdgeColor('pipeline'), strokeWidth: 2 },
             markerEnd: { type: MarkerType.ArrowClosed },
+            sourceHandle: edgeLocation.from,
+            targetHandle: edgeLocation.to,
           } as Edge;
         })
       )
       .filter(Boolean) as Edge[];
 
 
-    return [...dataSourcesToDatasetsEdges, ...datasetsToAnalysesEdges, ...dataSourcesToAnalysesEdges, ...datasetsToPipelinesEdges, ...modelEntitiesToPipelinesEdges, ...pipelinesToDatasetsEdges, ...pipelinesToModelEntitiesEdges];
-  }, [project, frontendNodes, projectGraph]);
-
-  // console.log(frontendNodes);
-  // console.log(memoizedEdges);
+    return [
+      ...dataSourcesToDatasetsEdges, 
+      ...datasetsToAnalysesEdges, 
+      ...dataSourcesToAnalysesEdges, 
+      ...datasetsToPipelinesEdges, 
+      ...modelEntitiesToPipelinesEdges, 
+      ...pipelinesToDatasetsEdges, 
+      ...pipelinesToModelEntitiesEdges];
+  }, [project, frontendNodes, projectGraph, getEdgeColor, nodes]);
 
   // Only update nodes when memoizedNodes changes
   useEffect(() => {
@@ -447,80 +505,29 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     }
   }, [frontendNodes, updatePosition]);
 
-  // Tab content rendering
-  let tabContent: React.ReactNode = null;
-  const activeTab = openTabs.find(tab => tab.key === activeTabKey);
-  
-  if (activeTab?.type === 'project') {
-    tabContent = (
-      <div className="w-full h-full bg-white">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          fitView
-          onNodeDragStop={handleNodeDragStop}
-          className="reactflow-no-watermark"
-        >
-          {/* <Controls /> */}
-          {/* <MiniMap 
-            style={{
-              background: '#0a101c',
-              border: '1px solid #1d2d50'
-            }}
-            nodeColor="#3b82f6"
-            maskColor="rgba(0, 0, 0, 0.1)"
-          /> */}
-        </ReactFlow>
-      </div>
-    );
-  } 
-  else if (activeTab?.type === 'data_source') {
-    tabContent = (
-      <FileInfoModal
-        dataSourceId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
-      />
-    );
-  } 
-  else if (activeTab?.type === 'dataset') {
-    tabContent = (
-      <DatasetInfoModal
-        datasetId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
-        projectId={projectId}
-      />
-    );
-  } 
-  else if (activeTab?.type === 'analysis') {
-    tabContent = (
-      <AnalysisItem
-        analysisObjectId={activeTab.id as UUID}
-        projectId={projectId}
-        onClose={() => closeTabByKey(activeTab.key)}
-      />
-    );
-  } 
-  else if (activeTab?.type === 'pipeline') {
-    tabContent = (
-      <PipelineInfoModal
-        pipelineId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
-      />
-    );
-  } 
-  else if (activeTab?.type === 'model_entity') {
-    tabContent = (
-      <ModelInfoModal
-        modelEntityId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
-        projectId={projectId}
-      />
-    );
-  }
-
-  return tabContent;
+  return (
+    <div className="w-full h-full bg-white">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        fitView
+        onNodeDragStop={handleNodeDragStop}
+        className="reactflow-no-watermark"
+      >
+        {/* <Controls /> */}
+        {/* <MiniMap 
+          style={{
+            background: '#0a101c',
+            border: '1px solid #1d2d50'
+          }}
+          nodeColor="#3b82f6"
+          maskColor="rgba(0, 0, 0, 0.1)"
+        /> */}
+      </ReactFlow>
+    </div>
+  );
 };

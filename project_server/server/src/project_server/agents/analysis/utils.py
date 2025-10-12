@@ -1,30 +1,32 @@
-from typing import List, Union, Literal
 import uuid
-import time
+from typing import List, Literal
 from datetime import datetime
 
 
 from project_server.redis import get_redis
 from synesis_schemas.main_server import (
-    DatasetFullWithFeatures, 
-    DatasetFull, 
+    Dataset,
     AnalysisResult,
     AnalysisStatusMessage
 )
 
-def simplify_dataset_overview(datasets: List[Union[DatasetFullWithFeatures, DatasetFull]]) -> list[dict]:
+
+def simplify_dataset_overview(datasets: List[Dataset]) -> list[dict]:
     """
     Simplify the dataset overview to a list of dictionaries.
     """
     # TODO: Make this work with the new dataset structure
     datasets_overview = []
     for dataset in datasets:
-        first_object_group = dataset.object_groups[0] # this is not completely correct, fix this if we want to keep this simplify approach.
+        # this is not completely correct, fix this if we want to keep this simplify approach.
+        first_object_group = dataset.object_groups[0]
         feature_list = []
         for feature in first_object_group.features:
-            simplified_feature = feature.model_dump(include={"name", "unit", "description", "type", "subtype", "scale"})
+            simplified_feature = feature.model_dump(
+                include={"name", "unit", "description", "type", "subtype", "scale"})
             feature_list.append(simplified_feature)
-        simplified_object_group = first_object_group.model_dump(include={"dataset_id", "name", "description", "features", "structure_type", "original_id_name"})
+        simplified_object_group = first_object_group.model_dump(
+            include={"dataset_id", "name", "description", "features", "structure_type", "original_id_name"})
 
         simplified_object_group["features"] = feature_list
         datasets_overview.append(simplified_object_group)
@@ -51,9 +53,10 @@ def get_relevant_metadata_for_prompt(metadata_list: list[dict], datatype: Litera
                 return "Modality not supported yet\n\n"
     return context_part
 
+
 async def post_analysis_result_to_redis(message: AnalysisResult, run_id: uuid.UUID):
     redis_stream = get_redis()
-    
+
     analysis_status_message = AnalysisStatusMessage(
         id=uuid.uuid4(),
         run_id=run_id,

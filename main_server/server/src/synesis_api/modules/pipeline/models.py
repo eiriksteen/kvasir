@@ -1,11 +1,10 @@
 import uuid
 from datetime import timezone, datetime
-from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean, CheckConstraint, Integer, Float
+from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, CheckConstraint, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from pgvector.sqlalchemy import Vector
 
 from synesis_api.database.core import metadata
-from synesis_api.app_secrets import EMBEDDING_DIM
 from synesis_data_structures.time_series.definitions import get_first_level_structure_ids
 
 # Build the constraint string with proper quotes
@@ -27,7 +26,19 @@ pipeline = Table(
            ForeignKey("auth.users.id"),
            nullable=False),
     Column("name", String, nullable=False),
+    Column("python_function_name", String, nullable=False),
+    Column("filename", String, nullable=False),
+    Column("module_path", String, nullable=False),
+    Column("docstring", String, nullable=False),
     Column("description", String, nullable=True),
+    Column("args", JSONB, nullable=True),
+    Column("args_schema", JSONB, nullable=False),
+    Column("output_variables_schema", JSONB, nullable=False),
+    Column("args_dataclass_name", String, nullable=False),
+    Column("input_dataclass_name", String, nullable=False),
+    Column("output_dataclass_name", String, nullable=False),
+    Column("output_variables_dataclass_name", String, nullable=False),
+    Column("implementation_script_path", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
@@ -37,13 +48,18 @@ pipeline = Table(
 )
 
 
-pipeline_from_dataset = Table(
-    "pipeline_from_dataset",
+object_group_in_pipeline = Table(
+    "object_group_in_pipeline",
     metadata,
-    Column("dataset_id", UUID(as_uuid=True),
-           ForeignKey("data_objects.dataset.id"), primary_key=True, nullable=False),
     Column("pipeline_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.pipeline.id"), primary_key=True, nullable=False),
+           ForeignKey("pipeline.pipeline.id"),
+           primary_key=True,
+           nullable=False),
+    Column("object_group_id", UUID(as_uuid=True),
+           ForeignKey("data_objects.object_group.id"),
+           primary_key=True,
+           nullable=False),
+    Column("code_variable_name", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
@@ -53,13 +69,14 @@ pipeline_from_dataset = Table(
 )
 
 
-pipeline_from_model_entity = Table(
-    "pipeline_from_model_entity",
+model_entity_in_pipeline = Table(
+    "model_entity_in_pipeline",
     metadata,
     Column("model_entity_id", UUID(as_uuid=True),
            ForeignKey("model.model_entity.id"), primary_key=True, nullable=False),
     Column("pipeline_id", UUID(as_uuid=True),
            ForeignKey("pipeline.pipeline.id"), primary_key=True, nullable=False),
+    Column("code_variable_name", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
@@ -68,6 +85,25 @@ pipeline_from_model_entity = Table(
     schema="pipeline"
 )
 
+
+function_in_pipeline = Table(
+    "function_in_pipeline",
+    metadata,
+    Column("pipeline_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline.id"),
+           primary_key=True,
+           nullable=False),
+    Column("function_id", UUID(as_uuid=True),
+           ForeignKey("function.function.id"),
+           primary_key=True,
+           nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="pipeline"
+)
 
 pipeline_periodic_schedule = Table(
     "pipeline_periodic_schedule",
@@ -111,6 +147,30 @@ pipeline_on_event_schedule = Table(
 )
 
 
+pipeline_output_object_group_definition = Table(
+    "pipeline_output_object_group_definition",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           default=uuid.uuid4,
+           primary_key=True),
+    Column("pipeline_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline.id"),
+           nullable=False),
+    Column("name", String, nullable=False),
+    Column("structure_id", String, nullable=False),
+    Column("description", String, nullable=True),
+    Column("output_entity_id_name", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    CheckConstraint(structure_constraint),
+    UniqueConstraint("pipeline_id", "name"),
+    schema="pipeline"
+)
+
+
 pipeline_run = Table(
     "pipeline_run",
     metadata,
@@ -132,18 +192,13 @@ pipeline_run = Table(
 )
 
 
-pipeline_run_object_group_result = Table(
-    "pipeline_run_object_group_result",
+pipeline_output_dataset = Table(
+    "pipeline_output_dataset",
     metadata,
-    Column("id", UUID(as_uuid=True),
-           default=uuid.uuid4,
-           primary_key=True),
-    Column("pipeline_run_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.pipeline_run.id"),
-           nullable=False),
-    Column("object_group_id", UUID(as_uuid=True),
-           ForeignKey("data_objects.object_group.id"),
-           nullable=False),
+    Column("pipeline_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline.id"), primary_key=True, nullable=False),
+    Column("dataset_id", UUID(as_uuid=True),
+           ForeignKey("data_objects.dataset.id"), primary_key=True, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
@@ -153,16 +208,13 @@ pipeline_run_object_group_result = Table(
 )
 
 
-pipeline_run_variables_result = Table(
-    "pipeline_run_variables_result",
+pipeline_output_model_entity = Table(
+    "pipeline_output_model_entity",
     metadata,
-    Column("id", UUID(as_uuid=True),
-           default=uuid.uuid4,
-           primary_key=True),
-    Column("pipeline_run_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.pipeline_run.id"),
-           nullable=False),
-    Column("variables_save_path", String, nullable=False),
+    Column("pipeline_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline.id"), primary_key=True, nullable=False),
+    Column("model_entity_id", UUID(as_uuid=True),
+           ForeignKey("model.model_entity.id"), primary_key=True, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
@@ -172,20 +224,96 @@ pipeline_run_variables_result = Table(
 )
 
 
-function_in_pipeline = Table(
-    "function_in_pipeline",
+pipeline_graph_node = Table(
+    "pipeline_graph_node",
     metadata,
     Column("id", UUID(as_uuid=True),
            default=uuid.uuid4,
            primary_key=True),
+    Column("type", String, nullable=False),
+    CheckConstraint(f"type IN ('dataset', 'function', 'model_entity')"),
     Column("pipeline_id", UUID(as_uuid=True),
            ForeignKey("pipeline.pipeline.id"),
+           nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="pipeline"
+)
+
+
+pipeline_graph_edge = Table(
+    "pipeline_graph_edge",
+    metadata,
+    Column("from_node_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline_graph_node.id"),
+           primary_key=True,
+           nullable=False),
+    Column("to_node_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline_graph_node.id"),
+           primary_key=True,
+           nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="pipeline"
+)
+
+
+pipeline_graph_dataset_node = Table(
+    "pipeline_graph_dataset_node",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline_graph_node.id"),
+           primary_key=True,
+           nullable=False),
+    Column("dataset_id", UUID(as_uuid=True),
+           ForeignKey("data_objects.dataset.id"),
+           nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="pipeline"
+)
+
+
+pipeline_graph_function_node = Table(
+    "pipeline_graph_function_node",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline_graph_node.id"),
+           primary_key=True,
            nullable=False),
     Column("function_id", UUID(as_uuid=True),
            ForeignKey("function.function.id"),
            nullable=False),
-    Column("position", Integer, nullable=False),
-    Column("config", JSONB, nullable=True),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="pipeline"
+)
+
+
+pipeline_graph_model_entity_node = Table(
+    "pipeline_graph_model_entity_node",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline_graph_node.id"),
+           primary_key=True,
+           nullable=False),
+    Column("model_entity_id", UUID(as_uuid=True),
+           ForeignKey("model.model_entity.id"),
+           nullable=False),
+    Column("function_type", String, nullable=False),
+    CheckConstraint(f"function_type IN ('training', 'inference')"),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),

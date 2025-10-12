@@ -13,13 +13,13 @@ from synesis_api.modules.data_sources.models import (
 )
 from synesis_api.modules.runs.models import (
     run, run_message, run_pydantic_message,
-    data_integration_run_input, data_integration_run_result,
-    data_source_in_run
+    data_source_in_run, dataset_in_run, model_entity_in_run, pipeline_in_run,
+    data_source_from_run, dataset_from_run, model_entity_from_run, pipeline_from_run
 )
 from synesis_api.modules.data_objects.models import (
     dataset, data_object, object_group,
     feature, feature_in_group, time_series, time_series_aggregation,
-    time_series_aggregation_input, variable_group, variable, aggregation_object
+    time_series_aggregation_input, variable_group, aggregation_object
 )
 from synesis_api.modules.orchestrator.models import (
     chat_message, chat_pydantic_message, conversation,
@@ -27,13 +27,20 @@ from synesis_api.modules.orchestrator.models import (
     data_source_context
 )
 from synesis_api.modules.pipeline.models import (
-    pipeline, pipeline_from_dataset, pipeline_from_model_entity, pipeline_periodic_schedule, pipeline_on_event_schedule, pipeline_run, pipeline_run_object_group_result, pipeline_run_variables_result, function_in_pipeline
+    pipeline, model_entity_in_pipeline,
+    pipeline_periodic_schedule, pipeline_on_event_schedule, function_in_pipeline,
+    object_group_in_pipeline, pipeline_output_object_group_definition,
+    pipeline_output_dataset, pipeline_output_model_entity, pipeline_graph_edge, pipeline_graph_edge,
+    pipeline_graph_dataset_node, pipeline_graph_function_node, pipeline_graph_model_entity_node
+
 )
 from synesis_api.modules.function.models import (
-    function, function_input_structure, function_output_structure, function_output_variable
+    function, function_input_object_group_definition, function_output_object_group_definition,
+    function_definition
 )
 from synesis_api.modules.model.models import (
-    model, model_entity
+    model_definition, model, model_entity, model_function,
+    model_function_input_object_group_definition, model_function_output_object_group_definition
 )
 from synesis_api.modules.model_sources.models import (
     model_source, pypi_model_source
@@ -60,18 +67,24 @@ __all__ = [
     users,
     user_api_keys,
     variable_group,
-    variable,
     aggregation_object,
     data_source,
     tabular_file_data_source,
+    model_entity_in_pipeline,
     run,
     run_message,
     run_pydantic_message,
-    data_integration_run_input,
-    data_integration_run_result,
+    dataset_in_run,
+    model_entity_in_run,
+    pipeline_in_run,
+    data_source_from_run,
+    dataset_from_run,
+    model_entity_from_run,
+    pipeline_from_run,
     data_source_in_run,
     data_source_analysis,
     feature_in_tabular_file,
+    object_group_in_pipeline,
     dataset,
     data_object,
     object_group,
@@ -96,18 +109,13 @@ __all__ = [
     analysis_context,
     data_source_context,
     pipeline,
-    pipeline_from_dataset,
-    pipeline_from_model_entity,
     pipeline_periodic_schedule,
     pipeline_on_event_schedule,
-    pipeline_run,
-    pipeline_run_object_group_result,
-    pipeline_run_variables_result,
     function_in_pipeline,
+    function_definition,
     function,
-    function_input_structure,
-    function_output_structure,
-    function_output_variable,
+    function_input_object_group_definition,
+    function_output_object_group_definition,
     model,
     model_entity,
     model_source,
@@ -121,6 +129,17 @@ __all__ = [
     dataset_node,
     analysis_node,
     pipeline_node,
+    pipeline_graph_edge,
+    pipeline_graph_dataset_node,
+    pipeline_graph_function_node,
+    pipeline_graph_model_entity_node,
+    pipeline_output_object_group_definition,
+    pipeline_output_dataset,
+    pipeline_output_model_entity,
+    model_function,
+    model_function_input_object_group_definition,
+    model_function_output_object_group_definition,
+    model_definition,
     table,
     plot,
 ]

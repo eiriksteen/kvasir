@@ -1,60 +1,49 @@
 import { UUID } from "crypto";
 
-export type Run = {
-	id: UUID;
-	type: 'data_integration' | 'analysis' | 'pipeline' | 'swe' | 'model_integration';
-	status: 'pending' | 'running' | 'completed' | 'failed';
-	userId: UUID;
-	conversationId: UUID;
-	startedAt: string;
-	completedAt: string | null;
-	runName: string | null;
-	input: RunInput | null;
-    result: RunResult | null;
+// DB Models
+
+export interface RunSpecificationInDB {
+  id: UUID;
+  runName: string;
+  planAndDeliverableDescriptionForUser: string;
+  planAndDeliverableDescriptionForAgent: string;
+  questionsForUser?: string | null;
+  configurationDefaultsDescription?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
-
-export type RunMessage = {
-	id: UUID;
-	content: string;
-	runId: UUID;
-	type: 'tool_call' | 'result' | 'error';
-	createdAt: string;
+export interface RunInDB {
+  id: UUID;
+  userId: UUID;
+  type: string;
+  status: string;
+  startedAt: string;
+  conversationId?: UUID | null;
+  parentRunId?: UUID | null;
+  completedAt?: string | null;
+  runName?: string | null;
 }
 
-
-export type DataIntegrationRunInput = {
-	runId: UUID;
-	targetDatasetDescription: string;
-	dataSourceIds: UUID[];
-	createdAt: string;
+export interface RunMessageInDB {
+  id: UUID;
+  content: string;
+  runId: UUID;
+  type: "tool_call" | "result" | "error";
+  createdAt: string;
 }
 
+// API Models
 
-export type ModelIntegrationRunInput = {
-	runId: UUID;
-	modelIdStr: UUID;
-	source: 'github' | 'pip' | 'source_code';
-	createdAt: string;
+export interface RunEntityIds {
+  dataSourceIds: UUID[];
+  datasetIds: UUID[];
+  modelEntityIds: UUID[];
+  pipelineIds: UUID[];
 }
 
-export type DataIntegrationRunResult = {
-	runId: UUID;
-	datasetId: UUID;
-	codeExplanation: string;
-	pythonCodePath: string;
-	createdAt: string;
+export interface Run extends RunInDB {
+  spec?: RunSpecificationInDB | null;
+  inputs?: RunEntityIds | null;
+  outputs?: RunEntityIds | null;
 }
-
-export type ModelIntegrationRunResult = {
-	runId: UUID;
-	modelId: UUID;
-	createdAt: string;
-}
-
-export type RunInput = DataIntegrationRunInput | ModelIntegrationRunInput;
-export type RunResult = DataIntegrationRunResult | ModelIntegrationRunResult;
-
-
-
-

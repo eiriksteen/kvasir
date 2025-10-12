@@ -1,10 +1,19 @@
 import { UUID } from "crypto";
 import { useRun, useRunMessages } from "@/hooks/useRuns";
-import { BarChart3, Zap, Clock, CheckCircle, XCircle, Loader2, Folder, Brain } from "lucide-react";
+import { BarChart3, Zap, Clock, CheckCircle, XCircle, Loader2, Folder, Brain, Check, X, Database } from "lucide-react";
 import { useState } from "react";
+import { useDatasets } from "@/hooks/useDatasets";
+import { useProjectDataSources } from "@/hooks/useDataSources";
+import { useModelEntities } from "@/hooks/useModelEntities";
+import { usePipelines } from "@/hooks/usePipelines";
+import { Dataset } from "@/types/data-objects";
+import { DataSource } from "@/types/data-sources";
+import { ModelEntity } from "@/types/model";
+import { Pipeline } from "@/types/pipeline";
 
 interface RunBoxProps {
   runId: UUID;
+  projectId: UUID;
 }
 
 const getRunTheme = (type: 'data_integration' | 'analysis' | 'pipeline' | 'swe' | 'model_integration') => {
@@ -64,7 +73,7 @@ switch (status) {
     return {
         icon: <Clock size={10} />,
         text: 'pending',
-        color: 'text-yellow-400'
+        color: 'text-yellow-700'
     };
     case 'running':
     return {
@@ -76,19 +85,19 @@ switch (status) {
     return {
         icon: <CheckCircle size={10} />,
         text: 'completed',
-        color: 'text-green-600'
+        color: 'text-green-700'
     };
     case 'failed':
     return {
         icon: <XCircle size={10} />,
         text: 'failed',
-        color: 'text-red-600'
+        color: 'text-red-700'
     };
     default:
     return {
         icon: <Clock size={10} />,
         text: 'unknown',
-        color: 'text-gray-400'
+        color: 'text-gray-600'
     };
     }
 };
@@ -112,27 +121,61 @@ function RunMessageList({ runId }: { runId: UUID }) {
         </div>
       )}
 
-      {/* No messages state */}
-      {(!runMessages || runMessages.length === 0) && (
-        <div className="px-3 pb-2 text-xs text-gray-500 font-mono text-[10px]">
-          No messages yet
-        </div>
-      )}
     </>
   );
 }
   
 
-export default function RunBox({ runId }: RunBoxProps) {
-  const { run } = useRun(runId);
-  const [showMessages, setShowMessages] = useState(false);
+export default function RunBox({ runId, projectId }: RunBoxProps) {
+  const { run, triggerLaunchRun } = useRun(runId);
+  const { datasets } = useDatasets(projectId);
+  const { dataSources } = useProjectDataSources(projectId);
+  const { modelEntities } = useModelEntities(projectId);
+  const { pipelines } = usePipelines(projectId);
+  
+  const isPending = run?.status === 'pending';
+  const [showMessages, setShowMessages] = useState(isPending);
+  const [isLaunching, setIsLaunching] = useState(false);
 
   if (!run) {
     return <div>Run not found</div>;
   }
 
-  const theme = getRunTheme(run.type);
+  const theme = getRunTheme(run.type as 'data_integration' | 'analysis' | 'pipeline' | 'swe' | 'model_integration');
   const statusInfo = getStatusInfo(run.status);
+  
+  const hasInputs = run.inputs && (
+    run.inputs.dataSourceIds.length > 0 ||
+    run.inputs.datasetIds.length > 0 ||
+    run.inputs.modelEntityIds.length > 0 ||
+    run.inputs.pipelineIds.length > 0
+  );
+  
+  const hasOutputs = run.outputs && (
+    run.outputs.dataSourceIds.length > 0 ||
+    run.outputs.datasetIds.length > 0 ||
+    run.outputs.modelEntityIds.length > 0 ||
+    run.outputs.pipelineIds.length > 0
+  );
+
+
+  const handleAccept = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsLaunching(true);
+    try {
+      await triggerLaunchRun({ runId: run.id });
+    } catch (error) {
+      console.error('Failed to launch run', error);
+    } finally {
+      setIsLaunching(false);
+    }
+  };
+
+  const handleReject = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log('Run rejected - implementation pending');
+    // TODO: Implement rejection logic
+  };
 
   return (
     <div className={`max-w-[80%] rounded-lg ${theme.bg} ${theme.hover} mb-2 overflow-hidden`} onClick={() => setShowMessages(!showMessages)}>
@@ -152,8 +195,153 @@ export default function RunBox({ runId }: RunBoxProps) {
 
       </div>
 
-      {/* Messages */}
-      {showMessages && <RunMessageList runId={runId} />}
+      {/* Spec and Messages */}
+      {showMessages && (
+        <>
+          {/* Run Spec */}
+          {run.spec && (
+            <div className="px-3 pb-4 space-y-2 border-gray-700/30">
+              <div className="text-xs font-mono text-gray-700">
+                {run.spec.runName}
+              </div>
+              <div className="text-xs text-gray-500 leading-relaxed">
+                {run.spec.planAndDeliverableDescriptionForUser}
+              </div>
+              {run.spec.questionsForUser && (
+                <div className="mt-2">
+                  <div className="text-[10px] font-medium text-gray-600 mb-1">Questions:</div>
+                  <div className="text-xs text-gray-500 leading-relaxed">
+                    {run.spec.questionsForUser}
+                  </div>
+                </div>
+              )}
+              {run.spec.configurationDefaultsDescription && (
+                <div className="mt-2 pt-2">
+                  <div className="text-[10px] font-medium text-gray-600 mb-1">Default Configuration:</div>
+                  <div className="text-xs text-gray-500 leading-relaxed">
+                    {run.spec.configurationDefaultsDescription}
+                  </div>
+                </div>
+              )}
+              
+              {/* Entity Context - Inputs */}
+              {hasInputs && (
+                <div className="pt-2">
+                  <div className="text-[10px] font-medium text-gray-600 mb-1">Inputs:</div>
+                  <div className="flex flex-wrap gap-1">
+                    {run.inputs?.dataSourceIds.map((dataSourceId) => (
+                      <div
+                        key={dataSourceId}
+                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-gray-200 text-gray-600"
+                      >
+                        <Database size={12} />
+                        {dataSources?.find((ds: DataSource) => ds.id === dataSourceId)?.name || 'Data Source'}
+                      </div>
+                    ))}
+                    {run.inputs?.datasetIds.map((datasetId) => (
+                      <div
+                        key={datasetId}
+                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
+                      >
+                        <Folder size={12} />
+                        {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
+                      </div>
+                    ))}
+                    {run.inputs?.modelEntityIds.map((modelEntityId) => (
+                      <div
+                        key={modelEntityId}
+                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]"
+                      >
+                        <Brain size={12} />
+                        {modelEntities?.find((me: ModelEntity) => me.id === modelEntityId)?.name || 'Model'}
+                      </div>
+                    ))}
+                    {run.inputs?.pipelineIds.map((pipelineId) => (
+                      <div
+                        key={pipelineId}
+                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#840B08]/20 text-[#840B08]"
+                      >
+                        <Zap size={12} />
+                        {pipelines?.find((p: Pipeline) => p.id === pipelineId)?.name || 'Pipeline'}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Entity Context - Outputs */}
+              {hasOutputs && (
+                <div className="pt-2">
+                  <div className="text-[10px] font-medium text-gray-600 mb-1">Outputs:</div>
+                  <div className="flex flex-wrap gap-1">
+                    {run.outputs?.dataSourceIds.map((dataSourceId) => (
+                      <div
+                        key={dataSourceId}
+                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-gray-200 text-gray-600"
+                      >
+                        <Database size={12} />
+                        {dataSources?.find((ds: DataSource) => ds.id === dataSourceId)?.name || 'Data Source'}
+                      </div>
+                    ))}
+                    {run.outputs?.datasetIds.map((datasetId) => (
+                      <div
+                        key={datasetId}
+                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
+                      >
+                        <Folder size={12} />
+                        {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
+                      </div>
+                    ))}
+                    {run.outputs?.modelEntityIds.map((modelEntityId) => (
+                      <div
+                        key={modelEntityId}
+                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]"
+                      >
+                        <Brain size={12} />
+                        {modelEntities?.find((me: ModelEntity) => me.id === modelEntityId)?.name || 'Model'}
+                      </div>
+                    ))}
+                    {run.outputs?.pipelineIds.map((pipelineId) => (
+                      <div
+                        key={pipelineId}
+                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#840B08]/20 text-[#840B08]"
+                      >
+                        <Zap size={12} />
+                        {pipelines?.find((p: Pipeline) => p.id === pipelineId)?.name || 'Pipeline'}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Accept/Reject Buttons for Pending Runs */}
+              {isPending && (
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={handleAccept}
+                    disabled={isLaunching}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-green-800 hover:bg-green-600/30 border border-green-600/40 rounded text-xs text-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Check size={12} />
+                    {isLaunching ? 'Launching...' : 'Accept'}
+                  </button>
+                  <button
+                    onClick={handleReject}
+                    disabled={isLaunching}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-red-800 hover:bg-red-600/30 border border-red-600/40 rounded text-xs text-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <X size={12} />
+                    Reject
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Messages */}
+          <RunMessageList runId={runId} />
+        </>
+      )}
     </div>
   );
 }

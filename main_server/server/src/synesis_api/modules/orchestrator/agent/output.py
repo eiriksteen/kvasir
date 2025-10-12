@@ -3,7 +3,7 @@ from typing import Optional, List
 from pydantic import model_validator, BaseModel
 
 
-class ChatHandoffOutput(BaseModel):
+class NoHandoffOutput(BaseModel):
     pass
 
 
@@ -26,33 +26,40 @@ class AnalysisHandoffOutput(BaseModel):
         return self
 
 
-class PipelineHandoffOutput(BaseModel):
+class PipelineRunDescriptionOutput(BaseModel):
     run_name: str
-    deliverable_description: str
+    plan_and_deliverable_description_for_user: str
+    plan_and_deliverable_description_for_agent: str
+    questions_for_user: Optional[str] = None
+    configuration_defaults_description: Optional[str] = None
     input_dataset_ids: List[uuid.UUID]
     input_model_entity_ids: List[uuid.UUID] = []
 
     @model_validator(mode="after")
-    def validate_dataset_ids(self) -> "PipelineHandoffOutput":
+    def validate_dataset_ids(self) -> "PipelineRunDescriptionOutput":
         assert len(
             self.input_dataset_ids) > 0, "One or more dataset IDs are required"
         return self
 
 
-class DataIntegrationHandoffOutput(BaseModel):
+class DataIntegrationRunDescriptionOutput(BaseModel):
     run_name: str
-    deliverable_description: str
+    plan_and_deliverable_description_for_user: str
+    plan_and_deliverable_description_for_agent: str
+    questions_for_user: Optional[str] = None
     data_source_ids: List[uuid.UUID] = []
     # For input datasets
     dataset_ids: List[uuid.UUID] = []
 
     @model_validator(mode="after")
-    def validate_data_source_ids(self) -> "DataIntegrationHandoffOutput":
+    def validate_data_source_ids(self) -> "DataIntegrationRunDescriptionOutput":
         assert len(
             self.data_source_ids) > 0 or len(self.dataset_ids) > 0, "One or more data source IDs or dataset IDs are required"
         return self
 
 
-class ModelIntegrationHandoffOutput(BaseModel):
+class ModelIntegrationRunDescriptionOutput(BaseModel):
     run_name: str
-    deliverable_description: str
+    plan_and_deliverable_description_for_user: str
+    plan_and_deliverable_description_for_agent: str
+    questions_for_user: Optional[str] = None

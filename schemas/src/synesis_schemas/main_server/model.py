@@ -4,7 +4,7 @@ from datetime import datetime
 from uuid import UUID
 
 
-from .function import FunctionBare
+from .function import FunctionWithoutEmbedding
 
 
 SUPPORTED_MODALITIES_TYPE = Literal["time_series", "tabular", "multimodal",
@@ -14,41 +14,87 @@ SUPPORTED_MODALITIES_TYPE = Literal["time_series", "tabular", "multimodal",
 SUPPORTED_TASK_TYPE = Literal["forecasting", "classification", "regression",
                               "clustering", "anomaly_detection", "generation", "segmentation"]
 
+FUNCTION_TYPE = Literal["training", "inference"]
+
 
 # DB models
 
-class ModelInDB(BaseModel):
+class ModelDefinitionInDB(BaseModel):
     id: UUID
     name: str
-    description: str
-    owner_id: UUID
-    public: bool
     modality: SUPPORTED_MODALITIES_TYPE
-    source_id: UUID
     task: SUPPORTED_TASK_TYPE
-    programming_language_with_version: str
-    embedding: List[float]
-    # For now, we have one task per model, meaning for example we have different models for XGBoostForecaster and XGBoostClassifier
-    # We can make it more sophisticated by allowing for multiple tasks per model, and allow for multi task tuning etc
-    inference_function_id: UUID
-    training_function_id: UUID
+    public: bool
     created_at: datetime
     updated_at: datetime
+
+
+class ModelInDB(BaseModel):
+    id: UUID
+    definition_id: UUID
+    version: int
+    filename: str
+    module_path: str
+    python_class_name: str
+    description: str
+    newest_update_description: str
+    user_id: UUID
+    source_id: UUID
+    programming_language_with_version: str
+    embedding: List[float]
+    implementation_script_path: str
     setup_script_path: Optional[str] = None
-    default_config: Optional[dict] = None
+    model_class_docstring: str
+    default_config: dict
+    config_schema: dict
+    training_function_id: UUID
+    inference_function_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class ModelFunctionInDB(BaseModel):
+    id: UUID
+    docstring: str
+    args_schema: dict
+    default_args: dict
+    output_variables_schema: dict
+    created_at: datetime
+    updated_at: datetime
+
+
+class ModelFunctionInputObjectGroupDefinitionInDB(BaseModel):
+    id: UUID
+    function_id: UUID
+    structure_id: str
+    name: str
+    required: bool
+    description: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ModelFunctionOutputObjectGroupDefinitionInDB(BaseModel):
+    id: UUID
+    function_id: UUID
+    name: Optional[str] = None
+    structure_id: str
+    description: str
+    created_at: datetime
+    updated_at: datetime
 
 
 class ModelEntityInDB(BaseModel):
     id: UUID
     name: str
+    user_id: UUID
     description: str
     model_id: UUID
-    created_at: datetime
-    updated_at: datetime
+    config: dict
     weights_save_dir: Optional[str] = None
     pipeline_id: Optional[UUID] = None
-    project_id: Optional[UUID] = None
-    config: Optional[dict] = None
+    created_at: datetime
+    updated_at: datetime
 
 
 class ModelEntityFromPipelineInDB(BaseModel):
@@ -60,33 +106,41 @@ class ModelEntityFromPipelineInDB(BaseModel):
 
 # API models
 
-class ModelFull(ModelInDB):
+class ModelWithoutEmbedding(BaseModel):
     id: UUID
-    name: str
+    definition_id: UUID
+    version: int
+    filename: str
+    module_path: str
+    python_class_name: str
     description: str
-    owner_id: UUID
-    public: bool
-    modality: SUPPORTED_MODALITIES_TYPE
+    newest_update_description: str
+    user_id: UUID
     source_id: UUID
-    task: SUPPORTED_TASK_TYPE
     programming_language_with_version: str
-    inference_function: FunctionBare
-    training_function: FunctionBare
+    implementation_script_path: str
+    setup_script_path: Optional[str] = None
+    model_class_docstring: str
+    training_function_id: UUID
+    inference_function_id: UUID
+    default_config: dict
+    config_schema: dict
     created_at: datetime
     updated_at: datetime
-    setup_script_path: Optional[str] = None
-    default_config: Optional[dict] = None
 
 
-class ModelBare(BaseModel):
-    id: UUID
-    name: str
-    description: str
-    modality: SUPPORTED_MODALITIES_TYPE
-    default_config: Optional[dict] = None
+class ModelFunctionFull(ModelFunctionInDB):
+    input_object_groups: List[ModelFunctionInputObjectGroupDefinitionInDB]
+    output_object_groups: List[ModelFunctionOutputObjectGroupDefinitionInDB]
 
 
-class ModelEntityFull(ModelEntityInDB):
+class ModelFull(ModelWithoutEmbedding):
+    definition: ModelDefinitionInDB
+    training_function: ModelFunctionFull
+    inference_function: ModelFunctionFull
+
+
+class ModelEntityWithModelDef(ModelEntityInDB):
     model: ModelFull
 
 
@@ -96,25 +150,90 @@ class GetModelEntityByIDsRequest(BaseModel):
 
 # Create models
 
+class ModelFunctionInputObjectGroupDefinitionCreate(BaseModel):
+    structure_id: str
+    name: str
+    description: str
+    required: bool
+
+
+class ModelFunctionOutputObjectGroupDefinitionCreate(BaseModel):
+    structure_id: str
+    name: Optional[str] = None
+    description: str
+
+
+class ModelFunctionCreate(BaseModel):
+    docstring: str
+    args_schema: dict
+    default_args: dict
+    output_variables_schema: dict
+    input_object_groups: List[ModelFunctionInputObjectGroupDefinitionCreate]
+    output_object_groups: List[ModelFunctionOutputObjectGroupDefinitionCreate]
+
 
 class ModelCreate(BaseModel):
     name: str
+    filename: str
+    module_path: str
+    python_class_name: str
     public: bool
     description: str
     modality: SUPPORTED_MODALITIES_TYPE
+    task: SUPPORTED_TASK_TYPE
     source_id: UUID
     programming_language_with_version: str
-    inference_function_id: UUID
-    training_function_id: UUID
-    task: SUPPORTED_TASK_TYPE
-    default_config: Optional[dict] = None
+    implementation_script_path: str
+    setup_script_path: Optional[str] = None
+    model_class_docstring: str
+    training_function: ModelFunctionCreate
+    inference_function: ModelFunctionCreate
+    default_config: dict
+    config_schema: dict
+
+
+# Update models
+
+
+class ModelFunctionUpdateCreate(BaseModel):
+    docstring: Optional[str] = None
+    args_schema: Optional[dict] = None
+    output_variables_schema: Optional[dict] = None
+    default_args: Optional[dict] = None
+    input_object_groups_to_add: Optional[List[ModelFunctionInputObjectGroupDefinitionCreate]] = None
+    output_object_group_definitions_to_add: Optional[
+        List[ModelFunctionOutputObjectGroupDefinitionCreate]] = None
+    input_object_groups_to_remove: Optional[List[UUID]] = None
+    output_object_group_definitions_to_remove: Optional[List[UUID]] = None
+
+
+class ModelUpdateCreate(BaseModel):
+    definition_id: UUID
+    updates_made_description: str
+    updated_description: Optional[str] = None
+    updated_filename: Optional[str] = None
+    updated_module_path: Optional[str] = None
+    updated_python_class_name: Optional[str] = None
+    updated_implementation_script_path: Optional[str] = None
+    updated_setup_script_path: Optional[str] = None
+    updated_model_class_docstring: Optional[str] = None
+    updated_default_config: Optional[dict] = None
+    updated_training_function: Optional[ModelFunctionUpdateCreate] = None
+    updated_inference_function: Optional[ModelFunctionUpdateCreate] = None
+    updated_config_schema: Optional[dict] = None
+    model_entities_to_update: Optional[List[UUID]] = None
 
 
 class ModelEntityCreate(BaseModel):
     name: str
     description: str
     model_id: UUID
-    project_id: UUID
+    config: dict
     weights_save_dir: Optional[str] = None
     pipeline_id: Optional[UUID] = None
-    config: Optional[dict] = None
+
+
+# Update models
+
+class ModelEntityConfigUpdate(BaseModel):
+    config: dict

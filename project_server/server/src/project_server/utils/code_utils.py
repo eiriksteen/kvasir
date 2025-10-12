@@ -1,12 +1,14 @@
 import re
-import json
+import ast
 import sys
 import asyncio
 import tempfile
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 from pylint import lint
 from io import StringIO
+
+from project_server.worker import logger
 
 
 def parse_code(python_code: str) -> str:
@@ -41,8 +43,9 @@ async def run_python_code_in_container(
     )
 
     out, err = await process.communicate(python_code_parsed.encode('utf-8'))
+    err_str = err.decode("utf-8") if process.returncode != 0 else ""
 
-    return out.decode("utf-8"), err.decode("utf-8")
+    return out.decode("utf-8"), err_str
 
 
 async def run_python_function_in_container(
@@ -53,7 +56,7 @@ async def run_python_function_in_container(
         source_module: Optional[str] = None,
         print_output: bool = False,
         async_function: bool = False
-):
+) -> Tuple[str, str]:
     """
     Run a Python function in the container. 
     Wrote this function to avoid writing raw code inside strings all over.
@@ -76,6 +79,10 @@ async def run_python_function_in_container(
         )
 
     out, err = await run_python_code_in_container(raw_code, container_name)
+
+    logger.info(f"Raw code:\n\n{raw_code}")
+    logger.info(f"Out:\n\n{out}")
+    logger.info(f"Err:\n\n{err}")
 
     return out, err
 
@@ -235,15 +242,152 @@ def run_pylint(code_string: str) -> str:
 
 
 def remove_print_statements_from_code(code: str) -> str:
-    # Pattern to match print statements with their arguments and closing parenthesis
-    # This handles: print(), print("hello"), print("hello", end=""), etc.
     pattern = r'print\s*\([^)]*\)'
-
-    # Remove all print statements
     cleaned_code = re.sub(pattern, '', code)
-
-    # Clean up any resulting empty lines
     lines = cleaned_code.split('\n')
     cleaned_lines = [line for line in lines if line.strip()]
 
     return '\n'.join(cleaned_lines)
+
+
+def extract_dataclass_definitions(source_code: str) -> List[str]:
+    tree = ast.parse(source_code)
+    dataclass_definitions = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            for decorator in node.decorator_list:
+                if isinstance(decorator, ast.Name) and decorator.id == "dataclass":
+                    source_segment = ast.get_source_segment(source_code, node)
+                    if source_segment:
+                        dataclass_definitions.append(source_segment)
+                elif isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Name) and decorator.func.id == "dataclass":
+                    source_segment = ast.get_source_segment(source_code, node)
+                    if source_segment:
+                        dataclass_definitions.append(source_segment)
+
+    return dataclass_definitions
+
+
+def extract_function_definitions(source_code: str) -> List[str]:
+    tree = ast.parse(source_code)
+    function_summaries = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            func_name = node.name
+
+            params = []
+            for arg in node.args.args:
+                param_name = arg.arg
+                param_type = ast.unparse(
+                    arg.annotation) if arg.annotation else "Any"
+                params.append(f"{param_name}: {param_type}")
+            for kwarg in node.args.kwonlyargs:
+                param_name = kwarg.arg
+                param_type = ast.unparse(
+                    kwarg.annotation) if kwarg.annotation else "Any"
+                params.append(f"{param_name}: {param_type} (keyword-only)")
+
+            return_type = ast.unparse(node.returns) if node.returns else "Any"
+
+            summary = f"Function: {func_name}\n\n"
+            summary += "  Parameters:\n"
+            if params:
+                for param in params:
+                    summary += f"    - {param}\n"
+            else:
+                summary += "    - None\n"
+            summary += f"\nReturn Type: {return_type}"
+
+            function_summaries.append(summary)
+
+    return function_summaries
+
+
+def get_type_annotation(node) -> str:
+    if isinstance(node, ast.Name):
+        return node.id
+    elif isinstance(node, ast.Subscript):
+        return f"{get_type_annotation(node.value)}[{get_type_annotation(node.slice)}]"
+    elif isinstance(node, ast.Constant):
+        return str(node.value)
+    elif isinstance(node, ast.Attribute):
+        return f"{get_type_annotation(node.value)}.{node.attr}"
+    elif isinstance(node, (ast.Tuple, ast.List)):
+        elements = [get_type_annotation(el) for el in node.elts]
+        return f"Tuple[{', '.join(elements)}]" if isinstance(node, ast.Tuple) else f"List[{', '.join(elements)}]"
+    return "Any"
+
+
+def is_dataclass(node: ast.ClassDef) -> bool:
+    for decorator in node.decorator_list:
+        if isinstance(decorator, ast.Name) and decorator.id == "dataclass":
+            return True
+        elif isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Name) and decorator.func.id == "dataclass":
+            return True
+    return False
+
+
+def extract_method_info(node: ast.FunctionDef) -> Tuple[str, List[Tuple[str, str]], str]:
+    params = []
+    for arg in node.args.args:
+        param_name = arg.arg
+        param_type = get_type_annotation(
+            arg.annotation) if arg.annotation else "Any"
+        params.append((param_name, param_type))
+
+    return_type = get_type_annotation(node.returns) if node.returns else "None"
+    return node.name, params, return_type
+
+
+def extract_class_definitions(code: str) -> List[dict]:
+    tree = ast.parse(code)
+    class_info_list = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and not is_dataclass(node):
+            class_info = {
+                "name": node.name,
+                "init": None,
+                "methods": []
+            }
+
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef):
+                    method_name, params, return_type = extract_method_info(
+                        item)
+                    method_info = {
+                        "name": method_name,
+                        "parameters": params,
+                        "return_type": return_type
+                    }
+
+                    if method_name == "__init__":
+                        class_info["init"] = method_info
+                    else:
+                        class_info["methods"].append(method_info)
+
+            class_info_list.append(class_info)
+
+    output = []
+    for cls in class_info_list:
+        output.append(f"Class: {cls['name']}")
+
+        if cls['init']:
+            init = cls['init']
+            params = ", ".join(f"{name}: {type_}" for name,
+                               type_ in init['parameters'])
+            output.append(f"  __init__({params}) -> {init['return_type']}")
+
+        if cls['methods']:
+            output.append("  Methods:")
+            for method in cls['methods']:
+                params = ", ".join(
+                    f"{name}: {type_}" for name, type_ in method['parameters'])
+                output.append(
+                    f"    {method['name']}({params}) -> {method['return_type']}")
+
+        output.append("")  # Empty line between classes
+
+    return "\n".join(output)

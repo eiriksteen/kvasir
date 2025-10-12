@@ -4,18 +4,62 @@ import numpy as np
 from datetime import datetime
 from typing import Union
 
-from synesis_data_structures.time_series.definitions import (
-    TIME_SERIES_DATA_SECOND_LEVEL_ID,
-    TIME_SERIES_ENTITY_METADATA_SECOND_LEVEL_ID,
-    FEATURE_INFORMATION_SECOND_LEVEL_ID,
-    TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID,
-    TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID,
-    TIME_SERIES_AGGREGATION_METADATA_SECOND_LEVEL_ID
-)
+
 from synesis_data_structures.time_series.df_dataclasses import (
     TimeSeriesStructure,
     TimeSeriesAggregationStructure
 )
+
+# Synthetic data descriptions
+TIME_SERIES_SYNTHETIC_DESCRIPTION = """# Synthetic Time Series Data
+
+Simulates traffic monitoring from 5 road sensors across cities. Variable-length time series (400-600 hourly observations) ending at current timestamp.
+
+## Time-Varying Data (time_series_data)
+MultiIndex DataFrame (entity, timestamp) with columns:
+- `cars_per_hour` (int): Traffic count (0-1200, normally distributed)
+- `temperature` (float): Celsius temperature (10-25°C mean ±5°C variation)
+- `is_raining` (int): Binary rain indicator (10-30% probability)
+
+## Entity Metadata (entity_metadata)
+Indexed by entity ID with columns:
+- `city`: City name (10 major cities: NY, London, Tokyo, Paris, Berlin, Sydney, Singapore, Dubai, Mumbai, São Paulo)
+- `district`: District type (Downtown, Suburban, Industrial, Residential, Commercial)
+- `district_population`: Population (10K-1M)
+- `city_population`: Population (100K-10M)
+- `administrative_class`: Level (0=national, 1=provincial, 2=municipal, 3=village)
+- `country`: Corresponding country
+
+## Feature Information (feature_information)
+Metadata for 9 features (3 time-varying + 6 static) with units, types, and categorical mappings.
+
+Use cases: Traffic analysis, weather impact studies, urban planning, sensor testing, anomaly detection."""
+
+TIME_SERIES_AGGREGATION_SYNTHETIC_DESCRIPTION = """# Synthetic Time Series Aggregation Data
+
+Statistical aggregations computed over time windows of synthetic traffic data. 15 aggregations with variable windows (12+ hours).
+
+## Aggregation Outputs (time_series_aggregation_outputs)
+Indexed by aggregation_id with features based on input type:
+
+**Traffic (cars_per_hour)**: mean_traffic, max_traffic, traffic_variance, peak_hour_traffic
+**Temperature**: mean_temperature, temperature_range, temperature_std
+**Rain (is_raining)**: total_rain_hours, rain_frequency, longest_rain_streak
+
+## Aggregation Inputs (time_series_aggregation_inputs)
+Columns: aggregation_id, time_series_id, input_feature_name, start_timestamp, end_timestamp
+
+## Aggregation Metadata (entity_metadata)
+Indexed by aggregation_id with columns:
+- `aggregation_type`: Computation description
+- `window_size_hours`: Time window duration
+- `entity_city`: City location
+- `entity_district`: District type
+
+## Feature Information (feature_information)
+Metadata for 11 output features with types, units, and descriptions.
+
+Use cases: Statistical analysis, feature engineering, performance monitoring, automated reporting."""
 
 
 def generate_synthetic_data(first_level_id: str) -> Union[TimeSeriesStructure, TimeSeriesAggregationStructure]:
@@ -36,10 +80,38 @@ def generate_synthetic_data(first_level_id: str) -> Union[TimeSeriesStructure, T
         raise ValueError(f"Unknown first level ID: {first_level_id}")
 
 
+def get_synthetic_data_description(first_level_id: str) -> str:
+    """
+    Get the description of the synthetic data generated for a specific data structure.
+
+    Args:
+        first_level_id: The first level ID ('time_series' or 'time_series_aggregation')
+
+    Returns:
+        A string description of the synthetic dataset structure and contents
+    """
+    if first_level_id == "time_series":
+        return _get_time_series_synthetic_description()
+    elif first_level_id == "time_series_aggregation":
+        return _get_time_series_aggregation_synthetic_description()
+    else:
+        raise ValueError(f"Unknown first level ID: {first_level_id}")
+
+
+def _get_time_series_synthetic_description() -> str:
+    """Get description of the synthetic time series data."""
+    return TIME_SERIES_SYNTHETIC_DESCRIPTION
+
+
+def _get_time_series_aggregation_synthetic_description() -> str:
+    """Get description of the synthetic time series aggregation data."""
+    return TIME_SERIES_AGGREGATION_SYNTHETIC_DESCRIPTION
+
+
 def _generate_synthetic_time_series_data(
-    num_entities: int = 30,
-    min_timestamps: int = 1000,
-    max_timestamps: int = 3000,
+    num_entities: int = 5,
+    min_timestamps: int = 400,
+    max_timestamps: int = 600,
     seed: int = 42
 ) -> TimeSeriesStructure:
     """
@@ -189,7 +261,7 @@ def _generate_synthetic_time_series_data(
 
 
 def _generate_synthetic_time_series_aggregation_data(
-    num_aggregations: int = 50,
+    num_aggregations: int = 15,
     seed: int = 42
 ) -> TimeSeriesAggregationStructure:
     """

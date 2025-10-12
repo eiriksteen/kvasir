@@ -11,7 +11,7 @@ export interface FrontendNode {
   dataSourceId: UUID | null;
   datasetId: UUID | null;
   analysisId: UUID | null; 
-  pipelineId: UUID | null;
+  pipelineId: UUID | null; 
   modelEntityId: UUID | null;
 }
 

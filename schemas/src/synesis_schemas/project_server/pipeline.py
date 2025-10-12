@@ -1,19 +1,12 @@
 from pydantic import BaseModel
+from typing import Literal
 from uuid import UUID
-from typing import List
 
 
 class RunPipelineRequest(BaseModel):
     project_id: UUID
-    conversation_id: UUID
-    prompt_content: str
-    input_dataset_ids: List[UUID]
-    input_model_entity_ids: List[UUID] = []
+    pipeline_id: UUID
 
 
-class PipelineCreate(BaseModel):
-    pass
-
-
-class FunctionCreate(BaseModel):
-    pass
+class PipelineRunStatusUpdate(BaseModel):
+    status: Literal["running", "completed", "failed"]

@@ -7,12 +7,8 @@ from synesis_schemas.main_server import (
     RunMessageCreate,
     RunMessageCreatePydantic,
     RunStatusUpdate,
-    DataIntegrationRunInputCreate,
-    DataIntegrationRunResultCreate,
     RunInDB,
     RunMessageInDB,
-    DataIntegrationRunInputInDB,
-    DataIntegrationRunResultInDB,
     Run,
     RunPydanticMessageInDB
 )
@@ -36,16 +32,6 @@ async def post_run_message_pydantic(client: ProjectClient, run_message: RunMessa
 async def patch_run_status(client: ProjectClient, run_status: RunStatusUpdate):
     response = await client.send_request("patch", "/runs/run-status", json=run_status.model_dump(mode="json"))
     return RunInDB(**response.body)
-
-
-async def post_data_integration_run_input(client: ProjectClient, data_integration_run_input: DataIntegrationRunInputCreate) -> DataIntegrationRunInputInDB:
-    response = await client.send_request("post", "/runs/data-integration-run-input", json=data_integration_run_input.model_dump(mode="json"))
-    return DataIntegrationRunInputInDB(**response.body)
-
-
-async def post_data_integration_run_result(client: ProjectClient, data_integration_run_result: DataIntegrationRunResultCreate) -> DataIntegrationRunResultInDB:
-    response = await client.send_request("post", "/runs/data-integration-run-result", json=data_integration_run_result.model_dump(mode="json"))
-    return DataIntegrationRunResultInDB(**response.body)
 
 
 async def get_runs(client: ProjectClient, exclude_swe: bool = True) -> List[Run]:

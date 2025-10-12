@@ -104,7 +104,7 @@ async def get_data_sources(
         data_source_query = data_source_query.where(
             data_source.c.user_id == user_id
         )
-    if data_source_ids and len(data_source_ids) > 0:
+    if data_source_ids is not None:
         data_source_query = data_source_query.where(
             data_source.c.id.in_(data_source_ids)
         )

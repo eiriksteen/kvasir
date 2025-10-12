@@ -1,6 +1,6 @@
 import uuid
 from datetime import timezone, datetime
-from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean, CheckConstraint, Integer, Float
+from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean, CheckConstraint, Integer, Float, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from pgvector.sqlalchemy import Vector
 
@@ -17,32 +17,65 @@ structure_constraint = "structure_id IN (" + \
 function_type_constraint = "type IN ('inference', 'training', 'computation', 'tool')"
 
 
-function = Table(
-    "function",
+# The function is defined once, and then multiple versions of it can be created (the function table)
+# For new queries, we will always use the latest version of the function
+# During experimentation and usage, when flaws of the functions are found, we create a new version
+function_definition = Table(
+    "function_definition",
     metadata,
     Column("id", UUID(as_uuid=True),
            default=uuid.uuid4,
            primary_key=True),
     Column("name", String, nullable=False),
-    Column("description", String, nullable=False),
-    Column("embedding", Vector(dim=EMBEDDING_DIM), nullable=False),
-    Column("implementation_script_path", String, nullable=False),
-    Column("setup_script_path", String, nullable=True),
-    Column("default_args", JSONB, nullable=True),
-    # Inference, training, computation, tool
     Column("type", String, nullable=False),
+    Column("args_dataclass_name", String, nullable=False),
+    Column("input_dataclass_name", String, nullable=False),
+    Column("output_dataclass_name", String, nullable=False),
+    Column("output_variables_dataclass_name", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
     CheckConstraint(function_type_constraint),
+    UniqueConstraint("name"),
     schema="function"
 )
 
 
-function_input_structure = Table(
-    "function_input_structure",
+function = Table(
+    "function",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           default=uuid.uuid4,
+           primary_key=True),
+    Column("definition_id", UUID(as_uuid=True),
+           ForeignKey("function.function_definition.id"),
+           nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("args_schema", JSONB, nullable=False),
+    Column("output_variables_schema", JSONB, nullable=False),
+    Column("newest_update_description", String, nullable=False),
+    Column("description", String, nullable=False),
+    Column("docstring", String, nullable=False),
+    Column("embedding", Vector(dim=EMBEDDING_DIM), nullable=False),
+    Column("filename", String, nullable=False),
+    Column("python_function_name", String, nullable=False),
+    Column("implementation_script_path", String, nullable=False),
+    Column("module_path", String, nullable=False),
+    Column("setup_script_path", String, nullable=True),
+    Column("default_args", JSONB, nullable=True),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="function"
+)
+
+
+function_input_object_group_definition = Table(
+    "function_input_object_group_definition",
     metadata,
     Column("id", UUID(as_uuid=True),
            default=uuid.uuid4,
@@ -54,23 +87,26 @@ function_input_structure = Table(
     Column("name", String, nullable=False),
     Column("description", String, nullable=True),
     Column("required", Boolean, nullable=False),
-    CheckConstraint(structure_constraint),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
+    CheckConstraint(structure_constraint),
+    UniqueConstraint("function_id", "name"),
     schema="function"
 )
 
 
-function_output_structure = Table(
-    "function_output_structure",
+function_output_object_group_definition = Table(
+    "function_output_object_group_definition",
     metadata,
     Column("id", UUID(as_uuid=True),
            default=uuid.uuid4,
            primary_key=True),
     Column("name", String, nullable=False),
+    Column("description", String, nullable=True),
+    Column("output_entity_id_name", String, nullable=False),
     Column("function_id", UUID(as_uuid=True),
            ForeignKey("function.function.id"),
            nullable=False),
@@ -80,28 +116,7 @@ function_output_structure = Table(
     Column("updated_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
-    Column("description", String, nullable=True),
     CheckConstraint(structure_constraint),
-    schema="function"
-)
-
-
-function_output_variable = Table(
-    "function_output_variable",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           default=uuid.uuid4,
-           primary_key=True),
-    Column("name", String, nullable=False),
-    Column("function_id", UUID(as_uuid=True),
-           ForeignKey("function.function.id"),
-           nullable=False),
-    Column("python_type", String, nullable=False),
-    Column("created_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc), nullable=False),
-    Column("updated_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc),
-           onupdate=datetime.now(timezone.utc), nullable=False),
-    Column("description", String, nullable=True),
+    UniqueConstraint("function_id", "name"),
     schema="function"
 )

@@ -1,60 +1,25 @@
 import { UUID } from "crypto";
 
-
-export interface FunctionInputStructure {
-  id: UUID;
-  position: number;
-  functionId: UUID;
-  structureId: string;
-  name: string;
-  required: boolean;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface FunctionOutputStructure {
-  id: UUID;
-  position: number;
-  functionId: UUID;
-  structureId: string;
-  name: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface FunctionOutputVariable {
-  id: UUID;
-  position: number;
-  functionId: UUID;
-  variableId: string;
-}
-
-export interface Function {
-  id: UUID;
-  name: string;
-  type: "inference" | "training" | "computation";
-  implementationScriptPath: string;
-  setupScriptPath?: string;
-  defaultArgs?: Record<string, unknown>;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
-  inputStructures: FunctionInputStructure[];
-  outputStructures: FunctionOutputStructure[];
-  outputVariables: FunctionOutputVariable[];
-}
+// API Models - Only what's used in frontend
 
 export interface FunctionWithoutEmbedding {
   id: UUID;
-  name: string;
+  definitionId: UUID;
+  version: number;
+  argsSchema: Record<string, unknown>;
+  defaultArgs: Record<string, unknown>;
+  outputVariablesSchema: Record<string, unknown>;
+  newestUpdateDescription: string;
+  filename: string;
+  modulePath: string;
+  pythonFunctionName: string;
+  implementationScriptPath: string;
+  docstring: string;
   description: string;
-  defaultArgs?: Record<string, unknown>;
-  inputStructures: FunctionInputStructure[];
-  outputStructures: FunctionOutputStructure[];
-  outputVariables: FunctionOutputVariable[];
-  type: "inference" | "training" | "computation";
+  setupScriptPath?: string | null;
   createdAt: string;
   updatedAt: string;
 }
+
+// Type alias for backward compatibility
+export type Function = FunctionWithoutEmbedding;

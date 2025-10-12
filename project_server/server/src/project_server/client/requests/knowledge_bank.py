@@ -2,7 +2,7 @@ from typing import List
 
 
 from project_server.client import ProjectClient
-from synesis_schemas.main_server import SearchFunctionsRequest, SearchModelsRequest, SearchModelSourcesRequest, FunctionQueryResult, ModelQueryResult, ModelSourceQueryResult
+from synesis_schemas.main_server import SearchFunctionsRequest, SearchModelsRequest, FunctionQueryResult, ModelQueryResult, GetGuidelinesRequest
 
 
 async def post_search_functions(client: ProjectClient, request: SearchFunctionsRequest) -> List[FunctionQueryResult]:
@@ -17,7 +17,6 @@ async def post_search_models(client: ProjectClient, request: SearchModelsRequest
     return results
 
 
-async def post_search_model_sources(client: ProjectClient, request: SearchModelSourcesRequest) -> List[ModelSourceQueryResult]:
-    response = await client.send_request("post", "/knowledge-bank/search-model-sources", json=request.model_dump(mode="json"))
-    results = [ModelSourceQueryResult(**r) for r in response.body]
-    return results
+async def get_task_guidelines(client: ProjectClient, request: GetGuidelinesRequest) -> str:
+    response = await client.send_request("get", "/knowledge-bank/task-guidelines", json=request.model_dump(mode="json"))
+    return response.body

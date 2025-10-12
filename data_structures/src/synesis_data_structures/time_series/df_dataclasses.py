@@ -6,8 +6,8 @@ from typing import Optional
 # Separate metadata structures and raw data structures, since sometimes we want to access the metadata without loading the raw data
 @dataclass(kw_only=True)
 class MetadataStructure:
-    entity_metadata: Optional[pd.DataFrame] = None
-    feature_information: Optional[pd.DataFrame] = None
+    entity_metadata: pd.DataFrame
+    feature_information: pd.DataFrame
 
 
 @dataclass(kw_only=True)

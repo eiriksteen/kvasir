@@ -1,14 +1,14 @@
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
-import { Dataset, ObjectGroupWithObjectList } from "@/types/data-objects";
+import { Dataset, ObjectGroupWithObjects } from "@/types/data-objects";
 import { snakeToCamelKeys } from "@/lib/utils";
 import { UUID } from "crypto";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 async function fetchDatasets(token: string, projectId: UUID): Promise<Dataset[]> {
-  const response = await fetch(`${API_URL}/data-objects/project-datasets/${projectId}?include_object_lists=0&include_features=1`, {
+  const response = await fetch(`${API_URL}/data-objects/project-datasets/${projectId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -25,7 +25,7 @@ async function fetchDatasets(token: string, projectId: UUID): Promise<Dataset[]>
   return snakeToCamelKeys(data);
 }
 
-async function fetchObjectGroupsInDataset(token: string, datasetId: string): Promise<ObjectGroupWithObjectList[]> {
+async function fetchObjectGroupsInDataset(token: string, datasetId: string): Promise<ObjectGroupWithObjects[]> {
   const response = await fetch(`${API_URL}/data-objects/object-groups-in-dataset/${datasetId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,

@@ -88,7 +88,7 @@ export default function ModelInfoModal({
                         <h3 className="text-sm font-semibold text-gray-900">
                           Model Information
                         </h3>
-                        <p className="text-xs text-gray-600 font-mono">{modelEntity.model.task}</p>
+                        <p className="text-xs text-gray-600 font-mono">{modelEntity.model.definition.task}</p>
                       </div>
                     </div>
                     <div className="space-y-2 flex-1 overflow-y-auto pr-2 min-h-0">
@@ -102,7 +102,7 @@ export default function ModelInfoModal({
                       </div>
                       <div className="flex items-center">
                         <span className="text-sm text-gray-600">Modality:</span>
-                        <span className="text-sm text-gray-900 font-mono ml-2">{modelEntity.model.modality}</span>
+                        <span className="text-sm text-gray-900 font-mono ml-2">{modelEntity.model.definition.modality}</span>
                       </div>
                       <div className="flex items-center">
                         <span className="text-sm text-gray-600">Language:</span>

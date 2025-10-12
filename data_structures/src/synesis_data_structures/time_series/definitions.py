@@ -44,7 +44,6 @@ The structure supports varying time series lengths per entity, making it flexibl
 - Content: Features as columns, including:
   - Time-varying measurements: Numerical continuous features as floats, discrete as integers, categorical as 0-indexed integers (0/1 for binary features)
 - Shape: (num_entities, num_timestamps, num_features)
-- Naming convention: snake_case
 - Missing Values: pd.NA
 - Note: Varying number of timestamps per entity are supported, i.e the time series have differing lengths
 
@@ -63,7 +62,6 @@ The structure supports varying time series lengths per entity, making it flexibl
   - Variable columns:
     - Any other column may be defined which is specific to the entity
 - Missing Values: pd.NA
-- Naming convention: snake_case
 
 ## Feature Information
 - Second level ID identifying this dataframe: {FEATURE_INFORMATION_SECOND_LEVEL_ID}
@@ -79,7 +77,6 @@ The structure supports varying time series lengths per entity, making it flexibl
   - source: One of "data", "metadata" (whether the feature is from the time-varying data or the entity metadata)
   - category_id: If the feature is categorical, the category id to map the integer to the label, else pd.NA
 - Missing Values: pd.NA
-- Naming convention: snake_case
 
 # Access in your code
 
@@ -92,8 +89,12 @@ If you need to access the definition, you can import it with 'from synesis_data_
 @dataclass
 class TimeSeriesStructure:
     {TIME_SERIES_DATA_SECOND_LEVEL_ID}: pd.DataFrame
-    {ENTITY_METADATA_SECOND_LEVEL_ID}: Optional[pd.DataFrame] = None
-    {FEATURE_INFORMATION_SECOND_LEVEL_ID}: Optional[pd.DataFrame] = None
+    {ENTITY_METADATA_SECOND_LEVEL_ID}: pd.DataFrame
+    {FEATURE_INFORMATION_SECOND_LEVEL_ID}: pd.DataFrame
+
+Note that the entity metadata and feature information dataframes are required, and they must be non-empty. 
+The entity metadata must containe at minimum the columns described above. 
+The feature information must also be populated, as every feature in the time series data must be described in the feature information.
 
 If relevant, the name(s) of the instantiated TimeSeriesStructure(s) will be provided to you, so you can access the data in your code. 
 """
@@ -111,6 +112,9 @@ The Time Series Aggregation DataFrame structure is designed for computing summar
 
 The aggregation structure allows for flexible time window definitions and can handle multiple input series, features, windows, and output metrics simultaneously, making it suitable for complex analytical workflows.
 
+NB: It should NOT be used to store arbitrary output values, such as loss values or other metrics. It is used to store the outputs of computations on slices in the series! Use output variables to store arbitrary outputs and metrics. 
+DO NOT USE TIME SERIES AGGREGATION TO STORE METRICS OR LOSS VALUES!  
+
 ## Data Structure
 
 ## Time-Series Aggregation Outputs
@@ -120,7 +124,6 @@ The aggregation structure allows for flexible time window definitions and can ha
   - Index: Aggregation ID
 - Content: Output features as columns
 - Missing Values: pd.NA
-- Naming convention: snake_case
 
 ## Time-Series Aggregation Inputs
 - Second level ID identifying this dataframe: {TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID}
@@ -134,7 +137,6 @@ The aggregation structure allows for flexible time window definitions and can ha
   - end_timestamp: The end timestamp of the aggregation
 - Note: In case of multiple aggregation inputs (i.e. multiple series, multiple input features, or even multiple windows for the same feature), include a row for each and use the same aggregation id
 - Missing Values: pd.NA
-- Naming convention: snake_case
 
 ## Static Aggregation-Specific Metadata
 - Second level ID identifying this dataframe: {ENTITY_METADATA_SECOND_LEVEL_ID}
@@ -147,7 +149,6 @@ The aggregation structure allows for flexible time window definitions and can ha
   - Variable columns:
     - Any other column may be defined which is specific to the aggregation
 - Missing Values: pd.NA
-- Naming convention: snake_case
 
 ## Feature Information - Only include feature information for the outputs (as we already have them for the inputs)
 - Second level ID identifying this dataframe: {FEATURE_INFORMATION_SECOND_LEVEL_ID}
@@ -163,7 +164,6 @@ The aggregation structure allows for flexible time window definitions and can ha
   - source: One of "data", "metadata" (whether the feature is from the time-varying data or the entity metadata)
   - category_id: If the feature is categorical, the category id to map the integer to the label, else pd.NA
 - Missing Values: pd.NA
-- Naming convention: snake_case
 
 # Access in your code
 
@@ -177,8 +177,12 @@ If you need to access the definition, you can import it with 'from synesis_data_
 class TimeSeriesAggregationStructure:
     {TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID}: pd.DataFrame
     {TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID}: pd.DataFrame
-    {ENTITY_METADATA_SECOND_LEVEL_ID}: Optional[pd.DataFrame] = None
-    {FEATURE_INFORMATION_SECOND_LEVEL_ID}: Optional[pd.DataFrame] = None
+    {ENTITY_METADATA_SECOND_LEVEL_ID}: pd.DataFrame
+    {FEATURE_INFORMATION_SECOND_LEVEL_ID}: pd.DataFrame
+    
+Note that the entity metadata and feature information dataframes are required, and they must be non-empty. 
+The entity metadata must containe at minimum the columns described above. 
+The feature information must also be populated, as every feature in the time series data must be described in the feature information.
 
 If relevant, the name(s) of the instantiated TimeSeriesAggregationStructure(s) will be provided to you, so you can access the data in your code. 
 """

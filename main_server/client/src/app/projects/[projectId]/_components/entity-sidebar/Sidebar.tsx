@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, BarChart3, Zap, Folder, Brain, HardDrive } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BarChart3, Zap, Folder, Brain, Database } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { DataSource } from '@/types/data-sources';
 import { useAgentContext, useAnalysis, useDatasets, usePipelines, useProject, useProjectDataSources } from '@/hooks';
@@ -158,7 +158,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                 ))}
                                 {dataSources.length === 0 && (
                                     <div className="px-3 py-4 text-center">
-                                        <HardDrive size={16} className="text-gray-400 mx-auto mb-2" />
+                                        <Database size={16} className="text-gray-400 mx-auto mb-2" />
                                         <p className="text-xs text-gray-500">No data sources</p>
                                     </div>
                                 )}

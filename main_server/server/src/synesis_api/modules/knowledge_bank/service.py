@@ -1,89 +1,84 @@
-from sqlalchemy import select, or_, and_
-
 import uuid
+from sqlalchemy import select, or_, and_, func
+from typing import Literal
 
+from synesis_api.modules.function.service import get_functions
 from synesis_api.database.service import fetch_all
-from synesis_api.modules.function.models import (
-    function, function_input_structure, function_output_structure, function_output_variable
-)
-from synesis_api.modules.model.models import model
-from synesis_api.modules.model_sources.models import model_source
+from synesis_api.modules.function.models import function, function_definition
+from synesis_api.modules.model.models import model, model_definition
 from synesis_api.utils.rag_utils import embed
-from synesis_schemas.main_server import QueryRequest, FunctionQueryResult, ModelQueryResult, ModelSourceQueryResult, FunctionBare, ModelBare, ModelSourceBare
+from synesis_schemas.main_server import QueryRequest, FunctionQueryResult, ModelQueryResult, GetGuidelinesRequest
+from synesis_api.modules.model.service import get_models
+from synesis_api.modules.knowledge_bank.guidelines import TIME_SERIES_FORECASTING_GUIDELINES
 
 
 async def query_functions(query_request: QueryRequest, exclude_model_functions: bool = True) -> FunctionQueryResult:
 
     query_vector = (await embed([query_request.query]))[0]
+    # For each fn definition id, get the max fn version
+    max_version_subquery = select(function.c.definition_id, func.max(function.c.version).label(
+        "newest_version")).group_by(function.c.definition_id).subquery("max_version_subquery")
+    fn_id_of_max_version_subquery = select(function.c.id).join(
+        max_version_subquery,
+        and_(function.c.definition_id == max_version_subquery.c.definition_id,
+             function.c.version == max_version_subquery.c.newest_version)
+    )
 
     function_query = select(
-        function
+        function.c.id
+    ).join(
+        function_definition, function.c.definition_id == function_definition.c.id
+    ).where(
+        function.c.id.in_(fn_id_of_max_version_subquery)
     ).order_by(
         function.c.embedding.cosine_distance(query_vector)
     ).limit(query_request.k)
 
     if exclude_model_functions:
         function_query = function_query.where(
-            and_(function.c.type != "training", function.c.type != "inference"))
+            and_(function_definition.c.type != "training", function_definition.c.type != "inference"))
 
     fns = await fetch_all(function_query)
-
     function_ids = [fn["id"] for fn in fns]
+    functions = await get_functions(function_ids)
 
-    function_input_structures_query = select(function_input_structure).where(
-        function_input_structure.c.function_id.in_(function_ids))
-
-    function_output_structures_query = select(function_output_structure).where(
-        function_output_structure.c.function_id.in_(function_ids))
-
-    function_output_variables_query = select(function_output_variable).where(
-        function_output_variable.c.function_id.in_(function_ids))
-
-    fn_inputs = await fetch_all(function_input_structures_query)
-    fn_outputs = await fetch_all(function_output_structures_query)
-    fn_output_variables = await fetch_all(function_output_variables_query)
-
-    return FunctionQueryResult(query_name=query_request.query_name, functions=[FunctionBare(
-        **f,
-        input_structures=fn_inputs,
-        output_structures=fn_outputs,
-        output_variables=fn_output_variables) for f in fns]
-    )
+    return FunctionQueryResult(query_name=query_request.query_name, functions=functions)
 
 
 async def query_models(user_id: uuid.UUID, query_request: QueryRequest) -> ModelQueryResult:
 
     query_vector = (await embed([query_request.query]))[0]
 
+    # For each model definition id, get the max model version
+    max_version_subquery = select(model.c.definition_id, func.max(model.c.version).label(
+        "newest_version")).group_by(model.c.definition_id).subquery("max_version_subquery")
+    model_id_of_max_version_subquery = select(model.c.id).join(
+        max_version_subquery,
+        and_(model.c.definition_id == max_version_subquery.c.definition_id,
+             model.c.version == max_version_subquery.c.newest_version)
+    )
+
     model_query = select(
-        model
+        model.c.id
+    ).join(
+        model_definition, model.c.definition_id == model_definition.c.id
     ).where(
-        or_(model.c.owner_id == user_id, model.c.public == True)
+        and_(
+            model.c.id.in_(model_id_of_max_version_subquery),
+            or_(model.c.user_id == user_id, model_definition.c.public == True)
+        )
     ).order_by(
         model.c.embedding.cosine_distance(query_vector)
     ).limit(query_request.k)
 
-    models = await fetch_all(model_query)
+    model_records = await fetch_all(model_query)
+    models = await get_models([m["id"] for m in model_records])
 
-    return ModelQueryResult(query_name=query_request.query_name, models=[ModelBare(
-        **m) for m in models]
-    )
+    return ModelQueryResult(query_name=query_request.query_name, models=models)
 
 
-async def query_model_sources(user_id: uuid.UUID, query_request: QueryRequest) -> ModelSourceQueryResult:
-
-    query_vector = (await embed([query_request.query]))[0]
-
-    model_source_query = select(
-        model_source
-    ).where(
-        or_(model_source.c.user_id == user_id, model_source.c.public == True)
-    ).order_by(
-        model_source.c.embedding.cosine_distance(query_vector)
-    ).limit(query_request.k)
-
-    model_sources = await fetch_all(model_source_query)
-
-    return ModelSourceQueryResult(query_name=query_request.query_name, model_sources=[ModelSourceBare(
-        **m) for m in model_sources]
-    )
+def get_task_guidelines(request: GetGuidelinesRequest) -> str:
+    if request.task == "time_series_forecasting":
+        return TIME_SERIES_FORECASTING_GUIDELINES
+    else:
+        raise ValueError(f"Unsupported task: {request.task}")

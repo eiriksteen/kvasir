@@ -5,10 +5,15 @@ import { Session } from 'next-auth';
 import EntitySidebar from "@/app/projects/[projectId]/_components/entity-sidebar/Sidebar";
 import Chatbot from "@/app/projects/[projectId]/_components/chat/Chatbot";
 import UserHeader from "@/components/headers/UserHeader";
-import ProjectView from "@/app/projects/[projectId]/_components/erd/EntityRelationshipDiagram";
+import EntityRelationshipDiagram from "@/app/projects/[projectId]/_components/erd/EntityRelationshipDiagram";
 import TabView from "@/app/projects/[projectId]/_components/tab-view/TabView";
 import { useProject } from "@/hooks/useProject";
-// import MainView from "@/components/MainView";
+import { useTabContext } from "@/hooks/useTabContext";
+import FileInfoModal from "@/components/info-modals/FileInfoModal";
+import DatasetInfoModal from "@/components/info-modals/DatasetInfoModal";
+import PipelineInfoModal from "@/components/info-modals/PipelineInfoModal";
+import ModelInfoModal from "@/components/info-modals/ModelInfoModal";
+import AnalysisItem from "@/components/info-modals/analysis/AnalysisItem";
 import { UUID } from "crypto";
 
 interface DashboardProps {
@@ -18,6 +23,7 @@ interface DashboardProps {
 
 function DashboardContent({ projectId }: { projectId: UUID }) {
   const { project } = useProject(projectId);
+  const { openTabs, activeTabKey, closeTabByKey } = useTabContext(projectId);
   
   // If no project is selected, show loading or return null
   if (!project) {
@@ -31,6 +37,54 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     );
   }
 
+  // Find the active tab
+  const activeTab = openTabs.find(tab => tab.key === activeTabKey);
+
+  // Render content based on active tab type
+  let mainContent: React.ReactNode = null;
+  
+  if (activeTab?.type === 'project') {
+    mainContent = <EntityRelationshipDiagram projectId={projectId} />;
+  } else if (activeTab?.type === 'data_source') {
+    mainContent = (
+      <FileInfoModal
+        dataSourceId={activeTab.id as UUID}
+        onClose={() => closeTabByKey(activeTab.key)}
+      />
+    );
+  } else if (activeTab?.type === 'dataset') {
+    mainContent = (
+      <DatasetInfoModal
+        datasetId={activeTab.id as UUID}
+        onClose={() => closeTabByKey(activeTab.key)}
+        projectId={projectId}
+      />
+    );
+  } else if (activeTab?.type === 'analysis') {
+    mainContent = (
+      <AnalysisItem
+        analysisObjectId={activeTab.id as UUID}
+        projectId={projectId}
+        onClose={() => closeTabByKey(activeTab.key)}
+      />
+    );
+  } else if (activeTab?.type === 'pipeline') {
+    mainContent = (
+      <PipelineInfoModal
+        pipelineId={activeTab.id as UUID}
+        onClose={() => closeTabByKey(activeTab.key)}
+      />
+    );
+  } else if (activeTab?.type === 'model_entity') {
+    mainContent = (
+      <ModelInfoModal
+        modelEntityId={activeTab.id as UUID}
+        onClose={() => closeTabByKey(activeTab.key)}
+        projectId={projectId}
+      />
+    );
+  }
+
   // If a project is selected, show the main dashboard
   return (
     <div className="flex flex-col h-full bg-white">
@@ -38,9 +92,12 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
       <div className="flex flex-1 h-[calc(100vh-3rem)]">
         <EntitySidebar projectId={projectId} />
         <main className="flex-1 min-w-0 overflow-hidden bg-white">
-          <TabView projectId={projectId}>
-              <ProjectView projectId={projectId} />
-          </TabView>
+          <div className="flex flex-col h-full w-full pt-12">
+            <TabView projectId={projectId} />
+            <div className="flex-1 overflow-auto bg-gray-950">
+              {mainContent}
+            </div>
+          </div>
         </main>
         <div className="w-[400px] shrink-0">
           <Chatbot projectId={projectId} />

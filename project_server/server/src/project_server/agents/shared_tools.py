@@ -1,8 +1,10 @@
-from typing import Dict
-from pydantic_ai import ModelRetry
+from typing import Dict, Literal
+from pydantic_ai import ModelRetry, RunContext
 
 from project_server.utils.code_utils import run_python_code_in_container
 from synesis_data_structures.time_series.definitions import get_data_structures_overview, get_data_structure_description
+from synesis_schemas.main_server import GetGuidelinesRequest
+from project_server.client.requests.knowledge_bank import get_task_guidelines
 
 
 def get_data_structures_overview_tool() -> Dict[str, str]:
@@ -52,3 +54,8 @@ async def execute_python_code(python_code: str, explanation: str):
         raise ModelRetry(f"Error executing code: {err}")
 
     return out
+
+
+async def get_task_guidelines_tool(ctx: RunContext, task: Literal["time_series_forecasting"]) -> str:
+    assert hasattr(ctx.deps, "client"), "Client is required"
+    return await get_task_guidelines(ctx.deps.client, GetGuidelinesRequest(task=task))

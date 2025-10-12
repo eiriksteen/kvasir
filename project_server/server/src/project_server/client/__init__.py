@@ -15,8 +15,6 @@ from .requests.runs import (
     post_run_message,
     post_run_message_pydantic,
     patch_run_status,
-    post_data_integration_run_input,
-    post_data_integration_run_result,
     get_runs,
     get_run_messages,
     get_run_messages_pydantic
@@ -26,6 +24,10 @@ from .requests.pipeline import (
     get_user_pipelines,
     get_user_pipeline,
     post_pipeline,
+    post_pipeline_output_model_entity,
+    post_pipeline_output_dataset,
+    post_pipeline_run_object,
+    patch_pipeline_run_status
 )
 
 from .requests.orchestrator import (
@@ -76,18 +78,20 @@ from .requests.project import (
 from .requests.knowledge_bank import (
     post_search_functions,
     post_search_models,
-    post_search_model_sources
 )
 
 from .requests.function import (
-    post_function
+    post_function,
+    post_update_function
 )
 
 from .requests.model import (
     post_model,
     post_model_entity,
     get_project_model_entities,
-    get_model_entities_by_ids
+    get_model_entities_by_ids,
+    patch_model_entity_config,
+    post_update_model
 )
 
 from .requests.model_sources import (
@@ -153,19 +157,25 @@ __all__ = [
     "get_user_pipelines",
     "get_user_pipeline",
     "post_pipeline",
+    "post_pipeline_output_model_entity",
+    "post_pipeline_output_dataset",
+    "patch_pipeline_run_status",
     "post_function",
     "post_model",
     "post_model_entity",
+    "post_pipeline_run_object",
 
     # Function functions
     "post_function",
+    "post_update_function",
 
     # Model functions
     "post_model",
     "post_model_entity",
     "get_project_model_entities",
     "get_model_entities_by_ids",
-
+    "patch_model_entity_config",
+    "post_update_model",
     # Orchestrator functions
     "post_conversation",
     "get_messages",

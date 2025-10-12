@@ -82,7 +82,7 @@ export default function ProjectMenu() {
                 <FolderGit2 size={20} className="text-[#000034]" />
               </div>
               <div>
-                <h3 className="text-base font-medium text-gray-800">Open project</h3>
+                <h3 className="text-sm font-mono text-gray-800">Open project</h3>
               </div>
             </div>
           </button>
@@ -97,7 +97,7 @@ export default function ProjectMenu() {
                 <Plus size={20} className="text-[#000034]" />
               </div>
               <div>
-                <h3 className="text-base font-medium text-gray-800">Create project</h3>
+                <h3 className="text-sm font-mono text-gray-800">Create project</h3>
               </div>
             </div>
           </button>
@@ -109,7 +109,7 @@ export default function ProjectMenu() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
           <div className="bg-gray-100 rounded-xl w-full max-w-2xl max-h-[80vh] overflow-hidden shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4">
-              <h2 className="text-lg font-semibold text-gray-800">Open Project</h2>
+              <h2 className="text-m font-mono text-gray-800">Open Project</h2>
               <button
                 onClick={() => setShowOpenModal(false)}
                 className="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-gray-200 rounded-md transition-colors"
@@ -149,7 +149,7 @@ export default function ProjectMenu() {
                   <div className="p-4 bg-gray-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center border-2 border-[#000034]">
                     <FolderGit2 size={20} className="text-[#000034]" />
                   </div>
-                  <h3 className="text-base font-medium text-gray-800 mb-2">No projects found</h3>
+                  <h3 className="text-sm font-mono text-gray-800 mb-2">No projects found</h3>
                   <p className="text-sm text-gray-600">Create your first project to get started</p>
                 </div>
               )}
@@ -163,7 +163,7 @@ export default function ProjectMenu() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
           <div className="bg-gray-100 rounded-xl w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4">
-              <h2 className="text-lg font-semibold text-gray-800">Create New Project</h2>
+              <h2 className="text-m font-mono text-gray-800">Create New Project</h2>
               <button
                 onClick={() => setShowCreateModal(false)}
                 className="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-gray-200 rounded-md transition-colors"

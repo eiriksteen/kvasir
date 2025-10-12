@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Send, Plus, History, Database, X, BarChart, Zap, Brain } from 'lucide-react';
+import { Send, Plus, History, Database, X, BarChart, Zap, Brain, Folder } from 'lucide-react';
 import { useProjectChat } from '@/hooks';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { ChatHistory } from '@/app/projects/[projectId]/_components/chat/ChatHistory';
@@ -185,7 +185,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                       key={dataset.id}
                       className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
                     >
-                      <Database size={12} />
+                      <Folder size={12} />
                       {dataset.name}
                       <button 
                         onClick={() => removeDatasetFromContext(dataset)}
@@ -285,7 +285,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                 if (timelineItem.type === 'message') {
                   return <ChatMessageBox key={`msg-${timelineItem.item.id}`} message={timelineItem.item} projectId={projectId} />;
                 } else {
-                  return <RunBox key={`run-${timelineItem.item.id}`} runId={timelineItem.item.id} />;
+                  return <RunBox key={`run-${timelineItem.item.id}`} runId={timelineItem.item.id} projectId={projectId} />;
                 }
               });
             })()}

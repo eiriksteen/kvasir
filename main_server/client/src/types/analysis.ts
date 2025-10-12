@@ -60,11 +60,6 @@ export interface AnalysisObjectList {
     analysisObjects: AnalysisObjectSmall[];
 }
 
-
-
-
-
-
 export interface AnalysisRequest {
     projectId: UUID;
     datasetIds: UUID[];

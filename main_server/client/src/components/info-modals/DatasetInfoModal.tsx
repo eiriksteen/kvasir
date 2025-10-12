@@ -1,7 +1,7 @@
 import { X, Layers, ArrowLeft, ChevronDown, ChevronRight, Database, Calendar, List } from 'lucide-react';  
 import { useEffect, useState } from 'react';
 import { useDataset } from "@/hooks/useDatasets";
-import { ObjectGroupWithObjectList, TimeSeries, TimeSeriesAggregation } from "@/types/data-objects";
+import { ObjectGroupWithObjects, DataObject, TimeSeriesInDB } from "@/types/data-objects";
 import TimeSeriesChart from '@/components/charts/TimeSeriesChart';
 import { UUID } from 'crypto';
 
@@ -27,6 +27,9 @@ export default function DatasetInfoModal({
   const { dataset, objectGroups } = useDataset(datasetId, projectId);
   const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(new Set());
+
+  console.log("DATASET", dataset);
+  console.log("OBJECT GROUPS", objectGroups);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -68,9 +71,14 @@ export default function DatasetInfoModal({
     });
   };
 
-  const formatTimeRange = (obj: TimeSeries) => {
-    const start = new Date(obj.startTimestamp).toLocaleDateString();
-    const end = new Date(obj.endTimestamp).toLocaleDateString();
+  const isTimeSeries = (obj: DataObject): boolean => {
+    return obj.structureType === 'time_series';
+  };
+
+  const formatTimeRange = (obj: DataObject) => {
+    const fields = obj.structureFields as TimeSeriesInDB;
+    const start = new Date(fields.startTimestamp).toLocaleDateString();
+    const end = new Date(fields.endTimestamp).toLocaleDateString();
     return `${start} - ${end}`;
   };
 
@@ -104,7 +112,7 @@ export default function DatasetInfoModal({
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
                   {/* Left Column - Features */}
                   <div className="lg:col-span-1 flex flex-col space-y-4 overflow-y-auto">
-                    {objectGroups && objectGroups[0].features?.length > 0 && (
+                    {objectGroups && objectGroups.length > 0 && objectGroups[0].features?.length > 0 && (
                       <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-300 rounded-xl p-4 flex flex-col flex-1 min-h-0">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="p-2 bg-[#0E4F70]/20 rounded-lg">
@@ -139,12 +147,12 @@ export default function DatasetInfoModal({
                           </div>
                           <h3 className="text-sm font-semibold text-gray-900">Data Groups</h3>
                           <span className="text-xs px-2 py-1 bg-[#0E4F70]/20 rounded-full text-[#0E4F70] font-mono">
-                            {objectGroups.length} group(s)
+                            {objectGroups?.length || 0} group(s)
                           </span>
                         </div>
 
                         <div className="flex-1 space-y-1 overflow-y-auto pr-2">
-                          {objectGroups.map((group: ObjectGroupWithObjectList) => {
+                          {objectGroups.map((group: ObjectGroupWithObjects) => {
                             const isOpen = expandedGroupIds.has(group.id);
                             const entityCount = group.objects?.length || 0;
                             
@@ -178,23 +186,25 @@ export default function DatasetInfoModal({
                                 </button>
                                 
                                 {isOpen && (
-                                  <div className="border-t border-gray-300 bg-zinc-800/30">
+                                  <div className="border-t border-gray-300 bg-gray-50">
                                     <div className="p-2 space-y-2">
-                                      {group.objects?.map((obj: TimeSeries | TimeSeriesAggregation) => (
+                                      {group.objects?.map((obj: DataObject) => {
+                                        const objIsTimeSeries = isTimeSeries(obj);
+                                        return (
                                         <div 
                                           key={obj.id} 
-                                          onClick={() => setSelectedEntity({id: obj.id, type: obj.type})}
+                                          onClick={() => setSelectedEntity({id: obj.id, type: objIsTimeSeries ? 'time_series' : 'time_series_aggregation'})}
                                           className="group relative flex items-center gap-3 p-1 rounded-lg cursor-pointer transition-all duration-200 hover:bg-[#0E4F70]/10 hover:border-[#0E4F70]/30 border border-transparent">
                                           <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between mb-1">
                                               <div className="flex items-center gap-2">
                                                 <span className="text-xs px-2 py-1 bg-gray-200 rounded-full text-gray-600 font-mono">
-                                                  {obj.type === 'time_series' ? 'TS' : 'AGG'}
+                                                  {objIsTimeSeries ? 'TS' : 'AGG'}
                                                 </span>
                                                 <span className="text-sm font-medium text-gray-900 truncate">{obj.name}</span>
                                               </div>
                                               <div className="flex items-center gap-2">
-                                                {obj.type === 'time_series' && (
+                                                {objIsTimeSeries && (
                                                   <>
                                                     <div className="flex items-center gap-1 text-xs px-2 py-1 border border-gray-300 rounded-full text-gray-600">
                                                       <Calendar size={12} />
@@ -202,7 +212,7 @@ export default function DatasetInfoModal({
                                                     </div>
                                                     <div className="flex items-center gap-1 text-xs px-2 py-1 border border-gray-300 rounded-full text-gray-600">
                                                       <Database size={12} />
-                                                      <span>{obj.numTimestamps} points</span>
+                                                      <span>{(obj.structureFields as TimeSeriesInDB).numTimestamps} points</span>
                                                     </div>
                                                   </>
                                                 )}
@@ -211,7 +221,8 @@ export default function DatasetInfoModal({
                                             <p className="text-xs text-gray-600 truncate">{obj.description}</p>
                                           </div>
                                         </div>
-                                      ))}
+                                      );
+                                      })}
                                     </div>
                                   </div>
                                 )}

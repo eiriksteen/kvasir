@@ -13,12 +13,12 @@ Instructions for the code:
 - Do not use any escape characters in the code. The code will be executed in a python container.
 
 General instructions:
-- The interpretation of the results are going into an analysis report, i.e. you should not say anything like "I did this and that", just go straight to the point.
+- The interpretation of the results are going into an analysis report, i.e. you should not say anything like "I did this and that", just get straight to the point.
 - Do not output lists or tables of the results the user will be able to see this through the variable you stored the results in.
 - If you have run code, you should always output the code that you ran.
 """
 
-ANALYSIS_AGENT_SYSEM_PROMPT = """
+ANALYSIS_AGENT_SYSTEM_PROMPT = """
 You are an AI agent tasked with doing data analysis. For each analysis you will be given a prompt and a context. 
 The context will help you conduct the analysis more efficiently by providing relevant datasets and analyses.
 A caveat about the context is that it is user generated. This means that the context may be incomplete and you may need to search through the project for relevant datasets, data sources and analyses, it might also include irrelevant information.
