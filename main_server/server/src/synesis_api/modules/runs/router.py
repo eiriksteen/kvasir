@@ -29,7 +29,8 @@ from synesis_api.modules.runs.service import (
     update_run_status,
     create_run_message_pydantic,
     get_run_messages_pydantic,
-    launch_run
+    launch_run,
+    reject_run
 )
 from synesis_api.client import MainServerClient
 
@@ -70,6 +71,18 @@ async def post_launch_run(
     return await launch_run(MainServerClient(token), run_id)
 
 
+@router.patch("/reject-run/{run_id}")
+async def patch_reject_run(
+        run_id: uuid.UUID,
+        user: Annotated[User, Depends(get_current_user)] = None) -> RunInDB:
+
+    if not await user_owns_runs(user.id, [run_id]):
+        raise HTTPException(
+            status_code=403, detail="You do not have permission to access this run")
+
+    return await reject_run(run_id)
+
+
 @router.patch("/run-status")
 async def patch_run_status(
     request: RunStatusUpdate,
@@ -80,7 +93,7 @@ async def patch_run_status(
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this run")
 
-    run = await update_run_status(request.run_id, request.status)
+    run = await update_run_status(request.run_id, request)
     return run
 
 

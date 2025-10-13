@@ -77,12 +77,12 @@ export default function DatasetInfoModal({
   }
 
   return (
-    <div className="w-full h-full bg-white overflow-hidden">
-      <div className="bg-white h-full px-0 pb-2 relative">
-        <div className="flex-1 min-h-0 overflow-y-aut">
+    <div className="w-full h-full bg-white overflow-hidden flex flex-col">
+      <div className="bg-white h-full px-0 pb-2 relative flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
           {/* Content Section */}
-          <div className="flex-1 min-h-0">
-            <div className="h-full p-4 space-y-4">
+          <div className="flex-1 min-h-0 flex flex-col">
+            <div className="h-full p-4 space-y-4 flex flex-col">
               {/* Full Width Description */}
               <div className="p-4 w-full">
                 {dataset.description ? (
@@ -94,7 +94,7 @@ export default function DatasetInfoModal({
                 )}
               </div>
               {selectedEntity && selectedEntity.type === "time_series" ? (
-                <div className="w-full h-full">
+                <div className="w-full flex-1">
                   <TimeSeriesChart timeSeriesId={selectedEntity.id} />
                 </div>
               ) : (

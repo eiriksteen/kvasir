@@ -123,7 +123,8 @@ export const useProjectChat = (projectId: UUID) => {
       const prompt: Prompt = {
         conversationId: convId,
         context: context,
-        content: content
+        content: content,
+        saveToDb: true
       };
 
       mutateConversationMessages([...conversationMessages, userMessage], {revalidate: false});
@@ -169,12 +170,56 @@ export const useProjectChat = (projectId: UUID) => {
     mutateConversationMessages
   ]);
 
+  const continueConversation = useCallback(async (conversationId: UUID) => {
+
+      const context: Context = {
+        dataSourceIds: dataSourcesInContext?.map((dataSource: DataSource) => dataSource.id) || [],
+        datasetIds: datasetsInContext?.map((dataset: Dataset) => dataset.id) || [],
+        pipelineIds: pipelinesInContext?.map((pipeline: Pipeline) => pipeline.id) || [],
+        modelEntityIds: modelEntitiesInContext?.map((modelEntity: ModelEntity) => modelEntity.id) || [],
+        analysisIds: analysesInContext?.map((analysis: AnalysisObjectSmall) => analysis.id) || [],
+      };
+
+      const prompt: Prompt = {
+        conversationId: conversationId,
+        context: context,
+        content: "Continue the conversation. If a run was completed suggest the next step or conclude the conversation if done. If a run was rejected, explain why and suggest a different approach.",
+        saveToDb: false
+      };
+
+      const eventSource = createOrchestratorEventSource(session ? session.APIToken.accessToken : "", prompt);
+
+      eventSource.onmessage = (ev) => {
+          const data: ChatMessage = snakeToCamelKeys(JSON.parse(ev.data));
+
+          if (data.content !== "DONE") {
+              mutateConversationMessages((prev: ChatMessage[] | undefined) => {
+                if (!prev) return prev;
+                // If message with the same id already exists, update it, else add it
+                const existingMessage = prev.find((msg) => msg.id === data.id);
+                if (existingMessage) {
+                  return prev.map((msg) => msg.id === data.id ? data : msg)
+                }
+                else {
+                  return [...prev, data]
+                }
+                
+            }, {revalidate: false});
+
+        }
+      };
+
+  }, [session, dataSourcesInContext, datasetsInContext, analysesInContext, pipelinesInContext, modelEntitiesInContext, mutateConversationMessages]);
+
+
+
   return { 
     conversation,
     conversationMessages, 
-    submitPrompt, 
+    submitPrompt,
+    continueConversation,
     isLoading,
     isError: error,
-    setProjectConversationId,
+    setProjectConversationId
   };
 }; 

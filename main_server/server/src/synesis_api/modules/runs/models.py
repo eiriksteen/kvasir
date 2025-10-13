@@ -1,5 +1,6 @@
 import uuid
-from sqlalchemy import Table, Column, String, DateTime, func, ForeignKey, CheckConstraint
+# , CheckConstraint
+from sqlalchemy import Table, Column, String, DateTime, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, BYTEA
 from synesis_api.database.core import metadata
 
@@ -187,6 +188,18 @@ pipeline_from_run = Table(
            ForeignKey("runs.run.id"), primary_key=True),
     Column("pipeline_id", UUID(as_uuid=True),
            ForeignKey("pipeline.pipeline.id"), primary_key=True),
+    Column("created_at", DateTime(timezone=True),
+           nullable=False, default=func.now()),
+    schema="runs"
+)
+
+
+run_summary = Table(
+    "run_summary",
+    metadata,
+    Column("run_id", UUID(as_uuid=True),
+           ForeignKey("runs.run.id"), primary_key=True),
+    Column("summary", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
     schema="runs"

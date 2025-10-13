@@ -24,7 +24,7 @@ class RunInDB(BaseModel):
     user_id: uuid.UUID
     type: Literal["data_integration", "model_integration",
                   "swe", "pipeline", "analysis", "data_source_analysis"]
-    status: Literal["pending", "running", "completed", "failed"]
+    status: Literal["pending", "running", "completed", "failed", "rejected"]
     started_at: datetime
     conversation_id: Optional[uuid.UUID] = None
     project_id: Optional[uuid.UUID] = None
@@ -128,4 +128,5 @@ class RunMessageCreatePydantic(BaseModel):
 
 class RunStatusUpdate(BaseModel):
     run_id: uuid.UUID
-    status: Literal["running", "completed", "failed"]
+    status: Literal["running", "completed", "failed", "rejected"]
+    summary: Optional[str] = None

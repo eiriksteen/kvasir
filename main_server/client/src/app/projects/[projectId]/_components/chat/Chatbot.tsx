@@ -24,7 +24,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const [isDragging, setIsDragging] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(false);  
 
-  const { submitPrompt, conversation, setProjectConversationId, conversationMessages } = useProjectChat(projectId);
+  const { submitPrompt, conversation, setProjectConversationId, conversationMessages, continueConversation } = useProjectChat(projectId);
 
   const { 
     dataSourcesInContext, 
@@ -47,6 +47,8 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   
   const MIN_WIDTH = 300;
   const MAX_WIDTH = typeof window !== 'undefined' ? window.innerWidth * 0.8 : 800;
+
+  // Continue conversation if job completes or fails
 
 
   useEffect(() => {
@@ -102,6 +104,11 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const handleConversationSelect = () => {
     // Close the history panel when a conversation is selected
     setShowChatHistory(false);
+  };
+
+  const handleRunCompleteOrFail = () => {
+    if (!conversation?.id) return;
+    continueConversation(conversation.id);
   };
 
   const isCollapsed = width <= MIN_WIDTH;
@@ -282,7 +289,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                 if (timelineItem.type === 'message') {
                   return <ChatMessageBox key={`msg-${timelineItem.item.id}`} message={timelineItem.item} projectId={projectId} />;
                 } else {
-                  return <RunBox key={`run-${timelineItem.item.id}`} runId={timelineItem.item.id} projectId={projectId} />;
+                  return <RunBox key={`run-${timelineItem.item.id}`} runId={timelineItem.item.id} projectId={projectId} onRunCompleteOrFail={handleRunCompleteOrFail}/>;
                 }
               });
             })()}

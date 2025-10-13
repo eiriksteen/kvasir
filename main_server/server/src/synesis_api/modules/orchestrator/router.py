@@ -1,4 +1,5 @@
 import uuid
+import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -16,7 +17,6 @@ from synesis_schemas.main_server import (
     ContextCreate,
     ContextInDB,
 )
-from synesis_schemas.main_server.runs import Run
 from synesis_api.modules.orchestrator.service import (
     create_conversation,
     get_chat_messages_pydantic,
@@ -28,7 +28,8 @@ from synesis_api.modules.orchestrator.service import (
     get_chat_messages_with_context,
     get_conversation_by_id,
     update_conversation_name,
-    get_project_graph
+    get_project_graph,
+    get_run_status_message
 )
 from synesis_api.modules.orchestrator.agent import orchestrator_agent
 from synesis_api.modules.orchestrator.agent.output import (
@@ -45,6 +46,7 @@ from synesis_api.auth.service import oauth2_scheme
 from synesis_api.client import MainServerClient, post_run_analysis
 from synesis_schemas.project_server import RunAnalysisRequest
 from synesis_api.modules.orchestrator.agent.deps import OrchestatorAgentDeps
+from synesis_api.app_secrets import SSE_MAX_TIMEOUT, SSE_MIN_SLEEP_TIME
 
 
 router = APIRouter()
@@ -60,6 +62,8 @@ async def post_chat(
     token: str = Depends(oauth2_scheme)
 ) -> StreamingResponse:
 
+    # TODO: Add support for open connection with analysis, and add rejected status to a run so we don't keep monitoring it
+
     conversation_record = await get_conversation_by_id(prompt.conversation_id)
 
     if not conversation_record.user_id == user.id:
@@ -70,30 +74,32 @@ async def post_chat(
 
     is_new_conversation = len(messages) == 0
 
-    # TODO: Important to optimize this, as it will blow up the context with repeated messages!
+    # TODO: Important to optimize this, as it will blow up the context with repeated messages
     # One option is to keep the full entity objects just for the current context, and collapse to the IDs and names for the past ones
     context_message = await get_context_message(user.id, prompt.context)
     project_graph = await get_project_graph(user.id, conversation_record.project_id)
-
-    orchestrator_run = await orchestrator_agent.run(
-        f"The user prompt is: '{prompt.content}'. \n\n" +
-        "Decide whether to launch an agent or just respond directly to the prompt. \n\n" +
-        "If launching an agent, choose between 'analysis', 'data_integration' or 'pipeline'. If not just choose no handoff. \n\n"
-        f"The context is:\n\n{context_message}\n\n" +
-        f"The project graph is:\n\n{project_graph.model_dump_json()}",
-        output_type=[NoHandoffOutput,
-                     AnalysisHandoffOutput,
-                     PipelineRunDescriptionOutput,
-                     DataIntegrationRunDescriptionOutput,
-                     ModelIntegrationRunDescriptionOutput],
-        deps=OrchestatorAgentDeps(
-            user_id=user.id,
-            project_id=conversation_record.project_id
-        ),
-        message_history=messages
-    )
+    runs_status_message = await get_run_status_message(user.id, prompt.conversation_id)
 
     async def stream_response():
+
+        orchestrator_run = await orchestrator_agent.run(
+            f"The user just submitted the following prompt:\n\n{prompt.content}\n\n" +
+            "Decide whether to launch an agent or just respond directly to the prompt. \n\n" +
+            "If launching an agent, choose between 'analysis', 'data_integration' or 'pipeline'. If not just choose no handoff. \n\n" +
+            f"The context is:\n\n{context_message}\n\n" +
+            f"The project graph is:\n\n{project_graph.model_dump_json()}\n\n" +
+            f"The runs status message is:\n\n{runs_status_message}",
+            output_type=[NoHandoffOutput,
+                         AnalysisHandoffOutput,
+                         PipelineRunDescriptionOutput,
+                         DataIntegrationRunDescriptionOutput,
+                         ModelIntegrationRunDescriptionOutput],
+            deps=OrchestatorAgentDeps(
+                user_id=user.id,
+                project_id=conversation_record.project_id
+            ),
+            message_history=messages
+        )
 
         response_message = ChatMessageInDB(
             id=uuid.uuid4(),
@@ -110,7 +116,9 @@ async def post_chat(
             response_message.context_id = context_in_db.id
 
         async with orchestrator_agent.run_stream(
-            "Now respond to the user! If you launched an agent, explain what you did. If not, just respond directly to the user prompt.",
+            "Now respond to the user! If you launched an agent, explain what you did. " +
+            "If the agent just reported a completed run, let the user know, and either proceed to the next step of the request or conclude the conversation if done. " +
+            "In other cases, just respond directly to the user prompt.  ",
             output_type=str,
             deps=OrchestatorAgentDeps(
                 user_id=user.id,
@@ -125,18 +133,18 @@ async def post_chat(
                     yield f"data: {response_message.model_dump_json(by_alias=True)}\n\n"
                     prev_text = text
 
-        await create_chat_message(
-            conversation_record.id,
-            "user",
-            prompt.content,
-            context_id=context_in_db.id if context_in_db else None
-        )
+        # Not save may be true if the user just wants the agent to continue after a run was completed
+        if prompt.save_to_db:
+            await create_chat_message(
+                conversation_record.id,
+                "user",
+                prompt.content,
+                context_id=context_in_db.id if context_in_db else None
+            )
+
         await create_chat_message(conversation_record.id, "assistant", response_message.content, response_message.context_id, response_message.id)
         await create_chat_message_pydantic(conversation_record.id, [orchestrator_run.new_messages_json(), result.new_messages_json()])
 
-        print("THE ORCHESTRATOR RUN OUTPUT", orchestrator_run.output)
-
-        # client = MainServerClient(token)
         if not isinstance(orchestrator_run.output, NoHandoffOutput):
             client = MainServerClient(token)
 
@@ -213,7 +221,8 @@ async def post_chat(
                 "NB: Do not output a response to the prompt, that is done elsewhere! Just produce a suitable topic name given the prompt.",
                 output_type=str
             )
-            name = name.output.replace('"', '').replace("'", "").strip()
+            name = name.output.replace(
+                '"', '').replace("'", "").strip()
 
             await update_conversation_name(conversation_record.id, name)
 
@@ -227,6 +236,8 @@ async def post_chat(
         )
 
         yield f"data: {success_message.model_dump_json(by_alias=True)}\n\n"
+
+        await asyncio.sleep(SSE_MIN_SLEEP_TIME)
 
     return StreamingResponse(stream_response(), media_type="text/event-stream")
 
