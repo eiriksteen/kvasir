@@ -25,7 +25,7 @@ from synesis_schemas.main_server import (
     ModelEntityInGraph,
     Dataset,
     PipelineFull,
-    ModelEntityWithModelDef,
+    ModelEntity,
     DataSourceFull,
     AnalysisObject,
     Run
@@ -175,6 +175,11 @@ async def create_chat_message(
 
 
 async def create_chat_message_pydantic(conversation_id: uuid.UUID, messages: List[bytes]) -> List[ChatPydanticMessageInDB]:
+
+    # print("CREATING CHAT MESSAGE PYDANTIC"*100)
+    # print(f"MESSAGES: \n\n{'\n\n'.join([str(m) for m in messages])}")
+    # print("SHIT"*100)
+
     chat_pydantic_message_records = [ChatPydanticMessageInDB(
         id=uuid.uuid4(),
         conversation_id=conversation_id,
@@ -273,13 +278,13 @@ async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
         model_entities = await get_user_model_entities_by_ids(user_id, context.model_entity_ids)
 
     context_message = f"""
-        <CONTEXT UPDATES>
-        Data sources in context: {data_sources}
-        Datasets in context: {datasets}
-        Pipelines in context: {pipelines}
-        Analyses in context: {analyses}
-        Model entities in context: {model_entities}
-        </CONTEXT UPDATES>
+        <begin_context>\n\n"
+        Data sources in context: {data_sources}\n\n
+        Datasets in context: {datasets}\n\n
+        Pipelines in context: {pipelines}\n\n
+        Analyses in context: {analyses}\n\n
+        Model entities in context: {model_entities}\n\n
+        </begin_context>
         """
 
     return context_message
@@ -327,7 +332,7 @@ async def get_project_graph(user_id: uuid.UUID, project_id: uuid.UUID) -> Projec
             ))
         return objs
 
-    def _get_pipelines_in_graph(pipelines: List[PipelineFull], datasets: List[Dataset], model_entities: List[ModelEntityWithModelDef]) -> List[PipelineInGraph]:
+    def _get_pipelines_in_graph(pipelines: List[PipelineFull], datasets: List[Dataset], model_entities: List[ModelEntity]) -> List[PipelineInGraph]:
         objs = []
         for p in pipelines:
             output_dataset_ids = [
@@ -363,7 +368,7 @@ async def get_project_graph(user_id: uuid.UUID, project_id: uuid.UUID) -> Projec
             ))
         return objs
 
-    def _get_model_entities_in_graph(model_entities: List[ModelEntityWithModelDef], pipelines: List[PipelineFull]) -> List[ModelEntityInGraph]:
+    def _get_model_entities_in_graph(model_entities: List[ModelEntity], pipelines: List[PipelineFull]) -> List[ModelEntityInGraph]:
         objs = []
         for me in model_entities:
             output_pipeline_ids = [
@@ -393,6 +398,11 @@ async def get_project_graph(user_id: uuid.UUID, project_id: uuid.UUID) -> Projec
     )
 
 
+async def get_project_graph_message(user_id: uuid.UUID, project_id: uuid.UUID) -> str:
+    project_graph = await get_project_graph(user_id, project_id)
+    return "<begin_project_graph>\n\n" + project_graph.model_dump_json() + "\n\n</begin_project_graph>"
+
+
 async def get_run_status_message(user_id: uuid.UUID, conversation_id: uuid.UUID) -> ModelMessage:
     runs = await get_runs(user_id=user_id, conversation_id=conversation_id)
 
@@ -402,9 +412,11 @@ async def get_run_status_message(user_id: uuid.UUID, conversation_id: uuid.UUID)
         ])
 
     runs_status_message = (
+        "<begin_run_status>\n\n" +
         "Here are all the runs of the conversations, including their status. Note whether any previous runs are completed or failed, and respond accordingly\n\n" +
         "Runs:\n\n" +
-        _get_run_string(runs)
+        _get_run_string(runs) +
+        "\n\n</begin_run_status>"
     )
 
     return runs_status_message

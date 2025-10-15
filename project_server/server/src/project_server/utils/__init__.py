@@ -8,8 +8,7 @@ from .code_utils import (
     remove_line_numbers_from_script,
     replace_lines_in_script,
     add_lines_to_script_at_line,
-    delete_lines_from_script,
-    run_pylint,
+    delete_lines_from_script
 )
 
 

@@ -183,7 +183,7 @@ export const useProjectChat = (projectId: UUID) => {
       const prompt: Prompt = {
         conversationId: conversationId,
         context: context,
-        content: "Continue the conversation. If a run was completed suggest the next step or conclude the conversation if done. If a run was rejected, explain why and suggest a different approach.",
+        content: "Continue the conversation. If a run was completed suggest the next step or conclude the conversation if done. No need for long text here, something like 'The X run succeeded, and we can continue with building Y ...' is enough.",
         saveToDb: false
       };
 

@@ -207,25 +207,6 @@ def delete_lines_from_script(
     return updated_script
 
 
-def run_pylint(code_string: str) -> str:
-    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".py") as temp_file:
-        temp_file.write(code_string)
-        temp_file_path = temp_file.name
-
-    old_stdout = sys.stdout
-    string_io = StringIO()
-    sys.stdout = string_io
-
-    try:
-        lint.Run([temp_file_path], exit=False)
-        pylint_output = string_io.getvalue()
-    finally:
-        sys.stdout = old_stdout
-        Path(temp_file_path).unlink()
-
-    return pylint_output
-
-
 def remove_print_statements_from_code(code: str) -> str:
     # Pattern to match print statements with their arguments and closing parenthesis
     # This handles: print(), print("hello"), print("hello", end=""), etc.
@@ -239,22 +220,3 @@ def remove_print_statements_from_code(code: str) -> str:
     cleaned_lines = [line for line in lines if line.strip()]
 
     return '\n'.join(cleaned_lines)
-
-
-def extract_dataclass_definition(source_code):
-    tree = ast.parse(source_code)
-    dataclass_definitions = []
-
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef):
-            for decorator in node.decorator_list:
-                if isinstance(decorator, ast.Name) and decorator.id == "dataclass":
-                    source_segment = ast.get_source_segment(source_code, node)
-                    if source_segment:
-                        dataclass_definitions.append(source_segment)
-                elif isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Name) and decorator.func.id == "dataclass":
-                    source_segment = ast.get_source_segment(source_code, node)
-                    if source_segment:
-                        dataclass_definitions.append(source_segment)
-
-    return dataclass_definitions

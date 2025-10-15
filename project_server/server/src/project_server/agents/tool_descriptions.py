@@ -10,7 +10,6 @@ TOOL_DESCRIPTIONS = {
     "delete_script_lines": "Deleting lines from script",
     "switch_script": "Switching to different script",
     "execute_python_code": "Running Python code",
-    "run_pylint": "Running Pylint",
     "final_result": "Submitting final result",
     "read_script": "Reading script",
 

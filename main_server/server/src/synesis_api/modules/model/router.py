@@ -6,11 +6,11 @@ from synesis_schemas.main_server import (
     ModelCreate,
     ModelEntityInDB,
     ModelEntityCreate,
-    ModelEntityWithModelDef,
+    ModelEntity,
     User,
     GetModelEntityByIDsRequest,
     ModelEntityConfigUpdate,
-    ModelFull,
+    Model,
     ModelUpdateCreate
 )
 from synesis_api.auth.service import get_current_user, user_owns_project, user_owns_model_entity
@@ -20,20 +20,20 @@ from synesis_api.modules.model.service import create_model, create_model_entity,
 router = APIRouter()
 
 
-@router.post("/model", response_model=ModelFull)
+@router.post("/model", response_model=Model)
 async def post_model(
     request: ModelCreate,
     user: User = Depends(get_current_user),
-) -> ModelFull:
+) -> Model:
     model = await create_model(user.id, request)
     return model
 
 
-@router.post("/model/update", response_model=ModelFull)
+@router.post("/model/update", response_model=Model)
 async def post_update_model(
     request: ModelUpdateCreate,
     user: User = Depends(get_current_user),
-) -> ModelFull:
+) -> Model:
     model = await update_model(user.id, request)
     return model
 
@@ -48,11 +48,11 @@ async def post_model_entity(
     return model_entity
 
 
-@router.get("/project-model-entities/{project_id}", response_model=List[ModelEntityWithModelDef])
+@router.get("/project-model-entities/{project_id}", response_model=List[ModelEntity])
 async def fetch_project_model_entities(
     project_id: UUID,
     user: User = Depends(get_current_user),
-) -> List[ModelEntityWithModelDef]:
+) -> List[ModelEntity]:
 
     if not await user_owns_project(user.id, project_id):
         raise HTTPException(
@@ -61,11 +61,11 @@ async def fetch_project_model_entities(
     return await get_project_model_entities(user.id, project_id)
 
 
-@router.get("/model-entities-by-ids", response_model=List[ModelEntityWithModelDef])
+@router.get("/model-entities-by-ids", response_model=List[ModelEntity])
 async def fetch_model_entities_by_ids(
     request: GetModelEntityByIDsRequest,
     user: User = Depends(get_current_user),
-) -> List[ModelEntityWithModelDef]:
+) -> List[ModelEntity]:
 
     # TODO: Should add user id field to model entity to enable auth
     return await get_user_model_entities_by_ids(user.id, request.model_entity_ids)

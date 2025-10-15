@@ -2,13 +2,13 @@ from pathlib import Path
 from typing import List, Optional
 
 from project_server.agents.pipeline.output import PipelineImplementationSpec
-from synesis_schemas.main_server import ModelEntityWithModelDef
+from synesis_schemas.main_server import ModelEntity
 
 
 def _create_input_object(
     bearer_token: str,
     spec: PipelineImplementationSpec,
-    model_entities: Optional[List[ModelEntityWithModelDef]] = None
+    model_entities: Optional[List[ModelEntity]] = None
 ) -> str:
 
     model_inputs_def = ""
@@ -68,7 +68,7 @@ def _create_object_group_validation_code(
 def create_test_code_from_spec(
         bearer_token: str,
         spec: PipelineImplementationSpec,
-        model_entities: Optional[List[ModelEntityWithModelDef]] = None) -> str:
+        model_entities: Optional[List[ModelEntity]] = None) -> str:
     input_obj_definition = _create_input_object(
         bearer_token, spec, model_entities)
 
@@ -95,7 +95,7 @@ def create_test_code_from_spec(
 def create_final_pipeline_script(
     pipeline_script: str,
     spec: PipelineImplementationSpec,
-    model_entities: Optional[List[ModelEntityWithModelDef]] = None
+    model_entities: Optional[List[ModelEntity]] = None
 ) -> str:
 
     function_args_def = f"function_args={spec.args_dataclass_name}(**inputs['function_args'])"
@@ -107,7 +107,7 @@ def create_final_pipeline_script(
             model_entities), "Number of input model entities and model entities must match"
 
         model_config_imports = "\n".join(
-            f"from {me.model.module_path} import ModelConfig as ModelConfig{me.model.python_class_name}" for me in model_entities) + "\n"
+            f"from {me.model.implementation_script.module_path} import ModelConfig as ModelConfig{me.model.python_class_name}" for me in model_entities) + "\n"
 
         model_inputs_def = ", ".join(
             [f"{m_in_pipeline.code_variable_name}={me.model.python_class_name}(config=ModelConfig{me.model.python_class_name}(**inputs['{m_in_pipeline.code_variable_name}_config']))"

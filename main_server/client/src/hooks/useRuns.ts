@@ -1,4 +1,4 @@
-import { Run, RunMessageInDB } from "@/types/runs";
+import { Run, RunMessageInDB, RunCodeMessageInDB } from "@/types/runs";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import useSWR, { useSWRConfig } from "swr";
@@ -58,6 +58,17 @@ function createIncompleteRunsEventSource(token: string): SSE {
 
 function createRunMessagesEventSource(token: string, runId: UUID): SSE {
   return new SSE(`${API_URL}/runs/stream-messages/${runId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+}
+
+
+function createRunCodeMessagesEventSource(token: string, runId: UUID): SSE {
+  return new SSE(`${API_URL}/runs/stream-code-messages/${runId}`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -160,6 +171,7 @@ export const useRuns = () => {
     }
   )
 
+
   const { trigger: triggerRejectRun } = useSWRMutation(
     session ? "runs" : null,
     (_, { arg }: { arg: {runId: UUID} }) => rejectRun(session ? session.APIToken.accessToken : "", arg.runId),
@@ -177,6 +189,7 @@ export const useRuns = () => {
       revalidate: false
     }
   )
+
 
   // This thing will always be running. Do we want to stop it when no runs are active?
   useSWRSubscription(
@@ -248,6 +261,7 @@ export const useRunsInConversation = (conversationId: string) => {
   return { runsInConversation, triggerLaunchRun }
 }
 
+
 export const useRun = (runId: UUID) => {
   const { runs, triggerLaunchRun, triggerRejectRun } = useRuns()
 
@@ -257,6 +271,7 @@ export const useRun = (runId: UUID) => {
 
   return { run, triggerLaunchRun, triggerRejectRun }
 }
+
 
 export const useRunMessages = (runId: UUID) => {
   const { data: session } = useSession()
@@ -292,4 +307,42 @@ export const useRunMessages = (runId: UUID) => {
   )
 
   return { runMessages }
+}
+
+const emptyRunCodeMessages: RunCodeMessageInDB[] = [];
+
+export const useRunCodeMessages = (runId: UUID) => {
+  const { data: session } = useSession()
+  const { run } = useRun(runId)
+  const { data: runCodeMessages, mutate: mutateRunCodeMessages } = useSWR(session ? ["runCodeMessages", runId] : null,  {fallbackData: emptyRunCodeMessages})
+
+  useSWRSubscription(
+    session && run ? ["runCodeMessages", runId, run.status] : null,
+    (_, {next}: SWRSubscriptionOptions<Run>) => {
+      if (!run || !runCodeMessages) {
+        return () => {};
+      }
+
+      if (run.status === "running") {
+        const eventSource = createRunCodeMessagesEventSource(session ? session.APIToken.accessToken : "", runId)
+
+        eventSource.onmessage = (ev) => {
+          const streamedMessage: RunCodeMessageInDB = snakeToCamelKeys(JSON.parse(ev.data));
+          next(null, () => {
+            // If the streamedMessage has a filename already in the runCodeMessages, replace it, else add it
+            const updatedRunCodeMessages = runCodeMessages.map((message: RunCodeMessageInDB) => message.filename === streamedMessage.filename ? streamedMessage : message);
+            mutateRunCodeMessages(updatedRunCodeMessages, {revalidate: false});
+            return undefined;
+          })
+        }
+
+        return () => eventSource.close();
+      }
+      else {
+        return () => {};
+      }
+    }
+  )
+
+  return { runCodeMessages }
 }

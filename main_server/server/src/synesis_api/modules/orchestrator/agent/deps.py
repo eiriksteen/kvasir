@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class OrchestatorAgentDeps:
+class OrchestratorAgentDeps:
     user_id: uuid.UUID
     project_id: uuid.UUID
+    conversation_id: uuid.UUID

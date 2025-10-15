@@ -29,7 +29,6 @@ class ModelDescription(BaseModel):
     description: str
     modality: SUPPORTED_MODALITIES_TYPE
     task: SUPPORTED_TASK_TYPE
-    programming_language_with_version: str
     model_class_docstring: str
     training_function: ModelFunctionCreate
     inference_function: ModelFunctionCreate

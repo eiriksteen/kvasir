@@ -18,12 +18,12 @@ from synesis_schemas.main_server import (
     ModelInDB,
     ModelFunctionInDB,
     ModelCreate,
-    ModelEntityWithModelDef,
+    ModelEntity,
     ModelEntityInDB,
     ModelEntityCreate,
     ModelEntityConfigUpdate,
     ModelDefinitionInDB,
-    ModelFull,
+    Model,
     ModelUpdateCreate,
     ModelFunctionFull,
     ModelFunctionInputObjectGroupDefinitionInDB,
@@ -31,9 +31,10 @@ from synesis_schemas.main_server import (
 )
 from synesis_api.utils.rag_utils import embed
 from synesis_api.modules.project.service import get_model_entity_ids_in_project
+from synesis_api.modules.code.service import create_script, get_scripts
 
 
-async def create_model(user_id: uuid.UUID, model_create: ModelCreate) -> ModelFull:
+async def create_model(user_id: uuid.UUID, model_create: ModelCreate) -> Model:
 
     model_definition_obj = ModelDefinitionInDB(
         id=uuid.uuid4(),
@@ -58,6 +59,13 @@ async def create_model(user_id: uuid.UUID, model_create: ModelCreate) -> ModelFu
         updated_at=datetime.now(timezone.utc)
     )
 
+    implementation_script_obj = await create_script(user_id, model_create.implementation_script_create)
+
+    if model_create.setup_script_create:
+        setup_script_obj = await create_script(user_id, model_create.setup_script_create)
+    else:
+        setup_script_obj = None
+
     model_obj = ModelInDB(
         id=uuid.uuid4(),
         **model_create.model_dump(),
@@ -68,6 +76,8 @@ async def create_model(user_id: uuid.UUID, model_create: ModelCreate) -> ModelFu
         training_function_id=training_function_obj.id,
         inference_function_id=inference_function_obj.id,
         embedding=embedding,
+        implementation_script_id=implementation_script_obj.id,
+        setup_script_id=setup_script_obj.id if setup_script_obj else None,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
     )
@@ -144,15 +154,17 @@ async def create_model(user_id: uuid.UUID, model_create: ModelCreate) -> ModelFu
 
     )
 
-    return ModelFull(
+    return Model(
         **{k: v for k, v in model_obj.model_dump().items() if k != 'embedding'},
         definition=model_definition_obj,
         training_function=training_function_full,
-        inference_function=inference_function_full
+        inference_function=inference_function_full,
+        implementation_script=implementation_script_obj,
+        setup_script=setup_script_obj
     )
 
 
-async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> ModelFull:
+async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> Model:
     max_version_subquery = select(func.max(model.c.version)).where(
         model.c.definition_id == model_update.definition_id)
     existing_model = await fetch_one(select(model).where(and_(model.c.definition_id == model_update.definition_id,
@@ -171,6 +183,14 @@ async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> M
         select(model_function).where(model_function.c.id ==
                                      existing_model["inference_function_id"])
     )
+
+    # update script
+
+    implementation_script_obj = await create_script(user_id, model_update.new_implementation_create)
+    if model_update.new_setup_create:
+        setup_script_obj = await create_script(user_id, model_update.new_setup_create)
+    else:
+        setup_script_obj = None
 
     if model_update.updated_training_function:
         training_function_obj = ModelFunctionInDB(
@@ -208,30 +228,25 @@ async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> M
 
     model_obj = ModelInDB(
         id=uuid.uuid4(),
+        implementation_script_id=implementation_script_obj.id,
+        setup_script_id=setup_script_obj.id if setup_script_obj else existing_model[
+            "setup_script_id"],
         definition_id=model_update.definition_id,
         python_class_name=model_update.updated_python_class_name if model_update.updated_python_class_name else existing_model[
             "python_class_name"],
         version=existing_model["version"] + 1,
-        filename=model_update.updated_filename if model_update.updated_filename else existing_model[
-            "filename"],
         description=model_update.updated_description if model_update.updated_description else existing_model[
             "description"],
         newest_update_description=model_update.updates_made_description,
         user_id=user_id,
         source_id=existing_model["source_id"],
         programming_language_with_version=existing_model["programming_language_with_version"],
-        implementation_script_path=model_update.updated_implementation_script_path if model_update.updated_implementation_script_path else existing_model[
-            "implementation_script_path"],
-        setup_script_path=model_update.updated_setup_script_path if model_update.updated_setup_script_path else existing_model[
-            "setup_script_path"],
         model_class_docstring=model_update.updated_model_class_docstring if model_update.updated_model_class_docstring else existing_model[
             "model_class_docstring"],
         default_config=model_update.updated_default_config if model_update.updated_default_config else existing_model[
             "default_config"],
         config_schema=model_update.updated_config_schema if model_update.updated_config_schema else existing_model[
             "config_schema"],
-        module_path=model_update.updated_module_path if model_update.updated_module_path else existing_model[
-            "module_path"],
         training_function_id=training_function_id,
         inference_function_id=inference_function_id,
         embedding=embedding,
@@ -326,7 +341,7 @@ async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> M
     return (await get_models([model_obj.id]))[0]
 
 
-async def get_models(model_ids: List[uuid.UUID]) -> List[ModelFull]:
+async def get_models(model_ids: List[uuid.UUID]) -> List[Model]:
 
     model_query = select(model).where(model.c.id.in_(model_ids))
     models = await fetch_all(model_query)
@@ -354,6 +369,10 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[ModelFull]:
     output_object_group_definition_query = select(model_function_output_object_group_definition).where(
         model_function_output_object_group_definition.c.function_id.in_(function_ids))
     all_output_object_group_definition_records = await fetch_all(output_object_group_definition_query)
+
+    # Query script records
+    implementation_script_records = await get_scripts(m["implementation_script_id"] for m in models)
+    setup_script_records = await get_scripts(m["setup_script_id"] for m in models if m["setup_script_id"])
 
     output_objs = []
     for model_id in model_ids:
@@ -403,13 +422,21 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[ModelFull]:
                 **o) for o in inference_output_object_records],
         )
 
+        # Get script records for this model
+        implementation_script = next(
+            s for s in implementation_script_records if s.id == model_record["implementation_script_id"])
+        setup_script = next(
+            (s for s in setup_script_records if s.id == model_record["setup_script_id"]), None)
+
         # Build ModelFull object (excluding embedding)
         output_objs.append(
-            ModelFull(
+            Model(
                 **{k: v for k, v in model_record.items() if k != 'embedding'},
                 definition=ModelDefinitionInDB(**model_definition_record),
                 training_function=training_function_full,
-                inference_function=inference_function_full
+                inference_function=inference_function_full,
+                implementation_script=implementation_script,
+                setup_script=setup_script
             )
         )
 
@@ -440,7 +467,7 @@ async def create_model_entity(user_id: uuid.UUID, model_entity_create: ModelEnti
     return model_entity_obj
 
 
-async def get_user_model_entities_by_ids(user_id: uuid.UUID, model_entity_ids: List[uuid.UUID]) -> List[ModelEntityWithModelDef]:
+async def get_user_model_entities_by_ids(user_id: uuid.UUID, model_entity_ids: List[uuid.UUID]) -> List[ModelEntity]:
     model_entity_query = select(model_entity).where(
         model_entity.c.id.in_(model_entity_ids)
     ).where(model_entity.c.user_id == user_id)
@@ -459,7 +486,7 @@ async def get_user_model_entities_by_ids(user_id: uuid.UUID, model_entity_ids: L
                 (m for m in models_full if m.id == model_entity_record["model_id"]), None)
 
             if model_full is not None:
-                model_entity_full_objs.append(ModelEntityWithModelDef(
+                model_entity_full_objs.append(ModelEntity(
                     **model_entity_record,
                     model=model_full)
                 )
@@ -467,7 +494,7 @@ async def get_user_model_entities_by_ids(user_id: uuid.UUID, model_entity_ids: L
     return model_entity_full_objs
 
 
-async def get_project_model_entities(user_id: uuid.UUID, project_id: uuid.UUID) -> List[ModelEntityWithModelDef]:
+async def get_project_model_entities(user_id: uuid.UUID, project_id: uuid.UUID) -> List[ModelEntity]:
     model_ids = await get_model_entity_ids_in_project(project_id)
     model_entities = await get_user_model_entities_by_ids(user_id, model_ids)
     return model_entities

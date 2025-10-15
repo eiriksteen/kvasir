@@ -87,6 +87,24 @@ class Run(RunInDB):
     outputs: Optional[RunEntityIds] = None
 
 
+class MessageForLog(BaseModel):
+    content: str
+    type: Literal["tool_call", "result", "error"]
+    write_to_db: int = 1
+    target: Literal["redis", "taskiq", "both"] = "both"
+    created_at: datetime = datetime.now(timezone.utc)
+
+
+class CodeForLog(BaseModel):
+    code: str
+    filename: str
+    target: Literal["redis", "taskiq", "both"] = "both"
+    # cant do None because redis
+    output: str = ""
+    error: str = ""
+    created_at: datetime = datetime.now(timezone.utc)
+
+
 # Create Models
 
 

@@ -7,6 +7,7 @@ from project_server.agents.model_integration.agent import model_integration_agen
 from project_server.agents.model_integration.deps import ModelIntegrationAgentDeps
 from project_server.agents.model_integration.prompt import MODEL_INTEGRATION_AGENT_SYSTEM_PROMPT
 from project_server.agents.model_integration.output import ModelDescription, ImplementationFeedbackOutput, SearchPypiPackagesOutput
+from project_server.agents.swe.output import SWEAgentOutput
 from project_server.app_secrets import MODEL_WEIGHTS_DIR
 
 from project_server.agents.model_integration.utils import (
@@ -25,7 +26,7 @@ from project_server.client import (
     post_model_source,
 )
 
-from project_server.agents.runner_base import RunnerBase
+from project_server.agents.runner_base import RunnerBase, MessageForLog
 
 from synesis_schemas.main_server import (
     AddEntityToProject,
@@ -33,7 +34,8 @@ from synesis_schemas.main_server import (
     ModelCreate,
     ModelEntityCreate,
     ModelSourceCreate,
-    PypiModelSourceCreate
+    PypiModelSourceCreate,
+    ScriptCreate
 )
 
 
@@ -69,7 +71,12 @@ class ModelIntegrationAgentRunner(RunnerBase):
         try:
             test_model_weights_dir = MODEL_WEIGHTS_DIR / f"{uuid.uuid4()}"
             await self._create_run_if_not_exists()
-            await self._log_message(f"Starting model integration from prompt: {prompt_content}", "result", write_to_db=True)
+            await self._log_message(MessageForLog(
+                content=f"Starting model integration from prompt: {prompt_content}",
+                type="result",
+                write_to_db=1,
+                target="both"
+            ))
 
             search_query_run = await self._run_agent(
                 f"We must integrate a model based on the following prompt: '{prompt_content}'\n\nNow search for the pip package or github repo to use!",
@@ -77,7 +84,12 @@ class ModelIntegrationAgentRunner(RunnerBase):
                 deps=ModelIntegrationAgentDeps(client=self.project_client)
             )
 
-            await self._log_message(f"Searching for pypi packages: {search_query_run.output.package_names}", "result", write_to_db=True)
+            await self._log_message(MessageForLog(
+                content=f"Searching for pypi packages: {search_query_run.output.package_names}",
+                type="result",
+                write_to_db=1,
+                target="both"
+            ))
 
             if isinstance(search_query_run.output, SearchPypiPackagesOutput):
                 pypi_search_results = []
@@ -87,7 +99,12 @@ class ModelIntegrationAgentRunner(RunnerBase):
                 raise ValueError(
                     "Invalid output type from search query run")
 
-            await self._log_message(f"Pypi search results: {pypi_search_results}", "result", write_to_db=True)
+            await self._log_message(MessageForLog(
+                content=f"Pypi search results: {pypi_search_results}",
+                type="result",
+                write_to_db=1,
+                target="both"
+            ))
 
             model_source_selection_run = await self._run_agent(
                 f"Here are the results from the search: {[r.model_dump_json() for r in pypi_search_results]}\n\n" +
@@ -102,8 +119,12 @@ class ModelIntegrationAgentRunner(RunnerBase):
                 if not valid_package_and_version:
                     raise RuntimeError(
                         "Agent hallucinated pypi package and version in search results")
-                await self._log_message(
-                    f"Found PyPI package {model_source_selection_run.output.package_name} version {model_source_selection_run.output.package_version}", "result", write_to_db=True)
+                await self._log_message(MessageForLog(
+                    content=f"Found PyPI package {model_source_selection_run.output.package_name} version {model_source_selection_run.output.package_version}",
+                    type="result",
+                    write_to_db=1,
+                    target="both"
+                ))
             else:
                 raise RuntimeError("Only pypi supported for now")
 
@@ -138,7 +159,12 @@ class ModelIntegrationAgentRunner(RunnerBase):
                 log=True
             )
 
-            await self._log_message(f"Calling SWE agent to implement model", "tool_call", write_to_db=True)
+            await self._log_message(MessageForLog(
+                content=f"Calling SWE agent to implement model",
+                type="tool_call",
+                write_to_db=1,
+                target="both"
+            ))
 
             swe_prompt = (
                 "I have been tasked to build a production ready ML model. For context, this is my full task description:\n\n" +
@@ -171,7 +197,12 @@ class ModelIntegrationAgentRunner(RunnerBase):
                     "Decide whether to accept it, or reject it with feedback on what to fix before the solution is approved."
                 )
 
-                await self._log_message(f"Feedback prompt: {feedback_prompt}", "result", write_to_db=True)
+                await self._log_message(MessageForLog(
+                    content=f"Feedback prompt: {feedback_prompt}",
+                    type="result",
+                    write_to_db=1,
+                    target="both"
+                ))
 
                 feedback_run = await self._run_agent(
                     feedback_prompt,
@@ -182,36 +213,46 @@ class ModelIntegrationAgentRunner(RunnerBase):
                 implementation_approved = feedback_run.output.approved
                 swe_prompt = feedback_run.output.feedback
 
-                await self._log_message(
-                    f"Implementation approved: {implementation_approved}", "result", write_to_db=True)
-                await self._log_message(f"Feedback: {swe_prompt}", "result", write_to_db=True)
+                await self._log_message(MessageForLog(
+                    content=f"Implementation approved: {implementation_approved}",
+                    type="result",
+                    write_to_db=1,
+                    target="both"
+                ))
+                await self._log_message(MessageForLog(
+                    content=f"Feedback: {swe_prompt}",
+                    type="result",
+                    write_to_db=1,
+                    target="both"
+                ))
 
                 if implementation_approved:
-                    await self._log_message("Implementation approved, saving model", "result", write_to_db=True)
+                    await self._log_message(MessageForLog(
+                        content="Implementation approved, saving model",
+                        type="result",
+                        write_to_db=1,
+                        target="both"
+                    ))
 
                     swe_result = swe_runner.get_final_output()
-
-                    model_script = file_manager.save_script(
-                        f"{model_spec_output.python_class_name}.py",
-                        swe_result.implementation.main_script,
-                        "model",
-                        add_uuid=True,
-                        temporary=False,
-                        add_v1=True
-                    )
 
                     model_spec_run_final = await self._run_agent(
                         f"Now that the the implementation is approved, please output an updated spec to reflect any changes the SWE might have made to the spec during the implementation.\n\n",
                         output_type=ModelDescription,
                         deps=ModelIntegrationAgentDeps(
-                            client=self.project_client)
+                            client=self.project_client
+                        )
                     )
 
-                    await self._save_results(model_spec_run_final.output, model_source.id, model_script)
+                    await self._save_results(model_spec_run_final.output, model_source.id, swe_result)
 
                 else:
-                    await self._log_message(
-                        f"Implementation rejected. Feedback: {swe_prompt}", "result", write_to_db=True)
+                    await self._log_message(MessageForLog(
+                        content=f"Implementation rejected. Feedback: {swe_prompt}",
+                        type="result",
+                        write_to_db=1,
+                        target="both"
+                    ))
 
             if test_model_weights_dir.exists():
                 for file in test_model_weights_dir.iterdir():
@@ -230,17 +271,50 @@ class ModelIntegrationAgentRunner(RunnerBase):
             await self._fail_agent_run(f"Error running model integration: {e}")
             raise e
 
-    async def _save_results(self, model_spec_output: ModelDescription, model_source_id: uuid.UUID, model_script: ScriptStorage):
+    async def _save_results(self, model_spec_output: ModelDescription, model_source_id: uuid.UUID, swe_result: SWEAgentOutput):
+
+        # Save the script with appropriate paths
+        model_script = file_manager.save_script(
+            f"{model_spec_output.python_class_name}.py",
+            swe_result.implementation.main_script.script,
+            "model",
+            add_uuid=True,
+            temporary=False,
+            add_v1=True
+        )
+
+        # Create script creation object
+        implementation_script_create = ScriptCreate(
+            path=str(model_script.script_path),
+            filename=model_script.filename,
+            module_path=model_script.module_path,
+            type="model"
+        )
+
+        # Handle setup script if it exists
+        setup_script_create = None
+        if swe_result.setup and swe_result.setup.script:
+            setup_script_storage = file_manager.save_script(
+                f"{model_spec_output.python_class_name}_setup.sh",
+                swe_result.setup.script,
+                "model",
+                add_uuid=True,
+                temporary=False,
+                add_v1=True
+            )
+            setup_script_create = ScriptCreate(
+                path=str(setup_script_storage.script_path),
+                filename=setup_script_storage.filename,
+                module_path=setup_script_storage.module_path,
+                type="model"
+            )
 
         model_response = await post_model(self.project_client, ModelCreate(
             **model_spec_output.model_dump(),
-            implementation_script_path=str(model_script.script_path),
-            setup_script_path=str(
-                model_script.setup_script_path) if model_script.setup_script_path else None,
+            implementation_script_create=implementation_script_create,
+            setup_script_create=setup_script_create,
             source_id=model_source_id,
             public=self.public,
-            filename=Path(model_script.script_path).name,
-            module_path=model_script.module_path,
         ))
 
         if self.create_model_entity_on_completion:

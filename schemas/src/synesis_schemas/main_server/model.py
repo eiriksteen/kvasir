@@ -4,7 +4,7 @@ from datetime import datetime
 from uuid import UUID
 
 
-from .function import FunctionWithoutEmbedding
+from .code import ScriptCreate, ScriptInDB
 
 
 SUPPORTED_MODALITIES_TYPE = Literal["time_series", "tabular", "multimodal",
@@ -33,17 +33,14 @@ class ModelInDB(BaseModel):
     id: UUID
     definition_id: UUID
     version: int
-    filename: str
-    module_path: str
     python_class_name: str
     description: str
     newest_update_description: str
     user_id: UUID
     source_id: UUID
-    programming_language_with_version: str
     embedding: List[float]
-    implementation_script_path: str
-    setup_script_path: Optional[str] = None
+    implementation_script_id: UUID
+    setup_script_id: Optional[UUID] = None
     model_class_docstring: str
     default_config: dict
     config_schema: dict
@@ -65,10 +62,10 @@ class ModelFunctionInDB(BaseModel):
 
 class ModelFunctionInputObjectGroupDefinitionInDB(BaseModel):
     id: UUID
-    function_id: UUID
-    structure_id: str
     name: str
     required: bool
+    function_id: UUID
+    structure_id: str
     description: str
     created_at: datetime
     updated_at: datetime
@@ -110,16 +107,11 @@ class ModelWithoutEmbedding(BaseModel):
     id: UUID
     definition_id: UUID
     version: int
-    filename: str
-    module_path: str
     python_class_name: str
     description: str
     newest_update_description: str
     user_id: UUID
     source_id: UUID
-    programming_language_with_version: str
-    implementation_script_path: str
-    setup_script_path: Optional[str] = None
     model_class_docstring: str
     training_function_id: UUID
     inference_function_id: UUID
@@ -134,14 +126,44 @@ class ModelFunctionFull(ModelFunctionInDB):
     output_object_groups: List[ModelFunctionOutputObjectGroupDefinitionInDB]
 
 
-class ModelFull(ModelWithoutEmbedding):
+class Model(ModelWithoutEmbedding):
     definition: ModelDefinitionInDB
     training_function: ModelFunctionFull
     inference_function: ModelFunctionFull
+    implementation_script: ScriptInDB
+    setup_script: Optional[ScriptInDB] = None
 
 
-class ModelEntityWithModelDef(ModelEntityInDB):
-    model: ModelFull
+class ModelEntity(ModelEntityInDB):
+    model: Model
+
+
+class ModelDefinitionBare(BaseModel):
+    id: UUID
+    name: str
+
+
+class ModelFunctionBare(BaseModel):
+    id: UUID
+    docstring: str
+
+
+class ModelBare(BaseModel):
+    id: UUID
+    description: str
+    config_schema: dict
+    python_class_name: str
+    model_class_docstring: str
+    training_function: ModelFunctionBare
+    inference_function: ModelFunctionBare
+    definition: ModelDefinitionBare
+
+
+class ModelEntityBare(BaseModel):
+    id: UUID
+    name: str
+    description: str
+    model: ModelBare
 
 
 class GetModelEntityByIDsRequest(BaseModel):
@@ -174,22 +196,19 @@ class ModelFunctionCreate(BaseModel):
 
 class ModelCreate(BaseModel):
     name: str
-    filename: str
-    module_path: str
     python_class_name: str
     public: bool
     description: str
     modality: SUPPORTED_MODALITIES_TYPE
     task: SUPPORTED_TASK_TYPE
     source_id: UUID
-    programming_language_with_version: str
-    implementation_script_path: str
-    setup_script_path: Optional[str] = None
     model_class_docstring: str
     training_function: ModelFunctionCreate
     inference_function: ModelFunctionCreate
     default_config: dict
     config_schema: dict
+    implementation_script_create: ScriptCreate
+    setup_script_create: Optional[ScriptCreate] = None
 
 
 # Update models
@@ -210,18 +229,16 @@ class ModelFunctionUpdateCreate(BaseModel):
 class ModelUpdateCreate(BaseModel):
     definition_id: UUID
     updates_made_description: str
+    new_implementation_create: ScriptCreate
     updated_description: Optional[str] = None
-    updated_filename: Optional[str] = None
-    updated_module_path: Optional[str] = None
     updated_python_class_name: Optional[str] = None
-    updated_implementation_script_path: Optional[str] = None
-    updated_setup_script_path: Optional[str] = None
     updated_model_class_docstring: Optional[str] = None
     updated_default_config: Optional[dict] = None
     updated_training_function: Optional[ModelFunctionUpdateCreate] = None
     updated_inference_function: Optional[ModelFunctionUpdateCreate] = None
     updated_config_schema: Optional[dict] = None
     model_entities_to_update: Optional[List[UUID]] = None
+    new_setup_create: Optional[ScriptCreate] = None
 
 
 class ModelEntityCreate(BaseModel):

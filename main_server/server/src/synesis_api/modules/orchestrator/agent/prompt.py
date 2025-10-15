@@ -158,6 +158,8 @@ After each run completes:
    - Adjust based on their feedback and relaunch the previous agent
 4. Continue until all planned outputs are complete
 
+NB: The runs may fail. If a run fails, launch a retry run. If we have failed more than 3 times (of the same run), apologize to the user and stop submitting runs until they directly ask for a retry. 
+
 ## Modeling Workflow
 
 When the project involves building a predictive model, follow this workflow:

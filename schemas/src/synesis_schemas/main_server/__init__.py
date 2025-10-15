@@ -65,7 +65,7 @@ from .pipeline import (
 )
 
 from .function import (
-    FunctionFull,
+    Function,
     FunctionInDB,
     FunctionDefinitionInDB,
     FunctionInputObjectGroupDefinitionInDB,
@@ -74,6 +74,8 @@ from .function import (
     FunctionInputObjectGroupDefinitionCreate,
     FunctionOutputObjectGroupDefinitionCreate,
     FunctionUpdateCreate,
+    FunctionBare,
+    FunctionDefinitionBare,
 )
 
 
@@ -85,8 +87,8 @@ from .model import (
     ModelEntityFromPipelineInDB,
     ModelWithoutEmbedding,
     ModelFunctionFull,
-    ModelFull,
-    ModelEntityWithModelDef,
+    Model,
+    ModelEntity,
     ModelFunctionInputObjectGroupDefinitionInDB,
     ModelFunctionOutputObjectGroupDefinitionInDB,
     ModelFunctionInputObjectGroupDefinitionCreate,
@@ -100,7 +102,11 @@ from .model import (
     GetModelEntityByIDsRequest,
     SUPPORTED_MODALITIES_TYPE,
     SUPPORTED_TASK_TYPE,
-    FUNCTION_TYPE
+    FUNCTION_TYPE,
+    ModelBare,
+    ModelFunctionBare,
+    ModelDefinitionBare,
+    ModelEntityBare,
 )
 
 
@@ -187,7 +193,10 @@ from .runs import (
     DatasetInRunInDB,
     ModelEntityInRunInDB,
     PipelineInRunInDB,
+    MessageForLog,
+    CodeForLog
 )
+
 
 # Node schemas
 from .node import (
@@ -229,7 +238,9 @@ from .knowledge_bank import (
     ModelQueryResult,
     QueryRequest,
     FunctionQueryResult,
-    GetGuidelinesRequest
+    GetGuidelinesRequest,
+    FunctionQueryResultBare,
+    ModelQueryResultBare
 )
 
 # Tables schemas
@@ -276,4 +287,10 @@ from .analysis import (
     MoveRequest,
     AnalysisObjectList,
     AnalysisResultFindRequest,
+)
+
+from .code import (
+    ScriptInDB,
+    ScriptCreate,
+    script_type_literal,
 )

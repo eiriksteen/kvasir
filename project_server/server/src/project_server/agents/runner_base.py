@@ -1,17 +1,16 @@
 import uuid
+from abc import ABC, abstractmethod
+from typing import Optional
 from pydantic_ai.messages import FunctionToolCallEvent
 from pydantic_ai.agent import Agent, AgentRunResult, OutputSpec
 from pydantic_ai.tools import AgentDepsT
-from abc import ABC, abstractmethod
-from typing import Literal, Optional
-from datetime import datetime, timezone
 
 from project_server.client import post_run_message, post_run_message_pydantic, post_run, patch_run_status
 from project_server.redis import get_redis
 from project_server.client import ProjectClient
 from project_server.worker import logger
 from project_server.agents.tool_descriptions import TOOL_DESCRIPTIONS
-from synesis_schemas.main_server import RunMessageCreate, RunMessageCreatePydantic, RunCreate, RunStatusUpdate
+from synesis_schemas.main_server import RunMessageCreate, RunMessageCreatePydantic, RunCreate, RunStatusUpdate, MessageForLog, CodeForLog
 
 
 class RunnerBase(ABC):
@@ -51,6 +50,62 @@ class RunnerBase(ABC):
     async def _save_results(self, *args, **kwargs):
         pass
 
+    async def _run_agent(
+        self,
+        prompt_content: str,
+        deps: Optional[AgentDepsT] = None,
+        output_type: Optional[OutputSpec] = None
+    ) -> AgentRunResult:
+
+        assert self.agent is not None, "Agent is not set"
+
+        async with self.agent.iter(
+                prompt_content,
+                deps=deps,
+                output_type=output_type,
+                message_history=self.message_history) as agent_run:
+            async for node in agent_run:
+                if Agent.is_call_tools_node(node):
+                    async with node.stream(agent_run.ctx) as handle_stream:
+                        async for event in handle_stream:
+                            if isinstance(event, FunctionToolCallEvent):
+                                if event.part.tool_name in TOOL_DESCRIPTIONS:
+                                    message = TOOL_DESCRIPTIONS[event.part.tool_name]
+                                else:
+                                    message = f"Calling tool {event.part.tool_name}"
+                                await self._log_message(MessageForLog(
+                                    content=message,
+                                    type="tool_call",
+                                    write_to_db=1,
+                                    target="both"
+                                ))
+
+        await self._update_agent_state(agent_run.result)
+        return agent_run.result
+
+    async def _log_message(self, message: MessageForLog):
+        log_run_id = self.parent_run_id if self.log_to_parent_run and self.parent_run_id else self.run_id
+
+        if message.target == "redis" or message.target == "both":
+            await self.redis_stream.xadd(str(log_run_id), message.model_dump(mode="json"))
+        if message.target == "taskiq" or message.target == "both":
+            logger.info(message.content)
+
+        if message.write_to_db:
+            await post_run_message(self.project_client, RunMessageCreate(
+                type=message.type,
+                run_id=log_run_id,
+                content=message.content
+            ))
+
+    async def _log_code(self, code: CodeForLog):
+        log_run_id = self.parent_run_id if self.log_to_parent_run and self.parent_run_id else self.run_id
+
+        if code.target == "redis" or code.target == "both":
+            await self.redis_stream.xadd(f"{log_run_id}-code", code.model_dump(mode="json"))
+        if code.target == "taskiq" or code.target == "both":
+            logger.info(code.code)
+
     async def _create_run_if_not_exists(self):
         if self.run_id is None:
             run = await post_run(self.project_client, RunCreate(
@@ -79,7 +134,12 @@ class RunnerBase(ABC):
         ))
 
         if success_message:
-            await self._log_message(success_message, "result", write_to_db=True)
+            await self._log_message(MessageForLog(
+                content=success_message,
+                type="result",
+                write_to_db=1,
+                target="both"
+            ))
 
     async def _fail_agent_run(self, error_message: Optional[str] = None):
         if self.message_history_json:
@@ -94,64 +154,9 @@ class RunnerBase(ABC):
         ))
 
         if error_message:
-            await self._log_message(error_message, "error", write_to_db=True)
-
-    async def _run_agent(
-        self,
-        prompt_content: str,
-        deps: Optional[AgentDepsT] = None,
-        output_type: Optional[OutputSpec] = None
-    ) -> AgentRunResult:
-
-        assert self.agent is not None, "Agent is not set"
-
-        async with self.agent.iter(
-                prompt_content,
-                deps=deps,
-                output_type=output_type,
-                message_history=self.message_history) as run:
-            async for node in run:
-                if Agent.is_call_tools_node(node):
-                    async with node.stream(run.ctx) as handle_stream:
-                        async for event in handle_stream:
-                            if isinstance(event, FunctionToolCallEvent):
-                                if event.part.tool_name in TOOL_DESCRIPTIONS:
-                                    message = TOOL_DESCRIPTIONS[event.part.tool_name]
-                                else:
-                                    message = f"Calling tool {event.part.tool_name}"
-                                await self._log_message(message, "tool_call", write_to_db=True)
-
-        await self._update_agent_state(run.result)
-        return run.result
-
-    async def _log_message(
-            self,
-            content: str,
-            message_type: Literal["tool_call", "result", "error"],
-            write_to_db: bool = True,
-            target: Literal["redis", "taskiq", "both"] = "both"
-    ):
-        """Log a message to Redis stream"""
-
-        log_run_id = self.parent_run_id if self.log_to_parent_run and self.parent_run_id else self.run_id
-
-        message = {
-            "id": str(uuid.uuid4()),
-            "role": "agent",
-            "content": content,
-            "run_id": str(log_run_id),
-            "type": message_type,
-            "created_at": datetime.now(timezone.utc).isoformat()
-        }
-
-        if target == "redis" or target == "both":
-            await self.redis_stream.xadd(str(log_run_id), message)
-        if target == "taskiq" or target == "both":
-            logger.info(message)
-
-        if write_to_db:
-            await post_run_message(self.project_client, RunMessageCreate(
-                type=message_type,
-                run_id=log_run_id,
-                content=content
+            await self._log_message(MessageForLog(
+                content=error_message,
+                type="error",
+                write_to_db=1,
+                target="both"
             ))

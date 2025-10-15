@@ -7,21 +7,21 @@ from synesis_schemas.main_server import (
     ModelEntityCreate,
     ModelEntityInDB,
     GetModelEntityByIDsRequest,
-    ModelEntityWithModelDef,
+    ModelEntity,
     ModelEntityConfigUpdate,
-    ModelFull,
+    Model,
     ModelUpdateCreate
 )
 
 
-async def post_model(client: ProjectClient, model_data: ModelCreate) -> ModelFull:
+async def post_model(client: ProjectClient, model_data: ModelCreate) -> Model:
     response = await client.send_request("post", "/model/model", json=model_data.model_dump(mode="json"))
-    return ModelFull(**response.body)
+    return Model(**response.body)
 
 
-async def post_update_model(client: ProjectClient, request: ModelUpdateCreate) -> ModelFull:
+async def post_update_model(client: ProjectClient, request: ModelUpdateCreate) -> Model:
     response = await client.send_request("post", f"/model/model/update", json=request.model_dump(mode="json"))
-    return ModelFull(**response.body)
+    return Model(**response.body)
 
 
 async def post_model_entity(client: ProjectClient, model_entity_data: ModelEntityCreate) -> ModelEntityInDB:
@@ -29,14 +29,14 @@ async def post_model_entity(client: ProjectClient, model_entity_data: ModelEntit
     return ModelEntityInDB(**response.body)
 
 
-async def get_project_model_entities(client: ProjectClient, project_id: UUID) -> List[ModelEntityWithModelDef]:
+async def get_project_model_entities(client: ProjectClient, project_id: UUID) -> List[ModelEntity]:
     response = await client.send_request("get", f"/model/project-model-entities/{project_id}")
-    return [ModelEntityWithModelDef(**me) for me in response.body]
+    return [ModelEntity(**me) for me in response.body]
 
 
-async def get_model_entities_by_ids(client: ProjectClient, request: GetModelEntityByIDsRequest) -> List[ModelEntityWithModelDef]:
+async def get_model_entities_by_ids(client: ProjectClient, request: GetModelEntityByIDsRequest) -> List[ModelEntity]:
     response = await client.send_request("get", f"/model/model-entities-by-ids", json=request.model_dump(mode="json"))
-    return [ModelEntityWithModelDef(**me) for me in response.body]
+    return [ModelEntity(**me) for me in response.body]
 
 
 async def patch_model_entity_config(client: ProjectClient, model_entity_id: UUID, request: ModelEntityConfigUpdate) -> ModelEntityInDB:

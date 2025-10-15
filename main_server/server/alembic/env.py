@@ -48,6 +48,7 @@ from synesis_api.modules.model_sources.models import (
 from synesis_api.modules.analysis.models import analysis_status_message, analysis_object, analysis_result, analysis_result_dataset, analysis_result_data_source, notebook_section, notebook, plot, table
 from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_pipeline, project_data_source
 from synesis_api.modules.node.models import node, dataset_node, analysis_node, pipeline_node
+from synesis_api.modules.code.models import script
 from synesis_api.app_secrets import DATABASE_URL
 from synesis_api.database.core import metadata
 
@@ -142,6 +143,7 @@ __all__ = [
     model_definition,
     table,
     plot,
+    script,
 ]
 
 # add your model's MetaData object here
