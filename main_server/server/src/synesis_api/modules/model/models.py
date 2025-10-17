@@ -79,8 +79,6 @@ model = Table(
     Column("updated_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
-    CheckConstraint(model_modality_constraint),
-    CheckConstraint(model_task_constraint),
     schema="model"
 )
 
