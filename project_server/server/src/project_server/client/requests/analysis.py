@@ -54,8 +54,8 @@ async def move_element_request(client: ProjectClient, analysis_object_id: uuid.U
     await client.send_request("patch", f"/analysis/analysis-object/{analysis_object_id}/move-element", json=move_request.model_dump(mode="json"))
 
 
-async def update_analysis_result_request(client: ProjectClient, analysis_result_id: uuid.UUID, analysis_result_update: AnalysisResultUpdate) -> AnalysisResult:
-    response = await client.send_request("patch", f"/analysis/analysis-result/{analysis_result_id}", json=analysis_result_update.model_dump(mode="json"))
+async def update_analysis_result_request(client: ProjectClient, analysis_result: AnalysisResult) -> AnalysisResult:
+    response = await client.send_request("patch", f"/analysis/analysis-result/{analysis_result.id}", json=analysis_result.model_dump(mode="json"))
     return AnalysisResult(**response.body)
 
 

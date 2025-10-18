@@ -38,7 +38,7 @@ from synesis_api.modules.analysis.service import (
     delete_notebook_section_recursive,
     create_section,
     update_section,
-    update_analysis_result_by_id,
+    update_analysis_result,
     add_analysis_result_to_section,
     generate_notebook_report,
     get_notebook_by_id,
@@ -304,12 +304,11 @@ async def move_element(
 
 @router.patch("/analysis-result/{analysis_result_id}", response_model=AnalysisResult)
 async def update_analysis_result_endpoint(
-    analysis_result_id: uuid.UUID,
-    analysis_result_update: AnalysisResultUpdate,
+    analysis_result: AnalysisResult,
     user: Annotated[User, Depends(get_current_user)] = None,
 ) -> AnalysisResult:
     
-    return await update_analysis_result_by_id(analysis_result_id, analysis_result_update)
+    return await update_analysis_result(analysis_result)
 
 @router.delete("/analysis-object/{analysis_object_id}/analysis-result/{analysis_result_id}")
 async def delete_analysis_result_endpoint(

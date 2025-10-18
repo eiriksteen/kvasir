@@ -19,7 +19,6 @@ from .service_analysis_result import (
     get_analysis_results_by_section_id,
     get_analysis_results_by_ids,
     update_analysis_result,
-    update_analysis_result_by_id,
 )
 
 from .service_notebook import (

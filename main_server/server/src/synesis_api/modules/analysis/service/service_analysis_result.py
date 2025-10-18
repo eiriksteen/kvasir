@@ -270,16 +270,5 @@ async def update_analysis_result(analysis_result_arg: AnalysisResult) -> Analysi
                     commit_after=True
                 )
     
-    return analysis_result
+    return analysis_result_arg
 
-
-
-async def update_analysis_result_by_id(analysis_result_id: uuid.UUID, analysis_result_update: AnalysisResultUpdate) -> AnalysisResultInDB:
-    await execute(
-        update(analysis_result).where(analysis_result.c.id == analysis_result_id).values(
-            **analysis_result_update.model_dump()
-        ),
-        commit_after=True
-    )
-    result = await get_analysis_result_by_id(analysis_result_id)
-    return result

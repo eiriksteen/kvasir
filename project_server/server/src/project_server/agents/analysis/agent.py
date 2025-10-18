@@ -69,12 +69,10 @@ from project_server.worker import logger
 class AnalysisResultModelResponse(BaseModel):
     analysis: str = Field(
         description="This should be a short explanation and interpretation of the result of the analysis. This should be in github flavored markdown format.")
-    python_code: str | None = Field(
-        default=None, description="The python code that was used to generate the analysis result. This code should be executable and should be able to run in a python container.")
-    input_variable: str | None = Field(
-        default=None, description="The variable that was used to to generate the analysis result. This is a string of the variable name.")
-    output_variable: str | None = Field(
-        default=None, description="The variable that is most relevant to the analysis. This variable is likely the last variable in the code.")
+    python_code: str = Field(
+        description="The python code that was used to generate the analysis result. This code should be executable and should be able to run in a python container.")
+    output_variable: str = Field(
+        description="The variable that is most relevant to the analysis. This variable is likely the last variable in the code.")
 
 
 class AggregationObjectCreateResponse(BaseModel):
@@ -182,7 +180,8 @@ async def search_through_analysis_objects(ctx: RunContext[AnalysisDeps]) -> str:
 @analysis_agent.tool
 async def search_through_analysis_results(ctx: RunContext[AnalysisDeps], analysis_result_ids: List[uuid.UUID]) -> str:
     """
-    Searches through all analysis results in a project. This tool is useful when you do not know which analysis result to add or edit an analysis result to.
+    Searches through all analysis results you provide the id to. This tool is useful when you do not know which analysis result to add or edit an analysis result to.
+    
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
         analysis_result_ids (List[uuid.UUID]): The IDs of the analysis results to search through.
@@ -403,21 +402,7 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
         For example, if the structure type is "time_series", the filename is "time_series_data.parquet"
         For time series the parquet file is multiindex with first level being the original_id_name and the second level being 'date'.
     """
-    # simplified_datasets = simplify_dataset_overview(datasets)
     data_sources = await get_data_sources_by_ids(ctx.deps.client, GetDataSourcesByIDsRequest(data_source_ids=data_source_ids))
-    # simplified_data_sources = simplify_datasource_overview(data_sources)
-    # context_part = ""
-
-    # if len(simplified_datasets) == 0 and len(data_sources) == 0:
-    #     raise ValueError("No datasets or data sources found")
-
-    # if len(data_sources) > 0:
-    #     context_part += get_relevant_metadata_for_prompt(
-    #         data_sources, "data_source")
-
-    # if len(datasets) > 0:
-    #     context_part += get_relevant_metadata_for_prompt(
-    #         simplified_datasets, "dataset")
 
     helper_agent_deps = HelperAgentDeps(
         datasets=datasets,
@@ -467,14 +452,7 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
 
     await create_aggregation_object_request(ctx.deps.client, aggregation_object_create)
 
-
-    context = ContextCreate(
-        dataset_ids=dataset_ids,
-        data_source_ids=data_source_ids
-    )
-
-    await create_context_request(ctx.deps.client, context)
-    await update_analysis_result_request(ctx.deps.client, analysis_result_id, analysis_result)
+    await update_analysis_result_request(ctx.deps.client, analysis_result)
 
     return f"Analysis result successfully created."
 
