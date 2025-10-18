@@ -29,13 +29,15 @@ from synesis_schemas.main_server import (
     TimeSeriesAggregationObjectGroupCreate,
     MetadataDataframe,
     VariableGroupCreate,
-    DatasetSources
+    DatasetSources,
 )
+from project_server.utils.file_utils import get_data_from_container_from_code
 
 
 from synesis_data_structures.time_series.df_dataclasses import TimeSeriesStructure, TimeSeriesAggregationStructure
 from synesis_data_structures.time_series.schema import TimeSeries
-from synesis_data_structures.time_series.serialization import serialize_dataframes_to_api_payloads
+from synesis_data_structures.base_schema import AggregationOutput
+from synesis_data_structures.time_series.serialization import serialize_dataframes_to_api_payloads, serialize_raw_data_for_aggregation_object_for_api
 from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_DATA_SECOND_LEVEL_ID,
     ENTITY_METADATA_SECOND_LEVEL_ID,
@@ -131,6 +133,19 @@ class LocalDatasetManager:
             return dataset_api.model_dump_json()
         else:
             return dataset_api
+
+
+    async def get_aggregation_object_payload_data_by_code(
+        self,
+        python_code: str,
+        output_variable: str
+    ) -> AggregationOutput:
+        output_data = await get_data_from_container_from_code(python_code, output_variable)
+
+        aggregation_output = serialize_raw_data_for_aggregation_object_for_api(output_data)
+
+        return aggregation_output
+
 
     # Private methods
 

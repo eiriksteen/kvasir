@@ -55,17 +55,11 @@ from synesis_schemas.main_server import (
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.project.service import get_dataset_ids_in_project
 
-from synesis_data_structures.time_series.serialization import deserialize_parquet_to_dataframes, serialize_raw_data_for_aggregation_object_for_api
+from synesis_data_structures.time_series.serialization import deserialize_parquet_to_dataframes
 from synesis_data_structures.time_series.definitions import (
     TIME_SERIES_STRUCTURE,
     TIME_SERIES_AGGREGATION_STRUCTURE
 )
-
-from synesis_api.modules.analysis.service import get_analysis_result_by_id
-from synesis_api.modules.data_sources.service import get_data_sources
-from synesis_api.utils.file_utils import copy_file_or_directory_to_container, get_data_from_container_from_code
-from synesis_api.app_secrets import DATASETS_SAVE_PATH, RAW_FILES_SAVE_DIR
-from pathlib import Path
 
 
 async def create_features(features: List[FeatureCreate]) -> List[FeatureInDB]:
@@ -725,48 +719,3 @@ async def get_aggregation_object_by_analysis_result_id(analysis_result_id: uuid.
             status_code=404, detail="Aggregation object not found")
     return AggregationObjectInDB(**aggregation_object_result)
 
-
-# TODO;: Shouldnt be here
-async def get_aggregation_object_payload_data_by_analysis_result_id(
-    user_id: uuid.UUID,
-    analysis_result_id: uuid.UUID,
-) -> AggregationObjectWithRawData:
-    aggregation_object_in_db = await get_aggregation_object_by_analysis_result_id(analysis_result_id)
-
-    analysis_result = await get_analysis_result_by_id(analysis_result_id)
-
-    datasets = await get_user_datasets(user_id, ids=analysis_result.dataset_ids)
-    for idx, dataset in enumerate(datasets):
-        file_path = DATASETS_SAVE_PATH / \
-            f"{user_id}" / \
-            f"{dataset.id}"
-        container_save_path = Path("/tmp") / f"dataset_{idx}.parquet"
-        _, err = await copy_file_or_directory_to_container(file_path, container_save_path)
-        if err:
-            raise HTTPException(
-                status_code=500, detail=f"Error copying file to container: {err}")
-
-    data_sources = await get_data_sources(analysis_result.data_source_ids)
-    for idx, data_source in enumerate(data_sources):
-        file_path = RAW_FILES_SAVE_DIR / \
-            f"{user_id}" / \
-            f"{data_source.id}" / \
-            f"{data_source.name}"
-        print("copying data source:", file_path)
-        container_save_path = Path("/tmp") / f"data_source_{idx}.csv"
-        _, err = await copy_file_or_directory_to_container(file_path, container_save_path)
-
-    output_data = await get_data_from_container_from_code(analysis_result.python_code, analysis_result.output_variable)
-    if err:
-        raise HTTPException(
-            status_code=500, detail=f"Error getting data from container: {err}")
-
-    output_data = serialize_raw_data_for_aggregation_object_for_api(
-        output_data)
-
-    payload = AggregationObjectWithRawData(
-        **aggregation_object_in_db.model_dump(),
-        data=output_data,
-    )
-
-    return payload

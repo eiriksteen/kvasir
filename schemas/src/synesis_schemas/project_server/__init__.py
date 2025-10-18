@@ -1,3 +1,4 @@
 from .agent import RunDataSourceAnalysisAgentRequest, RunDataIntegrationAgentRequest, RunPipelineAgentRequest, RunModelIntegrationAgentRequest, RunAnalysisRequest
 from .pipeline import RunPipelineRequest, PipelineRunStatusUpdate
 from .storage import FileSavedAPI
+from .data_object import AggregationObjectPayloadDataRequest

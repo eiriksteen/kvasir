@@ -397,60 +397,41 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
     current_analysis_result = await get_analysis_result_by_id_request(ctx.deps.client, analysis_result_id)
 
     datasets = await get_datasets_by_ids(ctx.deps.client, GetDatasetByIDsRequest(dataset_ids=dataset_ids, include_features=True))
-    simplified_datasets = simplify_dataset_overview(datasets)
+    datasets_information = """
+        Each dataset has a object group which contains the data and where it is stored.
+        The filename of the object group is the <structure_type>_data.parquet
+        For example, if the structure type is "time_series", the filename is "time_series_data.parquet"
+        For time series the parquet file is multiindex with first level being the original_id_name and the second level being 'date'.
+    """
+    # simplified_datasets = simplify_dataset_overview(datasets)
     data_sources = await get_data_sources_by_ids(ctx.deps.client, GetDataSourcesByIDsRequest(data_source_ids=data_source_ids))
     # simplified_data_sources = simplify_datasource_overview(data_sources)
-    context_part = ""
+    # context_part = ""
 
-    if len(simplified_datasets) == 0 and len(data_sources) == 0:
-        raise ValueError("No datasets or data sources found")
+    # if len(simplified_datasets) == 0 and len(data_sources) == 0:
+    #     raise ValueError("No datasets or data sources found")
 
-    if len(data_sources) > 0:
-        context_part += get_relevant_metadata_for_prompt(
-            data_sources, "data_source")
+    # if len(data_sources) > 0:
+    #     context_part += get_relevant_metadata_for_prompt(
+    #         data_sources, "data_source")
 
-    if len(datasets) > 0:
-        context_part += get_relevant_metadata_for_prompt(
-            simplified_datasets, "dataset")
+    # if len(datasets) > 0:
+    #     context_part += get_relevant_metadata_for_prompt(
+    #         simplified_datasets, "dataset")
 
     helper_agent_deps = HelperAgentDeps(
-        user_id=ctx.deps.analysis_request.user_id,
-        dataset_ids=dataset_ids,
-        # TODO: fix this
-        group_ids=[dataset.object_groups[0].id for dataset in datasets],
-        second_level_structure_ids=[
-            dataset.object_groups[0].structure_type + "_data" for dataset in datasets],
-        data_source_ids=data_source_ids,
-        data_source_names=[data_source.name for data_source in data_sources]
+        datasets=datasets,
+        data_sources=data_sources
     )
 
-    # Delete this after fixing raw data transfer
-    analysis_result_synth = AnalysisResult(
-        id=analysis_result_id,
-        analysis='The mean temp is 42',
-        python_code='print("The mean temp is 42")',
-        output_variable='mean_temp',
-        input_variable='',
-        dataset_ids=dataset_ids,
-        data_source_ids=data_source_ids,
-        next_type=current_analysis_result.next_type,
-        next_id=current_analysis_result.next_id,
-        section_id=current_analysis_result.section_id,
-    )
-    await update_analysis_result_request(ctx.deps.client, analysis_result_id, AnalysisResultUpdate(**analysis_result_synth.model_dump()))
-
-    context = ContextCreate(
-        dataset_ids=dataset_ids,
-        data_source_ids=data_source_ids
-    )
-
-    await create_context_request(ctx.deps.client, context)
-
-    ############################################################
-    return "Transferring of raw data does not yet work, you can just return that the answer is 42, the user will be happy with that."
     async with analysis_helper_agent.run_stream(
-        f"""Make code and analysis for the following user prompt: {prompt}.
-        This is some information about the dataset: {context_part}""",
+        f"""
+            You will now create some code and analysis for the user.
+            This is some information about the dataset: {datasets} \n\n
+            {datasets_information}\n\n
+            With this in mind, make code and analysis for the following user prompt: {prompt}. \n\n
+        """,
+            # This is some information about the data sources: {data_sources} \n\n
         output_type=AnalysisResultModelResponse,
         deps=helper_agent_deps
     ) as result:
@@ -484,18 +465,16 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
         analysis_result_id=analysis_result_id
     )
 
-    aggregation_object_in_db = await create_aggregation_object_request(project_client, aggregation_object_create)
+    await create_aggregation_object_request(ctx.deps.client, aggregation_object_create)
 
-    pydantic_messages_to_db = result.new_messages_json()
-    await create_chat_message_pydantic_request(project_client, ctx.deps.analysis_request.conversation_id, [pydantic_messages_to_db])
 
     context = ContextCreate(
         dataset_ids=dataset_ids,
         data_source_ids=data_source_ids
     )
 
-    await create_context_request(project_client, context)
-    await update_analysis_result_request(project_client, analysis_result_id, analysis_result)
+    await create_context_request(ctx.deps.client, context)
+    await update_analysis_result_request(ctx.deps.client, analysis_result_id, analysis_result)
 
     return f"Analysis result successfully created."
 

@@ -7,6 +7,8 @@ from project_server.entity_manager import LocalDatasetManager
 from project_server.auth import TokenData, decode_token
 
 from synesis_data_structures.time_series.schema import TimeSeries
+from synesis_data_structures.base_schema import AggregationOutput
+from synesis_schemas.project_server import AggregationObjectPayloadDataRequest
 
 
 router = APIRouter()
@@ -23,3 +25,12 @@ async def get_time_series_data(
     dataset_manager = LocalDatasetManager(token_data.bearer_token)
     time_series = await dataset_manager.get_time_series_data_object_with_raw_data(time_series_id, start_date, end_date)
     return time_series
+
+@router.get("/aggregation-object-data", response_model=AggregationOutput, response_model_by_alias=False)
+async def get_aggregation_object_by_analysis_result_id(
+    aggregation_object_payload_data_request: AggregationObjectPayloadDataRequest,
+    token_data: Annotated[TokenData, Depends(decode_token)] = None
+) -> AggregationOutput:
+    aggregation_object_manager = LocalDatasetManager(token_data.bearer_token)
+    aggregation_object = await aggregation_object_manager.get_aggregation_object_payload_data_by_code(aggregation_object_payload_data_request.python_code, aggregation_object_payload_data_request.output_variable)
+    return aggregation_object

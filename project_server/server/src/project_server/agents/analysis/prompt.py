@@ -10,7 +10,7 @@ Instructions for the code:
 - Do not print anything as the output might be too large to print.
 - This also means that you should not aggregate the results in any way unless explicitly asked to do so. That is, do not print the tail, the head, the summary or any other aggregation of the data.
 - The code you generate will go through some postprocessing which will give you access to the result of the analysis.
-- Do not use any escape characters in the code. The code will be executed in a python container.
+- Do not use any escape characters in the code. The code will be executed as is in a python container.
 
 General instructions:
 - The interpretation of the results are going into an analysis report, i.e. you should not say anything like "I did this and that", just get straight to the point.

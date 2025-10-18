@@ -20,7 +20,7 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
   
   if (!hasData) {
     return (
-      <div className="w-full h-full flex items-center justify-center text-zinc-500">
+      <div className="w-full h-full flex items-center justify-center text-gray-600">
         No data available for plotting
       </div>
     );
@@ -129,24 +129,24 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
       left: "center",
       top: 0,
       textStyle: {
-        color: "#e5e7eb",
+        color: "#374151",
         fontSize: 16,
         fontWeight: "bold",
       },
     },
     tooltip: {
       trigger: "axis",
-      backgroundColor: "#0a101c",
-      borderColor: "#2a4170",
+      backgroundColor: "#ffffff",
+      borderColor: "#d1d5db",
       textStyle: {
-        color: "#e5e7eb",
+        color: "#374151",
       },
       formatter: function (params: Array<{ axisValue: any; color: string; seriesName: string; value: any }>) {
-        let result = `<div style="color: #e5e7eb; font-weight: bold;">${params[0].axisValue}</div>`;
+        let result = `<div style="color: #111827; font-weight: bold;">${params[0].axisValue}</div>`;
         params.forEach((param) => {
           result += `<div style="margin: 4px 0;">
             <span style="display: inline-block; width: 10px; height: 10px; background: ${param.color}; margin-right: 8px;"></span>
-            <span style="color: #e5e7eb; font-mono text-xs">${param.seriesName}: ${param.value}</span>
+            <span style="color: #374151; font-mono text-xs">${param.seriesName}: ${param.value}</span>
           </div>`;
         });
         return result;
@@ -159,7 +159,7 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
         ...(config.markAreas || []).filter(area => area.includeInLegend).map(area => area.name),
       ],
       textStyle: {
-        color: "#e5e7eb",
+        color: "#374151",
       },
       top: 30,
     },
@@ -177,16 +177,16 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
       splitLine: {
         show: true,
         lineStyle: {
-          color: "#1f2937",
+          color: "#e5e7eb",
         },
       },
       axisLine: {
         lineStyle: {
-          color: "#1f2937",
+          color: "#d1d5db",
         },
       },
       axisLabel: {
-        color: "#e5e7eb",
+        color: "#374151",
         fontSize: 12,
         formatter: (value: any) => {
           if (xAxisData.every(item => item instanceof Date)) {
@@ -204,16 +204,16 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
         splitLine: {
           show: true,
           lineStyle: {
-            color: "#1f2937",
+            color: "#e5e7eb",
           },
         },
         axisLine: {
           lineStyle: {
-            color: "#1f2937",
+            color: "#d1d5db",
           },
         },
         axisLabel: {
-          color: "#e5e7eb",
+          color: "#374151",
           formatter: (value: any) => value + " " + (config.yAxisUnits || ""),
         },
         min: minMax.min,
@@ -225,16 +225,16 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
         splitLine: {
           show: true,
           lineStyle: {
-            color: "#1f2937",
+            color: "#e5e7eb",
           },
         },
         axisLine: {
           lineStyle: {
-            color: "#e5e7eb",
+            color: "#d1d5db",
           },
         },
         axisLabel: {
-          color: "#e5e7eb",
+          color: "#374151",
           formatter: (value: any) => value + " " + (config.yAxis2Units || ""),
         },
         min: minMax2.min,
@@ -284,7 +284,7 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
   return (
     <div className="w-full h-full relative">
       <ReactECharts option={default_options} style={{ height: "90%", width: "100%" }} />
-      {config.subtitle && <p className="text-center text-sm text-zinc-400 mt-2">{config.subtitle}</p>}
+      {config.subtitle && <p className="text-center text-sm text-gray-600 mt-2">{config.subtitle}</p>}
       
       {/* Plot Configuration Popup */}
       <PlotConfigurationPopup
