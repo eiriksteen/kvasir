@@ -2,6 +2,7 @@ import { UUID } from "crypto";
 
 export type SupportedModality = "time_series" | "tabular" | "multimodal" | "image" | "text" | "audio" | "video";
 export type SupportedTask = "forecasting" | "classification" | "regression" | "clustering" | "anomaly_detection" | "generation" | "segmentation";
+export type SupportedModelSource = "github" | "pypi" | "gitlab" | "huggingface" | "local";
 
 // DB Models needed by API types
 
@@ -99,3 +100,21 @@ export interface ModelEntityWithModelDef extends ModelEntityInDB {
 // Type aliases for usage in components
 export type Model = ModelFull;
 export type ModelEntity = ModelEntityWithModelDef;
+
+
+export interface ModelSourceBase {
+  id: UUID;
+  user_id: string;
+  type: SupportedModelSource;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PypiModelSource extends ModelSourceBase {
+  type: "pypi";
+  packageName: string;
+  packageVersion: string;
+}
+
+export type ModelSource = PypiModelSource // | GithubModelSource | GitlabModelSource | HuggingfaceModelSource | LocalModelSource;

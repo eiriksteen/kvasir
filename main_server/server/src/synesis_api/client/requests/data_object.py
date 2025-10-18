@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from synesis_api.client import MainServerClient
-from synesis_data_structures.time_series.schema import TimeSeries
+from synesis_data_interface.structures.time_series.schema import TimeSeries
 
 
 async def get_time_series_data(client: MainServerClient, time_series_id: uuid.UUID, start_date: datetime, end_date: datetime) -> TimeSeries:

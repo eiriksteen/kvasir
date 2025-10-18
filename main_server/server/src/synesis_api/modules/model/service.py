@@ -9,10 +9,12 @@ from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.model.models import (
     model,
     model_definition,
-    model_entity,
+    model_entity_implementation,
     model_function,
     model_function_input_object_group_definition,
-    model_function_output_object_group_definition
+    model_function_output_object_group_definition,
+    model_source,
+    pypi_model_source
 )
 from synesis_schemas.main_server import (
     ModelInDB,
@@ -25,13 +27,19 @@ from synesis_schemas.main_server import (
     ModelDefinitionInDB,
     Model,
     ModelUpdateCreate,
-    ModelFunctionFull,
+    ModelFunction,
     ModelFunctionInputObjectGroupDefinitionInDB,
     ModelFunctionOutputObjectGroupDefinitionInDB,
+    ModelSource,
+    PypiModelSourceCreate,
+    PypiModelSource,
+    ModelSourceCreate,
+    ModelSourceInDB,
+    PypiModelSourceInDB,
 )
 from synesis_api.utils.rag_utils import embed
-from synesis_api.modules.project.service import get_model_entity_ids_in_project
 from synesis_api.modules.code.service import create_script, get_scripts
+from synesis_api.modules.model.description import get_model_entity_description, get_model_description
 
 
 async def create_model(user_id: uuid.UUID, model_create: ModelCreate) -> Model:
@@ -136,7 +144,7 @@ async def create_model(user_id: uuid.UUID, model_create: ModelCreate) -> Model:
     if all_output_object_records:
         await execute(insert(model_function_output_object_group_definition).values(all_output_object_records), commit_after=True)
 
-    training_function_full = ModelFunctionFull(
+    training_function_full = ModelFunction(
         **training_function_obj.model_dump(),
         input_object_groups=[ModelFunctionInputObjectGroupDefinitionInDB(
             **i) for i in training_input_records],
@@ -145,7 +153,7 @@ async def create_model(user_id: uuid.UUID, model_create: ModelCreate) -> Model:
 
     )
 
-    inference_function_full = ModelFunctionFull(
+    inference_function_full = ModelFunction(
         **inference_function_obj.model_dump(),
         input_object_groups=[ModelFunctionInputObjectGroupDefinitionInDB(
             **i) for i in inference_input_records],
@@ -240,7 +248,6 @@ async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> M
         newest_update_description=model_update.updates_made_description,
         user_id=user_id,
         source_id=existing_model["source_id"],
-        programming_language_with_version=existing_model["programming_language_with_version"],
         model_class_docstring=model_update.updated_model_class_docstring if model_update.updated_model_class_docstring else existing_model[
             "model_class_docstring"],
         default_config=model_update.updated_default_config if model_update.updated_default_config else existing_model[
@@ -335,7 +342,7 @@ async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> M
     # Handle model entities updates
     if model_update.model_entities_to_update:
         await execute(
-            update(model_entity).where(model_entity.c.id.in_(
+            update(model_entity_implementation).where(model_entity_implementation.c.id.in_(
                 model_update.model_entities_to_update)).values(model_id=model_obj.id), commit_after=True)
 
     return (await get_models([model_obj.id]))[0]
@@ -376,37 +383,37 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[Model]:
 
     output_objs = []
     for model_id in model_ids:
-        model_record = next(m for m in models if m["id"] == model_id)
-        model_definition_record = next(
-            m for m in model_definition_records if m["id"] == model_record["definition_id"])
+        model_obj = ModelInDB(**next(m for m in models if m["id"] == model_id))
+        model_definition_obj = ModelDefinitionInDB(**next(
+            m for m in model_definition_records if m["id"] == model_obj.definition_id))
 
         # Get function records for this model
         training_function_record = next(
-            f for f in function_records if f["id"] == model_record["training_function_id"])
+            f for f in function_records if f["id"] == model_obj.training_function_id)
         inference_function_record = next(
-            f for f in function_records if f["id"] == model_record["inference_function_id"])
+            f for f in function_records if f["id"] == model_obj.inference_function_id)
 
         # Filter input/output definitions by function_id
         training_input_records = [
             i for i in all_input_object_group_definition_records
-            if i["function_id"] == model_record["training_function_id"]
+            if i["function_id"] == model_obj.training_function_id
         ]
         training_output_object_records = [
             o for o in all_output_object_group_definition_records
-            if o["function_id"] == model_record["training_function_id"]
+            if o["function_id"] == model_obj.training_function_id
         ]
 
         inference_input_records = [
             i for i in all_input_object_group_definition_records
-            if i["function_id"] == model_record["inference_function_id"]
+            if i["function_id"] == model_obj.inference_function_id
         ]
         inference_output_object_records = [
             o for o in all_output_object_group_definition_records
-            if o["function_id"] == model_record["inference_function_id"]
+            if o["function_id"] == model_obj.inference_function_id
         ]
 
-        # Build ModelFunctionFull objects
-        training_function_full = ModelFunctionFull(
+        # Build ModelFunction objects
+        training_function_obj = ModelFunctionInDB(
             **training_function_record,
             input_object_groups=[ModelFunctionInputObjectGroupDefinitionInDB(
                 **i) for i in training_input_records],
@@ -414,7 +421,7 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[Model]:
                 **o) for o in training_output_object_records],
         )
 
-        inference_function_full = ModelFunctionFull(
+        inference_function_obj = ModelFunctionInDB(
             **inference_function_record,
             input_object_groups=[ModelFunctionInputObjectGroupDefinitionInDB(
                 **i) for i in inference_input_records],
@@ -423,20 +430,24 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[Model]:
         )
 
         # Get script records for this model
-        implementation_script = next(
-            s for s in implementation_script_records if s.id == model_record["implementation_script_id"])
-        setup_script = next(
-            (s for s in setup_script_records if s.id == model_record["setup_script_id"]), None)
+        implementation_script_obj = next(
+            s for s in implementation_script_records if s.id == model_obj.implementation_script_id)
+        setup_script_obj = next(
+            (s for s in setup_script_records if s.id == model_obj.setup_script_id))
 
-        # Build ModelFull object (excluding embedding)
+        model_description = get_model_description(
+            model_obj, model_definition_obj, training_function_obj, inference_function_obj, implementation_script_obj, setup_script_obj)
+
+        # Build Model object (excluding embedding)
         output_objs.append(
             Model(
-                **{k: v for k, v in model_record.items() if k != 'embedding'},
-                definition=ModelDefinitionInDB(**model_definition_record),
-                training_function=training_function_full,
-                inference_function=inference_function_full,
-                implementation_script=implementation_script,
-                setup_script=setup_script
+                **model_obj.model_dump(),
+                definition=model_definition_obj,
+                training_function=training_function_obj,
+                inference_function=inference_function_obj,
+                implementation_script=implementation_script_obj,
+                setup_script=setup_script_obj,
+                description_for_agent=model_description
             )
         )
 
@@ -462,46 +473,52 @@ async def create_model_entity(user_id: uuid.UUID, model_entity_create: ModelEnti
         updated_at=datetime.now(timezone.utc),
     )
 
-    await execute(insert(model_entity).values(**model_entity_obj.model_dump()), commit_after=True)
+    await execute(insert(model_entity_implementation).values(**model_entity_obj.model_dump()), commit_after=True)
 
     return model_entity_obj
 
 
-async def get_user_model_entities_by_ids(user_id: uuid.UUID, model_entity_ids: List[uuid.UUID]) -> List[ModelEntity]:
-    model_entity_query = select(model_entity).where(
-        model_entity.c.id.in_(model_entity_ids)
-    ).where(model_entity.c.user_id == user_id)
+async def get_user_model_entities(user_id: uuid.UUID, model_entity_ids: List[uuid.UUID]) -> List[ModelEntity]:
+    model_entity_query = select(model_entity_implementation).where(
+        model_entity_implementation.c.id.in_(model_entity_ids)
+    ).where(model_entity_implementation.c.user_id == user_id)
     model_entity_records = await fetch_all(model_entity_query)
 
     model_ids = [e["model_id"] for e in model_entity_records]
-    models_full = await get_models(model_ids)
+    models_objs = await get_models(model_ids)
 
     model_entity_full_objs = []
     for entity_id in model_entity_ids:
         model_entity_record = next(
             (e for e in model_entity_records if e["id"] == entity_id), None)
 
-        if model_entity_record is not None:
-            model_full = next(
-                (m for m in models_full if m.id == model_entity_record["model_id"]), None)
+        if model_entity_record is None:
+            raise HTTPException(
+                status_code=404, detail="Model entity not found")
 
-            if model_full is not None:
-                model_entity_full_objs.append(ModelEntity(
-                    **model_entity_record,
-                    model=model_full)
-                )
+        model_obj = next(
+            (m for m in models_objs if m.id == model_entity_record["model_id"]), None)
+
+        if model_obj is None:
+            raise HTTPException(
+                status_code=404, detail="Model not found")
+
+        model_entity_obj = ModelEntityInDB(
+            **model_entity_record, model=model_obj)
+
+        description = get_model_entity_description(model_entity_obj, model_obj)
+
+        model_entity_full_objs.append(ModelEntity(
+            **model_entity_record,
+            model=model_obj,
+            description_for_agent=description
+        ))
 
     return model_entity_full_objs
 
 
-async def get_project_model_entities(user_id: uuid.UUID, project_id: uuid.UUID) -> List[ModelEntity]:
-    model_ids = await get_model_entity_ids_in_project(project_id)
-    model_entities = await get_user_model_entities_by_ids(user_id, model_ids)
-    return model_entities
-
-
 async def set_new_model_entity_config(user_id: uuid.UUID, model_entity_id: uuid.UUID, model_entity_config_update: ModelEntityConfigUpdate) -> ModelEntityInDB:
-    model_entity_obj = (await get_user_model_entities_by_ids(user_id, [model_entity_id]))[0]
+    model_entity_obj = (await get_user_model_entities(user_id, [model_entity_id]))[0]
 
     is_fitted = model_entity_obj.weights_save_dir is not None
     if is_fitted:
@@ -509,7 +526,7 @@ async def set_new_model_entity_config(user_id: uuid.UUID, model_entity_id: uuid.
             status_code=400, detail="Model entity is fitted and the config cannot be updated")
 
     model_record = await fetch_one(
-        select(model).join(model_entity).where(model_entity.c.id == model_entity_id))
+        select(model).join(model_entity_implementation).where(model_entity_implementation.c.id == model_entity_id))
 
     try:
         jsonschema.validate(
@@ -518,8 +535,116 @@ async def set_new_model_entity_config(user_id: uuid.UUID, model_entity_id: uuid.
         raise HTTPException(
             status_code=400, detail=f"Invalid config or args: {e.message}")
 
-    await execute(update(model_entity).where(model_entity.c.id == model_entity_id).values(**model_entity_config_update.model_dump()), commit_after=True)
+    await execute(update(model_entity_implementation).where(model_entity_implementation.c.id == model_entity_id).values(**model_entity_config_update.model_dump()), commit_after=True)
 
     model_entity_obj.config = model_entity_config_update.config
 
     return model_entity_obj
+
+
+async def create_model_source(user_id: uuid.UUID, model_source_create: ModelSourceCreate) -> ModelSource:
+
+    # Check if source with the data exists:
+    if type(model_source_create) == PypiModelSourceCreate:
+        pypi_model_source_query = select(pypi_model_source.c.id).where(
+            pypi_model_source.c.package_name == model_source_create.package_name,
+            pypi_model_source.c.package_version == model_source_create.package_version,
+        )
+        pypi_model_source_record = await fetch_all(pypi_model_source_query)
+        fetched_ids = [record["id"] for record in pypi_model_source_record]
+        public_or_user_owned_results = (await get_user_or_public_model_sources_by_ids(user_id, fetched_ids))
+        if public_or_user_owned_results:
+            return public_or_user_owned_results[0]
+
+    embedding = (await embed([f"{model_source_create.name}: {model_source_create.description}"]))[0]
+
+    model_source_record = ModelSourceInDB(
+        id=uuid.uuid4(),
+        user_id=user_id,
+        type=model_source_create.type,
+        name=model_source_create.name,
+        description=model_source_create.description,
+        public=model_source_create.public,
+        embedding=embedding,
+        created_at=datetime.now(),
+        updated_at=datetime.now()
+    )
+
+    await execute(insert(model_source).values(model_source_record.model_dump()), commit_after=True)
+
+    output_obj = None
+    if type(model_source_create) == PypiModelSourceCreate:
+        pypi_model_source_record = PypiModelSourceInDB(
+            id=model_source_record.id,
+            model_source_id=model_source_record.id,
+            package_name=model_source_create.package_name,
+            package_version=model_source_create.package_version,
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
+
+        await execute(insert(pypi_model_source).values(pypi_model_source_record.model_dump()), commit_after=True)
+
+        output_obj = PypiModelSource(
+            **model_source_record.model_dump(),
+            package_name=pypi_model_source_record.package_name,
+            package_version=pypi_model_source_record.package_version
+        )
+
+    # TODO: Add more model source types with elifs here
+
+    return output_obj
+
+
+async def get_user_or_public_model_sources_by_ids(user_id: uuid.UUID, model_source_ids: List[uuid.UUID]) -> List[ModelSource]:
+
+    # Get the base records
+
+    user_model_source_query = select(model_source).where(
+        model_source.c.user_id == user_id,
+        model_source.c.id.in_(model_source_ids)
+    )
+
+    user_model_source_records = await fetch_all(user_model_source_query)
+
+    public_model_source_query = select(model_source).where(
+        model_source.c.public == True,
+        model_source.c.id.in_(model_source_ids)
+    )
+
+    public_model_source_records = await fetch_all(public_model_source_query)
+
+    all_model_source_records = user_model_source_records + public_model_source_records
+
+    # Then get the detailed records
+
+    pypi_source_ids = [record["id"]
+                       for record in all_model_source_records if record["type"] == "pypi"]
+
+    # github_source_ids = ... etc
+
+    pypi_model_source_query = select(pypi_model_source).where(
+        pypi_model_source.c.id.in_(pypi_source_ids))
+
+    pypi_model_source_records = await fetch_all(pypi_model_source_query)
+
+    output_objs = []
+    for source_id in model_source_ids:
+        base_obj = ModelSourceInDB(
+            **next(record for record in all_model_source_records if record["id"] == source_id))
+        if source_id in pypi_source_ids:
+            pypi_model_source_record = PypiModelSourceInDB(
+                **next(record for record in pypi_model_source_records if record["id"] == source_id))
+            output_objs.append(PypiModelSource(
+                **base_obj.model_dump(),
+                package_name=pypi_model_source_record.package_name,
+                package_version=pypi_model_source_record.package_version
+            ))
+        # elif: ... etc
+
+    return output_objs
+
+
+async def get_model_sources_by_ids(user_id: uuid.UUID, model_source_ids: List[uuid.UUID]) -> List[ModelSource]:
+    records = await get_user_or_public_model_sources_by_ids(user_id, model_source_ids)
+    return records

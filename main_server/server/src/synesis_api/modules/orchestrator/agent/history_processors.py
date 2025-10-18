@@ -9,10 +9,22 @@ from synesis_api.modules.orchestrator.agent.deps import OrchestratorAgentDeps
 
 @dataclass
 class Pattern:
-    start_pattern: Literal["<begin_context>",
-                           "<begin_project_graph>", "<begin_run_status>"]
-    end_pattern: Literal["</begin_context>",
-                         "</begin_project_graph>", "</begin_run_status>"]
+    start: Literal["<context>",
+                   "<project_graph>",
+                   "<run_status>"]
+    end: Literal["</context>",
+                 "</project_graph>",
+                 "</run_status>"]
+
+
+CONTEXT_PATTERN = Pattern(
+    start="<context>", end="</context>")
+
+PROJECT_GRAPH_PATTERN = Pattern(
+    start="<project_graph>", end="</project_graph>")
+
+RUN_STATUS_PATTERN = Pattern(
+    start="<run_status>", end="</run_status>")
 
 
 def get_last_message_index_by_pattern(messages: list[ModelMessage], pattern: Pattern) -> Union[int, None]:
@@ -28,7 +40,7 @@ def get_last_message_index_by_pattern(messages: list[ModelMessage], pattern: Pat
         if isinstance(message, ModelRequest):
             for part in message.parts:
                 if isinstance(part, UserPromptPart):
-                    if pattern.start_pattern in part.content:
+                    if pattern.start in part.content:
                         return i
 
     return None
@@ -43,8 +55,6 @@ def keep_only_most_recent_by_pattern(
     """
     Keep only the most recent message by pattern in the history.
     """
-
-    # print(f"MESSAGES BEFORE: \n\n{'\n\n'.join([str(m) for m in messages])}")
 
     last_idx = get_last_message_index_by_pattern(messages, pattern)
 
@@ -62,15 +72,15 @@ def keep_only_most_recent_by_pattern(
         if isinstance(message, ModelRequest):
             for idx, part in enumerate(message.parts):
                 if isinstance(part, UserPromptPart):
-                    if pattern.start_pattern in part.content:
+                    if pattern.start in part.content:
                         if original_index < last_idx:
                             start_idx = part.content.find(
-                                pattern.start_pattern)
-                            end_idx = part.content.find(pattern.end_pattern)
+                                pattern.start)
+                            end_idx = part.content.find(pattern.end)
 
                             if start_idx != -1 and end_idx != -1:
                                 before = part.content[:start_idx +
-                                                      len(pattern.start_pattern)]
+                                                      len(pattern.start)]
                                 after = part.content[end_idx:]
                                 part.content = before + "\n" + replacement_content + "\n" + after
                                 updated_message.parts[idx] = part
@@ -83,15 +93,6 @@ def keep_only_most_recent_by_pattern(
 
     updated_messages = updated_messages[::-1]
 
-    # print("LENGTHS"*10)
-    # print("conversation id", ctx.deps.conversation_id)
-    # print(len(updated_messages))
-    # print(len(messages))
-    # print("LENGTHS"*10)
-
-    # print(
-    #     f"MESSAGES AFTER: \n\n{'\n\n'.join([str(m) for m in updated_messages])}")
-
     return updated_messages
 
 
@@ -102,9 +103,8 @@ def keep_only_most_recent_context(
     """
     Keep only the most recent context in the history.
     """
-    pattern = Pattern(start_pattern="<begin_context>",
-                      end_pattern="</begin_context>")
-    return keep_only_most_recent_by_pattern(ctx, messages, pattern, "[Previous context omitted]")
+
+    return keep_only_most_recent_by_pattern(ctx, messages, CONTEXT_PATTERN, "[Previous context omitted]")
 
 
 def keep_only_most_recent_project_graph(
@@ -115,9 +115,7 @@ def keep_only_most_recent_project_graph(
     Keep only the most recent project graph in the history.
     """
     # assert False, "Messages: \n\n" + "\n\n".join([str(m) for m in messages])
-    pattern = Pattern(start_pattern="<begin_project_graph>",
-                      end_pattern="</begin_project_graph>")
-    return keep_only_most_recent_by_pattern(ctx, messages, pattern, "[Previous project graph omitted]")
+    return keep_only_most_recent_by_pattern(ctx, messages, PROJECT_GRAPH_PATTERN, "[Previous project graph omitted]")
 
 
 def keep_only_most_recent_run_status(
@@ -127,6 +125,4 @@ def keep_only_most_recent_run_status(
     """
     Keep only the most recent run status in the history.
     """
-    pattern = Pattern(start_pattern="<begin_run_status>",
-                      end_pattern="</begin_run_status>")
-    return keep_only_most_recent_by_pattern(ctx, messages, pattern, "[Previous run status omitted]")
+    return keep_only_most_recent_by_pattern(ctx, messages, RUN_STATUS_PATTERN, "[Previous run status omitted]")

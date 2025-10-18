@@ -15,7 +15,13 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useProject } from '@/hooks/useProject';
 import { useDatasets, useAnalysis, usePipelines } from '@/hooks';
-import { FrontendNode } from '@/types/node';
+import { 
+  ProjectDataSourceInDB, 
+  ProjectDatasetInDB, 
+  ProjectAnalysisInDB, 
+  ProjectPipelineInDB, 
+  ProjectModelEntityInDB 
+} from '@/types/project';
 import DatasetBox from '@/app/projects/[projectId]/_components/erd/DatasetBox';
 import AnalysisBox from '@/app/projects/[projectId]/_components/erd/AnalysisBox';
 import TransportEdge from '@/app/projects/[projectId]/_components/erd/TransportEdge';
@@ -159,7 +165,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     }
   }, []);
 
-  const { project, frontendNodes, updatePosition } = useProject(projectId);
+  const { project, updatePosition } = useProject(projectId);
   const { dataSources } = useProjectDataSources(projectId);
   const { datasets } = useDatasets(projectId);
   const { pipelines, triggerRunPipeline, pipelineRuns } = usePipelines(projectId);
@@ -192,122 +198,157 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       return [];
     }
 
-    const dataSourceNodes = frontendNodes.map((frontendNode: FrontendNode) => {
-      const dataSource = dataSources.find(d => d.id === frontendNode.dataSourceId);
-      if (!dataSource) return null;
-      return {
-        id: frontendNode.id,
-        type: 'dataSource',
-        position: { x: frontendNode.xPosition, y: frontendNode.yPosition },
-        data: {
-          label: dataSource.name,
-          id: frontendNode.dataSourceId,
-          dataSource: dataSource,
-          onClick: () => handleOpenTab({ type: 'data_source', id: dataSource.id, label: dataSource.name })
-        },
-      } as Node;
+    const nodes: Node[] = [];
+
+    // Add data source nodes
+    project.dataSources.forEach((projectDataSource: ProjectDataSourceInDB) => {
+      const dataSource = dataSources.find(d => d.id === projectDataSource.dataSourceId);
+      if (dataSource) {
+        nodes.push({
+          id: projectDataSource.dataSourceId,
+          type: 'dataSource',
+          position: { x: projectDataSource.xPosition, y: projectDataSource.yPosition },
+          data: {
+            label: dataSource.name,
+            id: projectDataSource.dataSourceId,
+            dataSource: dataSource,
+            onClick: () => handleOpenTab({ type: 'data_source', id: dataSource.id, label: dataSource.name })
+          },
+        });
+      }
     });
 
-    const datasetNodes = frontendNodes.map((frontendNode: FrontendNode) => {
-      const dataset = datasets.find(d => d.id === frontendNode.datasetId);
-      if (!dataset) return null;
-      return {
-        id: frontendNode.id,
-        type: 'dataset',
-        position: { x: frontendNode.xPosition, y: frontendNode.yPosition },
-        data: {
-          label: dataset.name,
-          id: frontendNode.datasetId,
-          dataset: dataset,
-          onClick: () => handleOpenTab({ type: 'dataset', id: dataset.id, label: dataset.name })
-        },
-      } as Node;
+    // Add dataset nodes
+    project.datasets.forEach((projectDataset: ProjectDatasetInDB) => {
+      const dataset = datasets.find(d => d.id === projectDataset.datasetId);
+      if (dataset) {
+        nodes.push({
+          id: projectDataset.datasetId,
+          type: 'dataset',
+          position: { x: projectDataset.xPosition, y: projectDataset.yPosition },
+          data: {
+            label: dataset.name,
+            id: projectDataset.datasetId,
+            dataset: dataset,
+            onClick: () => handleOpenTab({ type: 'dataset', id: dataset.id, label: dataset.name })
+          },
+        });
+      }
     });
 
-    const pipelineNodes = frontendNodes.map((frontendNode: FrontendNode) => {
-
-      const pipeline = pipelines.find(p => p.id === frontendNode.pipelineId);
-      if (!pipeline) return null;
-      return {
-        id: frontendNode.id,
-        type: 'pipeline',
-        position: { x: frontendNode.xPosition, y: frontendNode.yPosition },
-        data: {
-          label: pipeline.name,
-          id: frontendNode.pipelineId,
-          pipeline: pipeline,
-          onClick: () => handleOpenTab({ type: 'pipeline', id: pipeline.id, label: pipeline.name }),
-          handleRunClick: () => triggerRunPipeline({projectId: projectId, pipelineId: pipeline.id}),
-          pipelineRuns: pipelineRuns.filter((p: PipelineRunInDB) => p.pipelineId === pipeline.id)
-        },
-      } as Node;
+    // Add pipeline nodes
+    project.pipelines.forEach((projectPipeline: ProjectPipelineInDB) => {
+      const pipeline = pipelines.find(p => p.id === projectPipeline.pipelineId);
+      if (pipeline) {
+        nodes.push({
+          id: projectPipeline.pipelineId,
+          type: 'pipeline',
+          position: { x: projectPipeline.xPosition, y: projectPipeline.yPosition },
+          data: {
+            label: pipeline.name,
+            id: projectPipeline.pipelineId,
+            pipeline: pipeline,
+            onClick: () => handleOpenTab({ type: 'pipeline', id: pipeline.id, label: pipeline.name }),
+            handleRunClick: () => triggerRunPipeline({projectId: projectId, pipelineId: pipeline.id}),
+            pipelineRuns: pipelineRuns.filter((p: PipelineRunInDB) => p.pipelineId === pipeline.id)
+          },
+        });
+      }
     });
 
-    const analysisNodes = frontendNodes.map((frontendNode: FrontendNode) => {
-      const analysis = analysisObjects.analysisObjects.find(a => a.id === frontendNode.analysisId);
-      if (!analysis) return null;
-      return {
-        id: frontendNode.id,
-        type: 'analysis',
-        position: { x: frontendNode.xPosition, y: frontendNode.yPosition },
-        data: {
-          label: analysis.name,
-          id: frontendNode.analysisId,
-          analysis: analysis,
-          onClick: () => handleOpenTab({ type: 'analysis', id: analysis.id, label: analysis.name })
-        },
-      } as Node;
+    // Add analysis nodes
+    project.analyses.forEach((projectAnalysis: ProjectAnalysisInDB) => {
+      const analysis = analysisObjects.analysisObjects.find(a => a.id === projectAnalysis.analysisId);
+      if (analysis) {
+        nodes.push({
+          id: projectAnalysis.analysisId,
+          type: 'analysis',
+          position: { x: projectAnalysis.xPosition, y: projectAnalysis.yPosition },
+          data: {
+            label: analysis.name,
+            id: projectAnalysis.analysisId,
+            analysis: analysis,
+            onClick: () => handleOpenTab({ type: 'analysis', id: analysis.id, label: analysis.name })
+          },
+        });
+      }
     });
 
-    const modelEntityNodes = frontendNodes.map((frontendNode: FrontendNode) => {
-      const modelEntity = modelEntities.find(m => m.id === frontendNode.modelEntityId);
-      if (!modelEntity) return null;
-      return {
-        id: frontendNode.id,
-        type: 'modelEntity',
-        position: { x: frontendNode.xPosition, y: frontendNode.yPosition },
-        data: {
-          label: modelEntity.name,
-          id: frontendNode.modelEntityId,
-          modelEntity: modelEntity,
-          onClick: () => handleOpenTab({ type: 'model_entity', id: modelEntity.id, label: modelEntity.name })
-        },
-      } as Node;
+    // Add model entity nodes
+    project.modelEntities.forEach((projectModelEntity: ProjectModelEntityInDB) => {
+      const modelEntity = modelEntities.find(m => m.id === projectModelEntity.modelEntityId);
+      if (modelEntity) {
+        nodes.push({
+          id: projectModelEntity.modelEntityId,
+          type: 'modelEntity',
+          position: { x: projectModelEntity.xPosition, y: projectModelEntity.yPosition },
+          data: {
+            label: modelEntity.name,
+            id: projectModelEntity.modelEntityId,
+            modelEntity: modelEntity,
+            onClick: () => handleOpenTab({ type: 'model_entity', id: modelEntity.id, label: modelEntity.name })
+          },
+        });
+      }
     });
 
-    return [...datasetNodes.filter(Boolean), ...analysisNodes.filter(Boolean), ...dataSourceNodes.filter(Boolean), ...pipelineNodes.filter(Boolean), ...modelEntityNodes.filter(Boolean)] as Node[];
+    return nodes;
 
-  }, [project, datasets, analysisObjects, frontendNodes, dataSources, pipelines, modelEntities, handleOpenTab, triggerRunPipeline, projectId, pipelineRuns]);
+  }, [project, datasets, analysisObjects, dataSources, pipelines, modelEntities, handleOpenTab, triggerRunPipeline, projectId, pipelineRuns]);
 
   // Memoize edges - uses current node positions from nodes state
   const memoizedEdges = useMemo(() => {
-    if (!project || !projectGraph || !frontendNodes || nodes.length === 0) {
+    if (!project || !projectGraph || nodes.length === 0) {
       return [];
     }
 
-    // Helper to get node with current position from nodes state
-    const getNodeWithCurrentPosition = (nodeId: string) => {
-      const fn = frontendNodes.find(fn => fn.id === nodeId);
-      if (!fn) return null;
-      const currentNode = nodes.find(n => n.id === nodeId);
-      if (!currentNode) return fn;
-      return { ...fn, xPosition: currentNode.position.x, yPosition: currentNode.position.y };
+    // Helper to get entity with current position from nodes state
+    const getEntityWithCurrentPosition = (entityId: UUID): { xPosition: number, yPosition: number } | null => {
+      // Find entity in project - check each entity type
+      const dataSource = project.dataSources.find(ds => ds.dataSourceId === entityId);
+      if (dataSource) {
+        const currentNode = nodes.find(n => n.id === entityId);
+        return currentNode ? { xPosition: currentNode.position.x, yPosition: currentNode.position.y } : { xPosition: dataSource.xPosition, yPosition: dataSource.yPosition };
+      }
+
+      const dataset = project.datasets.find(ds => ds.datasetId === entityId);
+      if (dataset) {
+        const currentNode = nodes.find(n => n.id === entityId);
+        return currentNode ? { xPosition: currentNode.position.x, yPosition: currentNode.position.y } : { xPosition: dataset.xPosition, yPosition: dataset.yPosition };
+      }
+
+      const analysis = project.analyses.find(a => a.analysisId === entityId);
+      if (analysis) {
+        const currentNode = nodes.find(n => n.id === entityId);
+        return currentNode ? { xPosition: currentNode.position.x, yPosition: currentNode.position.y } : { xPosition: analysis.xPosition, yPosition: analysis.yPosition };
+      }
+
+      const pipeline = project.pipelines.find(p => p.pipelineId === entityId);
+      if (pipeline) {
+        const currentNode = nodes.find(n => n.id === entityId);
+        return currentNode ? { xPosition: currentNode.position.x, yPosition: currentNode.position.y } : { xPosition: pipeline.xPosition, yPosition: pipeline.yPosition };
+      }
+
+      const modelEntity = project.modelEntities.find(me => me.modelEntityId === entityId);
+      if (modelEntity) {
+        const currentNode = nodes.find(n => n.id === entityId);
+        return currentNode ? { xPosition: currentNode.position.x, yPosition: currentNode.position.y } : { xPosition: modelEntity.xPosition, yPosition: modelEntity.yPosition };
+      }
+
+      return null;
     };
 
     const dataSourcesToDatasetsEdges = projectGraph?.dataSources
       .flatMap(dataSource =>
         dataSource.toDatasets.map(datasetId => {
-          const sourceNodeId = frontendNodes.find(fn => fn.dataSourceId === dataSource.id)?.id;
-          const targetNodeId = frontendNodes.find(fn => fn.datasetId === datasetId)?.id;
-          if (!sourceNodeId || !targetNodeId) return null;
-          const sourceNode = getNodeWithCurrentPosition(sourceNodeId);
-          const targetNode = getNodeWithCurrentPosition(targetNodeId);
-          if (!sourceNode || !targetNode) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
+          const sourceEntity = getEntityWithCurrentPosition(dataSource.id);
+          const targetEntity = getEntityWithCurrentPosition(datasetId);
+          if (!sourceEntity || !targetEntity) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
           return {
             id: String(`${dataSource.id}->${datasetId}`),
-            source: sourceNodeId,
-            target: targetNodeId,
+            source: dataSource.id,
+            target: datasetId,
             type: 'default',
             animated: true,
             style: { stroke: getEdgeColor('dataSource'), strokeWidth: 2 },
@@ -323,14 +364,14 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     const datasetsToAnalysesEdges = projectGraph?.analyses
       .flatMap(analysis =>
         analysis.fromDatasets.map(datasetId => {
-          const sourceNode = frontendNodes.find(fn => fn.datasetId === datasetId);
-          const targetNode = frontendNodes.find(fn => fn.analysisId === analysis.id);
-          if (!sourceNode?.id || !targetNode?.id) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
+          const sourceEntity = getEntityWithCurrentPosition(datasetId);
+          const targetEntity = getEntityWithCurrentPosition(analysis.id);
+          if (!sourceEntity || !targetEntity) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
           return {
             id: String(`${datasetId}->${analysis.id}`),
-            source: sourceNode.id,
-            target: targetNode.id,
+            source: datasetId,
+            target: analysis.id,
             type: 'default',
             animated: true,
             style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
@@ -345,14 +386,14 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     const dataSourcesToAnalysesEdges = projectGraph?.analyses
       .flatMap(analysis =>
         analysis.fromDataSources.map(dataSourceId => {
-          const sourceNode = frontendNodes.find(fn => fn.dataSourceId === dataSourceId);
-          const targetNode = frontendNodes.find(fn => fn.analysisId === analysis.id);
-          if (!sourceNode?.id || !targetNode?.id) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
+          const sourceEntity = getEntityWithCurrentPosition(dataSourceId);
+          const targetEntity = getEntityWithCurrentPosition(analysis.id);
+          if (!sourceEntity || !targetEntity) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
           return {
             id: String(`${dataSourceId}->${analysis.id}`),
-            source: sourceNode.id,
-            target: targetNode.id,
+            source: dataSourceId,
+            target: analysis.id,
             type: 'default',
             animated: true,
             style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
@@ -367,17 +408,14 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     const datasetsToPipelinesEdges = projectGraph?.datasets
       .flatMap(dataset =>
         dataset.toPipelines.map(pipelineId => {
-          const sourceNodeId = frontendNodes.find(fn => fn.datasetId === dataset.id)?.id;
-          const targetNodeId = frontendNodes.find(fn => fn.pipelineId === pipelineId)?.id;
-          if (!sourceNodeId || !targetNodeId) return null;
-          const sourceNode = getNodeWithCurrentPosition(sourceNodeId);
-          const targetNode = getNodeWithCurrentPosition(targetNodeId);
-          if (!sourceNode || !targetNode) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
+          const sourceEntity = getEntityWithCurrentPosition(dataset.id);
+          const targetEntity = getEntityWithCurrentPosition(pipelineId);
+          if (!sourceEntity || !targetEntity) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
           return {
             id: String(`${dataset.id}->${pipelineId}`),
-            source: sourceNodeId,
-            target: targetNodeId,
+            source: dataset.id,
+            target: pipelineId,
             type: 'default',
             animated: true,
             style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
@@ -392,17 +430,14 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     const modelEntitiesToPipelinesEdges = projectGraph?.modelEntities
       .flatMap(modelEntity =>
         modelEntity.toPipelines.map(pipelineId => {
-          const sourceNodeId = frontendNodes.find(fn => fn.modelEntityId === modelEntity.id)?.id;
-          const targetNodeId = frontendNodes.find(fn => fn.pipelineId === pipelineId)?.id;
-          if (!sourceNodeId || !targetNodeId) return null;
-          const sourceNode = getNodeWithCurrentPosition(sourceNodeId);
-          const targetNode = getNodeWithCurrentPosition(targetNodeId);
-          if (!sourceNode || !targetNode) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
+          const sourceEntity = getEntityWithCurrentPosition(modelEntity.id);
+          const targetEntity = getEntityWithCurrentPosition(pipelineId);
+          if (!sourceEntity || !targetEntity) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
           return {
             id: String(`${modelEntity.id}->${pipelineId}`),
-            source: sourceNodeId,
-            target: targetNodeId,
+            source: modelEntity.id,
+            target: pipelineId,
             type: 'default',
             animated: true,
             style: { stroke: getEdgeColor('modelEntity'), strokeWidth: 2 },
@@ -417,17 +452,14 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     const pipelinesToDatasetsEdges = projectGraph?.pipelines
       .flatMap(pipeline =>
         pipeline.toDatasets.map(datasetId => {
-          const sourceNodeId = frontendNodes.find(fn => fn.pipelineId === pipeline.id)?.id;
-          const targetNodeId = frontendNodes.find(fn => fn.datasetId === datasetId)?.id;
-          if (!sourceNodeId || !targetNodeId) return null;
-          const sourceNode = getNodeWithCurrentPosition(sourceNodeId);
-          const targetNode = getNodeWithCurrentPosition(targetNodeId);
-          if (!sourceNode || !targetNode) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
+          const sourceEntity = getEntityWithCurrentPosition(pipeline.id);
+          const targetEntity = getEntityWithCurrentPosition(datasetId);
+          if (!sourceEntity || !targetEntity) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
           return {
             id: String(`${pipeline.id}->${datasetId}`),
-            source: sourceNodeId,
-            target: targetNodeId,
+            source: pipeline.id,
+            target: datasetId,
             type: 'default',
             animated: true,
             style: { stroke: getEdgeColor('pipeline'), strokeWidth: 2 },
@@ -442,17 +474,14 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     const pipelinesToModelEntitiesEdges = projectGraph?.pipelines
       .flatMap(pipeline =>
         pipeline.toModelEntities.map(modelEntityId => {
-          const sourceNodeId = frontendNodes.find(fn => fn.pipelineId === pipeline.id)?.id;
-          const targetNodeId = frontendNodes.find(fn => fn.modelEntityId === modelEntityId)?.id;
-          if (!sourceNodeId || !targetNodeId) return null;
-          const sourceNode = getNodeWithCurrentPosition(sourceNodeId);
-          const targetNode = getNodeWithCurrentPosition(targetNodeId);
-          if (!sourceNode || !targetNode) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceNode, targetNode);
+          const sourceEntity = getEntityWithCurrentPosition(pipeline.id);
+          const targetEntity = getEntityWithCurrentPosition(modelEntityId);
+          if (!sourceEntity || !targetEntity) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
           return {
             id: String(`${pipeline.id}->${modelEntityId}`),
-            source: sourceNodeId,
-            target: targetNodeId,
+            source: pipeline.id,
+            target: modelEntityId,
             type: 'default',
             animated: true,
             style: { stroke: getEdgeColor('pipeline'), strokeWidth: 2 },
@@ -473,7 +502,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       ...modelEntitiesToPipelinesEdges, 
       ...pipelinesToDatasetsEdges, 
       ...pipelinesToModelEntitiesEdges];
-  }, [project, frontendNodes, projectGraph, getEdgeColor, nodes]);
+  }, [project, projectGraph, getEdgeColor, nodes]);
 
   // Only update nodes when memoizedNodes changes
   useEffect(() => {
@@ -495,15 +524,32 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
 
 
   const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
-    const frontendNode = frontendNodes.find(fn => fn.id === node.id);
-    if (frontendNode) {
+    if (!project) return;
+
+    // Determine entity type by checking which list contains the node ID
+    let entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity" | null = null;
+
+    if (project.dataSources.some(ds => ds.dataSourceId === node.id)) {
+      entityType = "data_source";
+    } else if (project.datasets.some(ds => ds.datasetId === node.id)) {
+      entityType = "dataset";
+    } else if (project.analyses.some(a => a.analysisId === node.id)) {
+      entityType = "analysis";
+    } else if (project.pipelines.some(p => p.pipelineId === node.id)) {
+      entityType = "pipeline";
+    } else if (project.modelEntities.some(me => me.modelEntityId === node.id)) {
+      entityType = "model_entity";
+    }
+
+    if (entityType) {
       updatePosition({
-        ...frontendNode,
+        entityType,
+        entityId: node.id as UUID,
         xPosition: node.position.x,
         yPosition: node.position.y,
       });
     }
-  }, [frontendNodes, updatePosition]);
+  }, [project, updatePosition]);
 
   return (
     <div className="w-full h-full bg-white">

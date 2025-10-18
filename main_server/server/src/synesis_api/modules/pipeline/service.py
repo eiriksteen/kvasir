@@ -1,11 +1,11 @@
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Literal
-from sqlalchemy import select, insert, or_, and_
+from sqlalchemy import select, insert, or_
 
 from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.pipeline.models import (
-    pipeline,
+    pipeline_implementation,
     function_in_pipeline,
     pipeline_periodic_schedule,
     pipeline_on_event_schedule,
@@ -25,7 +25,7 @@ from synesis_api.modules.function.service import get_functions
 from synesis_schemas.main_server import (
     PipelineInDB,
     FunctionInPipelineInDB,
-    PipelineFull,
+    Pipeline,
     PipelinePeriodicScheduleInDB,
     PipelineCreate,
     PipelineSources,
@@ -45,7 +45,6 @@ from synesis_schemas.main_server import (
     PipelineRunDatasetOutputCreate,
     PipelineRunModelEntityOutputCreate
 )
-from synesis_api.modules.project.service import get_pipeline_ids_in_project
 from synesis_api.modules.data_objects.service import get_object_groups
 from synesis_api.modules.code.service import create_script, get_scripts
 
@@ -66,7 +65,7 @@ async def create_pipeline(
         updated_at=datetime.now(timezone.utc)
     )
 
-    await execute(insert(pipeline).values(**pipeline_obj.model_dump()), commit_after=True)
+    await execute(insert(pipeline_implementation).values(**pipeline_obj.model_dump()), commit_after=True)
 
     if len(pipeline_create.periodic_schedules) > 0:
 
@@ -222,18 +221,15 @@ async def create_pipeline(
 
 async def get_user_pipelines(
     user_id: uuid.UUID,
-    pipeline_ids: Optional[List[uuid.UUID]] = None,
-    project_id: Optional[uuid.UUID] = None
-) -> List[PipelineFull]:
+    pipeline_ids: Optional[List[uuid.UUID]] = None
+) -> List[Pipeline]:
 
-    # pipelines bare
-    pipeline_query = select(pipeline).where(pipeline.c.user_id == user_id)
+    pipeline_query = select(pipeline_implementation).where(
+        pipeline_implementation.c.user_id == user_id)
 
     if pipeline_ids:
-        pipeline_query = pipeline_query.where(pipeline.c.id.in_(pipeline_ids))
-    if project_id:
-        pipeline_ids = await get_pipeline_ids_in_project(project_id)
-        pipeline_query = pipeline_query.where(pipeline.c.id.in_(pipeline_ids))
+        pipeline_query = pipeline_query.where(
+            pipeline_implementation.c.id.in_(pipeline_ids))
 
     pipelines = await fetch_all(pipeline_query)
     pipeline_ids = [p["id"] for p in pipelines]
@@ -346,7 +342,7 @@ async def get_user_pipelines(
         implementation_script = next(
             s for s in implementation_scripts if s.id == pipe_record["implementation_script_id"])
 
-        output_objs.append(PipelineFull(
+        output_objs.append(Pipeline(
             **pipe_record,
             functions=functions_records,
             runs=runs_records,
@@ -365,14 +361,6 @@ async def get_user_pipelines(
             implementation_script=implementation_script
         ))
     return output_objs
-
-
-async def get_user_pipelines_by_ids(user_id: uuid.UUID, pipeline_ids: List[uuid.UUID]) -> List[PipelineFull]:
-    return await get_user_pipelines(user_id, pipeline_ids=pipeline_ids)
-
-
-async def get_project_pipelines(user_id: uuid.UUID, project_id: uuid.UUID) -> List[PipelineFull]:
-    return await get_user_pipelines(user_id, project_id=project_id)
 
 
 async def create_pipeline_run(pipeline_id: uuid.UUID) -> PipelineRunInDB:
@@ -395,8 +383,8 @@ async def get_pipeline_runs(
 ) -> List[PipelineRunInDB]:
 
     pipeline_runs_query = select(pipeline_run
-                                 ).join(pipeline, pipeline_run.c.pipeline_id == pipeline.c.id
-                                        ).where(pipeline.c.user_id == user_id)
+                                 ).join(pipeline_implementation, pipeline_run.c.pipeline_id == pipeline_implementation.c.id
+                                        ).where(pipeline_implementation.c.user_id == user_id)
 
     if pipeline_ids is not None:
         pipeline_runs_query = pipeline_runs_query.where(

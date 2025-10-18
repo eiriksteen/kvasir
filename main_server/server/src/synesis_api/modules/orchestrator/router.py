@@ -12,7 +12,6 @@ from synesis_schemas.main_server import (
     ChatMessageInDB,
     ConversationInDB,
     ConversationCreate,
-    ProjectGraph,
     ContextCreate,
     ContextInDB,
 )
@@ -27,7 +26,6 @@ from synesis_api.modules.orchestrator.service import (
     get_chat_messages_with_context,
     get_conversation_by_id,
     update_conversation_name,
-    get_project_graph,
     get_run_status_message,
     get_project_graph_message
 )
@@ -62,21 +60,11 @@ async def post_chat(
             status_code=403, detail="You do not have access to this conversation")
 
     messages = await get_chat_messages_pydantic(prompt.conversation_id)
-    print("@"*50)
-    print("LENGTH OF MESSAGES", len(messages))
-    print("@"*50)
-
-    # print(f"MESSAGES: \n\n{'\n\n'.join([str(m) for m in messages])}")
-
-    # print("FUCK"*100)
-
-    is_new_conversation = len(messages) == 0
-
-    # TODO: Important to optimize this, as it will blow up the context with repeated messages
-    # One option is to keep the full entity objects just for the current context, and collapse to the IDs and names for the past ones
     context_message = await get_context_message(user.id, prompt.context)
     project_graph_message = await get_project_graph_message(user.id, conversation_record.project_id)
     runs_status_message = await get_run_status_message(user.id, prompt.conversation_id)
+
+    is_new_conversation = len(messages) == 0
 
     async def stream_response():
 
@@ -235,12 +223,6 @@ async def fetch_messages(
 async def fetch_project_conversations(project_id: uuid.UUID, user: Annotated[User, Depends(get_current_user)] = None) -> List[ConversationInDB]:
     conversations = await get_project_conversations(user.id, project_id)
     return conversations
-
-
-@router.get("/project-graph/{project_id}")
-async def fetch_project_graph(project_id: uuid.UUID, user: Annotated[User, Depends(get_current_user)] = None) -> ProjectGraph:
-    graph = await get_project_graph(user.id, project_id)
-    return graph
 
 
 @router.post("/chat-message-pydantic/{conversation_id}")

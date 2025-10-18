@@ -52,8 +52,9 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
   // Filter out data sources that are already in the project
   const availableDataSources = useMemo(() => {
     if (!project || !dataSources) return [];
+    const projectDataSourceIds = project.dataSources.map(ds => ds.dataSourceId);
     return dataSources.filter(dataSource => 
-      !project.dataSourceIds.includes(dataSource.id)
+      !projectDataSourceIds.includes(dataSource.id)
     );
   }, [project, dataSources]);
 

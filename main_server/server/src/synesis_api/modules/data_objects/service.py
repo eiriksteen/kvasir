@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import insert, select, update
 from fastapi import UploadFile, HTTPException
 
+from synesis_api.modules.data_objects.description import get_dataset_description
 from synesis_api.modules.data_objects.models import (
     dataset,
     time_series,
@@ -47,22 +48,16 @@ from synesis_schemas.main_server import (
     TimeSeriesAggregationObjectGroupInDB,
     ObjectGroup,
     DataObjectWithParentGroup,
-    AggregationObjectWithRawData,
     AggregationObjectInDB,
     AggregationObjectCreate,
-    AggregationObjectUpdate
+    AggregationObjectUpdate,
 )
 from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_api.modules.project.service import get_dataset_ids_in_project
-
-from synesis_data_structures.time_series.serialization import deserialize_parquet_to_dataframes, serialize_raw_data_for_aggregation_object_for_api
-from synesis_data_structures.time_series.definitions import (
-    TIME_SERIES_STRUCTURE,
-    TIME_SERIES_AGGREGATION_STRUCTURE
-)
-
+from synesis_data_interface.structures.serialization import deserialize_parquet_to_dataframes
+from synesis_data_interface.structures.time_series.definitions import TIME_SERIES_STRUCTURE
+from synesis_data_interface.structures.time_series_aggregation.definitions import TIME_SERIES_AGGREGATION_STRUCTURE
 from synesis_api.modules.analysis.service import get_analysis_result_by_id
-from synesis_api.modules.data_sources.service import get_data_sources
+from synesis_api.modules.data_sources.service import get_user_data_sources
 from synesis_api.utils.file_utils import copy_file_or_directory_to_container, get_data_from_container_from_code
 from synesis_api.app_secrets import DATASETS_SAVE_PATH, RAW_FILES_SAVE_DIR
 from pathlib import Path
@@ -376,7 +371,7 @@ async def create_dataset(
 
 async def get_user_datasets(
         user_id: uuid.UUID,
-        ids: Optional[List[uuid.UUID]] = None,
+        dataset_ids: Optional[List[uuid.UUID]] = None,
         max_features: Optional[int] = None
 ) -> List[Dataset]:
     """Get all datasets for a user"""
@@ -384,8 +379,8 @@ async def get_user_datasets(
     # Get all datasets for the user
     datasets_query = select(dataset).where(dataset.c.user_id == user_id)
 
-    if ids is not None:
-        datasets_query = datasets_query.where(dataset.c.id.in_(ids))
+    if dataset_ids is not None:
+        datasets_query = datasets_query.where(dataset.c.id.in_(dataset_ids))
 
     datasets_result = await fetch_all(datasets_query)
 
@@ -475,11 +470,15 @@ async def get_user_datasets(
         variable_groups = [
             VariableGroupInDB(**group) for group in variable_groups_result if group["dataset_id"] == dataset_obj.id]
 
+        description = get_dataset_description(
+            dataset_obj, all_object_groups, variable_groups)
+
         record = Dataset(
             **dataset_obj.model_dump(),
             object_groups=all_object_groups,
             variable_groups=variable_groups,
-            sources=sources
+            sources=sources,
+            description_for_agent=description
         )
 
         result_records.append(record)
@@ -493,12 +492,7 @@ async def get_user_dataset_by_id(
 ) -> Dataset:
     """Get a dataset for a user"""
 
-    return (await get_user_datasets(user_id, ids=[dataset_id]))[0]
-
-
-async def get_project_datasets(user_id: uuid.UUID, project_id: uuid.UUID) -> List[Dataset]:
-    dataset_ids = await get_dataset_ids_in_project(project_id)
-    return await get_user_datasets(user_id, ids=dataset_ids)
+    return (await get_user_datasets(user_id, dataset_ids=[dataset_id]))[0]
 
 
 async def get_object_groups(
@@ -680,7 +674,6 @@ def _make_timezone_aware(dt: datetime, timezone_str: str) -> datetime:
     # Convert naive datetime to timezone-aware
     tz = pytz.timezone(timezone_str)
     return tz.localize(dt)
-    return result_records
 
 
 async def create_aggregation_object(aggregation_object_create: AggregationObjectCreate) -> AggregationObjectInDB:
@@ -724,49 +717,3 @@ async def get_aggregation_object_by_analysis_result_id(analysis_result_id: uuid.
         raise HTTPException(
             status_code=404, detail="Aggregation object not found")
     return AggregationObjectInDB(**aggregation_object_result)
-
-
-# TODO;: Shouldnt be here
-async def get_aggregation_object_payload_data_by_analysis_result_id(
-    user_id: uuid.UUID,
-    analysis_result_id: uuid.UUID,
-) -> AggregationObjectWithRawData:
-    aggregation_object_in_db = await get_aggregation_object_by_analysis_result_id(analysis_result_id)
-
-    analysis_result = await get_analysis_result_by_id(analysis_result_id)
-
-    datasets = await get_user_datasets(user_id, ids=analysis_result.dataset_ids)
-    for idx, dataset in enumerate(datasets):
-        file_path = DATASETS_SAVE_PATH / \
-            f"{user_id}" / \
-            f"{dataset.id}"
-        container_save_path = Path("/tmp") / f"dataset_{idx}.parquet"
-        _, err = await copy_file_or_directory_to_container(file_path, container_save_path)
-        if err:
-            raise HTTPException(
-                status_code=500, detail=f"Error copying file to container: {err}")
-
-    data_sources = await get_data_sources(analysis_result.data_source_ids)
-    for idx, data_source in enumerate(data_sources):
-        file_path = RAW_FILES_SAVE_DIR / \
-            f"{user_id}" / \
-            f"{data_source.id}" / \
-            f"{data_source.name}"
-        print("copying data source:", file_path)
-        container_save_path = Path("/tmp") / f"data_source_{idx}.csv"
-        _, err = await copy_file_or_directory_to_container(file_path, container_save_path)
-
-    output_data = await get_data_from_container_from_code(analysis_result.python_code, analysis_result.output_variable)
-    if err:
-        raise HTTPException(
-            status_code=500, detail=f"Error getting data from container: {err}")
-
-    output_data = serialize_raw_data_for_aggregation_object_for_api(
-        output_data)
-
-    payload = AggregationObjectWithRawData(
-        **aggregation_object_in_db.model_dump(),
-        data=output_data,
-    )
-
-    return payload

@@ -27,7 +27,7 @@ async function fetchDataSources(token: string): Promise<DataSource[]> {
 
 
 async function fetchProjectDataSources(token: string, projectId: UUID): Promise<DataSource[]> {
-  const response = await fetch(`${API_URL}/data-sources/project-data-sources/${projectId}`, {
+  const response = await fetch(`${API_URL}/project/project-data-sources/${projectId}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }

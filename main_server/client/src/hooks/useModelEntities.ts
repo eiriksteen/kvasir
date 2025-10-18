@@ -8,7 +8,7 @@ import { useMemo } from "react";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 async function fetchModelEntities(token: string, projectId: UUID): Promise<ModelEntity[]> {
-  const response = await fetch(`${API_URL}/model/project-model-entities/${projectId}`, {
+  const response = await fetch(`${API_URL}/project/project-model-entities/${projectId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

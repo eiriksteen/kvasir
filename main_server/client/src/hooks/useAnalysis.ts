@@ -331,23 +331,7 @@ export async function deleteAnalysisResultEndpoint(token: string, analysisObject
     throw new Error(`Failed to delete analysis result: ${response.status} ${errorText}`);
   }
 } 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // hooks for analysis object
-
 
 export const useAnalysis = (projectId: UUID) => {
     const { data: session } = useSession();

@@ -17,20 +17,8 @@ from synesis_schemas.main_server import (
     ChatMessageInDB,
     ChatPydanticMessageInDB,
     ConversationCreate,
-    ProjectGraph,
-    DataSourceInGraph,
-    DatasetInGraph,
-    PipelineInGraph,
-    AnalysisInGraph,
-    ModelEntityInGraph,
-    Dataset,
-    PipelineFull,
-    ModelEntity,
-    DataSourceFull,
-    AnalysisObject,
     Run
 )
-
 from synesis_api.modules.orchestrator.models import (
     chat_message,
     chat_pydantic_message,
@@ -42,19 +30,16 @@ from synesis_api.modules.orchestrator.models import (
     data_source_context,
     model_entity_context,
 )
+from synesis_api.modules.orchestrator.agent.history_processors import CONTEXT_PATTERN, PROJECT_GRAPH_PATTERN, RUN_STATUS_PATTERN
 from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.runs.service import get_runs
-from synesis_api.modules.data_objects.service import get_user_datasets, get_project_datasets
+from synesis_api.modules.data_objects.service import get_user_datasets
 # from synesis_api.modules.analysis.service import get_user_analyses_by_ids
-from synesis_api.modules.data_sources.service import get_data_sources, get_project_data_sources
-from synesis_api.modules.pipeline.service import get_user_pipelines_by_ids, get_project_pipelines
-from synesis_api.modules.model.service import get_user_model_entities_by_ids, get_project_model_entities
-from synesis_api.modules.analysis.service import (
-    get_simplified_overview_for_context_message,
-    get_dataset_ids_from_analysis_object,
-    get_data_source_ids_from_analysis_object,
-    get_analysis_objects_by_project_id
-)
+from synesis_api.modules.data_sources.service import get_user_data_sources
+from synesis_api.modules.pipeline.service import get_user_pipelines
+from synesis_api.modules.model.service import get_user_model_entities
+from synesis_api.modules.project.service import get_project_graph
+from synesis_api.modules.analysis.service import get_simplified_overview_for_context_message
 
 
 async def create_conversation(
@@ -176,10 +161,6 @@ async def create_chat_message(
 
 async def create_chat_message_pydantic(conversation_id: uuid.UUID, messages: List[bytes]) -> List[ChatPydanticMessageInDB]:
 
-    # print("CREATING CHAT MESSAGE PYDANTIC"*100)
-    # print(f"MESSAGES: \n\n{'\n\n'.join([str(m) for m in messages])}")
-    # print("SHIT"*100)
-
     chat_pydantic_message_records = [ChatPydanticMessageInDB(
         id=uuid.uuid4(),
         conversation_id=conversation_id,
@@ -192,9 +173,7 @@ async def create_chat_message_pydantic(conversation_id: uuid.UUID, messages: Lis
     return chat_pydantic_message_records
 
 
-async def create_context(
-        context_data: Context
-) -> Context:
+async def create_context(context_data: Context) -> Context:
     context_id = uuid.uuid4()
 
     context_record = ContextInDB(id=context_id)
@@ -268,139 +247,30 @@ async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
     if len(context.dataset_ids) > 0:
         datasets = await get_user_datasets(user_id, context.dataset_ids, max_features=20)
     if len(context.data_source_ids) > 0:
-        data_sources = await get_data_sources(context.data_source_ids)
+        data_sources = await get_user_data_sources(user_id, context.data_source_ids)
     if len(context.pipeline_ids) > 0:
-        pipelines = await get_user_pipelines_by_ids(user_id, context.pipeline_ids)
+        pipelines = await get_user_pipelines(user_id, context.pipeline_ids)
     if len(context.analysis_ids) > 0:
         analyses = await get_simplified_overview_for_context_message(user_id, context.analysis_ids)
-        analyses = []
     if len(context.model_entity_ids) > 0:
-        model_entities = await get_user_model_entities_by_ids(user_id, context.model_entity_ids)
+        model_entities = await get_user_model_entities(user_id, context.model_entity_ids)
 
     context_message = f"""
-        <begin_context>\n\n"
+        {CONTEXT_PATTERN.start}\n\n
         Data sources in context: {data_sources}\n\n
         Datasets in context: {datasets}\n\n
         Pipelines in context: {pipelines}\n\n
         Analyses in context: {analyses}\n\n
         Model entities in context: {model_entities}\n\n
-        </begin_context>
+        {CONTEXT_PATTERN.end}
         """
 
     return context_message
 
 
-async def get_project_graph(user_id: uuid.UUID, project_id: uuid.UUID) -> ProjectGraph:
-    data_sources = await get_project_data_sources(user_id, project_id)
-    datasets = await get_project_datasets(user_id, project_id)
-    pipelines = await get_project_pipelines(user_id, project_id)
-    model_entities = await get_project_model_entities(user_id, project_id)
-    analyses = await get_analysis_objects_by_project_id(project_id)
-
-    def _get_data_sources_in_graph(data_sources: List[DataSourceFull], datasets: List[Dataset]) -> List[DataSourceInGraph]:
-        objs = []
-        for ds in data_sources:
-            output_dataset_ids = [
-                dset.id for dset in datasets if ds.id in dset.sources.data_source_ids]
-            output_analysis_ids = []
-            objs.append(DataSourceInGraph(
-                id=ds.id,
-                name=ds.name,
-                type=ds.type,
-                brief_description=f"{ds.name} {ds.type} data source",
-                to_datasets=output_dataset_ids,
-                to_analyses=output_analysis_ids
-            ))
-        return objs
-
-    def _get_datasets_in_graph(datasets: List[Dataset], pipelines: List[PipelineFull]) -> List[DatasetInGraph]:
-        objs = []
-        for ds in datasets:
-            output_pipeline_ids = [
-                p.id for p in pipelines if ds.id in p.sources.dataset_ids]
-            output_analysis_ids = []
-
-            objs.append(DatasetInGraph(
-                id=ds.id,
-                name=ds.name,
-                brief_description=ds.description,
-                to_pipelines=output_pipeline_ids,
-                to_analyses=output_analysis_ids,
-                from_data_sources=ds.sources.data_source_ids,
-                from_datasets=ds.sources.dataset_ids,
-                from_pipelines=ds.sources.pipeline_ids
-            ))
-        return objs
-
-    def _get_pipelines_in_graph(pipelines: List[PipelineFull], datasets: List[Dataset], model_entities: List[ModelEntity]) -> List[PipelineInGraph]:
-        objs = []
-        for p in pipelines:
-            output_dataset_ids = [
-                ds.id for ds in datasets if p.id in ds.sources.pipeline_ids]
-            output_model_entity_ids = [
-                me.id for me in model_entities if p.id == me.pipeline_id]
-
-            objs.append(PipelineInGraph(
-                id=p.id,
-                name=p.name,
-                brief_description=p.description,
-                from_datasets=p.sources.dataset_ids,
-                from_model_entities=p.sources.model_entity_ids,
-                to_datasets=output_dataset_ids,
-                to_model_entities=output_model_entity_ids
-            ))
-        return objs
-
-    def _get_analyses_in_graph(analysis_object_list: List[AnalysisObject]) -> List[AnalysisInGraph]:
-        objs = []
-        for analysis_object in analysis_object_list:
-            analysis_object_dataset_ids = get_dataset_ids_from_analysis_object(
-                analysis_object)
-            analysis_object_data_source_ids = get_data_source_ids_from_analysis_object(
-                analysis_object)
-
-            objs.append(AnalysisInGraph(
-                id=analysis_object.id,
-                name=analysis_object.name,
-                brief_description=analysis_object.description,
-                from_datasets=analysis_object_dataset_ids,
-                from_data_sources=analysis_object_data_source_ids,
-            ))
-        return objs
-
-    def _get_model_entities_in_graph(model_entities: List[ModelEntity], pipelines: List[PipelineFull]) -> List[ModelEntityInGraph]:
-        objs = []
-        for me in model_entities:
-            output_pipeline_ids = [
-                p.id for p in pipelines if me.id in p.sources.model_entity_ids]
-            objs.append(ModelEntityInGraph(
-                id=me.id,
-                name=me.name,
-                brief_description=me.description,
-                to_pipelines=output_pipeline_ids,
-            ))
-        return objs
-
-    data_sources_in_graph = _get_data_sources_in_graph(data_sources, datasets)
-    datasets_in_graph = _get_datasets_in_graph(datasets, pipelines)
-    pipelines_in_graph = _get_pipelines_in_graph(
-        pipelines, datasets, model_entities)
-    analyses_in_graph = _get_analyses_in_graph(analyses)
-    model_entities_in_graph = _get_model_entities_in_graph(
-        model_entities, pipelines)
-
-    return ProjectGraph(
-        data_sources=data_sources_in_graph,
-        datasets=datasets_in_graph,
-        pipelines=pipelines_in_graph,
-        analyses=analyses_in_graph,
-        model_entities=model_entities_in_graph
-    )
-
-
 async def get_project_graph_message(user_id: uuid.UUID, project_id: uuid.UUID) -> str:
     project_graph = await get_project_graph(user_id, project_id)
-    return "<begin_project_graph>\n\n" + project_graph.model_dump_json() + "\n\n</begin_project_graph>"
+    return f"{PROJECT_GRAPH_PATTERN.start}\n\n{project_graph.model_dump_json()}\n\n{PROJECT_GRAPH_PATTERN.end}"
 
 
 async def get_run_status_message(user_id: uuid.UUID, conversation_id: uuid.UUID) -> ModelMessage:
@@ -412,11 +282,11 @@ async def get_run_status_message(user_id: uuid.UUID, conversation_id: uuid.UUID)
         ])
 
     runs_status_message = (
-        "<begin_run_status>\n\n" +
-        "Here are all the runs of the conversations, including their status. Note whether any previous runs are completed or failed, and respond accordingly\n\n" +
+        f"{RUN_STATUS_PATTERN.start}\n\n" +
+        "Here are all the runs of the conversations, including their status. Note whether any previous runs are completed or failed.\n\n" +
         "Runs:\n\n" +
         _get_run_string(runs) +
-        "\n\n</begin_run_status>"
+        f"\n\n{RUN_STATUS_PATTERN.end}"
     )
 
     return runs_status_message

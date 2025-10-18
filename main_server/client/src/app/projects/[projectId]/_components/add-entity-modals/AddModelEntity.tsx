@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Github, Package, GitBranch, Cpu } from 'lucide-react';
+import { X, Github, Package } from 'lucide-react';
 import { UUID } from 'crypto';
 import { useProjectChat } from '@/hooks';
 
-type ModelSourceType = "github" | "pypi" | "gitlab" | "huggingface";
+type ModelSourceType = "github" | "pypi";
 
 interface ModelSourceFields {
   repoUrl?: string;
@@ -19,14 +19,12 @@ interface AddModelEntityProps {
   projectId: UUID;
 }
 
-const MODEL_SOURCES: ModelSourceType[] = ["github", "pypi", "gitlab", "huggingface"];
+const MODEL_SOURCES: ModelSourceType[] = ["github", "pypi"];
 
 const getSourceIcon = (source: ModelSourceType) => {
   switch (source) {
     case 'github': return <Github size={16} />;
     case 'pypi': return <Package size={16} />;
-    case 'gitlab': return <GitBranch size={16} />;
-    case 'huggingface': return <Cpu size={16} />;
   }
 };
 
@@ -34,8 +32,6 @@ const getSourceLabel = (source: ModelSourceType) => {
   switch (source) {
     case 'github': return 'GitHub Repository';
     case 'pypi': return 'PyPI Package';
-    case 'gitlab': return 'GitLab Repository';
-    case 'huggingface': return 'Hugging Face Model';
   }
 };
 
@@ -75,15 +71,11 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
 
     switch (selectedSource) {
       case 'github':
-      case 'gitlab':
         if (fields.repoUrl) prompt += `\nRepository URL: ${fields.repoUrl}`;
         break;
       case 'pypi':
         if (fields.packageName) prompt += `\nPackage name: ${fields.packageName}`;
         if (fields.packageVersion) prompt += `\nVersion: ${fields.packageVersion}`;
-        break;
-      case 'huggingface':
-        if (fields.modelName) prompt += `\nModel name: ${fields.modelName}`;
         break;
     }
 
@@ -100,7 +92,6 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
 
     switch (selectedSource) {
       case 'github':
-      case 'gitlab':
         return (
           <div className="mb-4">
             <label htmlFor="repoUrl" className="block text-sm font-medium text-gray-900 mb-2">
@@ -111,7 +102,7 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
               type="url"
               value={fields.repoUrl || ''}
               onChange={(e) => handleFieldChange('repoUrl', e.target.value)}
-              placeholder={`https://${selectedSource === 'github' ? 'github' : 'gitlab'}.com/username/repo`}
+              placeholder={`https://github.com/username/repo`}
               className="w-full p-2 bg-gray-50 border border-gray-300 rounded text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#000034]/50 focus:border-[#000034]/50 transition-all duration-200 text-sm"
             />
           </div>
@@ -149,23 +140,6 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
           </>
         );
 
-      case 'huggingface':
-        return (
-          <div className="mb-4">
-            <label htmlFor="modelName" className="block text-sm font-medium text-gray-900 mb-2">
-              Model Name
-            </label>
-            <input
-              id="modelName"
-              type="text"
-              value={fields.modelName || ''}
-              onChange={(e) => handleFieldChange('modelName', e.target.value)}
-              placeholder="e.g., bert-base-uncased, gpt2"
-              className="w-full p-2 bg-gray-50 border border-gray-300 rounded text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#000034]/50 focus:border-[#000034]/50 transition-all duration-200 text-sm"
-            />
-          </div>
-        );
-
       default:
         return null;
     }
@@ -173,15 +147,12 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
 
   function submitIsDisabled() {
     if (!selectedSource) return true;
-    if (selectedSource === 'github' || selectedSource === 'gitlab') {
+    if (selectedSource === 'github') {
       return !fields.repoUrl;
     }
     if (selectedSource === 'pypi') {
       return !fields.packageName;
-    }
-    if (selectedSource === 'huggingface') {
-      return !fields.modelName;
-    }
+    } 
     return false;
   }
 

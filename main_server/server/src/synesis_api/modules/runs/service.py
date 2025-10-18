@@ -177,8 +177,7 @@ async def get_runs(
                                              "rejected"]]] = None,
         run_ids: Optional[List[uuid.UUID]] = None,
         conversation_id: Optional[uuid.UUID] = None,
-        exclude_swe: bool = True
-) -> List[Run]:
+        exclude_swe: bool = True) -> List[Run]:
 
     runs_query = select(run).where(run.c.user_id == user_id)
 

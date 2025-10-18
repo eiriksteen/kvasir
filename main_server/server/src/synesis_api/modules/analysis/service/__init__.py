@@ -3,7 +3,7 @@ from .service_analysis_object import (
     get_analysis_object_by_id,
     get_analysis_objects_small_by_project_id,
     get_analysis_objects_by_project_id,
-    get_user_analysis_objects_by_ids,
+    get_user_analyses,
     get_simplified_overview_for_context_message,
     delete_analysis_object,
 )

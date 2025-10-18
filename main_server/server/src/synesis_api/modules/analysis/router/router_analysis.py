@@ -11,9 +11,9 @@ import aiofiles
 
 
 from synesis_schemas.main_server import (
-    AnalysisObject, 
-    AnalysisObjectCreate, 
-    AnalysisObjectList, 
+    Analysis,
+    AnalysisObjectCreate,
+    AnalysisObjectList,
     AnalysisStatusMessage,
     NotebookSection,
     NotebookSectionCreate,
@@ -47,7 +47,6 @@ from synesis_api.modules.analysis.service import (
     get_analysis_result_by_id,
     create_analysis_result
 )
-from synesis_api.modules.node.service import get_node_by_analysis_object_id
 from synesis_api.redis import get_redis
 from synesis_api.utils.markdown_utils import convert_markdown_to_html
 from synesis_api.modules.data_objects.service import get_aggregation_object_payload_data_by_analysis_result_id
@@ -65,7 +64,6 @@ async def post_analysis_object(
     return await create_analysis_object(analysis_object_create, user.id)
 
 
-
 @router.get("/analysis-objects/project/{project_id}", response_model=AnalysisObjectList)
 async def get_analysis_objects_by_project(
     project_id: uuid.UUID,
@@ -74,13 +72,12 @@ async def get_analysis_objects_by_project(
     return await get_analysis_objects_small_by_project_id(project_id)
 
 
-@router.get("/analysis-object/{analysis_object_id}", response_model=AnalysisObject)
+@router.get("/analysis-object/{analysis_object_id}", response_model=Analysis)
 async def get_analysis_object(
     analysis_object_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None
-) -> AnalysisObject:
+) -> Analysis:
     return await get_analysis_object_by_id(analysis_object_id)
-
 
 
 @router.delete("/analysis-object/{analysis_object_id}", response_model=uuid.UUID)
@@ -90,13 +87,11 @@ async def delete_analysis_object_endpoint(
 ) -> uuid.UUID:
     if not await check_user_owns_analysis_object(user.id, analysis_object_id):
         raise HTTPException(
-            status_code=403, 
+            status_code=403,
             detail="You do not have permission to delete this analysis object"
         )
-    
-    node_id = await get_node_by_analysis_object_id(analysis_object_id)
-    return await delete_analysis_object(analysis_object_id, node_id, user.id)
 
+    return await delete_analysis_object(analysis_object_id, user.id)
 
 
 @router.post("/analysis-object/{analysis_object_id}/generate-report", response_class=FileResponse)
@@ -107,37 +102,38 @@ async def generate_report_endpoint(
 ) -> FileResponse:
     if not await check_user_owns_analysis_object(user.id, analysis_object_id):
         raise HTTPException(
-            status_code=403, 
+            status_code=403,
             detail="You do not have permission to modify this analysis object"
         )
-    
+
     analysis_object = await get_analysis_object_by_id(analysis_object_id)
     notebook = await get_notebook_by_id(analysis_object.notebook_id)
-    
+
     # Generate markdown report content
     report_content = await generate_notebook_report(analysis_object, notebook, generate_report_request.include_code, user.id)
-    
+
     # Convert markdown to HTML
     html_content = convert_markdown_to_html(report_content)
-    
+
     # Create temporary HTML file
-    html_path = Path.cwd() / "tmp" / f"{generate_report_request.filename}_temp.html"
+    html_path = Path.cwd() / "tmp" / \
+        f"{generate_report_request.filename}_temp.html"
     async with aiofiles.open(html_path, mode="w", encoding="utf-8") as f:
         await f.write(html_content)
-    
+
     # Convert HTML to PDF using weasyprint
     pdf_path = Path.cwd() / "tmp" / f"{generate_report_request.filename}.pdf"
-    
+
     # TODO: FIX THIS
-    
+
     # try:
-        
+
     #     # Convert HTML to PDF
     #     HTML(string=html_content).write_pdf(str(pdf_path))
-        
+
     #     # Clean up temporary HTML file
     #     html_path.unlink()
-        
+
     #     return FileResponse(
     #         path=pdf_path,
     #         filename=f"{generate_report_request.filename}.pdf",
@@ -178,10 +174,11 @@ async def analysis_agent_sse(
         data = response[0][1][0][1]
 
         if 'result' in data.keys():
-            analysis_result = AnalysisResult.model_validate_json(data["result"])
+            analysis_result = AnalysisResult.model_validate_json(
+                data["result"])
             data["result"] = analysis_result
             status_message = AnalysisStatusMessage.model_validate(data)
-        
+
             yield f"data: {status_message.model_dump_json(by_alias=True)}\n\n"
 
         while True:
@@ -192,17 +189,18 @@ async def analysis_agent_sse(
                 last_id = response[0][1][-1][0]
                 data = response[0][1][0][1]
                 if "result" in data.keys():
-                    analysis_result = AnalysisResult.model_validate_json(data["result"])
+                    analysis_result = AnalysisResult.model_validate_json(
+                        data["result"])
                     data["result"] = analysis_result
                     status_message = AnalysisStatusMessage.model_validate(data)
                     yield f"data: {status_message.model_dump_json(by_alias=True)}\n\n"
-
 
             if start_time + timeout < time.time():
                 break
 
     return StreamingResponse(stream_run_updates(), media_type="text/event-stream")
-    
+
+
 @router.post("/analysis-object/{analysis_object_id}/create-section", response_model=NotebookSection)
 async def create_section_endpoint(
     analysis_object_id: uuid.UUID,
@@ -211,11 +209,12 @@ async def create_section_endpoint(
 ) -> NotebookSection:
     if not await check_user_owns_analysis_object(user.id, analysis_object_id):
         raise HTTPException(
-            status_code=403, 
+            status_code=403,
             detail="You do not have permission to access this analysis object"
         )
-    
+
     return await create_section(section_create)
+
 
 @router.patch("/analysis-object/{analysis_object_id}/section/{section_id}", response_model=NotebookSection)
 async def update_section_endpoint(
@@ -226,11 +225,12 @@ async def update_section_endpoint(
 ) -> NotebookSection:
     if not await check_user_owns_analysis_object(user.id, analysis_object_id):
         raise HTTPException(
-            status_code=403, 
-            detail="You do not have permission to access this analysis object"  
+            status_code=403,
+            detail="You do not have permission to access this analysis object"
         )
-    
+
     return await update_section(section_id, section_update)
+
 
 @router.delete("/analysis-object/{analysis_object_id}/section/{section_id}")
 async def delete_section_endpoint(
@@ -240,12 +240,13 @@ async def delete_section_endpoint(
 ):
     if not await check_user_owns_analysis_object(user.id, analysis_object_id):
         raise HTTPException(
-            status_code=403, 
-            detail="You do not have permission to access this analysis object"  
+            status_code=403,
+            detail="You do not have permission to access this analysis object"
         )
-    
+
     await delete_notebook_section_recursive(section_id)
     return
+
 
 @router.post("/analysis-object/{analysis_object_id}/section/{section_id}/add-analysis-result/{analysis_result_id}", response_model=NotebookSection)
 async def add_analysis_result_to_section_endpoint(
@@ -256,14 +257,11 @@ async def add_analysis_result_to_section_endpoint(
 ) -> NotebookSection:
     if not await check_user_owns_analysis_object(user.id, analysis_object_id):
         raise HTTPException(
-            status_code=403, 
-            detail="You do not have permission to access this analysis object"  
+            status_code=403,
+            detail="You do not have permission to access this analysis object"
         )
-    
+
     return await add_analysis_result_to_section(section_id, analysis_result_id)
-
-
-
 
 
 @router.get("/analysis-object/{analysis_object_id}/analysis-result/{analysis_result_id}/get-data", response_model=AggregationObjectWithRawData)
@@ -274,12 +272,13 @@ async def get_data_for_analysis_result(
 ) -> AggregationObjectWithRawData:
     if not await check_user_owns_analysis_object(user.id, analysis_object_id):
         raise HTTPException(
-            status_code=403, 
-            detail="You do not have permission to access this analysis object"  
+            status_code=403,
+            detail="You do not have permission to access this analysis object"
         )
     payload = await get_aggregation_object_payload_data_by_analysis_result_id(user.id, analysis_result_id)
-    
+
     return payload
+
 
 @router.patch("/analysis-object/{analysis_object_id}/move-element")
 async def move_element(
@@ -289,8 +288,8 @@ async def move_element(
 ):
     if not await check_user_owns_analysis_object(user.id, analysis_object_id):
         raise HTTPException(
-            status_code=403, 
-            detail="You do not have permission to access this analysis object"  
+            status_code=403,
+            detail="You do not have permission to access this analysis object"
         )
     await move_element_service(move_request)
     return
@@ -302,8 +301,9 @@ async def update_analysis_result_endpoint(
     analysis_result_update: AnalysisResultUpdate,
     user: Annotated[User, Depends(get_current_user)] = None,
 ) -> AnalysisResult:
-    
+
     return await update_analysis_result_by_id(analysis_result_id, analysis_result_update)
+
 
 @router.delete("/analysis-object/{analysis_object_id}/analysis-result/{analysis_result_id}")
 async def delete_analysis_result_endpoint(
@@ -313,8 +313,8 @@ async def delete_analysis_result_endpoint(
 ):
     if not await check_user_owns_analysis_object(user.id, analysis_object_id):
         raise HTTPException(
-            status_code=403, 
-            detail="You do not have permission to access this analysis object"  
+            status_code=403,
+            detail="You do not have permission to access this analysis object"
         )
     await delete_analysis_result_service(analysis_result_id)
     return
@@ -328,7 +328,6 @@ async def create_analysis_result_endpoint(
     return await create_analysis_result(analysis_result)
 
 
-
 @router.get("/analysis-result/{analysis_result_id}", response_model=AnalysisResult)
 async def get_analysis_result_endpoint(
     analysis_result_id: uuid.UUID,
@@ -336,7 +335,8 @@ async def get_analysis_result_endpoint(
 ) -> AnalysisResult:
     result = await get_analysis_result_by_id(analysis_result_id)
     if result is None:
-        raise HTTPException(status_code=404, detail="Analysis result not found")
+        raise HTTPException(
+            status_code=404, detail="Analysis result not found")
     return result
 
 

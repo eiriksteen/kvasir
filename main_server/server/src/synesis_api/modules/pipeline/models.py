@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from pgvector.sqlalchemy import Vector
 
 from synesis_api.database.core import metadata
-from synesis_data_structures.time_series.definitions import get_first_level_structure_ids
+from synesis_data_interface.structures.overview import get_first_level_structure_ids
 
 # Build the constraint string with proper quotes
 structure_ids = get_first_level_structure_ids()
@@ -16,6 +16,9 @@ structure_constraint = "structure_id IN (" + \
 function_type_constraint = "type IN ('inference', 'training', 'computation')"
 
 
+# The pipeline entity is the overarching object (where the final pipeline doesn't need to be defined yet)
+# To make a pipeline runnable, we "compile" / "index" it from the defined code
+# The code is either defined by the agent or by the user
 pipeline = Table(
     "pipeline",
     metadata,
@@ -26,6 +29,25 @@ pipeline = Table(
            ForeignKey("auth.users.id"),
            nullable=False),
     Column("name", String, nullable=False),
+    Column("description", String, nullable=True),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="pipeline"
+)
+
+
+# "Compiled" pipeline
+pipeline_implementation = Table(
+    "pipeline_implementation",
+    metadata,
+    Column("id",
+           UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline.id"),
+           default=uuid.uuid4,
+           primary_key=True),
     Column("python_function_name", String, nullable=False),
     Column("docstring", String, nullable=False),
     Column("description", String, nullable=True),

@@ -4,14 +4,14 @@ from fastapi import APIRouter, Depends, UploadFile, HTTPException
 
 from synesis_api.modules.data_sources.service import (
     create_data_source,
-    get_data_sources,
-    get_project_data_sources,
+    get_user_data_sources,
     create_data_source_analysis,
-    create_data_source_details
+    create_data_source_details,
+    get_detailed_data_sources_descriptions
 )
 from synesis_schemas.main_server import (
     DataSourceInDB,
-    DataSourceFull,
+    DataSource,
     DataSourceAnalysisInDB,
     DataSourceAnalysisCreate,
     TabularFileDataSourceCreate,
@@ -22,7 +22,6 @@ from synesis_schemas.main_server import (
 from synesis_schemas.project_server import RunDataSourceAnalysisAgentRequest
 from synesis_schemas.main_server import User
 from synesis_api.auth.service import get_current_user, user_owns_data_source
-# from synesis_api.agents.data_source_analysis.runner import run_data_source_analysis_task
 from synesis_api.auth.service import oauth2_scheme
 from synesis_api.client import MainServerClient, post_run_data_source_analysis, post_file
 
@@ -36,27 +35,19 @@ router = APIRouter()
 # - Possibly simplify structure of router / service / agent
 
 
-@router.get("/data-sources", response_model=List[DataSourceFull])
+@router.get("/data-sources", response_model=List[DataSource])
 async def fetch_data_sources(
     user: Annotated[User, Depends(get_current_user)] = None
-) -> List[DataSourceFull]:
-    return await get_data_sources(user_id=user.id)
+) -> List[DataSource]:
+    return await get_user_data_sources(user_id=user.id)
 
 
-@router.get("/project-data-sources/{project_id}", response_model=List[DataSourceFull])
-async def fetch_data_sources(
-    project_id: UUID,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> List[DataSourceFull]:
-    return await get_project_data_sources(user_id=user.id, project_id=project_id)
-
-
-@router.get("/data-sources-by-ids", response_model=List[DataSourceFull])
+@router.get("/data-sources-by-ids", response_model=List[DataSource])
 async def fetch_data_sources_by_ids(
     request: GetDataSourcesByIDsRequest,
     user: Annotated[User, Depends(get_current_user)] = None
-) -> List[DataSourceFull]:
-    return await get_data_sources(data_source_ids=request.data_source_ids, user_id=user.id)
+) -> List[DataSource]:
+    return await get_user_data_sources(data_source_ids=request.data_source_ids, user_id=user.id)
 
 
 @router.post("/file-data-source", response_model=DataSourceInDB)

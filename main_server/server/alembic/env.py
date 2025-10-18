@@ -40,14 +40,14 @@ from synesis_api.modules.function.models import (
 )
 from synesis_api.modules.model.models import (
     model_definition, model, model_entity, model_function,
-    model_function_input_object_group_definition, model_function_output_object_group_definition
-)
-from synesis_api.modules.model_sources.models import (
+    model_function_input_object_group_definition, model_function_output_object_group_definition,
     model_source, pypi_model_source
 )
 from synesis_api.modules.analysis.models import analysis_status_message, analysis_object, analysis_result, analysis_result_dataset, analysis_result_data_source, notebook_section, notebook, plot, table
-from synesis_api.modules.project.models import project, project_dataset, project_analysis, project_pipeline, project_data_source
-from synesis_api.modules.node.models import node, dataset_node, analysis_node, pipeline_node
+from synesis_api.modules.project.models import (
+    project, project_dataset, project_analysis, project_pipeline, project_data_source, project_model_entity,
+    project_dataset_being_created, project_pipeline_being_created, project_model_entity_being_created
+)
 from synesis_api.modules.code.models import script
 from synesis_api.app_secrets import DATABASE_URL
 from synesis_api.database.core import metadata
@@ -126,10 +126,7 @@ __all__ = [
     project_analysis,
     project_pipeline,
     project_data_source,
-    node,
-    dataset_node,
-    analysis_node,
-    pipeline_node,
+    project_model_entity,
     pipeline_graph_edge,
     pipeline_graph_dataset_node,
     pipeline_graph_function_node,
@@ -137,13 +134,16 @@ __all__ = [
     pipeline_output_object_group_definition,
     pipeline_output_dataset,
     pipeline_output_model_entity,
+    project_dataset_being_created,
+    project_pipeline_being_created,
+    project_model_entity_being_created,
     model_function,
     model_function_input_object_group_definition,
     model_function_output_object_group_definition,
     model_definition,
     table,
     plot,
-    script,
+    script
 ]
 
 # add your model's MetaData object here

@@ -10,7 +10,6 @@ from synesis_schemas.main_server import (
     ModelEntityCreate,
     ModelEntityInDB,
     AddEntityToProject,
-    FrontendNodeCreate,
     GetGuidelinesRequest,
     SearchModelsRequest,
     RunCreate,
@@ -20,7 +19,6 @@ from synesis_api.modules.orchestrator.agent.deps import OrchestratorAgentDeps
 from synesis_api.modules.knowledge_bank.service import query_models, get_task_guidelines
 from synesis_api.modules.model.service import create_model_entity
 from synesis_api.modules.project.service import add_entity_to_project
-from synesis_api.modules.node.service import create_node
 from synesis_api.modules.runs.service import create_run
 
 
@@ -160,15 +158,14 @@ async def submit_run_for_model_integration_agent(
     return f"Successfully submitted run for model integration agent, the run id is {run.id}"
 
 
-async def search_existing_models(ctx: RunContext[OrchestratorAgentDeps], search_query: QueryRequest) -> ModelQueryResult:
+async def search_existing_models(ctx: RunContext[OrchestratorAgentDeps], search_query: QueryRequest) -> str:
     if not search_query.query:
         raise ModelRetry("Query cannot be empty!")
-    search_models_request = SearchModelsRequest(
-        queries=[search_query],
-        bare=True
-    )
+    search_models_request = SearchModelsRequest(queries=[search_query])
     results = await query_models(ctx.deps.user_id, search_models_request)
-    return results[0]
+    descriptions = "\n---\n\n".join(
+        [m.description_for_agent for result in results for m in result.models])
+    return descriptions
 
 
 async def add_model_entity_to_project(ctx: RunContext[OrchestratorAgentDeps], model_entity_create: ModelEntityCreate) -> ModelEntityInDB:
@@ -177,15 +174,10 @@ async def add_model_entity_to_project(ctx: RunContext[OrchestratorAgentDeps], mo
     except Exception as e:
         raise ModelRetry(f"Error creating model entity: {e}")
 
-    await add_entity_to_project(AddEntityToProject(
+    await add_entity_to_project(ctx.deps.user_id, AddEntityToProject(
         project_id=ctx.deps.project_id,
         entity_type="model_entity",
         entity_id=new_model_entity.id
-    ))
-    await create_node(FrontendNodeCreate(
-        project_id=ctx.deps.project_id,
-        type="model_entity",
-        model_entity_id=new_model_entity.id
     ))
 
     return new_model_entity

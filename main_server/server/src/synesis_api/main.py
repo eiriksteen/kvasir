@@ -8,12 +8,10 @@ from synesis_api.modules.orchestrator.router import router as orchestrator_route
 from synesis_api.modules.analysis.router import analysis_router, plot_router, table_router
 from synesis_api.modules.data_objects.router import router as ontology_router
 from synesis_api.modules.project.router import router as project_router
-from synesis_api.modules.node.router import router as node_router
 from synesis_api.modules.pipeline.router import router as pipeline_router
 from synesis_api.modules.runs.router import router as runs_router
 from synesis_api.modules.knowledge_bank.router import router as knowledge_bank_router
 from synesis_api.modules.model.router import router as model_router
-from synesis_api.modules.model_sources.router import router as model_sources_router
 from synesis_api.modules.function.router import router as function_router
 
 
@@ -70,11 +68,6 @@ app.include_router(project_router,
                    tags=["Project"])
 
 
-app.include_router(node_router,
-                   prefix="/node",
-                   tags=["Node"])
-
-
 app.include_router(pipeline_router,
                    prefix="/pipeline",
                    tags=["Pipeline"])
@@ -93,11 +86,6 @@ app.include_router(knowledge_bank_router,
 app.include_router(model_router,
                    prefix="/model",
                    tags=["Model"])
-
-
-app.include_router(model_sources_router,
-                   prefix="/model-sources",
-                   tags=["Model Sources"])
 
 
 app.include_router(function_router,

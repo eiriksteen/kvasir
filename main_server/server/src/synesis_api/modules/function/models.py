@@ -6,7 +6,7 @@ from pgvector.sqlalchemy import Vector
 
 from synesis_api.database.core import metadata
 from synesis_api.app_secrets import EMBEDDING_DIM
-from synesis_data_structures.time_series.definitions import get_first_level_structure_ids
+from synesis_data_interface.structures.overview import get_first_level_structure_ids
 
 
 # Build the constraint string with proper quotes

@@ -7,7 +7,7 @@ import { useSession } from "next-auth/react";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 async function fetchProjectGraph(token: string, projectId: string): Promise<ProjectGraph> {
-    const response = await fetch(`${API_URL}/orchestrator/project-graph/${projectId}`, {
+    const response = await fetch(`${API_URL}/project/project-graph/${projectId}`, {
         headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
