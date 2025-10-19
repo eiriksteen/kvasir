@@ -45,7 +45,7 @@ const TableItem = ({ table, aggregationData, analysisResultId, onDelete, onUpdat
   const tableConfig: TableConfig = table.tableConfig;
 
   // Handle data availability check
-  const hasData = aggregationData && aggregationData.data.outputData.data && Object.keys(aggregationData.data.outputData.data).length > 0;
+  const hasData = aggregationData && aggregationData.data.outputData.data && aggregationData.data.outputData.data.length > 0;
   
   if (!hasData) {
     return (
@@ -55,27 +55,26 @@ const TableItem = ({ table, aggregationData, analysisResultId, onDelete, onUpdat
     );
   }
 
-  const data = aggregationData.data.outputData.data as Record<`${string},${string}`, Array<number | string | boolean | Date | null>>;
+  const columns = aggregationData.data.outputData.data;
 
   // Get available columns from AggregationObjectWithRawData
-  const availableColumns = Object.keys(data).map(key => key.split(',')[0]);
+  const availableColumns = columns.map(col => col.name);
 
   // Prepare table data
   if (!tableConfig.columns || tableConfig.columns.length === 0) return [];
 
   // Get data for each column
   const rows: any[] = [];
-  const firstColumnKey = Object.keys(data).find(key => key.startsWith(tableConfig.columns[0].name + ','));
-  const firstColumnData = firstColumnKey ? data[firstColumnKey as keyof typeof data] || [] : [];
+  const firstColumn = columns.find(col => col.name === tableConfig.columns[0].name);
+  const firstColumnData = firstColumn ? firstColumn.values : [];
   
   // Create rows based on the first column's data length
   for (let i = 0; i < firstColumnData.length; i++) {
     const row: any = {};
     
     tableConfig.columns.forEach(column => {
-      const columnKey = Object.keys(data).find(key => key.startsWith(column.name + ','));
-      const columnData = columnKey ? data[columnKey as keyof typeof data] || [] : [];
-      row[column.name] = columnData[i] || '';
+      const columnData = columns.find(col => col.name === column.name);
+      row[column.name] = columnData ? (columnData.values[i] ?? '') : '';
     });
     
     rows.push(row);

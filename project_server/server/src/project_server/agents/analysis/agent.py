@@ -32,7 +32,6 @@ from synesis_schemas.main_server import (
     TableCreate,
     TableConfig,
     TableColumn,
-    ContextCreate,
     AggregationObjectCreate,
     AggregationObjectUpdate
 )
@@ -54,8 +53,6 @@ from project_server.client import (
     create_aggregation_object_request,
     update_aggregation_object_request,
     get_aggregation_object_by_analysis_result_id_request,
-    create_chat_message_pydantic_request,
-    create_context_request,
 )
 from synesis_schemas.project_server import RunAnalysisRequest
 from project_server.client.requests.plots import create_plot
@@ -377,7 +374,7 @@ async def create_empty_analysis_result(ctx: RunContext[AnalysisDeps], section_id
 
 
 @analysis_agent.tool
-async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_result_id: uuid.UUID, prompt: str, dataset_ids: List[uuid.UUID], data_source_ids: List[uuid.UUID]) -> str:
+async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_object_id: uuid.UUID, analysis_result_id: uuid.UUID, prompt: str, dataset_ids: List[uuid.UUID], data_source_ids: List[uuid.UUID]) -> str:
     """
     This tool generates code and runs it in a python container. It streams the analysis result to the user.
     This tool can also be used to edit an analysis result. A user might want to edit for several reasons:
@@ -388,8 +385,9 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
 
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
+        analysis_object_id (uuid.UUID): The ID of the analysis object.
         analysis_result_id (uuid.UUID): The ID of the analysis result to make.
-        prompt (str): The prompt to generate the analysis result for.
+        prompt (str): The prompt to generate the analysis result for. 
         dataset_ids (List[uuid.UUID]): List of the IDs of the datasets to use for the analysis.
         data_source_ids (List[uuid.UUID]): List of the IDs of the datasources to use for the analysis.
     """
@@ -406,7 +404,10 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
 
     helper_agent_deps = HelperAgentDeps(
         datasets=datasets,
-        data_sources=data_sources
+        data_sources=data_sources,
+        analysis_object_id=analysis_object_id,
+        analysis_result_id=analysis_result_id,
+        bearer_token=ctx.deps.client.bearer_token,
     )
 
     async with analysis_helper_agent.run_stream(
@@ -453,8 +454,13 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
     await create_aggregation_object_request(ctx.deps.client, aggregation_object_create)
 
     await update_analysis_result_request(ctx.deps.client, analysis_result)
+    return_string = f"""
+        Analysis result successfully created. Analysis result id: {analysis_result.id}
+        This is the outcome of the analysis: {analysis_result.analysis}
+        This is the python code that was used to generate the analysis result: {analysis_result.python_code}
+    """
 
-    return f"Analysis result successfully created."
+    return return_string
 
 # @analysis_agent.tool
 # async def edit_analysis_result(ctx: RunContext[AnalysisDeps], analysis_result_id: uuid.UUID, prompt: str, dataset_ids: List[uuid.UUID], data_source_ids: List[uuid.UUID]) -> str:

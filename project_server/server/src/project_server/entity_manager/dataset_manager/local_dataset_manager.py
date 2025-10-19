@@ -6,7 +6,7 @@ import pandas as pd
 from pathlib import Path
 from dataclasses import asdict
 from io import BytesIO, StringIO
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Union, List, Tuple
 
 from project_server.utils.time_series_utils import convert_datetime_to_target_tz
@@ -20,7 +20,7 @@ from project_server.entity_manager.dataset_manager.dataclasses import (
 from project_server.client import ProjectClient
 from project_server.client.requests.data_objects import post_dataset, get_object_group, get_dataset, get_data_object
 from project_server.client import FileInput
-from project_server.app_secrets import INTEGRATED_DATA_DIR
+from project_server.app_secrets import INTEGRATED_DATA_DIR, ANALYSIS_DIR
 from project_server.worker import logger
 from synesis_schemas.main_server import (
     DatasetCreate,
@@ -135,16 +135,35 @@ class LocalDatasetManager:
             return dataset_api
 
 
-    async def get_aggregation_object_payload_data_by_code(
+    async def get_aggregation_object_payload_data_by_analysis_result_id(
         self,
-        python_code: str,
-        output_variable: str
+        analysis_object_id: uuid.UUID,
+        analysis_result_id: uuid.UUID,
     ) -> AggregationOutput:
-        output_data = await get_data_from_container_from_code(python_code, output_variable)
+        file_path = ANALYSIS_DIR / str(analysis_object_id) / str(analysis_result_id) / "output.json"
 
-        aggregation_output = serialize_raw_data_for_aggregation_object_for_api(output_data)
+        output_data = json.load(open(file_path))
+        try:
+            output_data = AggregationOutput.model_validate(output_data)
+        except Exception as e:
+            logger.error(f"Error validating output data: {e}")
+            raise e
 
-        return aggregation_output
+        return output_data
+
+    async def upload_analysis_output_to_analysis_dir(self, analysis_object_id: uuid.UUID, analysis_result_id: uuid.UUID, output_data: pd.DataFrame | pd.Series | float | int | str | bool | datetime | timedelta | None) -> None:
+        try: 
+            structured_output_data = serialize_raw_data_for_aggregation_object_for_api(output_data)
+        except Exception as e:
+            logger.error(f"Error serializing output data: {e}")
+            raise e
+
+        analysis_output_path = ANALYSIS_DIR / str(analysis_object_id) / str(analysis_result_id)
+        analysis_output_path.mkdir(parents=True, exist_ok=True)
+        analysis_output_filepath = analysis_output_path / "output.json"
+        with open(analysis_output_filepath, "w") as f:
+            json.dump(structured_output_data.model_dump(), f)
+
 
 
     # Private methods

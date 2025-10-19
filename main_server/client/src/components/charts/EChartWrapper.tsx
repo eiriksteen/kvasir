@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import ReactECharts from "echarts-for-react";
 import { convertTimeStamps, formatTimeStamps, getMinMax } from "./PlottingUtils";
 import { BasePlot, PlotColumn } from "@/types/plots";
-import { AggregationObjectWithRawData } from "@/types/data-objects";
+import { AggregationObjectWithRawData, Column } from "@/types/data-objects";
 import PlotConfigurationPopup from "@/components/info-modals/analysis/PlotConfigurationPopup";
 
 interface ChartProps {
@@ -15,7 +15,7 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
   const config = plot.plotConfig;
   
   // Handle data availability check
-  const hasData = aggregationData && aggregationData.data.outputData.data && Object.keys(aggregationData.data.outputData.data).length > 0;
+  const hasData = aggregationData && aggregationData.data.outputData.data && aggregationData.data.outputData.data.length > 0;
   const columnsToPlot = config.yAxisColumns.filter((col: PlotColumn) => col.enabled);
   
   if (!hasData) {
@@ -26,31 +26,30 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
     );
   }
 
-  const data = aggregationData.data.outputData.data as Record<`${string},${string}`, Array<number | string | boolean | Date | null>>;
+  const columns = aggregationData.data.outputData.data as Column[];
 
   // Helper function to convert data based on datatype
-  const convertDataByType = (key: string, rawData: Array<any>) => {
-    const [, dataType] = key.split(',');
-    if (dataType === 'datetime' && rawData.length > 0) {
-      // Convert bigint array to Date array
-      return rawData.map((timestamp: bigint) => new Date(Number(timestamp) / 1000000));
-    }
-    return rawData;
-  };
+  // const convertDataByType = (valueType: string, rawData: Array<any>) => {
+  //   if (valueType === 'datetime' && rawData.length > 0) {
+  //     // Convert bigint array to Date array
+  //     return rawData.map((timestamp: bigint) => new Date(Number(timestamp) / 1000000));
+  //   }
+  //   return rawData;
+  // };
 
   // Get available columns from AggregationObjectWithRawData
-  const availableColumns = Object.keys(data).map(key => key.split(',')[0]);
+  const availableColumns = columns.map(col => col.name);
   
   // Get the x-axis column data
-  const xAxisKey = Object.keys(data).find(key => key.startsWith(config.xAxisColumn.name + ','));
-  const xAxisRawData = xAxisKey ? data[xAxisKey as keyof typeof data] || [] : [];
-  const xAxisData = xAxisKey ? convertDataByType(xAxisKey, xAxisRawData) : [];
+  const xAxisColumn = columns.find(col => col.name === config.xAxisColumn.name);
+  const xAxisData = xAxisColumn ? xAxisColumn.values : [];
+
   
   // Prepare series data
   const series = columnsToPlot.map((col: PlotColumn) => {
-    const columnKey = Object.keys(data).find(key => key.startsWith(col.name + ','));
-    const columnRawData = columnKey ? data[columnKey as keyof typeof data] || [] : [];
-    const columnData = columnKey ? convertDataByType(columnKey, columnRawData) : [];
+    const column = columns.find(c => c.name === col.name);
+    const columnData = column ? column.values : [];
+
     return {
       name: col.name,
       type: col.lineType,

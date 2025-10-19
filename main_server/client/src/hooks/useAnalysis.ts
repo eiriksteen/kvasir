@@ -293,8 +293,14 @@ export async function getAnalysisResultDataEndpoint(token: string, analysisObjec
   }
 
   // const arraybuffer = await response.arrayBuffer();
-  const aggregationObjectWithRawData = await response.json();
-
+  let aggregationObjectWithRawData = await response.json();
+  aggregationObjectWithRawData = snakeToCamelKeys(aggregationObjectWithRawData);
+  for (const column of aggregationObjectWithRawData.data.outputData.data) {
+    if (column.valueType === 'datetime') {
+      column.values = column.values.map((timestamp: bigint) => new Date(Number(timestamp) / 1000000));
+    }
+  }
+  
   return aggregationObjectWithRawData;
 }
 

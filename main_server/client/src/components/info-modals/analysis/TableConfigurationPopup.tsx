@@ -224,7 +224,7 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                         <div className="space-y-6">
                             {/* Table Columns */}
                             <div>
-                                <label className="block text-sm font-medium text-zinc-300 mb-3">
+                                <label className="block text-sm font-medium text-gray-700 mb-3">
                                     Select Columns to Include
                                 </label>
                                 
@@ -277,7 +277,7 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                                         type="checkbox"
                                         checked={showRowNumbers}
                                         onChange={(e) => setShowRowNumbers(e.target.checked)}
-                                        className="w-4 h-4 text-purple-600 bg-[#1a1625] border-[#271a30] rounded focus:ring-purple-500"
+                                        className="w-4 h-4 text-[#0E4F70] bg-white border-gray-300 rounded focus:ring-[#0E4F70]"
                                     />
                                     <span className="text-sm font-medium text-gray-700">Show Row Numbers</span>
                                 </div>
@@ -304,7 +304,7 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                                         <select
                                             value={sortBy || ''}
                                             onChange={(e) => setSortBy(e.target.value || null)}
-                                            className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                            className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                         >
                                             <option value="">No sorting</option>
                                             {selectedColumns.map((columnName) => (
@@ -321,7 +321,7 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                                         <select
                                             value={sortOrder || ''}
                                             onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc' | null || null)}
-                                            className="w-full bg-[#1a1625] border border-[#271a30] rounded px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                            className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
                                             disabled={!sortBy}
                                         >
                                             <option value="">Select order</option>
@@ -346,7 +346,7 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
                     )}
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                        className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
                     >
                         Cancel
                     </button>

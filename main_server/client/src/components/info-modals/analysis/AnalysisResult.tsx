@@ -209,10 +209,9 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
     // Get available columns from the analysis result data
     const availableColumns = useMemo(() => {
         const data = analysisResultData[analysisResult.id] as AggregationObjectWithRawData;
-        if (data && data.data.outputData) {
-            // Extract column names from the outputData keys
-            // The keys are in format "columnName,dataType"
-            return Object.keys(data.data.outputData.data).map(key => key.split(',')[0]);
+        if (data && data.data.outputData && data.data.outputData.data) {
+            // Extract column names from the data array
+            return data.data.outputData.data.map(col => col.name);
         }
         return [];
     }, [analysisResultData, analysisResult.id]);

@@ -1,16 +1,15 @@
-import uuid
 import re
-from pathlib import Path
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.settings import ModelSettings
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
+import uuid
 
-
-from project_server.utils import run_python_code_in_container, copy_file_or_directory_to_container, remove_from_container
+from project_server.utils import run_python_function_in_container
 from project_server.agents.analysis.prompt import ANALYSIS_HELPER_SYSTEM_PROMPT
 from project_server.utils.pydanticai_utils import get_model
 from synesis_schemas.main_server import Dataset, DataSourceFull
+from project_server.app_secrets import ANALYSIS_DIR
 
 model = get_model()
 
@@ -18,12 +17,9 @@ model = get_model()
 class HelperAgentDeps:
     datasets: List[Dataset]
     data_sources: List[DataSourceFull]
-    # user_id: str
-    # dataset_ids: list[uuid.UUID]
-    # group_ids: list[uuid.UUID]
-    # second_level_structure_ids: list[str]
-    # data_source_ids: list[uuid.UUID]
-    # data_source_names: list[str]
+    bearer_token: str
+    analysis_object_id: uuid.UUID
+    analysis_result_id: uuid.UUID
 
 analysis_helper_agent = Agent(
     model,
@@ -34,11 +30,12 @@ analysis_helper_agent = Agent(
     deps_type=HelperAgentDeps
 )
 
-@analysis_helper_agent.tool
+@analysis_helper_agent.tool()
 async def run_python_code(ctx: RunContext[HelperAgentDeps], python_code: str, output_variable: str) -> str:
     """
     Run python code in a container and return the output.
     Args:
+        ctx: The context of the agent.
         python_code: The python code to run.
         output_variable: The output variable of the analysis. This variable is likely the last variable in the code.
     Returns:
@@ -59,10 +56,41 @@ elif isinstance({output_variable}, pd.DataFrame) or isinstance({output_variable}
 else:
     print("Not a DataFrame or Series")
 """
+    out, err = await _save_data_to_analysis_dir(python_code, output_variable, ctx.deps.analysis_object_id, ctx.deps.analysis_result_id, ctx.deps.bearer_token)
+    
+    
+    if err:
+        return f"You got the following error: {err}"
+
+    return out
+
+async def _save_data_to_analysis_dir(
+    python_code: str,
+    output_variable: str,
+    analysis_object_id: uuid.UUID,
+    analysis_result_id: uuid.UUID,
+    bearer_token: str,
+) -> Tuple[str, str]:
+
+    assert output_variable in python_code, "output_variable must be in the code"
+
+    out, err = await run_python_function_in_container(
+        base_script=(
+            f"{python_code}\n\n" +
+            "from project_server.entity_manager import LocalDatasetManager\n\n" +
+            "from uuid import UUID\n\n" +
+            f"dataset_manager = LocalDatasetManager('{bearer_token}')"
+        ),
+        function_name="dataset_manager.upload_analysis_output_to_analysis_dir",
+        input_variables=[
+            f"analysis_object_id='{analysis_object_id}'",
+            f"analysis_result_id='{analysis_result_id}'",
+            f"output_data={output_variable}",
+        ],
+        print_output=False,
+        async_function=True
+    )
+
+    return out, err
 
     
-    stdout, stderr = await run_python_code_in_container(python_code)
-    if stderr:
-        return f"You got the following error: {stderr}"
-
-    return stdout
