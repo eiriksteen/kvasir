@@ -45,37 +45,36 @@ const TableItem = ({ table, aggregationData, analysisResultId, onDelete, onUpdat
   const tableConfig: TableConfig = table.tableConfig;
 
   // Handle data availability check
-  const hasData = aggregationData && aggregationData.data.outputData.data && Object.keys(aggregationData.data.outputData.data).length > 0;
+  const hasData = aggregationData && aggregationData.data.outputData.data && aggregationData.data.outputData.data.length > 0;
   
   if (!hasData) {
     return (
-      <div className="w-full h-32 flex items-center justify-center text-zinc-500 bg-[#1a1625] rounded border border-[#271a30]">
+      <div className="w-full h-32 flex items-center justify-center text-gray-600 bg-gray-100 rounded border border-gray-300">
         No data available for table
       </div>
     );
   }
 
-  const data = aggregationData.data.outputData.data as Record<`${string},${string}`, Array<number | string | boolean | Date | null>>;
+  const columns = aggregationData.data.outputData.data;
 
   // Get available columns from AggregationObjectWithRawData
-  const availableColumns = Object.keys(data).map(key => key.split(',')[0]);
+  const availableColumns = columns.map(col => col.name);
 
   // Prepare table data
   if (!tableConfig.columns || tableConfig.columns.length === 0) return [];
 
   // Get data for each column
   const rows: any[] = [];
-  const firstColumnKey = Object.keys(data).find(key => key.startsWith(tableConfig.columns[0].name + ','));
-  const firstColumnData = firstColumnKey ? data[firstColumnKey as keyof typeof data] || [] : [];
+  const firstColumn = columns.find(col => col.name === tableConfig.columns[0].name);
+  const firstColumnData = firstColumn ? firstColumn.values : [];
   
   // Create rows based on the first column's data length
   for (let i = 0; i < firstColumnData.length; i++) {
     const row: any = {};
     
     tableConfig.columns.forEach(column => {
-      const columnKey = Object.keys(data).find(key => key.startsWith(column.name + ','));
-      const columnData = columnKey ? data[columnKey as keyof typeof data] || [] : [];
-      row[column.name] = columnData[i] || '';
+      const columnData = columns.find(col => col.name === column.name);
+      row[column.name] = columnData ? (columnData.values[i] ?? '') : '';
     });
     
     rows.push(row);
@@ -125,29 +124,29 @@ const TableItem = ({ table, aggregationData, analysisResultId, onDelete, onUpdat
       {/* Table Header */}
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h4 className="text-sm font-medium text-white">{tableConfig.title}</h4>
+          <h4 className="text-sm font-medium text-gray-900">{tableConfig.title}</h4>
           {tableConfig.subtitle && (
-            <p className="text-xs text-zinc-400 mt-1">{tableConfig.subtitle}</p>
+            <p className="text-xs text-gray-600 mt-1">{tableConfig.subtitle}</p>
           )}
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleDownloadExcel}
-            className="p-1 rounded transition-colors text-gray-400 hover:text-gray-200"
+            className="p-1 rounded transition-colors text-gray-600 hover:text-gray-900"
             title="Download as Excel"
           >
             <Download size={14} />
           </button>
           <button
             onClick={() => setIsConfigOpen(true)}
-            className="p-1 rounded transition-colors text-gray-400 hover:text-gray-200"
+            className="p-1 rounded transition-colors text-gray-600 hover:text-gray-900"
             title="Configure table"
           >
             <Settings size={14} />
           </button>
           <button
             onClick={handleDelete}
-            className="p-1 rounded transition-colors text-red-300 hover:text-white"
+            className="p-1 rounded transition-colors text-red-600 hover:text-red-800"
             title="Delete table"
           >
             <Trash2 size={14} />
@@ -156,22 +155,22 @@ const TableItem = ({ table, aggregationData, analysisResultId, onDelete, onUpdat
       </div>
 
       {/* Table */}
-      <div className="bg-[#1a1625] rounded border border-[#271a30] overflow-hidden">
+      <div className="bg-white rounded border border-gray-300 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-[#271a30]">
+              <tr className="bg-gray-100">
                 {tableConfig.showRowNumbers && (
-                  <th className="px-3 py-2 text-left text-xs font-medium text-zinc-300 border-r border-[#3a2a4a]">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 border-r border-gray-300">
                     #
                   </th>
                 )}
                 {tableConfig.columns.map((column, index) => (
-                  <th key={index} className="px-3 py-2 text-left text-xs font-medium text-zinc-300 border-r border-[#3a2a4a] last:border-r-0">
+                  <th key={index} className="px-3 py-2 text-left text-xs font-medium text-gray-700 border-r border-gray-300 last:border-r-0">
                     <div className="flex flex-col">
                       <span>{column.name}</span>
                       {column.unit && (
-                        <span className="text-xs text-zinc-500">({column.unit})</span>
+                        <span className="text-xs text-gray-600">({column.unit})</span>
                       )}
                     </div>
                   </th>
@@ -180,14 +179,14 @@ const TableItem = ({ table, aggregationData, analysisResultId, onDelete, onUpdat
             </thead>
             <tbody>
               {tableData.map((row, rowIndex) => (
-                <tr key={rowIndex} className="border-b border-[#3a2a4a] last:border-b-0 hover:bg-[#2a1a3a] transition-colors">
+                <tr key={rowIndex} className="border-b border-gray-300 last:border-b-0 hover:bg-gray-50 transition-colors">
                   {tableConfig.showRowNumbers && (
-                    <td className="px-3 py-2 text-xs text-zinc-400 border-r border-[#3a2a4a]">
+                    <td className="px-3 py-2 text-xs text-gray-600 border-r border-gray-300">
                       {rowIndex + 1}
                     </td>
                   )}
                   {tableConfig.columns.map((column, index) => (
-                    <td key={index} className="px-3 py-2 text-xs text-white border-r border-[#3a2a4a] last:border-r-0">
+                    <td key={index} className="px-3 py-2 text-xs text-gray-900 border-r border-gray-300 last:border-r-0">
                       {formatNumberWithSignificantDigits(row[column.name], column.numberOfSignificantDigits || null)}
                     </td>
                   ))}
@@ -198,7 +197,7 @@ const TableItem = ({ table, aggregationData, analysisResultId, onDelete, onUpdat
         </div>
         
         {/* Table Footer */}
-        <div className="px-3 py-2 bg-[#271a30] text-xs text-zinc-400 border-t border-[#3a2a4a]">
+        <div className="px-3 py-2 bg-gray-100 text-xs text-gray-600 border-t border-gray-300">
           Showing {tableData.length} rows
           {tableConfig.maxRows && ` (limited to ${tableConfig.maxRows})`}
           {tableConfig.sortBy && tableConfig.sortOrder && ` • Sorted by ${tableConfig.sortBy} (${tableConfig.sortOrder})`}
@@ -217,15 +216,15 @@ const TableItem = ({ table, aggregationData, analysisResultId, onDelete, onUpdat
       {/* Delete Confirmation Popup */}
       {showDeleteConfirmation && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#0a101c] rounded-lg p-6 w-96 max-w-[95vw] border border-[#271a30]">
-            <h3 className="text-lg font-semibold text-white mb-4">Delete Table</h3>
-            <p className="text-sm text-zinc-300 mb-6">
+          <div className="bg-white rounded-lg p-6 w-96 max-w-[95vw] border border-gray-300">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Delete Table</h3>
+            <p className="text-sm text-gray-700 mb-6">
               Are you sure you want to delete this table? This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={cancelDelete}
-                className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
               >
                 Cancel
               </button>

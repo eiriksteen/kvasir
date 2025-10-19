@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 from typing import Optional, Dict, Any, Literal, Tuple, List
 
@@ -41,8 +41,14 @@ class DataObject(BaseSchema):
     features: Dict[str, Feature]
 
 
+# description is included since an agent needs to know the json schema of the AggregationOutput (see prompt.py under analysis)
+class Column(BaseSchema):
+    name: str = Field(description="The name of the column.")
+    value_type: Literal["float", "int", "str", "bool", "datetime", "timedelta", "None"] = Field(description="The type of the column. Should be one of the following: float, int, str, bool, datetime, timedelta, None.")
+    values: List[float | int | str | bool | datetime | timedelta | None] = Field(description="The actual raw values stored in the the column.")
+
 class RawDataStructure(BaseSchema):
-    data: Dict[Tuple[str, str], List[float | int | str | bool | datetime | timedelta | None]]  # (column_name, data_type) -> [values]
+    data: List[Column]
 
 class AggregationOutput(BaseSchema):
     output_data: RawDataStructure

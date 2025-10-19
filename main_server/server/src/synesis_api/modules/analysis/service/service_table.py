@@ -16,21 +16,21 @@ async def get_table_by_id(table_id: uuid.UUID) -> BaseTable | None:
 
 async def create_table(table_create: TableCreate) -> BaseTable:
     table_id = uuid.uuid4()
-    table = BaseTable(
+    table_in_db = BaseTable(
         id=table_id,
         **table_create.model_dump()
     )
+    await execute(insert(table).values(**table_in_db.model_dump()), commit_after=True)
 
-    await execute(insert(table).values(**table.model_dump()), commit_after=True)
 
-    table = await get_table_by_id(table_id)
-    return table
+    table_in_db = await get_table_by_id(table_id)
+    return table_in_db
 
 async def update_table(table_update: TableUpdate) -> BaseTable:
     await execute(update(table).where(table.c.id == table_update.id).values(**table_update.model_dump()), commit_after=True)
 
-    table = await get_table_by_id(table_update.id)
-    return table
+    table_in_db = await get_table_by_id(table_update.id)
+    return table_in_db
 
 async def delete_table(table_id: uuid.UUID) -> None:
     await execute(delete(table).where(table.c.id == table_id), commit_after=True)

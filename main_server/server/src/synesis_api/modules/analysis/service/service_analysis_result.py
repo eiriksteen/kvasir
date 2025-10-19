@@ -11,6 +11,7 @@ from synesis_api.modules.analysis.models import (
     notebook_section,
     analysis_result_data_source,
 )
+from synesis_api.modules.data_objects.models import aggregation_object
 from synesis_api.modules.analysis.models import plot
 from synesis_api.modules.analysis.models import table
 from synesis_schemas.main_server import (
@@ -167,6 +168,10 @@ async def delete_analysis_result(analysis_result_id: uuid.UUID) -> None:
         delete(table).where(table.c.analysis_result_id == analysis_result_id),
         commit_after=True
     )
+    await execute(
+        delete(aggregation_object).where(aggregation_object.c.analysis_result_id == analysis_result_id),
+        commit_after=True
+    )
     
     await execute(
         delete(analysis_result).where(analysis_result.c.id == analysis_result_id),
@@ -265,16 +270,5 @@ async def update_analysis_result(analysis_result_arg: AnalysisResult) -> Analysi
                     commit_after=True
                 )
     
-    return analysis_result
+    return analysis_result_arg
 
-
-
-async def update_analysis_result_by_id(analysis_result_id: uuid.UUID, analysis_result_update: AnalysisResultUpdate) -> AnalysisResultInDB:
-    await execute(
-        update(analysis_result).where(analysis_result.c.id == analysis_result_id).values(
-            **analysis_result_update.model_dump()
-        ),
-        commit_after=True
-    )
-    result = await get_analysis_result_by_id(analysis_result_id)
-    return result

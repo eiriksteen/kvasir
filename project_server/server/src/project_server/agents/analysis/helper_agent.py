@@ -1,26 +1,25 @@
-import uuid
 import re
-from pathlib import Path
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.settings import ModelSettings
 from dataclasses import dataclass
+from typing import List, Tuple
+import uuid
 
-
-from project_server.utils import run_python_code_in_container, copy_file_or_directory_to_container
+from project_server.utils import run_python_function_in_container
 from project_server.agents.analysis.prompt import ANALYSIS_HELPER_SYSTEM_PROMPT
-from project_server.app_secrets import RAW_DATA_DIR, INTEGRATED_DATA_DIR
 from project_server.utils.pydanticai_utils import get_model
+from synesis_schemas.main_server import Dataset, DataSourceFull
+from project_server.app_secrets import ANALYSIS_DIR
 
 model = get_model()
 
 @dataclass
 class HelperAgentDeps:
-    user_id: str
-    dataset_ids: list[uuid.UUID]
-    group_ids: list[uuid.UUID]
-    second_level_structure_ids: list[str]
-    data_source_ids: list[uuid.UUID]
-    data_source_names: list[str]
+    datasets: List[Dataset]
+    data_sources: List[DataSourceFull]
+    bearer_token: str
+    analysis_object_id: uuid.UUID
+    analysis_result_id: uuid.UUID
 
 analysis_helper_agent = Agent(
     model,
@@ -31,7 +30,7 @@ analysis_helper_agent = Agent(
     deps_type=HelperAgentDeps
 )
 
-@analysis_helper_agent.tool
+@analysis_helper_agent.tool()
 async def run_python_code(ctx: RunContext[HelperAgentDeps], python_code: str, output_variable: str) -> str:
     """
     Run python code in a container and return the output.
@@ -42,34 +41,6 @@ async def run_python_code(ctx: RunContext[HelperAgentDeps], python_code: str, ou
     Returns:
         The output of the python code.
     """
-    if len(ctx.deps.dataset_ids) > 0:
-        for idx, (dataset_id, group_id, second_level_structure_id) in enumerate(zip(ctx.deps.dataset_ids, ctx.deps.group_ids, ctx.deps.second_level_structure_ids)):
-            file_path = INTEGRATED_DATA_DIR / \
-                f"{ctx.deps.user_id}" / \
-                f"{dataset_id}" / \
-                f"{group_id}" / \
-                f"{second_level_structure_id}.parquet"
-
-            container_save_path = Path("/tmp") / f"dataset_{idx}.parquet"
-
-            out, err = await copy_file_or_directory_to_container(file_path, container_save_path)
-            if err:
-                raise ValueError(f"Error copying file to container: {err}")
-
-    if len(ctx.deps.data_source_ids) > 0:
-        for idx, (datasource_id, datasource_name) in enumerate(zip(ctx.deps.data_source_ids, ctx.deps.data_source_names)):
-            file_path = RAW_DATA_DIR / \
-                f"{ctx.deps.user_id}" / \
-                f"{datasource_id}" / \
-                f"{datasource_name}"
-
-
-            container_save_path = Path("/tmp") / f"data_source_{idx}.csv"
-
-            out, err = await copy_file_or_directory_to_container(file_path, container_save_path)
-            if err:
-                raise ValueError(f"Error copying file to container: {err}")
-    
     python_code = re.sub(r'\s*print\((.*?)\)\s*\n?', '', python_code)
 
     python_code = python_code + f"""\n
@@ -84,10 +55,42 @@ elif isinstance({output_variable}, pd.DataFrame) or isinstance({output_variable}
         print({output_variable})
 else:
     print("Not a DataFrame or Series")
-from pathlib import Path
-Path("{container_save_path}").unlink()
 """
-    stdout, stderr = await run_python_code_in_container(python_code)
-    if stderr:
-        return f"You got the following error: {stderr}"
-    return stdout
+    out, err = await _save_data_to_analysis_dir(python_code, output_variable, ctx.deps.analysis_object_id, ctx.deps.analysis_result_id, ctx.deps.bearer_token)
+    
+    
+    if err:
+        return f"You got the following error: {err}"
+
+    return out
+
+async def _save_data_to_analysis_dir(
+    python_code: str,
+    output_variable: str,
+    analysis_object_id: uuid.UUID,
+    analysis_result_id: uuid.UUID,
+    bearer_token: str,
+) -> Tuple[str, str]:
+
+    assert output_variable in python_code, "output_variable must be in the code"
+
+    out, err = await run_python_function_in_container(
+        base_script=(
+            f"{python_code}\n\n" +
+            "from project_server.entity_manager import LocalDatasetManager\n\n" +
+            "from uuid import UUID\n\n" +
+            f"dataset_manager = LocalDatasetManager('{bearer_token}')"
+        ),
+        function_name="dataset_manager.upload_analysis_output_to_analysis_dir",
+        input_variables=[
+            f"analysis_object_id='{analysis_object_id}'",
+            f"analysis_result_id='{analysis_result_id}'",
+            f"output_data={output_variable}",
+        ],
+        print_output=False,
+        async_function=True
+    )
+
+    return out, err
+
+    

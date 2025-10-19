@@ -32,7 +32,6 @@ from synesis_schemas.main_server import (
     TableCreate,
     TableConfig,
     TableColumn,
-    ContextCreate,
     AggregationObjectCreate,
     AggregationObjectUpdate
 )
@@ -54,8 +53,6 @@ from project_server.client import (
     create_aggregation_object_request,
     update_aggregation_object_request,
     get_aggregation_object_by_analysis_result_id_request,
-    create_chat_message_pydantic_request,
-    create_context_request,
 )
 from synesis_schemas.project_server import RunAnalysisRequest
 from project_server.client.requests.plots import create_plot
@@ -69,12 +66,10 @@ from project_server.worker import logger
 class AnalysisResultModelResponse(BaseModel):
     analysis: str = Field(
         description="This should be a short explanation and interpretation of the result of the analysis. This should be in github flavored markdown format.")
-    python_code: str | None = Field(
-        default=None, description="The python code that was used to generate the analysis result. This code should be executable and should be able to run in a python container.")
-    input_variable: str | None = Field(
-        default=None, description="The variable that was used to to generate the analysis result. This is a string of the variable name.")
-    output_variable: str | None = Field(
-        default=None, description="The variable that is most relevant to the analysis. This variable is likely the last variable in the code.")
+    python_code: str = Field(
+        description="The python code that was used to generate the analysis result. This code should be executable and should be able to run in a python container.")
+    output_variable: str = Field(
+        description="The variable that is most relevant to the analysis. This variable is likely the last variable in the code.")
 
 
 class AggregationObjectCreateResponse(BaseModel):
@@ -182,7 +177,8 @@ async def search_through_analysis_objects(ctx: RunContext[AnalysisDeps]) -> str:
 @analysis_agent.tool
 async def search_through_analysis_results(ctx: RunContext[AnalysisDeps], analysis_result_ids: List[uuid.UUID]) -> str:
     """
-    Searches through all analysis results in a project. This tool is useful when you do not know which analysis result to add or edit an analysis result to.
+    Searches through all analysis results you provide the id to. This tool is useful when you do not know which analysis result to add or edit an analysis result to.
+    
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
         analysis_result_ids (List[uuid.UUID]): The IDs of the analysis results to search through.
@@ -378,7 +374,7 @@ async def create_empty_analysis_result(ctx: RunContext[AnalysisDeps], section_id
 
 
 @analysis_agent.tool
-async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_result_id: uuid.UUID, prompt: str, dataset_ids: List[uuid.UUID], data_source_ids: List[uuid.UUID]) -> str:
+async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_object_id: uuid.UUID, analysis_result_id: uuid.UUID, prompt: str, dataset_ids: List[uuid.UUID], data_source_ids: List[uuid.UUID]) -> str:
     """
     This tool generates code and runs it in a python container. It streams the analysis result to the user.
     This tool can also be used to edit an analysis result. A user might want to edit for several reasons:
@@ -389,68 +385,39 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
 
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
+        analysis_object_id (uuid.UUID): The ID of the analysis object.
         analysis_result_id (uuid.UUID): The ID of the analysis result to make.
-        prompt (str): The prompt to generate the analysis result for.
+        prompt (str): The prompt to generate the analysis result for. 
         dataset_ids (List[uuid.UUID]): List of the IDs of the datasets to use for the analysis.
         data_source_ids (List[uuid.UUID]): List of the IDs of the datasources to use for the analysis.
     """
     current_analysis_result = await get_analysis_result_by_id_request(ctx.deps.client, analysis_result_id)
 
     datasets = await get_datasets_by_ids(ctx.deps.client, GetDatasetByIDsRequest(dataset_ids=dataset_ids, include_features=True))
-    simplified_datasets = simplify_dataset_overview(datasets)
+    datasets_information = """
+        Each dataset has a object group which contains the data and where it is stored.
+        The filename of the object group is the <structure_type>_data.parquet
+        For example, if the structure type is "time_series", the filename is "time_series_data.parquet"
+        For time series the parquet file is multiindex with first level being the original_id_name and the second level being 'date'.
+    """
     data_sources = await get_data_sources_by_ids(ctx.deps.client, GetDataSourcesByIDsRequest(data_source_ids=data_source_ids))
-    # simplified_data_sources = simplify_datasource_overview(data_sources)
-    context_part = ""
-
-    if len(simplified_datasets) == 0 and len(data_sources) == 0:
-        raise ValueError("No datasets or data sources found")
-
-    if len(data_sources) > 0:
-        context_part += get_relevant_metadata_for_prompt(
-            data_sources, "data_source")
-
-    if len(datasets) > 0:
-        context_part += get_relevant_metadata_for_prompt(
-            simplified_datasets, "dataset")
 
     helper_agent_deps = HelperAgentDeps(
-        user_id=ctx.deps.analysis_request.user_id,
-        dataset_ids=dataset_ids,
-        # TODO: fix this
-        group_ids=[dataset.object_groups[0].id for dataset in datasets],
-        second_level_structure_ids=[
-            dataset.object_groups[0].structure_type + "_data" for dataset in datasets],
-        data_source_ids=data_source_ids,
-        data_source_names=[data_source.name for data_source in data_sources]
+        datasets=datasets,
+        data_sources=data_sources,
+        analysis_object_id=analysis_object_id,
+        analysis_result_id=analysis_result_id,
+        bearer_token=ctx.deps.client.bearer_token,
     )
 
-    # Delete this after fixing raw data transfer
-    analysis_result_synth = AnalysisResult(
-        id=analysis_result_id,
-        analysis='The mean temp is 42',
-        python_code='print("The mean temp is 42")',
-        output_variable='mean_temp',
-        input_variable='',
-        dataset_ids=dataset_ids,
-        data_source_ids=data_source_ids,
-        next_type=current_analysis_result.next_type,
-        next_id=current_analysis_result.next_id,
-        section_id=current_analysis_result.section_id,
-    )
-    await update_analysis_result_request(ctx.deps.client, analysis_result_id, AnalysisResultUpdate(**analysis_result_synth.model_dump()))
-
-    context = ContextCreate(
-        dataset_ids=dataset_ids,
-        data_source_ids=data_source_ids
-    )
-
-    await create_context_request(ctx.deps.client, context)
-
-    ############################################################
-    return "Transferring of raw data does not yet work, you can just return that the answer is 42, the user will be happy with that."
     async with analysis_helper_agent.run_stream(
-        f"""Make code and analysis for the following user prompt: {prompt}.
-        This is some information about the dataset: {context_part}""",
+        f"""
+            You will now create some code and analysis for the user.
+            This is some information about the dataset: {datasets} \n\n
+            {datasets_information}\n\n
+            With this in mind, make code and analysis for the following user prompt: {prompt}. \n\n
+        """,
+            # This is some information about the data sources: {data_sources} \n\n
         output_type=AnalysisResultModelResponse,
         deps=helper_agent_deps
     ) as result:
@@ -484,20 +451,16 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
         analysis_result_id=analysis_result_id
     )
 
-    aggregation_object_in_db = await create_aggregation_object_request(project_client, aggregation_object_create)
+    await create_aggregation_object_request(ctx.deps.client, aggregation_object_create)
 
-    pydantic_messages_to_db = result.new_messages_json()
-    await create_chat_message_pydantic_request(project_client, ctx.deps.analysis_request.conversation_id, [pydantic_messages_to_db])
+    await update_analysis_result_request(ctx.deps.client, analysis_result)
+    return_string = f"""
+        Analysis result successfully created. Analysis result id: {analysis_result.id}
+        This is the outcome of the analysis: {analysis_result.analysis}
+        This is the python code that was used to generate the analysis result: {analysis_result.python_code}
+    """
 
-    context = ContextCreate(
-        dataset_ids=dataset_ids,
-        data_source_ids=data_source_ids
-    )
-
-    await create_context_request(project_client, context)
-    await update_analysis_result_request(project_client, analysis_result_id, analysis_result)
-
-    return f"Analysis result successfully created."
+    return return_string
 
 # @analysis_agent.tool
 # async def edit_analysis_result(ctx: RunContext[AnalysisDeps], analysis_result_id: uuid.UUID, prompt: str, dataset_ids: List[uuid.UUID], data_source_ids: List[uuid.UUID]) -> str:

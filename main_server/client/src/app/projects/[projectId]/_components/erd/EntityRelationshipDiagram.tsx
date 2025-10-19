@@ -321,8 +321,14 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       .filter(Boolean) as Edge[];
 
     const datasetsToAnalysesEdges = projectGraph?.analyses
-      .flatMap(analysis =>
-        analysis.fromDatasets.map(datasetId => {
+      .flatMap(analysis => {
+        // Track which dataset IDs we've already processed for this analysis
+        const processedDatasetIds = new Set<string>();
+        
+        return analysis.fromDatasets.map(datasetId => {
+          if (processedDatasetIds.has(datasetId)) return null;
+          processedDatasetIds.add(datasetId);
+          
           const sourceNode = frontendNodes.find(fn => fn.datasetId === datasetId);
           const targetNode = frontendNodes.find(fn => fn.analysisId === analysis.id);
           if (!sourceNode?.id || !targetNode?.id) return null;
@@ -338,8 +344,8 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
             sourceHandle: edgeLocation.from,
             targetHandle: edgeLocation.to,
           } as Edge;
-        })
-      )
+        });
+      })
       .filter(Boolean) as Edge[];
     
     const dataSourcesToAnalysesEdges = projectGraph?.analyses

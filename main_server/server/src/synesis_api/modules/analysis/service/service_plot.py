@@ -19,17 +19,16 @@ from synesis_schemas.main_server import BasePlot
 
 
 async def create_plot(plot_create: PlotCreate) -> BasePlot:
-    plot = BasePlot(
+    plot_in_db = BasePlot(
         id=uuid.uuid4(),
         **plot_create.model_dump()
     )
-
     await execute(
-        insert(plot).values(**plot.model_dump()),
+        insert(plot).values(**plot_in_db.model_dump()),
         commit_after=True
     )
     
-    return plot
+    return plot_in_db
 
 
 async def get_plot_by_id(plot_id: uuid.UUID) -> Optional[BasePlot]:
@@ -53,8 +52,8 @@ async def get_plots_by_analysis_result_id(analysis_result_id: uuid.UUID) -> List
 
 async def update_plot(plot_id: uuid.UUID, plot_update: PlotUpdate) -> Optional[BasePlot]:
     # Check if plot exists
-    plot = await get_plot_by_id(plot_id)
-    if plot is None:
+    plot_in_db = await get_plot_by_id(plot_id)
+    if plot_in_db is None:
         raise HTTPException(status_code=404, detail="Plot not found")
     
     

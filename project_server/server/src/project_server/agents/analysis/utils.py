@@ -7,7 +7,7 @@ from project_server.redis import get_redis
 from synesis_schemas.main_server import (
     Dataset,
     AnalysisResult,
-    AnalysisStatusMessage
+    AnalysisStatusMessage,
 )
 
 
@@ -34,7 +34,7 @@ def simplify_dataset_overview(datasets: List[Dataset]) -> list[dict]:
     return datasets_overview
 
 
-def get_relevant_metadata_for_prompt(metadata_list: list[dict], datatype: Literal["data_source", "dataset"]) -> str:
+def get_relevant_metadata_for_prompt(metadata_list: List[dict], datatype: Literal["data_source", "dataset"]) -> str:
     context_part = ""
     if datatype == "data_source":
         for idx, metadata_dict in enumerate(metadata_list):
