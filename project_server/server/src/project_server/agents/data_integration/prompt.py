@@ -148,16 +148,9 @@ class ObjectGroupCreateWithRawData:
     data: Union[TimeSeriesStructure, TimeSeriesAggregationStructure]
 
 @dataclass
-class RawVariableCreate:
-    name: str
-    python_type: str
-    description: str
-
-@dataclass
 class VariableGroupCreateWithRawData:
     name: str
     description: str
-    variables: List[RawVariableCreate]
     data: Dict[str, Any]
 
 @dataclass

@@ -33,6 +33,16 @@ export interface RunMessageInDB {
   createdAt: string;
 }
 
+export interface RunCodeMessageInDB {
+  id: UUID;
+  code: string;
+  filename: string;
+  output: string | null;
+  error: string | null;
+  createdAt: string;
+}
+
+
 // API Models
 
 export interface RunEntityIds {

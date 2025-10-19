@@ -10,12 +10,12 @@ interface CustomTabViewProps {
 const TabView: React.FC<CustomTabViewProps> = ({ projectId }) => {
   const { openTabs, activeTabKey, selectTab, closeTabByKey } = useTabContext(projectId);
   
-  const getTabColor = (type: Tab['type']) => {
+  const getTabColor = (type: Tab['type'], isActive: boolean) => {
     switch (type) {
       case 'project':
         return {
-          bg: 'bg-[#1e40af]/10',
-          icon: 'text-[#1e40af]',
+          bg: isActive ? 'bg-[#000034]' : 'bg-gray-200',
+          icon: isActive ? 'text-white' : 'text-[#000034]',
           hover: 'hover:bg-gray-200'
         };
       case 'data_source':
@@ -63,8 +63,8 @@ const TabView: React.FC<CustomTabViewProps> = ({ projectId }) => {
     }
   };
   
-  const getTabIcon = (type: Tab['type']) => {
-    const colors = getTabColor(type);
+  const getTabIcon = (type: Tab['type'], isActive: boolean) => {
+    const colors = getTabColor(type, isActive);
     const iconClass = `${colors.icon}`;
     
     switch (type) {
@@ -88,10 +88,10 @@ const TabView: React.FC<CustomTabViewProps> = ({ projectId }) => {
   };
   
   return (
-    <div className="flex items-center bg-gray-100 border-b border-gray-300 h-9">
+    <div className="flex items-center bg-gray-100 border-b border-t border-gray-400 h-9 mt-12">
       {openTabs.map((tab, index) => {
         const isActive = activeTabKey === tab.key;
-        const colors = getTabColor(tab.type);
+        const colors = getTabColor(tab.type, isActive);
         
         return (
           <React.Fragment key={tab.key}>
@@ -99,18 +99,22 @@ const TabView: React.FC<CustomTabViewProps> = ({ projectId }) => {
               <div className="h-full w-px bg-gray-300" />
             )}
             <div
-              className={`font-mono text-xs flex items-center gap-1.5 px-3 py-2 cursor-pointer h-full ${
+              className={`font-mono text-xs flex items-center ${tab.type !== 'project' ? 'gap-1.5' : ''} px-3 py-3 cursor-pointer h-full ${
                 isActive 
                   ? colors.bg 
                   : colors.hover
               }`}
               onClick={() => selectTab(tab.key)}
             >
-              {getTabIcon(tab.type)}
-              <span className="text-gray-800">{tab.label}</span>
+              {getTabIcon(tab.type, isActive)}
+              <span className={isActive && tab.type === 'project' ? 'text-white' : 'text-gray-800'}>{tab.label}</span>
               {tab.closable !== false && (
                 <button
-                  className="text-gray-500 hover:text-gray-800 focus:outline-none"
+                  className={`focus:outline-none ${
+                    isActive && tab.type === 'project' 
+                      ? 'text-gray-300 hover:text-white' 
+                      : 'text-gray-500 hover:text-gray-800'
+                  }`}
                   onClick={e => {
                     e.stopPropagation();
                     closeTabByKey(tab.key);

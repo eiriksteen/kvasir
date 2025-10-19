@@ -10,7 +10,7 @@ from project_server.worker import broker
 from project_server.agents.swe.runner import SWEAgentRunner
 from project_server.agents.data_source_analysis.prompt import DATA_SOURCE_AGENT_SYSTEM_PROMPT
 from project_server.agents.swe.output import SWEAgentOutput
-from project_server.agents.runner_base import RunnerBase
+from project_server.agents.runner_base import RunnerBase, MessageForLog
 from project_server.client import (
     post_data_source_analysis,
     post_data_source_details,
@@ -64,7 +64,12 @@ class DataSourceAnalysisRunner(RunnerBase):
 
                 if isinstance(run_result.output, CallSWEToImplementFunctionOutput):
 
-                    await self._log_message(f"Calling SWE agent to implement function: {run_result.output}", "result", write_to_db=True)
+                    await self._log_message(MessageForLog(
+                        content=f"Calling SWE agent to implement function: {run_result.output}",
+                        type="result",
+                        write_to_db=1,
+                        target="both"
+                    ))
 
                     deliverable_description = (
                         "I have been tasked to analyze a data source. For context, this is my full task description:\n\n" +
@@ -83,7 +88,12 @@ class DataSourceAnalysisRunner(RunnerBase):
 
                     swe_output = await self.swe_runner(deliverable_description, test_code_to_append_to_implementation)
 
-                    await self._log_message(f"SWE run result: {swe_output}", "result", write_to_db=True)
+                    await self._log_message(MessageForLog(
+                        content=f"SWE run result: {swe_output}",
+                        type="result",
+                        write_to_db=1,
+                        target="both"
+                    ))
 
                     current_prompt = (
                         "The software engineer agent has submitted a solution.\n" +
@@ -97,7 +107,12 @@ class DataSourceAnalysisRunner(RunnerBase):
 
                 run_output = run_result.output
 
-            await self._log_message(f"Data source analysis agent run completed, saving results: {run_output.model_dump()}", "result", write_to_db=True)
+            await self._log_message(MessageForLog(
+                content=f"Data source analysis agent run completed, saving results: {run_output.model_dump()}",
+                type="result",
+                write_to_db=1,
+                target="both"
+            ))
 
             await self._save_results(run_result)
             await self._complete_agent_run("Data source analysis agent run completed")

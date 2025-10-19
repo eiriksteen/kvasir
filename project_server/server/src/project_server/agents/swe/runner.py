@@ -1,21 +1,19 @@
 import uuid
 import docker
-from typing import Optional, List
+from typing import Optional, List, Callable
 from pathlib import Path
 
 from project_server.agents.swe.agent import swe_agent
 from project_server.agents.swe.output import (
     SWEAgentOutput,
-    PlanningOutput,
     ImplementationOutputFull,
     # SetupAgentOutputWithScript,
     # submit_setup_output,
-    submit_implementation_output,
-    ConfigOutput
+    submit_implementation_output
 )
-from project_server.agents.swe.deps import SWEAgentDeps, FunctionToInject, ModelToInject
+from project_server.agents.swe.deps import SWEAgentDeps, FunctionInjected, ModelInjected
 from project_server.utils.code_utils import run_shell_code_in_container, add_line_numbers_to_script
-from project_server.agents.runner_base import RunnerBase
+from project_server.agents.runner_base import RunnerBase, MessageForLog
 from project_server.entity_manager import file_manager
 
 
@@ -34,8 +32,8 @@ class SWEAgentRunner(RunnerBase):
             log: bool = False,
             structure_ids_to_inject: Optional[List[str]] = None,
             inject_synthetic_data_descriptions: bool = False,
-            functions_to_inject: Optional[List[FunctionToInject]] = None,
-            models_to_inject: Optional[List[ModelToInject]] = None
+            functions_to_inject: Optional[List[FunctionInjected]] = None,
+            models_to_inject: Optional[List[ModelInjected]] = None,
     ):
 
         super().__init__(
@@ -49,9 +47,7 @@ class SWEAgentRunner(RunnerBase):
             log_to_parent_run=log_to_parent_run
         )
 
-        self.plan_result = None
         self.setup_result = None
-        self.config_result = None
         self.implementation_result = None
         self.container = None
         self.log = log
@@ -70,7 +66,17 @@ class SWEAgentRunner(RunnerBase):
         self.docker_client = docker.from_env()
         # Slightly annoying that we set it here, but the state of the deps must be maintained across calls,
         # and the agent changes variables during tool calls which should be maintained
-        self.deps = self._prepare_deps()
+        self.deps = SWEAgentDeps(
+            cwd=str(self.container_cwd),
+            container_name=self.container_name,
+            test_code_to_append_to_implementation=None,
+            structure_ids_to_inject=self.structure_ids_to_inject,
+            inject_synthetic_data_descriptions=self.inject_synthetic_data_descriptions,
+            client=self.project_client,
+            log_code=self._log_code,
+        )
+
+        self._inject_functions_and_models()
 
     async def __call__(
         self,
@@ -85,7 +91,7 @@ class SWEAgentRunner(RunnerBase):
 
             swe_prompt = (
                 f"Your instruction is:\n\n'{prompt_content}'\n\n" +
-                "Now choose your action. Create an implementation plan, write the setup script, write the config script, or the final implementation. " +
+                "Now choose your action. Write the setup script or the final implementation. " +
                 "In case you have been provided feedback, choose your action based on it. Only redo the steps deemed necessary by the feedback. " +
                 "NB: The setup script must be written and completed before the final implementation." +
                 ""
@@ -98,42 +104,24 @@ class SWEAgentRunner(RunnerBase):
                 run_result = await self._run_agent(
                     swe_prompt,
                     output_type=[
-                        PlanningOutput,
                         # TODO: Add setup, will need to spin up extra container in this case
                         # submit_setup_output,
-                        ConfigOutput,
                         submit_implementation_output
                     ],
                     deps=self.deps
                 )
 
-                if isinstance(run_result.output, PlanningOutput):
-                    self.plan_result = run_result.output
-                    if self.log:
-                        await self._log_message("Plan complete", "result")
-                        await self._log_message(f"Plan result: {self.plan_result}", "result", write_to_db=True)
+                # TODO: 'elif isinstance(run_result.output, SetupAgentOutputWithScript):' ...
 
-                # elif isinstance(run_result.output, SetupAgentOutputWithScript):
-                #     self.setup_result = run_result.output
-                #     await self._install_python_version(run_result.output.python_version)
-                #     await self._run_setup_script(run_result.output.script)
-                #     if self.log:
-                #         await self._log_message_to_redis("Setup complete", "result")
-                #         logger.info(f"Setup result: {self.setup_result}")
-
-                elif isinstance(run_result.output, ConfigOutput):
-                    self.config_result = run_result.output
-                    if self.log:
-                        await self._log_message("Config complete", "result")
-                        await self._log_message(f"Config result: {self.config_result}", "result", write_to_db=True)
-
-                elif isinstance(run_result.output, ImplementationOutputFull):
+                if isinstance(run_result.output, ImplementationOutputFull):
                     self.implementation_result = run_result.output
 
                     if self.log:
-                        await self._log_message(
-                            "Implementation complete", "result")
-                        await self._log_message(f"Implementation result: {self.implementation_result}", "result", write_to_db=True)
+                        await self._log_message(MessageForLog(
+                            content=f"Implementation result: {self.implementation_result.model_dump_json()}",
+                            type="result",
+                            write_to_db=1
+                        ))
 
                 else:
                     raise RuntimeError(
@@ -144,9 +132,7 @@ class SWEAgentRunner(RunnerBase):
             await self._complete_agent_run("SWE agent run completed")
 
             return SWEAgentOutput(
-                plan=self.plan_result if self.plan_result else None,
                 setup=self.setup_result if self.setup_result else None,
-                config=self.config_result if self.config_result else None,
                 implementation=self.implementation_result,
             )
 
@@ -160,15 +146,18 @@ class SWEAgentRunner(RunnerBase):
             raise e
 
     def get_final_output(self) -> SWEAgentOutput:
+        self.delete_temporary_scripts()
         implementation_output = self.implementation_result
-        implementation_output.main_script = file_manager.clean_temporary_script(
-            implementation_output.main_script)
+        implementation_output.main_script.script = file_manager.clean_temporary_script(
+            implementation_output.main_script.script)
 
         for new_script in implementation_output.new_scripts:
             new_script.script = file_manager.clean_temporary_script(
                 new_script.script)
 
         for modified_script in implementation_output.modified_scripts:
+            modified_script.original_script = file_manager.clean_temporary_script(
+                modified_script.original_script)
             modified_script.new_script = file_manager.clean_temporary_script(
                 modified_script.new_script)
 
@@ -177,8 +166,6 @@ class SWEAgentRunner(RunnerBase):
         return SWEAgentOutput(
             implementation=implementation_output,
             setup=self.setup_result if self.setup_result else None,
-            config=self.config_result if self.config_result else None,
-            plan=self.plan_result if self.plan_result else None
         )
 
     def delete_temporary_scripts(self) -> None:
@@ -189,21 +176,9 @@ class SWEAgentRunner(RunnerBase):
         for filename in list(self.deps.modified_scripts_old_to_new_name.keys()):
             file_manager.delete_temporary_script(filename)
 
-    def _prepare_deps(self) -> SWEAgentDeps:
+    def _inject_functions_and_models(self) -> SWEAgentDeps:
 
-        deps = SWEAgentDeps(
-            cwd=str(self.container_cwd),
-            container_name=self.container_name,
-            test_code_to_append_to_implementation=None,
-            structure_ids_to_inject=self.structure_ids_to_inject,
-            inject_synthetic_data_descriptions=self.inject_synthetic_data_descriptions,
-            log=self.log,
-            client=self.project_client,
-            modified_scripts_old_to_new_name={},
-            input_scripts={},
-            current_scripts={},
-            new_scripts=set(),
-        )
+        current_scripts = {}
 
         if self.functions_to_inject:
             assert len(self.functions_to_inject) == len(set(
@@ -217,19 +192,17 @@ class SWEAgentRunner(RunnerBase):
                 function_storage = file_manager.save_script(
                     function_def.filename, script_content, "function", add_uuid=False, temporary=True)
 
-                functions_injected.append(FunctionToInject(
+                fn = FunctionInjected(
                     filename=function_storage.filename,
                     script_path=function_storage.script_path,
                     docstring=function_def.docstring,
-                    module=function_storage.module_path
-                ))
+                    module_path=function_storage.module_path
+                )
 
-                deps.input_scripts[function_storage.filename] = add_line_numbers_to_script(
-                    script_content)
-                deps.current_scripts[function_storage.filename] = add_line_numbers_to_script(
-                    script_content)
+                functions_injected.append(fn)
+                current_scripts[function_storage.filename] = script_content
 
-            deps.functions_injected = functions_injected
+            self.deps.functions_injected = functions_injected
 
         if self.models_to_inject:
             assert len(self.models_to_inject) == len(set(
@@ -243,23 +216,21 @@ class SWEAgentRunner(RunnerBase):
                 model_storage = file_manager.save_script(
                     model_def.filename, script_content, "model", add_uuid=False, temporary=True)
 
-                models_injected.append(ModelToInject(
+                mdl = ModelInjected(
                     filename=model_storage.filename,
                     script_path=model_storage.script_path,
-                    module=model_storage.module_path,
+                    module_path=model_storage.module_path,
                     model_class_docstring=model_def.model_class_docstring,
                     training_function_docstring=model_def.training_function_docstring,
                     inference_function_docstring=model_def.inference_function_docstring
-                ))
+                )
 
-                deps.input_scripts[model_storage.filename] = add_line_numbers_to_script(
-                    script_content)
-                deps.current_scripts[model_storage.filename] = add_line_numbers_to_script(
-                    script_content)
+                models_injected.append(mdl)
+                current_scripts[model_storage.filename] = script_content
 
-            deps.models_injected = models_injected
+            self.deps.models_injected = models_injected
 
-        return deps
+        self.deps.current_scripts = current_scripts
 
     async def _setup_container(self) -> None:
 
@@ -268,7 +239,11 @@ class SWEAgentRunner(RunnerBase):
 
         if self.create_new_container_on_start:
             if self.log:
-                await self._log_message("Setting up Docker container for SWE agent...", "tool_call")
+                await self._log_message(MessageForLog(
+                    content="Setting up Docker container for SWE agent...",
+                    type="tool_call",
+                    write_to_db=1
+                ))
 
             # Is now sync, blocking the main thread, TODO: Make async
             self.container = self.docker_client.containers.create(
@@ -280,7 +255,11 @@ class SWEAgentRunner(RunnerBase):
             self.new_container_created = True
 
             if self.log:
-                await self._log_message("Docker container started successfully", "result")
+                await self._log_message(MessageForLog(
+                    content="Docker container started successfully",
+                    type="result",
+                    write_to_db=1
+                ))
 
         else:
             try:
@@ -300,12 +279,20 @@ class SWEAgentRunner(RunnerBase):
 
         if err:
             if self.log:
-                await self._log_message(f"Error creating directory: {err}", "result")
+                await self._log_message(MessageForLog(
+                    content=f"Error creating directory: {err}",
+                    type="result",
+                    write_to_db=1
+                ))
             raise RuntimeError(f"Error creating directory: {err}")
 
     async def _install_python_version(self, python_version: str) -> None:
         if self.log:
-            await self._log_message(f"Installing Python version: {python_version}", "tool_call")
+            await self._log_message(MessageForLog(
+                content=f"Installing Python version: {python_version}",
+                type="tool_call",
+                write_to_db=1
+            ))
 
         check_output, _ = await run_shell_code_in_container(
             f"pyenv versions | grep {python_version}",
@@ -320,7 +307,11 @@ class SWEAgentRunner(RunnerBase):
 
             if err:
                 if self.log:
-                    await self._log_message(f"Error installing Python version: {err}", "result")
+                    await self._log_message(MessageForLog(
+                        content=f"Error installing Python version: {err}",
+                        type="result",
+                        write_to_db=1
+                    ))
                 raise RuntimeError(f"Error installing python version: {err}")
 
         out, err = await run_shell_code_in_container(
@@ -330,17 +321,29 @@ class SWEAgentRunner(RunnerBase):
 
         if err:
             if self.log:
-                await self._log_message(f"Error setting global Python version: {err}", "result")
+                await self._log_message(MessageForLog(
+                    content=f"Error setting global Python version: {err}",
+                    type="result",
+                    write_to_db=1
+                ))
             raise RuntimeError(f"Error setting global python version: {err}")
 
         if self.log:
-            await self._log_message(f"Python {python_version} installed and set as global version", "result")
+            await self._log_message(MessageForLog(
+                content=f"Python {python_version} installed and set as global version",
+                type="result",
+                write_to_db=1
+            ))
 
         return out
 
     async def _run_setup_script(self, setup_script: str) -> None:
         if self.log:
-            await self._log_message("Running setup script...", "tool_call")
+            await self._log_message(MessageForLog(
+                content="Running setup script...",
+                type="tool_call",
+                write_to_db=1
+            ))
 
         out, err = await run_shell_code_in_container(
             setup_script,
@@ -350,11 +353,19 @@ class SWEAgentRunner(RunnerBase):
 
         if err:
             if self.log:
-                await self._log_message(f"Error running setup script: {err}", "result")
+                await self._log_message(MessageForLog(
+                    content=f"Error running setup script: {err}",
+                    type="result",
+                    write_to_db=1
+                ))
             raise RuntimeError(f"Error running setup script: {err}")
 
         if self.log:
-            await self._log_message("Setup script run successfully", "result")
+            await self._log_message(MessageForLog(
+                content="Setup script run successfully",
+                type="result",
+                write_to_db=1
+            ))
 
         return out
 

@@ -28,12 +28,14 @@ const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
   // Different styling based on message type
   const getMessageStyles = () => {
       return {
-        container: `max-w-[80%] rounded-2xl px-4 py-3 shadow-md ${
+        container: `max-w-[95%] rounded-2xl px-2 py-1 ${
           message.role === 'user'
-            ? 'text-white rounded-tr-none'
-            : 'bg-white text-gray-800 rounded-tl-none border border-gray-200'
+            ? 'px-3 py-2 rounded-tr-none'
+            : 'px-2 py-1'
         }`,
-        content: `text-xs leading-relaxed ${message.role === 'assistant' ? 'animate-fade-in' : ''}`
+        content: `text-xs leading-relaxed ${
+          message.role === 'user' ? 'text-white' : 'text-gray-800'
+        } ${message.role === 'assistant' ? 'animate-fade-in' : ''}`
       };
 
   };
@@ -47,7 +49,7 @@ const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
       <div className={styles.container} style={message.role === 'user' ? { backgroundColor: '#000034' } : {}}>
 
         {hasContext && (
-          <div className="mb-2 pb-2 border-b border-current/20">
+          <div className="">
             <div className="flex flex-wrap gap-1">
               {/* Datasets */}
               {message.context?.datasetIds?.map((datasetId: string) => (

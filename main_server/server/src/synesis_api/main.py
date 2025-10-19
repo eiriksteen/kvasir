@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from synesis_api.worker import broker
 from contextlib import asynccontextmanager
 
 from synesis_api.auth.router import router as auth_router
@@ -20,9 +19,7 @@ from synesis_api.modules.function.router import router as function_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await broker.startup()
     yield
-    await broker.shutdown()
 
 
 app = FastAPI(

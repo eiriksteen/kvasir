@@ -1,4 +1,4 @@
-import { Run, RunMessageInDB } from "@/types/runs";
+import { Run, RunMessageInDB, RunCodeMessageInDB } from "@/types/runs";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import useSWR, { useSWRConfig } from "swr";
@@ -67,8 +67,15 @@ function createRunMessagesEventSource(token: string, runId: UUID): SSE {
 }
 
 
-
-
+function createRunCodeMessagesEventSource(token: string, runId: UUID): SSE {
+  return new SSE(`${API_URL}/runs/stream-code-messages/${runId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+}
 
 export async function launchRun(token: string, runId: UUID): Promise<Run> {
   const response = await fetch(`${API_URL}/runs/launch-run/${runId}`, {
@@ -90,8 +97,27 @@ export async function launchRun(token: string, runId: UUID): Promise<Run> {
 
 }
 
+async function rejectRun(token: string, runId: UUID): Promise<Run> {
+  const response = await fetch(`${API_URL}/runs/reject-run/${runId}`, {
+    method: "PATCH",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
 
-type runState = "running" | "failed" | "completed" | "paused" | "awaiting_approval" | "";
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to reject run', errorText);
+    throw new Error(`Failed to reject run: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
+
+
+type runState = "running" | "failed" | "completed" | "paused" | "awaiting_approval" | "rejected" | "";
 
 
 const computeRunState = (jobs: {id: string, status: string}[]): runState => {
@@ -101,6 +127,7 @@ const computeRunState = (jobs: {id: string, status: string}[]): runState => {
   if (jobs.some(job => job.status === "awaiting_approval")) return "awaiting_approval";
   if (jobs.some(job => job.status === "failed")) return "failed";
   if (jobs.some(job => job.status === "completed")) return "completed";
+  if (jobs.some(job => job.status === "rejected")) return "rejected";
   return "";
 }
 
@@ -117,7 +144,7 @@ export const useRuns = () => {
     {
       onSuccess: (runs: Run[]) => {
         const newRunState = computeRunState(runs);
-        if (newRunState === "running" || newRunState === "paused" || newRunState === "awaiting_approval") {
+        if (newRunState === "running" || newRunState === "paused" || newRunState === "awaiting_approval" || newRunState === "rejected") {
           mutateRunState(newRunState, {revalidate: false});
         }
       }
@@ -143,6 +170,26 @@ export const useRuns = () => {
       revalidate: false
     }
   )
+
+
+  const { trigger: triggerRejectRun } = useSWRMutation(
+    session ? "runs" : null,
+    (_, { arg }: { arg: {runId: UUID} }) => rejectRun(session ? session.APIToken.accessToken : "", arg.runId),
+    {
+      populateCache: (newRun) => {
+        if (runs) {
+          if (runs.some((run: Run) => run.id === newRun.id)) {
+            return runs.map((run: Run) => run.id === newRun.id ? newRun : run);
+          } else {
+            return [...runs, newRun];
+          }
+        }
+        return [newRun];
+      },
+      revalidate: false
+    }
+  )
+
 
   // This thing will always be running. Do we want to stop it when no runs are active?
   useSWRSubscription(
@@ -200,7 +247,7 @@ export const useRuns = () => {
     }
   )
 
-  return { runs: runs || [], runState, triggerLaunchRun };
+  return { runs: runs || [], runState, triggerLaunchRun, triggerRejectRun };
 };
 
 
@@ -214,15 +261,17 @@ export const useRunsInConversation = (conversationId: string) => {
   return { runsInConversation, triggerLaunchRun }
 }
 
+
 export const useRun = (runId: UUID) => {
-  const { runs, triggerLaunchRun } = useRuns()
+  const { runs, triggerLaunchRun, triggerRejectRun } = useRuns()
 
   const run = useMemo(() => {
     return runs.find((run: Run) => run.id === runId)
   }, [runs, runId])
 
-  return { run, triggerLaunchRun }
+  return { run, triggerLaunchRun, triggerRejectRun }
 }
+
 
 export const useRunMessages = (runId: UUID) => {
   const { data: session } = useSession()
@@ -258,4 +307,42 @@ export const useRunMessages = (runId: UUID) => {
   )
 
   return { runMessages }
+}
+
+const emptyRunCodeMessages: RunCodeMessageInDB[] = [];
+
+export const useRunCodeMessages = (runId: UUID) => {
+  const { data: session } = useSession()
+  const { run } = useRun(runId)
+  const { data: runCodeMessages, mutate: mutateRunCodeMessages } = useSWR(session ? ["runCodeMessages", runId] : null,  {fallbackData: emptyRunCodeMessages})
+
+  useSWRSubscription(
+    session && run ? ["runCodeMessages", runId, run.status] : null,
+    (_, {next}: SWRSubscriptionOptions<Run>) => {
+      if (!run || !runCodeMessages) {
+        return () => {};
+      }
+
+      if (run.status === "running") {
+        const eventSource = createRunCodeMessagesEventSource(session ? session.APIToken.accessToken : "", runId)
+
+        eventSource.onmessage = (ev) => {
+          const streamedMessage: RunCodeMessageInDB = snakeToCamelKeys(JSON.parse(ev.data));
+          next(null, () => {
+            // If the streamedMessage has a filename already in the runCodeMessages, replace it, else add it
+            const updatedRunCodeMessages = runCodeMessages.map((message: RunCodeMessageInDB) => message.filename === streamedMessage.filename ? streamedMessage : message);
+            mutateRunCodeMessages(updatedRunCodeMessages, {revalidate: false});
+            return undefined;
+          })
+        }
+
+        return () => eventSource.close();
+      }
+      else {
+        return () => {};
+      }
+    }
+  )
+
+  return { runCodeMessages }
 }

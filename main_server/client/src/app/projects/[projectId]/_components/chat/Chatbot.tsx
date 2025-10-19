@@ -24,7 +24,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const [isDragging, setIsDragging] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(false);  
 
-  const { submitPrompt, conversation, setProjectConversationId, conversationMessages } = useProjectChat(projectId);
+  const { submitPrompt, conversation, setProjectConversationId, conversationMessages, continueConversation } = useProjectChat(projectId);
 
   const { 
     dataSourcesInContext, 
@@ -47,6 +47,8 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   
   const MIN_WIDTH = 300;
   const MAX_WIDTH = typeof window !== 'undefined' ? window.innerWidth * 0.8 : 800;
+
+  // Continue conversation if job completes or fails
 
 
   useEffect(() => {
@@ -104,11 +106,16 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
     setShowChatHistory(false);
   };
 
+  const handleRunCompleteOrFail = () => {
+    if (!conversation?.id) return;
+    continueConversation(conversation.id);
+  };
+
   const isCollapsed = width <= MIN_WIDTH;
 
   return (
     <div
-      className="absolute right-0 h-screen text-gray-800 flex flex-col bg-gray-100 pt-12 border-l border-gray-200"
+      className="absolute right-0 h-screen text-gray-800 flex flex-col bg-gray-100 border-l border-gray-200 pt-12"
       style={{ width: `${width}px` }}
     >
       {/* Drag handle */}
@@ -122,9 +129,9 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
       {!isCollapsed && (
         <>
           {/* Header with history button */}
-          <div className="border-b border-gray-400 p-3 flex justify-between items-center relative bg-gray-100">
-            <div className="flex-1 pl-1">
-              <h3 className="text-sm font-medium text-gray-900 animate-fade-in">
+          <div className="border-b border-t border-gray-400 h-9 flex justify-between items-center relative bg-gray-100 px-3">
+            <div className="flex-1">
+              <h3 className="text-xs font-mono text-gray-900 animate-fade-in">
                 {conversation?.name || "Chat"}
               </h3>
             </div>
@@ -155,12 +162,9 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
           </div>
 
           {/* Combined context bar */}
-          <div className="border-b border-gray-400 p-3 bg-gray-100">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-sm pl-1 pt-1 font-medium text-gray-900">Context</h3>
-              <h3 className="text-sm pl-1 pt-1 font-normal text-gray-600">Select items from the left panel</h3>
-            </div>
-            <div className="flex flex-wrap gap-2">
+          <div className="border-b border-gray-400 bg-gray-100 h-9 flex items-center px-3 gap-3">
+            <h3 className="text-xs font-mono text-gray-900 whitespace-nowrap">Context</h3>
+            <div className="flex flex-wrap gap-2 flex-1 overflow-hidden">
                 <>
                   {/* Data Sources */}
                   {dataSourcesInContext.map((dataSource: DataSource) => (
@@ -250,7 +254,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
           {/* Messages container */}
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-4 pb-24 scrollbar-thin scrollbar-thumb-gray-700"
+            className="flex-1 overflow-y-auto px-3 py-3 pb-24 scrollbar-thin scrollbar-thumb-gray-700"
             style={{ scrollBehavior: 'smooth' }}
           >
             {conversationMessages.length === 0 && runsInConversation.length === 0 && (
@@ -285,7 +289,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                 if (timelineItem.type === 'message') {
                   return <ChatMessageBox key={`msg-${timelineItem.item.id}`} message={timelineItem.item} projectId={projectId} />;
                 } else {
-                  return <RunBox key={`run-${timelineItem.item.id}`} runId={timelineItem.item.id} projectId={projectId} />;
+                  return <RunBox key={`run-${timelineItem.item.id}`} runId={timelineItem.item.id} projectId={projectId} onRunCompleteOrFail={handleRunCompleteOrFail}/>;
                 }
               });
             })()}

@@ -29,6 +29,7 @@ export type Prompt = {
     conversationId: UUID;
     context: Context | null;
     content: string;
+    saveToDb: boolean;
 }
 
 

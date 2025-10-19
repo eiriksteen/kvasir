@@ -1,8 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { UUID } from 'crypto';
 import { usePipeline } from '@/hooks/usePipelines';
-import { X, GitMerge, Clock, ArrowDown, Database, Zap, SquarePlay, Play } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+import { GitMerge, Clock, ArrowDown, Database, Zap, SquarePlay, ChevronDown, ChevronRight, FileCode } from 'lucide-react';
 import { Pipeline } from '@/types/pipeline';
 
 interface PipelineInfoModalProps {
@@ -83,12 +82,15 @@ function FunctionChainFlow({ pipeline }: FunctionChainFlowProps) {
   );
 }
 
+type SectionType = 'code' | 'runs' | 'schedule';
+
 export default function PipelineInfoModal({ 
   pipelineId,
   onClose
 }: PipelineInfoModalProps) {
 
   const { pipeline } = usePipeline(pipelineId);
+  const [openSections, setOpenSections] = useState<Set<SectionType>>(new Set());
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -112,6 +114,18 @@ export default function PipelineInfoModal({
     return () => document.removeEventListener('keydown', handleEscape, { capture: true });
   }, [onClose]);
 
+  const toggleSection = (section: SectionType) => {
+    setOpenSections(prev => {
+      const newSections = new Set(prev);
+      if (newSections.has(section)) {
+        newSections.delete(section);
+      } else {
+        newSections.add(section);
+      }
+      return newSections;
+    });
+  };
+
   if (!pipeline) {
     return null;
   }
@@ -120,97 +134,136 @@ export default function PipelineInfoModal({
     <div className="w-full h-full bg-white overflow-hidden">
       <div className="bg-white h-full px-0 pb-2 relative">
         <div className="flex flex-col h-full">
-          {/* Header Section */}
-          <div className="relative flex items-center p-6 border-b border-gray-300 flex-shrink-0">
-            <div className="flex-1">
-              <h3 className="text-sm font-mono tracking-wider text-gray-900">
-                {pipeline.name}
-              </h3>
-              {pipeline.description && (
-                <p className="text-xs text-gray-600 mt-1">
-                  {pipeline.description} • Created on {formatDate(pipeline.createdAt)}
-                </p>
-              )}
-            </div>
-
-            <button
-              onClick={() => onClose()}
-              className="text-gray-500 hover:text-gray-700 transition-colors"
-              title="Close tab"
-            >
-              <X size={20} />
-            </button>
-          </div>
-
           {/* Content Section */}
-          <div className="flex-1 min-h-0">
-            <div className="h-full p-4">
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-full">
-                {/* Function Chain Flow */}
-                <div className="lg:col-span-2 flex flex-col space-y-4 overflow-y-auto">
-                  <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-300 rounded-xl p-4 flex flex-col flex-1 min-h-0">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-[#840B08]/20 rounded-lg">
-                        <GitMerge className="w-4 h-4 text-[#840B08]" />
-                      </div>
-                      <h3 className="text-sm font-semibold text-gray-900">Function Chain</h3>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="p-4 space-y-4">
+              {/* Full Width Description */}
+              <div className="p-4 w-full">
+                {pipeline.description ? (
+                  <p className="text-sm text-gray-700">
+                    {pipeline.description}
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-400 italic">No description provided</p>
+                )}
+              </div>
+
+              {/* Two Column Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start h-[70vh]">
+                {/* Left Column: Function Chain (Always Visible) */}
+                <div className="bg-gray-50 rounded-xl p-4 flex flex-col h-full">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-[#840B08]/20 rounded-lg">
+                      <GitMerge className="w-4 h-4 text-[#840B08]" />
                     </div>
-                    <div className="flex-1 min-h-0 overflow-y-auto grid place-items-center">
-                      <FunctionChainFlow pipeline={pipeline} />
-                    </div>
+                    <h3 className="text-sm font-semibold text-gray-900">Function Chain</h3>
+                  </div>
+                  <div className="flex-1 overflow-y-auto grid place-items-center">
+                    <FunctionChainFlow pipeline={pipeline} />
                   </div>
                 </div>
 
-                <div className="lg:col-span-2 flex flex-col space-y-4">
-                  {/* Runs */}
-                  <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-300 rounded-xl p-4 flex flex-col flex-1 min-h-0">
-                    <div className="flex items-center justify-between mb-4">
+                {/* Right Column: Collapsible Sections */}
+                <div className="space-y-2 h-full overflow-y-auto">
+                  {/* Code Section */}
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => toggleSection('code')}
+                      className="w-full px-4 py-3 bg-white hover:bg-gray-50 transition-colors flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-[#840B08]/20 rounded-lg">
+                          <FileCode className="w-4 h-4 text-[#840B08]" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-gray-900">Code</h3>
+                      </div>
+                      {openSections.has('code') ? (
+                        <ChevronDown className="w-5 h-5 text-gray-500" />
+                      ) : (
+                        <ChevronRight className="w-5 h-5 text-gray-500" />
+                      )}
+                    </button>
+                    
+                    {openSections.has('code') && (
+                      <div className="bg-gray-50 border-t border-gray-200 p-4">
+                        <div className="flex flex-col">
+                          <div className="flex-1 flex flex-col items-center justify-center text-center">
+                            <p className="text-sm text-gray-500">Code view coming soon</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Runs Section */}
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => toggleSection('runs')}
+                      className="w-full px-4 py-3 bg-white hover:bg-gray-50 transition-colors flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-[#840B08]/20 rounded-lg">
                           <SquarePlay className="w-4 h-4 text-[#840B08]" />
                         </div>
                         <h3 className="text-sm font-semibold text-gray-900">Runs</h3>
                       </div>
+                      {openSections.has('runs') ? (
+                        <ChevronDown className="w-5 h-5 text-gray-500" />
+                      ) : (
+                        <ChevronRight className="w-5 h-5 text-gray-500" />
+                      )}
+                    </button>
 
-                      {/* Run Pipeline Button */}
-                      <button
-                        onClick={() => {
-                          // TODO: Implement pipeline run functionality
-                        }}
-                        className="px-4 py-2 bg-gradient-to-r from-[#840B08] to-[#840B08]/80 hover:from-[#840B08]/80 hover:to-[#840B08] text-white font-semibold text-sm rounded-lg shadow-lg hover:shadow-[#840B08]/25 transition-all duration-200 flex items-center gap-2"
-                        title="Run pipeline now"
-                      >
-                        <Play className="w-4 h-4" />
-                        Run Pipeline
-                      </button>
-                    </div>
-                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-center">
-                      <p className="text-sm text-gray-500">No runs yet</p>
-                    </div>
+                    {openSections.has('runs') && (
+                      <div className="bg-gray-50 border-t border-gray-200 p-4">
+                        <div className="flex flex-col">
+                          <div className="flex-1 flex flex-col items-center justify-center text-center">
+                            <p className="text-sm text-gray-500">No runs yet</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Run Schedule */}
-                  <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-300 rounded-xl p-4 flex flex-col flex-1 min-h-0">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-[#840B08]/20 rounded-lg">
-                        <Clock className="w-4 h-4 text-[#840B08]" />
-                      </div>
-                      <h3 className="text-sm font-semibold text-gray-900">Run Schedule</h3>
-                    </div>
-                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-center">
-                      {!pipeline.periodicSchedules || pipeline.periodicSchedules.length === 0 ? (
-                        <p className="text-sm text-gray-500">No schedule set</p>
-                      ) : (
-                        <div className="space-y-2 w-full">
-                          {pipeline.periodicSchedules.map((schedule) => (
-                            <div key={schedule.id} className="bg-gray-50 border border-gray-200 rounded-lg p-2">
-                              <p className="text-xs text-gray-600 mb-1">{schedule.scheduleDescription}</p>
-                              <p className="text-xs text-gray-600">Cron: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{schedule.cronExpression}</span></p>
-                            </div>
-                          ))}
+                  {/* Run Schedule Section */}
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => toggleSection('schedule')}
+                      className="w-full px-4 py-3 bg-white hover:bg-gray-50 transition-colors flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-[#840B08]/20 rounded-lg">
+                          <Clock className="w-4 h-4 text-[#840B08]" />
                         </div>
+                        <h3 className="text-sm font-semibold text-gray-900">Run Schedule</h3>
+                      </div>
+                      {openSections.has('schedule') ? (
+                        <ChevronDown className="w-5 h-5 text-gray-500" />
+                      ) : (
+                        <ChevronRight className="w-5 h-5 text-gray-500" />
                       )}
-                    </div>
+                    </button>
+
+                    {openSections.has('schedule') && (
+                      <div className="bg-gray-50 border-t border-gray-200 p-4">
+                        <div className="flex flex-col">
+                          <div className="flex-1 flex flex-col items-center justify-center text-center">
+                            {!pipeline.periodicSchedules || pipeline.periodicSchedules.length === 0 ? (
+                              <p className="text-sm text-gray-500">No schedule set</p>
+                            ) : (
+                              <div className="space-y-2 w-full">
+                                {pipeline.periodicSchedules.map((schedule) => (
+                                  <div key={schedule.id} className="bg-white border border-gray-200 rounded-lg p-3 text-left">
+                                    <p className="text-sm text-gray-700 mb-2 font-medium">{schedule.scheduleDescription}</p>
+                                    <p className="text-xs text-gray-600">Cron: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{schedule.cronExpression}</span></p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

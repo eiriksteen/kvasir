@@ -186,10 +186,12 @@ def add_lines_to_script_at_line(
     script = script.strip()
     script_lines = [line for line in script.splitlines()]
     lines_to_add = [line for line in new_code.splitlines()]
-    start_line = max(0, min(start_line, len(script_lines))-1)
+    # Convert 1-indexed to 0-indexed with bounds checking
+    # Allow appending beyond the end of file
+    start_line_idx = max(0, min(start_line - 1, len(script_lines)))
 
-    updated_lines = script_lines[:start_line] + \
-        lines_to_add + script_lines[start_line:]
+    updated_lines = script_lines[:start_line_idx] + \
+        lines_to_add + script_lines[start_line_idx:]
     updated_script = "\n".join(updated_lines)
 
     if script_has_line_numbers:
@@ -209,36 +211,19 @@ def delete_lines_from_script(
 
     script = script.strip()
     lines = [line for line in script.splitlines()]
-    line_number_start = max(0, min(line_number_start, len(lines))-1)
-    line_number_end = max(line_number_start, min(
-        line_number_end, len(lines) - 1))
+    # Convert 1-indexed to 0-indexed with bounds checking
+    line_number_start_idx = max(0, min(line_number_start - 1, len(lines) - 1))
+    line_number_end_idx = max(line_number_start_idx, min(
+        line_number_end - 1, len(lines) - 1))
 
-    updated_lines = lines[:line_number_start] + lines[line_number_end + 1:]
+    updated_lines = lines[:line_number_start_idx] + \
+        lines[line_number_end_idx + 1:]
     updated_script = "\n".join(updated_lines)
 
     if script_has_line_numbers:
         updated_script = add_line_numbers_to_script(updated_script)
 
     return updated_script
-
-
-def run_pylint(code_string: str) -> str:
-    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".py") as temp_file:
-        temp_file.write(code_string)
-        temp_file_path = temp_file.name
-
-    old_stdout = sys.stdout
-    string_io = StringIO()
-    sys.stdout = string_io
-
-    try:
-        lint.Run([temp_file_path], exit=False)
-        pylint_output = string_io.getvalue()
-    finally:
-        sys.stdout = old_stdout
-        Path(temp_file_path).unlink()
-
-    return pylint_output
 
 
 def remove_print_statements_from_code(code: str) -> str:
@@ -248,61 +233,6 @@ def remove_print_statements_from_code(code: str) -> str:
     cleaned_lines = [line for line in lines if line.strip()]
 
     return '\n'.join(cleaned_lines)
-
-
-def extract_dataclass_definitions(source_code: str) -> List[str]:
-    tree = ast.parse(source_code)
-    dataclass_definitions = []
-
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef):
-            for decorator in node.decorator_list:
-                if isinstance(decorator, ast.Name) and decorator.id == "dataclass":
-                    source_segment = ast.get_source_segment(source_code, node)
-                    if source_segment:
-                        dataclass_definitions.append(source_segment)
-                elif isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Name) and decorator.func.id == "dataclass":
-                    source_segment = ast.get_source_segment(source_code, node)
-                    if source_segment:
-                        dataclass_definitions.append(source_segment)
-
-    return dataclass_definitions
-
-
-def extract_function_definitions(source_code: str) -> List[str]:
-    tree = ast.parse(source_code)
-    function_summaries = []
-
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef):
-            func_name = node.name
-
-            params = []
-            for arg in node.args.args:
-                param_name = arg.arg
-                param_type = ast.unparse(
-                    arg.annotation) if arg.annotation else "Any"
-                params.append(f"{param_name}: {param_type}")
-            for kwarg in node.args.kwonlyargs:
-                param_name = kwarg.arg
-                param_type = ast.unparse(
-                    kwarg.annotation) if kwarg.annotation else "Any"
-                params.append(f"{param_name}: {param_type} (keyword-only)")
-
-            return_type = ast.unparse(node.returns) if node.returns else "Any"
-
-            summary = f"Function: {func_name}\n\n"
-            summary += "  Parameters:\n"
-            if params:
-                for param in params:
-                    summary += f"    - {param}\n"
-            else:
-                summary += "    - None\n"
-            summary += f"\nReturn Type: {return_type}"
-
-            function_summaries.append(summary)
-
-    return function_summaries
 
 
 def get_type_annotation(node) -> str:

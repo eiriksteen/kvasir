@@ -3,6 +3,8 @@ from typing import Optional, Literal, List
 from datetime import datetime
 from uuid import UUID
 
+from .code import ScriptInDB, ScriptCreate
+
 
 # DB models
 
@@ -22,19 +24,17 @@ class FunctionDefinitionInDB(BaseModel):
 class FunctionInDB(BaseModel):
     id: UUID
     version: int
-    filename: str
     python_function_name: str
     definition_id: UUID
     default_args: dict
     args_schema: dict
     output_variables_schema: dict
     newest_update_description: str
-    implementation_script_path: str
-    module_path: str
+    implementation_script_id: UUID
+    setup_script_id: Optional[UUID] = None
     docstring: str
     description: str
     embedding: List[float]
-    setup_script_path: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -73,21 +73,34 @@ class FunctionWithoutEmbedding(BaseModel):
     default_args: dict
     output_variables_schema: dict
     newest_update_description: str
-    filename: str
-    module_path: str
     python_function_name: str
-    implementation_script_path: str
+    implementation_script_id: UUID
+    setup_script_id: Optional[UUID] = None
     docstring: str
     description: str
-    setup_script_path: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
 
-class FunctionFull(FunctionWithoutEmbedding):
+class Function(FunctionWithoutEmbedding):
     definition: FunctionDefinitionInDB
     input_object_groups: List[FunctionInputObjectGroupDefinitionInDB]
     output_object_groups: List[FunctionOutputObjectGroupDefinitionInDB]
+    implementation_script: ScriptInDB
+    setup_script: Optional[ScriptInDB] = None
+
+
+class FunctionDefinitionBare(BaseModel):
+    id: UUID
+    name: str
+
+
+class FunctionBare(BaseModel):
+    id: UUID
+    python_function_name: str
+    docstring: str
+    description: str
+    definition: FunctionDefinitionBare
 
 
 # Create models
@@ -112,12 +125,9 @@ class FunctionCreate(BaseModel):
     python_function_name: str
     docstring: str
     description: str
-    filename: str
-    module_path: str
     args_schema: dict
     default_args: dict
     output_variables_schema: dict
-    implementation_script_path: str
     type: Literal["inference", "training", "computation", "tool"]
     args_dataclass_name: str
     input_dataclass_name: str
@@ -125,22 +135,21 @@ class FunctionCreate(BaseModel):
     output_variables_dataclass_name: str
     input_object_groups: List[FunctionInputObjectGroupDefinitionCreate]
     output_object_group_definitions: List[FunctionOutputObjectGroupDefinitionCreate]
-    setup_script_path: Optional[str] = None
+    implementation_script_create: ScriptCreate
+    setup_script_create: Optional[ScriptCreate] = None
 
 
 class FunctionUpdateCreate(BaseModel):
     definition_id: UUID
-    updated_python_function_name: Optional[str] = None
     updates_made_description: str
+    new_implementation_create: ScriptCreate
+    new_setup_create: Optional[ScriptCreate] = None
+    updated_python_function_name: Optional[str] = None
     updated_description: Optional[str] = None
     updated_docstring: Optional[str] = None
-    updated_setup_script_path: Optional[str] = None
     updated_default_args: Optional[dict] = None
     updated_args_schema: Optional[dict] = None
     updated_output_variables_schema: Optional[dict] = None
-    updated_filename: Optional[str] = None
-    updated_module_path: Optional[str] = None
-    updated_implementation_script_path: Optional[str] = None
     input_object_groups_to_add: Optional[
         List[FunctionInputObjectGroupDefinitionCreate]] = None
     output_object_group_definitions_to_add: Optional[

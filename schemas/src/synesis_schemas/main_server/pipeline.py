@@ -5,6 +5,7 @@ from uuid import UUID
 
 from .function import FunctionWithoutEmbedding
 from .data_objects import ObjectGroup
+from .code import ScriptCreate, ScriptInDB
 
 # DB models
 
@@ -14,14 +15,12 @@ class PipelineInDB(BaseModel):
     user_id: UUID
     name: str
     python_function_name: str
-    filename: str
-    module_path: str
     description: str
     docstring: str
     args: dict
     args_schema: dict
     output_variables_schema: dict
-    implementation_script_path: str
+    implementation_script_id: UUID
     args_dataclass_name: str
     input_dataclass_name: str
     output_dataclass_name: str
@@ -179,6 +178,7 @@ class PipelineFull(PipelineInDB):
     sources: PipelineSources
     input_object_groups: List[ObjectGroup]
     output_object_group_definitions: List[PipelineOutputObjectGroupDefinitionInDB]
+    implementation_script: ScriptInDB
 
 
 class PipelineRunStatusUpdate(BaseModel):
@@ -239,11 +239,8 @@ class PipelineGraphCreate(BaseModel):
 class PipelineCreate(BaseModel):
     name: str
     python_function_name: str
-    filename: str
     docstring: str
-    module_path: str
     description: str
-    implementation_script_path: str
     args_dataclass_name: str
     input_dataclass_name: str
     output_dataclass_name: str
@@ -258,3 +255,4 @@ class PipelineCreate(BaseModel):
     input_model_entities: List[ModelEntityInPipelineCreate]
     input_object_groups: List[ObjectGroupInPipelineCreate]
     output_object_group_definitions: List[PipelineOutputObjectGroupDefinitionCreate]
+    implementation_script_create: ScriptCreate

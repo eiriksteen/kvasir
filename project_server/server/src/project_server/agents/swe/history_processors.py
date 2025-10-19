@@ -1,9 +1,8 @@
 import copy
-from pydantic_ai import RunContext, Agent
-from pydantic_ai.messages import ModelMessage, ModelRequest, ToolCallPart, ToolReturnPart, SystemPromptPart, RetryPromptPart
+from pydantic_ai import RunContext
+from pydantic_ai.messages import ModelMessage, ModelRequest, ToolReturnPart
 
 from project_server.agents.swe.deps import SWEAgentDeps
-from project_server.utils.pydanticai_utils import get_model
 
 
 def get_last_script_message_index(messages: list[ModelMessage]) -> dict[str, int]:
@@ -72,63 +71,63 @@ async def keep_only_most_recent_script(
     return updated_messages
 
 
-summarizer_agent = Agent(
-    get_model(),
-    instructions=(
-        "Summarize the contents of this entire message history. "
-        "Focus on the flow of messages and tool calls, and what has happened in sequential order. "
-        "All important information must be included."
-        "You may get a previous summary from the user, and in this case update the summary to include the new information."
-        "Omit unnecessary formulations such as 'This summary now covers every step'"
-        "Keep it concise, focus on what has happened in the message history."
-        "Do not include any information about the system prompt in the summary, as it will be kept in the message history."
-        f"Start by 'The message history after the system prompt and before the last few messages has been summarized for conciseness. Here is the summary:'"
-    ),
-    output_type=str
-)
+# summarizer_agent = Agent(
+#     get_model(),
+#     instructions=(
+#         "Summarize the contents of this entire message history. "
+#         "Focus on the flow of messages and tool calls, and what has happened in sequential order. "
+#         "All important information must be included."
+#         "You may get a previous summary from the user, and in this case update the summary to include the new information."
+#         "Omit unnecessary formulations such as 'This summary now covers every step'"
+#         "Keep it concise, focus on what has happened in the message history."
+#         "Do not include any information about the system prompt in the summary, as it will be kept in the message history."
+#         f"Start by 'The message history after the system prompt and before the last few messages has been summarized for conciseness. Here is the summary:'"
+#     ),
+#     output_type=str
+# )
 
 
-async def summarize_message_history(
-    ctx: RunContext[SWEAgentDeps],
-    messages: list[ModelMessage],
-    keep_pastk: int = 10
-) -> list[ModelMessage]:
+# async def summarize_message_history(
+#     ctx: RunContext[SWEAgentDeps],
+#     messages: list[ModelMessage],
+#     keep_pastk: int = 10
+# ) -> list[ModelMessage]:
 
-    tools_to_summarize = [
-        "write_script",
-        "replace_script_lines",
-        "add_script_lines",
-        "delete_script_lines"
-    ]
+#     tools_to_summarize = [
+#         "write_script",
+#         "replace_script_lines",
+#         "add_script_lines",
+#         "delete_script_lines"
+#     ]
 
-    if len(messages) <= keep_pastk + 2:
-        return messages
+#     if len(messages) <= keep_pastk + 2:
+#         return messages
 
-    assert len(messages[0].parts) == 1 and isinstance(
-        messages[0].parts[0], SystemPromptPart)
+#     assert len(messages[0].parts) == 1 and isinstance(
+#         messages[0].parts[0], SystemPromptPart)
 
-    last_script_index = get_last_script_message_index(messages)
+#     last_script_index = get_last_script_message_index(messages)
 
-    if last_script_index != -1:
-        cutoff_index = max(last_script_index, len(messages) - keep_pastk)
-    else:
-        cutoff_index = len(messages) - keep_pastk
+#     if last_script_index != -1:
+#         cutoff_index = max(last_script_index, len(messages) - keep_pastk)
+#     else:
+#         cutoff_index = len(messages) - keep_pastk
 
-    messages_to_summarize = [messages[0]] + [
-        m for m in messages[ctx.deps.history_cutoff_index:cutoff_index] if any([(isinstance(p, ToolCallPart)
-                                                                                 or isinstance(p, ToolReturnPart)
-                                                                                 or isinstance(p, RetryPromptPart))
-                                                                                and p.tool_name in tools_to_summarize
-                                                                                for p in m.parts])
-    ]
+#     messages_to_summarize = [messages[0]] + [
+#         m for m in messages[ctx.deps.history_cutoff_index:cutoff_index] if any([(isinstance(p, ToolCallPart)
+#                                                                                  or isinstance(p, ToolReturnPart)
+#                                                                                  or isinstance(p, RetryPromptPart))
+#                                                                                 and p.tool_name in tools_to_summarize
+#                                                                                 for p in m.parts])
+#     ]
 
-    summary_run = await summarizer_agent.run(
-        f"The previous summary is: {ctx.deps.history_summary}", message_history=messages_to_summarize)
+#     summary_run = await summarizer_agent.run(
+#         f"The previous summary is: {ctx.deps.history_summary}", message_history=messages_to_summarize)
 
-    ctx.deps.history_summary = summary_run.output
-    ctx.deps.history_cutoff_index = cutoff_index
+#     ctx.deps.history_summary = summary_run.output
+#     ctx.deps.history_cutoff_index = cutoff_index
 
-    output_messages = [messages[0]] + \
-        summary_run.new_messages() + messages[cutoff_index:]
+#     output_messages = [messages[0]] + \
+#         summary_run.new_messages() + messages[cutoff_index:]
 
-    return output_messages
+#     return output_messages

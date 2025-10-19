@@ -147,15 +147,11 @@ class ContextCreate(BaseModel):
     model_entity_ids: List[uuid.UUID] = []
 
 
-class CreationSettings(BaseModel):
-    public: bool
-
-
 class UserChatMessageCreate(BaseModel):
     content: str
     conversation_id: uuid.UUID
     context: Optional[ContextCreate] = None
-    creation_settings: Optional[CreationSettings] = None
+    save_to_db: bool = True
 
 
 class ConversationCreate(BaseModel):

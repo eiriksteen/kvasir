@@ -24,7 +24,7 @@ class RunInDB(BaseModel):
     user_id: uuid.UUID
     type: Literal["data_integration", "model_integration",
                   "swe", "pipeline", "analysis", "data_source_analysis"]
-    status: Literal["pending", "running", "completed", "failed"]
+    status: Literal["pending", "running", "completed", "failed", "rejected"]
     started_at: datetime
     conversation_id: Optional[uuid.UUID] = None
     project_id: Optional[uuid.UUID] = None
@@ -87,6 +87,24 @@ class Run(RunInDB):
     outputs: Optional[RunEntityIds] = None
 
 
+class MessageForLog(BaseModel):
+    content: str
+    type: Literal["tool_call", "result", "error"]
+    write_to_db: int = 1
+    target: Literal["redis", "taskiq", "both"] = "both"
+    created_at: datetime = datetime.now(timezone.utc)
+
+
+class CodeForLog(BaseModel):
+    code: str
+    filename: str
+    target: Literal["redis", "taskiq", "both"] = "both"
+    # cant do None because redis
+    output: str = ""
+    error: str = ""
+    created_at: datetime = datetime.now(timezone.utc)
+
+
 # Create Models
 
 
@@ -128,4 +146,5 @@ class RunMessageCreatePydantic(BaseModel):
 
 class RunStatusUpdate(BaseModel):
     run_id: uuid.UUID
-    status: Literal["running", "completed", "failed"]
+    status: Literal["running", "completed", "failed", "rejected"]
+    summary: Optional[str] = None

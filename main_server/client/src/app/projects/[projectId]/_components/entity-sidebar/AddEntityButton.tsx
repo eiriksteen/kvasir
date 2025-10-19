@@ -31,7 +31,7 @@ export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityBut
             case 'dataset':
                 return {
                     bg: 'bg-[#0E4F70]/10',
-                    border: 'border-[#0E4F70]',
+                    border: 'border border-[#0E4F70]',
                     text: 'text-gray-700',
                     icon: 'text-[#0E4F70]',
                     hover: 'hover:bg-[#0E4F70]/20',
@@ -43,13 +43,13 @@ export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityBut
                 };
             case 'data_source':
                 return {
-                    bg: 'bg-gray-50',
-                    border: 'border-gray-600',
+                    bg: 'bg-[#6b7280]/10',
+                    border: 'border border-gray-600',
                     text: 'text-gray-700',
                     icon: 'text-gray-600',
-                    hover: 'hover:bg-gray-100',
-                    buttonHover: 'hover:bg-gray-200',
-                    buttonBg: 'bg-gray-100',
+                    hover: 'hover:bg-[#6b7280]/10',
+                    buttonHover: 'hover:bg-[#6b7280]/20',
+                    buttonBg: 'bg-[#6b7280]/10',
                     plusBg: 'bg-gray-600',
                     plusBorder: 'border-gray-300',
                     symbol: <Database size={size} />,
@@ -57,7 +57,7 @@ export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityBut
             case 'analysis':
                 return {
                     bg: 'bg-[#004806]/10',
-                    border: 'border-[#004806]',
+                    border: 'border border-[#004806]',
                     text: 'text-gray-700',
                     icon: 'text-[#004806]',
                     hover: 'hover:bg-[#004806]/20',
@@ -70,7 +70,7 @@ export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityBut
             case 'pipeline':
                 return {
                     bg: 'bg-[#840B08]/10',
-                    border: 'border-[#840B08]',
+                    border: 'border border-[#840B08]',
                     text: 'text-gray-700',
                     icon: 'text-[#840B08]',
                     hover: 'hover:bg-[#840B08]/20',
@@ -84,7 +84,7 @@ export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityBut
             case 'model_entity':
                 return {
                     bg: 'bg-[#491A32]/10',
-                    border: 'border-[#491A32]',
+                    border: 'border border-[#491A32]',
                     text: 'text-gray-700',
                     icon: 'text-[#491A32]',
                     hover: 'hover:bg-[#491A32]/20',
@@ -106,7 +106,7 @@ export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityBut
                     e.stopPropagation();
                     onAdd();
                 }}
-                className={`p-1.5 rounded-md inline-flex items-center justify-center min-w-[32px] min-h-[32px] ${colors.buttonBg} border ${colors.border} transition-all duration-200 ${colors.buttonHover} hover:scale-105`}
+                className={`p-1.5 rounded-md inline-flex items-center justify-center min-w-[16px] min-h-[16px] ${colors.buttonBg} ${colors.border} transition-all duration-200 ${colors.buttonHover} hover:scale-105`}
                 title={`Add ${type.slice(0, -1)}`}
             >
             <div className={colors.icon}>

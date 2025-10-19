@@ -1,9 +1,9 @@
 from typing import List
 
-from project_server.agents.swe.deps import FunctionToInject, ModelToInject
+from project_server.agents.swe.deps import FunctionInjected, ModelInjected
 
 
-def describe_available_scripts(functions: List[FunctionToInject], models: List[ModelToInject]) -> str:
+def describe_available_scripts(functions: List[FunctionInjected], models: List[ModelInjected]) -> str:
 
     script_descriptions = []
     for function in functions:
@@ -11,7 +11,7 @@ def describe_available_scripts(functions: List[FunctionToInject], models: List[M
             f"Description of script {function.filename} contents:\n\n" +
             f"Function docstring:\n\n" +
             f"{function.docstring}\n\n" +
-            f"Import module (NB: You must remember to use this entire module path when importing the script): {function.module}"
+            f"Import module (NB: You must remember to use this entire module path when importing the script): {function.module_path}"
         )
         script_descriptions.append(function_description)
 
@@ -24,7 +24,7 @@ def describe_available_scripts(functions: List[FunctionToInject], models: List[M
             f"{model.training_function_docstring}\n\n" +
             f"Inference function docstring:\n\n" +
             f"{model.inference_function_docstring}\n\n" +
-            f"Import module (NB: You must remember to use this entire module path when importing the script): {model.module}"
+            f"Import module (NB: You must remember to use this entire module path when importing the script): {model.module_path}"
         )
         script_descriptions.append(model_description)
 

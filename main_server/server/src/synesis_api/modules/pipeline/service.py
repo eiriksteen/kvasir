@@ -32,11 +32,11 @@ from synesis_schemas.main_server import (
     ModelEntityInPipelineInDB,
     ObjectGroupInPipelineInDB,
     PipelineOutputObjectGroupDefinitionInDB,
-    PipelineGraphNodeInDB,
-    PipelineGraphDatasetNodeInDB,
-    PipelineGraphFunctionNodeInDB,
-    PipelineGraphModelEntityNodeInDB,
-    PipelineGraphEdgeInDB,
+    # PipelineGraphNodeInDB,
+    # PipelineGraphDatasetNodeInDB,
+    # PipelineGraphFunctionNodeInDB,
+    # PipelineGraphModelEntityNodeInDB,
+    # PipelineGraphEdgeInDB,
     PipelineGraphNode,
     PipelineGraph,
     PipelineRunInDB,
@@ -47,6 +47,7 @@ from synesis_schemas.main_server import (
 )
 from synesis_api.modules.project.service import get_pipeline_ids_in_project
 from synesis_api.modules.data_objects.service import get_object_groups
+from synesis_api.modules.code.service import create_script, get_scripts
 
 
 async def create_pipeline(
@@ -54,10 +55,13 @@ async def create_pipeline(
     pipeline_create: PipelineCreate,
 ) -> PipelineInDB:
 
+    implementation_script_record = await create_script(user_id, pipeline_create.implementation_script_create)
+
     pipeline_obj = PipelineInDB(
         id=uuid.uuid4(),
         user_id=user_id,
         **pipeline_create.model_dump(),
+        implementation_script_id=implementation_script_record.id,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
     )
@@ -70,8 +74,8 @@ async def create_pipeline(
             PipelinePeriodicScheduleInDB(
                 id=uuid.uuid4(),
                 pipeline_id=pipeline_obj.id,
-                start_time=periodic_schedule.start_time if periodic_schedule.start_time else datetime.now(
-                    timezone.utc),
+                start_time=periodic_schedule.start_time
+                if periodic_schedule.start_time else datetime.now(timezone.utc),
                 **periodic_schedule.model_dump(),
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc)
@@ -290,6 +294,9 @@ async def get_user_pipelines(
 
     pipeline_edges = await fetch_all(pipeline_edges_query)
 
+    implementation_scripts = await get_scripts(
+        [p["implementation_script_id"] for p in pipelines])
+
     output_objs = []
     for pipe_id in pipeline_ids:
         pipe_record = next(p for p in pipelines if p["id"] == pipe_id)
@@ -336,6 +343,9 @@ async def get_user_pipelines(
                         e["from_node_id"] for e in edges_in_pipeline if e["to_node_id"] == node["id"]]
                 ))
 
+        implementation_script = next(
+            s for s in implementation_scripts if s.id == pipe_record["implementation_script_id"])
+
         output_objs.append(PipelineFull(
             **pipe_record,
             functions=functions_records,
@@ -351,7 +361,8 @@ async def get_user_pipelines(
                     set(o.dataset_id for o in input_object_group_objs)),
                 model_entity_ids=list(
                     set(o["model_entity_id"] for o in model_entity_records)),
-            )
+            ),
+            implementation_script=implementation_script
         ))
     return output_objs
 

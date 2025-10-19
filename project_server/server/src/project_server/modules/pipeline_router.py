@@ -57,7 +57,7 @@ async def run_pipeline_task(
         pipeline_obj = await get_user_pipeline(client, pipeline_id)
         model_entities = await get_model_entities_by_ids(client, GetModelEntityByIDsRequest(model_entity_ids=[me.model_entity_id for me in pipeline_obj.model_entities]))
 
-        with open(pipeline_obj.implementation_script_path, "r") as f:
+        with open(pipeline_obj.implementation_script.path) as f:
             pipeline_code = f.read()
 
         weights_save_dir_dict = {

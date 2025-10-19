@@ -19,7 +19,7 @@ data_integration_agent = Agent(
         get_data_structures_overview_tool,
         get_data_structure_description_tool
     ],
-    retries=2
+    retries=5
 )
 
 

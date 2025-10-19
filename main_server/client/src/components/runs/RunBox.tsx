@@ -1,7 +1,7 @@
 import { UUID } from "crypto";
 import { useRun, useRunMessages } from "@/hooks/useRuns";
 import { BarChart3, Zap, Clock, CheckCircle, XCircle, Loader2, Folder, Brain, Check, X, Database } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useDatasets } from "@/hooks/useDatasets";
 import { useProjectDataSources } from "@/hooks/useDataSources";
 import { useModelEntities } from "@/hooks/useModelEntities";
@@ -14,6 +14,7 @@ import { Pipeline } from "@/types/pipeline";
 interface RunBoxProps {
   runId: UUID;
   projectId: UUID;
+  onRunCompleteOrFail?: () => void;
 }
 
 const getRunTheme = (type: 'data_integration' | 'analysis' | 'pipeline' | 'swe' | 'model_integration') => {
@@ -93,6 +94,12 @@ switch (status) {
         text: 'failed',
         color: 'text-red-700'
     };
+    case 'rejected':
+    return {
+        icon: <XCircle size={10} />,
+        text: 'rejected',
+        color: 'text-red-700'
+    };
     default:
     return {
         icon: <Clock size={10} />,
@@ -126,16 +133,29 @@ function RunMessageList({ runId }: { runId: UUID }) {
 }
   
 
-export default function RunBox({ runId, projectId }: RunBoxProps) {
-  const { run, triggerLaunchRun } = useRun(runId);
+export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBoxProps) {
+  const { run, triggerLaunchRun, triggerRejectRun } = useRun(runId);
   const { datasets } = useDatasets(projectId);
   const { dataSources } = useProjectDataSources(projectId);
   const { modelEntities } = useModelEntities(projectId);
   const { pipelines } = usePipelines(projectId);
-  
+  const [isRejecting, setIsRejecting] = useState(false);
   const isPending = run?.status === 'pending';
   const [showMessages, setShowMessages] = useState(isPending);
   const [isLaunching, setIsLaunching] = useState(false);
+  const previousStatusRef = useRef<string | undefined>(run?.status);
+
+  useEffect(() => {
+    const currentStatus = run?.status;
+    const previousStatus = previousStatusRef.current;
+    
+    // Only trigger if status changed from 'running' to 'completed' or 'failed'
+    if (previousStatus === 'running' && (currentStatus === 'completed' || currentStatus === 'failed')) {
+      onRunCompleteOrFail?.();
+    }
+    
+    previousStatusRef.current = currentStatus;
+  }, [run?.status, onRunCompleteOrFail]);
 
   if (!run) {
     return <div>Run not found</div>;
@@ -171,10 +191,16 @@ export default function RunBox({ runId, projectId }: RunBoxProps) {
     }
   };
 
-  const handleReject = (e: React.MouseEvent) => {
+  const handleReject = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Run rejected - implementation pending');
-    // TODO: Implement rejection logic
+    setIsRejecting(true);
+    try {
+      await triggerRejectRun({ runId: run.id });
+    } catch (error) {
+      console.error('Failed to reject run', error);
+    } finally {
+      setIsRejecting(false);
+    }
   };
 
   return (
@@ -327,11 +353,11 @@ export default function RunBox({ runId, projectId }: RunBoxProps) {
                   </button>
                   <button
                     onClick={handleReject}
-                    disabled={isLaunching}
+                    disabled={isRejecting}
                     className="flex items-center gap-1 px-3 py-1.5 bg-red-800 hover:bg-red-600/30 border border-red-600/40 rounded text-xs text-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <X size={12} />
-                    Reject
+                    {isRejecting ? 'Rejecting...' : 'Reject'}
                   </button>
                 </div>
               )}

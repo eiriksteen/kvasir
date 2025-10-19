@@ -19,7 +19,8 @@ def get_model():
         "gemini-2.5-pro": "google",
         "gpt-5": "openai",
         "grok-code-fast-1": "xai",
-        "grok-4": "xai"
+        "grok-4": "xai",
+        "gpt-5-mini": "openai"
     }
 
     if model_id_to_provider_name[MODEL_TO_USE] == "anthropic":

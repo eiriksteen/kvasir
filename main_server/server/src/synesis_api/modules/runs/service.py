@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime, timezone
 from typing import Literal, Optional, List, Union
-from sqlalchemy import select, insert, delete
-from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
+from sqlalchemy import select, insert
+from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelMessage
 
 from synesis_api.client import MainServerClient, post_run_data_integration, post_run_pipeline_agent, post_run_model_integration
 from synesis_api.database.service import fetch_all, execute, fetch_one
@@ -19,7 +19,8 @@ from synesis_schemas.main_server import (
     DatasetInRunInDB,
     ModelEntityInRunInDB,
     PipelineInRunInDB,
-    RunEntityIds
+    RunEntityIds,
+    RunStatusUpdate
 )
 from synesis_schemas.project_server import RunDataIntegrationAgentRequest, RunPipelineAgentRequest, RunModelIntegrationAgentRequest
 from synesis_api.modules.runs.models import (
@@ -35,6 +36,7 @@ from synesis_api.modules.runs.models import (
     dataset_from_run,
     model_entity_from_run,
     pipeline_from_run,
+    run_summary
 )
 
 
@@ -157,26 +159,35 @@ async def launch_run(client: MainServerClient, run_id: uuid.UUID):
     return run_record
 
 
+async def reject_run(run_id: uuid.UUID) -> RunInDB:
+    run_record = RunInDB(**(await fetch_one(
+        select(run).where(run.c.id == run_id)
+    )))
+    run_record.status = "rejected"
+    await execute(run.update().where(run.c.id == run_id).values(status="rejected"), commit_after=True)
+    return run_record
+
+
 async def get_runs(
         user_id: uuid.UUID,
         filter_status: Optional[List[Literal["running",
                                              "pending",
                                              "completed",
-                                             "failed"]]] = None,
+                                             "failed",
+                                             "rejected"]]] = None,
         run_ids: Optional[List[uuid.UUID]] = None,
+        conversation_id: Optional[uuid.UUID] = None,
         exclude_swe: bool = True
 ) -> List[Run]:
 
+    runs_query = select(run).where(run.c.user_id == user_id)
+
     if filter_status:
-        runs_query = select(run).where(
-            run.c.user_id == user_id, run.c.status.in_(filter_status))
-    elif run_ids:
-        runs_query = select(run).where(
-            run.c.user_id == user_id, run.c.id.in_(run_ids))
-    elif run_ids is None:
-        runs_query = select(run).where(run.c.user_id == user_id)
-    else:
-        return []
+        runs_query = runs_query.where(run.c.status.in_(filter_status))
+    if run_ids:
+        runs_query = runs_query.where(run.c.id.in_(run_ids))
+    if conversation_id:
+        runs_query = runs_query.where(run.c.conversation_id == conversation_id)
 
     if exclude_swe:
         runs_query = runs_query.where(run.c.type != "swe")
@@ -276,12 +287,17 @@ async def get_runs(
     return run_records
 
 
-async def update_run_status(run_id: uuid.UUID, status: Literal["running", "completed", "failed"]) -> RunInDB:
+async def update_run_status(run_id: uuid.UUID, run_status_update: RunStatusUpdate) -> RunInDB:
     run_record = RunInDB(**(await fetch_one(
         select(run).where(run.c.id == run_id)
     )))
-    run_record.status = status
-    await execute(run.update().where(run.c.id == run_id).values(status=status), commit_after=True)
+    run_record.status = run_status_update.status
+
+    await execute(run.update().where(run.c.id == run_id).values(status=run_status_update.status), commit_after=True)
+
+    if run_status_update.summary:
+        await execute(run_summary.insert().values(run_id=run_id, summary=run_status_update.summary), commit_after=True)
+
     return run_record
 
 
@@ -299,7 +315,6 @@ async def get_run_messages_pydantic(run_id: uuid.UUID, bytes: bool = False) -> l
     )
     if bytes:
         return [RunPydanticMessageInDB(**message) for message in c]
-        return c
 
     messages: list[ModelMessage] = []
     for message in c:
@@ -335,3 +350,12 @@ async def create_run_message_pydantic(run_message_create_pydantic: RunMessageCre
     await execute(run_pydantic_message.insert().values(run_pydantic_message_record.model_dump()), commit_after=True)
 
     return run_pydantic_message_record
+
+
+async def get_run_summary(run_id: uuid.UUID) -> str | None:
+    run_summary_record = await fetch_one(
+        select(run_summary).where(run_summary.c.run_id == run_id)
+    )
+    if not run_summary_record:
+        return None
+    return run_summary_record["summary"]

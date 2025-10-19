@@ -19,7 +19,9 @@ from synesis_schemas.main_server import (
     RunStatusUpdate,
     RunMessageCreatePydantic,
     RunPydanticMessageInDB,
-    RunInDB
+    RunInDB,
+    MessageForLog,
+    CodeForLog
 )
 from synesis_api.modules.runs.service import (
     get_runs,
@@ -29,7 +31,8 @@ from synesis_api.modules.runs.service import (
     update_run_status,
     create_run_message_pydantic,
     get_run_messages_pydantic,
-    launch_run
+    launch_run,
+    reject_run
 )
 from synesis_api.client import MainServerClient
 
@@ -70,6 +73,18 @@ async def post_launch_run(
     return await launch_run(MainServerClient(token), run_id)
 
 
+@router.patch("/reject-run/{run_id}")
+async def patch_reject_run(
+        run_id: uuid.UUID,
+        user: Annotated[User, Depends(get_current_user)] = None) -> RunInDB:
+
+    if not await user_owns_runs(user.id, [run_id]):
+        raise HTTPException(
+            status_code=403, detail="You do not have permission to access this run")
+
+    return await reject_run(run_id)
+
+
 @router.patch("/run-status")
 async def patch_run_status(
     request: RunStatusUpdate,
@@ -80,7 +95,7 @@ async def patch_run_status(
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this run")
 
-    run = await update_run_status(request.run_id, request.status)
+    run = await update_run_status(request.run_id, request)
     return run
 
 
@@ -182,13 +197,76 @@ async def stream_run_messages(
                 start_time = time.time()
                 last_id = response[0][1][-1][0]
                 message = response[0][1][0][1]
-                message_validated = RunMessageInDB(**message)
-                yield f"data: {message_validated.model_dump_json(by_alias=True)}\n\n"
+                message_validated = MessageForLog(**message)
+                # Converting to InDB to enable client to treat these as valid messages
+                output_data = RunMessageInDB(
+                    id=uuid.uuid4(),
+                    content=message_validated.content,
+                    run_id=run_id,
+                    type=message_validated.type,
+                    created_at=message_validated.created_at
+                )
+                yield f"data: {output_data.model_dump_json(by_alias=True)}\n\n"
 
             if start_time + timeout < time.time():
                 break
 
     return StreamingResponse(stream_run_updates(), media_type="text/event-stream")
+
+
+@router.get("/stream-code/{run_id}")
+async def stream_run_code(
+    run_id: uuid.UUID,
+    cache: Annotated[redis.Redis, Depends(get_redis)],
+    user: Annotated[User, Depends(get_current_user)] = None,
+) -> StreamingResponse:
+
+    run = await get_runs(user.id, run_ids=[run_id])
+    run = run[0]
+
+    if not user or not await user_owns_runs(user.id, [run_id]):
+        raise HTTPException(
+            status_code=403, detail="You do not have permission to access this run")
+
+    elif not run:
+        raise HTTPException(
+            status_code=404, detail="Run not found")
+
+    elif run.status == "completed":
+        return Response(content="Run is completed, see conversation for results.", media_type="text/plain")
+
+    # Default timeout of 30 seconds
+    timeout = 30
+    timeout = min(timeout, SSE_MAX_TIMEOUT)
+
+    adapter = TypeAdapter(List[CodeForLog])
+
+    async def stream_code_updates():
+        # On connection, we search through the code messages and send the most recent version of every script to the client
+        # Then, we just stream the updates as they come in
+        # New files should show up, and edits to existing files should replace them
+        all_code_responses = await cache.xread({f"{run_id}-code": "$"}, count=None, block=timeout*1000)
+        filename_to_most_recent_message = {}
+        for response_num, response in enumerate(all_code_responses):
+            message = CodeForLog(**response[0][1][0][1])
+            filename_to_most_recent_message[message.filename] = message
+            if response_num == len(all_code_responses) - 1:
+                last_id = response[0][1][-1][0]
+
+        yield f"data: {adapter.dump_json(list(filename_to_most_recent_message.values()), by_alias=True).decode("utf-8")}\n\n"
+
+        while True:
+            response = await cache.xread({f"{run_id}-code": last_id}, count=1)
+            if response:
+                start_time = time.time()
+                last_id = response[0][1][-1][0]
+                message = CodeForLog(**response[0][1][0][1])
+                yield f"data: {adapter.dump_json([message], by_alias=True).decode("utf-8")}\n\n"
+
+            if start_time + timeout < time.time():
+                break
+
+    return StreamingResponse(stream_code_updates(), media_type="text/event-stream")
 
 
 @router.get("/stream-incomplete-runs")
