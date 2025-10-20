@@ -110,36 +110,45 @@ class ImplementationSummaryOutputWithImplementation(ImplementationSummaryOutput)
 
 async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name: str, result: ImplementationSummaryOutput) -> ImplementationSummaryOutputWithImplementation:
 
-    testing_args = {**result.new_main_function.default_args}
     testing_dirs: List[Path] = []
 
     for new_model in result.new_models:
-        if f"{new_model.python_class_name}_config" not in result.new_main_function.default_args:
+        config_field = f"{new_model.python_class_name}_config"
+        if config_field not in result.new_main_function.default_args:
             raise ModelRetry(
-                f"The config for the new model {new_model.python_class_name} must be included in the default args and must be named {new_model.python_class_name}_config")
+                f"The config for the new model {new_model.python_class_name} must be included in the default args and must be named {config_field}")
 
-        # testing_dir = MODEL_WEIGHTS_DIR / f"{uuid.uuid4()}"
-        # testing_dir.mkdir(parents=True, exist_ok=True)
-        # testing_args[f"{new_model.python_class_name}_config"]["weights_save_dir"] = testing_dir
-        # testing_dirs.append(testing_dir)
+        if not result.new_main_function.default_args[config_field]["weights_save_dir"]:
+            raise ModelRetry(
+                f"weights_save_dir must be set. If none has been provided, set a placeholder default. ")
+
+        testing_dirs.append(
+            Path(result.new_main_function.default_args[config_field]["weights_save_dir"]))
 
     for injected_model in ctx.deps.model_entities_injected:
-        if f"{injected_model.implementation.model_implementation.python_class_name}_config" not in result.new_main_function.default_args:
+        config_field = f"{injected_model.implementation.model_implementation.python_class_name}_config"
+        if config_field not in result.new_main_function.default_args:
             raise ModelRetry(
-                f"The config for the injected model {injected_model.implementation.model_implementation.python_class_name} must be included in the default args and must be named {injected_model.implementation.model_implementation.python_class_name}_config")
+                f"The config for the injected model {injected_model.implementation.model_implementation.python_class_name} must be included in the default args and must be named {config_field}")
 
-        # testing_dir = MODEL_WEIGHTS_DIR / f"{uuid.uuid4()}"
-        # testing_dir.mkdir(parents=True, exist_ok=True)
-        # testing_args[f"{injected_model.implementation.model_implementation.python_class_name}_config"]["weights_save_dir"] = testing_dir
-        # testing_dirs.append(testing_dir)
+        if not result.new_main_function.default_args[config_field]["weights_save_dir"]:
+            raise ModelRetry(
+                f"weights_save_dir must be set. If none has been provided, set a placeholder default. ")
+
+        # Only do it for those that don't have a weights dir, as we will need to load from the ones that do
+        if not injected_model.implementation.weights_save_dir:
+            testing_dirs.append(
+                Path(injected_model.implementation.weights_save_dir))
 
     for function in result.new_supporting_functions:
-        if f"{function.python_function_name}_config" not in result.new_main_function.default_args:
+        args_field = f"{function.python_function_name}_args"
+        if args_field not in result.new_main_function.default_args:
             raise ModelRetry(
-                f"The config for the new function {function.python_function_name} must be included in the default args and must be named {function.python_function_name}_args")
+                f"The config for the new function {function.python_function_name} must be included in the default args and must be named {args_field}")
 
     for loaded_function in ctx.deps.functions_loaded:
-        if f"{loaded_function.implementation_script.filename}_args" not in result.new_main_function.default_args:
+        args_field = f"{loaded_function.implementation_script.filename}_args"
+        if args_field not in result.new_main_function.default_args:
             raise ModelRetry(
                 f"The config for the loaded function {loaded_function.implementation_script.filename} must be included in the default args and must be named {loaded_function.implementation_script.filename}_args")
 
@@ -183,7 +192,7 @@ async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name:
         script, result.new_main_function.output_object_group_definitions)
 
     script_to_run = add_entry_point(
-        script, ctx.deps.bearer_token, testing_args)
+        script, ctx.deps.bearer_token, result.new_main_function.default_args)
 
     logger.info("CURRENT SCRIPTS")
     logger.info(ctx.deps.current_scripts.keys())

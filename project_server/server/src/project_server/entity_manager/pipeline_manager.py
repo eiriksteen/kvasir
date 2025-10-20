@@ -1,20 +1,17 @@
 import uuid
+import sys
+from project_server.worker import logger
 from typing import List, Union, Dict, Any
 from dataclasses import dataclass
-from pathlib import Path
 
-
-from project_server.app_secrets import MODEL_WEIGHTS_DIR
 from project_server.entity_manager import (
     LocalDatasetManager,
     ObjectGroupCreateWithRawData,
     VariableGroupCreateWithRawData,
     DatasetCreateWithRawData,
-    ObjectGroupWithRawData,
 )
 from synesis_schemas.main_server import (
     DatasetSources,
-    GetModelEntityByIDsRequest,
     FunctionOutputObjectGroupDefinitionCreate
 )
 from project_server.client import ProjectClient

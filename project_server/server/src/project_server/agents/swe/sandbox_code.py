@@ -75,6 +75,7 @@ def get_main_skeleton(
     skeleton += "    # NB: The variable name must be 'outputs'\n"
     skeleton += "    outputs = ...\n"
     skeleton += "    # Do not add any code processing the outputs, it will be added automatically\n"
+    skeleton += "    # Also do not return anything! Your job is done after defining the outputs variable\n"
 
     return skeleton
 
