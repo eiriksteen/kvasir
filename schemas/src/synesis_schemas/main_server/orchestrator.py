@@ -1,7 +1,8 @@
 import uuid
 from typing import Literal, List, Optional
 from datetime import datetime, timezone
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+from .code import script_type_literal
 
 
 # DB Models
@@ -83,58 +84,49 @@ class ChatMessage(ChatMessageInDB):
     context: Optional[Context] = None
 
 
-class DataSourceInGraph(BaseModel):
-    id: uuid.UUID
-    name: str
-    type: Literal["file"]
-    brief_description: str
-    to_datasets: List[uuid.UUID] = []
-    to_analyses: List[uuid.UUID] = []
+class SetupImplementation(BaseModel):
+    dependencies: List[str]
+    python_version: str
+    script: str
 
 
-class DatasetInGraph(BaseModel):
-    id: uuid.UUID
-    name: str
-    brief_description: str
-    to_pipelines: List[uuid.UUID] = []
-    to_analyses: List[uuid.UUID] = []
-    from_data_sources: List[uuid.UUID] = []
-    from_datasets: List[uuid.UUID] = []
-    from_pipelines: List[uuid.UUID] = []
+class NewScript(BaseModel):
+    filename: str
+    script: str
 
 
-class PipelineInGraph(BaseModel):
-    id: uuid.UUID
-    name: str
-    brief_description: str
-    from_datasets: List[uuid.UUID] = []
-    from_model_entities: List[uuid.UUID] = []
-    to_datasets: List[uuid.UUID] = []
-    to_model_entities: List[uuid.UUID] = []
+class ModifiedScript(BaseModel):
+    original_filename: str
+    new_filename: str
+    original_script: str
+    new_script: str
+    type: script_type_literal
 
 
-class AnalysisInGraph(BaseModel):
-    id: uuid.UUID
-    name: str
-    brief_description: str
-    from_datasets: List[uuid.UUID] = []
-    from_data_sources: List[uuid.UUID] = []
+class Implementation(BaseModel):
+    conversation_id: uuid.UUID
+    main_script: NewScript
+    run_output: str
+    new_scripts: List[NewScript] = []
+    modified_scripts: List[ModifiedScript] = []
 
 
-class ModelEntityInGraph(BaseModel):
-    id: uuid.UUID
-    name: str
-    brief_description: str
-    to_pipelines: List[uuid.UUID] = []
+class SWEResult(BaseModel):
+    conversation_id: uuid.UUID
+    implementation: Implementation
+    setup: Optional[SetupImplementation] = None
 
 
-class ProjectGraph(BaseModel):
-    data_sources: List[DataSourceInGraph] = []
-    datasets: List[DatasetInGraph] = []
-    pipelines: List[PipelineInGraph] = []
-    analyses: List[AnalysisInGraph] = []
-    model_entities: List[ModelEntityInGraph] = []
+class ImplementationApprovalResponse(BaseModel):
+    approved: bool
+    feedback: Optional[str] = None
 
+    @field_validator('feedback')
+    @classmethod
+    def validate_feedback_when_not_approved(cls, v, info):
+        if not info.data.get('approved', True) and v is None:
+            raise ValueError('Feedback is required when approved is False')
+        return v
 
 # Create Models
 

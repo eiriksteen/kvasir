@@ -12,7 +12,9 @@ from .code_utils import (
 )
 
 
-from .dataframe_utils import (
+from .data_utils import (
+    get_structure_descriptions_from_datasets,
+    get_data_source_type_descriptions_from_data_sources,
     get_basic_df_info,
     get_df_info
 )

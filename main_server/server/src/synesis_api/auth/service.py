@@ -4,7 +4,7 @@ import base64
 from typing import Annotated
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
-from sqlalchemy import insert, select, or_
+from sqlalchemy import insert, select, or_, and_
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
@@ -22,7 +22,7 @@ from synesis_api.modules.data_objects.models import dataset, object_group, data_
 from synesis_api.modules.data_sources.models import data_source
 from synesis_api.modules.project.models import project
 from synesis_api.modules.model.models import model_entity_implementation, model_source
-from synesis_api.modules.pipeline.models import pipeline_implementation, pipeline_run
+from synesis_api.modules.pipeline.models import pipeline_run, pipeline
 from synesis_api.app_secrets import PRIVATE_KEY_FILE_PATH, PUBLIC_KEY_FILE_PATH
 from synesis_api.database.service import fetch_one, execute, fetch_all
 
@@ -247,13 +247,13 @@ async def user_owns_model_entity(user_id: uuid.UUID, model_entity_id: uuid.UUID)
 
 
 async def user_owns_pipeline(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> bool:
-    pipeline_record = await fetch_one(select(pipeline_implementation).where(pipeline_implementation.c.id == pipeline_id, pipeline_implementation.c.user_id == user_id))
+    pipeline_record = await fetch_one(select(pipeline).where(pipeline.c.id == pipeline_id, pipeline.c.user_id == user_id))
     return pipeline_record is not None
 
 
 async def user_owns_pipeline_run(user_id: uuid.UUID, pipeline_run_id: uuid.UUID) -> bool:
     pipeline_run_record = await fetch_one(
-        select(pipeline_run).join(pipeline_implementation, pipeline_run.c.pipeline_id ==
-                                  pipeline_implementation.c.id).where(pipeline_implementation.c.user_id == user_id)
+        select(pipeline_run).join(pipeline, pipeline_run.c.pipeline_id ==
+                                  pipeline.c.id).where(and_(pipeline.c.user_id == user_id, pipeline_run.c.id == pipeline_run_id))
     )
     return pipeline_run_record is not None

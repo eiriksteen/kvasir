@@ -8,7 +8,9 @@ from synesis_schemas.main_server import (
     ChatMessage,
     ChatPydanticMessageInDB,
     ContextCreate,
-    ContextInDB
+    ContextInDB,
+    ImplementationApprovalResponse,
+    Implementation
 )
 
 
@@ -26,6 +28,7 @@ async def get_conversations(client: ProjectClient) -> List[ConversationInDB]:
     response = await client.send_request("get", "/orchestrator/conversations")
     return [ConversationInDB(**conv) for conv in response.body]
 
+
 async def create_chat_message_pydantic_request(client: ProjectClient, conversation_id: uuid.UUID, messages: List[bytes]) -> List[ChatPydanticMessageInDB]:
     response = await client.send_request("post", f"/orchestrator/chat-message-pydantic/{conversation_id}", json=messages)
     return [ChatPydanticMessageInDB(**msg) for msg in response.body]
@@ -34,3 +37,8 @@ async def create_chat_message_pydantic_request(client: ProjectClient, conversati
 async def create_context_request(client: ProjectClient, context: ContextCreate) -> ContextInDB:
     response = await client.send_request("post", "/orchestrator/context", json=context.model_dump(mode="json"))
     return ContextInDB(**response.body)
+
+
+async def submit_swe_result_approval_request(client: ProjectClient, swe_result_approval_request: Implementation) -> ImplementationApprovalResponse:
+    response = await client.send_request("post", "/orchestrator/swe-result-approval-request", json=swe_result_approval_request.model_dump(mode="json"))
+    return ImplementationApprovalResponse(**response.body)

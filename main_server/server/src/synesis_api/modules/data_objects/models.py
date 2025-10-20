@@ -153,7 +153,7 @@ variable_group = Table(
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     Column("name", String, nullable=False),
-    Column("schema", JSONB, nullable=False),
+    Column("group_schema", JSONB, nullable=False),
     Column("description", String, nullable=False),
     Column("dataset_id", UUID, ForeignKey(
         "data_objects.dataset.id"), nullable=False),

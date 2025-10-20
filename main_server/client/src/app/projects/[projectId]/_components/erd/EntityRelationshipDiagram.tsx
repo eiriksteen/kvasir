@@ -493,6 +493,50 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       )
       .filter(Boolean) as Edge[];
 
+    const analysesToPipelinesEdges = projectGraph?.pipelines
+      .flatMap(pipeline =>
+        (pipeline.fromAnalyses || []).map((analysisId: UUID) => {
+          const sourceEntity = getEntityWithCurrentPosition(analysisId);
+          const targetEntity = getEntityWithCurrentPosition(pipeline.id);
+          if (!sourceEntity || !targetEntity) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
+          return {
+            id: String(`${analysisId}->${pipeline.id}`),
+            source: analysisId,
+            target: pipeline.id,
+            type: 'default',
+            animated: true,
+            style: { stroke: getEdgeColor('analysis'), strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed },
+            sourceHandle: edgeLocation.from,
+            targetHandle: edgeLocation.to,
+          } as Edge;
+        })
+      )
+      .filter(Boolean) as Edge[];
+
+    const dataSourcesToPipelinesEdges = projectGraph?.pipelines
+      .flatMap(pipeline =>
+        (pipeline.fromDataSources || []).map((dataSourceId: UUID) => {
+          const sourceEntity = getEntityWithCurrentPosition(dataSourceId);
+          const targetEntity = getEntityWithCurrentPosition(pipeline.id);
+          if (!sourceEntity || !targetEntity) return null;
+          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
+          return {
+            id: String(`${dataSourceId}->${pipeline.id}`),
+            source: dataSourceId,
+            target: pipeline.id,
+            type: 'default',
+            animated: true,
+            style: { stroke: getEdgeColor('dataSource'), strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed },
+            sourceHandle: edgeLocation.from,
+            targetHandle: edgeLocation.to,
+          } as Edge;
+        })
+      )
+      .filter(Boolean) as Edge[];
+
 
     return [
       ...dataSourcesToDatasetsEdges, 
@@ -501,7 +545,9 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       ...datasetsToPipelinesEdges, 
       ...modelEntitiesToPipelinesEdges, 
       ...pipelinesToDatasetsEdges, 
-      ...pipelinesToModelEntitiesEdges];
+      ...pipelinesToModelEntitiesEdges,
+      ...analysesToPipelinesEdges,
+      ...dataSourcesToPipelinesEdges];
   }, [project, projectGraph, getEdgeColor, nodes]);
 
   // Only update nodes when memoizedNodes changes

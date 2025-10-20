@@ -57,8 +57,10 @@ export type PipelineInGraph = {
     id: UUID;
     name: string;
     brief_description: string;
+    fromDataSources: UUID[];
     fromDatasets: UUID[];
     fromModelEntities: UUID[];
+    fromAnalyses: UUID[];
     toDatasets: UUID[];
     toModelEntities: UUID[];
 }

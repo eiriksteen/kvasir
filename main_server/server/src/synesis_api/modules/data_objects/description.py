@@ -131,7 +131,7 @@ def get_dataset_description(dataset_in_db: DatasetInDB,
                 f"**{variable_group.name}** (ID: {variable_group.id})")
             if variable_group.description:
                 lines.append(f"{variable_group.description}")
-            lines.append(f"Schema: `{variable_group.schema}`")
+            lines.append(f"Schema: `{variable_group.group_schema}`")
             lines.append("")
 
     return "\n".join(lines)

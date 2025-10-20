@@ -6,6 +6,14 @@ from synesis_api.app_secrets import PROJECT_SERVER_URL
 
 
 @dataclass
+class FileInput:
+    field_name: str
+    filename: str
+    file_data: bytes
+    content_type: str
+
+
+@dataclass
 class MainServerClientResponse:
     status: int
     headers: dict
@@ -26,12 +34,27 @@ class MainServerClient:
             path: str,
             data: Optional[dict] = None,
             json: Optional[dict] = None,
+            files: Optional[list[FileInput]] = None,
             headers: dict = {}) -> MainServerClientResponse:
 
         headers["Authorization"] = f'Bearer {self.bearer_token}'
 
         async with aiohttp.ClientSession() as session:
-            async with session.request(method, f"{PROJECT_SERVER_URL}{path}", headers=headers, data=data, json=json) as response:
+
+            is_form_data = files or data
+            if is_form_data:
+                form_data = aiohttp.FormData()
+                if files:
+                    for file in files:
+                        form_data.add_field(file.field_name, file.file_data,
+                                            filename=file.filename, content_type=file.content_type)
+                if data:
+                    for key, value in data.items():
+                        form_data.add_field(key, value)
+            else:
+                form_data = None
+
+            async with session.request(method, f"{PROJECT_SERVER_URL}{path}", headers=headers, data=form_data, json=json) as response:
 
                 if response.status == 401:
                     if self.refresh_tries >= self.max_refresh_tries:
@@ -39,7 +62,7 @@ class MainServerClient:
 
                     else:
                         self.refresh_tries += 1
-                        return await self.send_request(method, path, data, json, headers)
+                        return await self.send_request(method, path, data, json, files, headers)
 
                 elif response.status != 200:
                     raise RuntimeError(

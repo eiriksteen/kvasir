@@ -25,7 +25,7 @@ from synesis_schemas.main_server import (
     MoveRequest,
     AnalysisResultFindRequest,
     User,
-    AggregationObjectWithRawData
+    # AggregationObjectWithRawData
 )
 from synesis_api.auth.service import get_current_user, user_owns_runs
 from synesis_api.modules.analysis.service import (
@@ -49,7 +49,7 @@ from synesis_api.modules.analysis.service import (
 )
 from synesis_api.redis import get_redis
 from synesis_api.utils.markdown_utils import convert_markdown_to_html
-from synesis_api.modules.data_objects.service import get_aggregation_object_payload_data_by_analysis_result_id
+# from synesis_api.modules.data_objects.service import get_aggregation_object_payload_data_by_analysis_result_id
 
 router = APIRouter()
 
@@ -264,20 +264,20 @@ async def add_analysis_result_to_section_endpoint(
     return await add_analysis_result_to_section(section_id, analysis_result_id)
 
 
-@router.get("/analysis-object/{analysis_object_id}/analysis-result/{analysis_result_id}/get-data", response_model=AggregationObjectWithRawData)
-async def get_data_for_analysis_result(
-    analysis_object_id: uuid.UUID,
-    analysis_result_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None,
-) -> AggregationObjectWithRawData:
-    if not await check_user_owns_analysis_object(user.id, analysis_object_id):
-        raise HTTPException(
-            status_code=403,
-            detail="You do not have permission to access this analysis object"
-        )
-    payload = await get_aggregation_object_payload_data_by_analysis_result_id(user.id, analysis_result_id)
+# @router.get("/analysis-object/{analysis_object_id}/analysis-result/{analysis_result_id}/get-data", response_model=AggregationObjectWithRawData)
+# async def get_data_for_analysis_result(
+#     analysis_object_id: uuid.UUID,
+#     analysis_result_id: uuid.UUID,
+#     user: Annotated[User, Depends(get_current_user)] = None,
+# ) -> AggregationObjectWithRawData:
+#     if not await check_user_owns_analysis_object(user.id, analysis_object_id):
+#         raise HTTPException(
+#             status_code=403,
+#             detail="You do not have permission to access this analysis object"
+#         )
+#     payload = await get_aggregation_object_payload_data_by_analysis_result_id(user.id, analysis_result_id)
 
-    return payload
+#     return payload
 
 
 @router.patch("/analysis-object/{analysis_object_id}/move-element")

@@ -1,4 +1,5 @@
 import { UUID } from "crypto";
+import { ScriptInDB } from "./code";
 
 export type SupportedModality = "time_series" | "tabular" | "multimodal" | "image" | "text" | "audio" | "video";
 export type SupportedTask = "forecasting" | "classification" | "regression" | "clustering" | "anomaly_detection" | "generation" | "segmentation";
@@ -52,6 +53,12 @@ export interface ModelEntityInDB {
   name: string;
   userId: UUID;
   description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ModelEntityImplementationInDB {
+  id: UUID;
   modelId: UUID;
   config: Record<string, unknown>;
   weightsSaveDir?: string | null;
@@ -67,20 +74,17 @@ export interface ModelFunctionFull extends ModelFunctionInDB {
   outputObjectGroups: ModelFunctionOutputObjectGroupDefinitionInDB[];
 }
 
-export interface ModelFull {
+export interface ModelImplementationInDB {
   id: UUID;
   definitionId: UUID;
   version: number;
-  filename: string;
-  modulePath: string;
   pythonClassName: string;
   description: string;
   newestUpdateDescription: string;
   userId: UUID;
   sourceId: UUID;
-  programmingLanguageWithVersion: string;
-  implementationScriptPath: string;
-  setupScriptPath?: string | null;
+  implementationScriptId: UUID;
+  setupScriptId?: UUID | null;
   modelClassDocstring: string;
   trainingFunctionId: UUID;
   inferenceFunctionId: UUID;
@@ -88,18 +92,28 @@ export interface ModelFull {
   configSchema: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ModelImplementation extends Omit<ModelImplementationInDB, 'embedding'> {
   definition: ModelDefinitionInDB;
   trainingFunction: ModelFunctionFull;
   inferenceFunction: ModelFunctionFull;
+  implementationScript: ScriptInDB;
+  setupScript?: ScriptInDB | null;
+  descriptionForAgent: string;
 }
 
-export interface ModelEntityWithModelDef extends ModelEntityInDB {
-  model: ModelFull;
+export interface ModelEntityImplementation extends ModelEntityImplementationInDB {
+  modelImplementation: ModelImplementation;
+}
+
+export interface ModelEntity extends ModelEntityInDB {
+  implementation?: ModelEntityImplementation | null;
+  descriptionForAgent: string;
 }
 
 // Type aliases for usage in components
-export type Model = ModelFull;
-export type ModelEntity = ModelEntityWithModelDef;
+export type Model = ModelImplementation;
 
 
 export interface ModelSourceBase {

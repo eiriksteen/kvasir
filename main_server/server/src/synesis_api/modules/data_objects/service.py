@@ -56,11 +56,6 @@ from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_data_interface.structures.serialization import deserialize_parquet_to_dataframes
 from synesis_data_interface.structures.time_series.definitions import TIME_SERIES_STRUCTURE
 from synesis_data_interface.structures.time_series_aggregation.definitions import TIME_SERIES_AGGREGATION_STRUCTURE
-from synesis_api.modules.analysis.service import get_analysis_result_by_id
-from synesis_api.modules.data_sources.service import get_user_data_sources
-from synesis_api.utils.file_utils import copy_file_or_directory_to_container, get_data_from_container_from_code
-from synesis_api.app_secrets import DATASETS_SAVE_PATH, RAW_FILES_SAVE_DIR
-from pathlib import Path
 
 
 async def create_features(features: List[FeatureCreate]) -> List[FeatureInDB]:
@@ -354,9 +349,7 @@ async def create_dataset(
         variable_group_record = VariableGroupInDB(
             id=uuid.uuid4(),
             dataset_id=dataset_record.id,
-            name=variable_group_create.name,
-            description=variable_group_create.description,
-            save_path=variable_group_create.save_path,
+            **variable_group_create.model_dump(),
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
         )

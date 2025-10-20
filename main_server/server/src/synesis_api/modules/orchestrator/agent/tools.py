@@ -6,8 +6,7 @@ from pydantic_ai.exceptions import ModelRetry
 
 from synesis_schemas.main_server import (
     QueryRequest,
-    ModelQueryResult,
-    ModelEntityCreate,
+    ModelEntityImplementationCreate,
     ModelEntityInDB,
     AddEntityToProject,
     GetGuidelinesRequest,
@@ -17,7 +16,7 @@ from synesis_schemas.main_server import (
 )
 from synesis_api.modules.orchestrator.agent.deps import OrchestratorAgentDeps
 from synesis_api.modules.knowledge_bank.service import query_models, get_task_guidelines
-from synesis_api.modules.model.service import create_model_entity
+from synesis_api.modules.model.service import create_model_entity_implementation
 from synesis_api.modules.project.service import add_entity_to_project
 from synesis_api.modules.runs.service import create_run
 
@@ -35,43 +34,21 @@ class AnalysisHandoffOutput(BaseModel):
         return self
 
 
-class PipelineRunDescriptionOutput(BaseModel):
+class SWERunDescriptionOutput(BaseModel):
     run_name: str
     plan_and_deliverable_description_for_user: str
     plan_and_deliverable_description_for_agent: str
     questions_for_user: Optional[str] = None
     configuration_defaults_description: Optional[str] = None
+    input_data_source_ids: List[uuid.UUID] = []
     input_dataset_ids: List[uuid.UUID]
     input_model_entity_ids: List[uuid.UUID] = []
 
     @model_validator(mode="after")
-    def validate_dataset_ids(self) -> "PipelineRunDescriptionOutput":
+    def validate_dataset_ids(self) -> "SWERunDescriptionOutput":
         assert len(
-            self.input_dataset_ids) > 0, "One or more dataset IDs are required"
+            self.input_dataset_ids) + len(self.input_data_source_ids) > 0, "One or more dataset or data source IDs are required"
         return self
-
-
-class DataIntegrationRunDescriptionOutput(BaseModel):
-    run_name: str
-    plan_and_deliverable_description_for_user: str
-    plan_and_deliverable_description_for_agent: str
-    questions_for_user: Optional[str] = None
-    data_source_ids: List[uuid.UUID] = []
-    # For input datasets
-    dataset_ids: List[uuid.UUID] = []
-
-    @model_validator(mode="after")
-    def validate_data_source_ids(self) -> "DataIntegrationRunDescriptionOutput":
-        assert len(
-            self.data_source_ids) > 0 or len(self.dataset_ids) > 0, "One or more data source IDs or dataset IDs are required"
-        return self
-
-
-class ModelIntegrationRunDescriptionOutput(BaseModel):
-    run_name: str
-    plan_and_deliverable_description_for_user: str
-    plan_and_deliverable_description_for_agent: str
-    questions_for_user: Optional[str] = None
 
 
 async def submit_run_for_analysis_agent(
@@ -85,18 +62,19 @@ async def submit_run_for_analysis_agent(
     return "Analysis agent run not yet implemented"
 
 
-async def submit_run_for_pipeline_agent(
+async def submit_run_for_swe_agent(
     ctx: RunContext[OrchestratorAgentDeps],
-    result: PipelineRunDescriptionOutput
+    result: SWERunDescriptionOutput
 ) -> str:
-    """Submit a pipeline agent run with the provided parameters."""
+    """Submit a SWE agent run with the provided parameters."""
 
     run = await create_run(
         ctx.deps.user_id,
         RunCreate(
-            type="pipeline",
+            type="swe",
             project_id=ctx.deps.project_id,
             conversation_id=ctx.deps.conversation_id,
+            data_sources_in_run=result.input_data_source_ids,
             datasets_in_run=result.input_dataset_ids,
             model_entities_in_run=result.input_model_entity_ids,
             spec=RunSpecificationCreate(
@@ -107,55 +85,7 @@ async def submit_run_for_pipeline_agent(
                 configuration_defaults_description=result.configuration_defaults_description)
         ))
 
-    return f"Successfully submitted run for pipeline agent, the run id is {run.id}"
-
-
-async def submit_run_for_data_integration_agent(
-    ctx: RunContext[OrchestratorAgentDeps],
-    result: DataIntegrationRunDescriptionOutput
-) -> str:
-    """Submit a data integration agent run with the provided parameters."""
-
-    run = await create_run(
-        ctx.deps.user_id,
-        RunCreate(
-            type="data_integration",
-            project_id=ctx.deps.project_id,
-            conversation_id=ctx.deps.conversation_id,
-            data_sources_in_run=result.data_source_ids,
-            datasets_in_run=result.dataset_ids,
-            spec=RunSpecificationCreate(
-                run_name=result.run_name,
-                plan_and_deliverable_description_for_agent=result.plan_and_deliverable_description_for_agent,
-                plan_and_deliverable_description_for_user=result.plan_and_deliverable_description_for_user,
-                questions_for_user=result.questions_for_user)
-        ))
-
-    return f"Successfully submitted run for data integration agent, the run id is {run.id}"
-
-
-async def submit_run_for_model_integration_agent(
-    ctx: RunContext[OrchestratorAgentDeps],
-    result: ModelIntegrationRunDescriptionOutput
-) -> str:
-    """Submit a model integration agent run with the provided parameters."""
-
-    run = await create_run(
-        ctx.deps.user_id,
-        RunCreate(
-            type="model_integration",
-            project_id=ctx.deps.project_id,
-            conversation_id=ctx.deps.conversation_id,
-            spec=RunSpecificationCreate(
-                run_name=result.run_name,
-                plan_and_deliverable_description_for_agent=result.plan_and_deliverable_description_for_agent,
-                plan_and_deliverable_description_for_user=result.plan_and_deliverable_description_for_user,
-                questions_for_user=result.questions_for_user
-            )
-        )
-    )
-
-    return f"Successfully submitted run for model integration agent, the run id is {run.id}"
+    return f"Successfully submitted run for SWE agent, the run id is {run.id}"
 
 
 async def search_existing_models(ctx: RunContext[OrchestratorAgentDeps], search_query: QueryRequest) -> str:
@@ -168,11 +98,23 @@ async def search_existing_models(ctx: RunContext[OrchestratorAgentDeps], search_
     return descriptions
 
 
-async def add_model_entity_to_project(ctx: RunContext[OrchestratorAgentDeps], model_entity_create: ModelEntityCreate) -> ModelEntityInDB:
+async def add_model_entity_to_project(ctx: RunContext[OrchestratorAgentDeps], model_entity_implementation_create: ModelEntityImplementationCreate) -> ModelEntityInDB:
+    """
+    Add an implemented model entity to the project. 
+    You must provide the model_implementation_id and model_entity_create. 
+    This should not be called before we have searched the models, as we need to know the model_implementation_id.
+    """
+
+    if not model_entity_implementation_create.model_implementation_id:
+        raise ModelRetry("Model implementation ID is required!")
+
+    if not model_entity_implementation_create.model_entity_create:
+        raise ModelRetry("Model entity create is required!")
+
     try:
-        new_model_entity = await create_model_entity(ctx.deps.user_id, model_entity_create)
+        new_model_entity = await create_model_entity_implementation(ctx.deps.user_id, model_entity_implementation_create)
     except Exception as e:
-        raise ModelRetry(f"Error creating model entity: {e}")
+        raise ModelRetry(f"Error creating model entity implementation: {e}")
 
     await add_entity_to_project(ctx.deps.user_id, AddEntityToProject(
         project_id=ctx.deps.project_id,

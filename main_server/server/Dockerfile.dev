@@ -1,10 +1,10 @@
-FROM python:3.13-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-COPY data_structures /app/data_structures
+COPY data_interface /app/data_interface
 
 COPY schemas /app/schemas
 
@@ -13,7 +13,7 @@ COPY main_server/server /app
 
 # Install synesis data structures package from source and the main package
 RUN pip install --upgrade pip && \
-    pip install -e /app/data_structures && \
+    pip install -e /app/data_interface && \
     pip install -e /app/schemas && \
     pip install -e .
 

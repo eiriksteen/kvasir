@@ -1,13 +1,17 @@
-from typing import Union
+from typing import Union, Optional
 
 from synesis_schemas.main_server import (
     DataSourceInDB,
-    TabularFileDataSource,
+    TabularFileDataSourceInDB,
+    KeyValueFileDataSourceInDB,
+    DataSourceAnalysisInDB,
 )
 
 
 def get_data_source_description(data_source_in_db: DataSourceInDB,
-                                type_fields: Union[TabularFileDataSource]) -> str:
+                                type_fields: Optional[Union[TabularFileDataSourceInDB,
+                                                            KeyValueFileDataSourceInDB]] = None,
+                                analysis: Optional[DataSourceAnalysisInDB] = None) -> str:
     """
     Generate a comprehensive description of a data source for use in prompts or displays.
 
@@ -23,36 +27,39 @@ def get_data_source_description(data_source_in_db: DataSourceInDB,
     description += f"- Type: {data_source_in_db.type}\n"
     description += f"- Created: {data_source_in_db.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
 
-    # Check if we have the detailed TabularFileDataSource
-    if isinstance(type_fields, TabularFileDataSource):
-        description += f"\nFile Information:\n"
-        description += f"- File Name: {type_fields.file_name}\n"
-        description += f"- File Type: {type_fields.file_type}\n"
-        description += f"- File Size: {type_fields.file_size_bytes:,} bytes\n"
-        description += f"- Dimensions: {type_fields.num_rows:,} rows × {type_fields.num_columns} columns\n"
+    # Check if we have the detailed type-specific data source
 
-        # Features
-        if type_fields.features:
-            description += f"\nFeatures ({len(type_fields.features)}):\n"
-            for feature in type_fields.features:
-                feature_desc = f"- {feature.name} ({feature.type}, {feature.subtype}, {feature.scale})"
-                if feature.description:
-                    feature_desc += f": {feature.description}"
-                if feature.unit:
-                    feature_desc += f" [Unit: {feature.unit}]"
-                description += feature_desc + "\n"
+    if type_fields:
+        if isinstance(type_fields, TabularFileDataSourceInDB):
+            description += f"\nFile Information:\n"
+            description += f"- File Name: {type_fields.file_name}\n"
+            description += f"- File Type: {type_fields.file_type}\n"
+            description += f"- File Size: {type_fields.file_size_bytes:,} bytes\n"
+            description += f"- Dimensions: {type_fields.num_rows:,} rows × {type_fields.num_columns} columns\n"
+
+            # Schema information
+            if type_fields.json_schema:
+                description += f"\nSchema:\n"
+                for field_name, field_info in type_fields.json_schema.items():
+                    description += f"- {field_name}: {field_info}\n"
+
+            # Content preview if available
+            if type_fields.content_preview:
+                description += f"\nPreview:\n{type_fields.content_preview}\n"
+
+        elif isinstance(type_fields, KeyValueFileDataSourceInDB):
+            description += f"\nFile Information:\n"
+            description += f"- File Name: {type_fields.file_name}\n"
+            description += f"- File Type: {type_fields.file_type}\n"
+            description += f"- File Size: {type_fields.file_size_bytes:,} bytes\n"
 
         # Analysis information if available
-        if type_fields.analysis:
+        if analysis:
             description += f"\nAnalysis:\n"
-            description += f"- Content: {type_fields.analysis.content_description}\n"
-            description += f"- Quality: {type_fields.analysis.quality_description}\n"
-            description += f"- EDA Summary: {type_fields.analysis.eda_summary}\n"
-            if type_fields.analysis.cautions:
-                description += f"- Cautions: {type_fields.analysis.cautions}\n"
-
-        # Content preview if available
-        if type_fields.content_preview:
-            description += f"\nPreview:\n{type_fields.content_preview}\n"
+            description += f"- Content: {analysis.content_description}\n"
+            description += f"- Quality: {analysis.quality_description}\n"
+            description += f"- EDA Summary: {analysis.eda_summary}\n"
+            if analysis.cautions:
+                description += f"- Cautions: {analysis.cautions}\n"
 
     return description

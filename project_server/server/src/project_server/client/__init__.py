@@ -27,7 +27,8 @@ from .requests.pipeline import (
     post_pipeline_output_model_entity,
     post_pipeline_output_dataset,
     post_pipeline_run_object,
-    patch_pipeline_run_status
+    patch_pipeline_run_status,
+    post_pipeline_implementation
 )
 
 from .requests.orchestrator import (
@@ -35,22 +36,18 @@ from .requests.orchestrator import (
     get_messages,
     get_conversations,
     create_chat_message_pydantic_request,
-    create_context_request
+    create_context_request,
+    submit_swe_result_approval_request
 )
 
-from .requests.node import (
-    post_create_node,
-    get_project_nodes,
-    put_update_node,
-    delete_node
-)
 
 from .requests.data_sources import (
     get_data_sources,
     get_data_sources_by_ids,
     post_file_data_source,
     post_data_source_analysis,
-    post_data_source_details
+    post_data_source_details,
+    get_data_source
 )
 
 from .requests.data_objects import (
@@ -62,7 +59,7 @@ from .requests.data_objects import (
     get_datasets_by_ids,
     create_aggregation_object_request,
     update_aggregation_object_request,
-    get_aggregation_object_by_analysis_result_id_request
+    get_aggregation_object_by_analysis_result_id_request,
 )
 
 from .requests.project import (
@@ -70,9 +67,9 @@ from .requests.project import (
     get_project,
     put_update_project,
     post_add_entity,
-    delete_remove_entity,
+    delete_entity,
     delete_project,
-    get_user_projects
+    get_user_projects,
 )
 
 from .requests.knowledge_bank import (
@@ -82,21 +79,18 @@ from .requests.knowledge_bank import (
 
 from .requests.function import (
     post_function,
-    post_update_function
+    post_update_function,
+    get_functions,
 )
 
 from .requests.model import (
     post_model,
     post_model_entity,
+    post_model_entity_implementation,
     get_project_model_entities,
     get_model_entities_by_ids,
     patch_model_entity_config,
     post_update_model
-)
-
-from .requests.model_sources import (
-    get_model_source,
-    post_model_source
 )
 
 from .requests.analysis import (
@@ -106,7 +100,6 @@ from .requests.analysis import (
     update_section_request,
     delete_section_request,
     add_analysis_result_to_section_request,
-    get_data_for_analysis_result_request,
     move_element_request,
     update_analysis_result_request,
     delete_analysis_result_request,
@@ -157,6 +150,7 @@ __all__ = [
     "get_user_pipelines",
     "get_user_pipeline",
     "post_pipeline",
+    "post_pipeline_implementation",
     "post_pipeline_output_model_entity",
     "post_pipeline_output_dataset",
     "patch_pipeline_run_status",
@@ -168,7 +162,7 @@ __all__ = [
     # Function functions
     "post_function",
     "post_update_function",
-
+    "get_functions",
     # Model functions
     "post_model",
     "post_model_entity",
@@ -176,6 +170,9 @@ __all__ = [
     "get_model_entities_by_ids",
     "patch_model_entity_config",
     "post_update_model",
+    "get_model_source",
+    "post_model_source",
+    "get_model_sources",
     # Orchestrator functions
     "post_conversation",
     "get_messages",
@@ -183,19 +180,13 @@ __all__ = [
     "create_chat_message_pydantic_request",
     "create_context_request",
 
-    # Node functions
-    "post_create_node",
-    "get_project_nodes",
-    "put_update_node",
-    "delete_node",
-
     # Data sources functions
     "get_data_sources",
     "get_data_sources_by_ids",
     "post_file_data_source",
     "post_data_source_analysis",
     "post_data_source_details",
-
+    "get_data_sources_descriptions",
     # Data objects functions
     "post_dataset",
     "get_project_datasets",
@@ -206,13 +197,13 @@ __all__ = [
     "create_aggregation_object_request",
     "update_aggregation_object_request",
     "get_aggregation_object_by_analysis_result_id_request",
-
+    "get_datasets_descriptions_request",
     # Project functions
     "post_create_project",
     "get_project",
     "put_update_project",
     "post_add_entity",
-    "delete_remove_entity",
+    "delete_entity",
     "delete_project",
     "get_user_projects",
 
@@ -226,7 +217,6 @@ __all__ = [
     "update_section_request",
     "delete_section_request",
     "add_analysis_result_to_section_request",
-    "get_data_for_analysis_result_request",
     "move_element_request",
     "update_analysis_result_request",
     "delete_analysis_result_request",

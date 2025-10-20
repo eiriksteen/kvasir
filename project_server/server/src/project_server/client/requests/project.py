@@ -7,7 +7,7 @@ from synesis_schemas.main_server import (
     Project,
     ProjectDetailsUpdate,
     AddEntityToProject,
-    RemoveEntityFromProject
+    RemoveEntityFromProject,
 )
 
 
@@ -35,7 +35,7 @@ async def post_add_entity(client: ProjectClient, entity_data: AddEntityToProject
     return Project(**response.body)
 
 
-async def delete_remove_entity(client: ProjectClient, entity_data: RemoveEntityFromProject) -> Project:
+async def delete_entity(client: ProjectClient, entity_data: RemoveEntityFromProject) -> Project:
     """Remove an entity (data source, dataset, analysis, pipeline) from a project"""
     response = await client.send_request("delete", f"/project/remove-entity", json=entity_data.model_dump(mode="json"))
     return Project(**response.body)

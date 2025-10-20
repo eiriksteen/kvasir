@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional, Literal, List
+from pydantic import BaseModel, model_validator
+from typing import Optional, Literal, List, Union, Dict
 from datetime import datetime
 from uuid import UUID
 
@@ -17,6 +17,11 @@ SUPPORTED_TASK_TYPE = Literal["forecasting", "classification", "regression",
 FUNCTION_TYPE = Literal["training", "inference"]
 
 
+SUPPORTED_MODEL_SOURCES_TYPE = Literal["github", "pypi"]
+
+SUPPORTED_MODEL_SOURCES = ["github", "pypi"]
+
+
 # DB models
 
 class ModelDefinitionInDB(BaseModel):
@@ -29,7 +34,7 @@ class ModelDefinitionInDB(BaseModel):
     updated_at: datetime
 
 
-class ModelInDB(BaseModel):
+class ModelImplementationInDB(BaseModel):
     id: UUID
     definition_id: UUID
     version: int
@@ -46,6 +51,23 @@ class ModelInDB(BaseModel):
     config_schema: dict
     training_function_id: UUID
     inference_function_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class ModelEntityInDB(BaseModel):
+    id: UUID
+    name: str
+    user_id: UUID
+    description: str
+
+
+class ModelEntityImplementationInDB(BaseModel):
+    id: UUID
+    model_id: UUID
+    config: dict
+    weights_save_dir: Optional[str] = None
+    pipeline_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
 
@@ -81,19 +103,6 @@ class ModelFunctionOutputObjectGroupDefinitionInDB(BaseModel):
     updated_at: datetime
 
 
-class ModelEntityInDB(BaseModel):
-    id: UUID
-    name: str
-    user_id: UUID
-    description: str
-    model_id: UUID
-    config: dict
-    weights_save_dir: Optional[str] = None
-    pipeline_id: Optional[UUID] = None
-    created_at: datetime
-    updated_at: datetime
-
-
 class ModelEntityFromPipelineInDB(BaseModel):
     pipeline_id: UUID
     model_entity_id: UUID
@@ -101,9 +110,26 @@ class ModelEntityFromPipelineInDB(BaseModel):
     updated_at: datetime
 
 
+class ModelSourceInDB(BaseModel):
+    id: UUID
+    type: SUPPORTED_MODEL_SOURCES_TYPE
+    name: str
+    description: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class PypiModelSourceInDB(BaseModel):
+    id: UUID
+    package_name: str
+    package_version: str
+    created_at: datetime
+    updated_at: datetime
+
+
 # API models
 
-class ModelWithoutEmbedding(BaseModel):
+class ModelImplementationWithoutEmbedding(BaseModel):
     id: UUID
     definition_id: UUID
     version: int
@@ -121,56 +147,39 @@ class ModelWithoutEmbedding(BaseModel):
     updated_at: datetime
 
 
-class ModelFunctionFull(ModelFunctionInDB):
+class ModelFunction(ModelFunctionInDB):
     input_object_groups: List[ModelFunctionInputObjectGroupDefinitionInDB]
     output_object_groups: List[ModelFunctionOutputObjectGroupDefinitionInDB]
 
 
-class Model(ModelWithoutEmbedding):
+class ModelImplementation(ModelImplementationWithoutEmbedding):
     definition: ModelDefinitionInDB
-    training_function: ModelFunctionFull
-    inference_function: ModelFunctionFull
+    training_function: ModelFunction
+    inference_function: ModelFunction
     implementation_script: ScriptInDB
     setup_script: Optional[ScriptInDB] = None
+    description_for_agent: str
+
+
+class ModelEntityImplementation(ModelEntityImplementationInDB):
+    model_implementation: ModelImplementation
 
 
 class ModelEntity(ModelEntityInDB):
-    model: Model
-
-
-class ModelDefinitionBare(BaseModel):
-    id: UUID
-    name: str
-
-
-class ModelFunctionBare(BaseModel):
-    id: UUID
-    docstring: str
-
-
-class ModelBare(BaseModel):
-    id: UUID
-    description: str
-    config_schema: dict
-    python_class_name: str
-    model_class_docstring: str
-    training_function: ModelFunctionBare
-    inference_function: ModelFunctionBare
-    definition: ModelDefinitionBare
-
-
-class ModelEntityBare(BaseModel):
-    id: UUID
-    name: str
-    description: str
-    model: ModelBare
+    implementation: Optional[ModelEntityImplementation] = None
+    description_for_agent: str
 
 
 class GetModelEntityByIDsRequest(BaseModel):
     model_entity_ids: List[UUID]
 
 
+class ModelSource(ModelSourceInDB):
+    type_fields: Union[PypiModelSourceInDB]  # TODO: Add github
+
+
 # Create models
+
 
 class ModelFunctionInputObjectGroupDefinitionCreate(BaseModel):
     structure_id: str
@@ -194,14 +203,27 @@ class ModelFunctionCreate(BaseModel):
     output_object_groups: List[ModelFunctionOutputObjectGroupDefinitionCreate]
 
 
-class ModelCreate(BaseModel):
+class PypiModelSourceCreate(BaseModel):
+    package_name: str
+    package_version: str
+    type: Literal["pypi"] = "pypi"
+
+
+class ModelSourceCreate(BaseModel):
+    type: SUPPORTED_MODEL_SOURCES_TYPE
+    description: str
+    name: str
+    type_fields: PypiModelSourceCreate
+
+
+class ModelImplementationCreate(BaseModel):
     name: str
     python_class_name: str
     public: bool
     description: str
     modality: SUPPORTED_MODALITIES_TYPE
     task: SUPPORTED_TASK_TYPE
-    source_id: UUID
+    source: ModelSourceCreate
     model_class_docstring: str
     training_function: ModelFunctionCreate
     inference_function: ModelFunctionCreate
@@ -209,6 +231,41 @@ class ModelCreate(BaseModel):
     config_schema: dict
     implementation_script_create: ScriptCreate
     setup_script_create: Optional[ScriptCreate] = None
+
+
+class ModelEntityCreate(BaseModel):
+    name: str
+    description: str
+
+
+class ModelEntityImplementationCreate(BaseModel):
+    config: dict
+    weights_save_dir: Optional[str] = None
+    pipeline_id: Optional[UUID] = None
+    model_implementation_id: Optional[UUID] = None
+    model_implementation_create: Optional[ModelImplementationCreate] = None
+    model_entity_id: Optional[UUID] = None
+    model_entity_create: Optional[ModelEntityCreate] = None
+
+    @model_validator(mode='after')
+    def validate_model_specification(self):
+        if self.model_implementation_id is None and self.model_implementation_create is None:
+            raise ValueError(
+                "Either model_id or model_create must be provided")
+        if self.model_implementation_id is not None and self.model_implementation_create is not None:
+            raise ValueError(
+                "Only one of model_id or model_create can be provided, not both")
+        return self
+
+    @model_validator(mode='after')
+    def validate_model_entity_specification(self):
+        if self.model_entity_id is None and self.model_entity_create is None:
+            raise ValueError(
+                "Either model_entity_id or model_entity_create must be provided")
+        if self.model_entity_id is not None and self.model_entity_create is not None:
+            raise ValueError(
+                "Only one of model_entity_id or model_entity_create can be provided, not both")
+        return self
 
 
 # Update models
@@ -241,16 +298,13 @@ class ModelUpdateCreate(BaseModel):
     new_setup_create: Optional[ScriptCreate] = None
 
 
-class ModelEntityCreate(BaseModel):
-    name: str
-    description: str
-    model_id: UUID
-    config: dict
-    weights_save_dir: Optional[str] = None
-    pipeline_id: Optional[UUID] = None
-
-
 # Update models
+
+
+class ModelEntityUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
 
 class ModelEntityConfigUpdate(BaseModel):
     config: dict

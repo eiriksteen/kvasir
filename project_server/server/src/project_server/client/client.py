@@ -25,8 +25,6 @@ class ProjectClient:
 
     def __init__(self, bearer_token: Optional[str] = None):
         self.bearer_token = bearer_token
-        self.refresh_tries = 0
-        self.max_refresh_tries = 3
 
     def set_bearer_token(self, bearer_token: str):
         self.bearer_token = bearer_token
@@ -62,12 +60,7 @@ class ProjectClient:
             async with session.request(method, f"{MAIN_SERVER_URL}{path}", headers=headers, data=form_data, json=json) as response:
 
                 if response.status == 401:
-                    if self.refresh_tries >= self.max_refresh_tries:
-                        raise RuntimeError("Max tries reached")
-                    else:
-                        await self.refresh_token()
-                        self.refresh_tries += 1
-                        return await self.send_request(method, path, data, json, files, headers)
+                    raise RuntimeError("Unauthorized")
 
                 if response.status != 200:
                     raise RuntimeError(
@@ -80,10 +73,3 @@ class ProjectClient:
                     body=await response.json(),
                     content_type=response.headers.get('content-type', '')
                 )
-
-    async def refresh_token(self) -> None:
-        if self.bearer_token is None:
-            raise RuntimeError("Bearer token is not set")
-
-        response = await self.send_request("post", "/auth/refresh")
-        self.bearer_token = response.headers["Authorization"]

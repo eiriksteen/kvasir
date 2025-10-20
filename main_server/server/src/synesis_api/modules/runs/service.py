@@ -4,7 +4,7 @@ from typing import Literal, Optional, List, Union
 from sqlalchemy import select, insert
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelMessage
 
-from synesis_api.client import MainServerClient, post_run_data_integration, post_run_pipeline_agent, post_run_model_integration
+from synesis_api.client import MainServerClient, post_run_swe, post_run_analysis
 from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_schemas.main_server import (
     RunInDB,
@@ -22,7 +22,7 @@ from synesis_schemas.main_server import (
     RunEntityIds,
     RunStatusUpdate
 )
-from synesis_schemas.project_server import RunDataIntegrationAgentRequest, RunPipelineAgentRequest, RunModelIntegrationAgentRequest
+from synesis_schemas.project_server import RunAnalysisRequest, RunSWERequest
 from synesis_api.modules.runs.models import (
     run_specification,
     run,
@@ -123,36 +123,27 @@ async def launch_run(client: MainServerClient, run_id: uuid.UUID):
         select(pipeline_in_run).where(
             pipeline_in_run.c.run_id == run_id))]
 
-    if run_record.type == "data_integration":
-        await post_run_data_integration(client, RunDataIntegrationAgentRequest(
+    if run_record.type == "swe":
+        await post_run_swe(client, RunSWERequest(
             run_id=run_id,
-            project_id=run_record.project_id,
             conversation_id=run_record.conversation_id,
+            prompt_content=run_spec.plan_and_deliverable_description_for_agent,
             data_source_ids=data_source_ids,
             dataset_ids=dataset_ids,
             model_entity_ids=model_entity_ids,
-            pipeline_ids=pipeline_ids,
-            prompt_content=run_spec.plan_and_deliverable_description_for_agent
+            project_id=run_record.project_id,
+            # pipeline_id=pipeline_id
         ))
 
-    elif run_record.type == "pipeline":
-        await post_run_pipeline_agent(client, RunPipelineAgentRequest(
+    elif run_record.type == "analysis":
+        await post_run_analysis(client, RunAnalysisRequest(
             run_id=run_id,
-            project_id=run_record.project_id,
             conversation_id=run_record.conversation_id,
             prompt_content=run_spec.plan_and_deliverable_description_for_agent,
-            input_dataset_ids=dataset_ids,
-            input_model_entity_ids=model_entity_ids
-        ))
-
-    elif run_record.type == "model_integration":
-        await post_run_model_integration(client, RunModelIntegrationAgentRequest(
-            run_id=run_id,
-            project_id=run_record.project_id,
-            conversation_id=run_record.conversation_id,
-            prompt_content=run_spec.plan_and_deliverable_description_for_agent,
-            # TODO: Make it based on user input
-            public=False
+            dataset_ids=dataset_ids,
+            data_source_ids=data_source_ids,
+            model_entity_ids=model_entity_ids,
+            pipeline_ids=pipeline_ids
         ))
 
     await execute(run.update().where(run.c.id == run_id).values(status="running"), commit_after=True)
@@ -177,7 +168,7 @@ async def get_runs(
                                              "rejected"]]] = None,
         run_ids: Optional[List[uuid.UUID]] = None,
         conversation_id: Optional[uuid.UUID] = None,
-        exclude_swe: bool = True) -> List[Run]:
+) -> List[Run]:
 
     runs_query = select(run).where(run.c.user_id == user_id)
 
@@ -187,9 +178,6 @@ async def get_runs(
         runs_query = runs_query.where(run.c.id.in_(run_ids))
     if conversation_id:
         runs_query = runs_query.where(run.c.conversation_id == conversation_id)
-
-    if exclude_swe:
-        runs_query = runs_query.where(run.c.type != "swe")
 
     runs = await fetch_all(runs_query)
 

@@ -226,8 +226,7 @@ async def get_functions(function_ids: List[uuid.UUID]) -> List[Function]:
                 **i) for i in input_object_group_definition_records],
             [FunctionOutputObjectGroupDefinitionInDB(
                 **o) for o in output_object_group_definition_records],
-            implementation_script,
-            setup_script)
+            implementation_script)
 
         output_objs.append(
             Function(**function_record,

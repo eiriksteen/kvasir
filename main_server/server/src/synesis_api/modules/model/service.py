@@ -7,8 +7,9 @@ from fastapi import HTTPException
 
 from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.model.models import (
-    model,
+    model_implementation,
     model_definition,
+    model_entity,
     model_entity_implementation,
     model_function,
     model_function_input_object_group_definition,
@@ -17,22 +18,23 @@ from synesis_api.modules.model.models import (
     pypi_model_source
 )
 from synesis_schemas.main_server import (
-    ModelInDB,
+    ModelImplementationInDB,
     ModelFunctionInDB,
-    ModelCreate,
+    ModelImplementationCreate,
     ModelEntity,
     ModelEntityInDB,
     ModelEntityCreate,
     ModelEntityConfigUpdate,
     ModelDefinitionInDB,
-    Model,
+    ModelEntityImplementationInDB,
+    ModelEntityImplementationCreate,
+    ModelEntityImplementation,
+    ModelImplementation,
     ModelUpdateCreate,
     ModelFunction,
     ModelFunctionInputObjectGroupDefinitionInDB,
     ModelFunctionOutputObjectGroupDefinitionInDB,
     ModelSource,
-    PypiModelSourceCreate,
-    PypiModelSource,
     ModelSourceCreate,
     ModelSourceInDB,
     PypiModelSourceInDB,
@@ -42,7 +44,7 @@ from synesis_api.modules.code.service import create_script, get_scripts
 from synesis_api.modules.model.description import get_model_entity_description, get_model_description
 
 
-async def create_model(user_id: uuid.UUID, model_create: ModelCreate) -> Model:
+async def create_model(user_id: uuid.UUID, model_create: ModelImplementationCreate) -> ModelImplementation:
 
     model_definition_obj = ModelDefinitionInDB(
         id=uuid.uuid4(),
@@ -74,8 +76,11 @@ async def create_model(user_id: uuid.UUID, model_create: ModelCreate) -> Model:
     else:
         setup_script_obj = None
 
-    model_obj = ModelInDB(
+    model_source_obj = await create_model_source(model_create.source)
+
+    model_obj = ModelImplementationInDB(
         id=uuid.uuid4(),
+        source_id=model_source_obj.id,
         **model_create.model_dump(),
         definition_id=model_definition_obj.id,
         version=1,
@@ -93,7 +98,7 @@ async def create_model(user_id: uuid.UUID, model_create: ModelCreate) -> Model:
     await execute(insert(model_definition).values(**model_definition_obj.model_dump()), commit_after=True)
     await execute(insert(model_function).values(**training_function_obj.model_dump()), commit_after=True)
     await execute(insert(model_function).values(**inference_function_obj.model_dump()), commit_after=True)
-    await execute(insert(model).values(**model_obj.model_dump()), commit_after=True)
+    await execute(insert(model_implementation).values(**model_obj.model_dump()), commit_after=True)
 
     training_input_records = [
         ModelFunctionInputObjectGroupDefinitionInDB(
@@ -162,21 +167,26 @@ async def create_model(user_id: uuid.UUID, model_create: ModelCreate) -> Model:
 
     )
 
-    return Model(
+    description = get_model_description(
+        model_obj, model_definition_obj, training_function_full, inference_function_full, implementation_script_obj, setup_script_obj
+    )
+
+    return ModelImplementation(
         **{k: v for k, v in model_obj.model_dump().items() if k != 'embedding'},
         definition=model_definition_obj,
         training_function=training_function_full,
         inference_function=inference_function_full,
         implementation_script=implementation_script_obj,
-        setup_script=setup_script_obj
+        setup_script=setup_script_obj,
+        description_for_agent=description
     )
 
 
-async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> Model:
-    max_version_subquery = select(func.max(model.c.version)).where(
-        model.c.definition_id == model_update.definition_id)
-    existing_model = await fetch_one(select(model).where(and_(model.c.definition_id == model_update.definition_id,
-                                                              model.c.version == max_version_subquery)))
+async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> ModelImplementation:
+    max_version_subquery = select(func.max(model_implementation.c.version)).where(
+        model_implementation.c.definition_id == model_update.definition_id)
+    existing_model = await fetch_one(select(model_implementation).where(and_(model_implementation.c.definition_id == model_update.definition_id,
+                                                                             model_implementation.c.version == max_version_subquery)))
 
     if model_update.updated_description:
         embedding = (await embed([f"{existing_model['filename']}: {model_update.updated_description}"]))[0]
@@ -234,7 +244,7 @@ async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> M
     else:
         inference_function_id = existing_model["inference_function_id"]
 
-    model_obj = ModelInDB(
+    model_obj = ModelImplementationInDB(
         id=uuid.uuid4(),
         implementation_script_id=implementation_script_obj.id,
         setup_script_id=setup_script_obj.id if setup_script_obj else existing_model[
@@ -261,7 +271,7 @@ async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> M
         updated_at=datetime.now(timezone.utc)
     )
 
-    await execute(insert(model).values(**model_obj.model_dump()), commit_after=True)
+    await execute(insert(model_implementation).values(**model_obj.model_dump()), commit_after=True)
 
     # Handle training function updates
     if model_update.updated_training_function:
@@ -348,9 +358,10 @@ async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> M
     return (await get_models([model_obj.id]))[0]
 
 
-async def get_models(model_ids: List[uuid.UUID]) -> List[Model]:
+async def get_models(model_ids: List[uuid.UUID]) -> List[ModelImplementation]:
 
-    model_query = select(model).where(model.c.id.in_(model_ids))
+    model_query = select(model_implementation).where(
+        model_implementation.c.id.in_(model_ids))
     models = await fetch_all(model_query)
 
     model_definition_query = select(model_definition).where(
@@ -379,11 +390,12 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[Model]:
 
     # Query script records
     implementation_script_records = await get_scripts(m["implementation_script_id"] for m in models)
-    setup_script_records = await get_scripts(m["setup_script_id"] for m in models if m["setup_script_id"])
+    # setup_script_records = await get_scripts(next(m["setup_script_id"] for m in models if m["setup_script_id"]), None)
 
     output_objs = []
     for model_id in model_ids:
-        model_obj = ModelInDB(**next(m for m in models if m["id"] == model_id))
+        model_obj = ModelImplementationInDB(
+            **next(m for m in models if m["id"] == model_id))
         model_definition_obj = ModelDefinitionInDB(**next(
             m for m in model_definition_records if m["id"] == model_obj.definition_id))
 
@@ -413,7 +425,7 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[Model]:
         ]
 
         # Build ModelFunction objects
-        training_function_obj = ModelFunctionInDB(
+        training_function_obj = ModelFunction(
             **training_function_record,
             input_object_groups=[ModelFunctionInputObjectGroupDefinitionInDB(
                 **i) for i in training_input_records],
@@ -421,7 +433,7 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[Model]:
                 **o) for o in training_output_object_records],
         )
 
-        inference_function_obj = ModelFunctionInDB(
+        inference_function_obj = ModelFunction(
             **inference_function_record,
             input_object_groups=[ModelFunctionInputObjectGroupDefinitionInDB(
                 **i) for i in inference_input_records],
@@ -432,15 +444,15 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[Model]:
         # Get script records for this model
         implementation_script_obj = next(
             s for s in implementation_script_records if s.id == model_obj.implementation_script_id)
-        setup_script_obj = next(
-            (s for s in setup_script_records if s.id == model_obj.setup_script_id))
+        # TODO: Add
+        setup_script_obj = None
 
         model_description = get_model_description(
             model_obj, model_definition_obj, training_function_obj, inference_function_obj, implementation_script_obj, setup_script_obj)
 
         # Build Model object (excluding embedding)
         output_objs.append(
-            Model(
+            ModelImplementation(
                 **model_obj.model_dump(),
                 definition=model_definition_obj,
                 training_function=training_function_obj,
@@ -455,196 +467,254 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[Model]:
 
 
 async def create_model_entity(user_id: uuid.UUID, model_entity_create: ModelEntityCreate) -> ModelEntityInDB:
-
-    config_schema = await fetch_one(select(model.c.config_schema).where(model.c.id == model_entity_create.model_id))
-
-    try:
-        jsonschema.validate(model_entity_create.config,
-                            config_schema["config_schema"])
-    except jsonschema.ValidationError as e:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid config: {e.message}, schema: {config_schema['config_schema']}")
-
+    """
+    Create a bare model entity without implementation.
+    Used when developing or when the exact implementation hasn't been selected yet.
+    """
     model_entity_obj = ModelEntityInDB(
         id=uuid.uuid4(),
         user_id=user_id,
-        **model_entity_create.model_dump(),
+        name=model_entity_create.name,
+        description=model_entity_create.description,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )
+    await execute(insert(model_entity).values(**model_entity_obj.model_dump()), commit_after=True)
+    return model_entity_obj
 
-    await execute(insert(model_entity_implementation).values(**model_entity_obj.model_dump()), commit_after=True)
+
+async def create_model_entity_implementation(user_id: uuid.UUID, model_entity_implementation_create: ModelEntityImplementationCreate) -> ModelEntityInDB:
+    """
+    Create a model entity with an optional implementation.
+    If model_entity_id is provided, use existing entity. Otherwise create new entity.
+    If model_implementation_id is provided, create implementation. Otherwise leave bare entity.
+    """
+
+    # Handle model entity creation or retrieval
+    if model_entity_implementation_create.model_entity_id:
+        # Verify entity exists and user owns it
+        entity_query = select(model_entity).where(
+            model_entity.c.id == model_entity_implementation_create.model_entity_id,
+            model_entity.c.user_id == user_id
+        )
+        entity_record = await fetch_one(entity_query)
+        if not entity_record:
+            raise HTTPException(
+                status_code=404, detail="Model entity not found")
+        model_entity_obj = ModelEntityInDB(**entity_record)
+    else:
+        # Create new model entity
+        model_entity_obj = ModelEntityInDB(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            name=model_entity_implementation_create.model_entity_create.name,
+            description=model_entity_implementation_create.model_entity_create.description,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
+        await execute(insert(model_entity).values(**model_entity_obj.model_dump()), commit_after=True)
+
+    # Handle model implementation if provided
+    if model_entity_implementation_create.model_implementation_id or model_entity_implementation_create.model_implementation_create:
+        # Get or create model implementation
+        if model_entity_implementation_create.model_implementation_create:
+            model_impl = await create_model(user_id, model_entity_implementation_create.model_implementation_create)
+            model_implementation_id = model_impl.id
+        else:
+            model_implementation_id = model_entity_implementation_create.model_implementation_id
+
+        # Validate config against schema
+        config_schema_record = await fetch_one(
+            select(model_implementation.c.config_schema).where(
+                model_implementation.c.id == model_implementation_id
+            )
+        )
+
+        try:
+            jsonschema.validate(
+                model_entity_implementation_create.config,
+                config_schema_record["config_schema"]
+            )
+        except jsonschema.ValidationError as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid config: {e.message}, schema: {config_schema_record['config_schema']}"
+            )
+
+        # Create model entity implementation
+        model_entity_implementation_obj = ModelEntityImplementationInDB(
+            id=model_entity_obj.id,
+            model_id=model_implementation_id,
+            config=model_entity_implementation_create.config,
+            weights_save_dir=model_entity_implementation_create.weights_save_dir,
+            pipeline_id=model_entity_implementation_create.pipeline_id,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
+
+        await execute(insert(model_entity_implementation).values(**model_entity_implementation_obj.model_dump()), commit_after=True)
 
     return model_entity_obj
 
 
 async def get_user_model_entities(user_id: uuid.UUID, model_entity_ids: List[uuid.UUID]) -> List[ModelEntity]:
-    model_entity_query = select(model_entity_implementation).where(
-        model_entity_implementation.c.id.in_(model_entity_ids)
-    ).where(model_entity_implementation.c.user_id == user_id)
+    """
+    Fetch model entities with optional implementations.
+    Returns ModelEntity objects with implementation field populated if available.
+    """
+
+    # Fetch base model entities
+    model_entity_query = select(model_entity).where(
+        model_entity.c.id.in_(model_entity_ids),
+        model_entity.c.user_id == user_id
+    )
     model_entity_records = await fetch_all(model_entity_query)
 
-    model_ids = [e["model_id"] for e in model_entity_records]
-    models_objs = await get_models(model_ids)
+    if len(model_entity_records) != len(model_entity_ids):
+        raise HTTPException(
+            status_code=404, detail="One or more model entities not found")
 
+    # Fetch implementations (may not exist for all entities)
+    model_entity_implementation_query = select(model_entity_implementation).where(
+        model_entity_implementation.c.id.in_(model_entity_ids)
+    )
+    model_entity_implementation_records = await fetch_all(model_entity_implementation_query)
+
+    # Fetch model implementations if any implementations exist
+    model_implementation_objs = []
+    if model_entity_implementation_records:
+        model_impl_ids = [e["model_id"]
+                          for e in model_entity_implementation_records]
+        model_implementation_objs = await get_models(model_impl_ids)
+
+    # Build ModelEntity objects
     model_entity_full_objs = []
     for entity_id in model_entity_ids:
-        model_entity_record = next(
-            (e for e in model_entity_records if e["id"] == entity_id), None)
+        # Get base entity
+        entity_record = next(
+            (e for e in model_entity_records if e["id"] == entity_id))
+        entity_obj = ModelEntityInDB(**entity_record)
 
-        if model_entity_record is None:
-            raise HTTPException(
-                status_code=404, detail="Model entity not found")
+        # Get implementation if exists
+        impl_record = next(
+            (e for e in model_entity_implementation_records if e["id"] == entity_id), None)
 
-        model_obj = next(
-            (m for m in models_objs if m.id == model_entity_record["model_id"]), None)
+        if impl_record:
+            # Entity has implementation
+            model_impl_obj = next(
+                (m for m in model_implementation_objs if m.id == impl_record["model_id"]))
 
-        if model_obj is None:
-            raise HTTPException(
-                status_code=404, detail="Model not found")
+            entity_implementation_obj = ModelEntityImplementationInDB(
+                **impl_record)
 
-        model_entity_obj = ModelEntityInDB(
-            **model_entity_record, model=model_obj)
+            model_entity_impl = ModelEntityImplementation(
+                **entity_implementation_obj.model_dump(),
+                model_implementation=model_impl_obj
+            )
 
-        description = get_model_entity_description(model_entity_obj, model_obj)
+            description = get_model_entity_description(
+                entity_obj, model_entity_impl)
 
-        model_entity_full_objs.append(ModelEntity(
-            **model_entity_record,
-            model=model_obj,
-            description_for_agent=description
-        ))
+            model_entity_full_objs.append(ModelEntity(
+                **entity_obj.model_dump(),
+                implementation=model_entity_impl,
+                description_for_agent=description
+            ))
+        else:
+            # Entity without implementation (bare entity)
+            description = f"Model Entity: {entity_obj.name}\n\n{entity_obj.description}\n\n*Note: No implementation selected yet*"
+
+            model_entity_full_objs.append(ModelEntity(
+                **entity_obj.model_dump(),
+                implementation=None,
+                description_for_agent=description
+            ))
 
     return model_entity_full_objs
 
 
 async def set_new_model_entity_config(user_id: uuid.UUID, model_entity_id: uuid.UUID, model_entity_config_update: ModelEntityConfigUpdate) -> ModelEntityInDB:
+    """Update the config of a model entity implementation."""
+
     model_entity_obj = (await get_user_model_entities(user_id, [model_entity_id]))[0]
 
-    is_fitted = model_entity_obj.weights_save_dir is not None
+    # Check if entity has implementation
+    if not model_entity_obj.implementation:
+        raise HTTPException(
+            status_code=400, detail="Model entity has no implementation. Cannot update config.")
+
+    # Check if model is already fitted
+    is_fitted = model_entity_obj.implementation.weights_save_dir is not None
     if is_fitted:
         raise HTTPException(
             status_code=400, detail="Model entity is fitted and the config cannot be updated")
 
+    # Validate config against schema
     model_record = await fetch_one(
-        select(model).join(model_entity_implementation).where(model_entity_implementation.c.id == model_entity_id))
+        select(model_implementation).join(model_entity_implementation).where(
+            model_entity_implementation.c.id == model_entity_id
+        )
+    )
 
     try:
         jsonschema.validate(
             model_entity_config_update.config, model_record["config_schema"])
     except jsonschema.ValidationError as e:
         raise HTTPException(
-            status_code=400, detail=f"Invalid config or args: {e.message}")
+            status_code=400, detail=f"Invalid config: {e.message}")
 
-    await execute(update(model_entity_implementation).where(model_entity_implementation.c.id == model_entity_id).values(**model_entity_config_update.model_dump()), commit_after=True)
+    # Update config
+    await execute(
+        update(model_entity_implementation).where(
+            model_entity_implementation.c.id == model_entity_id
+        ).values(**model_entity_config_update.model_dump()),
+        commit_after=True
+    )
 
-    model_entity_obj.config = model_entity_config_update.config
+    # Return updated entity
+    return (await get_user_model_entities(user_id, [model_entity_id]))[0]
 
-    return model_entity_obj
 
-
-async def create_model_source(user_id: uuid.UUID, model_source_create: ModelSourceCreate) -> ModelSource:
-
+async def create_model_source(model_source_create: ModelSourceCreate) -> ModelSource:
     # Check if source with the data exists:
-    if type(model_source_create) == PypiModelSourceCreate:
-        pypi_model_source_query = select(pypi_model_source.c.id).where(
-            pypi_model_source.c.package_name == model_source_create.package_name,
-            pypi_model_source.c.package_version == model_source_create.package_version,
-        )
-        pypi_model_source_record = await fetch_all(pypi_model_source_query)
-        fetched_ids = [record["id"] for record in pypi_model_source_record]
-        public_or_user_owned_results = (await get_user_or_public_model_sources_by_ids(user_id, fetched_ids))
-        if public_or_user_owned_results:
-            return public_or_user_owned_results[0]
+    if model_source_create.type == "pypi":
+        model_source_query = select(model_source, pypi_model_source
+                                    ).join(pypi_model_source, model_source.c.id == pypi_model_source.c.id
+                                           ).where(pypi_model_source.c.package_name == model_source_create.type_fields.package_name,
+                                                   pypi_model_source.c.package_version == model_source_create.type_fields.package_version)
 
-    embedding = (await embed([f"{model_source_create.name}: {model_source_create.description}"]))[0]
+        model_source_record = await fetch_one(model_source_query)
 
-    model_source_record = ModelSourceInDB(
+        if model_source_record:
+            return ModelSource(
+                **model_source_record,
+                type_fields=PypiModelSourceInDB(**model_source_record)
+            )
+
+    model_source_obj = ModelSourceInDB(
         id=uuid.uuid4(),
-        user_id=user_id,
-        type=model_source_create.type,
-        name=model_source_create.name,
-        description=model_source_create.description,
-        public=model_source_create.public,
-        embedding=embedding,
+        **model_source_create.model_dump(),
         created_at=datetime.now(),
         updated_at=datetime.now()
     )
 
-    await execute(insert(model_source).values(model_source_record.model_dump()), commit_after=True)
-
-    output_obj = None
-    if type(model_source_create) == PypiModelSourceCreate:
-        pypi_model_source_record = PypiModelSourceInDB(
-            id=model_source_record.id,
-            model_source_id=model_source_record.id,
-            package_name=model_source_create.package_name,
-            package_version=model_source_create.package_version,
+    type_fields_obj = None
+    if model_source_create.type == "pypi":
+        type_fields_obj = PypiModelSourceInDB(
+            id=model_source_obj.id,
+            model_source_id=model_source_obj.id,
+            package_name=model_source_create.type_fields.package_name,
+            package_version=model_source_create.type_fields.package_version,
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
 
-        await execute(insert(pypi_model_source).values(pypi_model_source_record.model_dump()), commit_after=True)
+    else:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid model source type: {model_source_create.type}")
 
-        output_obj = PypiModelSource(
-            **model_source_record.model_dump(),
-            package_name=pypi_model_source_record.package_name,
-            package_version=pypi_model_source_record.package_version
-        )
+    await execute(insert(model_source).values(**model_source_obj.model_dump()), commit_after=True)
+    if type_fields_obj:
+        await execute(insert(pypi_model_source).values(**type_fields_obj.model_dump()), commit_after=True)
 
-    # TODO: Add more model source types with elifs here
-
-    return output_obj
-
-
-async def get_user_or_public_model_sources_by_ids(user_id: uuid.UUID, model_source_ids: List[uuid.UUID]) -> List[ModelSource]:
-
-    # Get the base records
-
-    user_model_source_query = select(model_source).where(
-        model_source.c.user_id == user_id,
-        model_source.c.id.in_(model_source_ids)
-    )
-
-    user_model_source_records = await fetch_all(user_model_source_query)
-
-    public_model_source_query = select(model_source).where(
-        model_source.c.public == True,
-        model_source.c.id.in_(model_source_ids)
-    )
-
-    public_model_source_records = await fetch_all(public_model_source_query)
-
-    all_model_source_records = user_model_source_records + public_model_source_records
-
-    # Then get the detailed records
-
-    pypi_source_ids = [record["id"]
-                       for record in all_model_source_records if record["type"] == "pypi"]
-
-    # github_source_ids = ... etc
-
-    pypi_model_source_query = select(pypi_model_source).where(
-        pypi_model_source.c.id.in_(pypi_source_ids))
-
-    pypi_model_source_records = await fetch_all(pypi_model_source_query)
-
-    output_objs = []
-    for source_id in model_source_ids:
-        base_obj = ModelSourceInDB(
-            **next(record for record in all_model_source_records if record["id"] == source_id))
-        if source_id in pypi_source_ids:
-            pypi_model_source_record = PypiModelSourceInDB(
-                **next(record for record in pypi_model_source_records if record["id"] == source_id))
-            output_objs.append(PypiModelSource(
-                **base_obj.model_dump(),
-                package_name=pypi_model_source_record.package_name,
-                package_version=pypi_model_source_record.package_version
-            ))
-        # elif: ... etc
-
-    return output_objs
-
-
-async def get_model_sources_by_ids(user_id: uuid.UUID, model_source_ids: List[uuid.UUID]) -> List[ModelSource]:
-    records = await get_user_or_public_model_sources_by_ids(user_id, model_source_ids)
-    return records
+    return ModelSource(**model_source_obj.model_dump(), type_fields=type_fields_obj)

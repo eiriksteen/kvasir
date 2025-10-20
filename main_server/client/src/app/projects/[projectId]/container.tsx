@@ -9,11 +9,11 @@ import EntityRelationshipDiagram from "@/app/projects/[projectId]/_components/er
 import TabView from "@/app/projects/[projectId]/_components/tab-view/TabView";
 import { useProject } from "@/hooks/useProject";
 import { useTabContext } from "@/hooks/useTabContext";
-import FileInfoModal from "@/components/info-modals/FileInfoModal";
-import DatasetInfoModal from "@/components/info-modals/DatasetInfoModal";
-import PipelineInfoModal from "@/components/info-modals/PipelineInfoModal";
-import ModelInfoModal from "@/components/info-modals/ModelInfoModal";
-import AnalysisItem from "@/components/info-modals/analysis/AnalysisItem";
+import FileInfoTab from "@/components/info-tabs/FileInfoTab";
+import DatasetInfoTab from "@/components/info-tabs/DatasetInfoTab";
+import PipelineInfoTab from "@/components/info-tabs/PipelineInfoTab";
+import ModelInfoTab from "@/components/info-tabs/ModelInfoTab";
+import AnalysisInfoTab from "@/components/info-tabs/AnalysisInfoTab";
 import { UUID } from "crypto";
 
 interface DashboardProps {
@@ -47,14 +47,14 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     mainContent = <EntityRelationshipDiagram projectId={projectId} />;
   } else if (activeTab?.type === 'data_source') {
     mainContent = (
-      <FileInfoModal
+      <FileInfoTab
         dataSourceId={activeTab.id as UUID}
         onClose={() => closeTabByKey(activeTab.key)}
       />
     );
   } else if (activeTab?.type === 'dataset') {
     mainContent = (
-      <DatasetInfoModal
+      <DatasetInfoTab
         datasetId={activeTab.id as UUID}
         onClose={() => closeTabByKey(activeTab.key)}
         projectId={projectId}
@@ -62,22 +62,22 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     );
   } else if (activeTab?.type === 'analysis') {
     mainContent = (
-      <AnalysisItem
-        analysisObjectId={activeTab.id as UUID}
+      <AnalysisInfoTab
+        analysisId={activeTab.id as UUID}
         projectId={projectId}
         onClose={() => closeTabByKey(activeTab.key)}
       />
     );
   } else if (activeTab?.type === 'pipeline') {
     mainContent = (
-      <PipelineInfoModal
+      <PipelineInfoTab
         pipelineId={activeTab.id as UUID}
         onClose={() => closeTabByKey(activeTab.key)}
       />
     );
   } else if (activeTab?.type === 'model_entity') {
     mainContent = (
-      <ModelInfoModal
+      <ModelInfoTab
         modelEntityId={activeTab.id as UUID}
         onClose={() => closeTabByKey(activeTab.key)}
         projectId={projectId}

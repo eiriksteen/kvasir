@@ -1,6 +1,6 @@
 # NB: Assumes build context is the root of the project (where the docker-compose file is).
 
-FROM python:3.13-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 

@@ -6,7 +6,7 @@ from datetime import datetime
 from project_server.entity_manager import LocalDatasetManager
 from project_server.auth import TokenData, decode_token
 
-from synesis_data_structures.time_series.schema import TimeSeries
+from synesis_data_interface.structures.time_series.schema import TimeSeries
 
 
 router = APIRouter()

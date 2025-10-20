@@ -1,4 +1,5 @@
 import uuid
+import sys
 from sqlalchemy import select, or_, and_, func
 from typing import List
 
@@ -6,7 +7,7 @@ from synesis_api.modules.function.service import get_functions
 from synesis_api.modules.model.service import get_models
 from synesis_api.database.service import fetch_all
 from synesis_api.modules.function.models import function, function_definition
-from synesis_api.modules.model.models import model, model_definition
+from synesis_api.modules.model.models import model_implementation, model_definition
 from synesis_api.utils.rag_utils import embed
 from synesis_schemas.main_server import (
     FunctionQueryResult,
@@ -65,33 +66,37 @@ async def query_models(user_id: uuid.UUID, search_request: SearchModelsRequest) 
         query_vector = (await embed([query_request.query]))[0]
 
         # For each model definition id, get the max model version
-        max_version_subquery = select(model.c.definition_id, func.max(model.c.version).label(
-            "newest_version")).group_by(model.c.definition_id).subquery("max_version_subquery")
-        model_id_of_max_version_subquery = select(model.c.id).join(
+        max_version_subquery = select(model_implementation.c.definition_id, func.max(model_implementation.c.version).label(
+            "newest_version")).group_by(model_implementation.c.definition_id).subquery("max_version_subquery")
+        model_id_of_max_version_subquery = select(model_implementation.c.id).join(
             max_version_subquery,
-            and_(model.c.definition_id == max_version_subquery.c.definition_id,
-                 model.c.version == max_version_subquery.c.newest_version)
+            and_(model_implementation.c.definition_id == max_version_subquery.c.definition_id,
+                 model_implementation.c.version == max_version_subquery.c.newest_version)
         )
 
         model_query = select(
-            model.c.id
+            model_implementation.c.id
         ).join(
-            model_definition, model.c.definition_id == model_definition.c.id
+            model_definition, model_implementation.c.definition_id == model_definition.c.id
         ).where(
             and_(
-                model.c.id.in_(model_id_of_max_version_subquery),
-                or_(model.c.user_id == user_id,
+                model_implementation.c.id.in_(
+                    model_id_of_max_version_subquery),
+                or_(model_implementation.c.user_id == user_id,
                     model_definition.c.public == True)
             )
         ).order_by(
-            model.c.embedding.cosine_distance(query_vector)
+            model_implementation.c.embedding.cosine_distance(query_vector)
         ).limit(query_request.k)
 
         model_records = await fetch_all(model_query)
-        models = await get_models([m["id"] for m in model_records])
+        if not model_records:
+            models_found = []
+        else:
+            models_found = await get_models([m["id"] for m in model_records])
 
         results.append(ModelQueryResult(
-            query_name=query_request.query_name, models=models))
+            query_name=query_request.query_name, models=models_found))
 
     return results
 

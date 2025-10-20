@@ -9,6 +9,7 @@ from synesis_api.auth.service import get_current_user, user_owns_pipeline, user_
 from synesis_schemas.main_server import User
 from synesis_api.modules.pipeline.service import (
     create_pipeline,
+    create_pipeline_implementation,
     get_pipeline_runs,
     create_pipeline_run,
     update_pipeline_run_status,
@@ -20,14 +21,16 @@ from synesis_api.client import MainServerClient, post_run_pipeline
 from synesis_schemas.project_server import RunPipelineRequest
 from synesis_schemas.main_server import (
     Pipeline,
-    PipelineCreate,
+    PipelineImplementationCreate,
     PipelineInDB,
     PipelineRunInDB,
     PipelineOutputModelEntityInDB,
     PipelineOutputDatasetInDB,
     PipelineRunStatusUpdate,
     PipelineRunDatasetOutputCreate,
-    PipelineRunModelEntityOutputCreate
+    PipelineRunModelEntityOutputCreate,
+    PipelineCreate,
+    PipelineImplementationInDB
 )
 from synesis_api.app_secrets import SSE_MIN_SLEEP_TIME
 
@@ -52,7 +55,15 @@ async def post_pipeline(
     request: PipelineCreate,
     user: User = Depends(get_current_user),
 ) -> PipelineInDB:
-    pipeline = await create_pipeline(user.id, request)
+    return await create_pipeline(user.id, request)
+
+
+@router.post("/pipeline-implementation", response_model=PipelineImplementationInDB)
+async def post_pipeline_implementation(
+    request: PipelineImplementationCreate,
+    user: User = Depends(get_current_user),
+) -> PipelineImplementationInDB:
+    pipeline = await create_pipeline_implementation(user.id, request)
     return pipeline
 
 

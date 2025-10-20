@@ -1,10 +1,18 @@
 from typing import Optional
 
-from synesis_schemas.main_server import ModelEntityInDB, Model, ModelInDB, ModelDefinitionInDB, ModelFunction, ScriptInDB
+from synesis_schemas.main_server import (
+    ModelEntityInDB,
+    ModelImplementation,
+    ModelImplementationInDB,
+    ModelDefinitionInDB,
+    ModelFunction,
+    ScriptInDB,
+    ModelEntityImplementation
+)
 
 
 def get_model_description(
-    model_in_db: ModelInDB,
+    model_in_db: ModelImplementationInDB,
     definition: ModelDefinitionInDB,
     training_function: ModelFunction,
     inference_function: ModelFunction,
@@ -131,12 +139,13 @@ def get_model_description(
     return "\n".join(lines)
 
 
-def get_model_entity_description(model_entity: ModelEntityInDB, model: Model) -> str:
+def get_model_entity_description(model_entity: ModelEntityInDB, model_entity_impl: ModelEntityImplementation) -> str:
     """
     Generate a comprehensive description of a model entity for use in prompts or displays.
 
     Args:
-        model_entity: A ModelEntity instance
+        model_entity: A ModelEntityInDB instance
+        model_entity_impl: A ModelEntityImplementation instance with the model implementation
 
     Returns:
         A formatted string description of the model entity
@@ -148,9 +157,21 @@ def get_model_entity_description(model_entity: ModelEntityInDB, model: Model) ->
         f"",
         f"{model_entity.description}",
         f"",
+        f"**Configuration:** {model_entity_impl.config}",
+        f"**Weights Directory:** {model_entity_impl.weights_save_dir or 'Not trained yet'}",
+        f"",
     ]
 
-    model_description = get_model_description(model)
+    # Add model implementation description
+    model_impl = model_entity_impl.model_implementation
+    model_description = get_model_description(
+        model_impl,
+        model_impl.definition,
+        model_impl.training_function,
+        model_impl.inference_function,
+        model_impl.implementation_script,
+        model_impl.setup_script
+    )
     lines.append("")
     lines.append(model_description)
 

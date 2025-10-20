@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from synesis_api.auth.models import users, user_api_keys
 from synesis_api.modules.data_sources.models import (
     data_source, tabular_file_data_source,
-    feature_in_tabular_file, data_source_analysis
+    key_value_file_data_source, data_source_analysis
 )
 from synesis_api.modules.runs.models import (
     run, run_message, run_pydantic_message,
@@ -27,26 +27,22 @@ from synesis_api.modules.orchestrator.models import (
     data_source_context
 )
 from synesis_api.modules.pipeline.models import (
-    pipeline, model_entity_in_pipeline,
-    pipeline_periodic_schedule, pipeline_on_event_schedule, function_in_pipeline,
-    object_group_in_pipeline, pipeline_output_object_group_definition,
-    pipeline_output_dataset, pipeline_output_model_entity, pipeline_graph_edge, pipeline_graph_edge,
-    pipeline_graph_dataset_node, pipeline_graph_function_node, pipeline_graph_model_entity_node
-
+    pipeline, pipeline_implementation, model_entity_in_pipeline, function_in_pipeline,
+    pipeline_output_dataset, pipeline_output_model_entity, data_source_in_pipeline, dataset_in_pipeline,
+    model_entity_in_pipeline, pipeline_run
 )
 from synesis_api.modules.function.models import (
     function, function_input_object_group_definition, function_output_object_group_definition,
     function_definition
 )
 from synesis_api.modules.model.models import (
-    model_definition, model, model_entity, model_function,
+    model_definition, model_implementation, model_entity, model_entity_implementation, model_function,
     model_function_input_object_group_definition, model_function_output_object_group_definition,
     model_source, pypi_model_source
 )
 from synesis_api.modules.analysis.models import analysis_status_message, analysis_object, analysis_result, analysis_result_dataset, analysis_result_data_source, notebook_section, notebook, plot, table
 from synesis_api.modules.project.models import (
-    project, project_dataset, project_analysis, project_pipeline, project_data_source, project_model_entity,
-    project_dataset_being_created, project_pipeline_being_created, project_model_entity_being_created
+    project, project_dataset, project_analysis, project_pipeline, project_data_source, project_model_entity
 )
 from synesis_api.modules.code.models import script
 from synesis_api.app_secrets import DATABASE_URL
@@ -84,8 +80,7 @@ __all__ = [
     pipeline_from_run,
     data_source_in_run,
     data_source_analysis,
-    feature_in_tabular_file,
-    object_group_in_pipeline,
+    key_value_file_data_source,
     dataset,
     data_object,
     object_group,
@@ -110,15 +105,17 @@ __all__ = [
     analysis_context,
     data_source_context,
     pipeline,
-    pipeline_periodic_schedule,
-    pipeline_on_event_schedule,
+    pipeline_implementation,
     function_in_pipeline,
-    function_definition,
-    function,
-    function_input_object_group_definition,
-    function_output_object_group_definition,
-    model,
+    data_source_in_pipeline,
+    dataset_in_pipeline,
+    model_entity_in_pipeline,
+    pipeline_run,
+    pipeline_output_dataset,
+    pipeline_output_model_entity,
+    model_implementation,
     model_entity,
+    model_entity_implementation,
     model_source,
     pypi_model_source,
     project,
@@ -127,16 +124,8 @@ __all__ = [
     project_pipeline,
     project_data_source,
     project_model_entity,
-    pipeline_graph_edge,
-    pipeline_graph_dataset_node,
-    pipeline_graph_function_node,
-    pipeline_graph_model_entity_node,
-    pipeline_output_object_group_definition,
     pipeline_output_dataset,
     pipeline_output_model_entity,
-    project_dataset_being_created,
-    project_pipeline_being_created,
-    project_model_entity_being_created,
     model_function,
     model_function_input_object_group_definition,
     model_function_output_object_group_definition,

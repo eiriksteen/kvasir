@@ -1,39 +1,31 @@
+from uuid import UUID
 from typing import List, Union
-from pydantic import ValidationError
 
 from project_server.client import ProjectClient
 from synesis_schemas.main_server import (
-    DataSourceFull,
+    DataSource,
     DataSourceInDB,
     DataSourceAnalysisInDB,
     DataSourceAnalysisCreate,
     TabularFileDataSourceCreate,
     TabularFileDataSourceInDB,
-    GetDataSourcesByIDsRequest,
-    TabularFileDataSource
+    GetDataSourcesByIDsRequest
 )
 
 
-async def get_data_sources(client: ProjectClient) -> List[DataSourceFull]:
+async def get_data_sources(client: ProjectClient) -> List[DataSource]:
     response = await client.send_request("get", "/data-sources/data-sources")
-    return [DataSourceFull(**ds) for ds in response.body]
+    return [DataSource(**ds) for ds in response.body]
 
 
-async def get_data_sources_by_ids(client: ProjectClient, request: GetDataSourcesByIDsRequest) -> List[DataSourceFull]:
+async def get_data_source(client: ProjectClient, data_source_id: UUID) -> DataSource:
+    response = await client.send_request("get", f"/data-sources/data-source/{data_source_id}")
+    return DataSource(**response.body)
+
+
+async def get_data_sources_by_ids(client: ProjectClient, request: GetDataSourcesByIDsRequest) -> List[DataSource]:
     response = await client.send_request("get", f"/data-sources/data-sources-by-ids", json=request.model_dump(mode="json"))
-    basic_model = DataSourceInDB
-    detailed_models = [TabularFileDataSource]
-
-    result = []
-    for ds in response.body:
-        for m in detailed_models:
-            try:
-                result.append(m(**ds))
-                break
-            except ValidationError:
-                continue
-        result.append(basic_model(**ds))
-    return result
+    return [DataSource(**ds) for ds in response.body]
 
 
 async def post_file_data_source(client: ProjectClient, file_data: bytes, filename: str) -> DataSourceInDB:

@@ -44,8 +44,8 @@ model_definition = Table(
 )
 
 
-model = Table(
-    "model",
+model_implementation = Table(
+    "model_implementation",
     metadata,
     Column("id", UUID(as_uuid=True),
            default=uuid.uuid4,
@@ -59,7 +59,7 @@ model = Table(
     Column("newest_update_description", String, nullable=False),
     Column("embedding", Vector(dim=EMBEDDING_DIM), nullable=False),
     Column("source_id", UUID(as_uuid=True),
-           ForeignKey("model_sources.model_source.id"),
+           ForeignKey("model.model_source.id"),
            nullable=False),
     Column("user_id", UUID(as_uuid=True),
            ForeignKey("auth.users.id"),
@@ -84,8 +84,6 @@ model = Table(
     Column("updated_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
-    CheckConstraint(model_modality_constraint),
-    CheckConstraint(model_task_constraint),
     schema="model"
 )
 
@@ -123,7 +121,7 @@ model_entity_implementation = Table(
            default=uuid.uuid4,
            primary_key=True),
     Column("model_id", UUID(as_uuid=True),
-           ForeignKey("model.model.id"),
+           ForeignKey("model.model_implementation.id"),
            nullable=False),
     Column("config", JSONB, nullable=False),
     # Weights save dir and pipeline id are null for non-trained models
@@ -211,15 +209,9 @@ model_source = Table(
            UUID(as_uuid=True),
            default=uuid.uuid4,
            primary_key=True),
-    Column("user_id",
-           UUID(as_uuid=True),
-           ForeignKey("auth.users.id"),
-           nullable=False),
     Column("type", String, nullable=False),
     Column("name", String, nullable=False),
     Column("description", String, nullable=False),
-    Column("public", Boolean, nullable=False),
-    Column("embedding", Vector(dim=EMBEDDING_DIM), nullable=False),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
     Column("updated_at", DateTime(timezone=True),

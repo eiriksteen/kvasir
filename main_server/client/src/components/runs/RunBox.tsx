@@ -17,20 +17,9 @@ interface RunBoxProps {
   onRunCompleteOrFail?: () => void;
 }
 
-const getRunTheme = (type: 'data_integration' | 'analysis' | 'pipeline' | 'swe' | 'model_integration') => {
+const getRunTheme = (type: 'analysis' | 'swe') => {
 
 switch (type) {
-    case 'data_integration':
-    return {
-        bg: 'bg-[#0E4F70]/10',
-        border: 'border border-[#0E4F70]/30',
-        icon: <Folder  size={12} />,
-        iconColor: 'text-[#0E4F70]',
-        textColor: 'text-gray-200',
-        statusBg: 'bg-[#0E4F70]/15',
-        statusBorder: 'border-[#0E4F70]/30',
-        hover: 'hover:bg-[#0E4F70]/20 cursor-pointer',
-    };
     case 'analysis':
     return {
         bg: 'bg-[#004806]/10',
@@ -42,7 +31,6 @@ switch (type) {
         statusBorder: 'border-[#004806]/30',
         hover: 'hover:bg-[#004806]/20 cursor-pointer',
     };
-    case 'pipeline':
     case 'swe':
     return {
         bg: 'bg-[#840B08]/10',
@@ -53,17 +41,6 @@ switch (type) {
         statusBg: 'bg-[#840B08]/15',
         statusBorder: 'border-[#840B08]/30',
         hover: 'hover:bg-[#840B08]/20 cursor-pointer',
-    };
-    case 'model_integration':
-    return {
-        bg: 'bg-[#491A32]/10',
-        border: 'border border-[#491A32]/30',
-        icon: <Brain size={12} />,
-        iconColor: 'text-[#491A32]',
-        textColor: 'text-gray-200',
-        statusBg: 'bg-[#491A32]/15',
-        statusBorder: 'border-[#491A32]/30',
-        hover: 'hover:bg-[#491A32]/20 cursor-pointer',
     };
 }
 };
@@ -161,7 +138,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
     return <div>Run not found</div>;
   }
 
-  const theme = getRunTheme(run.type as 'data_integration' | 'analysis' | 'pipeline' | 'swe' | 'model_integration');
+  const theme = getRunTheme(run.type as 'analysis' | 'swe');
   const statusInfo = getStatusInfo(run.status);
   
   const hasInputs = run.inputs && (

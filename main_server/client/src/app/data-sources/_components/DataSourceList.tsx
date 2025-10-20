@@ -1,5 +1,5 @@
 import { DataSource } from "@/types/data-sources";
-import FileInfoModal from "@/components/info-modals/FileInfoModal";
+import FileInfoTab from "@/components/info-tabs/FileInfoTab";
 import { useState } from "react";
 import SourceTypeIcon from "@/app/data-sources/_components/SourceTypeIcon";
 
@@ -45,7 +45,7 @@ export default function DataSourceList({ dataSources, isLoading, error }: { data
                 <div className="text-gray-600">No data sources yet</div>
             </div>
         )}
-        {selectedDataSource && <FileInfoModal dataSourceId={selectedDataSource.id} onClose={() => setSelectedDataSource(null)} />}
+        {selectedDataSource && <FileInfoTab dataSourceId={selectedDataSource.id} onClose={() => setSelectedDataSource(null)} asModal={true} />}
     </div>
   );
 }

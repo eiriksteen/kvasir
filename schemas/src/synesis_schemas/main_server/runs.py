@@ -7,6 +7,9 @@ from pydantic import BaseModel
 # DB Models
 
 
+RUN_TYPE_LITERAL = Literal["swe", "analysis"]
+
+
 class RunSpecificationInDB(BaseModel):
     id: uuid.UUID
     run_id: uuid.UUID
@@ -22,8 +25,7 @@ class RunSpecificationInDB(BaseModel):
 class RunInDB(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
-    type: Literal["data_integration", "model_integration",
-                  "swe", "pipeline", "analysis", "data_source_analysis"]
+    type: RUN_TYPE_LITERAL
     status: Literal["pending", "running", "completed", "failed", "rejected"]
     started_at: datetime
     conversation_id: Optional[uuid.UUID] = None
@@ -117,8 +119,7 @@ class RunSpecificationCreate(BaseModel):
 
 
 class RunCreate(BaseModel):
-    type: Literal["data_integration", "model_integration",
-                  "swe", "pipeline", "analysis", "data_source_analysis"]
+    type: RUN_TYPE_LITERAL
     initial_status: Literal["pending", "running",
                             "completed", "failed"] = "pending"
     project_id: Optional[uuid.UUID] = None

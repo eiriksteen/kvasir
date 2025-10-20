@@ -1,6 +1,5 @@
+from typing import Literal, Optional
 from pydantic_ai import RunContext, ModelRetry
-from project_server.worker import logger
-from typing import Literal, List
 
 from project_server.utils.code_utils import (
     add_line_numbers_to_script,
@@ -9,9 +8,14 @@ from project_server.utils.code_utils import (
     delete_lines_from_script,
 )
 from project_server.agents.swe.deps import SWEAgentDeps
-from project_server.entity_manager.data_source_manager import file_manager
 from project_server.agents.runner_base import CodeForLog
-from synesis_schemas.main_server import script_type_literal
+from project_server.client import post_search_functions
+from project_server.agents.swe.utils import save_script_with_version_handling
+from project_server.entity_manager.script_manager import script_manager
+from project_server.app_secrets import (
+    MODELS_MODULE, MODELS_MODULE_TMP, FUNCTIONS_MODULE, FUNCTIONS_MODULE_TMP, PIPELINES_MODULE, PIPELINES_MODULE_TMP, DATA_INTEGRATION_MODULE, DATA_INTEGRATION_MODULE_TMP
+)
+from synesis_schemas.main_server import QueryRequest, SearchFunctionsRequest, script_type_literal
 
 
 swe_script_type_literal = Literal["function",
@@ -20,66 +24,17 @@ swe_script_type_literal = Literal["function",
                                   "data_integration"]
 
 
-def _extract_injected_file_names(ctx: RunContext[SWEAgentDeps]) -> List[str]:
-    return [f.filename for f in ctx.deps.functions_injected] + [m.filename for m in ctx.deps.models_injected]
+def _check_imports_tmp(script) -> tuple[bool, Optional[str]]:
 
-
-def _has_version_suffix(file_name: str) -> bool:
-    suffix = file_name.split("_")[-1][:-3]
-    # return true if the suffix is v1, v2 .., v100, etc
-    return suffix.startswith("v") and suffix[1:].isdigit()
-
-
-def _save_script_with_version_handling(
-        ctx: RunContext[SWEAgentDeps],
-        file_name: str,
-        script_content: str,
-        script_type: swe_script_type_literal
-):
-
-    # Determine if this is the first modification of an input script
-    injected_script_names = _extract_injected_file_names(ctx)
-    if file_name in injected_script_names and file_name not in ctx.deps.modified_scripts_old_to_new_name:
-        if not _has_version_suffix(file_name):
-            raise ModelRetry(
-                f"File name {file_name} needs version suffix to be updated. ")
-
-        increase_version_number = True
-    else:
-        increase_version_number = False
-
-    is_new_script = file_name not in ctx.deps.current_scripts
-    if is_new_script:
-        if _has_version_suffix(file_name):
-            raise ModelRetry(
-                f"File name {file_name} is a new script but already has a version suffix. The v1 suffix will be added automatically, do not include it in the file name. If you are trying to edit an existing script, use its current filename as input. ")
-
-        add_uuid, add_v1 = True, True
-    else:
-        add_uuid, add_v1 = False, False
-
-    # Save the script with appropriate version handling
-    storage = file_manager.save_script(
-        file_name,
-        script_content,
-        script_type,
-        temporary=True,
-        add_uuid=add_uuid,
-        increase_version_number=increase_version_number,
-        add_v1=add_v1
-    )
-
-    # Update context dependencies when version number increases
-    if increase_version_number:
-        ctx.deps.modified_scripts_old_to_new_name[file_name] = storage.filename
-        ctx.deps.current_scripts.pop(file_name)
-
-    if is_new_script:
-        ctx.deps.new_scripts.add(storage.filename)
-
-    ctx.deps.current_scripts[storage.filename] = script_content
-
-    return storage
+    if MODELS_MODULE in script and not MODELS_MODULE_TMP in script:
+        return False, f"Found imports from {MODELS_MODULE} but not from {MODELS_MODULE_TMP}. We must use the temporary modules!"
+    if FUNCTIONS_MODULE in script and not FUNCTIONS_MODULE_TMP in script:
+        return False, f"Found imports from {FUNCTIONS_MODULE} but not from {FUNCTIONS_MODULE_TMP}. We must use the temporary modules"
+    if PIPELINES_MODULE in script and not PIPELINES_MODULE_TMP in script:
+        return False, f"Found imports from {PIPELINES_MODULE} but not from {PIPELINES_MODULE_TMP}. We must use the temporary modules"
+    if DATA_INTEGRATION_MODULE in script and not DATA_INTEGRATION_MODULE_TMP in script:
+        return False, f"Found imports from {DATA_INTEGRATION_MODULE} but not from {DATA_INTEGRATION_MODULE_TMP}. We must use the temporary modules"
+    return True, None
 
 
 async def write_script(ctx: RunContext[SWEAgentDeps], script: str, file_name: str, script_type: script_type_literal) -> str:
@@ -101,7 +56,11 @@ async def write_script(ctx: RunContext[SWEAgentDeps], script: str, file_name: st
         raise ModelRetry(
             f"File name must end with .py. Got: {file_name}")
 
-    file_storage = _save_script_with_version_handling(
+    is_valid, error_message = _check_imports_tmp(script)
+    if not is_valid:
+        raise ModelRetry(error_message)
+
+    file_storage = save_script_with_version_handling(
         ctx, file_name, script, script_type)
 
     script_with_line_numbers = add_line_numbers_to_script(script)
@@ -113,6 +72,53 @@ async def write_script(ctx: RunContext[SWEAgentDeps], script: str, file_name: st
     if ctx.deps.log_code:
         await ctx.deps.log_code(CodeForLog(
             code=script, filename=file_storage.filename))
+
+    return out
+
+
+async def load_function_script_from_search(ctx: RunContext[SWEAgentDeps], module_path: str) -> str:
+    """
+    Loads a function script for use. 
+    This should only be called after searching for pre-existing functions that you want to use. 
+
+    Args:
+        ctx: The context.
+        module_path: The module path of the function to load.
+
+    Returns:
+        str: The loaded script.
+
+    Raises:
+        ModelRetry: If the function with the given module path is not found.
+    """
+
+    fn_to_load = next(iter(
+        fn for fn in ctx.deps.functions_injected if fn.implementation_script.module_path == module_path), None)
+
+    if fn_to_load is None:
+        raise ModelRetry(
+            f"Function with module path {module_path} not found. The loadable functions are: {list(fn.implementation_script.module_path for fn in ctx.deps.functions_injected)}")
+
+    with open(fn_to_load.implementation_script.path, "r") as f:
+        script = f.read()
+
+    storage = script_manager.save_script(
+        fn_to_load.implementation_script.filename, script, "function", add_uuid=False, temporary=True)
+
+    ctx.deps.current_scripts[storage.filename] = script
+    ctx.deps.functions_loaded.append(fn_to_load)
+
+    script_with_line_numbers = add_line_numbers_to_script(script)
+    out = (
+        f"LOADED FUNCTION SCRIPT: \n\n <begin_script file_name={storage.filename}>\n\n {script_with_line_numbers}\n\n <end_script>"
+        f"You can now import it in your code from the module path: {storage.module_path}"
+        f"The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
+        f"The current scripts are: {list(ctx.deps.current_scripts.keys())}"
+    )
+
+    if ctx.deps.log_code:
+        await ctx.deps.log_code(CodeForLog(
+            code=script, filename=storage.filename))
 
     return out
 
@@ -160,6 +166,10 @@ async def replace_script_lines(
 
     script = ctx.deps.current_scripts[file_name]
 
+    is_valid, error_message = _check_imports_tmp(script)
+    if not is_valid:
+        raise ModelRetry(error_message)
+
     updated_script = replace_lines_in_script(
         script,
         line_number_start,
@@ -168,7 +178,7 @@ async def replace_script_lines(
         script_has_line_numbers=False
     )
 
-    storage = _save_script_with_version_handling(
+    storage = save_script_with_version_handling(
         ctx,
         file_name,
         updated_script,
@@ -207,6 +217,10 @@ async def add_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, script
 
     script = ctx.deps.current_scripts[file_name]
 
+    is_valid, error_message = _check_imports_tmp(script)
+    if not is_valid:
+        raise ModelRetry(error_message)
+
     updated_script = add_lines_to_script_at_line(
         script,
         new_code,
@@ -214,7 +228,7 @@ async def add_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, script
         script_has_line_numbers=False
     )
 
-    storage = _save_script_with_version_handling(
+    storage = save_script_with_version_handling(
         ctx,
         file_name,
         updated_script,
@@ -252,6 +266,10 @@ async def delete_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, scr
 
     script = ctx.deps.current_scripts[file_name]
 
+    is_valid, error_message = _check_imports_tmp(script)
+    if not is_valid:
+        raise ModelRetry(error_message)
+
     updated_script = delete_lines_from_script(
         script,
         line_number_start,
@@ -259,7 +277,7 @@ async def delete_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, scr
         script_has_line_numbers=False
     )
 
-    storage = _save_script_with_version_handling(
+    storage = save_script_with_version_handling(
         ctx,
         file_name,
         updated_script,
@@ -275,3 +293,17 @@ async def delete_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, scr
             CodeForLog(code=updated_script, filename=storage.filename))
 
     return out
+
+
+async def search_existing_functions(ctx: RunContext[SWEAgentDeps], query: QueryRequest) -> str:
+    results = await post_search_functions(ctx.deps.client, SearchFunctionsRequest(queries=[query]))
+
+    functions_injected = [f for result in results for f in result.functions]
+    ctx.deps.functions_injected.extend(functions_injected)
+    function_descriptions = "\n---\n\n".join(
+        [f.description_for_agent for result in results for f in result.functions])
+
+    function_descriptions = function_descriptions.replace(
+        FUNCTIONS_MODULE, FUNCTIONS_MODULE_TMP)
+
+    return function_descriptions

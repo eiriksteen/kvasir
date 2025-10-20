@@ -17,7 +17,7 @@ from project_server.client import (
     get_data_sources_by_ids,
 )
 from synesis_schemas.main_server import (
-    GetDatasetByIDsRequest,
+    GetDatasetsByIDsRequest,
     GetDataSourcesByIDsRequest,
     AnalysisResult,
     NotebookSectionCreate,
@@ -44,7 +44,7 @@ from project_server.client import (
     update_section_request,
     delete_section_request,
     add_analysis_result_to_section_request,
-    get_data_for_analysis_result_request,
+    # get_data_for_analysis_result_request,
     move_element_request,
     update_analysis_result_request,
     delete_analysis_result_request,
@@ -131,7 +131,7 @@ async def search_through_datasets(ctx: RunContext[AnalysisDeps]) -> str:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
     """
     project = await get_project(ctx.deps.analysis_request.project_id)
-    datasets = await get_datasets_by_ids(ctx.deps.client, GetDatasetByIDsRequest(dataset_ids=project.dataset_ids))
+    datasets = await get_datasets_by_ids(ctx.deps.client, GetDatasetsByIDsRequest(dataset_ids=project.dataset_ids))
     datasets_overview = simplify_dataset_overview(datasets)
 
     dataset_message = f"""
@@ -396,7 +396,7 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
     """
     current_analysis_result = await get_analysis_result_by_id_request(ctx.deps.client, analysis_result_id)
 
-    datasets = await get_datasets_by_ids(ctx.deps.client, GetDatasetByIDsRequest(dataset_ids=dataset_ids, include_features=True))
+    datasets = await get_datasets_by_ids(ctx.deps.client, GetDatasetsByIDsRequest(dataset_ids=dataset_ids, include_features=True))
     simplified_datasets = simplify_dataset_overview(datasets)
     data_sources = await get_data_sources_by_ids(ctx.deps.client, GetDataSourcesByIDsRequest(data_source_ids=data_source_ids))
     # simplified_data_sources = simplify_datasource_overview(data_sources)

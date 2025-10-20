@@ -13,8 +13,7 @@ from synesis_api.modules.data_objects.service import (
     get_data_object,
     get_aggregation_object_by_analysis_result_id,
     update_aggregation_object,
-    create_aggregation_object,
-    get_detailed_datasets_descriptions
+    create_aggregation_object
 
 )
 # from synesis_api.modules.data_objects.service import get_time_series_payload_data_by_id

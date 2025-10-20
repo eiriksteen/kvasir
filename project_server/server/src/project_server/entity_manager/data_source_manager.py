@@ -1,136 +1,101 @@
+import re
 import uuid
+import pandas as pd
+from uuid import UUID
+from typing import Union
 from pathlib import Path
-from typing import Optional, Literal
-from dataclasses import dataclass
+from pandas.io.json._table_schema import build_table_schema
 
-from project_server.app_secrets import (
-    RAW_DATA_DIR,
-    FUNCTIONS_DIR,
-    FUNCTIONS_DIR_TMP,
-    MODELS_DIR,
-    MODELS_DIR_TMP,
-    PIPELINES_DIR,
-    PIPELINES_DIR_TMP,
-    DATA_INTEGRATION_DIR,
-    DATA_INTEGRATION_DIR_TMP,
-    FUNCTIONS_MODULE,
-    FUNCTIONS_MODULE_TMP,
-    MODELS_MODULE,
-    MODELS_MODULE_TMP,
-    PIPELINES_MODULE,
-    PIPELINES_MODULE_TMP,
-    DATA_INTEGRATION_MODULE,
-    DATA_INTEGRATION_MODULE_TMP
-)
+from project_server.client import ProjectClient, get_data_source
+from project_server.app_secrets import RAW_DATA_DIR
+from synesis_schemas.main_server import TabularFileDataSourceCreate, KeyValueFileDataSourceCreate, DataSource
+from synesis_data_interface.sources.tabular_file.definitions import SUPPORTED_TABULAR_FILE_TYPES, TABULAR_FILE_SOURCE_ID
+from synesis_data_interface.sources.tabular_file.raw import TabularFileSource
+from synesis_data_interface.sources.key_value_file.definitions import SUPPORTED_KEY_VALUE_FILE_TYPES, KEY_VALUE_FILE_SOURCE_ID
+from synesis_data_interface.sources.key_value_file.raw import KeyValueFileSource
+from synesis_data_interface.sources.tabular_file.load import load_tabular_file_source
+from synesis_data_interface.sources.key_value_file.load import load_key_value_file_source
 
 UUID_FILENAME_SPLITTER = "_fn_"
 
 
-@dataclass
-class ScriptStorage:
-    filename: str
-    script_path: Path
-    module_path: str
-    setup_script_path: Optional[Path] = None
+def _get_valid_python_name_from_path(path: Path) -> str:
+    name = path.stem
+    name = re.sub(r'[^a-zA-Z0-9_]', '_', name)
+    name = re.sub(r'_+', '_', name)
+    name = name.strip('_')
+    if name and name[0].isdigit():
+        name = '_' + name
+    if not name:
+        name = 'data_source'
+    return name
 
 
-class FileManager:
+class DataSourceManager:
 
-    def save_raw_data_file(self, file_id: uuid.UUID, filename: str, file_content: bytes) -> Path:
-        file_path = RAW_DATA_DIR / f"{file_id}" / f"{filename}"
-        file_path.parent.mkdir(parents=True, exist_ok=True)
+    def __init__(self, bearer_token: str):
+        self.client = ProjectClient(bearer_token)
+
+    async def get_data_source(self, data_source_id: UUID) -> Union[TabularFileSource, KeyValueFileSource]:
+
+        data_source = await get_data_source(self.client, data_source_id)
+
+        if data_source.type == TABULAR_FILE_SOURCE_ID:
+            return load_tabular_file_source(data_source.type_fields.file_path)
+        elif data_source.type == KEY_VALUE_FILE_SOURCE_ID:
+            return load_key_value_file_source(data_source.type_fields.file_path)
+        else:
+            raise ValueError(
+                f"Unsupported data source type: {data_source.type}. Supported types are: tabular_file, key_value_file")
+
+    def save_tabular_file_source(self, file_name: str, file_content: bytes) -> TabularFileDataSourceCreate:
+
+        if Path(file_name).suffix not in SUPPORTED_TABULAR_FILE_TYPES:
+            raise ValueError(
+                f"Unsupported file type: {Path(file_name).suffix}. Supported file types are: {SUPPORTED_TABULAR_FILE_TYPES}")
+
+        file_path = RAW_DATA_DIR / \
+            f"{uuid.uuid4()}{UUID_FILENAME_SPLITTER}_{file_name}"
 
         with open(file_path, "wb") as f:
             f.write(file_content)
 
-        return file_path
+        df = pd.read_csv(file_path)
+        num_rows = len(df)
+        num_columns = len(df.columns)
+        content_preview = df.head(5).to_string()
+        json_schema = build_table_schema(df)
 
-    def get_raw_data_file_path(self, file_id: uuid.UUID) -> Path:
-        if not (RAW_DATA_DIR / f"{file_id}").exists():
-            raise FileNotFoundError(
-                f"Directory {RAW_DATA_DIR / f"{file_id}"} does not exist")
+        output = TabularFileDataSourceCreate(
+            name=_get_valid_python_name_from_path(Path(file_name)),
+            file_name=file_name,
+            file_type=Path(file_name).suffix,
+            file_path=str(file_path),
+            file_size_bytes=file_path.stat().st_size,
+            num_rows=num_rows,
+            num_columns=num_columns,
+            content_preview=content_preview,
+            json_schema=json_schema
+        )
 
-        if len(list((RAW_DATA_DIR / f"{file_id}").iterdir())) > 1:
-            raise FileNotFoundError(
-                f"Multiple files found in directory {RAW_DATA_DIR / f"{file_id}"}")
+        return output
 
-        return list((RAW_DATA_DIR / f"{file_id}").iterdir())[0]
+    def save_key_value_file_source(self, file_name: str, file_content: bytes) -> KeyValueFileDataSourceCreate:
+        if Path(file_name).suffix not in SUPPORTED_KEY_VALUE_FILE_TYPES:
+            raise ValueError(
+                f"Unsupported file type: {Path(file_name).suffix}. Supported file types are: {SUPPORTED_KEY_VALUE_FILE_TYPES}")
 
-    def save_script(
-            self,
-            filename: str,
-            script_content: str,
-            script_type: Literal["function", "model", "pipeline", "data_integration"],
-            add_uuid: bool = False,
-            temporary: bool = False,
-            add_v1: bool = False,
-            increase_version_number: bool = False
-    ) -> ScriptStorage:
+        file_path = RAW_DATA_DIR / \
+            f"{uuid.uuid4()}{UUID_FILENAME_SPLITTER}_{file_name}"
+        with open(file_path, "wb") as f:
+            f.write(file_content)
 
-        if script_type == "function":
-            base_dir = FUNCTIONS_DIR_TMP if temporary else FUNCTIONS_DIR
-            base_module = FUNCTIONS_MODULE_TMP if temporary else FUNCTIONS_MODULE
-        elif script_type == "model":
-            base_dir = MODELS_DIR_TMP if temporary else MODELS_DIR
-            base_module = MODELS_MODULE_TMP if temporary else MODELS_MODULE
-        elif script_type == "pipeline":
-            base_dir = PIPELINES_DIR_TMP if temporary else PIPELINES_DIR
-            base_module = PIPELINES_MODULE_TMP if temporary else PIPELINES_MODULE
-        elif script_type == "data_integration":
-            base_dir = DATA_INTEGRATION_DIR_TMP if temporary else DATA_INTEGRATION_DIR
-            base_module = DATA_INTEGRATION_MODULE_TMP if temporary else DATA_INTEGRATION_MODULE
+        output = KeyValueFileDataSourceCreate(
+            name=_get_valid_python_name_from_path(Path(file_name)),
+            file_name=file_name,
+            file_type=Path(file_name).suffix,
+            file_path=str(file_path),
+            file_size_bytes=file_path.stat().st_size
+        )
 
-        if add_v1:
-            assert ".py" in filename, "Filename must end with .py"
-            name, _ = filename.split(".py")
-            filename = f"{name}_v1.py"
-
-        if increase_version_number:
-            assert ".py" in filename, "Filename must end with .py"
-            name_with_version, _ = filename.split(".py")
-
-            try:
-                fname_underscore_split = name_with_version.split("_")
-                version_str = fname_underscore_split[-1]
-                version_num = int(version_str[1:])
-                name = "_".join(fname_underscore_split[:-1])
-            except Exception as e:
-                raise ValueError(
-                    f"Error extracting version number from filename: {filename}") from e
-
-            filename = f"{name}_v{version_num + 1}.py"
-
-        if add_uuid:
-            str_uuid = str(uuid.uuid4()).replace("-", "")
-            target_filename = f"id_{str_uuid}{UUID_FILENAME_SPLITTER}{filename}"
-        else:
-            target_filename = filename
-
-        script_path = base_dir / target_filename
-        script_path.write_text(script_content)
-        # :-3 to remove the .py extension
-        module_path = f"{base_module}.{target_filename[:-3]}"
-
-        return ScriptStorage(filename=target_filename, script_path=script_path, module_path=module_path)
-
-    def delete_temporary_script(self, filename: str) -> None:
-
-        for base_dir in [FUNCTIONS_DIR_TMP, MODELS_DIR_TMP, PIPELINES_DIR_TMP, DATA_INTEGRATION_DIR_TMP]:
-            script_path = base_dir / filename
-            if script_path.exists():
-                script_path.unlink()
-
-    def clean_temporary_script(self, script_content: str) -> str:
-        TMP_MODULES = [FUNCTIONS_MODULE_TMP, MODELS_MODULE_TMP,
-                       PIPELINES_MODULE_TMP, DATA_INTEGRATION_MODULE_TMP]
-        PROD_MODULES = [FUNCTIONS_MODULE, MODELS_MODULE,
-                        PIPELINES_MODULE, DATA_INTEGRATION_MODULE]
-
-        for module_idx in range(len(TMP_MODULES)):
-            script_content = script_content.replace(
-                TMP_MODULES[module_idx], PROD_MODULES[module_idx])
-
-        return script_content
-
-
-file_manager = FileManager()
+        return output

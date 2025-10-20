@@ -14,7 +14,7 @@ export default function PipelineBox({ pipeline, pipelineRuns, onClick, handleRun
   
   // Check if there's a running pipeline
   const isRunning = pipelineRuns.some(
-    run => run.status === 'running' || run.status === 'pending'
+    run => run.status === 'running'
   );
   
   const handleStopClick = () => {

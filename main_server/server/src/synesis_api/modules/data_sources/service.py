@@ -1,68 +1,94 @@
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional, Union
+from typing import List, Optional
 from sqlalchemy import insert, select
+from fastapi import HTTPException
 
 from synesis_api.modules.data_sources.description import get_data_source_description
-from synesis_schemas.main_server import FeatureInDB
 from synesis_schemas.main_server import (
     DataSourceInDB,
     TabularFileDataSourceInDB,
     DataSourceAnalysisInDB,
     DataSource,
-    TabularFileDataSource,
+    TabularFileDataSourceCreate,
+    DataSourceAnalysisCreate,
+    KeyValueFileDataSourceCreate,
+    KeyValueFileDataSourceInDB,
 )
 from synesis_api.modules.data_sources.models import (
     tabular_file_data_source,
     data_source,
-    feature_in_tabular_file,
     data_source_analysis,
+    key_value_file_data_source,
 )
-from synesis_api.modules.data_objects.models import feature
 from synesis_api.database.service import execute, fetch_all
-from synesis_schemas.main_server import TabularFileDataSourceCreate, DataSourceAnalysisCreate, DataSourceCreate
 
 
-async def create_data_source(
+async def create_tabular_file_data_source(
         user_id: uuid.UUID,
-        data_source_create: DataSourceCreate,
-) -> DataSourceInDB:
+        data_source_create: TabularFileDataSourceCreate) -> DataSource:
 
-    data_source_record = DataSourceInDB(
+    data_source_obj = DataSourceInDB(
         id=uuid.uuid4(),
         user_id=user_id,
+        type="tabular_file",
         **data_source_create.model_dump(),
         created_at=datetime.now()
     )
 
+    tabular_data_source_obj = TabularFileDataSourceInDB(
+        id=data_source_obj.id,
+        **data_source_create.model_dump(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
+    )
+
     await execute(
-        insert(data_source).values(data_source_record.model_dump()),
+        insert(data_source).values(data_source_obj.model_dump()),
         commit_after=True
     )
 
-    return data_source_record
+    await execute(
+        insert(tabular_file_data_source).values(
+            tabular_data_source_obj.model_dump()),
+        commit_after=True
+    )
+
+    return (await get_user_data_sources(user_id, [data_source_obj.id]))[0]
 
 
-async def create_data_source_details(
-    data_source_details: Union[TabularFileDataSourceCreate],
+async def create_key_value_data_source(
+        user_id: uuid.UUID,
+        data_source_create: KeyValueFileDataSourceCreate) -> DataSource:
     # TODO: deal with features
-) -> Union[TabularFileDataSourceInDB]:
 
-    if isinstance(data_source_details, TabularFileDataSourceCreate):
-        tabular_data_source_record = TabularFileDataSourceInDB(
-            id=data_source_details.data_source_id,
-            **data_source_details.model_dump(),
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
-        )
+    data_source_obj = DataSourceInDB(
+        id=uuid.uuid4(),
+        user_id=user_id,
+        type="key_value_file",
+        **data_source_create.model_dump(),
+        created_at=datetime.now()
+    )
 
-        await execute(
-            insert(tabular_file_data_source).values(
-                tabular_data_source_record.model_dump()),
-            commit_after=True
-        )
+    key_value_data_source_obj = KeyValueFileDataSourceInDB(
+        id=data_source_obj.id,
+        **data_source_create.model_dump(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
+    )
 
-        return tabular_data_source_record
+    await execute(
+        insert(data_source).values(data_source_obj.model_dump()),
+        commit_after=True
+    )
+
+    await execute(
+        insert(key_value_file_data_source).values(
+            key_value_data_source_obj.model_dump()),
+        commit_after=True
+    )
+
+    return (await get_user_data_sources(user_id, [data_source_obj.id]))[0]
 
 
 async def create_data_source_analysis(analysis: DataSourceAnalysisCreate) -> DataSourceAnalysisInDB:
@@ -82,7 +108,7 @@ async def create_data_source_analysis(analysis: DataSourceAnalysisCreate) -> Dat
     return analysis_record
 
 
-async def get_user_data_sources(user_id: uuid.UUID, data_source_ids: Optional[List[uuid.UUID]] = None,) -> List[DataSource]:
+async def get_user_data_sources(user_id: uuid.UUID, data_source_ids: Optional[List[uuid.UUID]] = None) -> List[DataSource]:
     """Get a data source by ID, returning the most specific type"""
     # Get the base data source
 
@@ -104,16 +130,12 @@ async def get_user_data_sources(user_id: uuid.UUID, data_source_ids: Optional[Li
     )
     tabular_source_records = await fetch_all(tabular_source_query)
 
-    feature_in_tabular_file_query = select(feature_in_tabular_file).where(
-        feature_in_tabular_file.c.tabular_file_id.in_(source_ids)
-    )
-    feature_in_tabular_file_records = await fetch_all(feature_in_tabular_file_query)
+    # Key value source record
 
-    feature_query = select(feature).where(
-        feature.c.name.in_([record["feature_name"]
-                           for record in feature_in_tabular_file_records])
+    key_value_source_query = select(key_value_file_data_source).where(
+        key_value_file_data_source.c.id.in_(source_ids)
     )
-    feature_records = await fetch_all(feature_query)
+    key_value_source_records = await fetch_all(key_value_source_query)
 
     # Analysis record
 
@@ -124,35 +146,42 @@ async def get_user_data_sources(user_id: uuid.UUID, data_source_ids: Optional[Li
 
     output_records = []
     for source_id in source_ids:
-        source_record = [
-            record for record in source_records if record["id"] == source_id][0]
+        source_obj = DataSourceInDB(**next(
+            iter([record for record in source_records if record["id"] == source_id])))
 
         tabular_record = next(
-            [record for record in tabular_source_records if record["id"] == source_id], None)
+            iter([record for record in tabular_source_records if record["id"] == source_id]), None)
 
+        key_value_record = next(
+            iter([record for record in key_value_source_records if record["id"] == source_id]), None)
+
+        type_fields_obj = None
         if tabular_record:
-            feature_names = [record["feature_name"]
-                             for record in feature_in_tabular_file_records if record["tabular_file_id"] == source_id]
-
-            type_fields = TabularFileDataSource(
-                **tabular_record.model_dump(),
-                features=[FeatureInDB(
-                    **record) for record in feature_records if record["name"] in feature_names]
-            )
+            tabular_obj = TabularFileDataSourceInDB(**tabular_record)
+            type_fields_obj = TabularFileDataSourceInDB(
+                **tabular_obj.model_dump())
+        elif key_value_record:
+            key_value_obj = KeyValueFileDataSourceInDB(**key_value_record)
+            type_fields_obj = KeyValueFileDataSourceInDB(
+                **key_value_obj.model_dump())
         else:
-            raise ValueError(
-                f"Currently only tabular file data sources are supported, no record found for source ID: {source_id}")
+            raise HTTPException(
+                status_code=500, detail="Incomplete data source record")
 
         analysis_record = next(
-            [record for record in analysis_records if record["id"] == source_id], None)
+            iter([record for record in analysis_records if record["id"] == source_id]), None)
+
+        analysis_obj = None
+        if analysis_record:
+            analysis_obj = DataSourceAnalysisInDB(**analysis_record)
 
         description = get_data_source_description(
-            source_record, type_fields, analysis_record)
+            source_obj, type_fields_obj, analysis_obj)
 
         output_records.append(DataSource(
-            **source_record,
-            type_fields=type_fields,
-            analysis=analysis_record,
+            **source_obj.model_dump(),
+            type_fields=type_fields_obj,
+            analysis=analysis_obj,
             description_for_agent=description
         ))
 

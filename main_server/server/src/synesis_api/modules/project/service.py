@@ -159,7 +159,7 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
         objs = []
         for ds, project_ds in zip(datasets, project_datasets):
             output_pipeline_ids = [
-                p.id for p in pipelines if ds.id in p.sources.dataset_ids]
+                p.id for p in pipelines if ds.id in p.inputs.dataset_ids]
             output_analysis_ids = []
 
             objs.append(DatasetInGraph(
@@ -182,7 +182,7 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
             output_dataset_ids = [
                 ds.id for ds in datasets if p.id in ds.sources.pipeline_ids]
             output_model_entity_ids = [
-                me.id for me in model_entities if p.id == me.pipeline_id]
+                me.id for me in model_entities if p.id == me.implementation.pipeline_id]
 
             objs.append(PipelineInGraph(
                 id=p.id,
@@ -190,8 +190,10 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
                 brief_description=p.description,
                 x_position=project_p.x_position,
                 y_position=project_p.y_position,
-                from_datasets=p.sources.dataset_ids,
-                from_model_entities=p.sources.model_entity_ids,
+                from_data_sources=p.inputs.data_source_ids,
+                from_datasets=p.inputs.dataset_ids,
+                from_model_entities=p.inputs.model_entity_ids,
+                from_analyses=p.inputs.analysis_ids,
                 to_datasets=output_dataset_ids,
                 to_model_entities=output_model_entity_ids
             ))
@@ -220,7 +222,7 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
         objs = []
         for me, project_me in zip(model_entities, project_model_entities):
             output_pipeline_ids = [
-                p.id for p in pipelines if me.id in p.sources.model_entity_ids]
+                p.id for p in pipelines if me.id in p.inputs.model_entity_ids]
             objs.append(ModelEntityInGraph(
                 id=me.id,
                 name=me.name,
