@@ -13,7 +13,7 @@ import FileInfoTab from "@/components/info-tabs/FileInfoTab";
 import DatasetInfoTab from "@/components/info-tabs/DatasetInfoTab";
 import PipelineInfoTab from "@/components/info-tabs/PipelineInfoTab";
 import ModelInfoTab from "@/components/info-tabs/ModelInfoTab";
-import AnalysisInfoTab from "@/components/info-tabs/AnalysisInfoTab";
+import AnalysisItem from "@/components/info-tabs/analysis/AnalysisItem";
 import { UUID } from "crypto";
 
 interface DashboardProps {
@@ -62,8 +62,8 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     );
   } else if (activeTab?.type === 'analysis') {
     mainContent = (
-      <AnalysisInfoTab
-        analysisId={activeTab.id as UUID}
+      <AnalysisItem
+        analysisObjectId={activeTab.id as UUID}
         projectId={projectId}
         onClose={() => closeTabByKey(activeTab.key)}
       />

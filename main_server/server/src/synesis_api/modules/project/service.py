@@ -34,7 +34,7 @@ from synesis_schemas.main_server import (
     Dataset,
     Pipeline,
     ModelEntity,
-    Analysis,
+    AnalysisObject,
     UpdateEntityPosition,
 )
 from synesis_api.modules.project.agent import project_agent
@@ -199,7 +199,7 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
             ))
         return objs
 
-    def _get_analyses_in_graph(analysis_object_list: List[Analysis], project_analyses: List[ProjectAnalysisInDB]) -> List[AnalysisInGraph]:
+    def _get_analyses_in_graph(analysis_object_list: List[AnalysisObject], project_analyses: List[ProjectAnalysisInDB]) -> List[AnalysisInGraph]:
         objs = []
         for analysis_object, project_analysis in zip(analysis_object_list, project_analyses):
             analysis_object_dataset_ids = get_dataset_ids_from_analysis_object(

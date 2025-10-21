@@ -10,16 +10,14 @@ from synesis_api.modules.analysis.models import (
     notebook_section,
     notebook,
 )
-# from synesis_api.modules.orchestrator.models import analysis_context
+from synesis_api.modules.orchestrator.models import analysis_context
 from synesis_schemas.main_server import (
-    Analysis,
-    AnalysisObjectCreate,
-    AnalysisObjectInDB,
+    AnalysisObject,
+    AnalysisCreate,
+    AnalysisInDB,
     AnalysisObjectSmall,
-    AnalysisObjectList,
-    # RemoveEntityFromProject
+    AnalysisObjectList
 )
-# from synesis_api.modules.project.service import remove_entity_from_project
 from synesis_api.modules.analysis.service.service_utils import deep_exclude
 from synesis_api.modules.analysis.service.service_notebook import (
     create_notebook,
@@ -28,12 +26,12 @@ from synesis_api.modules.analysis.service.service_notebook import (
 )
 
 
-async def create_analysis_object(analysis_object_create: AnalysisObjectCreate, user_id: uuid.UUID) -> AnalysisObjectInDB:
+async def create_analysis_object(analysis_object_create: AnalysisCreate, user_id: uuid.UUID) -> AnalysisInDB:
 
     analysis_object_id = uuid.uuid4()
     notebook_in_db = await create_notebook()
 
-    analysis_object_in_db = AnalysisObjectInDB(
+    analysis_object_in_db = AnalysisInDB(
         id=analysis_object_id,
         user_id=user_id,
         notebook_id=notebook_in_db.id,
@@ -50,7 +48,7 @@ async def create_analysis_object(analysis_object_create: AnalysisObjectCreate, u
     return analysis_object_in_db
 
 
-async def get_analysis_object_by_id(analysis_object_id: uuid.UUID) -> Analysis:
+async def get_analysis_object_by_id(analysis_object_id: uuid.UUID) -> AnalysisObject:
     result = await fetch_one(
         select(analysis_object).where(
             analysis_object.c.id == analysis_object_id)
@@ -62,7 +60,7 @@ async def get_analysis_object_by_id(analysis_object_id: uuid.UUID) -> Analysis:
 
     notebook = await get_notebook_by_id(result["notebook_id"])
 
-    return Analysis(**result, notebook=notebook)
+    return AnalysisObject(**result, notebook=notebook)
 
 
 async def get_analysis_objects_small_by_project_id(project_id: uuid.UUID) -> AnalysisObjectList:
@@ -75,10 +73,10 @@ async def get_analysis_objects_small_by_project_id(project_id: uuid.UUID) -> Ana
     for result in results:
         analysis_objects_list.append(AnalysisObjectSmall(**result))
 
-    return AnalysisObjectList(analysis_objects=analysis_objects_list)
+    return AnalysisObjectList(analysisObjects=analysis_objects_list)
 
 
-async def get_analysis_objects_by_project_id(project_id: uuid.UUID) -> List[Analysis]:
+async def get_analysis_objects_by_project_id(project_id: uuid.UUID) -> List[AnalysisObject]:
     results = await fetch_all(
         select(analysis_object).where(
             analysis_object.c.project_id == project_id)
@@ -88,12 +86,12 @@ async def get_analysis_objects_by_project_id(project_id: uuid.UUID) -> List[Anal
     for result in results:
         notebook = await get_notebook_by_id(result["notebook_id"])
         analysis_objects_list.append(
-            Analysis(**result, notebook=notebook))
+            AnalysisObject(**result, notebook=notebook))
 
     return analysis_objects_list
 
 
-async def get_user_analyses(user_id: uuid.UUID, analysis_ids: List[uuid.UUID]) -> List[Analysis]:
+async def get_user_analyses(user_id: uuid.UUID, analysis_ids: List[uuid.UUID]) -> List[AnalysisObject]:
     results = await fetch_all(
         select(analysis_object).where(
             analysis_object.c.user_id == user_id,
@@ -105,7 +103,7 @@ async def get_user_analyses(user_id: uuid.UUID, analysis_ids: List[uuid.UUID]) -
     for result in results:
         notebook = await get_notebook_by_id(result["notebook_id"])
         analysis_objects_list.append(
-            Analysis(**result, notebook=notebook))
+            AnalysisObject(**result, notebook=notebook))
 
     return analysis_objects_list
 
@@ -134,11 +132,11 @@ async def delete_analysis_object(analysis_object_id: uuid.UUID, user_id: uuid.UU
 
     # await remove_entity_from_project(analysis_object.project_id, RemoveEntityFromProject(entity_type="analysis", entity_id=analysis_object_id))
 
-    # await execute(
-    #     delete(analysis_context).where(
-    #         analysis_context.c.analysis_id == analysis_object_id),
-    #     commit_after=True
-    # )
+    await execute(
+        delete(analysis_context).where(
+            analysis_context.c.analysis_id == analysis_object_id),
+        commit_after=True
+    )
 
     await execute(
         delete(notebook).where(notebook.c.id == analysis_object.notebook.id),

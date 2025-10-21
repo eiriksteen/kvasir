@@ -258,17 +258,17 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
 
     // Add analysis nodes
     project.analyses.forEach((projectAnalysis: ProjectAnalysisInDB) => {
-      const analysis = analysisObjects.analysisObjects.find(a => a.id === projectAnalysis.analysisId);
-      if (analysis) {
+      const analysisObject = analysisObjects.analysisObjects.find(a => a.id === projectAnalysis.analysisId);
+      if (analysisObject) {
         nodes.push({
           id: projectAnalysis.analysisId,
           type: 'analysis',
           position: { x: projectAnalysis.xPosition, y: projectAnalysis.yPosition },
           data: {
-            label: analysis.name,
+            label: analysisObject.name,
             id: projectAnalysis.analysisId,
-            analysis: analysis,
-            onClick: () => handleOpenTab({ type: 'analysis', id: analysis.id, label: analysis.name })
+            analysis: analysisObject,
+            onClick: () => handleOpenTab({ type: 'analysis', id: analysisObject.id, label: analysisObject.name })
           },
         });
       }
@@ -362,16 +362,16 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       .filter(Boolean) as Edge[];
 
     const datasetsToAnalysesEdges = projectGraph?.analyses
-      .flatMap(analysis =>
-        analysis.fromDatasets.map(datasetId => {
+      .flatMap(analysisObject =>
+        analysisObject.fromDatasets.map(datasetId => {
           const sourceEntity = getEntityWithCurrentPosition(datasetId);
-          const targetEntity = getEntityWithCurrentPosition(analysis.id);
+          const targetEntity = getEntityWithCurrentPosition(analysisObject.id);
           if (!sourceEntity || !targetEntity) return null;
           const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
           return {
-            id: String(`${datasetId}->${analysis.id}`),
+            id: String(`${datasetId}->${analysisObject.id}`),
             source: datasetId,
-            target: analysis.id,
+            target: analysisObject.id,
             type: 'default',
             animated: true,
             style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
@@ -384,16 +384,16 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
       .filter(Boolean) as Edge[];
     
     const dataSourcesToAnalysesEdges = projectGraph?.analyses
-      .flatMap(analysis =>
-        analysis.fromDataSources.map(dataSourceId => {
+      .flatMap(analysisObject =>
+        analysisObject.fromDataSources.map(dataSourceId => {
           const sourceEntity = getEntityWithCurrentPosition(dataSourceId);
-          const targetEntity = getEntityWithCurrentPosition(analysis.id);
+          const targetEntity = getEntityWithCurrentPosition(analysisObject.id);
           if (!sourceEntity || !targetEntity) return null;
           const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
           return {
-            id: String(`${dataSourceId}->${analysis.id}`),
+            id: String(`${dataSourceId}->${analysisObject.id}`),
             source: dataSourceId,
-            target: analysis.id,
+            target: analysisObject.id,
             type: 'default',
             animated: true,
             style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
@@ -495,14 +495,14 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
 
     const analysesToPipelinesEdges = projectGraph?.pipelines
       .flatMap(pipeline =>
-        (pipeline.fromAnalyses || []).map((analysisId: UUID) => {
-          const sourceEntity = getEntityWithCurrentPosition(analysisId);
+        (pipeline.fromAnalyses || []).map((analysisObjectId: UUID) => {
+          const sourceEntity = getEntityWithCurrentPosition(analysisObjectId);
           const targetEntity = getEntityWithCurrentPosition(pipeline.id);
           if (!sourceEntity || !targetEntity) return null;
           const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
           return {
-            id: String(`${analysisId}->${pipeline.id}`),
-            source: analysisId,
+            id: String(`${analysisObjectId}->${pipeline.id}`),
+            source: analysisObjectId,
             target: pipeline.id,
             type: 'default',
             animated: true,

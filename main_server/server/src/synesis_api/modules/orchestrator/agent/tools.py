@@ -21,31 +21,32 @@ from synesis_api.modules.project.service import add_entity_to_project
 from synesis_api.modules.runs.service import create_run
 
 
-class AnalysisHandoffOutput(BaseModel):
+class AnalysisRunSubmission(BaseModel):
     run_name: str
-    deliverable_description: str
-    dataset_ids: Optional[List[uuid.UUID]] = None
-    data_source_ids: Optional[List[uuid.UUID]] = None
+    plan_and_deliverable_description_for_user: str
+    plan_and_deliverable_description_for_agent: str
+    input_dataset_ids: List[uuid.UUID] = []
+    input_data_source_ids: List[uuid.UUID] = []
 
     @model_validator(mode="after")
-    def validate_dataset_ids(self) -> "AnalysisHandoffOutput":
-        if self.dataset_ids is None:
-            assert self.data_source_ids is not None, "Data source IDs are required when dataset IDs are not provided"
+    def validate_dataset_ids(self) -> "AnalysisRunSubmission":
+        if self.input_dataset_ids is None:
+            assert self.input_data_source_ids is not None, "Data source IDs are required when dataset IDs are not provided"
         return self
 
 
-class SWERunDescriptionOutput(BaseModel):
+class SWERunSubmission(BaseModel):
     run_name: str
     plan_and_deliverable_description_for_user: str
     plan_and_deliverable_description_for_agent: str
     questions_for_user: Optional[str] = None
     configuration_defaults_description: Optional[str] = None
     input_data_source_ids: List[uuid.UUID] = []
-    input_dataset_ids: List[uuid.UUID]
+    input_dataset_ids: List[uuid.UUID] = []
     input_model_entity_ids: List[uuid.UUID] = []
 
     @model_validator(mode="after")
-    def validate_dataset_ids(self) -> "SWERunDescriptionOutput":
+    def validate_dataset_ids(self) -> "SWERunSubmission":
         assert len(
             self.input_dataset_ids) + len(self.input_data_source_ids) > 0, "One or more dataset or data source IDs are required"
         return self
@@ -53,18 +54,31 @@ class SWERunDescriptionOutput(BaseModel):
 
 async def submit_run_for_analysis_agent(
     ctx: RunContext[OrchestratorAgentDeps],
-    result: AnalysisHandoffOutput
+    result: AnalysisRunSubmission
 ) -> str:
     """Submit a analysis agent run with the provided parameters."""
 
-    # TODO: Implement
+    run = await create_run(
+        ctx.deps.user_id,
+        RunCreate(
+            type="analysis",
+            project_id=ctx.deps.project_id,
+            conversation_id=ctx.deps.conversation_id,
+            data_sources_in_run=result.input_data_source_ids,
+            datasets_in_run=result.input_dataset_ids,
+            spec=RunSpecificationCreate(
+                run_name=result.run_name,
+                plan_and_deliverable_description_for_agent=result.plan_and_deliverable_description_for_agent,
+                plan_and_deliverable_description_for_user=result.plan_and_deliverable_description_for_user
+            )
+        ))
 
-    return "Analysis agent run not yet implemented"
+    return f"Successfully submitted run for SWE agent, the run id is {run.id}"
 
 
 async def submit_run_for_swe_agent(
     ctx: RunContext[OrchestratorAgentDeps],
-    result: SWERunDescriptionOutput
+    result: SWERunSubmission
 ) -> str:
     """Submit a SWE agent run with the provided parameters."""
 
@@ -100,8 +114,8 @@ async def search_existing_models(ctx: RunContext[OrchestratorAgentDeps], search_
 
 async def add_model_entity_to_project(ctx: RunContext[OrchestratorAgentDeps], model_entity_implementation_create: ModelEntityImplementationCreate) -> ModelEntityInDB:
     """
-    Add an implemented model entity to the project. 
-    You must provide the model_implementation_id and model_entity_create. 
+    Add an implemented model entity to the project.
+    You must provide the model_implementation_id and model_entity_create.
     This should not be called before we have searched the models, as we need to know the model_implementation_id.
     """
 

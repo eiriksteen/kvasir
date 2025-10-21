@@ -138,12 +138,15 @@ async def launch_run(client: MainServerClient, run_id: uuid.UUID):
     elif run_record.type == "analysis":
         await post_run_analysis(client, RunAnalysisRequest(
             run_id=run_id,
+            project_id=run_record.project_id,
+            user_id=run_record.user_id,
             conversation_id=run_record.conversation_id,
             prompt_content=run_spec.plan_and_deliverable_description_for_agent,
             dataset_ids=dataset_ids,
             data_source_ids=data_source_ids,
             model_entity_ids=model_entity_ids,
-            pipeline_ids=pipeline_ids
+            pipeline_ids=pipeline_ids,
+            context_message="No context message provided"
         ))
 
     await execute(run.update().where(run.c.id == run_id).values(status="running"), commit_after=True)

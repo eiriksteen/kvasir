@@ -44,7 +44,7 @@ class AnalysisObjectSmall(BaseModel):
     created_at: datetime = datetime.now()
 
 
-class Analysis(AnalysisObjectSmall):
+class AnalysisObject(AnalysisObjectSmall):
     notebook: Notebook
 
 
@@ -56,7 +56,7 @@ class AnalysisStatusMessage(BaseModel):
 
 
 # DB schemas
-class AnalysisObjectInDB(BaseModel):
+class AnalysisInDB(BaseModel):
     id: UUID
     project_id: UUID
     name: str
@@ -105,7 +105,7 @@ class NotebookSectionAnalysisResultRelationInDB(BaseModel):
 
 
 # Other schemas
-class AnalysisObjectCreate(BaseModel):
+class AnalysisCreate(BaseModel):
     name: str
     project_id: UUID
     description: str | None = None
@@ -124,7 +124,7 @@ class NotebookSectionCreate(BaseModel):
 
 
 class AnalysisObjectList(BaseModel):
-    analysis_objects: List[AnalysisObjectSmall]
+    analysisObjects: List[AnalysisObjectSmall]
 
 
 class NotebookSectionUpdate(BaseModel):

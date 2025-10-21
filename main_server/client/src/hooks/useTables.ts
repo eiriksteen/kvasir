@@ -10,7 +10,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 // routes for tables
 
 export async function createTableEndpoint(token: string, tableCreate: TableCreate): Promise<BaseTable> {
-  const response = await fetch(`${API_URL}/analysis/table/create-table`, {
+  const response = await fetch(`${API_URL}/analysis/table`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -48,7 +48,7 @@ export async function fetchTableEndpoint(token: string, tableId: string): Promis
 }
 
 export async function fetchTablesByAnalysisResultEndpoint(token: string, analysisResultId: string): Promise<BaseTable[]> {
-  const response = await fetch(`${API_URL}/analysis/table/get-tables-by-analysis-result-id/${analysisResultId}`, {
+  const response = await fetch(`${API_URL}/analysis/table/analysis-result/${analysisResultId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -66,7 +66,7 @@ export async function fetchTablesByAnalysisResultEndpoint(token: string, analysi
 }
 
 export async function updateTableEndpoint(token: string, tableId: string, tableUpdate: TableUpdate): Promise<BaseTable> {
-  const response = await fetch(`${API_URL}/analysis/table/update-table/${tableId}`, {
+  const response = await fetch(`${API_URL}/analysis/table/${tableId}`, {
     method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -86,7 +86,7 @@ export async function updateTableEndpoint(token: string, tableId: string, tableU
 }
 
 export async function deleteTableEndpoint(token: string, tableId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/analysis/table/delete-table/${tableId}`, {
+  const response = await fetch(`${API_URL}/analysis/table/${tableId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`

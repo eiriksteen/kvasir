@@ -4,7 +4,7 @@ from typing import List
 
 from project_server.client import ProjectClient
 from synesis_schemas.main_server import (
-    Analysis,
+    AnalysisObject,
     AnalysisObjectList,
     AnalysisResult,
     AnalysisResultUpdate,
@@ -12,7 +12,7 @@ from synesis_schemas.main_server import (
     NotebookSectionCreate,
     NotebookSectionUpdate,
     MoveRequest,
-    # AggregationObjectWithRawData
+    AggregationObjectWithRawData
 )
 
 
@@ -21,9 +21,9 @@ async def get_analysis_objects_by_project_request(client: ProjectClient, project
     return AnalysisObjectList(**response.body)
 
 
-async def get_analysis_object_request(client: ProjectClient, analysis_object_id: uuid.UUID) -> Analysis:
+async def get_analysis_object_request(client: ProjectClient, analysis_object_id: uuid.UUID) -> AnalysisObject:
     response = await client.send_request("get", f"/analysis/analysis-object/{analysis_object_id}")
-    return Analysis(**response.body)
+    return AnalysisObject(**response.body)
 
 
 async def create_section_request(client: ProjectClient, analysis_object_id: uuid.UUID, section_create: NotebookSectionCreate) -> NotebookSection:
@@ -45,17 +45,17 @@ async def add_analysis_result_to_section_request(client: ProjectClient, analysis
     return NotebookSection(**response.body)
 
 
-# async def get_data_for_analysis_result_request(client: ProjectClient, analysis_object_id: uuid.UUID, analysis_result_id: uuid.UUID) -> AggregationObjectWithRawData:
-#     response = await client.send_request("post", f"/analysis/analysis-object/{analysis_object_id}/analysis-result/{analysis_result_id}/get-data")
-#     return AggregationObjectWithRawData(**response.body)
+async def get_data_for_analysis_result_request(client: ProjectClient, analysis_object_id: uuid.UUID, analysis_result_id: uuid.UUID) -> AggregationObjectWithRawData:
+    response = await client.send_request("post", f"/analysis/analysis-object/{analysis_object_id}/analysis-result/{analysis_result_id}/get-data")
+    return AggregationObjectWithRawData(**response.body)
 
 
 async def move_element_request(client: ProjectClient, analysis_object_id: uuid.UUID, move_request: MoveRequest) -> None:
     await client.send_request("patch", f"/analysis/analysis-object/{analysis_object_id}/move-element", json=move_request.model_dump(mode="json"))
 
 
-async def update_analysis_result_request(client: ProjectClient, analysis_result_id: uuid.UUID, analysis_result_update: AnalysisResultUpdate) -> AnalysisResult:
-    response = await client.send_request("patch", f"/analysis/analysis-result/{analysis_result_id}", json=analysis_result_update.model_dump(mode="json"))
+async def update_analysis_result_request(client: ProjectClient, analysis_result: AnalysisResult) -> AnalysisResult:
+    response = await client.send_request("patch", f"/analysis/analysis-result/{analysis_result.id}", json=analysis_result.model_dump(mode="json"))
     return AnalysisResult(**response.body)
 
 

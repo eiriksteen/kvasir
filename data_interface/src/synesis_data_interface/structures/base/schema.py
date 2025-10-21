@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 from typing import Optional, Dict, Any, Literal, Tuple, List
 
@@ -32,13 +32,3 @@ class DataObject(BaseModel):
     additional_variables: Optional[Dict[str, Any]] = None
     # feature name to feature object
     features: Dict[str, Feature]
-
-
-class RawDataStructure(BaseModel):
-    data: Dict[Tuple[str, str], List[float | int | str | bool | datetime |
-                                     # (column_name, data_type) -> [values]
-                                     timedelta | None]]
-
-
-class AggregationOutput(BaseModel):
-    output_data: RawDataStructure

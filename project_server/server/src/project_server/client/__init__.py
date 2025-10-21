@@ -105,7 +105,8 @@ from .requests.analysis import (
     delete_analysis_result_request,
     create_analysis_result_request,
     get_analysis_result_by_id_request,
-    get_analysis_results_by_ids_request
+    get_analysis_results_by_ids_request,
+    get_data_for_analysis_result_request
 )
 
 from .requests.plots import (

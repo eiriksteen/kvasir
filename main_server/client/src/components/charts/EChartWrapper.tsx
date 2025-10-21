@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import ReactECharts from "echarts-for-react";
-import { convertTimeStamps, formatTimeStamps, getMinMax } from "./PlottingUtils";
+import { formatTimeStamps, getMinMax } from "./PlottingUtils";
 import { BasePlot, PlotColumn } from "@/types/plots";
-import { AggregationObjectWithRawData } from "@/types/data-objects";
-import PlotConfigurationPopup from "@/components/info-modals/analysis/PlotConfigurationPopup";
+import { AggregationObjectWithRawData, Column } from "@/types/data-objects";
+import PlotConfigurationPopup from "@/components/info-tabs/analysis/PlotConfigurationPopup";
 
 interface ChartProps {
   plot: BasePlot;
@@ -15,42 +15,41 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
   const config = plot.plotConfig;
   
   // Handle data availability check
-  const hasData = aggregationData && aggregationData.data.outputData.data && Object.keys(aggregationData.data.outputData.data).length > 0;
+  const hasData = aggregationData && aggregationData.data.outputData.data && aggregationData.data.outputData.data.length > 0;
   const columnsToPlot = config.yAxisColumns.filter((col: PlotColumn) => col.enabled);
   
   if (!hasData) {
     return (
-      <div className="w-full h-full flex items-center justify-center text-zinc-500">
+      <div className="w-full h-full flex items-center justify-center text-gray-600">
         No data available for plotting
       </div>
     );
   }
 
-  const data = aggregationData.data.outputData.data as Record<`${string},${string}`, Array<number | string | boolean | Date | null>>;
+  const columns = aggregationData.data.outputData.data as Column[];
 
   // Helper function to convert data based on datatype
-  const convertDataByType = (key: string, rawData: Array<any>) => {
-    const [, dataType] = key.split(',');
-    if (dataType === 'datetime' && rawData.length > 0) {
-      // Convert bigint array to Date array
-      return rawData.map((timestamp: bigint) => new Date(Number(timestamp) / 1000000));
-    }
-    return rawData;
-  };
+  // const convertDataByType = (valueType: string, rawData: Array<any>) => {
+  //   if (valueType === 'datetime' && rawData.length > 0) {
+  //     // Convert bigint array to Date array
+  //     return rawData.map((timestamp: bigint) => new Date(Number(timestamp) / 1000000));
+  //   }
+  //   return rawData;
+  // };
 
   // Get available columns from AggregationObjectWithRawData
-  const availableColumns = Object.keys(data).map(key => key.split(',')[0]);
+  const availableColumns = columns.map(col => col.name);
   
   // Get the x-axis column data
-  const xAxisKey = Object.keys(data).find(key => key.startsWith(config.xAxisColumn.name + ','));
-  const xAxisRawData = xAxisKey ? data[xAxisKey as keyof typeof data] || [] : [];
-  const xAxisData = xAxisKey ? convertDataByType(xAxisKey, xAxisRawData) : [];
+  const xAxisColumn = columns.find(col => col.name === config.xAxisColumn.name);
+  const xAxisData = xAxisColumn ? xAxisColumn.values : [];
+
   
   // Prepare series data
   const series = columnsToPlot.map((col: PlotColumn) => {
-    const columnKey = Object.keys(data).find(key => key.startsWith(col.name + ','));
-    const columnRawData = columnKey ? data[columnKey as keyof typeof data] || [] : [];
-    const columnData = columnKey ? convertDataByType(columnKey, columnRawData) : [];
+    const column = columns.find(c => c.name === col.name);
+    const columnData = column ? column.values : [];
+
     return {
       name: col.name,
       type: col.lineType,
@@ -129,24 +128,24 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
       left: "center",
       top: 0,
       textStyle: {
-        color: "#e5e7eb",
+        color: "#374151",
         fontSize: 16,
         fontWeight: "bold",
       },
     },
     tooltip: {
       trigger: "axis",
-      backgroundColor: "#0a101c",
-      borderColor: "#2a4170",
+      backgroundColor: "#ffffff",
+      borderColor: "#d1d5db",
       textStyle: {
-        color: "#e5e7eb",
+        color: "#374151",
       },
       formatter: function (params: Array<{ axisValue: any; color: string; seriesName: string; value: any }>) {
-        let result = `<div style="color: #e5e7eb; font-weight: bold;">${params[0].axisValue}</div>`;
+        let result = `<div style="color: #111827; font-weight: bold;">${params[0].axisValue}</div>`;
         params.forEach((param) => {
           result += `<div style="margin: 4px 0;">
             <span style="display: inline-block; width: 10px; height: 10px; background: ${param.color}; margin-right: 8px;"></span>
-            <span style="color: #e5e7eb; font-mono text-xs">${param.seriesName}: ${param.value}</span>
+            <span style="color: #374151; font-mono text-xs">${param.seriesName}: ${param.value}</span>
           </div>`;
         });
         return result;
@@ -159,7 +158,7 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
         ...(config.markAreas || []).filter(area => area.includeInLegend).map(area => area.name),
       ],
       textStyle: {
-        color: "#e5e7eb",
+        color: "#374151",
       },
       top: 30,
     },
@@ -177,16 +176,16 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
       splitLine: {
         show: true,
         lineStyle: {
-          color: "#1f2937",
+          color: "#e5e7eb",
         },
       },
       axisLine: {
         lineStyle: {
-          color: "#1f2937",
+          color: "#d1d5db",
         },
       },
       axisLabel: {
-        color: "#e5e7eb",
+        color: "#374151",
         fontSize: 12,
         formatter: (value: any) => {
           if (xAxisData.every(item => item instanceof Date)) {
@@ -204,16 +203,16 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
         splitLine: {
           show: true,
           lineStyle: {
-            color: "#1f2937",
+            color: "#e5e7eb",
           },
         },
         axisLine: {
           lineStyle: {
-            color: "#1f2937",
+            color: "#d1d5db",
           },
         },
         axisLabel: {
-          color: "#e5e7eb",
+          color: "#374151",
           formatter: (value: any) => value + " " + (config.yAxisUnits || ""),
         },
         min: minMax.min,
@@ -225,16 +224,16 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
         splitLine: {
           show: true,
           lineStyle: {
-            color: "#1f2937",
+            color: "#e5e7eb",
           },
         },
         axisLine: {
           lineStyle: {
-            color: "#e5e7eb",
+            color: "#d1d5db",
           },
         },
         axisLabel: {
-          color: "#e5e7eb",
+          color: "#374151",
           formatter: (value: any) => value + " " + (config.yAxis2Units || ""),
         },
         min: minMax2.min,
@@ -284,7 +283,7 @@ const EChartWrapper = ({ plot, aggregationData }: ChartProps) => {
   return (
     <div className="w-full h-full relative">
       <ReactECharts option={default_options} style={{ height: "90%", width: "100%" }} />
-      {config.subtitle && <p className="text-center text-sm text-zinc-400 mt-2">{config.subtitle}</p>}
+      {config.subtitle && <p className="text-center text-sm text-gray-600 mt-2">{config.subtitle}</p>}
       
       {/* Plot Configuration Popup */}
       <PlotConfigurationPopup

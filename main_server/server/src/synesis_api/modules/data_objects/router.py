@@ -11,7 +11,6 @@ from synesis_api.modules.data_objects.service import (
     create_dataset,
     get_user_datasets,
     get_data_object,
-    get_aggregation_object_by_analysis_result_id,
     update_aggregation_object,
     create_aggregation_object
 
@@ -134,7 +133,7 @@ async def get_time_series_data_from_project_server(
 
 @router.post("/aggregation-object")
 async def create_aggregation_object_endpoint(
-    aggregation_object_create,
+    aggregation_object_create: AggregationObjectCreate,
     user: Annotated[User, Depends(get_current_user)] = None
 ):
     aggregation_object = AggregationObjectCreate(**aggregation_object_create) if isinstance(
@@ -146,7 +145,7 @@ async def create_aggregation_object_endpoint(
 @router.put("/aggregation-object/{aggregation_object_id}")
 async def update_aggregation_object_endpoint(
     aggregation_object_id: UUID,
-    aggregation_object_update,
+    aggregation_object_update: AggregationObjectUpdate,
     user: Annotated[User, Depends(get_current_user)] = None
 ):
     # Shouldnt the ownership be validated here?
@@ -155,15 +154,3 @@ async def update_aggregation_object_endpoint(
     result = await update_aggregation_object(aggregation_object_id, aggregation_update)
     return result
 
-
-@router.get("/aggregation-object/analysis-result/{analysis_result_id}")
-async def get_aggregation_object_by_analysis_result_id_endpoint(
-    analysis_result_id: UUID,
-    user: Annotated[User, Depends(get_current_user)] = None
-):
-
-    result = await get_aggregation_object_by_analysis_result_id(analysis_result_id)
-    if result is None:
-        raise HTTPException(
-            status_code=404, detail="Aggregation object not found")
-    return result

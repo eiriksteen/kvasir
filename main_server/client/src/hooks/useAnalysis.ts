@@ -20,7 +20,7 @@ import {
 import { AggregationObjectWithRawData } from "@/types/data-objects";
 import { useProject } from "./useProject";
 import { useMemo } from "react";
-import { useAgentContext } from './useAgentContext';
+// import { useAgentContext } from './useAgentContext';
 import { useRuns } from './useRuns';
 import { Run } from "@/types/runs";
 import { UUID } from "crypto";
@@ -293,8 +293,14 @@ export async function getAnalysisResultDataEndpoint(token: string, analysisObjec
   }
 
   // const arraybuffer = await response.arrayBuffer();
-  const aggregationObjectWithRawData = await response.json();
-
+  let aggregationObjectWithRawData = await response.json();
+  aggregationObjectWithRawData = snakeToCamelKeys(aggregationObjectWithRawData);
+  for (const column of aggregationObjectWithRawData.data.outputData.data) {
+    if (column.valueType === 'datetime') {
+      column.values = column.values.map((timestamp: bigint) => new Date(Number(timestamp) / 1000000));
+    }
+  }
+  
   return aggregationObjectWithRawData;
 }
 
@@ -331,12 +337,15 @@ export async function deleteAnalysisResultEndpoint(token: string, analysisObject
     throw new Error(`Failed to delete analysis result: ${response.status} ${errorText}`);
   }
 } 
+
+
 // hooks for analysis object
+
 
 export const useAnalysis = (projectId: UUID) => {
     const { data: session } = useSession();
 
-    const { datasetsInContext, analysesInContext } = useAgentContext(projectId);
+    // const { datasetsInContext, analysesInContext } = useAgentContext(projectId);
 
     const { addEntity } = useProject(projectId);
     

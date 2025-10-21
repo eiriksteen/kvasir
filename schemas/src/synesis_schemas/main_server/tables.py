@@ -13,10 +13,10 @@ class TableConfig(BaseModel):
     title: str
     subtitle: str | None = None
     columns: List[TableColumn]
-    showRowNumbers: bool
-    maxRows: int | None = None
-    sortBy: str | None = None
-    sortOrder: str | None = None
+    show_row_numbers: bool
+    max_rows: int | None = None
+    sort_by: str | None = None
+    sort_order: str | None = None
 
 
 class BaseTable(BaseModel):

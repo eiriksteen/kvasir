@@ -1,8 +1,8 @@
 import React, { Fragment, useRef, useCallback, useState } from 'react';
 import { DndContext, DragEndEvent } from '@dnd-kit/core';
-import SectionItem from '@/components/info-modals/analysis/SectionItem';
-import TableOfContents from '@/components/info-modals/analysis/TableOfContents';
-import AnalysisResult from '@/components/info-modals/analysis/AnalysisResult';
+import SectionItem from '@/components/info-tabs/analysis/SectionItem';
+import TableOfContents from '@/components/info-tabs/analysis/TableOfContents';
+import AnalysisResult from '@/components/info-tabs/analysis/AnalysisResult';
 import { Bot } from 'lucide-react';
 import { useAnalysisObject } from '@/hooks/useAnalysis';
 import { buildOrderedList, findParentSections } from '@/lib/utils';
@@ -64,7 +64,7 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
     setTimeout(() => {
       scrollToSection(sectionId);
     }, 100);
-  }, [scrollToSection, findParentSections, analysis]);
+  }, [scrollToSection, analysis]);
 
   // Function to set ref for a section
   const setSectionRef = useCallback((sectionId: string) => (element: HTMLDivElement | null) => {

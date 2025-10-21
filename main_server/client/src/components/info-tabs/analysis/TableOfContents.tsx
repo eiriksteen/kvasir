@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, FileText, Plus, ChevronDown, ChevronUp, ExternalLink, List, Trash2, ArrowRight, Info, Calendar, User, Tag } from 'lucide-react';
 import { useAnalysisObject } from '@/hooks/useAnalysis';
 import { NotebookSection, AnalysisObject, AnalysisObjectSmall } from '@/types/analysis';
-import SectionItemCreate from '@/components/info-modals/analysis/SectionItemCreate';
+import SectionItemCreate from '@/components/info-tabs/analysis/SectionItemCreate';
 import { buildOrderedSectionsList, findParentSections } from '@/lib/utils';
 import { UUID } from 'crypto';
 import { AnalysisResult as AnalysisResultType } from '@/types/analysis';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
-import GenerateReportPopup from '@/components/info-modals/analysis/GenerateReportPopup';
+import GenerateReportPopup from '@/components/info-tabs/analysis/GenerateReportPopup';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { useTabContext } from '@/hooks/useTabContext';
 

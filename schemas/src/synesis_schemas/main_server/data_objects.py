@@ -3,11 +3,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any, Union, Literal
 from pydantic import BaseModel
 
-# from synesis_data_interface.structures.base_schema import AggregationOutput
-from synesis_data_interface.structures.base.definitions import FEATURE_INFORMATION_SECOND_LEVEL_ID, ENTITY_METADATA_SECOND_LEVEL_ID
-from synesis_data_interface.structures.time_series.definitions import TIME_SERIES_DATA_SECOND_LEVEL_ID, TIME_SERIES_STRUCTURE
-from synesis_data_interface.structures.time_series_aggregation.definitions import TIME_SERIES_AGGREGATION_STRUCTURE, TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID, TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID
-
+from synesis_data_interface.structures.aggregation.schema import AggregationOutput
 
 # DB Schemas
 
@@ -142,6 +138,19 @@ class TimeSeriesAggregationInputInDB(BaseModel):
     updated_at: datetime
 
 
+class AggregationObjectInDB(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: str
+    created_at: datetime
+    updated_at: datetime
+    analysis_result_id: uuid.UUID | None = None  # Foreign key to analysis_result.id
+    # Other variabels used to reference where the aggregation was created. This is so you can run a script to get the raw data.
+    # For instance: in analysis result there is python code, this python code should be run to get the raw data. A serialization function is then applied to the raw data to get the final data structure.
+    # automation_id: uuid.UUID | None = None # Foreign key to automation.id
+    # script_path: str | None = None # The path to the script that defines the input and output of the aggregation
+
+
 # Schemas for the API
 
 
@@ -184,21 +193,8 @@ class GetDatasetsByIDsRequest(BaseModel):
     dataset_ids: List[uuid.UUID]
 
 
-class AggregationObjectInDB(BaseModel):
-    id: uuid.UUID
-    name: str
-    description: str
-    created_at: datetime
-    updated_at: datetime
-    analysis_result_id: uuid.UUID | None = None  # Foreign key to analysis_result.id
-    # Other variabels used to reference where the aggregation was created. This is so you can run a script to get the raw data.
-    # For instance: in analysis result there is python code, this python code should be run to get the raw data. A serialization function is then applied to the raw data to get the final data structure.
-    # automation_id: uuid.UUID | None = None # Foreign key to automation.id
-    # script_path: str | None = None # The path to the script that defines the input and output of the aggregation
-
-
-# class AggregationObjectWithRawData(AggregationObjectInDB):
-#     data: AggregationOutput
+class AggregationObjectWithRawData(AggregationObjectInDB):
+    data: AggregationOutput
 
 
 # Create schemas

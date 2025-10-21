@@ -19,10 +19,10 @@ class AnalysisAgentRunner(RunnerBase):
     def __init__(
         self,
         user_id: str,
+        run_id: uuid.UUID,
         bearer_token: str,
         conversation_id: Optional[uuid.UUID] = None,
-        project_id: Optional[uuid.UUID] = None,
-        run_id: Optional[uuid.UUID] = None,
+        project_id: Optional[uuid.UUID] = None
     ):
         super().__init__(
             agent=analysis_agent,
@@ -83,6 +83,7 @@ async def run_analysis_task(
 ):
     runner = AnalysisAgentRunner(
         user_id=analysis_request.user_id,
+        run_id=analysis_request.run_id,
         bearer_token=bearer_token,
         conversation_id=analysis_request.conversation_id,
         project_id=analysis_request.project_id

@@ -163,13 +163,10 @@ export const buildOrderedList = (
 	aggregationData: AggregationObjectWithRawData,
 	filename: string
   ) => {
-	const rawData = aggregationData.data.outputData.data;
-	
-	// Get all unique column names (first part before comma)
-	const columnNames = [...new Set(Object.keys(rawData).map(key => key.split(',')[0]))];
+	const columns = aggregationData.data.outputData.data;
 	
 	// Find the maximum number of rows across all columns
-	const maxRows = Math.max(...Object.values(rawData).map(column => column.length));
+	const maxRows = Math.max(...columns.map(column => column.values.length));
 	
 	// Create worksheet data
 	const worksheetData = [];
@@ -177,16 +174,9 @@ export const buildOrderedList = (
 	for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
 	  const excelRow: any = {};
 	  
-	  columnNames.forEach(columnName => {
-		// Find the first key that starts with this column name
-		const columnKey = Object.keys(rawData).find(key => key.startsWith(columnName + ','));
-		if (columnKey) {
-		  const columnData = rawData[columnKey as keyof typeof rawData];
-		  const value = columnData[rowIndex];
-		  excelRow[columnName] = value !== null && value !== undefined ? value : '';
-		} else {
-		  excelRow[columnName] = '';
-		}
+	  columns.forEach(column => {
+		const value = column.values[rowIndex];
+		excelRow[column.name] = value !== null && value !== undefined ? value : '';
 	  });
 	  
 	  worksheetData.push(excelRow);

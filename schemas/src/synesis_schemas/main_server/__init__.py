@@ -141,6 +141,7 @@ from .data_objects import (
     AggregationObjectInDB,
     AggregationObjectCreate,
     AggregationObjectUpdate,
+    AggregationObjectWithRawData,
 )
 
 # Data Sources schemas
@@ -240,15 +241,15 @@ from .analysis import (
     NotebookSection,
     Notebook,
     AnalysisObjectSmall,
-    Analysis,
+    AnalysisObject,
     AnalysisStatusMessage,
-    AnalysisObjectInDB,
+    AnalysisInDB,
     NotebookInDB,
     NotebookSectionInDB,
     AnalysisResultInDB,
     AnalysisResultDatasetRelationInDB,
     NotebookSectionAnalysisResultRelationInDB,
-    AnalysisObjectCreate,
+    AnalysisCreate,
     NotebookSectionCreate,
     NotebookSectionUpdate,
     AnalysisResultUpdate,

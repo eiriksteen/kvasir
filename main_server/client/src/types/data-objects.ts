@@ -120,8 +120,14 @@ export interface Dataset {
   sources: DatasetSources;
 }
 
+export interface Column {
+  name: string;
+  valueType: string;
+  values: Array<number | string | boolean | Date | null>;
+}
+
 export type RawDataStructure = {
-    data: Record<`${string},${string}`, Array<number | string | boolean | Date | null>>;
+    data: Column[];
 }
 
 export interface AggregationObject {

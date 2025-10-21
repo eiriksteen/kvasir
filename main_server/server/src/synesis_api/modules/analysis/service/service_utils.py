@@ -10,11 +10,11 @@ from synesis_api.modules.analysis.models import (
     notebook_section,
 )
 from synesis_schemas.main_server import (
-    AnalysisObjectInDB,
+    AnalysisInDB,
     AnalysisResult,
     NotebookSection,
     Notebook,
-    Analysis
+    AnalysisObject
 )
 
 
@@ -94,7 +94,7 @@ def _get_dataset_ids_from_section(section: NotebookSection) -> List[uuid.UUID]:
     return dataset_ids
 
 
-def get_dataset_ids_from_analysis_object(analysis_object: Analysis) -> List[uuid.UUID]:
+def get_dataset_ids_from_analysis_object(analysis_object: AnalysisObject) -> List[uuid.UUID]:
     dataset_ids = []
     for section in analysis_object.notebook.notebook_sections:
         dataset_ids.extend(_get_dataset_ids_from_section(section))
@@ -110,14 +110,14 @@ def _get_data_source_ids_from_section(section: NotebookSection) -> List[uuid.UUI
     return data_source_ids
 
 
-def get_data_source_ids_from_analysis_object(analysis_object: Analysis) -> List[uuid.UUID]:
+def get_data_source_ids_from_analysis_object(analysis_object: AnalysisObject) -> List[uuid.UUID]:
     data_source_ids = []
     for section in analysis_object.notebook.notebook_sections:
         data_source_ids.extend(_get_data_source_ids_from_section(section))
     return data_source_ids
 
 
-async def generate_notebook_report(analysis_object: AnalysisObjectInDB, notebook: Notebook, include_code: bool, user_id: uuid.UUID) -> str:
+async def generate_notebook_report(analysis_object: AnalysisInDB, notebook: Notebook, include_code: bool, user_id: uuid.UUID) -> str:
     """
     Generate a markdown report from the analysis object's notebook.
 
