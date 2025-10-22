@@ -1,19 +1,13 @@
-from .service_analysis_object import (
-    create_analysis_object,
-    get_analysis_object_by_id,
-    get_analysis_objects_small_by_project_id,
-    get_analysis_objects_by_project_id,
+from .service_analysis import (
+    create_analysis,
     get_user_analyses,
-    get_simplified_overview_for_context_message,
-    delete_analysis_object,
+    delete_analysis,
 )
 
 from .service_analysis_result import (
     create_analysis_result,
     add_analysis_result_to_section,
-    get_data_source_ids_by_analysis_result_id,
-    get_dataset_ids_by_analysis_result_id,
-    check_user_owns_analysis_object,
+    check_user_owns_analysis,
     delete_analysis_result,
     get_analysis_result_by_id,
     get_analysis_results_by_section_id,
@@ -44,8 +38,6 @@ from .service_utils import (
     section_to_markdown,
     analysis_result_to_markdown,
     deep_exclude,
-    get_dataset_ids_from_analysis_object,
-    get_data_source_ids_from_analysis_object,
 )
 
 from .service_plot import (

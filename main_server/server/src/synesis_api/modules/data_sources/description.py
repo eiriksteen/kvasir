@@ -33,6 +33,7 @@ def get_data_source_description(data_source_in_db: DataSourceInDB,
         if isinstance(type_fields, TabularFileDataSourceInDB):
             description += f"\nFile Information:\n"
             description += f"- File Name: {type_fields.file_name}\n"
+            description += f"- File Path: {type_fields.file_path}\n"
             description += f"- File Type: {type_fields.file_type}\n"
             description += f"- File Size: {type_fields.file_size_bytes:,} bytes\n"
             description += f"- Dimensions: {type_fields.num_rows:,} rows × {type_fields.num_columns} columns\n"
@@ -50,6 +51,7 @@ def get_data_source_description(data_source_in_db: DataSourceInDB,
         elif isinstance(type_fields, KeyValueFileDataSourceInDB):
             description += f"\nFile Information:\n"
             description += f"- File Name: {type_fields.file_name}\n"
+            description += f"- File Path: {type_fields.file_path}\n"
             description += f"- File Type: {type_fields.file_type}\n"
             description += f"- File Size: {type_fields.file_size_bytes:,} bytes\n"
 

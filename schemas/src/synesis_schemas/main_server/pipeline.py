@@ -52,6 +52,13 @@ class ModelEntityInPipelineInDB(BaseModel):
     updated_at: datetime
 
 
+class AnalysisInPipelineInDB(BaseModel):
+    analysis_id: UUID
+    pipeline_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
 class FunctionInPipelineInDB(BaseModel):
     pipeline_id: UUID
     function_id: UUID
@@ -107,7 +114,7 @@ class PipelineImplementation(PipelineImplementationInDB):
 class Pipeline(PipelineInDB):
     inputs: PipelineInputEntities
     outputs: PipelineOutputEntities
-    implementation: PipelineImplementation
+    implementation: Optional[PipelineImplementation] = None
 
 
 class PipelineRunStatusUpdate(BaseModel):
@@ -131,6 +138,7 @@ class PipelineCreate(BaseModel):
     input_data_source_ids: List[UUID]
     input_dataset_ids: List[UUID]
     input_model_entity_ids: List[UUID]
+    input_analysis_ids: List[UUID] = []
 
 
 class PipelineImplementationCreate(BaseModel):

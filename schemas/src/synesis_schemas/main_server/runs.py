@@ -73,6 +73,24 @@ class PipelineInRunInDB(BaseModel):
     created_at: datetime
 
 
+class AnalysisInRunInDB(BaseModel):
+    run_id: uuid.UUID
+    analysis_id: uuid.UUID
+    created_at: datetime
+
+
+class AnalysisFromRunInDB(BaseModel):
+    run_id: uuid.UUID
+    analysis_id: uuid.UUID
+    created_at: datetime
+
+
+class PipelineFromRunInDB(BaseModel):
+    run_id: uuid.UUID
+    pipeline_id: uuid.UUID
+    created_at: datetime
+
+
 # API Models
 
 
@@ -81,6 +99,7 @@ class RunEntityIds(BaseModel):
     dataset_ids: List[uuid.UUID] = []
     model_entity_ids: List[uuid.UUID] = []
     pipeline_ids: List[uuid.UUID] = []
+    analysis_ids: List[uuid.UUID] = []
 
 
 class Run(RunInDB):
@@ -116,6 +135,7 @@ class RunSpecificationCreate(BaseModel):
     plan_and_deliverable_description_for_agent: str
     questions_for_user: Optional[str] = None
     configuration_defaults_description: Optional[str] = None
+    associated_entity_id: Optional[uuid.UUID] = None
 
 
 class RunCreate(BaseModel):
@@ -124,12 +144,12 @@ class RunCreate(BaseModel):
                             "completed", "failed"] = "pending"
     project_id: Optional[uuid.UUID] = None
     conversation_id: Optional[uuid.UUID] = None
-    parent_run_id: Optional[uuid.UUID] = None
     spec: Optional[RunSpecificationCreate] = None
     data_sources_in_run: List[uuid.UUID] = []
     datasets_in_run: List[uuid.UUID] = []
     model_entities_in_run: List[uuid.UUID] = []
     pipelines_in_run: List[uuid.UUID] = []
+    analyses_in_run: List[uuid.UUID] = []
 
 
 class RunMessageCreate(BaseModel):

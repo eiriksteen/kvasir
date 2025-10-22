@@ -27,7 +27,7 @@ from synesis_schemas.main_server import (
 )
 from project_server.agents.analysis.utils import simplify_dataset_overview, post_analysis_result_to_redis
 from project_server.client import (
-    get_analysis_objects_by_project_request,
+    get_analyses_by_project_request,
     create_section_request,
     update_section_request,
     delete_section_request,
@@ -53,7 +53,7 @@ async def search_through_datasets(ctx: RunContext[AnalysisDeps]) -> str:
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
     """
-    project = await get_project(ctx.deps.client, ctx.deps.analysis_request.project_id)
+    project = await get_project(ctx.deps.client, ctx.deps.project_id)
     dataset_ids = [
         project_dataset.dataset_id for project_dataset in project.datasets]
     datasets = await get_datasets_by_ids(ctx.deps.client, GetDatasetsByIDsRequest(dataset_ids=dataset_ids))
@@ -74,7 +74,7 @@ async def search_through_data_sources(ctx: RunContext[AnalysisDeps]) -> str:
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.    
     """
-    project = await get_project(ctx.deps.client, ctx.deps.analysis_request.project_id)
+    project = await get_project(ctx.deps.client, ctx.deps.project_id)
     data_source_ids = [pds.data_source_id for pds in project.data_sources]
     data_sources = await get_data_sources_by_ids(ctx.deps.client, GetDataSourcesByIDsRequest(data_source_ids=data_source_ids))
     data_source_message = f"""
@@ -85,22 +85,22 @@ async def search_through_data_sources(ctx: RunContext[AnalysisDeps]) -> str:
     return data_source_message
 
 
-async def search_through_analysis_objects(ctx: RunContext[AnalysisDeps]) -> str:
+async def search_through_analyses(ctx: RunContext[AnalysisDeps]) -> str:
     """
     Returns all the analysis objects in a project. This tool is useful when you do not know which analysis object to add or edit an analysis result to.
 
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
     """
-    analysis_objects = await get_analysis_objects_by_project_request(ctx.deps.client, ctx.deps.analysis_request.project_id)
+    analyses = await get_analyses_by_project_request(ctx.deps.client, ctx.deps.project_id)
 
-    analysis_objects_message = f"""
-        <Available analysis objects>
-        Analysis objects in project: {analysis_objects}
-        </Available analysis objects>
+    analyses_message = f"""
+        <Available analyses>
+        Analyses in project: {analyses}
+        </Available analyses>
     """
 
-    return analysis_objects_message
+    return analyses_message
 
 
 async def search_through_analysis_results(ctx: RunContext[AnalysisDeps], analysis_result_ids: List[uuid.UUID]) -> str:
@@ -145,18 +145,17 @@ def search_knowledge_bank(prompt: str) -> List[str]:
             ]
 
 
-async def add_analysis_result_to_notebook_section(ctx: RunContext[AnalysisDeps], analysis_object_id: uuid.UUID, notebook_section_id: uuid.UUID, analysis_result_id: uuid.UUID) -> str:
+async def add_analysis_result_to_notebook_section(ctx: RunContext[AnalysisDeps], notebook_section_id: uuid.UUID, analysis_result_id: uuid.UUID) -> str:
     """
     Add an analysis result to a notebook section.
 
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        analysis_object_id (uuid.UUID): The ID of the analysis object.
         notebook_section_id (uuid.UUID): The ID of the notebook section.
         analysis_result_id (uuid.UUID): The ID of the analysis result.
     """
     try:
-        await add_analysis_result_to_section_request(ctx.deps.client, analysis_object_id, notebook_section_id, analysis_result_id)
+        await add_analysis_result_to_section_request(ctx.deps.client, ctx.deps.analysis_id, notebook_section_id, analysis_result_id)
         return "Analysis result successfully added to notebook section"
     except Exception as e:
         return f"Error adding analysis result to notebook section: {e}"
@@ -168,26 +167,24 @@ async def create_notebook_section(ctx: RunContext[AnalysisDeps], section_create:
 
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        analysis_object_id (uuid.UUID): The ID of the analysis object.
         section_create (List[NotebookSectionCreate]): The sections to create.
     """
     try:
         section_ids = []
         for section in section_create:  # Must have synchronous creation of sections to avoid race conditions
-            section_in_db = await create_section_request(ctx.deps.client, section.analysis_object_id, section)
+            section_in_db = await create_section_request(ctx.deps.client, ctx.deps.analysis_id, section)
             section_ids.append(section_in_db.id)
         return f"Notebook sections successfully created. Section ids: {section_ids}"
     except Exception as e:
         return f"Error creating notebook section: {e}"
 
 
-async def move_analysis_result(ctx: RunContext[AnalysisDeps], analysis_object_id: uuid.UUID, analysis_result_move_requests: List[AnalysisResultMoveRequest]) -> str:
+async def move_analysis_result(ctx: RunContext[AnalysisDeps], analysis_result_move_requests: List[AnalysisResultMoveRequest]) -> str:
     """
     Move an analysis result to a new place in the notebook.
 
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        analysis_object_id (uuid.UUID): The ID of the analysis object.
         analysis_result_move_requests (List[AnalysisResultMoveRequest]): The requests to move analysis results.
     """
     try:
@@ -199,35 +196,33 @@ async def move_analysis_result(ctx: RunContext[AnalysisDeps], analysis_object_id
                 next_element_id=analysis_result_move_request.next_element_id,
                 new_section_id=analysis_result_move_request.new_section_id
             )
-            await move_element_request(ctx.deps.client, analysis_object_id, move_request)
+            await move_element_request(ctx.deps.client, ctx.deps.analysis_id, move_request)
         return "Analysis results successfully moved to new sections"
     except Exception as e:
         return f"Error moving analysis results to sections: {e}"
 
 
-async def delete_notebook_section(ctx: RunContext[AnalysisDeps], analysis_object_id: uuid.UUID, section_id: uuid.UUID) -> str:
+async def delete_notebook_section(ctx: RunContext[AnalysisDeps], section_id: uuid.UUID) -> str:
     """
     Delete a notebook section.
 
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        analysis_object_id (uuid.UUID): The ID of the analysis object.
         section_id (uuid.UUID): The ID of the section to delete.
     """
     try:
-        await delete_section_request(ctx.deps.client, analysis_object_id, section_id)
+        await delete_section_request(ctx.deps.client, ctx.deps.analysis_id, section_id)
         return "Notebook section successfully deleted"
     except Exception as e:
         return f"Error deleting notebook section: {e}"
 
 
-async def edit_section_name(ctx: RunContext[AnalysisDeps], analysis_object_id: uuid.UUID, section_id: uuid.UUID, new_name: str) -> str:
+async def edit_section_name(ctx: RunContext[AnalysisDeps], section_id: uuid.UUID, new_name: str) -> str:
     """
     Edit the name of a notebook section.
 
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        analysis_object_id (uuid.UUID): The ID of the analysis object.
         section_id (uuid.UUID): The ID of the section to edit.
         new_name (str): The new name of the section.
     """
@@ -235,19 +230,18 @@ async def edit_section_name(ctx: RunContext[AnalysisDeps], analysis_object_id: u
         update_section_object = NotebookSectionUpdate(
             section_name=new_name
         )
-        await update_section_request(ctx.deps.client, analysis_object_id, section_id, update_section_object)
+        await update_section_request(ctx.deps.client, ctx.deps.analysis_id, section_id, update_section_object)
         return "Notebook section name successfully edited"
     except Exception as e:
         return f"Error editing section name: {e}"
 
 
-async def move_sections(ctx: RunContext[AnalysisDeps], analysis_object_id: uuid.UUID, section_move_requests: List[SectionMoveRequest]) -> str:
+async def move_sections(ctx: RunContext[AnalysisDeps], section_move_requests: List[SectionMoveRequest]) -> str:
     """
     Move a notebook section to a new parent section.
 
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        analysis_object_id (uuid.UUID): The ID of the analysis object.
         section_move_requests (List[SectionMoveRequest]): The requests to move sections.
     """
     try:
@@ -261,7 +255,7 @@ async def move_sections(ctx: RunContext[AnalysisDeps], analysis_object_id: uuid.
                 new_section_id=section_move_request.new_section_id
             )
 
-            await move_element_request(ctx.deps.client, analysis_object_id, section_move_request)
+            await move_element_request(ctx.deps.client, ctx.deps.analysis_id, section_move_request)
         return "Notebook sections successfully moved to new parent sections"
     except Exception as e:
         return f"Error moving section: {e}"
@@ -293,7 +287,7 @@ async def create_empty_analysis_result(ctx: RunContext[AnalysisDeps], section_id
         return f"Error creating empty analysis result: {e}"
 
 
-async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_object_id: uuid.UUID, analysis_result_id: uuid.UUID, prompt: str, dataset_ids: List[uuid.UUID], data_source_ids: List[uuid.UUID]) -> str:
+async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_result_id: uuid.UUID, prompt: str, dataset_ids: List[uuid.UUID], data_source_ids: List[uuid.UUID]) -> str:
     """
     This tool generates code and runs it in a python container. It streams the analysis result to the user.
     This tool can also be used to edit an analysis result. A user might want to edit for several reasons:
@@ -304,7 +298,6 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_objec
 
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        analysis_object_id (uuid.UUID): The ID of the analysis object.
         analysis_result_id (uuid.UUID): The ID of the analysis result to make.
         prompt (str): The prompt to generate the analysis result for. 
         dataset_ids (List[uuid.UUID]): List of the IDs of the datasets to use for the analysis.
@@ -312,31 +305,17 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_objec
     """
     current_analysis_result = await get_analysis_result_by_id_request(ctx.deps.client, analysis_result_id)
 
-    datasets = await get_datasets_by_ids(ctx.deps.client, GetDatasetsByIDsRequest(dataset_ids=dataset_ids, include_features=True))
-    datasets_information = """
-        Each dataset has a object group which contains the data and where it is stored.
-        The filename of the object group is the <structure_type>_data.parquet
-        For example, if the structure type is "time_series", the filename is "time_series_data.parquet"
-        For time series the parquet file is multiindex with first level being the original_id_name and the second level being 'date'.
-    """
-    data_sources = await get_data_sources_by_ids(ctx.deps.client, GetDataSourcesByIDsRequest(data_source_ids=data_source_ids))
-
     helper_agent_deps = HelperAgentDeps(
-        datasets=datasets,
-        data_sources=data_sources,
-        analysis_object_id=analysis_object_id,
+        model_entities_injected=ctx.deps.model_entities_injected,
+        data_sources_injected=ctx.deps.data_sources_injected,
+        datasets_injected=ctx.deps.datasets_injected,
+        analysis_id=ctx.deps.analysis_id,
         analysis_result_id=analysis_result_id,
         bearer_token=ctx.deps.client.bearer_token,
     )
 
     async with analysis_helper_agent.run_stream(
-        f"""
-            You will now create some code and analysis for the user.
-            This is some information about the dataset: {datasets} \n\n
-            {datasets_information}\n\n
-            With this in mind, make code and analysis for the following user prompt: {prompt}. \n\n
-        """,
-            # This is some information about the data sources: {data_sources} \n\n
+        f"You will now create some code and analysis for the user. Generate code and analysis for the following user prompt: {prompt}. \n\n",
         output_type=AnalysisResultModelResponse,
         deps=helper_agent_deps
     ) as result:
@@ -355,7 +334,7 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_objec
                     next_id=current_analysis_result.next_id,
                     section_id=current_analysis_result.section_id,
                 )
-                await post_analysis_result_to_redis(analysis_result, ctx.deps.analysis_request.run_id)
+                await post_analysis_result_to_redis(analysis_result, ctx.deps.run_id)
             except ValidationError:
                 continue
     aggregation_object_result = await analysis_helper_agent.run(

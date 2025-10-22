@@ -99,19 +99,10 @@ export interface ProjectDetailsUpdate {
     description?: string;
 }
 
-export interface EntitySources {
-    dataSourceIds: UUID[];
-    datasetIds: UUID[];
-    analysisIds: UUID[];
-    pipelineIds: UUID[];
-    modelEntityIds: UUID[];
-}
-
 export interface AddEntityToProject {
     projectId: UUID;
     entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity";
     entityId: UUID;
-    entitySources: EntitySources;
     fromRunId?: UUID;
 }
 

@@ -4,7 +4,7 @@ from typing import Optional, Dict, List, Set, Callable
 
 from project_server.client import ProjectClient
 from project_server.agents.runner_base import CodeForLog
-from synesis_schemas.main_server import ModelEntity, DataSource, Dataset, Function
+from synesis_schemas.main_server import ModelEntity, DataSource, Dataset, Function, Analysis
 
 
 @dataclass
@@ -19,6 +19,7 @@ class SWEAgentDeps:
     model_entities_injected: List[ModelEntity] = field(default_factory=list)
     data_sources_injected: List[DataSource] = field(default_factory=list)
     datasets_injected: List[Dataset] = field(default_factory=list)
+    analyses_injected: List[Analysis] = field(default_factory=list)
     current_scripts: Dict[str, str] = field(default_factory=dict)
     modified_scripts_old_to_new_name: Dict[str, str] = field(
         default_factory=dict)

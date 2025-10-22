@@ -12,6 +12,6 @@ async def get_time_series_data(client: MainServerClient, time_series_id: uuid.UU
     return TimeSeries(**response.body)
 
 
-async def get_aggregation_object_payload_data_by_analysis_result_id(client: MainServerClient, analysis_object_id: uuid.UUID, analysis_result_id: uuid.UUID) -> AggregationOutput:
-    response = await client.send_request("get", f"/data-object/aggregation-object-data/{analysis_object_id}/{analysis_result_id}")
+async def get_aggregation_object_payload_data_by_analysis_result_id(client: MainServerClient, analysis_id: uuid.UUID, analysis_result_id: uuid.UUID) -> AggregationOutput:
+    response = await client.send_request("get", f"/data-object/aggregation-object-data/{analysis_id}/{analysis_result_id}")
     return AggregationOutput(**response.body)

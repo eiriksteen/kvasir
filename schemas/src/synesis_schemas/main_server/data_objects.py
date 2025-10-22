@@ -17,16 +17,6 @@ class DatasetInDB(BaseModel):
     updated_at: datetime
 
 
-class DatasetFromDataSourceInDB(BaseModel):
-    data_source_id: uuid.UUID
-    dataset_id: uuid.UUID
-
-
-class DatasetFromDatasetInDB(BaseModel):
-    source_dataset_id: uuid.UUID
-    dataset_id: uuid.UUID
-
-
 class DatasetFromPipelineInDB(BaseModel):
     pipeline_id: uuid.UUID
     dataset_id: uuid.UUID
@@ -173,8 +163,6 @@ class DataObjectWithParentGroup(DataObject):
 
 
 class DatasetSources(BaseModel):
-    data_source_ids: List[uuid.UUID]
-    dataset_ids: List[uuid.UUID]
     pipeline_ids: List[uuid.UUID]
 
 

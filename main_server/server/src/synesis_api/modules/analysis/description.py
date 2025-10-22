@@ -1,16 +1,18 @@
-from synesis_schemas.main_server import AnalysisObject, NotebookSection, Notebook
+from synesis_schemas.main_server import NotebookSection, Notebook, AnalysisSmall, AnalysisInputEntities
 
 
-def get_analysis_description(analysis_object: AnalysisObject) -> str:
+def get_analysis_description(
+    analysis_small: AnalysisSmall,
+    notebook: Notebook,
+    # inputs: AnalysisInputEntities
+) -> str:
     lines = [
-        f"The following is a textual representation of the analysis object with name {analysis_object.name} and id {analysis_object.id}:<<<",
-        f"Analysis object: {analysis_object.name}",
-        f"Analysis object description: {analysis_object.description}",
+        f"The following is a textual representation of the analysis object with name {analysis_small.name} and id {analysis_small.id}:<<<",
+        f"Analysis object: {analysis_small.name}",
+        f"Analysis object description: {analysis_small.description}",
         f"Each analysis object has an associated notebook structure with sections, subsections and analysis results.",
         f"The following is a textual representation of the notebook:",
     ]
-
-    notebook = analysis_object.notebook
 
     for section in notebook.notebook_sections:
         lines.extend(_get_section_description(section))

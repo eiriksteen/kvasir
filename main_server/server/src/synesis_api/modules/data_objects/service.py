@@ -16,8 +16,6 @@ from synesis_api.modules.data_objects.models import (
     feature_in_group,
     time_series_aggregation_input,
     variable_group,
-    dataset_from_data_source,
-    dataset_from_dataset,
     dataset_from_pipeline,
     time_series_object_group,
     time_series_aggregation_object_group,
@@ -41,8 +39,6 @@ from synesis_schemas.main_server import (
     ObjectGroupWithObjects,
     VariableGroupInDB,
     DatasetSources,
-    DatasetFromDataSourceInDB,
-    DatasetFromDatasetInDB,
     DatasetFromPipelineInDB,
     TimeSeriesObjectGroupInDB,
     TimeSeriesAggregationObjectGroupInDB,
@@ -107,24 +103,12 @@ async def create_dataset(
     await execute(insert(dataset).values(dataset_record.model_dump()), commit_after=True)
 
     # Create the sources
-    from_data_source_records, from_dataset_records, from_pipeline_records = [], [], []
-    for source in list(set(dataset_create.sources.data_source_ids)):
-        from_data_source_records.append(DatasetFromDataSourceInDB(
-            dataset_id=dataset_record.id,
-            data_source_id=source).model_dump())
-    for source in list(set(dataset_create.sources.dataset_ids)):
-        from_dataset_records.append(DatasetFromDatasetInDB(
-            dataset_id=dataset_record.id,
-            source_dataset_id=source).model_dump())
+    from_pipeline_records = []
     for source in list(set(dataset_create.sources.pipeline_ids)):
         from_pipeline_records.append(DatasetFromPipelineInDB(
             dataset_id=dataset_record.id,
             pipeline_id=source).model_dump())
 
-    if len(from_data_source_records) > 0:
-        await execute(insert(dataset_from_data_source).values(from_data_source_records), commit_after=True)
-    if len(from_dataset_records) > 0:
-        await execute(insert(dataset_from_dataset).values(from_dataset_records), commit_after=True)
     if len(from_pipeline_records) > 0:
         await execute(insert(dataset_from_pipeline).values(from_pipeline_records), commit_after=True)
 
@@ -381,17 +365,6 @@ async def get_user_datasets(
         return []
 
     # Get all data source, source dataset, and pipeline IDs
-    source_ids_query = select(dataset_from_data_source).where(
-        dataset_from_data_source.c.dataset_id.in_(
-            [d["id"] for d in datasets_result])
-    )
-    source_ids_result = await fetch_all(source_ids_query)
-
-    source_dataset_ids_query = select(dataset_from_dataset).where(
-        dataset_from_dataset.c.dataset_id.in_(
-            [d["id"] for d in datasets_result])
-    )
-    source_dataset_ids_result = await fetch_all(source_dataset_ids_query)
 
     pipeline_ids_query = select(dataset_from_pipeline).where(
         dataset_from_pipeline.c.dataset_id.in_(
@@ -452,10 +425,6 @@ async def get_user_datasets(
             time_series_aggregation_object_groups
 
         sources = DatasetSources(
-            data_source_ids=[rec["data_source_id"]
-                             for rec in source_ids_result if rec["dataset_id"] == dataset_obj.id],
-            dataset_ids=[rec["source_dataset_id"]
-                         for rec in source_dataset_ids_result if rec["dataset_id"] == dataset_obj.id],
             pipeline_ids=[rec["pipeline_id"]
                           for rec in pipeline_ids_result if rec["dataset_id"] == dataset_obj.id]
         )

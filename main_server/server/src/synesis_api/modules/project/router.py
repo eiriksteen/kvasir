@@ -14,7 +14,7 @@ from synesis_schemas.main_server import (
     ProjectGraph,
     Dataset,
     DataSource,
-    AnalysisObject,
+    Analysis,
     Pipeline,
     ModelEntity,
 )
@@ -196,11 +196,11 @@ async def fetch_datasets(
     return datasets
 
 
-@router.get("/project-analyses/{project_id}", response_model=List[AnalysisObject])
+@router.get("/project-analyses/{project_id}", response_model=List[Analysis])
 async def fetch_analyses(
     project_id: UUID,
     user: Annotated[User, Depends(get_current_user)] = None
-) -> List[AnalysisObject]:
+) -> List[Analysis]:
     project_analyses = await get_project_analyses(project_id)
     analyses = await get_user_analyses(user.id, [ds.analysis_id for ds in project_analyses])
     return analyses

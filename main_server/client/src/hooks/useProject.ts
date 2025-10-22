@@ -298,31 +298,15 @@ export const useProject = (projectId: UUID) => {
   // Unified function to add any entity to project
   const addEntity = async (
     entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity", 
-    entityId: UUID,
-    entitySources?: {
-      dataSourceIds?: UUID[];
-      datasetIds?: UUID[];
-      analysisIds?: UUID[];
-      pipelineIds?: UUID[];
-      modelEntityIds?: UUID[];
-    }
+    entityId: UUID
   ) => {
     if (!project) return;
-
-    const defaultEntitySources = {
-      dataSourceIds: [],
-      datasetIds: [],
-      analysisIds: [],
-      pipelineIds: [],
-      modelEntityIds: []
-    };
 
     // Update the project to include the entity
     await addEntityToProject(session?.APIToken?.accessToken || '', {
       projectId: project.id,
       entityType,
       entityId: entityId as UUID,
-      entitySources: { ...defaultEntitySources, ...entitySources }
     });
 
     mutateProjects();

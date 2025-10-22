@@ -26,12 +26,12 @@ async def get_time_series_data(
     return time_series
 
 
-@router.get("/aggregation-object-data/{analysis_object_id}/{analysis_result_id}", response_model=AggregationOutput, response_model_by_alias=False)
+@router.get("/aggregation-object-data/{analysis_id}/{analysis_result_id}", response_model=AggregationOutput, response_model_by_alias=False)
 async def get_aggregation_object_by_analysis_result_id(
-    analysis_object_id: UUID,
+    analysis_id: UUID,
     analysis_result_id: UUID,
     token_data: Annotated[TokenData, Depends(decode_token)] = None
 ) -> AggregationOutput:
     aggregation_object_manager = LocalDatasetManager(token_data.bearer_token)
-    aggregation_object = await aggregation_object_manager.get_aggregation_object_payload_data_by_analysis_result_id(analysis_object_id, analysis_result_id)
+    aggregation_object = await aggregation_object_manager.get_aggregation_object_payload_data_by_analysis_result_id(analysis_id, analysis_result_id)
     return aggregation_object

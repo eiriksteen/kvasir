@@ -16,8 +16,6 @@ export interface AnalysisResult {
     nextType: 'analysis_result' | 'notebook_section' | null;
     nextId: UUID | null;
     sectionId: UUID | null;
-    datasetIds: UUID[];
-    dataSourceIds: UUID[];
 }
 
 export interface NotebookSection {
@@ -37,13 +35,19 @@ export interface Notebook {
     notebookSections: NotebookSection[];
 }
 
+export interface AnalysisObjectInputEntities {
+    datasetIds: UUID[];
+    dataSourceIds: UUID[];
+    modelEntityIds: UUID[];
+}
+
 export interface AnalysisObjectSmall {
     id: UUID;
-    projectId: UUID;
     name: string;
     description: string | null;
     reportGenerated: boolean;
     createdAt: string;
+    inputs: AnalysisObjectInputEntities;
 }
 
 export interface AnalysisObject extends AnalysisObjectSmall {
@@ -52,12 +56,7 @@ export interface AnalysisObject extends AnalysisObjectSmall {
 
 export interface AnalysisObjectCreate {
     name: string;
-    projectId: UUID;
     description: string | null;
-}
-
-export interface AnalysisObjectList {
-    analysisObjects: AnalysisObjectSmall[];
 }
 
 export interface AnalysisRequest {

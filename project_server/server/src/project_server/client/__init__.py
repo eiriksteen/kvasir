@@ -94,8 +94,8 @@ from .requests.model import (
 )
 
 from .requests.analysis import (
-    get_analysis_objects_by_project_request,
-    get_analysis_object_request,
+    get_analyses_by_project_request,
+    get_analysis_request,
     create_section_request,
     update_section_request,
     delete_section_request,
@@ -106,7 +106,8 @@ from .requests.analysis import (
     create_analysis_result_request,
     get_analysis_result_by_id_request,
     get_analysis_results_by_ids_request,
-    get_data_for_analysis_result_request
+    get_data_for_analysis_result_request,
+    get_analyses_by_ids
 )
 
 from .requests.plots import (
@@ -212,8 +213,8 @@ __all__ = [
     "post_search_functions",
 
     # Analysis functions
-    "get_analysis_objects_by_project_request",
-    "get_analysis_object_request",
+    "get_analyses_by_project_request",
+    "get_analysis_request",
     "create_section_request",
     "update_section_request",
     "delete_section_request",

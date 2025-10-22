@@ -37,47 +37,63 @@ export type ConversationCreate = {
     projectId: UUID;
 }
 
+export type GraphNodeConnections = {
+    fromDataSources: UUID[];
+    fromDatasets: UUID[];
+    fromAnalyses: UUID[];
+    fromPipelines: UUID[];
+    fromModelEntities: UUID[];
+    toDataSources: UUID[];
+    toDatasets: UUID[];
+    toAnalyses: UUID[];
+    toPipelines: UUID[];
+    toModelEntities: UUID[];
+}
+
 export type DataSourceInGraph = {
     id: UUID;
     name: string;
-    brief_description: string;
-    toDatasets: UUID[];
-    toAnalyses: UUID[];
+    type: string;
+    briefDescription: string;
+    xPosition: number;
+    yPosition: number;
+    connections: GraphNodeConnections;
 }
 
 export type DatasetInGraph = {
     id: UUID;
     name: string;
-    brief_description: string;
-    toPipelines: UUID[];
-    toAnalyses: UUID[];
+    briefDescription: string;
+    xPosition: number;
+    yPosition: number;
+    connections: GraphNodeConnections;
 }
 
 export type PipelineInGraph = {
     id: UUID;
     name: string;
-    brief_description: string;
-    fromDataSources: UUID[];
-    fromDatasets: UUID[];
-    fromModelEntities: UUID[];
-    fromAnalyses: UUID[];
-    toDatasets: UUID[];
-    toModelEntities: UUID[];
+    briefDescription: string;
+    xPosition: number;
+    yPosition: number;
+    connections: GraphNodeConnections;
 }
 
 export type AnalysisInGraph = {
     id: UUID;
     name: string;
-    brief_description: string;
-    fromDatasets: UUID[];
-    fromDataSources: UUID[];
+    briefDescription: string;
+    xPosition: number;
+    yPosition: number;
+    connections: GraphNodeConnections;
 }
 
 export type ModelEntityInGraph = {
     id: UUID;
     name: string;
-    brief_description: string;
-    toPipelines: UUID[];
+    briefDescription: string;
+    xPosition: number;
+    yPosition: number;
+    connections: GraphNodeConnections;
 }
 
 export type ProjectGraph = {

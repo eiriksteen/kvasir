@@ -31,6 +31,7 @@ async def run_analysis(
         token_data: Annotated[TokenData, Depends(decode_token)] = None
 ):
     await run_analysis_task.kiq(
+        user_id=token_data.user_id,
         analysis_request=request,
         bearer_token=token_data.bearer_token
     )

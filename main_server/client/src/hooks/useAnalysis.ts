@@ -5,7 +5,6 @@ import useSWRSubscription, { SWRSubscriptionOptions } from "swr/subscription";
 import { 
   AnalysisObject, 
   AnalysisObjectCreate, 
-  AnalysisObjectList, 
   AnalysisStatusMessage,
   AnalysisResult,
   NotebookSectionCreate,
@@ -15,7 +14,8 @@ import {
   SectionMoveRequest,
   NotebookSection,
   GenerateReportRequest,
-  MoveRequest
+  MoveRequest,
+  AnalysisObjectSmall
 } from "@/types/analysis";
 import { AggregationObjectWithRawData } from "@/types/data-objects";
 import { useProject } from "./useProject";
@@ -50,8 +50,8 @@ export async function deleteAnalysisObjectEndpoint(token: string, analysisObject
   return snakeToCamelKeys(data);
 }
 
-export async function fetchAnalysisObjects(token: string, projectId: UUID): Promise<AnalysisObjectList> {
-  const response = await fetch(`${API_URL}/analysis/analysis-objects/project/${projectId}`, {
+export async function fetchAnalysisObjects(token: string, projectId: UUID): Promise<AnalysisObjectSmall[]> {
+  const response = await fetch(`${API_URL}/project/project-analyses/${projectId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -349,7 +349,7 @@ export const useAnalysis = (projectId: UUID) => {
 
     const { addEntity } = useProject(projectId);
     
-    const { data: analysisObjects, mutate: mutateAnalysisObjects } = useSWR(session ? "analysisObjects" : null, () => fetchAnalysisObjects(session ? session.APIToken.accessToken : "", projectId), {fallbackData: {analysisObjects: []} as AnalysisObjectList});
+    const { data: analysisObjects, mutate: mutateAnalysisObjects } = useSWR(session ? "analysisObjects" : null, () => fetchAnalysisObjects(session ? session.APIToken.accessToken : "", projectId), {fallbackData: [] as AnalysisObjectSmall[]});
 
     const { trigger: createAnalysisObject } = useSWRMutation(
       "analysisObjects",
@@ -360,9 +360,9 @@ export const useAnalysis = (projectId: UUID) => {
       {
         populateCache: (analysisObject) => {
           if (analysisObjects) {
-            return {analysisObjects: [...analysisObjects.analysisObjects, analysisObject]} as AnalysisObjectList;
+            return [...analysisObjects, analysisObject];
           }
-          return {analysisObjects: [analysisObject]} as AnalysisObjectList;
+          return [analysisObject];
         },
         revalidate: false
       }
@@ -377,7 +377,7 @@ export const useAnalysis = (projectId: UUID) => {
 
 
     return {
-      analysisObjects,
+      analysisObjects: analysisObjects || [],
       mutateAnalysisObjects,
       createAnalysis
     };
@@ -399,7 +399,7 @@ export const useAnalysisObject = (projectId: UUID, analysisObjectId: UUID) => {
     {
       populateCache: () => {
         if (analysisObjects) {
-          mutateAnalysisObjects({analysisObjects: analysisObjects.analysisObjects.filter(analysisObject => analysisObject.id !== analysisObjectId)});
+          mutateAnalysisObjects(analysisObjects.filter(analysisObject => analysisObject.id !== analysisObjectId));
         }
       }
     }

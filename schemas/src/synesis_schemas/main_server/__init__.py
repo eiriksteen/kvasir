@@ -31,6 +31,7 @@ from .project import (
     PipelineInGraph,
     AnalysisInGraph,
     UpdateEntityPosition,
+    GraphNodeConnections,
 )
 
 
@@ -53,7 +54,8 @@ from .pipeline import (
     PipelineRunModelEntityOutputCreate,
     PipelineCreate,
     FunctionInPipelineInDB,
-    PipelineImplementation
+    PipelineImplementation,
+    AnalysisInPipelineInDB
 )
 
 from .function import (
@@ -128,8 +130,6 @@ from .data_objects import (
     VariableGroupCreate,
     VariableGroupInDB,
     DatasetSources,
-    DatasetFromDataSourceInDB,
-    DatasetFromDatasetInDB,
     DatasetFromPipelineInDB,
     GetDatasetsByIDsRequest,
     TimeSeriesObjectGroupInDB,
@@ -175,7 +175,10 @@ from .runs import (
     ModelEntityInRunInDB,
     PipelineInRunInDB,
     MessageForLog,
-    CodeForLog
+    CodeForLog,
+    AnalysisFromRunInDB,
+    PipelineFromRunInDB,
+    AnalysisInRunInDB
 )
 
 
@@ -240,23 +243,25 @@ from .analysis import (
     AnalysisResult,
     NotebookSection,
     Notebook,
-    AnalysisObjectSmall,
-    AnalysisObject,
+    AnalysisSmall,
+    Analysis,
     AnalysisStatusMessage,
     AnalysisInDB,
     NotebookInDB,
     NotebookSectionInDB,
     AnalysisResultInDB,
-    AnalysisResultDatasetRelationInDB,
-    NotebookSectionAnalysisResultRelationInDB,
+    DatasetInAnalysisInDB,
     AnalysisCreate,
     NotebookSectionCreate,
     NotebookSectionUpdate,
     AnalysisResultUpdate,
     GenerateReportRequest,
     MoveRequest,
-    AnalysisObjectList,
     AnalysisResultFindRequest,
+    DataSourceInAnalysisInDB,
+    ModelEntityInAnalysisInDB,
+    AnalysisInputEntities,
+    GetAnalysesByIDsRequest
 )
 
 from .code import (

@@ -14,7 +14,8 @@ from synesis_api.modules.pipeline.models import (
     model_entity_in_pipeline,
     pipeline_run,
     pipeline_output_dataset,
-    pipeline_output_model_entity
+    pipeline_output_model_entity,
+    analysis_in_pipeline
 )
 from synesis_api.modules.function.service import get_functions
 from synesis_schemas.main_server import (
@@ -35,7 +36,8 @@ from synesis_schemas.main_server import (
     DataSourceInPipelineInDB,
     DatasetInPipelineInDB,
     ModelEntityInPipelineInDB,
-    FunctionInPipelineInDB
+    FunctionInPipelineInDB,
+    AnalysisInPipelineInDB
 )
 from synesis_api.modules.code.service import create_script, get_scripts
 
@@ -70,6 +72,13 @@ async def create_pipeline(user_id: uuid.UUID, pipeline_create: PipelineCreate) -
         updated_at=datetime.now(timezone.utc)
     ).model_dump() for model_entity_id in pipeline_create.input_model_entity_ids]
 
+    analysis_in_pipeline_records = [AnalysisInPipelineInDB(
+        pipeline_id=pipeline_record.id,
+        analysis_id=analysis_id,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
+    ).model_dump() for analysis_id in pipeline_create.input_analysis_ids]
+
     await execute(insert(pipeline).values(pipeline_record.model_dump()), commit_after=True)
 
     if len(data_source_in_pipeline_records) > 0:
@@ -78,6 +87,8 @@ async def create_pipeline(user_id: uuid.UUID, pipeline_create: PipelineCreate) -
         await execute(insert(dataset_in_pipeline).values(dataset_in_pipeline_records), commit_after=True)
     if len(model_entity_in_pipeline_records) > 0:
         await execute(insert(model_entity_in_pipeline).values(model_entity_in_pipeline_records), commit_after=True)
+    if len(analysis_in_pipeline_records) > 0:
+        await execute(insert(analysis_in_pipeline).values(analysis_in_pipeline_records), commit_after=True)
 
     return pipeline_record
 
@@ -137,7 +148,6 @@ async def get_user_pipelines(
         pipeline_implementation.c.id.in_(pipeline_ids))
 
     pipeline_implementations = await fetch_all(pipeline_implementation_query)
-    pipeline_ids = [p["id"] for p in pipeline_implementations]
 
     # pipeline runs
     pipeline_runs_query = select(pipeline_run).where(
@@ -163,8 +173,11 @@ async def get_user_pipelines(
 
     model_entities_query = select(model_entity_in_pipeline).where(
         model_entity_in_pipeline.c.pipeline_id.in_(pipeline_ids))
-
     model_entities = await fetch_all(model_entities_query)
+
+    analyses_query = select(analysis_in_pipeline).where(
+        analysis_in_pipeline.c.pipeline_id.in_(pipeline_ids))
+    analyses = await fetch_all(analyses_query)
 
     # outputs
     output_datasets_query = select(pipeline_output_dataset).where(
@@ -190,6 +203,8 @@ async def get_user_pipelines(
                        for s in datasets if s["pipeline_id"] == pipe_id]
         model_entity_ids = [s["model_entity_id"]
                             for s in model_entities if s["pipeline_id"] == pipe_id]
+        analysis_ids = [s["analysis_id"]
+                        for s in analyses if s["pipeline_id"] == pipe_id]
 
         pipe_implementation_record = next(iter([
             p for p in pipeline_implementations if p["id"] == pipe_id]), None)
@@ -231,7 +246,8 @@ async def get_user_pipelines(
             inputs=PipelineInputEntities(
                 data_source_ids=data_source_ids,
                 dataset_ids=dataset_ids,
-                model_entity_ids=model_entity_ids
+                model_entity_ids=model_entity_ids,
+                analysis_ids=analysis_ids
             ),
             outputs=pipeline_outputs_obj,
             implementation=pipeline_implementation_obj

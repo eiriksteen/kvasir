@@ -67,7 +67,7 @@ async def post_launch_run(
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this run")
 
-    return await launch_run(MainServerClient(token), run_id)
+    return await launch_run(user.id, MainServerClient(token), run_id)
 
 
 @router.patch("/reject-run/{run_id}")

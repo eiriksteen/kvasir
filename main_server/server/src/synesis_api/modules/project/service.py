@@ -34,8 +34,9 @@ from synesis_schemas.main_server import (
     Dataset,
     Pipeline,
     ModelEntity,
-    AnalysisObject,
+    Analysis,
     UpdateEntityPosition,
+    GraphNodeConnections,
 )
 from synesis_api.modules.project.agent import project_agent
 from synesis_api.modules.data_sources.service import get_user_data_sources
@@ -43,7 +44,6 @@ from synesis_api.modules.data_objects.service import get_user_datasets
 from synesis_api.modules.pipeline.service import get_user_pipelines
 from synesis_api.modules.model.service import get_user_model_entities
 from synesis_api.modules.analysis.service import get_user_analyses
-from synesis_api.modules.analysis.service.service_utils import get_dataset_ids_from_analysis_object, get_data_source_ids_from_analysis_object
 
 
 async def create_project(user_id: UUID, project_data: ProjectCreate) -> Project:
@@ -140,9 +140,10 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
     def _get_data_sources_in_graph(data_sources: List[DataSource], project_data_sources: List[ProjectDataSourceInDB], datasets: List[Dataset]) -> List[DataSourceInGraph]:
         objs = []
         for ds, project_ds in zip(data_sources, project_data_sources):
-            output_dataset_ids = [
-                dset.id for dset in datasets if ds.id in dset.sources.data_source_ids]
-            output_analysis_ids = []
+            output_analysis_ids = [
+                a.id for a in analyses if ds.id in a.inputs.data_source_ids]
+            output_pipeline_ids = [
+                p.id for p in pipelines if ds.id in p.inputs.data_source_ids]
             objs.append(DataSourceInGraph(
                 id=ds.id,
                 name=ds.name,
@@ -150,8 +151,10 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
                 brief_description=f"{ds.name} {ds.type} data source",
                 x_position=project_ds.x_position,
                 y_position=project_ds.y_position,
-                to_datasets=output_dataset_ids,
-                to_analyses=output_analysis_ids
+                connections=GraphNodeConnections(
+                    to_analyses=output_analysis_ids,
+                    to_pipelines=output_pipeline_ids
+                )
             ))
         return objs
 
@@ -168,11 +171,11 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
                 brief_description=ds.description,
                 x_position=project_ds.x_position,
                 y_position=project_ds.y_position,
-                to_pipelines=output_pipeline_ids,
-                to_analyses=output_analysis_ids,
-                from_data_sources=ds.sources.data_source_ids,
-                from_datasets=ds.sources.dataset_ids,
-                from_pipelines=ds.sources.pipeline_ids
+                connections=GraphNodeConnections(
+                    from_pipelines=ds.sources.pipeline_ids,
+                    to_analyses=output_analysis_ids,
+                    to_pipelines=output_pipeline_ids
+                )
             ))
         return objs
 
@@ -190,31 +193,37 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
                 brief_description=p.description,
                 x_position=project_p.x_position,
                 y_position=project_p.y_position,
-                from_data_sources=p.inputs.data_source_ids,
-                from_datasets=p.inputs.dataset_ids,
-                from_model_entities=p.inputs.model_entity_ids,
-                from_analyses=p.inputs.analysis_ids,
-                to_datasets=output_dataset_ids,
-                to_model_entities=output_model_entity_ids
+                connections=GraphNodeConnections(
+                    from_data_sources=p.inputs.data_source_ids,
+                    from_datasets=p.inputs.dataset_ids,
+                    from_model_entities=p.inputs.model_entity_ids,
+                    from_analyses=p.inputs.analysis_ids,
+                    to_datasets=output_dataset_ids,
+                    to_model_entities=output_model_entity_ids
+                )
             ))
         return objs
 
-    def _get_analyses_in_graph(analysis_object_list: List[AnalysisObject], project_analyses: List[ProjectAnalysisInDB]) -> List[AnalysisInGraph]:
+    def _get_analyses_in_graph(analyses: List[Analysis], project_analyses: List[ProjectAnalysisInDB], pipelines: List[Pipeline]) -> List[AnalysisInGraph]:
         objs = []
-        for analysis_object, project_analysis in zip(analysis_object_list, project_analyses):
-            analysis_object_dataset_ids = get_dataset_ids_from_analysis_object(
-                analysis_object)
-            analysis_object_data_source_ids = get_data_source_ids_from_analysis_object(
-                analysis_object)
-
+        for a, project_analysis in zip(analyses, project_analyses):
+            output_pipeline_ids = [
+                p.id for p in pipelines if a.id in p.inputs.analysis_ids]
+            output_analysis_ids = [
+                a.id for a in analyses if a.id in a.inputs.analysis_ids]
             objs.append(AnalysisInGraph(
-                id=analysis_object.id,
-                name=analysis_object.name,
+                id=a.id,
+                name=a.name,
                 x_position=project_analysis.x_position,
                 y_position=project_analysis.y_position,
-                brief_description=analysis_object.description,
-                from_datasets=analysis_object_dataset_ids,
-                from_data_sources=analysis_object_data_source_ids,
+                brief_description=a.description,
+                connections=GraphNodeConnections(
+                    from_datasets=a.inputs.dataset_ids,
+                    from_data_sources=a.inputs.data_source_ids,
+                    from_model_entities=a.inputs.model_entity_ids,
+                    to_pipelines=output_pipeline_ids,
+                    to_analyses=output_analysis_ids
+                )
             ))
         return objs
 
@@ -229,7 +238,9 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
                 x_position=project_me.x_position,
                 y_position=project_me.y_position,
                 brief_description=me.description,
-                to_pipelines=output_pipeline_ids,
+                connections=GraphNodeConnections(
+                    to_pipelines=output_pipeline_ids,
+                )
             ))
         return objs
 
@@ -239,7 +250,8 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
         datasets, project.datasets, pipelines)
     pipelines_in_graph = _get_pipelines_in_graph(
         pipelines, project.pipelines, datasets, model_entities)
-    analyses_in_graph = _get_analyses_in_graph(analyses, project.analyses)
+    analyses_in_graph = _get_analyses_in_graph(
+        analyses, project.analyses, pipelines)
     model_entities_in_graph = _get_model_entities_in_graph(
         model_entities, project.model_entities, pipelines)
 
@@ -273,7 +285,11 @@ async def add_entity_to_project(user_id: UUID, entity_data: AddEntityToProject) 
     """Add an entity (data source, dataset, analysis, pipeline) to a project."""
     entity_type = entity_data.entity_type
     entity_id = entity_data.entity_id
-    entity_position = await _generate_entity_position(user_id, entity_data)
+    # entity_position = await _generate_entity_position(user_id, entity_data)
+
+    # TODO: Add more sophisticated position generation
+    # Using the agent is too slow
+    entity_position = EntityPositionCreate(x=200, y=200)
 
     if entity_type == "data_source":
         obj = ProjectDataSourceInDB(
@@ -412,8 +428,10 @@ async def _generate_entity_position(user_id: UUID, entity_data: AddEntityToProje
     elif entity_data.entity_type == "pipeline":
         entity_info = await get_user_pipelines(user_id=user_id, pipeline_ids=[entity_data.entity_id])
 
+    print("ENTITY INFO", entity_info)
+
     assert len(
-        entity_info) == 1, f"Multiple entities found for the given ID: {entity_data.entity_id}"
+        entity_info) == 1, f"Multiple or no entities found for the given ID: {entity_data.entity_id}"
 
     entity_info = entity_info[0]
 

@@ -14,8 +14,6 @@ class AnalysisResult(BaseModel):
     next_type: Literal['analysis_result', 'notebook_section'] | None = None
     next_id: UUID | None = None
     section_id: UUID | None = None
-    dataset_ids: List[UUID] = []
-    data_source_ids: List[UUID] = []
 
 
 class NotebookSection(BaseModel):
@@ -35,17 +33,26 @@ class Notebook(BaseModel):
     notebook_sections: List[NotebookSection] = []
 
 
-class AnalysisObjectSmall(BaseModel):
+class AnalysisInputEntities(BaseModel):
+    dataset_ids: List[UUID] = []
+    data_source_ids: List[UUID] = []
+    model_entity_ids: List[UUID] = []
+    analysis_ids: List[UUID] = []
+
+
+class AnalysisSmall(BaseModel):
     id: UUID
-    project_id: UUID
     name: str
     description: str | None = None
     report_generated: bool = False
     created_at: datetime = datetime.now()
+    inputs: AnalysisInputEntities
 
 
-class AnalysisObject(AnalysisObjectSmall):
+class Analysis(AnalysisSmall):
     notebook: Notebook
+    inputs: AnalysisInputEntities
+    description_for_agent: str
 
 
 class AnalysisStatusMessage(BaseModel):
@@ -55,10 +62,14 @@ class AnalysisStatusMessage(BaseModel):
     created_at: datetime = datetime.now()
 
 
+class GetAnalysesByIDsRequest(BaseModel):
+    analysis_ids: List[UUID]
+
 # DB schemas
+
+
 class AnalysisInDB(BaseModel):
     id: UUID
-    project_id: UUID
     name: str
     description: str | None = None
     report_generated: bool = False
@@ -92,23 +103,28 @@ class AnalysisResultInDB(BaseModel):
     section_id: UUID | None = None
 
 
-class AnalysisResultDatasetRelationInDB(BaseModel):
-    id: UUID
-    analysis_result_id: UUID
+class DatasetInAnalysisInDB(BaseModel):
+    analysis_id: UUID
     dataset_id: UUID
 
 
-class NotebookSectionAnalysisResultRelationInDB(BaseModel):
-    id: UUID
-    notebook_section_id: UUID
-    analysis_result_id: UUID
+class DataSourceInAnalysisInDB(BaseModel):
+    analysis_id: UUID
+    data_source_id: UUID
+
+
+class ModelEntityInAnalysisInDB(BaseModel):
+    analysis_id: UUID
+    model_entity_id: UUID
 
 
 # Other schemas
 class AnalysisCreate(BaseModel):
     name: str
-    project_id: UUID
     description: str | None = None
+    input_data_source_ids: List[UUID]
+    input_dataset_ids: List[UUID]
+    input_model_entity_ids: List[UUID]
 
 
 class AnalysisResultUpdate(BaseModel):
@@ -117,14 +133,10 @@ class AnalysisResultUpdate(BaseModel):
 
 
 class NotebookSectionCreate(BaseModel):
-    analysis_object_id: UUID
+    analysis_id: UUID
     section_name: str
     section_description: str | None = None
     parent_section_id: UUID | None = None
-
-
-class AnalysisObjectList(BaseModel):
-    analysisObjects: List[AnalysisObjectSmall]
 
 
 class NotebookSectionUpdate(BaseModel):

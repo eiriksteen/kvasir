@@ -13,8 +13,7 @@ from synesis_schemas.main_server import (
     AnalysisInDB,
     AnalysisResult,
     NotebookSection,
-    Notebook,
-    AnalysisObject
+    Notebook
 )
 
 
@@ -85,53 +84,21 @@ def build_ordered_list(sections: List[NotebookSection], results: List[AnalysisRe
     return ordered_list
 
 
-def _get_dataset_ids_from_section(section: NotebookSection) -> List[uuid.UUID]:
-    dataset_ids = []
-    for section in section.notebook_sections:
-        dataset_ids.extend(_get_dataset_ids_from_section(section))
-    for result in section.analysis_results:
-        dataset_ids.extend(result.dataset_ids)
-    return dataset_ids
-
-
-def get_dataset_ids_from_analysis_object(analysis_object: AnalysisObject) -> List[uuid.UUID]:
-    dataset_ids = []
-    for section in analysis_object.notebook.notebook_sections:
-        dataset_ids.extend(_get_dataset_ids_from_section(section))
-    return dataset_ids
-
-
-def _get_data_source_ids_from_section(section: NotebookSection) -> List[uuid.UUID]:
-    data_source_ids = []
-    for section in section.notebook_sections:
-        data_source_ids.extend(_get_data_source_ids_from_section(section))
-    for result in section.analysis_results:
-        data_source_ids.extend(result.data_source_ids)
-    return data_source_ids
-
-
-def get_data_source_ids_from_analysis_object(analysis_object: AnalysisObject) -> List[uuid.UUID]:
-    data_source_ids = []
-    for section in analysis_object.notebook.notebook_sections:
-        data_source_ids.extend(_get_data_source_ids_from_section(section))
-    return data_source_ids
-
-
-async def generate_notebook_report(analysis_object: AnalysisInDB, notebook: Notebook, include_code: bool, user_id: uuid.UUID) -> str:
+async def generate_notebook_report(analysis: AnalysisInDB, notebook: Notebook, include_code: bool, user_id: uuid.UUID) -> str:
     """
     Generate a markdown report from the analysis object's notebook.
 
     Args:
-        analysis_object: The analysis object containing the notebook
+        analysis: The analysis containing the notebook
         include_code: Whether to include Python code in the report
 
     Returns:
         A markdown string representing the complete analysis report
     """
-    report = f"# {analysis_object.name}\n\n"
+    report = f"# {analysis.name}\n\n"
 
-    if analysis_object.description:
-        report += f"**Description:** {analysis_object.description}\n\n"
+    if analysis.description:
+        report += f"**Description:** {analysis.description}\n\n"
 
     report += f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 

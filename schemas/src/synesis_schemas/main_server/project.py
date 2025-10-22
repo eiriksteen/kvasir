@@ -113,6 +113,18 @@ class UpdateEntityPosition(BaseModel):
     y_position: float
 
 
+class GraphNodeConnections(BaseModel):
+    from_data_sources: List[UUID] = []
+    from_datasets: List[UUID] = []
+    from_analyses: List[UUID] = []
+    from_pipelines: List[UUID] = []
+    from_model_entities: List[UUID] = []
+    to_datasets: List[UUID] = []
+    to_analyses: List[UUID] = []
+    to_pipelines: List[UUID] = []
+    to_model_entities: List[UUID] = []
+
+
 class DataSourceInGraph(BaseModel):
     id: UUID
     name: str
@@ -120,8 +132,7 @@ class DataSourceInGraph(BaseModel):
     brief_description: str
     x_position: float
     y_position: float
-    to_datasets: List[UUID] = []
-    to_analyses: List[UUID] = []
+    connections: GraphNodeConnections
 
 
 class DatasetInGraph(BaseModel):
@@ -130,11 +141,7 @@ class DatasetInGraph(BaseModel):
     brief_description: str
     x_position: float
     y_position: float
-    to_pipelines: List[UUID] = []
-    to_analyses: List[UUID] = []
-    from_data_sources: List[UUID] = []
-    from_datasets: List[UUID] = []
-    from_pipelines: List[UUID] = []
+    connections: GraphNodeConnections
 
 
 class PipelineInGraph(BaseModel):
@@ -143,12 +150,7 @@ class PipelineInGraph(BaseModel):
     brief_description: str
     x_position: float
     y_position: float
-    from_data_sources: List[UUID] = []
-    from_datasets: List[UUID] = []
-    from_model_entities: List[UUID] = []
-    from_analyses: List[UUID] = []
-    to_datasets: List[UUID] = []
-    to_model_entities: List[UUID] = []
+    connections: GraphNodeConnections
 
 
 class AnalysisInGraph(BaseModel):
@@ -157,8 +159,7 @@ class AnalysisInGraph(BaseModel):
     x_position: float
     y_position: float
     brief_description: str
-    from_datasets: List[UUID] = []
-    from_data_sources: List[UUID] = []
+    connections: GraphNodeConnections
 
 
 class ModelEntityInGraph(BaseModel):
@@ -167,7 +168,7 @@ class ModelEntityInGraph(BaseModel):
     x_position: float
     y_position: float
     brief_description: str
-    to_pipelines: List[UUID] = []
+    connections: GraphNodeConnections
 
 
 class ProjectGraph(BaseModel):

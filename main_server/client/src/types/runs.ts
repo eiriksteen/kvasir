@@ -50,6 +50,7 @@ export interface RunEntityIds {
   datasetIds: UUID[];
   modelEntityIds: UUID[];
   pipelineIds: UUID[];
+  analysisIds: UUID[];
 }
 
 export interface Run extends RunInDB {

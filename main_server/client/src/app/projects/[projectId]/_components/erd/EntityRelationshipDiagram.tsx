@@ -258,7 +258,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
 
     // Add analysis nodes
     project.analyses.forEach((projectAnalysis: ProjectAnalysisInDB) => {
-      const analysisObject = analysisObjects.analysisObjects.find(a => a.id === projectAnalysis.analysisId);
+      const analysisObject = analysisObjects.find(a => a.id === projectAnalysis.analysisId);
       if (analysisObject) {
         nodes.push({
           id: projectAnalysis.analysisId,
@@ -298,257 +298,92 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
 
   // Memoize edges - uses current node positions from nodes state
   const memoizedEdges = useMemo(() => {
-    if (!project || !projectGraph || nodes.length === 0) {
+    if (!projectGraph || nodes.length === 0) {
       return [];
     }
 
-    // Helper to get entity with current position from nodes state
-    const getEntityWithCurrentPosition = (entityId: UUID): { xPosition: number, yPosition: number } | null => {
-      // Find entity in project - check each entity type
-      const dataSource = project.dataSources.find(ds => ds.dataSourceId === entityId);
-      if (dataSource) {
-        const currentNode = nodes.find(n => n.id === entityId);
-        return currentNode ? { xPosition: currentNode.position.x, yPosition: currentNode.position.y } : { xPosition: dataSource.xPosition, yPosition: dataSource.yPosition };
+    // Helper to get entity position from nodes or graph data
+    const getEntityPosition = (entityId: UUID): { xPosition: number, yPosition: number } | null => {
+      const currentNode = nodes.find(n => n.id === entityId);
+      if (currentNode) {
+        return { xPosition: currentNode.position.x, yPosition: currentNode.position.y };
       }
-
-      const dataset = project.datasets.find(ds => ds.datasetId === entityId);
-      if (dataset) {
-        const currentNode = nodes.find(n => n.id === entityId);
-        return currentNode ? { xPosition: currentNode.position.x, yPosition: currentNode.position.y } : { xPosition: dataset.xPosition, yPosition: dataset.yPosition };
-      }
-
-      const analysis = project.analyses.find(a => a.analysisId === entityId);
-      if (analysis) {
-        const currentNode = nodes.find(n => n.id === entityId);
-        return currentNode ? { xPosition: currentNode.position.x, yPosition: currentNode.position.y } : { xPosition: analysis.xPosition, yPosition: analysis.yPosition };
-      }
-
-      const pipeline = project.pipelines.find(p => p.pipelineId === entityId);
-      if (pipeline) {
-        const currentNode = nodes.find(n => n.id === entityId);
-        return currentNode ? { xPosition: currentNode.position.x, yPosition: currentNode.position.y } : { xPosition: pipeline.xPosition, yPosition: pipeline.yPosition };
-      }
-
-      const modelEntity = project.modelEntities.find(me => me.modelEntityId === entityId);
-      if (modelEntity) {
-        const currentNode = nodes.find(n => n.id === entityId);
-        return currentNode ? { xPosition: currentNode.position.x, yPosition: currentNode.position.y } : { xPosition: modelEntity.xPosition, yPosition: modelEntity.yPosition };
-      }
-
       return null;
     };
 
-    const dataSourcesToDatasetsEdges = projectGraph?.dataSources
-      .flatMap(dataSource =>
-        dataSource.toDatasets.map(datasetId => {
-          const sourceEntity = getEntityWithCurrentPosition(dataSource.id);
-          const targetEntity = getEntityWithCurrentPosition(datasetId);
-          if (!sourceEntity || !targetEntity) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
-          return {
-            id: String(`${dataSource.id}->${datasetId}`),
-            source: dataSource.id,
-            target: datasetId,
-            type: 'default',
-            animated: true,
-            style: { stroke: getEdgeColor('dataSource'), strokeWidth: 2 },
-            markerEnd: { type: MarkerType.ArrowClosed },
-            sourceHandle: edgeLocation.from,
-            targetHandle: edgeLocation.to,
+    // Generic edge creation helper
+    const createEdge = (
+      sourceId: UUID,
+      targetId: UUID,
+      sourceType: 'dataSource' | 'dataset' | 'analysis' | 'pipeline' | 'modelEntity'
+    ): Edge | null => {
+      const sourcePos = getEntityPosition(sourceId);
+      const targetPos = getEntityPosition(targetId);
+      if (!sourcePos || !targetPos) return null;
 
-          } as Edge;
-        })
-      )
-      .filter(Boolean) as Edge[];
+      const edgeLocation = computeBoxEdgeLocations(sourcePos, targetPos);
+      return {
+        id: String(`${sourceId}->${targetId}`),
+        source: sourceId,
+        target: targetId,
+        type: 'default',
+        animated: true,
+        style: { stroke: getEdgeColor(sourceType), strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed },
+        sourceHandle: edgeLocation.from,
+        targetHandle: edgeLocation.to,
+      } as Edge;
+    };
 
-    const datasetsToAnalysesEdges = projectGraph?.analyses
-      .flatMap(analysisObject =>
-        analysisObject.fromDatasets.map(datasetId => {
-          const sourceEntity = getEntityWithCurrentPosition(datasetId);
-          const targetEntity = getEntityWithCurrentPosition(analysisObject.id);
-          if (!sourceEntity || !targetEntity) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
-          return {
-            id: String(`${datasetId}->${analysisObject.id}`),
-            source: datasetId,
-            target: analysisObject.id,
-            type: 'default',
-            animated: true,
-            style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
-            markerEnd: { type: MarkerType.ArrowClosed },
-            sourceHandle: edgeLocation.from,
-            targetHandle: edgeLocation.to,
-          } as Edge;
-        })
-      )
-      .filter(Boolean) as Edge[];
-    
-    const dataSourcesToAnalysesEdges = projectGraph?.analyses
-      .flatMap(analysisObject =>
-        analysisObject.fromDataSources.map(dataSourceId => {
-          const sourceEntity = getEntityWithCurrentPosition(dataSourceId);
-          const targetEntity = getEntityWithCurrentPosition(analysisObject.id);
-          if (!sourceEntity || !targetEntity) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
-          return {
-            id: String(`${dataSourceId}->${analysisObject.id}`),
-            source: dataSourceId,
-            target: analysisObject.id,
-            type: 'default',
-            animated: true,
-            style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
-            markerEnd: { type: MarkerType.ArrowClosed },
-            sourceHandle: edgeLocation.from,
-            targetHandle: edgeLocation.to,
-          } as Edge;
-        })
-      )
-      .filter(Boolean) as Edge[];
+    // Helper to process all connections for an entity
+    const processEntityConnections = (
+      entityId: UUID,
+      connections: {
+        fromDataSources?: UUID[];
+        fromDatasets?: UUID[];
+        fromAnalyses?: UUID[];
+        fromPipelines?: UUID[];
+        fromModelEntities?: UUID[];
+        toDataSources?: UUID[];
+        toDatasets?: UUID[];
+        toAnalyses?: UUID[];
+        toPipelines?: UUID[];
+        toModelEntities?: UUID[];
+      },
+      entityType: 'dataSource' | 'dataset' | 'analysis' | 'pipeline' | 'modelEntity'
+    ): Edge[] => {
+      const edges: Edge[] = [];
 
-    const datasetsToPipelinesEdges = projectGraph?.datasets
-      .flatMap(dataset =>
-        dataset.toPipelines.map(pipelineId => {
-          const sourceEntity = getEntityWithCurrentPosition(dataset.id);
-          const targetEntity = getEntityWithCurrentPosition(pipelineId);
-          if (!sourceEntity || !targetEntity) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
-          return {
-            id: String(`${dataset.id}->${pipelineId}`),
-            source: dataset.id,
-            target: pipelineId,
-            type: 'default',
-            animated: true,
-            style: { stroke: getEdgeColor('dataset'), strokeWidth: 2 },
-            markerEnd: { type: MarkerType.ArrowClosed },
-            sourceHandle: edgeLocation.from,
-            targetHandle: edgeLocation.to,
-          } as Edge;
-        })
-      )
-      .filter(Boolean) as Edge[];
+      // Process all outgoing connections (to* fields)
+      const outgoingConnections = [
+        { targets: connections.toDataSources || [], type: entityType },
+        { targets: connections.toDatasets || [], type: entityType },
+        { targets: connections.toAnalyses || [], type: entityType },
+        { targets: connections.toPipelines || [], type: entityType },
+        { targets: connections.toModelEntities || [], type: entityType },
+      ];
 
-    const modelEntitiesToPipelinesEdges = projectGraph?.modelEntities
-      .flatMap(modelEntity =>
-        modelEntity.toPipelines.map(pipelineId => {
-          const sourceEntity = getEntityWithCurrentPosition(modelEntity.id);
-          const targetEntity = getEntityWithCurrentPosition(pipelineId);
-          if (!sourceEntity || !targetEntity) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
-          return {
-            id: String(`${modelEntity.id}->${pipelineId}`),
-            source: modelEntity.id,
-            target: pipelineId,
-            type: 'default',
-            animated: true,
-            style: { stroke: getEdgeColor('modelEntity'), strokeWidth: 2 },
-            markerEnd: { type: MarkerType.ArrowClosed },
-            sourceHandle: edgeLocation.from,
-            targetHandle: edgeLocation.to,
-          } as Edge;
-        })
-      )
-      .filter(Boolean) as Edge[];
+      outgoingConnections.forEach(({ targets, type }) => {
+        targets.forEach(targetId => {
+          const edge = createEdge(entityId, targetId, type);
+          if (edge) edges.push(edge);
+        });
+      });
 
-    const pipelinesToDatasetsEdges = projectGraph?.pipelines
-      .flatMap(pipeline =>
-        pipeline.toDatasets.map(datasetId => {
-          const sourceEntity = getEntityWithCurrentPosition(pipeline.id);
-          const targetEntity = getEntityWithCurrentPosition(datasetId);
-          if (!sourceEntity || !targetEntity) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
-          return {
-            id: String(`${pipeline.id}->${datasetId}`),
-            source: pipeline.id,
-            target: datasetId,
-            type: 'default',
-            animated: true,
-            style: { stroke: getEdgeColor('pipeline'), strokeWidth: 2 },
-            markerEnd: { type: MarkerType.ArrowClosed },
-            sourceHandle: edgeLocation.from,
-            targetHandle: edgeLocation.to,
-          } as Edge;
-        })
-      )
-      .filter(Boolean) as Edge[];
+      return edges;
+    };
 
-    const pipelinesToModelEntitiesEdges = projectGraph?.pipelines
-      .flatMap(pipeline =>
-        pipeline.toModelEntities.map(modelEntityId => {
-          const sourceEntity = getEntityWithCurrentPosition(pipeline.id);
-          const targetEntity = getEntityWithCurrentPosition(modelEntityId);
-          if (!sourceEntity || !targetEntity) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
-          return {
-            id: String(`${pipeline.id}->${modelEntityId}`),
-            source: pipeline.id,
-            target: modelEntityId,
-            type: 'default',
-            animated: true,
-            style: { stroke: getEdgeColor('pipeline'), strokeWidth: 2 },
-            markerEnd: { type: MarkerType.ArrowClosed },
-            sourceHandle: edgeLocation.from,
-            targetHandle: edgeLocation.to,
-          } as Edge;
-        })
-      )
-      .filter(Boolean) as Edge[];
+    // Generate all edges from all entity types
+    const allEdges: Edge[] = [
+      ...projectGraph.dataSources.flatMap(ds => processEntityConnections(ds.id, ds.connections, 'dataSource')),
+      ...projectGraph.datasets.flatMap(d => processEntityConnections(d.id, d.connections, 'dataset')),
+      ...projectGraph.analyses.flatMap(a => processEntityConnections(a.id, a.connections, 'analysis')),
+      ...projectGraph.pipelines.flatMap(p => processEntityConnections(p.id, p.connections, 'pipeline')),
+      ...projectGraph.modelEntities.flatMap(m => processEntityConnections(m.id, m.connections, 'modelEntity')),
+    ];
 
-    const analysesToPipelinesEdges = projectGraph?.pipelines
-      .flatMap(pipeline =>
-        (pipeline.fromAnalyses || []).map((analysisObjectId: UUID) => {
-          const sourceEntity = getEntityWithCurrentPosition(analysisObjectId);
-          const targetEntity = getEntityWithCurrentPosition(pipeline.id);
-          if (!sourceEntity || !targetEntity) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
-          return {
-            id: String(`${analysisObjectId}->${pipeline.id}`),
-            source: analysisObjectId,
-            target: pipeline.id,
-            type: 'default',
-            animated: true,
-            style: { stroke: getEdgeColor('analysis'), strokeWidth: 2 },
-            markerEnd: { type: MarkerType.ArrowClosed },
-            sourceHandle: edgeLocation.from,
-            targetHandle: edgeLocation.to,
-          } as Edge;
-        })
-      )
-      .filter(Boolean) as Edge[];
-
-    const dataSourcesToPipelinesEdges = projectGraph?.pipelines
-      .flatMap(pipeline =>
-        (pipeline.fromDataSources || []).map((dataSourceId: UUID) => {
-          const sourceEntity = getEntityWithCurrentPosition(dataSourceId);
-          const targetEntity = getEntityWithCurrentPosition(pipeline.id);
-          if (!sourceEntity || !targetEntity) return null;
-          const edgeLocation = computeBoxEdgeLocations(sourceEntity, targetEntity);
-          return {
-            id: String(`${dataSourceId}->${pipeline.id}`),
-            source: dataSourceId,
-            target: pipeline.id,
-            type: 'default',
-            animated: true,
-            style: { stroke: getEdgeColor('dataSource'), strokeWidth: 2 },
-            markerEnd: { type: MarkerType.ArrowClosed },
-            sourceHandle: edgeLocation.from,
-            targetHandle: edgeLocation.to,
-          } as Edge;
-        })
-      )
-      .filter(Boolean) as Edge[];
-
-
-    return [
-      ...dataSourcesToDatasetsEdges, 
-      ...datasetsToAnalysesEdges, 
-      ...dataSourcesToAnalysesEdges, 
-      ...datasetsToPipelinesEdges, 
-      ...modelEntitiesToPipelinesEdges, 
-      ...pipelinesToDatasetsEdges, 
-      ...pipelinesToModelEntitiesEdges,
-      ...analysesToPipelinesEdges,
-      ...dataSourcesToPipelinesEdges];
-  }, [project, projectGraph, getEdgeColor, nodes]);
+    return allEdges;
+  }, [projectGraph, getEdgeColor, nodes]);
 
   // Only update nodes when memoizedNodes changes
   useEffect(() => {

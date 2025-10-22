@@ -143,11 +143,11 @@ class LocalDatasetManager:
 
     async def get_aggregation_object_payload_data_by_analysis_result_id(
         self,
-        analysis_object_id: uuid.UUID,
+        analysis_id: uuid.UUID,
         analysis_result_id: uuid.UUID,
     ) -> AggregationOutput:
         file_path = ANALYSIS_DIR / \
-            str(analysis_object_id) / str(analysis_result_id) / "output.json"
+            str(analysis_id) / str(analysis_result_id) / "output.json"
 
         output_data = json.load(open(file_path))
         try:
@@ -158,7 +158,7 @@ class LocalDatasetManager:
 
         return output_data
 
-    async def upload_analysis_output_to_analysis_dir(self, analysis_object_id: uuid.UUID, analysis_result_id: uuid.UUID, output_data: pd.DataFrame | pd.Series | float | int | str | bool | datetime | timedelta | None) -> None:
+    async def upload_analysis_output_to_analysis_dir(self, analysis_id: uuid.UUID, analysis_result_id: uuid.UUID, output_data: pd.DataFrame | pd.Series | float | int | str | bool | datetime | timedelta | None) -> None:
         try:
             structured_output_data = serialize_raw_data_for_aggregation_object_for_api(
                 output_data)
@@ -167,7 +167,7 @@ class LocalDatasetManager:
             raise e
 
         analysis_output_path = ANALYSIS_DIR / \
-            str(analysis_object_id) / str(analysis_result_id)
+            str(analysis_id) / str(analysis_result_id)
         analysis_output_path.mkdir(parents=True, exist_ok=True)
         analysis_output_filepath = analysis_output_path / "output.json"
         with open(analysis_output_filepath, "w") as f:

@@ -6,10 +6,12 @@ import { useDatasets } from "@/hooks/useDatasets";
 import { useProjectDataSources } from "@/hooks/useDataSources";
 import { useModelEntities } from "@/hooks/useModelEntities";
 import { usePipelines } from "@/hooks/usePipelines";
+import { useAnalysis } from "@/hooks/useAnalysis";
 import { Dataset } from "@/types/data-objects";
 import { DataSource } from "@/types/data-sources";
 import { ModelEntity } from "@/types/model";
 import { Pipeline } from "@/types/pipeline";
+import { AnalysisObjectSmall } from "@/types/analysis";
 
 interface RunBoxProps {
   runId: UUID;
@@ -116,6 +118,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
   const { dataSources } = useProjectDataSources(projectId);
   const { modelEntities } = useModelEntities(projectId);
   const { pipelines } = usePipelines(projectId);
+  const { analysisObjects } = useAnalysis(projectId);
   const [isRejecting, setIsRejecting] = useState(false);
   const isPending = run?.status === 'pending';
   const [showMessages, setShowMessages] = useState(isPending);
@@ -145,14 +148,16 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
     run.inputs.dataSourceIds.length > 0 ||
     run.inputs.datasetIds.length > 0 ||
     run.inputs.modelEntityIds.length > 0 ||
-    run.inputs.pipelineIds.length > 0
+    run.inputs.pipelineIds.length > 0 ||
+    run.inputs.analysisIds.length > 0
   );
   
   const hasOutputs = run.outputs && (
     run.outputs.dataSourceIds.length > 0 ||
     run.outputs.datasetIds.length > 0 ||
     run.outputs.modelEntityIds.length > 0 ||
-    run.outputs.pipelineIds.length > 0
+    run.outputs.pipelineIds.length > 0 ||
+    run.outputs.analysisIds.length > 0
   );
 
 
@@ -268,6 +273,15 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                         {pipelines?.find((p: Pipeline) => p.id === pipelineId)?.name || 'Pipeline'}
                       </div>
                     ))}
+                    {run.inputs?.analysisIds.map((analysisId) => (
+                      <div
+                        key={analysisId}
+                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#004806]/20 text-[#004806]"
+                      >
+                        <BarChart3 size={12} />
+                        {analysisObjects?.find((a: AnalysisObjectSmall) => a.id === analysisId)?.name || 'Analysis'}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -311,6 +325,15 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                       >
                         <Zap size={12} />
                         {pipelines?.find((p: Pipeline) => p.id === pipelineId)?.name || 'Pipeline'}
+                      </div>
+                    ))}
+                    {run.outputs?.analysisIds.map((analysisId) => (
+                      <div
+                        key={analysisId}
+                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#004806]/20 text-[#004806]"
+                      >
+                        <BarChart3 size={12} />
+                        {analysisObjects?.find((a: AnalysisObjectSmall) => a.id === analysisId)?.name || 'Analysis'}
                       </div>
                     ))}
                   </div>

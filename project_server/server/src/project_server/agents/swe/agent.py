@@ -68,11 +68,14 @@ async def swe_agent_system_prompt(ctx: RunContext[SWEAgentDeps]) -> str:
         [data_source.description_for_agent for data_source in ctx.deps.data_sources_injected])
     datasets_description = "\n\n".join(
         [dataset.description_for_agent for dataset in ctx.deps.datasets_injected])
+    analyses_description = "\n\n".join(
+        [analysis.description_for_agent for analysis in ctx.deps.analyses_injected])
     model_entities_description = "\n\n".join(
         [model_entity.description_for_agent for model_entity in ctx.deps.model_entities_injected])
 
     data_sources_section = f"The input data sources are:\n\n{data_sources_description}\n\n"
     datasets_section = f"The input datasets are:\n\n{datasets_description}\n\n"
+    analyses_section = f"The input analyses are:\n\n{analyses_description}\n\n"
     model_entities_section = f"The input model entities are:\n\n{model_entities_description}\n\n".replace(
         MODELS_MODULE, MODELS_MODULE_TMP)
 
@@ -112,6 +115,7 @@ async def swe_agent_system_prompt(ctx: RunContext[SWEAgentDeps]) -> str:
         f"{structure_section}\n\n" +
         f"{data_sources_section}\n\n" +
         f"{datasets_section}\n\n" +
+        f"{analyses_section}\n\n" +
         f"{skeleton_section}" +
         "NB: You must import from the _tmp modules as we are in development mode. " +
         f"This means {MODELS_MODULE_TMP} for models, {FUNCTIONS_MODULE_TMP} for functions, {PIPELINES_MODULE_TMP} for pipelines, and {DATA_INTEGRATION_MODULE_TMP} for data integration."
