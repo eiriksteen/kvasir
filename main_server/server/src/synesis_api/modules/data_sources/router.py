@@ -1,30 +1,27 @@
-from uuid import UUID
-from typing import Annotated, List, Union
+from typing import Annotated, List
 from fastapi import APIRouter, Depends, UploadFile, HTTPException
+from uuid import UUID
 
 from synesis_api.modules.data_sources.service import (
-    create_data_source,
-    get_data_sources,
-    get_project_data_sources,
-    create_data_source_analysis,
-    create_data_source_details
+    create_tabular_file_data_source,
+    create_key_value_data_source,
+    get_user_data_sources,
+    create_data_source_analysis
 )
 from synesis_schemas.main_server import (
     DataSourceInDB,
-    DataSourceFull,
+    DataSource,
     DataSourceAnalysisInDB,
     DataSourceAnalysisCreate,
-    TabularFileDataSourceCreate,
+    GetDataSourcesByIDsRequest,
     TabularFileDataSourceInDB,
-    DataSourceCreate,
-    GetDataSourcesByIDsRequest
+    KeyValueFileDataSourceInDB
 )
-from synesis_schemas.project_server import RunDataSourceAnalysisAgentRequest
+# from synesis_schemas.project_server import RunDataSourceAnalysisAgentRequest
 from synesis_schemas.main_server import User
 from synesis_api.auth.service import get_current_user, user_owns_data_source
-# from synesis_api.agents.data_source_analysis.runner import run_data_source_analysis_task
 from synesis_api.auth.service import oauth2_scheme
-from synesis_api.client import MainServerClient, post_run_data_source_analysis, post_file
+from synesis_api.client import MainServerClient, post_tabular_file_data_source, post_key_value_file_data_source
 
 
 router = APIRouter()
@@ -36,48 +33,65 @@ router = APIRouter()
 # - Possibly simplify structure of router / service / agent
 
 
-@router.get("/data-sources", response_model=List[DataSourceFull])
+@router.get("/data-sources", response_model=List[DataSource])
 async def fetch_data_sources(
     user: Annotated[User, Depends(get_current_user)] = None
-) -> List[DataSourceFull]:
-    return await get_data_sources(user_id=user.id)
+) -> List[DataSource]:
+    return await get_user_data_sources(user_id=user.id)
 
 
-@router.get("/project-data-sources/{project_id}", response_model=List[DataSourceFull])
-async def fetch_data_sources(
-    project_id: UUID,
+@router.get("/data-source/{data_source_id}", response_model=DataSource)
+async def fetch_data_source(
+    data_source_id: UUID,
     user: Annotated[User, Depends(get_current_user)] = None
-) -> List[DataSourceFull]:
-    return await get_project_data_sources(user_id=user.id, project_id=project_id)
+) -> DataSource:
+    return (await get_user_data_sources(user_id=user.id, data_source_ids=[data_source_id]))[0]
 
 
-@router.get("/data-sources-by-ids", response_model=List[DataSourceFull])
+@router.get("/data-sources-by-ids", response_model=List[DataSource])
 async def fetch_data_sources_by_ids(
     request: GetDataSourcesByIDsRequest,
     user: Annotated[User, Depends(get_current_user)] = None
-) -> List[DataSourceFull]:
-    return await get_data_sources(data_source_ids=request.data_source_ids, user_id=user.id)
+) -> List[DataSource]:
+    return await get_user_data_sources(data_source_ids=request.data_source_ids, user_id=user.id)
 
 
-@router.post("/file-data-source", response_model=DataSourceInDB)
-async def post_file_data_source(
+@router.post("/tabular-file-data-source", response_model=DataSource)
+async def post_tabular_file_data_source_endpoint(
         file: UploadFile,
         user: Annotated[User, Depends(get_current_user)] = None,
-        token: str = Depends(oauth2_scheme)) -> DataSourceInDB:
+        token: str = Depends(oauth2_scheme)) -> DataSource:
 
-    data_source_record = await create_data_source(user.id, DataSourceCreate(name=file.filename, type="file"))
     file_content = await file.read()
-
     client = MainServerClient(token)
-    file_response = await post_file(client, file_content, data_source_record.id)
+    data_source_create = await post_tabular_file_data_source(
+        client,
+        file_content,
+        file.filename,
+        file.content_type
+    )
+    result = await create_tabular_file_data_source(user.id, data_source_create)
 
-    # Run agent to populate missing data source fields requiring analysis
-    await post_run_data_source_analysis(client, RunDataSourceAnalysisAgentRequest(
-        data_source_id=data_source_record.id,
-        file_path=file_response.file_path
-    ))
+    return result
 
-    return data_source_record
+
+@router.post("/key-value-file-data-source", response_model=DataSource)
+async def post_key_value_file_data_source_endpoint(
+        file: UploadFile,
+        user: Annotated[User, Depends(get_current_user)] = None,
+        token: str = Depends(oauth2_scheme)) -> DataSource:
+
+    file_content = await file.read()
+    client = MainServerClient(token)
+    data_source_create = await post_key_value_file_data_source(
+        client,
+        file_content,
+        file.filename or "unknown",
+        file.content_type or "application/octet-stream"
+    )
+    result = await create_key_value_data_source(user.id, data_source_create)
+
+    return result
 
 
 @router.post("/data-source-analysis", response_model=DataSourceAnalysisInDB)
@@ -90,15 +104,3 @@ async def post_data_source_analysis(
             status_code=403, detail="You do not have permission to access this data source")
 
     return await create_data_source_analysis(analysis)
-
-
-@router.post("/data-source-details", response_model=Union[TabularFileDataSourceInDB])
-async def post_data_source_details(
-        details: Union[TabularFileDataSourceCreate],
-        user: Annotated[User, Depends(get_current_user)] = None) -> Union[TabularFileDataSourceInDB]:
-
-    if not await user_owns_data_source(user.id, details.data_source_id):
-        raise HTTPException(
-            status_code=403, detail="You do not have permission to access this data source")
-
-    return await create_data_source_details(details)

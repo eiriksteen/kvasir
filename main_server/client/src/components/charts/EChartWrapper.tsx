@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import ReactECharts from "echarts-for-react";
-import { convertTimeStamps, formatTimeStamps, getMinMax } from "./PlottingUtils";
+import { formatTimeStamps, getMinMax } from "./PlottingUtils";
 import { BasePlot, PlotColumn } from "@/types/plots";
 import { AggregationObjectWithRawData, Column } from "@/types/data-objects";
-import PlotConfigurationPopup from "@/components/info-modals/analysis/PlotConfigurationPopup";
+import PlotConfigurationPopup from "@/components/info-tabs/analysis/PlotConfigurationPopup";
 
 interface ChartProps {
   plot: BasePlot;

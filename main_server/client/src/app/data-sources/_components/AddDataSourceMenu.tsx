@@ -9,12 +9,8 @@ type sourceInfo = {
 }
 
 export const sourceTypes: Record<SupportedSource, sourceInfo> = {
-    'file': { available: true, name: "File"},
-    's3': { available: false, name: "AWS S3"},
-    'azure': { available: false, name: "Azure"},
-    'gcp': { available: false, name: "GCP"},
-    'psql': { available: false, name: "PostgreSQL"},
-    'mongodb': { available: false, name: "MongoDB"},
+    'tabular_file': { available: true, name: "Tabular File"},
+    'key_value_file': { available: true, name: "Key-Value File"},
 };
 
 

@@ -1,141 +1,217 @@
+import uuid
+import shutil
 from typing import List, Optional
 from pydantic import BaseModel
 from pydantic_ai import RunContext, ModelRetry
+from pathlib import Path
 
+from synesis_data_interface.structures.overview import get_first_level_structure_ids
 from project_server.agents.swe.deps import SWEAgentDeps
-from project_server.utils.code_utils import run_shell_code_in_container, remove_line_numbers_from_script, run_python_code_in_container
+from project_server.utils.code_utils import run_python_code_in_container
 from project_server.agents.runner_base import CodeForLog
-from synesis_schemas.main_server import script_type_literal
-
+from project_server.client import submit_swe_result_approval_request
 from project_server.worker import logger
+from project_server.agents.swe.sandbox_code import add_object_group_validation_code_to_implementation, add_entry_point
+from synesis_schemas.main_server import (
+    FunctionInputObjectGroupDefinitionCreate,
+    FunctionOutputObjectGroupDefinitionCreate,
+    ModelFunctionInputObjectGroupDefinitionCreate,
+    ModelFunctionOutputObjectGroupDefinitionCreate,
+    SUPPORTED_MODALITIES_TYPE,
+    SUPPORTED_TASK_TYPE,
+    ModelFunctionCreate,
+    Implementation,
+    NewScript,
+    ModifiedScript,
+    Function,
+    ModelSourceCreate
+)
+from project_server.app_secrets import MODEL_WEIGHTS_DIR
 
 
-class SetupAgentOutput(BaseModel):
-    dependencies: List[str]
-    python_version: str
-
-
-class SetupAgentOutputWithScript(SetupAgentOutput):
-    script: str
-
-
-class ImplementationOutput(BaseModel):
-    code_explanation: str
-
-
-class NewScriptOutput(BaseModel):
+class FunctionImplementationSummary(BaseModel):
+    name: str
+    python_function_name: str
     filename: str
-    script: str
+    docstring: str
+    description: str
+    args_schema: dict
+    default_args: dict
+    output_variables_schema: dict
+    input_object_groups: List[FunctionInputObjectGroupDefinitionCreate]
+    output_object_group_definitions: List[FunctionOutputObjectGroupDefinitionCreate]
+    setup_script_path: Optional[str] = None
 
 
-class ModifiedScriptOutput(BaseModel):
-    original_filename: str
-    new_filename: str
-    original_script: str
-    new_script: str
-    type: script_type_literal
+class ModelImplementationSummary(BaseModel):
+    name: str
+    python_class_name: str
+    filename: str
+    description: str
+    modality: SUPPORTED_MODALITIES_TYPE
+    task: SUPPORTED_TASK_TYPE
+    model_class_docstring: str
+    training_function: ModelFunctionCreate
+    inference_function: ModelFunctionCreate
+    source: ModelSourceCreate
+    default_config: dict
+    config_schema: dict
 
 
-class ImplementationOutputFull(ImplementationOutput):
-    main_script: NewScriptOutput
-    run_output: str
-    new_scripts: List[NewScriptOutput] = []
-    modified_scripts: List[ModifiedScriptOutput] = []
+class FunctionUpdateOutput(BaseModel):
+    definition_id: uuid.UUID
+    updates_made_description: str
+    updated_python_function_name: Optional[str] = None
+    updated_description: Optional[str] = None
+    updated_docstring: Optional[str] = None
+    updated_setup_script_path: Optional[str] = None
+    updated_default_args: Optional[dict] = None
+    updated_args_schema: Optional[dict] = None
+    updated_output_variables_schema: Optional[dict] = None
+    input_object_groups_to_add: Optional[
+        List[FunctionInputObjectGroupDefinitionCreate]] = None
+    output_object_group_definitions_to_add: Optional[
+        List[FunctionOutputObjectGroupDefinitionCreate]] = None
+    input_object_groups_to_remove: Optional[List[uuid.UUID]] = None
+    output_object_group_definitions_to_remove: Optional[List[uuid.UUID]] = None
 
 
-class SWEAgentOutput(BaseModel):
-    implementation: ImplementationOutputFull
-    setup: Optional[SetupAgentOutputWithScript] = None
+class ModelUpdateOutput(BaseModel):
+    definition_id: uuid.UUID
+    updates_made_description: str
+    updated_python_class_name: Optional[str] = None
+    updated_description: Optional[str] = None
+    updated_docstring: Optional[str] = None
+    updated_setup_script_path: Optional[str] = None
+    updated_default_args: Optional[dict] = None
+    updated_args_schema: Optional[dict] = None
+    updated_output_variables_schema: Optional[dict] = None
+    input_object_groups_to_add: Optional[
+        List[ModelFunctionInputObjectGroupDefinitionCreate]] = None
+    output_object_group_definitions_to_add: Optional[
+        List[ModelFunctionOutputObjectGroupDefinitionCreate]] = None
+    input_object_groups_to_remove: Optional[List[uuid.UUID]] = None
+    output_object_group_definitions_to_remove: Optional[List[uuid.UUID]] = None
 
 
-async def submit_setup_output(ctx: RunContext[SWEAgentDeps], file_name: str, result: SetupAgentOutput) -> SetupAgentOutputWithScript:
-    """
-    Validate and execute the setup script.
+class ImplementationSummaryOutput(BaseModel):
+    # pipeline_output_variable_name: str
+    new_main_function: FunctionImplementationSummary
+    new_supporting_functions: List[FunctionImplementationSummary]
+    new_models: List[ModelImplementationSummary]
+    modified_functions: List[FunctionUpdateOutput]
+    modified_models: List[ModelUpdateOutput]
 
-    Args:
-        ctx: The context.
-        result: The setup output.
 
-    Returns:
-        SetupOutput: The setup output.
-    """
+class ImplementationSummaryOutputWithImplementation(ImplementationSummaryOutput):
+    implementation: Implementation
+    functions_used: List[Function]
+
+
+async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name: str, result: ImplementationSummaryOutput) -> ImplementationSummaryOutputWithImplementation:
+
+    testing_dirs: List[Path] = []
+
+    for new_model in result.new_models:
+        config_field = f"{new_model.python_class_name}_config"
+        if config_field not in result.new_main_function.default_args:
+            raise ModelRetry(
+                f"The config for the new model {new_model.python_class_name} must be included in the default args and must be named {config_field}")
+
+        if not result.new_main_function.default_args[config_field]["weights_save_dir"]:
+            raise ModelRetry(
+                f"weights_save_dir must be set. If none has been provided, set a placeholder default. ")
+
+        testing_dirs.append(
+            Path(result.new_main_function.default_args[config_field]["weights_save_dir"]))
+
+    for injected_model in ctx.deps.model_entities_injected:
+        config_field = f"{injected_model.implementation.model_implementation.python_class_name}_config"
+        if config_field not in result.new_main_function.default_args:
+            raise ModelRetry(
+                f"The config for the injected model {injected_model.implementation.model_implementation.python_class_name} must be included in the default args and must be named {config_field}")
+
+        if not result.new_main_function.default_args[config_field]["weights_save_dir"]:
+            raise ModelRetry(
+                f"weights_save_dir must be set. If none has been provided, set a placeholder default. ")
+
+        # Only do it for those that don't have a weights dir, as we will need to load from the ones that do
+        if not injected_model.implementation.weights_save_dir:
+            testing_dirs.append(
+                Path(injected_model.implementation.weights_save_dir))
+
+    for function in result.new_supporting_functions:
+        args_field = f"{function.python_function_name}_args"
+        if args_field not in result.new_main_function.default_args:
+            raise ModelRetry(
+                f"The config for the new function {function.python_function_name} must be included in the default args and must be named {args_field}")
+
+    for loaded_function in ctx.deps.functions_loaded:
+        args_field = f"{loaded_function.implementation_script.filename}_args"
+        if args_field not in result.new_main_function.default_args:
+            raise ModelRetry(
+                f"The config for the loaded function {loaded_function.implementation_script.filename} must be included in the default args and must be named {loaded_function.implementation_script.filename}_args")
+
+    first_level_structure_ids = get_first_level_structure_ids()
+
+    for function in [result.new_main_function, *result.new_supporting_functions]:
+        for input in function.input_object_groups:
+            if input.structure_id not in first_level_structure_ids:
+                raise ModelRetry(
+                    f"Invalid structure ID: {input.structure_id}, available structures: {first_level_structure_ids}")
+
+        for output in function.output_object_group_definitions:
+            if output.structure_id not in first_level_structure_ids:
+                raise ModelRetry(
+                    f"Invalid structure ID: {output.structure_id}, available structures: {first_level_structure_ids}")
+
+    for model in result.new_models:
+        for object_group in [model.training_function.input_object_groups, model.inference_function.input_object_groups]:
+            for input in object_group:
+                if input.structure_id not in first_level_structure_ids:
+                    raise ModelRetry(
+                        f"Invalid structure ID: {input.structure_id}, available structures: {first_level_structure_ids}")
+
+        for object_group in [model.training_function.output_object_groups, model.inference_function.output_object_groups]:
+            for output in object_group:
+                if output.structure_id not in first_level_structure_ids:
+                    raise ModelRetry(
+                        f"Invalid structure ID: {output.structure_id}, available structures: {first_level_structure_ids}")
+
     if file_name not in ctx.deps.current_scripts:
         raise ModelRetry(
             f"Script {file_name} does not exist. The available scripts are: {list(ctx.deps.current_scripts.keys())}. To create a new script, call the write_script tool.")
 
     script = ctx.deps.current_scripts[file_name]
 
-    check_output, _ = await run_shell_code_in_container(
-        f"pyenv versions | grep {result.python_version}",
-        container_name=ctx.deps.container_name,
-        cwd=ctx.deps.cwd
-    )
-
-    if not check_output.strip():
-        _, err = await run_shell_code_in_container(
-            f"pyenv install {result.python_version}",
-            container_name=ctx.deps.container_name,
-            cwd=ctx.deps.cwd
-        )
-
-        if err:
-            raise ModelRetry(f"Error installing python version: {err}")
-
-    _, err = await run_shell_code_in_container(
-        f"pyenv global {result.python_version}",
-        container_name=ctx.deps.container_name,
-        cwd=ctx.deps.cwd
-    )
-
-    if err:
-        raise ModelRetry(f"Error setting global python version: {err}")
-
-    script = remove_line_numbers_from_script(script)
-
-    if not script.strip().startswith('#!/bin/bash') and not script.strip().startswith('#!/usr/bin/env bash'):
+    if "outputs" not in script:
         raise ModelRetry(
-            "Setup script must be a bash script! Start with '#!/bin/bash' or '#!/usr/bin/env bash'")
+            f"The pipeline output variable name 'outputs' was not found in the script. The pipeline output variable in the main loop must have this name. ")
 
-    _, err = await run_shell_code_in_container(
-        script,
-        container_name=ctx.deps.container_name,
-        cwd=ctx.deps.cwd
-    )
+    script = add_object_group_validation_code_to_implementation(
+        script, result.new_main_function.output_object_group_definitions)
 
-    if err:
-        error_message = f"Error executing setup script: {err}"
-        if ctx.retry > 3:
-            error_message = f"{error_message}\n\n" \
-                "Remember, if you are facing package installation and dependency issues, " \
-                "install the latest stable versions of Python and all dependencies (the default versions)!"
-
-        raise ModelRetry(error_message)
-
-    return SetupAgentOutputWithScript(
-        **result.model_dump(),
-        script=script
-    )
-
-
-async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name: str, result: ImplementationOutput) -> ImplementationOutputFull:
-
-    if file_name not in ctx.deps.current_scripts:
-        raise ModelRetry(
-            f"Script {file_name} does not exist. The available scripts are: {list(ctx.deps.current_scripts.keys())}. To create a new script, call the write_script tool.")
-
-    script = ctx.deps.current_scripts[file_name]
-    script_with_test_code = f"{script}\n\n{ctx.deps.test_code_to_append_to_implementation}" if ctx.deps.test_code_to_append_to_implementation else script
+    script_to_run = add_entry_point(
+        script, ctx.deps.bearer_token, result.new_main_function.default_args)
 
     logger.info("CURRENT SCRIPTS")
     logger.info(ctx.deps.current_scripts.keys())
     logger.info("RUNNING CODE")
-    logger.info(script_with_test_code)
+    logger.info(script_to_run)
 
-    out, err = await run_python_code_in_container(script_with_test_code, container_name=ctx.deps.container_name)
+    out, err = await run_python_code_in_container(script_to_run, container_name=ctx.deps.container_name)
+
+    logger.info("OUT")
+    logger.info(out)
+    logger.info("ERR")
+    logger.info(err)
+
+    for testing_dir in testing_dirs:
+        shutil.rmtree(testing_dir, ignore_errors=True)
 
     if ctx.deps.log_code:
         await ctx.deps.log_code(CodeForLog(
-            code=script_with_test_code,
+            code=script,
             filename=file_name,
             output=out,
             error=err
@@ -149,7 +225,7 @@ async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name:
     if ctx.deps.new_scripts:
         for new_script_name in ctx.deps.new_scripts:
             new_script = ctx.deps.current_scripts[new_script_name]
-            new_scripts.append(NewScriptOutput(
+            new_scripts.append(NewScript(
                 filename=new_script_name, script=new_script))
 
     modified_scripts = []
@@ -157,15 +233,15 @@ async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name:
         for original_script_name, new_script_name in ctx.deps.modified_scripts_old_to_new_name.items():
 
             original_fn = next(
-                (f for f in ctx.deps.functions_injected if f.filename == original_script_name), None)
+                (f for f in ctx.deps.functions_injected if f.implementation_script.filename == original_script_name), None)
             original_mdl = next(
-                (m for m in ctx.deps.models_injected if m.filename == original_script_name), None)
+                (me for me in ctx.deps.model_entities_injected if me.implementation.model_implementation.implementation_script.filename == original_script_name), None)
 
             if original_fn:
-                with open(original_fn.script_path, "r") as f:
+                with open(original_fn.implementation_script.path, "r") as f:
                     original_script = f.read()
             elif original_mdl:
-                with open(original_mdl.script_path, "r") as f:
+                with open(original_mdl.implementation.model_implementation.implementation_script.path, "r") as f:
                     original_script = f.read()
             else:
                 raise RuntimeError(
@@ -174,7 +250,7 @@ async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name:
             script_type = "model" if original_mdl else "function"
 
             modified_script = ctx.deps.current_scripts[new_script_name]
-            modified_scripts.append(ModifiedScriptOutput(
+            modified_scripts.append(ModifiedScript(
                 original_filename=original_script_name,
                 new_filename=new_script_name,
                 original_script=original_script,
@@ -182,6 +258,22 @@ async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name:
                 type=script_type
             ))
 
-    main_script = NewScriptOutput(filename=file_name, script=script)
+    main_script = NewScript(filename=file_name, script=script)
 
-    return ImplementationOutputFull(**result.model_dump(), main_script=main_script, run_output=out, modified_scripts=modified_scripts, new_scripts=new_scripts)
+    implementation = Implementation(conversation_id=ctx.deps.conversation_id,
+                                    main_script=main_script,
+                                    run_output=out,
+                                    modified_scripts=modified_scripts,
+                                    new_scripts=new_scripts)
+
+    feedback = await submit_swe_result_approval_request(ctx.deps.client, implementation)
+
+    if not feedback.approved:
+        raise ModelRetry(
+            f"Submission rejected with feedback: {feedback.feedback}")
+
+    return ImplementationSummaryOutputWithImplementation(
+        **result.model_dump(),
+        implementation=implementation,
+        functions_used=list(set(ctx.deps.functions_loaded))
+    )

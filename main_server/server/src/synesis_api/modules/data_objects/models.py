@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Table, UUID, CheckConstraint, Boolean
 from sqlalchemy.dialects.postgresql import JSONB
 from synesis_api.database.core import metadata
-from synesis_data_structures.time_series.definitions import get_first_level_structure_ids
+from synesis_data_interface.structures.overview import get_first_level_structure_ids
 
 # Build the constraint string with proper quotes
 structure_ids = get_first_level_structure_ids()
@@ -26,28 +26,6 @@ dataset = Table(
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
-    schema="data_objects"
-)
-
-
-dataset_from_data_source = Table(
-    "dataset_from_data_source",
-    metadata,
-    Column("data_source_id", UUID, ForeignKey(
-        "data_sources.data_source.id"), primary_key=True, nullable=False),
-    Column("dataset_id", UUID, ForeignKey(
-        "data_objects.dataset.id"), primary_key=True, nullable=False),
-    schema="data_objects"
-)
-
-
-dataset_from_dataset = Table(
-    "dataset_from_dataset",
-    metadata,
-    Column("source_dataset_id", UUID, ForeignKey(
-        "data_objects.dataset.id"), primary_key=True, nullable=False),
-    Column("dataset_id", UUID, ForeignKey(
-        "data_objects.dataset.id"), primary_key=True, nullable=False),
     schema="data_objects"
 )
 
@@ -153,6 +131,7 @@ variable_group = Table(
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     Column("name", String, nullable=False),
+    Column("group_schema", JSONB, nullable=False),
     Column("description", String, nullable=False),
     Column("dataset_id", UUID, ForeignKey(
         "data_objects.dataset.id"), nullable=False),
@@ -263,6 +242,7 @@ aggregation_object = Table(
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
-    Column("analysis_result_id", UUID, ForeignKey("analysis.analysis_result.id"), nullable=True),  # Foreign key to analysis_result.id
+    Column("analysis_result_id", UUID, ForeignKey("analysis.analysis_result.id"),
+           nullable=True),  # Foreign key to analysis_result.id
     schema="data_objects"
 )

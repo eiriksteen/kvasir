@@ -1,6 +1,6 @@
 # NB: Assumes build context is the root of the project (where the docker-compose file is).
 
-FROM python:3.13-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y \
 # Copy the data_structures package first for better caching
 COPY schemas /app/schemas
 
-COPY data_structures /app/data_structures
+COPY data_interface /app/data_interface
 
 # Copy sandbox pyproject toml to enable reading its dependencies in the SWE agent
 COPY project_server/sandbox/pyproject.toml /app/sandbox/pyproject.toml
@@ -31,7 +31,7 @@ COPY project_server/server /app
 
 # Install synesis data structures package from source and the main package
 RUN pip install --upgrade pip && \
-    pip install -e /app/data_structures && \
+    pip install -e /app/data_interface && \
     pip install -e /app/schemas && \
     pip install -e .
 

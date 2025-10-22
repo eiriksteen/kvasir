@@ -12,9 +12,11 @@ from synesis_schemas.main_server import (
     ChatMessageInDB,
     ConversationInDB,
     ConversationCreate,
-    ProjectGraph,
-    ContextCreate,
-    ContextInDB,
+    User,
+    Implementation,
+    ImplementationApprovalResponse,
+    # ContextCreate,
+    # ContextInDB,
 )
 from synesis_api.modules.orchestrator.service import (
     create_conversation,
@@ -27,14 +29,11 @@ from synesis_api.modules.orchestrator.service import (
     get_chat_messages_with_context,
     get_conversation_by_id,
     update_conversation_name,
-    get_project_graph,
     get_run_status_message,
     get_project_graph_message
 )
-from synesis_api.modules.orchestrator.agent import orchestrator_agent
+from synesis_api.modules.orchestrator.agent import orchestrator_agent, orchestrator_toolset
 from synesis_api.auth.service import get_current_user, user_owns_conversation
-from synesis_schemas.main_server import User
-from synesis_api.auth.service import oauth2_scheme
 from synesis_api.modules.orchestrator.agent.deps import OrchestratorAgentDeps
 from synesis_api.app_secrets import SSE_MIN_SLEEP_TIME
 
@@ -49,8 +48,7 @@ router = APIRouter()
 @router.post("/completions")
 async def post_chat(
     prompt: UserChatMessageCreate,
-    user: Annotated[User, Depends(get_current_user)] = None,
-    token: str = Depends(oauth2_scheme)
+    user: Annotated[User, Depends(get_current_user)] = None
 ) -> StreamingResponse:
 
     # TODO: Add support for open connection with analysis, and add rejected status to a run so we don't keep monitoring it
@@ -62,21 +60,11 @@ async def post_chat(
             status_code=403, detail="You do not have access to this conversation")
 
     messages = await get_chat_messages_pydantic(prompt.conversation_id)
-    print("@"*50)
-    print("LENGTH OF MESSAGES", len(messages))
-    print("@"*50)
-
-    # print(f"MESSAGES: \n\n{'\n\n'.join([str(m) for m in messages])}")
-
-    # print("FUCK"*100)
-
-    is_new_conversation = len(messages) == 0
-
-    # TODO: Important to optimize this, as it will blow up the context with repeated messages
-    # One option is to keep the full entity objects just for the current context, and collapse to the IDs and names for the past ones
     context_message = await get_context_message(user.id, prompt.context)
     project_graph_message = await get_project_graph_message(user.id, conversation_record.project_id)
     runs_status_message = await get_run_status_message(user.id, prompt.conversation_id)
+
+    is_new_conversation = len(messages) == 0
 
     async def stream_response():
 
@@ -157,7 +145,8 @@ async def post_chat(
             "Output True if the user asked question where you needed a tool call to answer it, as we will need to explain the results to the user. ",
             output_type=bool,
             deps=deps,
-            message_history=messages+plan_run.new_messages()
+            message_history=messages+plan_run.new_messages(),
+            toolsets=[orchestrator_toolset]
         )
 
         all_messages_pydantic = [
@@ -212,13 +201,13 @@ async def post_chat(
     return StreamingResponse(stream_response(), media_type="text/event-stream")
 
 
-@router.post("/conversation")
+@router.post("/conversation", response_model=ConversationInDB)
 async def post_user_conversation(conversation_data: ConversationCreate, user: Annotated[User, Depends(get_current_user)] = None) -> ConversationInDB:
     conversation_record = await create_conversation(conversation_data, user.id, "New Chat")
     return conversation_record
 
 
-@router.get("/messages/{conversation_id}")
+@router.get("/messages/{conversation_id}", response_model=List[ChatMessage])
 async def fetch_messages(
         conversation_id: uuid.UUID,
         user: Annotated[User, Depends(get_current_user)] = None) -> List[ChatMessage]:
@@ -231,19 +220,13 @@ async def fetch_messages(
     return messages
 
 
-@router.get("/project-conversations/{project_id}")
+@router.get("/project-conversations/{project_id}", response_model=List[ConversationInDB])
 async def fetch_project_conversations(project_id: uuid.UUID, user: Annotated[User, Depends(get_current_user)] = None) -> List[ConversationInDB]:
     conversations = await get_project_conversations(user.id, project_id)
     return conversations
 
 
-@router.get("/project-graph/{project_id}")
-async def fetch_project_graph(project_id: uuid.UUID, user: Annotated[User, Depends(get_current_user)] = None) -> ProjectGraph:
-    graph = await get_project_graph(user.id, project_id)
-    return graph
-
-
-@router.post("/chat-message-pydantic/{conversation_id}")
+@router.post("/chat-message-pydantic/{conversation_id}", response_model=ChatMessageInDB)
 async def create_chat_message_pydantic_endpoint(
     conversation_id: uuid.UUID,
     messages: List[bytes],
@@ -257,10 +240,21 @@ async def create_chat_message_pydantic_endpoint(
     return result
 
 
-@router.post("/context")
-async def create_context_endpoint(
-    context: ContextCreate,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> ContextInDB:
-    result = await create_context(context)
-    return result
+@router.post("/swe-result-approval-request", response_model=ImplementationApprovalResponse)
+async def submit_swe_result_approval_request(
+        swe_result: Implementation,
+        user: Annotated[User, Depends(get_current_user)] = None) -> ImplementationApprovalResponse:
+
+    if not await user_owns_conversation(user.id, swe_result.conversation_id):
+        raise HTTPException(
+            status_code=403, detail="You do not have access to this conversation")
+
+    approval_response = await orchestrator_agent.run(
+        "The software engineer agent has submitted a solution.\n" +
+        f"Its result is:\n\n{swe_result.model_dump_json()}\n\n " +
+        "Decide whether to accept it, or reject it with feedback on what to fix before the solution is approved. " +
+        "Just reject or approve the implementation with feedback. Do not worry about adding the entity to the project, it will be done automatically after approval.",
+        output_type=ImplementationApprovalResponse
+    )
+
+    return approval_response.output

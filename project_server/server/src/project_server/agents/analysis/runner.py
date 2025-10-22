@@ -1,13 +1,22 @@
 import uuid
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
-from pydantic_ai.messages import SystemPromptPart, ModelRequest
 
-from project_server.agents.analysis.prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
 from project_server.agents.analysis.agent import analysis_agent, AnalysisDeps
 from project_server.worker import broker
 from project_server.agents.runner_base import RunnerBase
 from synesis_schemas.project_server import RunAnalysisRequest
+from synesis_schemas.main_server import (
+    GetModelEntityByIDsRequest,
+    GetDataSourcesByIDsRequest,
+    GetDatasetsByIDsRequest,
+)
+from project_server.client import (
+    get_model_entities_by_ids,
+    get_data_sources_by_ids,
+    get_datasets_by_ids,
+)
+from project_server.worker import logger
 
 
 class AnalysisReportResult(BaseModel):
@@ -19,10 +28,14 @@ class AnalysisAgentRunner(RunnerBase):
     def __init__(
         self,
         user_id: str,
+        run_id: uuid.UUID,
         bearer_token: str,
+        analysis_id: uuid.UUID,
         conversation_id: Optional[uuid.UUID] = None,
         project_id: Optional[uuid.UUID] = None,
-        run_id: Optional[uuid.UUID] = None,
+        model_entity_ids: Optional[List[uuid.UUID]] = None,
+        data_source_ids: Optional[List[uuid.UUID]] = None,
+        dataset_ids: Optional[List[uuid.UUID]] = None,
     ):
         super().__init__(
             agent=analysis_agent,
@@ -34,32 +47,23 @@ class AnalysisAgentRunner(RunnerBase):
             run_id=run_id
         )
 
-    async def __call__(
-            self,
-            analysis_request: RunAnalysisRequest,
-    ):
+        self.analysis_id = analysis_id
+        self.model_entity_ids = model_entity_ids
+        self.data_source_ids = data_source_ids
+        self.dataset_ids = dataset_ids
+
+    async def __call__(self, prompt_content: str):
         try:
-            system_prompt = SystemPromptPart(
-                content=f"""
-                    {ANALYSIS_AGENT_SYSTEM_PROMPT}
-                    The user has provided the following context: {analysis_request.context_message}
-                """
-            )
-            model_request = ModelRequest(parts=[system_prompt])
-            self.message_history = analysis_request.message_history + \
-                [model_request]
-
+            logger.info(
+                f"Running analysis agent with prompt: {prompt_content}")
             await self._create_run_if_not_exists()
-
-            analysis_deps = AnalysisDeps(
-                analysis_request=analysis_request,
-                client=self.project_client,
-                run_id=self.run_id
-            )
+            logger.info(f"Created run for analysis agent")
+            await self._prepare_deps()
+            logger.info(f"Prepared dependencies for analysis agent")
 
             run_result = await self._run_agent(
-                prompt_content=f"Solve this user prompt: {analysis_request.prompt}.",
-                deps=analysis_deps,
+                prompt_content=f"Solve this user prompt: {prompt_content}.",
+                deps=self.deps,
                 output_type=str
             )
 
@@ -71,6 +75,23 @@ class AnalysisAgentRunner(RunnerBase):
             await self._fail_agent_run(f"Error running analysis agent: {e}")
             raise e
 
+    async def _prepare_deps(self) -> None:
+        self.model_entities = await get_model_entities_by_ids(self.project_client, GetModelEntityByIDsRequest(model_entity_ids=self.model_entity_ids))
+        self.data_sources = await get_data_sources_by_ids(self.project_client, GetDataSourcesByIDsRequest(data_source_ids=self.data_source_ids))
+        self.datasets = await get_datasets_by_ids(self.project_client, GetDatasetsByIDsRequest(dataset_ids=self.dataset_ids))
+
+        deps = AnalysisDeps(
+            client=self.project_client,
+            run_id=self.run_id,
+            project_id=self.project_id,
+            analysis_id=self.analysis_id,
+            model_entities_injected=self.model_entities,
+            data_sources_injected=self.data_sources,
+            datasets_injected=self.datasets
+        )
+
+        self.deps = deps
+
     async def _save_results(self, *args, **kwargs):
         """Analysis results are saved through tools during execution, no additional saving needed."""
         pass
@@ -78,14 +99,21 @@ class AnalysisAgentRunner(RunnerBase):
 
 @broker.task
 async def run_analysis_task(
-    analysis_request: RunAnalysisRequest,
-    bearer_token: str
+    user_id: uuid.UUID,
+    bearer_token: str,
+    analysis_request: RunAnalysisRequest
+
 ):
     runner = AnalysisAgentRunner(
-        user_id=analysis_request.user_id,
+        user_id=user_id,
+        run_id=analysis_request.run_id,
         bearer_token=bearer_token,
         conversation_id=analysis_request.conversation_id,
-        project_id=analysis_request.project_id
+        project_id=analysis_request.project_id,
+        analysis_id=analysis_request.analysis_id,
+        model_entity_ids=analysis_request.model_entity_ids,
+        data_source_ids=analysis_request.data_source_ids,
+        dataset_ids=analysis_request.dataset_ids
     )
 
-    await runner(analysis_request)
+    await runner(analysis_request.prompt_content)

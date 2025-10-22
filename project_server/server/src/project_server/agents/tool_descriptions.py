@@ -16,7 +16,7 @@ TOOL_DESCRIPTIONS = {
     # Analysis tools
     "search_through_datasets": "Searching through datasets",
     "search_through_data_sources": "Searching through data sources",
-    "search_through_analysis_objects": "Searching through analysis objects",
+    "search_through_analyses": "Searching through analyses",
     "search_through_analysis_results": "Searching through analysis results",
     "search_knowledge_bank": "Searching knowledge bank",
     "add_analysis_result_to_notebook_section": "Adding analysis result to section",

@@ -1,20 +1,56 @@
 import uuid
 import docker
-from typing import Optional, List, Callable
 from pathlib import Path
+from typing import Optional, List
 
 from project_server.agents.swe.agent import swe_agent
 from project_server.agents.swe.output import (
-    SWEAgentOutput,
-    ImplementationOutputFull,
-    # SetupAgentOutputWithScript,
-    # submit_setup_output,
-    submit_implementation_output
+    Implementation,
+    FunctionImplementationSummary,
+    FunctionUpdateOutput,
+    ModelUpdateOutput,
+    ModelImplementationSummary,
+    submit_implementation_output,
+    ImplementationSummaryOutputWithImplementation
 )
-from project_server.agents.swe.deps import SWEAgentDeps, FunctionInjected, ModelInjected
-from project_server.utils.code_utils import run_shell_code_in_container, add_line_numbers_to_script
+from project_server.agents.swe.deps import SWEAgentDeps
+from project_server.client import (
+    get_model_entities_by_ids,
+    get_data_sources_by_ids,
+    get_datasets_by_ids,
+    post_pipeline_implementation,
+    post_add_entity,
+    post_function,
+    post_update_function,
+    post_update_model,
+    post_model,
+    post_model_entity_implementation,
+    get_analyses_by_ids
+)
 from project_server.agents.runner_base import RunnerBase, MessageForLog
-from project_server.entity_manager import file_manager
+from project_server.entity_manager import script_manager
+from synesis_schemas.main_server import (
+    GetModelEntityByIDsRequest,
+    GetDataSourcesByIDsRequest,
+    GetDatasetsByIDsRequest,
+    GetAnalysesByIDsRequest,
+    FunctionCreate,
+    ScriptCreate,
+    ModelUpdateCreate,
+    Function,
+    ModelImplementation,
+    ModelEntity,
+    FunctionUpdateCreate,
+    PipelineCreate,
+    AddEntityToProject,
+    ModelImplementationCreate,
+    PipelineImplementationCreate,
+    ModelEntityImplementationCreate,
+    ModelEntityCreate,
+)
+from project_server.agents.swe.sandbox_code import add_submit_pipeline_result_code_to_implementation
+from project_server.worker import broker
+from synesis_schemas.project_server import RunSWERequest
 
 
 class SWEAgentRunner(RunnerBase):
@@ -23,17 +59,15 @@ class SWEAgentRunner(RunnerBase):
             self,
             user_id: str,
             bearer_token: str,
+            project_id: uuid.UUID,
             conversation_id: Optional[uuid.UUID] = None,
-            parent_run_id: Optional[uuid.UUID] = None,
-            log_to_parent_run: bool = True,
             run_id: Optional[uuid.UUID] = None,
-            create_new_container_on_start: bool = False,
-            create_new_container_on_package_installation: bool = True,
+            pipeline_id: Optional[uuid.UUID] = None,
             log: bool = False,
-            structure_ids_to_inject: Optional[List[str]] = None,
-            inject_synthetic_data_descriptions: bool = False,
-            functions_to_inject: Optional[List[FunctionInjected]] = None,
-            models_to_inject: Optional[List[ModelInjected]] = None,
+            model_entity_ids: Optional[List[uuid.UUID]] = None,
+            data_source_ids: Optional[List[uuid.UUID]] = None,
+            dataset_ids: Optional[List[uuid.UUID]] = None,
+            analysis_ids: Optional[List[uuid.UUID]] = None,
     ):
 
         super().__init__(
@@ -43,101 +77,70 @@ class SWEAgentRunner(RunnerBase):
             run_id=run_id,
             run_type="swe",
             conversation_id=conversation_id,
-            parent_run_id=parent_run_id,
-            log_to_parent_run=log_to_parent_run
+            project_id=project_id,
         )
 
-        self.setup_result = None
-        self.implementation_result = None
         self.container = None
         self.log = log
         self.container_name = "project-sandbox"
         self.container_cwd = Path("/app")
-        self.functions_to_inject = functions_to_inject
-        self.models_to_inject = models_to_inject
-        self.structure_ids_to_inject = structure_ids_to_inject
-        self.inject_synthetic_data_descriptions = inject_synthetic_data_descriptions
+        self.pipeline_id = pipeline_id
+
+        self.model_entity_ids = model_entity_ids
+        self.data_source_ids = data_source_ids
+        self.dataset_ids = dataset_ids
+        self.analysis_ids = analysis_ids
+
+        self.model_entities = None
+        self.data_sources = None
+        self.datasets = None
+        self.functions = None
+
         # TODO: Implement these
-        self.create_new_container_on_start = create_new_container_on_start
-        self.create_new_container_on_package_installation = create_new_container_on_package_installation
         self.new_container_created = False
         ##
+
         self.base_image = "project-sandbox"
         self.docker_client = docker.from_env()
-        # Slightly annoying that we set it here, but the state of the deps must be maintained across calls,
-        # and the agent changes variables during tool calls which should be maintained
-        self.deps = SWEAgentDeps(
-            cwd=str(self.container_cwd),
-            container_name=self.container_name,
-            test_code_to_append_to_implementation=None,
-            structure_ids_to_inject=self.structure_ids_to_inject,
-            inject_synthetic_data_descriptions=self.inject_synthetic_data_descriptions,
-            client=self.project_client,
-            log_code=self._log_code,
-        )
 
-        self._inject_functions_and_models()
-
-    async def __call__(
-        self,
-        prompt_content: str,
-        test_code_to_append_to_implementation: Optional[str] = None
-    ) -> SWEAgentOutput:
+    async def __call__(self, prompt_content: str) -> ImplementationSummaryOutputWithImplementation:
 
         try:
+            await self._prepare_deps()
             await self._create_run_if_not_exists()
-            await self._setup_container()
-            self.deps.test_code_to_append_to_implementation = test_code_to_append_to_implementation
+            # await self._setup_container()
 
             swe_prompt = (
                 f"Your instruction is:\n\n'{prompt_content}'\n\n" +
-                "Now choose your action. Write the setup script or the final implementation. " +
-                "In case you have been provided feedback, choose your action based on it. Only redo the steps deemed necessary by the feedback. " +
-                "NB: The setup script must be written and completed before the final implementation." +
-                ""
+                "Go!"
             )
 
-            self.implementation_result = None
+            run_result = await self._run_agent(
+                swe_prompt,
+                output_type=[
+                    # TODO: Add setup, will need to spin up extra container in this case
+                    # submit_setup_output,
+                    submit_implementation_output
+                ],
+                deps=self.deps
+            )
 
-            while not self.implementation_result:
+            self._cleanup_temporary_scripts(run_result.output)
+            await self._save_results(run_result.output)
 
-                run_result = await self._run_agent(
-                    swe_prompt,
-                    output_type=[
-                        # TODO: Add setup, will need to spin up extra container in this case
-                        # submit_setup_output,
-                        submit_implementation_output
-                    ],
-                    deps=self.deps
-                )
-
-                # TODO: 'elif isinstance(run_result.output, SetupAgentOutputWithScript):' ...
-
-                if isinstance(run_result.output, ImplementationOutputFull):
-                    self.implementation_result = run_result.output
-
-                    if self.log:
-                        await self._log_message(MessageForLog(
-                            content=f"Implementation result: {self.implementation_result.model_dump_json()}",
-                            type="result",
-                            write_to_db=1
-                        ))
-
-                else:
-                    raise RuntimeError(
-                        f"Unrecognized agent return type: {run_result.output}")
-
-                swe_prompt = "Choose your action"
+            if self.log:
+                await self._log_message(MessageForLog(
+                    content=f"Implementation result: {run_result.output.model_dump_json()}",
+                    type="result",
+                    write_to_db=1
+                ))
 
             await self._complete_agent_run("SWE agent run completed")
 
-            return SWEAgentOutput(
-                setup=self.setup_result if self.setup_result else None,
-                implementation=self.implementation_result,
-            )
+            return run_result.output
 
         except Exception as e:
-            self.delete_temporary_scripts()
+            self._delete_temporary_scripts()
             await self._fail_agent_run(f"Error running SWE agent: {e}")
             if self.container and self.new_container_created:
                 self.container.stop()
@@ -145,229 +148,321 @@ class SWEAgentRunner(RunnerBase):
                 self.new_container_created = False
             raise e
 
-    def get_final_output(self) -> SWEAgentOutput:
-        self.delete_temporary_scripts()
-        implementation_output = self.implementation_result
-        implementation_output.main_script.script = file_manager.clean_temporary_script(
+    def _delete_temporary_scripts(self) -> None:
+        # Delete current scripts
+        for filename in list(self.deps.current_scripts.keys()):
+            script_manager.delete_temporary_script(filename)
+        # Delete old scripts
+        for filename in list(self.deps.modified_scripts_old_to_new_name.keys()):
+            script_manager.delete_temporary_script(filename)
+
+    def _cleanup_temporary_scripts(self, final_result: ImplementationSummaryOutputWithImplementation) -> None:
+        self._delete_temporary_scripts()
+        implementation_output = final_result.implementation
+        implementation_output.main_script.script = script_manager.clean_temporary_script(
             implementation_output.main_script.script)
 
         for new_script in implementation_output.new_scripts:
-            new_script.script = file_manager.clean_temporary_script(
+            new_script.script = script_manager.clean_temporary_script(
                 new_script.script)
 
         for modified_script in implementation_output.modified_scripts:
-            modified_script.original_script = file_manager.clean_temporary_script(
+            modified_script.original_script = script_manager.clean_temporary_script(
                 modified_script.original_script)
-            modified_script.new_script = file_manager.clean_temporary_script(
+            modified_script.new_script = script_manager.clean_temporary_script(
                 modified_script.new_script)
 
-        self.implementation_result = implementation_output
+    async def _prepare_deps(self) -> None:
 
-        return SWEAgentOutput(
-            implementation=implementation_output,
-            setup=self.setup_result if self.setup_result else None,
-        )
+        self.model_entities = await get_model_entities_by_ids(self.project_client, GetModelEntityByIDsRequest(model_entity_ids=self.model_entity_ids))
+        self.data_sources = await get_data_sources_by_ids(self.project_client, GetDataSourcesByIDsRequest(data_source_ids=self.data_source_ids))
+        self.datasets = await get_datasets_by_ids(self.project_client, GetDatasetsByIDsRequest(dataset_ids=self.dataset_ids))
+        self.analyses = await get_analyses_by_ids(self.project_client, GetAnalysesByIDsRequest(analysis_ids=self.analysis_ids))
 
-    def delete_temporary_scripts(self) -> None:
-        # Delete current scripts
-        for filename in list(self.deps.current_scripts.keys()):
-            file_manager.delete_temporary_script(filename)
-        # Delete old scripts
-        for filename in list(self.deps.modified_scripts_old_to_new_name.keys()):
-            file_manager.delete_temporary_script(filename)
-
-    def _inject_functions_and_models(self) -> SWEAgentDeps:
-
-        current_scripts = {}
-
-        if self.functions_to_inject:
-            assert len(self.functions_to_inject) == len(set(
-                [function_def.filename for function_def in self.functions_to_inject])), "All function names must be unique"
-
-            functions_injected = []
-            for function_def in self.functions_to_inject:
-                with open(function_def.script_path, "r") as f:
-                    script_content = f.read()
-
-                function_storage = file_manager.save_script(
-                    function_def.filename, script_content, "function", add_uuid=False, temporary=True)
-
-                fn = FunctionInjected(
-                    filename=function_storage.filename,
-                    script_path=function_storage.script_path,
-                    docstring=function_def.docstring,
-                    module_path=function_storage.module_path
-                )
-
-                functions_injected.append(fn)
-                current_scripts[function_storage.filename] = script_content
-
-            self.deps.functions_injected = functions_injected
-
-        if self.models_to_inject:
-            assert len(self.models_to_inject) == len(set(
-                [model_def.filename for model_def in self.models_to_inject])), "All model names must be unique"
-
-            models_injected = []
-            for model_def in self.models_to_inject:
-                with open(model_def.script_path, "r") as f:
-                    script_content = f.read()
-
-                model_storage = file_manager.save_script(
-                    model_def.filename, script_content, "model", add_uuid=False, temporary=True)
-
-                mdl = ModelInjected(
-                    filename=model_storage.filename,
-                    script_path=model_storage.script_path,
-                    module_path=model_storage.module_path,
-                    model_class_docstring=model_def.model_class_docstring,
-                    training_function_docstring=model_def.training_function_docstring,
-                    inference_function_docstring=model_def.inference_function_docstring
-                )
-
-                models_injected.append(mdl)
-                current_scripts[model_storage.filename] = script_content
-
-            self.deps.models_injected = models_injected
-
-        self.deps.current_scripts = current_scripts
-
-    async def _setup_container(self) -> None:
-
-        if self.container is not None:
-            return
-
-        if self.create_new_container_on_start:
-            if self.log:
-                await self._log_message(MessageForLog(
-                    content="Setting up Docker container for SWE agent...",
-                    type="tool_call",
-                    write_to_db=1
-                ))
-
-            # Is now sync, blocking the main thread, TODO: Make async
-            self.container = self.docker_client.containers.create(
-                self.base_image,
-                name=self.container_name
-            )
-
-            self.container.start()
-            self.new_container_created = True
-
-            if self.log:
-                await self._log_message(MessageForLog(
-                    content="Docker container started successfully",
-                    type="result",
-                    write_to_db=1
-                ))
-
-        else:
-            try:
-                self.container = self.docker_client.containers.get(
-                    self.container_name)
-            except docker.errors.NotFound:
-                self.container = self.docker_client.containers.create(
-                    self.base_image,
-                    name=self.container_name
-                )
-                self.container.start()
-
-        _, err = await run_shell_code_in_container(
-            f"mkdir -p {str(self.container_cwd)}",
-            container_name=self.container_name
-        )
-
-        if err:
-            if self.log:
-                await self._log_message(MessageForLog(
-                    content=f"Error creating directory: {err}",
-                    type="result",
-                    write_to_db=1
-                ))
-            raise RuntimeError(f"Error creating directory: {err}")
-
-    async def _install_python_version(self, python_version: str) -> None:
-        if self.log:
-            await self._log_message(MessageForLog(
-                content=f"Installing Python version: {python_version}",
-                type="tool_call",
-                write_to_db=1
-            ))
-
-        check_output, _ = await run_shell_code_in_container(
-            f"pyenv versions | grep {python_version}",
-            container_name=self.container_name
-        )
-
-        if not check_output.strip():
-            out, err = await run_shell_code_in_container(
-                f"pyenv install {python_version}",
-                container_name=self.container_name,
-            )
-
-            if err:
-                if self.log:
-                    await self._log_message(MessageForLog(
-                        content=f"Error installing Python version: {err}",
-                        type="result",
-                        write_to_db=1
-                    ))
-                raise RuntimeError(f"Error installing python version: {err}")
-
-        out, err = await run_shell_code_in_container(
-            f"pyenv global {python_version}",
-            container_name=self.container_name
-        )
-
-        if err:
-            if self.log:
-                await self._log_message(MessageForLog(
-                    content=f"Error setting global Python version: {err}",
-                    type="result",
-                    write_to_db=1
-                ))
-            raise RuntimeError(f"Error setting global python version: {err}")
-
-        if self.log:
-            await self._log_message(MessageForLog(
-                content=f"Python {python_version} installed and set as global version",
-                type="result",
-                write_to_db=1
-            ))
-
-        return out
-
-    async def _run_setup_script(self, setup_script: str) -> None:
-        if self.log:
-            await self._log_message(MessageForLog(
-                content="Running setup script...",
-                type="tool_call",
-                write_to_db=1
-            ))
-
-        out, err = await run_shell_code_in_container(
-            setup_script,
+        deps = SWEAgentDeps(
+            cwd=str(self.container_cwd),
             container_name=self.container_name,
-            cwd=str(self.container_cwd)
+            bearer_token=self.bearer_token,
+            client=self.project_client,
+            log_code=self._log_code,
+            model_entities_injected=self.model_entities,
+            data_sources_injected=self.data_sources,
+            datasets_injected=self.datasets,
+            analyses_injected=self.analyses,
+            conversation_id=self.conversation_id
         )
 
-        if err:
-            if self.log:
-                await self._log_message(MessageForLog(
-                    content=f"Error running setup script: {err}",
-                    type="result",
-                    write_to_db=1
-                ))
-            raise RuntimeError(f"Error running setup script: {err}")
+        if self.model_entities:
+            for model_entity in self.model_entities:
+                with open(model_entity.implementation.model_implementation.implementation_script.path, "r") as f:
+                    script_content = f.read()
 
-        if self.log:
-            await self._log_message(MessageForLog(
-                content="Setup script run successfully",
-                type="result",
-                write_to_db=1
+                model_storage = script_manager.save_script(
+                    model_entity.implementation.model_implementation.implementation_script.filename, script_content, "model", add_uuid=False, temporary=True)
+
+                deps.current_scripts[model_storage.filename] = script_content
+
+        # The functions will be injected when the agent searches for them, as we don't know yet which functions are needed
+
+        self.deps = deps
+
+    def _get_new_functions_create(
+        self,
+        new_functions: List[FunctionImplementationSummary],
+        implementation: Implementation
+    ) -> List[FunctionCreate]:
+
+        new_functions_create = []
+
+        for fn_desc in new_functions:
+            script = next(
+                (res.script for res in implementation.new_scripts if res.filename == fn_desc.filename), None)
+
+            assert script is not None, f"Agent outputted a new script but no script for function {fn_desc.filename} found"
+
+            implementation_storage = script_manager.save_script(
+                fn_desc.filename,
+                script,
+                "function"
+            )
+
+            new_function = FunctionCreate(
+                **fn_desc.model_dump(),
+                implementation_script_create=ScriptCreate(
+                    path=str(implementation_storage.script_path),
+                    filename=implementation_storage.filename,
+                    module_path=implementation_storage.module_path,
+                    type="function"
+                )
+            )
+
+            new_functions_create.append(new_function)
+
+        return new_functions_create
+
+    def _get_new_models_create(
+        self,
+        new_models: List[ModelImplementationSummary],
+        implementation: Implementation
+    ) -> List[ModelImplementationCreate]:
+
+        new_models_create = []
+
+        for model_desc in new_models:
+            script = next(
+                (res.script for res in implementation.new_scripts if res.filename == model_desc.filename), None)
+
+            assert script is not None, f"Agent outputted a new model script but no script for model {model_desc.filename} found"
+
+            implementation_storage = script_manager.save_script(
+                model_desc.filename,
+                script,
+                "model"
+            )
+
+            new_models_create.append(ModelImplementationCreate(
+                **model_desc.model_dump(),
+                public=False,  # TODO: Make this configurable
+                implementation_script_create=ScriptCreate(
+                    path=str(implementation_storage.script_path),
+                    filename=implementation_storage.filename,
+                    module_path=implementation_storage.module_path,
+                    type="model"
+                )
             ))
 
-        return out
+        return new_models_create
 
-    async def _save_results(self, results: SWEAgentOutput) -> None:
-        pass
+    def _get_function_updates_create(
+        self,
+        function_updates: List[FunctionUpdateOutput],
+        functions_used: List[Function],
+        implementation: Implementation
+    ) -> List[FunctionUpdateCreate]:
+
+        functions_updated = []
+
+        for fn in functions_used:
+            update = next(
+                (u for u in function_updates if u.definition_id == fn.definition.id), None)
+            if update is not None:
+                new_script, new_filename = next(
+                    ((res.new_script, res.new_filename)
+                     for res in implementation.modified_scripts if res.original_filename == fn.implementation_script.filename), (None, None))
+
+                assert new_script is not None, f"Agent outputted a modification but no new script for function {fn.implementation_script.filename} found"
+
+                implementation_storage = script_manager.save_script(
+                    new_filename,
+                    new_script,
+                    "function"
+                )
+
+                functions_updated.append(FunctionUpdateCreate(
+                    **update.model_dump(),
+                    new_implementation_create=ScriptCreate(
+                        path=str(implementation_storage.script_path),
+                        filename=implementation_storage.filename,
+                        module_path=implementation_storage.module_path,
+                        type="function"
+                    ),
+                ))
+
+        return functions_updated
+
+    def _get_model_updates_create(
+        self,
+        model_updates: List[ModelUpdateOutput],
+        models_used: List[ModelEntity],
+        implementation: Implementation
+    ) -> List[ModelUpdateCreate]:
+
+        models_updated = []
+
+        for model_entity in models_used:
+            update = next(
+                (u for u in model_updates if u.definition_id == model_entity.implementation.model_implementation.definition.id), None)
+            if update is not None:
+                new_script, new_filename = next(
+                    ((res.new_script, res.new_filename)
+                     for res in implementation.modified_scripts if res.original_filename == model_entity.implementation.model_implementation.implementation_script.filename), (None, None))
+
+                assert new_script is not None, f"Agent outputted a modification but no new script for model {model_entity.implementation.model_implementation.implementation_script.filename} found"
+
+                implementation_storage = script_manager.save_script(
+                    new_filename,
+                    new_script,
+                    "model"
+                )
+
+                models_updated.append(ModelUpdateCreate(
+                    **update.model_dump(),
+                    new_implementation_create=ScriptCreate(
+                        path=str(implementation_storage.script_path),
+                        filename=implementation_storage.filename,
+                        module_path=implementation_storage.module_path,
+                        type="model"
+                    ),
+                    model_entities_to_update=[model_entity.id]
+                ))
+        return models_updated
+
+    async def _save_results(self, final_result: ImplementationSummaryOutputWithImplementation) -> None:
+        # TODO: Add validation to ensure the new scripts don't already exist
+
+        new_function_creates = self._get_new_functions_create(
+            final_result.new_supporting_functions, final_result.implementation)
+
+        new_model_creates = self._get_new_models_create(
+            final_result.new_models, final_result.implementation)
+
+        new_models: List[ModelImplementation] = []
+        for model_create in new_model_creates:
+            new_model = await post_model(self.project_client, model_create)
+            new_models.append(ModelImplementation(**new_model.model_dump()))
+
+        new_functions = []
+        for function_create in new_function_creates:
+            new_function = await post_function(self.project_client, function_create)
+            new_functions.append(Function(**new_function.model_dump()))
+
+        function_update_creates = self._get_function_updates_create(
+            final_result.modified_functions, final_result.functions_used, final_result.implementation)
+
+        for function_update in function_update_creates:
+            await post_update_function(self.project_client, function_update)
+
+        model_update_creates = self._get_model_updates_create(
+            final_result.modified_models, self.model_entities, final_result.implementation)
+
+        for model_update in model_update_creates:
+            await post_update_model(self.project_client, model_update)
+
+        final_script = add_submit_pipeline_result_code_to_implementation(
+            final_result.implementation.main_script.script,
+            final_result.new_main_function.output_object_group_definitions,
+            final_result.new_main_function.output_variables_schema
+        )
+
+        pipeline_script = script_manager.save_script(
+            f"{final_result.new_main_function.python_function_name}.py", final_script, "pipeline", add_uuid=True, temporary=False)
+
+        # If new models are created, create new model entities for them to be used as inputs to the pipeline
+
+        new_model_entity_ids = []
+        for mdl in new_models:
+            new_model_entity = await post_model_entity_implementation(self.project_client, ModelEntityImplementationCreate(
+                config=mdl.default_config,
+                weights_save_dir=None,
+                pipeline_id=self.pipeline_id,
+                model_implementation_id=mdl.id,
+                model_entity_create=ModelEntityCreate(
+                    name=f"{mdl.definition.name} unfitted",
+                    description=mdl.description
+                )
+            ))
+
+            await post_add_entity(self.project_client, AddEntityToProject(
+                project_id=self.project_id,
+                entity_type="model_entity",
+                entity_id=new_model_entity.id
+            ))
+
+            new_model_entity_ids.append(new_model_entity.id)
+
+        if not self.pipeline_id:
+            pipeline_create = PipelineCreate(
+                name=final_result.new_main_function.name,
+                description=final_result.new_main_function.description,
+                input_data_source_ids=self.data_source_ids,
+                input_dataset_ids=self.dataset_ids,
+                input_model_entity_ids=self.model_entity_ids+new_model_entity_ids
+            )
+        else:
+            pipeline_create = None
+
+        pipeline_implementation_create = PipelineImplementationCreate(
+            **final_result.new_main_function.model_dump(),
+            args=final_result.new_main_function.default_args,
+            implementation_script_create=ScriptCreate(
+                path=str(pipeline_script.script_path),
+                filename=pipeline_script.filename,
+                module_path=pipeline_script.module_path,
+                type="pipeline"
+            ),
+            function_ids=[
+                f.id for f in final_result.functions_used + new_functions],
+            pipeline_create=pipeline_create,
+            pipeline_id=self.pipeline_id
+        )
+
+        pipeline_response = await post_pipeline_implementation(self.project_client, pipeline_implementation_create)
+
+        if not self.pipeline_id:
+            await post_add_entity(self.project_client, AddEntityToProject(
+                project_id=self.project_id,
+                entity_type="pipeline",
+                entity_id=pipeline_response.id
+            ))
+
+
+@broker.task
+async def run_swe_task(
+    user_id: uuid.UUID,
+    bearer_token: str,
+    swe_request: RunSWERequest
+):
+    runner = SWEAgentRunner(
+        user_id=user_id,
+        bearer_token=bearer_token,
+        project_id=swe_request.project_id,
+        conversation_id=swe_request.conversation_id,
+        run_id=swe_request.run_id,
+        pipeline_id=swe_request.pipeline_id,
+        data_source_ids=swe_request.data_source_ids,
+        dataset_ids=swe_request.dataset_ids,
+        model_entity_ids=swe_request.model_entity_ids,
+        analysis_ids=swe_request.analysis_ids
+    )
+
+    await runner(swe_request.prompt_content)

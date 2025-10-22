@@ -6,8 +6,8 @@ from typing import List
 
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.analysis.models import (
-    analysis_object, 
-    analysis_result, 
+    analysis,
+    analysis_result,
     notebook_section,
     notebook,
 )
@@ -30,16 +30,18 @@ from synesis_api.modules.analysis.service.service_analysis_result import (
     delete_analysis_result,
 )
 
+
 async def create_section(notebook_section_create: NotebookSectionCreate) -> NotebookSectionInDB:
-    analysis_object_from_db = await fetch_one(
-        select(analysis_object).where(analysis_object.c.id == notebook_section_create.analysis_object_id)
+    analysis_from_db = await fetch_one(
+        select(analysis).where(analysis.c.id ==
+                               notebook_section_create.analysis_id)
     )
-    last_type, last_id = await get_last_element_in_section(notebook_section_create.parent_section_id, analysis_object_from_db["notebook_id"])
+    last_type, last_id = await get_last_element_in_section(notebook_section_create.parent_section_id, analysis_from_db["notebook_id"])
 
     notebook_section_in_db = NotebookSectionInDB(
         id=uuid.uuid4(),
         **notebook_section_create.model_dump(),
-        notebook_id=analysis_object_from_db["notebook_id"]
+        notebook_id=analysis_from_db["notebook_id"]
     )
     await execute(
         insert(notebook_section).values(
@@ -47,7 +49,6 @@ async def create_section(notebook_section_create: NotebookSectionCreate) -> Note
         ),
         commit_after=True
     )
-
 
     if last_type == "analysis_result":
         await execute(
@@ -74,16 +75,17 @@ async def get_notebook_section_by_id(section_id: uuid.UUID) -> NotebookSectionIn
     )
     return NotebookSectionInDB(**result)
 
+
 async def delete_notebook_section(section_id: uuid.UUID) -> None:
     # Delete associated analysis results first due to foreign key constraints
     analysis_results_for_section = await get_analysis_results_by_section_id(section_id)
     for analysis_result_from_db in analysis_results_for_section:
         await delete_analysis_result(analysis_result_from_db.id)
-    
+
     # Then delete the section itself
     section = await get_notebook_section_by_id(section_id)
     last_type, last_id = await get_prev_element(section.id, "notebook_section", section.parent_section_id)
-    
+
     if last_type == "analysis_result":
         await execute(
             update(analysis_result).where(analysis_result.c.id == last_id).values(
@@ -105,11 +107,14 @@ async def delete_notebook_section(section_id: uuid.UUID) -> None:
         commit_after=True
     )
 
+
 async def get_child_sections(parent_section_id: uuid.UUID | None) -> List[NotebookSectionInDB]:
     results = await fetch_all(
-        select(notebook_section).where(notebook_section.c.parent_section_id == parent_section_id)
+        select(notebook_section).where(
+            notebook_section.c.parent_section_id == parent_section_id)
     )
     return [NotebookSectionInDB(**result) for result in results]
+
 
 async def delete_notebook_section_recursive(section_id: uuid.UUID) -> None:
     child_sections = await get_child_sections(section_id)
@@ -130,6 +135,7 @@ async def create_notebook() -> NotebookInDB:
     )
     return notebook_in_db
 
+
 async def get_notebook_by_id(notebook_id: uuid.UUID) -> Notebook:
     result = await fetch_one(
         select(notebook).where(notebook.c.id == notebook_id)
@@ -138,9 +144,9 @@ async def get_notebook_by_id(notebook_id: uuid.UUID) -> Notebook:
         raise HTTPException(
             status_code=404, detail="Notebook not found"
         )
-    
+
     notebook_sections = await get_notebook_sections_by_notebook_id(notebook_id)
-    
+
     return Notebook(**result, notebook_sections=notebook_sections)
 
 
@@ -153,18 +159,18 @@ async def get_notebook_sections_by_notebook_id(notebook_id: uuid.UUID) -> List[N
             )
         )
     )
-    
+
     sections = []
     for result in results:
         analysis_results = await get_analysis_results_by_section_id(result["id"])
         child_sections = await get_child_sections_recursive(result["id"])
-        
+
         sections.append(NotebookSection(
             **result,
             analysis_results=analysis_results,
             notebook_sections=child_sections
         ))
-    
+
     return sections
 
 
@@ -174,20 +180,19 @@ async def get_child_sections_recursive(section_id: uuid.UUID) -> List[NotebookSe
             notebook_section.c.parent_section_id == section_id
         )
     )
-    
+
     sections = []
     for result in results:
         analysis_results = await get_analysis_results_by_section_id(result["id"])
         grandchild_sections = await get_child_sections_recursive(result["id"])
-        
+
         sections.append(NotebookSection(
             **result,
             analysis_results=analysis_results,
             notebook_sections=grandchild_sections
         ))
-    
-    return sections
 
+    return sections
 
 
 async def get_section_by_id(section_id: uuid.UUID) -> NotebookSectionInDB:
@@ -195,6 +200,7 @@ async def get_section_by_id(section_id: uuid.UUID) -> NotebookSectionInDB:
         select(notebook_section).where(notebook_section.c.id == section_id)
     )
     return NotebookSectionInDB(**result)
+
 
 async def update_section(section_id: uuid.UUID, section_update: NotebookSectionUpdate) -> NotebookSectionInDB:
     await execute(
@@ -207,8 +213,6 @@ async def update_section(section_id: uuid.UUID, section_update: NotebookSectionU
     return section
 
 
-
-
 async def move_element(move_request: MoveRequest) -> None:
     # Get the moving element
     if move_request.moving_element_type == "analysis_result":
@@ -219,10 +223,10 @@ async def move_element(move_request: MoveRequest) -> None:
         moving_element = await get_notebook_section_by_id(move_request.moving_element_id)
         if moving_element.next_id == move_request.next_element_id and moving_element.next_type == move_request.next_element_type and moving_element.parent_section_id == move_request.new_section_id:
             return None
-    
+
     new_prev_element_type, new_prev_element_id = await get_prev_element(move_request.next_element_id, move_request.next_element_type, move_request.new_section_id)
     old_prev_element_type, old_prev_element_id = await get_prev_element(move_request.moving_element_id, move_request.moving_element_type, move_request.new_section_id)
-    
+
     # Update the old previous element's next element to the moving element's current next element
     if old_prev_element_type == "analysis_result":
         await execute(
@@ -278,5 +282,5 @@ async def move_element(move_request: MoveRequest) -> None:
             ),
             commit_after=True
         )
-        
+
     return None

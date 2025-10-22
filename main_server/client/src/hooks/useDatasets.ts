@@ -8,7 +8,7 @@ import { UUID } from "crypto";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 async function fetchDatasets(token: string, projectId: UUID): Promise<Dataset[]> {
-  const response = await fetch(`${API_URL}/data-objects/project-datasets/${projectId}`, {
+  const response = await fetch(`${API_URL}/project/project-datasets/${projectId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'

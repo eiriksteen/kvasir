@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import List, Optional, Union, Dict, Any
 from dataclasses import dataclass
 
-from synesis_data_structures.time_series.df_dataclasses import TimeSeriesStructure, TimeSeriesAggregationStructure
+from synesis_data_interface.structures.time_series.raw import TimeSeriesStructure
+from synesis_data_interface.structures.time_series_aggregation.raw import TimeSeriesAggregationStructure
 
 
 @dataclass
@@ -42,6 +43,7 @@ class TimeSeriesAggregationObjectGroupCreateWithRawData(ObjectGroupCreateWithRaw
 class VariableGroupCreateWithRawData:
     name: str
     description: str
+    group_schema: Dict[str, Any]
     data: Dict[str, Any] | object
 
 

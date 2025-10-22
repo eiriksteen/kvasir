@@ -1,9 +1,10 @@
 from uuid import UUID
 from datetime import datetime
-from typing import List, Union, Literal, Optional
+from typing import List, Union, Literal, Optional, Dict, Any
 from pydantic import BaseModel
 
-from .data_objects import FeatureInDB
+
+DATA_SOURCE_TYPE_LITERAL = Literal["tabular_file", "key_value_file"]
 
 
 # DB Models
@@ -11,7 +12,7 @@ from .data_objects import FeatureInDB
 class DataSourceInDB(BaseModel):
     id: UUID
     user_id: UUID
-    type: Literal["file"]
+    type: DATA_SOURCE_TYPE_LITERAL
     name: str
     created_at: datetime
 
@@ -24,9 +25,20 @@ class TabularFileDataSourceInDB(BaseModel):
     file_size_bytes: int
     num_rows: int
     num_columns: int
+    json_schema: Dict[str, Any]
     created_at: datetime
     updated_at: datetime
-    content_preview: Optional[str] = None
+    content_preview: str
+
+
+class KeyValueFileDataSourceInDB(BaseModel):
+    id: UUID
+    file_name: str
+    file_path: str
+    file_type: str
+    file_size_bytes: int
+    created_at: datetime
+    updated_at: datetime
 
 
 class DataSourceAnalysisInDB(BaseModel):
@@ -40,33 +52,17 @@ class DataSourceAnalysisInDB(BaseModel):
     updated_at: datetime
 
 
-class FeatureInTabularFileInDB(BaseModel):
-    feature_name: str
-    tabular_file_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
 # API Models
 
 
-class TabularFileDataSource(DataSourceInDB, TabularFileDataSourceInDB):
-    features: List[FeatureInDB]
-    analysis: Optional[DataSourceAnalysisInDB] = None
-
-
 # We include data source in db for the cases where the analysis agent hasn't yet finished the analysis to create the full data source object
-DataSourceFull = Union[DataSourceInDB, TabularFileDataSource]
+# DataSource = Union[DataSourceInDB, TabularFileDataSource]
 
-
-class DetailedDataSourceRecords(BaseModel):
-    tabular_records: List[TabularFileDataSource]
-    # TODO: Add other data source types here
-
-
-class FileSavedResponse(BaseModel):
-    file_id: UUID
-    file_path: str
+class DataSource(DataSourceInDB):
+    # Add more possibilities here, and todo make non-optional
+    type_fields: Union[TabularFileDataSourceInDB, KeyValueFileDataSourceInDB]
+    analysis: Optional[DataSourceAnalysisInDB] = None
+    description_for_agent: str
 
 
 class GetDataSourcesByIDsRequest(BaseModel):
@@ -76,20 +72,24 @@ class GetDataSourcesByIDsRequest(BaseModel):
 # Create models
 
 
-class DataSourceCreate(BaseModel):
-    name: str
-    type: str
-
-
 class TabularFileDataSourceCreate(BaseModel):
-    data_source_id: UUID
+    name: str
     file_name: str
     file_path: str
     file_type: str
     file_size_bytes: int
+    json_schema: Dict[str, Any]
     num_rows: int
     num_columns: int
-    content_preview: Optional[str] = None
+    content_preview: str
+
+
+class KeyValueFileDataSourceCreate(BaseModel):
+    name: str
+    file_name: str
+    file_path: str
+    file_type: str
+    file_size_bytes: int
 
 
 class DataSourceAnalysisCreate(BaseModel):

@@ -1,11 +1,19 @@
-import { Project, ProjectCreate, ProjectDetailsUpdate, AddEntityToProject, RemoveEntityFromProject } from "@/types/project";
-import { FrontendNode, FrontendNodeCreate } from "@/types/node";
+import { 
+  Project, 
+  ProjectCreate, 
+  ProjectDetailsUpdate, 
+  AddEntityToProject, 
+  RemoveEntityFromProject,
+  UpdateEntityPosition 
+} from "@/types/project";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { useCallback, useMemo } from "react";
 import { UUID } from "crypto";
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
+
+type EntityType = "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -104,77 +112,25 @@ async function removeEntityFromProject(token: string, entityData: RemoveEntityFr
   return snakeToCamelKeys(data);
 }
 
-async function fetchProjectNodes(token: string, projectId: string): Promise<FrontendNode[]> {
-  const response = await fetch(`${API_URL}/node/project/${projectId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to fetch time series data', errorText);
-    throw new Error(`Failed to fetch time series data: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-async function updateNodePosition(token: string, node: FrontendNode): Promise<FrontendNode> {
-  const response = await fetch(`${API_URL}/node/update-node/${node.id}`, {
-    method: 'PUT',
+async function updateEntityPosition(token: string, positionData: UpdateEntityPosition): Promise<Project> {
+  const response = await fetch(`${API_URL}/project/update-entity-position`, {
+    method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(camelToSnakeKeys(node))
+    body: JSON.stringify(camelToSnakeKeys(positionData))
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to update node position: ${response.status} ${errorText}`);
+    throw new Error(`Failed to update entity position: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
   return snakeToCamelKeys(data);
 }
 
-async function createNode(token: string, node: FrontendNodeCreate): Promise<FrontendNode> {
-  const response = await fetch(`${API_URL}/node/create-node`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(camelToSnakeKeys(node))
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create node: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-async function deleteNode(token: string, nodeId: UUID): Promise<UUID> {
-  const response = await fetch(`${API_URL}/node/delete/${nodeId}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to delete node: ${response.status} ${errorText}`);
-  }
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
 
 
 export const useProjects = () => {
@@ -185,6 +141,7 @@ export const useProjects = () => {
     () => fetchProjects(session ? session.APIToken.accessToken : ""),
     { fallbackData: [] }
   );
+
 
   const {trigger: triggerUpdateProject} = useSWRMutation(
     "projects",
@@ -238,113 +195,112 @@ export const useProject = (projectId: UUID) => {
   // Store selected project
   const project = useMemo(() => projects.find(project => project.id === projectId), [projects, projectId]);
 
-  // Fetch nodes for the selected project
-  const { data: frontendNodes, error: nodesError, isLoading: nodesLoading, mutate: mutateNodes } = useSWR(
-    // Could use selectedProject.id as the second part of the key, but doing it this way will update the nodes also when the projects change
-    session && project ? ['projectNodes', project] : null,
-    () => fetchProjectNodes(session?.APIToken?.accessToken || '', projectId),
-    { fallbackData: [] }
-  );
-
-  // Update node position
+  // Update entity position
   const { trigger: updatePosition } = useSWRMutation(
-    session && project ? ['projectNodes', project.id] : null,
-    async (_, { arg }: { arg: FrontendNode }) => {
-      const node = frontendNodes?.find(n => n.id === arg.id);
-      if (!node) return frontendNodes;
+    "projects",
+    async (_, { arg }: { arg: { entityType: EntityType, entityId: UUID, xPosition: number, yPosition: number } }) => {
+      if (!project) return projects;
 
-      const updatedNode = await updateNodePosition(
+      await updateEntityPosition(
         session?.APIToken?.accessToken || '',
-        arg
+        {
+          projectId: project.id,
+          entityType: arg.entityType,
+          entityId: arg.entityId,
+          xPosition: arg.xPosition,
+          yPosition: arg.yPosition
+        }
       );
 
-      return frontendNodes?.map(n => n.id === arg.id ? updatedNode : n) || [];
-    },
-    {
-      populateCache: (newData) => newData,
-      revalidate: false
-    }
-  );
+      // Optimistically update the project in the cache
+      const updatedProjects = projects.map(p => {
+        if (p.id !== project.id) return p;
 
-  // Create node
-  const { trigger: createFrontendNode } = useSWRMutation(
-    session && project ? ['projectNodes', project.id] : null,
-    async (_, { arg }: { arg: FrontendNodeCreate }) => {
-      const res = await createNode(session?.APIToken?.accessToken || '', arg);
-      return res;
-    },
-    {
-      populateCache: (newNode) => {
-        return [...(frontendNodes || []), newNode];
-      },
-      revalidate: false
-    }
-  );
-
-  // Delete node
-  const { trigger: deleteNodeTrigger } = useSWRMutation(
-    session && project ? ['projectNodes', project.id] : null,
-    async (_, { arg }: { arg: UUID } ) => {
-      return await deleteNode(session?.APIToken?.accessToken || '', arg);
-    },
-    {
-      populateCache: ( newData: UUID ) => {
-        if (frontendNodes) {
-          return frontendNodes.filter((node) => node.id !== newData);
+        // Update the appropriate entity list
+        switch (arg.entityType) {
+          case "data_source":
+            return {
+              ...p,
+              dataSources: p.dataSources.map(ds => 
+                ds.dataSourceId === arg.entityId 
+                  ? { ...ds, xPosition: arg.xPosition, yPosition: arg.yPosition }
+                  : ds
+              )
+            };
+          case "dataset":
+            return {
+              ...p,
+              datasets: p.datasets.map(ds => 
+                ds.datasetId === arg.entityId 
+                  ? { ...ds, xPosition: arg.xPosition, yPosition: arg.yPosition }
+                  : ds
+              )
+            };
+          case "analysis":
+            return {
+              ...p,
+              analyses: p.analyses.map(a => 
+                a.analysisId === arg.entityId 
+                  ? { ...a, xPosition: arg.xPosition, yPosition: arg.yPosition }
+                  : a
+              )
+            };
+          case "pipeline":
+            return {
+              ...p,
+              pipelines: p.pipelines.map(pl => 
+                pl.pipelineId === arg.entityId 
+                  ? { ...pl, xPosition: arg.xPosition, yPosition: arg.yPosition }
+                  : pl
+              )
+            };
+          case "model_entity":
+            return {
+              ...p,
+              modelEntities: p.modelEntities.map(me => 
+                me.modelEntityId === arg.entityId 
+                  ? { ...me, xPosition: arg.xPosition, yPosition: arg.yPosition }
+                  : me
+              )
+            };
+          default:
+            return p;
         }
-        return [];
-      },
+      });
+
+      return updatedProjects;
+    },
+    {
+      populateCache: (updatedProjects) => updatedProjects,
       revalidate: false
     }
   );
 
   const updateProjectAndNode = useCallback(async (data: ProjectDetailsUpdate) => {
     if (!project) return;
-
     await triggerUpdateProject({data, projectId: project.id});
-    
-    mutateNodes();
-  }, [project, triggerUpdateProject, mutateNodes]);
+  }, [project, triggerUpdateProject]);
 
   const calculateNodePosition = useCallback(() => {
-    if (!frontendNodes) {
-      return { x: -300, y: 0 };
-    }
-
-    const datasetNodes = frontendNodes.filter(node => node.type === "data_source");
-
-    if (datasetNodes.length === 0) {
+    if (!project || project.dataSources.length === 0) {
       return { x: -300, y: 0 };
     }
 
     const baseX = -300;
     const verticalSpacing = 75; 
 
-    const yPositions = datasetNodes.map(node => node.yPosition);
+    const yPositions = project.dataSources.map(ds => ds.yPosition);
     const highestY = Math.max(...yPositions);
 
     return { x: baseX, y: highestY + verticalSpacing };
-  }, [frontendNodes]);
-
+  }, [project]);
 
   // Unified function to add any entity to project
-  const addEntity = async (entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity", entityId: UUID) => {
+  const addEntity = async (
+    entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity", 
+    entityId: UUID
+  ) => {
     if (!project) return;
-
-    //const position = calculateNodePosition();
-
-    // Create the node for the entity
-    await createFrontendNode({
-      projectId: project.id,
-      xPosition: null,
-      yPosition: null,
-      type: entityType,
-      dataSourceId: entityType === "data_source" ? entityId : null,
-      datasetId: entityType === "dataset" ? entityId : null,
-      analysisId: entityType === "analysis" ? entityId : null,
-      pipelineId: entityType === "pipeline" ? entityId : null,
-      modelEntityId: entityType === "model_entity" ? entityId : null,
-    });
 
     // Update the project to include the entity
     await addEntityToProject(session?.APIToken?.accessToken || '', {
@@ -367,40 +323,15 @@ export const useProject = (projectId: UUID) => {
       entityId: entityId as UUID,
     });
 
-    // Find and delete the corresponding node
-    let nodeToDelete;
-    switch (entityType) {
-      case "data_source":
-        nodeToDelete = frontendNodes?.find(node => node.dataSourceId === entityId);
-        break;
-      case "dataset":
-        nodeToDelete = frontendNodes?.find(node => node.datasetId === entityId);
-        break;
-      case "analysis":
-        nodeToDelete = frontendNodes?.find(node => node.analysisId === entityId);
-        break;
-      case "pipeline":
-        nodeToDelete = frontendNodes?.find(node => node.pipelineId === entityId);
-        break;
-      case "model_entity":
-        nodeToDelete = frontendNodes?.find(node => node.modelEntityId === entityId);
-        break;
-    }
-    
-    if (nodeToDelete) {
-      await deleteNodeTrigger(nodeToDelete.id);
-    }
+    mutateProjects();
   };
 
   return {
     project,
-    frontendNodes,
-    error: nodesError,
-    isLoading: nodesLoading,
+    error: null,
+    isLoading: !project,
     updateProjectAndNode,
     updatePosition,
-    createFrontendNode,
-    deleteNodeTrigger,
     addEntity,
     removeEntity,
     calculateDatasetPosition: calculateNodePosition,

@@ -1,45 +1,27 @@
 import { UUID } from "crypto";
 import { FunctionWithoutEmbedding } from "./function";
-import { ObjectGroup } from "./data-objects";
-import { RunInDB } from "./runs";
+import { ScriptInDB } from "./code";
 
-// Minimal DB Models needed by API types
+// DB Models
 
-export interface ModelEntityInPipelineInDB {
-  modelEntityId: UUID;
-  pipelineId: UUID;
-  codeVariableName: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PipelinePeriodicScheduleInDB {
+export interface PipelineInDB {
   id: UUID;
-  pipelineId: UUID;
-  startTime: string;
-  endTime: string;
-  scheduleDescription: string;
-  cronExpression: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PipelineOnEventScheduleInDB {
-  id: UUID;
-  pipelineId: UUID;
-  eventListenerScriptPath: string;
-  eventDescription: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PipelineOutputObjectGroupDefinitionInDB {
-  id: UUID;
-  pipelineId: UUID;
+  userId: UUID;
   name: string;
-  structureId: string;
   description: string;
-  outputEntityIdName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PipelineImplementationInDB {
+  id: UUID;
+  pythonFunctionName: string;
+  docstring: string;
+  description: string;
+  args: Record<string, unknown>;
+  argsSchema: Record<string, unknown>;
+  outputVariablesSchema: Record<string, unknown>;
+  implementationScriptId: UUID;
   createdAt: string;
   updatedAt: string;
 }
@@ -47,64 +29,34 @@ export interface PipelineOutputObjectGroupDefinitionInDB {
 export interface PipelineRunInDB {
   id: UUID;
   pipelineId: UUID;
-  status: string;
+  status: "running" | "completed" | "failed";
   startTime: string;
-  endTime: string;
+  endTime: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-
 // API Models
 
-export interface PipelineSources {
+export interface PipelineInputEntities {
+  dataSourceIds: UUID[];
   datasetIds: UUID[];
   modelEntityIds: UUID[];
 }
 
-export interface PipelineGraphNode {
-  id: UUID;
-  entityId: UUID;
-  type: "dataset" | "function" | "model_entity";
-  modelFunctionType?: "training" | "inference" | null;
-  fromModelEntityIds: UUID[];
-  fromFunctionIds: UUID[];
-  fromDatasetIds: UUID[];
+export interface PipelineOutputEntities {
+  datasetIds: UUID[];
+  modelEntityIds: UUID[];
 }
 
-export interface PipelineGraph {
-  nodes: PipelineGraphNode[];
-}
-
-export interface PipelineFull {
-  id: UUID;
-  userId: UUID;
-  name: string;
-  pythonFunctionName: string;
-  filename: string;
-  modulePath: string;
-  description: string;
-  docstring: string;
-  args: Record<string, unknown>;
-  argsSchema: Record<string, unknown>;
-  outputVariablesSchema: Record<string, unknown>;
-  implementationScriptPath: string;
-  argsDataclassName: string;
-  inputDataclassName: string;
-  outputDataclassName: string;
-  outputVariablesDataclassName: string;
-  createdAt: string;
-  updatedAt: string;
+export interface PipelineImplementation extends PipelineImplementationInDB {
   functions: FunctionWithoutEmbedding[];
-  modelEntities: ModelEntityInPipelineInDB[];
-  runs: RunInDB[];
-  periodicSchedules: PipelinePeriodicScheduleInDB[];
-  onEventSchedules: PipelineOnEventScheduleInDB[];
-  computationalGraph: PipelineGraph;
-  sources: PipelineSources;
-  inputObjectGroups: ObjectGroup[];
-  outputObjectGroupDefinitions: PipelineOutputObjectGroupDefinitionInDB[];
+  implementationScript: ScriptInDB;
+  runs: PipelineRunInDB[];
 }
 
-// Type alias for usage in components
-export type Pipeline = PipelineFull;
+export interface Pipeline extends PipelineInDB {
+  inputs: PipelineInputEntities;
+  outputs: PipelineOutputEntities;
+  implementation: PipelineImplementation | null;
+}

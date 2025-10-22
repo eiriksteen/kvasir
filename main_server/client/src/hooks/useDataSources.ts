@@ -1,7 +1,7 @@
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
-import { DataSourceBase, DataSource } from '@/types/data-sources';
+import { DataSource } from '@/types/data-sources';
 import { useMemo } from "react";
 import { UUID } from "crypto";
 import { snakeToCamelKeys } from "@/lib/utils";
@@ -27,7 +27,7 @@ async function fetchDataSources(token: string): Promise<DataSource[]> {
 
 
 async function fetchProjectDataSources(token: string, projectId: UUID): Promise<DataSource[]> {
-  const response = await fetch(`${API_URL}/data-sources/project-data-sources/${projectId}`, {
+  const response = await fetch(`${API_URL}/project/project-data-sources/${projectId}`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -43,30 +43,50 @@ async function fetchProjectDataSources(token: string, projectId: UUID): Promise<
   return snakeToCamelKeys(data);
 }
 
-async function createFileDataSource(token: string, files: File[]): Promise<DataSourceBase[]> {
-  const results = await Promise.all(files.map(async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
 
-    const response = await fetch(`${API_URL}/data-sources/file-data-source`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      body: formData
-    });
+async function createTabularFileDataSource(token: string, file: File): Promise<DataSource> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_URL}/data-sources/tabular-file-data-source`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: formData
+  });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Failed to create file data source', errorText);
-      throw new Error(`Failed to create file data source: ${response.status} ${errorText}`);
+      console.error('Failed to create tabular file data source', errorText);
+      throw new Error(`Failed to create tabular file data source: ${response.status} ${errorText}`);
     }
 
     const data = await response.json();
     return snakeToCamelKeys(data);
-  }));
+}
 
-  return results;
+
+async function createKeyValueFileDataSource(token: string, file: File): Promise<DataSource> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_URL}/data-sources/key-value-file-data-source`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to create key value file data source', errorText);
+    throw new Error(`Failed to create key value file data source: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
 }
 
 
@@ -74,15 +94,23 @@ export const useDataSources = () => {
   const { data: session } = useSession();
   const { data: dataSources, mutate: mutateDataSources, error, isLoading } = useSWR(session ? "data-sources" : null, () => fetchDataSources(session ? session.APIToken.accessToken : ""));
 
-  const { trigger: triggerCreateFileDataSource } = useSWRMutation(
+  const { trigger: triggerCreateTabularFileDataSource } = useSWRMutation(
     session ? "data-sources" : null,
-    async (_, { arg }: { arg: { files: File[] } }) => {
-      const newDataSources = await createFileDataSource(session ? session.APIToken.accessToken : "", arg.files);
-      return [...(dataSources || []), ...newDataSources];
+    async (_, { arg }: { arg: { file: File } }) => {
+      const newDataSource = await createTabularFileDataSource(session ? session.APIToken.accessToken : "", arg.file);
+      return [...(dataSources || []), newDataSource];
     }
   );
 
-  return { dataSources, mutateDataSources, error, isLoading, triggerCreateFileDataSource };
+  const { trigger: triggerCreateKeyValueFileDataSource } = useSWRMutation(
+    session ? "data-sources" : null,
+    async (_, { arg }: { arg: { file: File } }) => {
+      const newDataSource = await createKeyValueFileDataSource(session ? session.APIToken.accessToken : "", arg.file);
+      return [...(dataSources || []), newDataSource];
+    }
+  );
+
+  return { dataSources, mutateDataSources, error, isLoading, triggerCreateTabularFileDataSource, triggerCreateKeyValueFileDataSource   };
 }
 
 
@@ -90,15 +118,23 @@ export const useProjectDataSources = (projectId: UUID) => {
   const { data: session } = useSession();
   const { data: dataSources, mutate: mutateDataSources, error, isLoading } = useSWR(session ? ["data-sources", projectId] : null, () => fetchProjectDataSources(session ? session.APIToken.accessToken : "", projectId));
 
-  const { trigger: triggerCreateFileDataSource } = useSWRMutation(
-    session ? ["data-sources", projectId] : null,
-    async (_, { arg }: { arg: { files: File[] } }) => {
-      const newDataSources = await createFileDataSource(session ? session.APIToken.accessToken : "", arg.files);
-      return [...(dataSources || []), ...newDataSources];
+    const { trigger: triggerCreateTabularFileDataSource } = useSWRMutation(
+    session ? "data-sources" : null,
+    async (_, { arg }: { arg: { file: File } }) => {
+      const newDataSource = await createTabularFileDataSource(session ? session.APIToken.accessToken : "", arg.file);
+      return [...(dataSources || []), newDataSource];
     }
   );
 
-  return { dataSources, mutateDataSources, error, isLoading, triggerCreateFileDataSource };
+  const { trigger: triggerCreateKeyValueFileDataSource } = useSWRMutation(
+    session ? "data-sources" : null,
+    async (_, { arg }: { arg: { file: File } }) => {
+      const newDataSource = await createKeyValueFileDataSource(session ? session.APIToken.accessToken : "", arg.file);
+      return [...(dataSources || []), newDataSource];
+    }
+  );
+
+  return { dataSources, mutateDataSources, error, isLoading, triggerCreateTabularFileDataSource, triggerCreateKeyValueFileDataSource };
 }
 
 

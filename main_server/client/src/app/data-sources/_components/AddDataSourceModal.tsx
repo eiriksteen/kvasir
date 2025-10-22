@@ -16,7 +16,7 @@ export default function AddDataSourceModal({
   selectedSourceType: SupportedSource | null; 
   setSelectedSourceType: (sourceType: SupportedSource | null) => void; 
 }) {
-  const { triggerCreateFileDataSource } = useDataSources();
+  const { triggerCreateTabularFileDataSource, triggerCreateKeyValueFileDataSource } = useDataSources();
   const { data: session } = useSession();
   const [files, setFiles] = useState<File[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -103,9 +103,15 @@ export default function AddDataSourceModal({
     setIsUploading(true);
 
     try {
-      await triggerCreateFileDataSource({
-        files: files,
-      });
+      if (selectedSourceType === "tabular_file") {
+        await triggerCreateTabularFileDataSource({
+          file: files[0],
+        });
+      } else if (selectedSourceType === "key_value_file") {
+        await triggerCreateKeyValueFileDataSource({
+          file: files[0],
+        });
+      }
       resetForm();
       onClose();
     } catch (err) {

@@ -1,4 +1,5 @@
 from .dataset_manager.local_dataset_manager import LocalDatasetManager
 from .dataset_manager.dataclasses import DatasetWithRawData, ObjectGroupCreateWithRawData, VariableGroupCreateWithRawData, DatasetCreateWithRawData, ObjectGroupWithRawData
 from .pipeline_manager import PipelineManager
-from .data_source_manager import FileManager, file_manager, ScriptStorage
+from .data_source_manager import DataSourceManager
+from .script_manager import ScriptManager, script_manager, ScriptStorage

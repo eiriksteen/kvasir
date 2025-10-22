@@ -54,7 +54,9 @@ export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
   const { submitPrompt } = useProjectChat(projectId);
 
   const datasetsInProject = useMemo(() => {
-    return datasets?.filter((dataset: Dataset) => project?.datasetIds.includes(dataset.id));
+    if (!project || !datasets) return [];
+    const projectDatasetIds = project.datasets.map(ds => ds.datasetId);
+    return datasets.filter((dataset: Dataset) => projectDatasetIds.includes(dataset.id));
   }, [datasets, project]);
 
   useEffect(() => { 

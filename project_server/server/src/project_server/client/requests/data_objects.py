@@ -9,7 +9,7 @@ from synesis_schemas.main_server import (
     Dataset,
     ObjectGroup,
     ObjectGroupWithObjects,
-    GetDatasetByIDsRequest,
+    GetDatasetsByIDsRequest,
     DataObjectWithParentGroup,
     DataObject,
     AggregationObjectCreate,
@@ -30,11 +30,11 @@ async def post_dataset(client: ProjectClient, files: List[FileInput], metadata: 
 
 
 async def get_project_datasets(client: ProjectClient, project_id: UUID) -> List[Dataset]:
-    response = await client.send_request("get", f"/data-objects/project-datasets/{project_id}")
+    response = await client.send_request("get", f"/project/project-datasets/{project_id}")
     return [Dataset(**ds) for ds in response.body]
 
 
-async def get_datasets_by_ids(client: ProjectClient, request: GetDatasetByIDsRequest) -> List[Dataset]:
+async def get_datasets_by_ids(client: ProjectClient, request: GetDatasetsByIDsRequest) -> List[Dataset]:
     response = await client.send_request("get", f"/data-objects/datasets-by-ids", json=request.model_dump(mode="json"))
     return [Dataset(**ds) for ds in response.body]
 

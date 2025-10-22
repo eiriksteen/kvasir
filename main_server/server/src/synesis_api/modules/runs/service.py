@@ -4,8 +4,11 @@ from typing import Literal, Optional, List, Union
 from sqlalchemy import select, insert
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelMessage
 
-from synesis_api.client import MainServerClient, post_run_data_integration, post_run_pipeline_agent, post_run_model_integration
+from synesis_api.client import MainServerClient, post_run_swe, post_run_analysis
 from synesis_api.database.service import fetch_all, execute, fetch_one
+from synesis_api.modules.analysis.service import create_analysis
+from synesis_api.modules.pipeline.service import create_pipeline
+from synesis_api.modules.project.service import add_entity_to_project
 from synesis_schemas.main_server import (
     RunInDB,
     RunPydanticMessageInDB,
@@ -20,9 +23,15 @@ from synesis_schemas.main_server import (
     ModelEntityInRunInDB,
     PipelineInRunInDB,
     RunEntityIds,
-    RunStatusUpdate
+    RunStatusUpdate,
+    AnalysisFromRunInDB,
+    PipelineFromRunInDB,
+    PipelineCreate,
+    AddEntityToProject,
+    AnalysisCreate,
+    AnalysisInRunInDB
 )
-from synesis_schemas.project_server import RunDataIntegrationAgentRequest, RunPipelineAgentRequest, RunModelIntegrationAgentRequest
+from synesis_schemas.project_server import RunAnalysisRequest, RunSWERequest
 from synesis_api.modules.runs.models import (
     run_specification,
     run,
@@ -36,11 +45,13 @@ from synesis_api.modules.runs.models import (
     dataset_from_run,
     model_entity_from_run,
     pipeline_from_run,
-    run_summary
+    analysis_from_run,
+    analysis_in_run,
 )
 
 
 async def create_run(user_id: uuid.UUID, run_create: RunCreate) -> RunInDB:
+
     run_record = RunInDB(
         id=uuid.uuid4(),
         user_id=user_id,
@@ -63,6 +74,8 @@ async def create_run(user_id: uuid.UUID, run_create: RunCreate) -> RunInDB:
     datasets_in_run_records = []
     model_entities_in_run_records = []
     pipelines_in_run_records = []
+    analysis_in_run_records = []
+
     for data_source_id in run_create.data_sources_in_run:
         data_sources_in_run_records.append(DataSourceInRunInDB(
             run_id=run_record.id,
@@ -87,6 +100,28 @@ async def create_run(user_id: uuid.UUID, run_create: RunCreate) -> RunInDB:
             pipeline_id=pipeline_id,
             created_at=datetime.now(timezone.utc)
         ).model_dump())
+    for analysis_id in run_create.analyses_in_run:
+        analysis_in_run_records.append(AnalysisInRunInDB(
+            run_id=run_record.id,
+            analysis_id=analysis_id,
+            created_at=datetime.now(timezone.utc)
+        ).model_dump())
+
+    # Create the entity_from_run record from the associated entity id
+    analysis_from_run_record = None
+    pipeline_from_run_record = None
+    if run_record.type == "analysis" and run_create.spec.associated_entity_id:
+        analysis_from_run_record = AnalysisFromRunInDB(
+            run_id=run_record.id,
+            analysis_id=run_create.spec.associated_entity_id,
+            created_at=datetime.now(timezone.utc)
+        )
+    elif run_record.type == "swe" and run_create.spec.associated_entity_id:
+        pipeline_from_run_record = PipelineFromRunInDB(
+            run_id=run_record.id,
+            pipeline_id=run_create.spec.associated_entity_id,
+            created_at=datetime.now(timezone.utc)
+        )
 
     await execute(run.insert().values(run_record.model_dump()), commit_after=True)
 
@@ -98,13 +133,20 @@ async def create_run(user_id: uuid.UUID, run_create: RunCreate) -> RunInDB:
         await execute(insert(dataset_in_run).values(datasets_in_run_records), commit_after=True)
     if model_entities_in_run_records:
         await execute(insert(model_entity_in_run).values(model_entities_in_run_records), commit_after=True)
+    if analysis_in_run_records:
+        await execute(insert(analysis_in_run).values(analysis_in_run_records), commit_after=True)
     if pipelines_in_run_records:
         await execute(insert(pipeline_in_run).values(pipelines_in_run_records), commit_after=True)
+
+    if analysis_from_run_record:
+        await execute(insert(analysis_from_run).values(analysis_from_run_record.model_dump()), commit_after=True)
+    if pipeline_from_run_record:
+        await execute(insert(pipeline_from_run).values(pipeline_from_run_record.model_dump()), commit_after=True)
 
     return run_record
 
 
-async def launch_run(client: MainServerClient, run_id: uuid.UUID):
+async def launch_run(user_id: uuid.UUID, client: MainServerClient, run_id: uuid.UUID):
     run_record = RunInDB(**(await fetch_one(select(run).where(run.c.id == run_id))))
     run_record.status = "running"
     run_spec = RunSpecificationInDB(**(await fetch_one(
@@ -119,40 +161,95 @@ async def launch_run(client: MainServerClient, run_id: uuid.UUID):
     model_entity_ids = [rec["model_entity_id"] for rec in await fetch_all(
         select(model_entity_in_run).where(
             model_entity_in_run.c.run_id == run_id))]
-    pipeline_ids = [rec["pipeline_id"] for rec in await fetch_all(
-        select(pipeline_in_run).where(
-            pipeline_in_run.c.run_id == run_id))]
+    analysis_ids = [rec["analysis_id"] for rec in await fetch_all(
+        select(analysis_in_run).where(
+            analysis_in_run.c.run_id == run_id))]
+    # pipeline_ids = [rec["pipeline_id"] for rec in await fetch_all(
+    #     select(pipeline_in_run).where(
+    #         pipeline_in_run.c.run_id == run_id))]
 
-    if run_record.type == "data_integration":
-        await post_run_data_integration(client, RunDataIntegrationAgentRequest(
+    analysis_from_run_record = await fetch_one(
+        select(analysis_from_run).where(
+            analysis_from_run.c.run_id == run_id))
+    pipeline_from_run_record = await fetch_one(
+        select(pipeline_from_run).where(
+            pipeline_from_run.c.run_id == run_id))
+
+    if analysis_from_run_record:
+        associated_entity_id = analysis_from_run_record["analysis_id"]
+    elif pipeline_from_run_record:
+        associated_entity_id = pipeline_from_run_record["pipeline_id"]
+    else:
+        associated_entity_id = None
+    # else:
+    #     raise RuntimeError(
+    #         "No associated entity found for run (the analysis or pipeline entity must be created before the run is launched. The orchestrator should do this automatically. )")
+
+    if run_record.type == "swe":
+        if associated_entity_id is None:
+            pipeline_create = PipelineCreate(
+                name=run_spec.run_name,
+                description=run_spec.plan_and_deliverable_description_for_agent,
+                input_data_source_ids=data_source_ids,
+                input_dataset_ids=dataset_ids,
+                input_model_entity_ids=model_entity_ids,
+                input_analysis_ids=analysis_ids
+            )
+            associated_entity_id = (await create_pipeline(pipeline_create=pipeline_create, user_id=user_id)).id
+            await add_entity_to_project(user_id, AddEntityToProject(
+                project_id=run_record.project_id,
+                entity_type="pipeline",
+                entity_id=associated_entity_id
+            ))
+            pipeline_from_run_record = PipelineFromRunInDB(
+                run_id=run_id,
+                pipeline_id=associated_entity_id,
+                created_at=datetime.now(timezone.utc)
+            )
+            await execute(insert(pipeline_from_run).values(pipeline_from_run_record.model_dump()), commit_after=True)
+        await post_run_swe(client, RunSWERequest(
             run_id=run_id,
             project_id=run_record.project_id,
             conversation_id=run_record.conversation_id,
+            pipeline_id=associated_entity_id,
+            prompt_content=run_spec.plan_and_deliverable_description_for_user,
             data_source_ids=data_source_ids,
             dataset_ids=dataset_ids,
             model_entity_ids=model_entity_ids,
-            pipeline_ids=pipeline_ids,
-            prompt_content=run_spec.plan_and_deliverable_description_for_agent
+            analysis_ids=analysis_ids,
         ))
 
-    elif run_record.type == "pipeline":
-        await post_run_pipeline_agent(client, RunPipelineAgentRequest(
+    elif run_record.type == "analysis":
+        if associated_entity_id is None:
+            analysis_create = AnalysisCreate(
+                name=run_spec.run_name,
+                description=run_spec.plan_and_deliverable_description_for_user,
+                input_dataset_ids=dataset_ids,
+                input_data_source_ids=data_source_ids,
+                input_model_entity_ids=model_entity_ids,
+            )
+            associated_entity_id = (await create_analysis(analysis_create=analysis_create, user_id=user_id)).id
+            await add_entity_to_project(user_id, AddEntityToProject(
+                project_id=run_record.project_id,
+                entity_type="analysis",
+                entity_id=associated_entity_id
+            ))
+            analysis_from_run_record = AnalysisFromRunInDB(
+                run_id=run_id,
+                analysis_id=associated_entity_id,
+                created_at=datetime.now(timezone.utc)
+            )
+            await execute(insert(analysis_from_run).values(analysis_from_run_record.model_dump()), commit_after=True)
+        await post_run_analysis(client, RunAnalysisRequest(
             run_id=run_id,
+            prompt_content=run_spec.plan_and_deliverable_description_for_agent,
+            analysis_id=associated_entity_id,
             project_id=run_record.project_id,
             conversation_id=run_record.conversation_id,
-            prompt_content=run_spec.plan_and_deliverable_description_for_agent,
-            input_dataset_ids=dataset_ids,
-            input_model_entity_ids=model_entity_ids
-        ))
-
-    elif run_record.type == "model_integration":
-        await post_run_model_integration(client, RunModelIntegrationAgentRequest(
-            run_id=run_id,
-            project_id=run_record.project_id,
-            conversation_id=run_record.conversation_id,
-            prompt_content=run_spec.plan_and_deliverable_description_for_agent,
-            # TODO: Make it based on user input
-            public=False
+            dataset_ids=dataset_ids,
+            data_source_ids=data_source_ids,
+            model_entity_ids=model_entity_ids,
+            analysis_ids=analysis_ids
         ))
 
     await execute(run.update().where(run.c.id == run_id).values(status="running"), commit_after=True)
@@ -177,7 +274,6 @@ async def get_runs(
                                              "rejected"]]] = None,
         run_ids: Optional[List[uuid.UUID]] = None,
         conversation_id: Optional[uuid.UUID] = None,
-        exclude_swe: bool = True
 ) -> List[Run]:
 
     runs_query = select(run).where(run.c.user_id == user_id)
@@ -188,9 +284,6 @@ async def get_runs(
         runs_query = runs_query.where(run.c.id.in_(run_ids))
     if conversation_id:
         runs_query = runs_query.where(run.c.conversation_id == conversation_id)
-
-    if exclude_swe:
-        runs_query = runs_query.where(run.c.type != "swe")
 
     runs = await fetch_all(runs_query)
 
@@ -221,7 +314,10 @@ async def get_runs(
         select(pipeline_in_run).where(
             pipeline_in_run.c.run_id.in_(run_id_list))
     )
-
+    analysis_in_runs = await fetch_all(
+        select(analysis_in_run).where(
+            analysis_in_run.c.run_id.in_(run_id_list))
+    )
     # Output entities
     data_sources_from_runs = await fetch_all(
         select(data_source_from_run).where(
@@ -239,7 +335,10 @@ async def get_runs(
         select(pipeline_from_run).where(
             pipeline_from_run.c.run_id.in_(run_id_list))
     )
-
+    analysis_from_runs = await fetch_all(
+        select(analysis_from_run).where(
+            analysis_from_run.c.run_id.in_(run_id_list))
+    )
     run_records = []
     for run_record in runs:
         run_id = run_record["id"]
@@ -260,7 +359,9 @@ async def get_runs(
             model_entity_ids=[r["model_entity_id"]
                               for r in model_entities_in_runs if r["run_id"] == run_id],
             pipeline_ids=[r["pipeline_id"]
-                          for r in pipelines_in_runs if r["run_id"] == run_id]
+                          for r in pipelines_in_runs if r["run_id"] == run_id],
+            analysis_ids=[r["analysis_id"]
+                          for r in analysis_in_runs if r["run_id"] == run_id]
         )
 
         # Build RunEntityIds for outputs
@@ -272,7 +373,9 @@ async def get_runs(
             model_entity_ids=[r["model_entity_id"]
                               for r in model_entities_from_runs if r["run_id"] == run_id],
             pipeline_ids=[r["pipeline_id"]
-                          for r in pipelines_from_runs if r["run_id"] == run_id]
+                          for r in pipelines_from_runs if r["run_id"] == run_id],
+            analysis_ids=[r["analysis_id"]
+                          for r in analysis_from_runs if r["run_id"] == run_id]
         )
 
         run_records.append(
@@ -294,9 +397,6 @@ async def update_run_status(run_id: uuid.UUID, run_status_update: RunStatusUpdat
     run_record.status = run_status_update.status
 
     await execute(run.update().where(run.c.id == run_id).values(status=run_status_update.status), commit_after=True)
-
-    if run_status_update.summary:
-        await execute(run_summary.insert().values(run_id=run_id, summary=run_status_update.summary), commit_after=True)
 
     return run_record
 
@@ -350,12 +450,3 @@ async def create_run_message_pydantic(run_message_create_pydantic: RunMessageCre
     await execute(run_pydantic_message.insert().values(run_pydantic_message_record.model_dump()), commit_after=True)
 
     return run_pydantic_message_record
-
-
-async def get_run_summary(run_id: uuid.UUID) -> str | None:
-    run_summary_record = await fetch_one(
-        select(run_summary).where(run_summary.c.run_id == run_id)
-    )
-    if not run_summary_record:
-        return None
-    return run_summary_record["summary"]

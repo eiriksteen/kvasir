@@ -231,14 +231,14 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                     <div className="border-b border-gray-200">
                         <EntityOverviewItem
                             title="Analyses"
-                            count={analysisObjects.analysisObjects.length}
+                            count={analysisObjects.length}
                             color="purple"
                             onToggle={() => toggleSection('analysis')}
                             onAdd={() => setShowAddAnalysis(true)}
                         />
                         {expandedSections.analysis && (
                             <div className="bg-[#004806]/10 border-l-2 border-[#004806]">
-                                {analysisObjects.analysisObjects.map((analysis) => (
+                                {analysisObjects.map((analysis) => (
                                     <EntityItem
                                         key={analysis.id}
                                         item={analysis}
@@ -247,7 +247,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                         onClick={() => handleAnalysisToggle(analysis)}
                                     />
                                 ))}
-                                {analysisObjects.analysisObjects.length === 0 && (
+                                {analysisObjects.length === 0 && (
                                     <div className="px-3 py-4 text-center">
                                         <BarChart3 size={16} className="text-[#004806]/40 mx-auto mb-2" />
                                         <p className="text-xs text-gray-500">No analysis</p>

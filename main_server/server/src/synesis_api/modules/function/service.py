@@ -19,9 +19,11 @@ from synesis_schemas.main_server import (
     FunctionDefinitionInDB,
     FunctionUpdateCreate,
     Function,
+    FunctionWithoutEmbedding,
 )
 from synesis_api.utils.rag_utils import embed
 from synesis_api.modules.code.service import create_script, get_scripts
+from synesis_api.modules.function.description import get_function_description
 
 
 async def create_function(user_id: uuid.UUID, function_create: FunctionCreate) -> Function:
@@ -217,15 +219,22 @@ async def get_functions(function_ids: List[uuid.UUID]) -> List[Function]:
         setup_script = next((
             s for s in setup_scripts if s.id == function_record["setup_script_id"]), None)
 
+        description = get_function_description(
+            FunctionWithoutEmbedding(**function_record),
+            FunctionDefinitionInDB(**function_definition_record),
+            [FunctionInputObjectGroupDefinitionInDB(
+                **i) for i in input_object_group_definition_records],
+            [FunctionOutputObjectGroupDefinitionInDB(
+                **o) for o in output_object_group_definition_records],
+            implementation_script)
+
         output_objs.append(
             Function(**function_record,
-                     definition=FunctionDefinitionInDB(
-                         **function_definition_record),
-                     input_object_groups=[FunctionInputObjectGroupDefinitionInDB(
-                         **i) for i in input_object_group_definition_records],
-                     output_object_groups=[FunctionOutputObjectGroupDefinitionInDB(
-                         **o) for o in output_object_group_definition_records],
+                     definition=function_definition_record,
+                     input_object_groups=input_object_group_definition_records,
+                     output_object_groups=output_object_group_definition_records,
                      implementation_script=implementation_script,
-                     setup_script=setup_script))
+                     setup_script=setup_script,
+                     description_for_agent=description))
 
     return output_objs

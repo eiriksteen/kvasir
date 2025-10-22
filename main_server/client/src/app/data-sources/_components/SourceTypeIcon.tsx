@@ -1,5 +1,5 @@
-import Image from 'next/image';
 import { SupportedSource } from '@/types/data-sources';
+import { FileSpreadsheet, FileJson } from 'lucide-react';
 
 
 // type sourceTypeObject = {
@@ -12,27 +12,15 @@ type sourceInfo = {
 }
 
 export const sourceTypes: Record<SupportedSource, sourceInfo> = {
-    'file': { available: true},
-    's3': { available: false},
-    'azure': { available: false},
-    'gcp': { available: false},
-    'psql': { available: false},
-    'mongodb': { available: false},
+    'tabular_file': { available: true},
+    'key_value_file': { available: true},
 };
 
 export default function SourceTypeIcon(sourceType: SupportedSource, size: number) {
     switch (sourceType) {
-        case 'file':
-            return <Image src="/file.svg" alt="File" width={size} height={size} />;
-        case 's3':
-            return <Image src="/s3.png" alt="AWS S3" width={size} height={size} />;
-        case 'azure':
-            return <Image src="/azure.png" alt="Azure Blob Storage" width={size} height={size} />;
-        case 'gcp':
-            return <Image src="/gcloud.png" alt="Google Cloud Storage" width={size} height={size} />;
-        case 'psql':
-            return <Image src="/psql.png" alt="PostgreSQL Database" width={size} height={size} />;
-        case 'mongodb':
-            return <Image src="/MongoDB.svg" alt="MongoDB Database" width={size} height={size} />;
+        case 'tabular_file':
+            return <FileSpreadsheet size={size} className="text-gray-600" />;
+        case 'key_value_file':
+            return <FileJson size={size} className="text-gray-600" />;
     }
 }

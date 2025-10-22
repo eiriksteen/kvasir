@@ -3,15 +3,17 @@ from uuid import UUID
 
 from project_server.client import ProjectClient
 from synesis_schemas.main_server import (
-    PipelineCreate,
-    PipelineFull,
+    PipelineImplementationCreate,
+    Pipeline,
     PipelineInDB,
     PipelineOutputModelEntityInDB,
     PipelineOutputDatasetInDB,
     PipelineRunInDB,
     PipelineRunStatusUpdate,
     PipelineRunDatasetOutputCreate,
-    PipelineRunModelEntityOutputCreate
+    PipelineRunModelEntityOutputCreate,
+    PipelineCreate,
+    PipelineImplementationInDB
 )
 
 
@@ -21,10 +23,10 @@ async def get_user_pipelines(client: ProjectClient) -> List[PipelineInDB]:
     return [PipelineInDB(**pipeline) for pipeline in response.body]
 
 
-async def get_user_pipeline(client: ProjectClient, pipeline_id: str) -> PipelineFull:
+async def get_user_pipeline(client: ProjectClient, pipeline_id: str) -> Pipeline:
     """Get a specific pipeline with functions"""
     response = await client.send_request("get", f"/pipeline/pipelines/{pipeline_id}")
-    return PipelineFull(**response.body)
+    return Pipeline(**response.body)
 
 
 async def post_pipeline_run_object(client: ProjectClient, pipeline_id: str) -> PipelineRunInDB:
@@ -43,6 +45,12 @@ async def post_pipeline(client: ProjectClient, pipeline_data: PipelineCreate) ->
     """Create a new pipeline"""
     response = await client.send_request("post", "/pipeline/pipeline", json=pipeline_data.model_dump(mode="json"))
     return PipelineInDB(**response.body)
+
+
+async def post_pipeline_implementation(client: ProjectClient, pipeline_implementation_data: PipelineImplementationCreate) -> PipelineImplementationInDB:
+    """Create a new pipeline implementation"""
+    response = await client.send_request("post", "/pipeline/pipeline-implementation", json=pipeline_implementation_data.model_dump(mode="json"))
+    return PipelineImplementationInDB(**response.body)
 
 
 async def post_pipeline_output_model_entity(client: ProjectClient, pipeline_id: str, request: PipelineRunModelEntityOutputCreate) -> PipelineOutputModelEntityInDB:

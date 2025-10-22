@@ -1,21 +1,25 @@
 import uuid
 from datetime import timezone, datetime
-from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean, CheckConstraint, Integer
+from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean, CheckConstraint, Integer, func
 from sqlalchemy.dialects.postgresql import JSONB
 from pgvector.sqlalchemy import Vector
 
 from synesis_api.database.core import metadata
 from synesis_api.app_secrets import EMBEDDING_DIM
-
-from synesis_data_structures.time_series.definitions import get_first_level_structure_ids
+from synesis_data_interface.structures.overview import get_first_level_structure_ids
 
 structure_ids = get_first_level_structure_ids()
+SUPPORTED_MODEL_SOURCES = ["github", "pypi"]
 
 model_modality_constraint = "modality IN ('time_series', 'tabular', 'multimodal', 'image', 'text', 'audio', 'video')"
 model_task_constraint = "task IN ('forecasting', 'classification', 'regression', 'clustering', 'anomaly_detection', 'generation', 'segmentation')"
 structure_constraint = "structure_id IN (" + \
     ", ".join(f"'{id}'" for id in structure_ids) + ")"
 function_type_constraint = "function_type IN ('training', 'inference')"
+
+# Build the constraint string with proper quotes
+model_source_constraint = "type IN (" + \
+    ", ".join(f"'{id}'" for id in SUPPORTED_MODEL_SOURCES) + ")"
 
 
 # Split out definition to enable versioning
@@ -40,8 +44,8 @@ model_definition = Table(
 )
 
 
-model = Table(
-    "model",
+model_implementation = Table(
+    "model_implementation",
     metadata,
     Column("id", UUID(as_uuid=True),
            default=uuid.uuid4,
@@ -55,7 +59,7 @@ model = Table(
     Column("newest_update_description", String, nullable=False),
     Column("embedding", Vector(dim=EMBEDDING_DIM), nullable=False),
     Column("source_id", UUID(as_uuid=True),
-           ForeignKey("model_sources.model_source.id"),
+           ForeignKey("model.model_source.id"),
            nullable=False),
     Column("user_id", UUID(as_uuid=True),
            ForeignKey("auth.users.id"),
@@ -75,6 +79,56 @@ model = Table(
     Column("inference_function_id", UUID(as_uuid=True),
            ForeignKey("model.model_function.id"),
            nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="model"
+)
+
+
+# Mirroring the pipeline structure
+# We have the model_entity which is user defined and modifiable
+# The user can compile / index it to create the model_entity_implementation usable within the platform
+# If not compiled from user code, we start by searching for an existing model implementation and use it
+# If from new user code, we must add the model to the registry
+model_entity = Table(
+    "model_entity",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           default=uuid.uuid4,
+           primary_key=True),
+    Column("user_id", UUID(as_uuid=True),
+           ForeignKey("auth.users.id"),
+           nullable=False),
+    Column("name", String, nullable=False),
+    Column("description", String, nullable=True),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="model"
+)
+
+
+model_entity_implementation = Table(
+    "model_entity_implementation",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           ForeignKey("model.model_entity.id"),
+           default=uuid.uuid4,
+           primary_key=True),
+    Column("model_id", UUID(as_uuid=True),
+           ForeignKey("model.model_implementation.id"),
+           nullable=False),
+    Column("config", JSONB, nullable=False),
+    # Weights save dir and pipeline id are null for non-trained models
+    Column("weights_save_dir", String, nullable=True),
+    Column("pipeline_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline.id"),
+           nullable=True),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
@@ -148,30 +202,37 @@ model_function_output_object_group_definition = Table(
 )
 
 
-model_entity = Table(
-    "model_entity",
+model_source = Table(
+    "model_source",
     metadata,
-    Column("id", UUID(as_uuid=True),
+    Column("id",
+           UUID(as_uuid=True),
            default=uuid.uuid4,
            primary_key=True),
-    Column("model_id", UUID(as_uuid=True),
-           ForeignKey("model.model.id"),
-           nullable=False),
-    Column("user_id", UUID(as_uuid=True),
-           ForeignKey("auth.users.id"),
-           nullable=False),
+    Column("type", String, nullable=False),
     Column("name", String, nullable=False),
     Column("description", String, nullable=False),
-    Column("config", JSONB, nullable=False),
-    # Weights save dir and pipeline id are null for non-trained models
-    Column("weights_save_dir", String, nullable=True),
-    Column("pipeline_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.pipeline.id"),
-           nullable=True),
     Column("created_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc), nullable=False),
+           nullable=False, default=func.now()),
     Column("updated_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc),
-           onupdate=datetime.now(timezone.utc), nullable=False),
+           nullable=False, default=func.now(), onupdate=func.now()),
+    CheckConstraint(model_source_constraint),
+    schema="model"
+)
+
+
+pypi_model_source = Table(
+    "pypi_model_source",
+    metadata,
+    Column("id",
+           UUID(as_uuid=True),
+           ForeignKey("model.model_source.id"),
+           primary_key=True),
+    Column("package_name", String, nullable=False),
+    Column("package_version", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           nullable=False, default=func.now()),
+    Column("updated_at", DateTime(timezone=True),
+           nullable=False, default=func.now(), onupdate=func.now()),
     schema="model"
 )

@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { BaseTable, TableConfig } from '@/types/tables';
 import { AggregationObjectWithRawData } from '@/types/data-objects';
-import TableConfigurationPopup from '@/components/info-modals/analysis/TableConfigurationPopup';
+import TableConfigurationPopup from '@/components/info-tabs/analysis/TableConfigurationPopup';
 import { Settings, Trash2, Download } from 'lucide-react';
 import { UUID } from 'crypto';
 import { downloadAggregationDataAsExcel } from '@/lib/utils';
@@ -13,11 +13,11 @@ interface TablesItemProps {
   aggregationData: AggregationObjectWithRawData;
   analysisResultId: UUID;
   onDelete: (tableId: string) => void;
-  onUpdate: (tableId: string, tableUpdate: any) => void;
+  onUpdate: (tableId: string, tableUpdate: BaseTable) => void;
 }
 
 // Helper function to format numbers with significant digits
-const formatNumberWithSignificantDigits = (value: any, significantDigits: number | null): string => {
+const formatNumberWithSignificantDigits = (value: number | null | undefined | string | boolean | Date, significantDigits: number | null): string => {
   if (value === null || value === undefined || value === '') {
     return '-';
   }
@@ -37,7 +37,7 @@ const formatNumberWithSignificantDigits = (value: any, significantDigits: number
 };
 
 
-const TableItem = ({ table, aggregationData, analysisResultId, onDelete, onUpdate }: TablesItemProps) => {
+const TableItem = ({ table, aggregationData, analysisResultId, onDelete }: TablesItemProps) => {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   
@@ -64,13 +64,13 @@ const TableItem = ({ table, aggregationData, analysisResultId, onDelete, onUpdat
   if (!tableConfig.columns || tableConfig.columns.length === 0) return [];
 
   // Get data for each column
-  const rows: any[] = [];
+  const rows: Record<string, number | null | undefined | string | boolean | Date>[] = [];
   const firstColumn = columns.find(col => col.name === tableConfig.columns[0].name);
   const firstColumnData = firstColumn ? firstColumn.values : [];
   
   // Create rows based on the first column's data length
   for (let i = 0; i < firstColumnData.length; i++) {
-    const row: any = {};
+    const row: Record<string, number | null | undefined | string | boolean | Date> = {};
     
     tableConfig.columns.forEach(column => {
       const columnData = columns.find(col => col.name === column.name);
@@ -85,6 +85,8 @@ const TableItem = ({ table, aggregationData, analysisResultId, onDelete, onUpdat
     rows.sort((a, b) => {
       const aVal = a[tableConfig.sortBy!];
       const bVal = b[tableConfig.sortBy!];
+      
+      if (aVal == null || bVal == null) return 0;
       
       if (tableConfig.sortOrder === 'asc') {
         return aVal > bVal ? 1 : -1;

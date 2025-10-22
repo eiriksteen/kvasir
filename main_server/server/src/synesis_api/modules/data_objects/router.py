@@ -9,7 +9,6 @@ from synesis_api.modules.data_objects.service import (
     get_user_dataset_by_id,
     get_object_group,
     create_dataset,
-    get_project_datasets,
     get_user_datasets,
     get_data_object,
     update_aggregation_object,
@@ -20,7 +19,7 @@ from synesis_api.modules.data_objects.service import (
 from synesis_schemas.main_server import (
     DatasetCreate,
     Dataset,
-    GetDatasetByIDsRequest,
+    GetDatasetsByIDsRequest,
     ObjectGroup,
     ObjectGroupWithObjects,
     DataObjectWithParentGroup,
@@ -29,7 +28,7 @@ from synesis_schemas.main_server import (
     AggregationObjectCreate
 )
 from synesis_schemas.main_server import User
-from synesis_data_structures.time_series.schema import TimeSeries
+from synesis_data_interface.structures.time_series.schema import TimeSeries
 from synesis_api.auth.service import get_current_user, user_owns_dataset, user_owns_object_group, user_owns_data_object
 from synesis_api.client import MainServerClient, get_time_series_data
 from synesis_api.auth.service import oauth2_scheme
@@ -53,15 +52,6 @@ async def submit_dataset(
     return await create_dataset(files, metadata_parsed, user.id)
 
 
-@router.get("/project-datasets/{project_id}", response_model=List[Dataset])
-async def fetch_datasets(
-    project_id: UUID,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> List[Dataset]:
-    """Get all datasets for the current user"""
-    return await get_project_datasets(user.id, project_id)
-
-
 @router.get("/dataset/{dataset_id}", response_model=Dataset)
 async def fetch_dataset(
     dataset_id: UUID,
@@ -73,11 +63,11 @@ async def fetch_dataset(
 
 @router.get("/datasets-by-ids", response_model=List[Dataset])
 async def fetch_datasets_by_ids(
-    request: GetDatasetByIDsRequest,
+    request: GetDatasetsByIDsRequest,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> List[Dataset]:
     """Get a specific dataset by ID"""
-    return await get_user_datasets(user.id, ids=request.dataset_ids, max_features=50)
+    return await get_user_datasets(user.id, dataset_ids=request.dataset_ids, max_features=50)
 
 
 @router.get("/object-group/{group_id}", response_model=Union[ObjectGroup, ObjectGroupWithObjects])
@@ -158,8 +148,7 @@ async def update_aggregation_object_endpoint(
     aggregation_object_update: AggregationObjectUpdate,
     user: Annotated[User, Depends(get_current_user)] = None
 ):
-
-    # Shouldt the ownswrship be validated here?
+    # Shouldnt the ownership be validated here?
     aggregation_update = AggregationObjectUpdate(**aggregation_object_update) if isinstance(
         aggregation_object_update, dict) else aggregation_object_update
     result = await update_aggregation_object(aggregation_object_id, aggregation_update)

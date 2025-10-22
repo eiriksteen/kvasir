@@ -34,19 +34,15 @@ from synesis_schemas.main_server import (
 from project_server.utils.file_utils import get_data_from_container_from_code
 
 
-from synesis_data_structures.time_series.df_dataclasses import TimeSeriesStructure, TimeSeriesAggregationStructure
-from synesis_data_structures.time_series.schema import TimeSeries
-from synesis_data_structures.base_schema import AggregationOutput
-from synesis_data_structures.time_series.serialization import serialize_dataframes_to_api_payloads, serialize_raw_data_for_aggregation_object_for_api
-from synesis_data_structures.time_series.definitions import (
-    TIME_SERIES_DATA_SECOND_LEVEL_ID,
-    ENTITY_METADATA_SECOND_LEVEL_ID,
-    FEATURE_INFORMATION_SECOND_LEVEL_ID,
-    TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID,
-    TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID,
-    TIME_SERIES_STRUCTURE,
-    TIME_SERIES_AGGREGATION_STRUCTURE
-)
+from synesis_data_interface.structures.time_series.raw import TimeSeriesStructure
+from synesis_data_interface.structures.time_series_aggregation.raw import TimeSeriesAggregationStructure
+from synesis_data_interface.structures.time_series.schema import TimeSeries
+from synesis_data_interface.structures.serialization import serialize_dataframes_to_api_payloads
+from synesis_data_interface.structures.aggregation.serialization import serialize_raw_data_for_aggregation_object_for_api
+from synesis_data_interface.structures.aggregation.schema import AggregationOutput
+from synesis_data_interface.structures.base.definitions import FEATURE_INFORMATION_SECOND_LEVEL_ID, ENTITY_METADATA_SECOND_LEVEL_ID
+from synesis_data_interface.structures.time_series.definitions import TIME_SERIES_DATA_SECOND_LEVEL_ID, TIME_SERIES_STRUCTURE
+from synesis_data_interface.structures.time_series_aggregation.definitions import TIME_SERIES_AGGREGATION_STRUCTURE, TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID, TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID
 
 
 def _get_df_schema_and_head(df: pd.DataFrame | None) -> Tuple[str | None, str | None]:
@@ -76,15 +72,15 @@ class LocalDatasetManager:
     def __init__(self, bearer_token: str):
         self.client = ProjectClient(bearer_token)
 
-    async def get_data_group_with_raw_data(self, group_id: uuid.UUID) -> ObjectGroupWithRawData:
+    async def get_object_group_data(self, group_id: uuid.UUID) -> Union[TimeSeriesStructure, TimeSeriesAggregationStructure]:
         group_metadata = await get_object_group(self.client, group_id)
-        structure = await self._read_structure(Path(group_metadata.save_path), group_metadata.structure_type)
-        return ObjectGroupWithRawData(**{k: v for k, v in group_metadata.model_dump().items() if k not in ["structure_fields", "features"]}, data=structure)
+        data = await self._read_structure(Path(group_metadata.save_path), group_metadata.structure_type)
+        return data
 
     async def get_dataset_with_raw_data(self, dataset_id: uuid.UUID) -> DatasetWithRawData:
         dataset_metadata = await get_dataset(self.client, dataset_id)
 
-        object_groups = [await self.get_data_group_with_raw_data(group.id)
+        object_groups = [await self.get_object_group_data(group.id)
                          for group in dataset_metadata.object_groups]
 
         return DatasetWithRawData(
@@ -94,21 +90,32 @@ class LocalDatasetManager:
             variable_groups=[]
         )
 
+    async def get_object_group_data_by_name(self, dataset_id: uuid.UUID, group_name: str) -> Union[TimeSeriesStructure, TimeSeriesAggregationStructure]:
+        dataset_metadata = await get_dataset(self.client, dataset_id)
+        group_metadata = next(
+            (group for group in dataset_metadata.object_groups if group.name == group_name), None)
+
+        if group_metadata is None:
+            raise ValueError(
+                f"Object group with name '{group_name}' not found in dataset '{dataset_id}'")
+
+        return await self.get_object_group_data(group_metadata.id)
+
     async def get_time_series_data_object_with_raw_data(self, time_series_id: uuid.UUID, start_date: datetime, end_date: datetime) -> TimeSeries:
         # TODO: Make more efficient
         data_object = await get_data_object(self.client, time_series_id, include_object_group=True)
         entity_id = data_object.original_id
-        obj_group = await self.get_data_group_with_raw_data(data_object.object_group.id)
+        data = await self.get_object_group_data(data_object.object_group.id)
         assert isinstance(
-            obj_group.data, TimeSeriesStructure), "Object group data is not a time series data structure"
-        df = obj_group.data.time_series_data
+            data, TimeSeriesStructure), "Object group data is not a time series data structure"
+        df = data.time_series_data
         # Convert start and end date to match the timezone of the dataframe (which may be None)
         start_date = convert_datetime_to_target_tz(start_date, df)
         end_date = convert_datetime_to_target_tz(end_date, df)
         df_sliced = df.loc[([entity_id], slice(start_date, end_date)), :]
-        obj_group.data.time_series_data = df_sliced
+        data.time_series_data = df_sliced
 
-        return serialize_dataframes_to_api_payloads(obj_group.data)[0]
+        return serialize_dataframes_to_api_payloads(data)[0]
 
     async def upload_dataset(
             self,
@@ -134,13 +141,13 @@ class LocalDatasetManager:
         else:
             return dataset_api
 
-
     async def get_aggregation_object_payload_data_by_analysis_result_id(
         self,
-        analysis_object_id: uuid.UUID,
+        analysis_id: uuid.UUID,
         analysis_result_id: uuid.UUID,
     ) -> AggregationOutput:
-        file_path = ANALYSIS_DIR / str(analysis_object_id) / str(analysis_result_id) / "output.json"
+        file_path = ANALYSIS_DIR / \
+            str(analysis_id) / str(analysis_result_id) / "output.json"
 
         output_data = json.load(open(file_path))
         try:
@@ -151,20 +158,20 @@ class LocalDatasetManager:
 
         return output_data
 
-    async def upload_analysis_output_to_analysis_dir(self, analysis_object_id: uuid.UUID, analysis_result_id: uuid.UUID, output_data: pd.DataFrame | pd.Series | float | int | str | bool | datetime | timedelta | None) -> None:
-        try: 
-            structured_output_data = serialize_raw_data_for_aggregation_object_for_api(output_data)
+    async def upload_analysis_output_to_analysis_dir(self, analysis_id: uuid.UUID, analysis_result_id: uuid.UUID, output_data: pd.DataFrame | pd.Series | float | int | str | bool | datetime | timedelta | None) -> None:
+        try:
+            structured_output_data = serialize_raw_data_for_aggregation_object_for_api(
+                output_data)
         except Exception as e:
             logger.error(f"Error serializing output data: {e}")
             raise e
 
-        analysis_output_path = ANALYSIS_DIR / str(analysis_object_id) / str(analysis_result_id)
+        analysis_output_path = ANALYSIS_DIR / \
+            str(analysis_id) / str(analysis_result_id)
         analysis_output_path.mkdir(parents=True, exist_ok=True)
         analysis_output_filepath = analysis_output_path / "output.json"
         with open(analysis_output_filepath, "w") as f:
             json.dump(structured_output_data.model_dump(), f)
-
-
 
     # Private methods
 
@@ -187,10 +194,7 @@ class LocalDatasetManager:
         dataset_path = INTEGRATED_DATA_DIR / str(uuid.uuid4())
         dataset_path.mkdir(parents=True, exist_ok=True)
 
-        logger.info("GROUP")
-        logger.info(dataset_create.object_groups)
-
-        # Process annotated object groups
+        # Process object groups
         for group in dataset_create.object_groups:
             group_metadata, group_files, paths = self._process_object_group_for_upload(
                 group, dataset_path)
@@ -198,7 +202,7 @@ class LocalDatasetManager:
             dataset_create_api.object_groups.append(group_metadata)
             object_group_save_paths.extend(paths)
 
-        # Process derived object groups
+        # Process variable_groups
         for group in dataset_create.variable_groups:
             group_metadata, path = self._process_variable_group_for_upload(
                 group, dataset_path)
@@ -410,7 +414,7 @@ class LocalDatasetManager:
             name=group.name,
             description=group.description,
             save_path=str(group_save_path),
-            data=data
+            group_schema=group.group_schema
         )
 
         return variable_group_create, (group_save_path, data)

@@ -6,15 +6,12 @@ from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolea
 from synesis_api.database.core import metadata
 from synesis_api.database.core import metadata
 
-analysis_object = Table(
-    "analysis_object",
+analysis = Table(
+    "analysis",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
            default=uuid.uuid4),
-    Column("project_id", UUID(as_uuid=True),
-           ForeignKey("project.project.id"),
-           nullable=False),
     Column("user_id", UUID(as_uuid=True),
            ForeignKey("auth.users.id"),
            nullable=False),
@@ -93,14 +90,15 @@ analysis_result = Table(
     schema="analysis",
 )
 
-analysis_result_dataset = Table(
-    "analysis_result_dataset",
+
+dataset_in_analysis = Table(
+    "dataset_in_analysis",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
            default=uuid.uuid4),
-    Column("analysis_result_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis_result.id"),
+    Column("analysis_id", UUID(as_uuid=True),
+           ForeignKey("analysis.analysis.id"),
            nullable=False),
     Column("dataset_id", UUID(as_uuid=True),
            ForeignKey("data_objects.dataset.id"),
@@ -108,20 +106,38 @@ analysis_result_dataset = Table(
     schema="analysis",
 )
 
-analysis_result_data_source = Table(
-    "analysis_result_data_source",
+
+data_source_in_analysis = Table(
+    "data_source_in_analysis",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
            default=uuid.uuid4),
-    Column("analysis_result_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis_result.id"),
+    Column("analysis_id", UUID(as_uuid=True),
+           ForeignKey("analysis.analysis.id"),
            nullable=False),
     Column("data_source_id", UUID(as_uuid=True),
            ForeignKey("data_sources.data_source.id"),
            nullable=False),
     schema="analysis",
 )
+
+
+model_entity_in_analysis = Table(
+    "model_entity_in_analysis",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           primary_key=True,
+           default=uuid.uuid4),
+    Column("analysis_id", UUID(as_uuid=True),
+           ForeignKey("analysis.analysis.id"),
+           nullable=False),
+    Column("model_entity_id", UUID(as_uuid=True),
+           ForeignKey("model.model_entity.id"),
+           nullable=False),
+    schema="analysis",
+)
+
 
 plot = Table(
     'plot',

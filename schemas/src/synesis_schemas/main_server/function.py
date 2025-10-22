@@ -88,19 +88,11 @@ class Function(FunctionWithoutEmbedding):
     output_object_groups: List[FunctionOutputObjectGroupDefinitionInDB]
     implementation_script: ScriptInDB
     setup_script: Optional[ScriptInDB] = None
+    description_for_agent: str
 
 
-class FunctionDefinitionBare(BaseModel):
-    id: UUID
-    name: str
-
-
-class FunctionBare(BaseModel):
-    id: UUID
-    python_function_name: str
-    docstring: str
-    description: str
-    definition: FunctionDefinitionBare
+class GetFunctionsRequest(BaseModel):
+    function_ids: List[UUID]
 
 
 # Create models

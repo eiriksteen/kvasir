@@ -1,10 +1,9 @@
 import uuid
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Union, Literal, Tuple
+from typing import List, Optional, Dict, Any, Union, Literal
 from pydantic import BaseModel
 
-from synesis_data_structures.base_schema import Feature, AggregationOutput
-
+from synesis_data_interface.structures.aggregation.schema import AggregationOutput
 
 # DB Schemas
 
@@ -16,16 +15,6 @@ class DatasetInDB(BaseModel):
     description: str
     created_at: datetime
     updated_at: datetime
-
-
-class DatasetFromDataSourceInDB(BaseModel):
-    data_source_id: uuid.UUID
-    dataset_id: uuid.UUID
-
-
-class DatasetFromDatasetInDB(BaseModel):
-    source_dataset_id: uuid.UUID
-    dataset_id: uuid.UUID
 
 
 class DatasetFromPipelineInDB(BaseModel):
@@ -105,8 +94,9 @@ class TimeSeriesAggregationObjectGroupInDB(BaseModel):
 
 class VariableGroupInDB(BaseModel):
     id: uuid.UUID
-    dataset_id: uuid.UUID
     name: str
+    group_schema: Dict[str, Any]
+    dataset_id: uuid.UUID
     description: str
     save_path: str
     created_at: datetime
@@ -138,6 +128,19 @@ class TimeSeriesAggregationInputInDB(BaseModel):
     updated_at: datetime
 
 
+class AggregationObjectInDB(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: str
+    created_at: datetime
+    updated_at: datetime
+    analysis_result_id: uuid.UUID | None = None  # Foreign key to analysis_result.id
+    # Other variabels used to reference where the aggregation was created. This is so you can run a script to get the raw data.
+    # For instance: in analysis result there is python code, this python code should be run to get the raw data. A serialization function is then applied to the raw data to get the final data structure.
+    # automation_id: uuid.UUID | None = None # Foreign key to automation.id
+    # script_path: str | None = None # The path to the script that defines the input and output of the aggregation
+
+
 # Schemas for the API
 
 
@@ -160,8 +163,6 @@ class DataObjectWithParentGroup(DataObject):
 
 
 class DatasetSources(BaseModel):
-    data_source_ids: List[uuid.UUID]
-    dataset_ids: List[uuid.UUID]
     pipeline_ids: List[uuid.UUID]
 
 
@@ -169,27 +170,15 @@ class Dataset(DatasetInDB):
     object_groups: List[ObjectGroup]
     variable_groups: List[VariableGroupInDB]
     sources: DatasetSources
+    description_for_agent: str
 
 
 class ObjectGroupWithObjects(ObjectGroup):
     objects: List[DataObject]
 
 
-class GetDatasetByIDsRequest(BaseModel):
+class GetDatasetsByIDsRequest(BaseModel):
     dataset_ids: List[uuid.UUID]
-
-
-class AggregationObjectInDB(BaseModel):
-    id: uuid.UUID
-    name: str
-    description: str
-    created_at: datetime
-    updated_at: datetime
-    analysis_result_id: uuid.UUID | None = None # Foreign key to analysis_result.id 
-    # Other variabels used to reference where the aggregation was created. This is so you can run a script to get the raw data.
-    # For instance: in analysis result there is python code, this python code should be run to get the raw data. A serialization function is then applied to the raw data to get the final data structure.
-    # automation_id: uuid.UUID | None = None # Foreign key to automation.id
-    # script_path: str | None = None # The path to the script that defines the input and output of the aggregation
 
 
 class AggregationObjectWithRawData(AggregationObjectInDB):
@@ -246,7 +235,7 @@ class VariableGroupCreate(BaseModel):
     name: str
     description: str
     save_path: str
-    data: Dict[str, Any]
+    group_schema: Dict[str, Any]
 
 
 class DatasetCreate(BaseModel):
@@ -261,7 +250,9 @@ class DatasetCreate(BaseModel):
 class AggregationObjectCreate(BaseModel):
     name: str
     description: str
-    analysis_result_id: uuid.UUID | None = None # Do not need dataset_ids or data_source_ids here because they are already in the analysis result
+    # Do not need dataset_ids or data_source_ids here because they are already in the analysis result
+    analysis_result_id: uuid.UUID | None = None
+
 
 class AggregationObjectUpdate(BaseModel):
     name: str

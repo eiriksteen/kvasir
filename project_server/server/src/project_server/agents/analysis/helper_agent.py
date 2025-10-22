@@ -1,25 +1,28 @@
 import re
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.settings import ModelSettings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Tuple
 import uuid
 
 from project_server.utils import run_python_function_in_container
 from project_server.agents.analysis.prompt import ANALYSIS_HELPER_SYSTEM_PROMPT
 from project_server.utils.pydanticai_utils import get_model
-from synesis_schemas.main_server import Dataset, DataSourceFull
+from synesis_schemas.main_server import Dataset, DataSource, ModelEntity
 from project_server.app_secrets import ANALYSIS_DIR
 
 model = get_model()
 
+
 @dataclass
 class HelperAgentDeps:
-    datasets: List[Dataset]
-    data_sources: List[DataSourceFull]
     bearer_token: str
-    analysis_object_id: uuid.UUID
+    analysis_id: uuid.UUID
     analysis_result_id: uuid.UUID
+    model_entities_injected: List[ModelEntity] = field(default_factory=list)
+    data_sources_injected: List[DataSource] = field(default_factory=list)
+    datasets_injected: List[Dataset] = field(default_factory=list)
+
 
 analysis_helper_agent = Agent(
     model,
@@ -29,6 +32,20 @@ analysis_helper_agent = Agent(
     retries=3,
     deps_type=HelperAgentDeps
 )
+
+
+@analysis_helper_agent.system_prompt
+async def analysis_helper_agent_system_prompt(ctx: RunContext[HelperAgentDeps]) -> str:
+
+    model_entities_description = "\n\n".join(
+        [model_entity.description_for_agent for model_entity in ctx.deps.model_entities_injected])
+    data_sources_description = "\n\n".join(
+        [data_source.description_for_agent for data_source in ctx.deps.data_sources_injected])
+    datasets_description = "\n\n".join(
+        [dataset.description_for_agent for dataset in ctx.deps.datasets_injected])
+
+    return f"{ANALYSIS_HELPER_SYSTEM_PROMPT}\n\n{model_entities_description}\n\n{data_sources_description}\n\n{datasets_description}"
+
 
 @analysis_helper_agent.tool()
 async def run_python_code(ctx: RunContext[HelperAgentDeps], python_code: str, output_variable: str) -> str:
@@ -56,18 +73,18 @@ elif isinstance({output_variable}, pd.DataFrame) or isinstance({output_variable}
 else:
     print("Not a DataFrame or Series")
 """
-    out, err = await _save_data_to_analysis_dir(python_code, output_variable, ctx.deps.analysis_object_id, ctx.deps.analysis_result_id, ctx.deps.bearer_token)
-    
-    
+    out, err = await _save_data_to_analysis_dir(python_code, output_variable, ctx.deps.analysis_id, ctx.deps.analysis_result_id, ctx.deps.bearer_token)
+
     if err:
         return f"You got the following error: {err}"
 
     return out
 
+
 async def _save_data_to_analysis_dir(
     python_code: str,
     output_variable: str,
-    analysis_object_id: uuid.UUID,
+    analysis_id: uuid.UUID,
     analysis_result_id: uuid.UUID,
     bearer_token: str,
 ) -> Tuple[str, str]:
@@ -83,7 +100,7 @@ async def _save_data_to_analysis_dir(
         ),
         function_name="dataset_manager.upload_analysis_output_to_analysis_dir",
         input_variables=[
-            f"analysis_object_id='{analysis_object_id}'",
+            f"analysis_id='{analysis_id}'",
             f"analysis_result_id='{analysis_result_id}'",
             f"output_data={output_variable}",
         ],
@@ -92,5 +109,3 @@ async def _save_data_to_analysis_dir(
     )
 
     return out, err
-
-    

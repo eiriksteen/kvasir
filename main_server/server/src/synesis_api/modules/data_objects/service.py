@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import insert, select, update
 from fastapi import UploadFile, HTTPException
 
+from synesis_api.modules.data_objects.description import get_dataset_description
 from synesis_api.modules.data_objects.models import (
     dataset,
     time_series,
@@ -15,8 +16,6 @@ from synesis_api.modules.data_objects.models import (
     feature_in_group,
     time_series_aggregation_input,
     variable_group,
-    dataset_from_data_source,
-    dataset_from_dataset,
     dataset_from_pipeline,
     time_series_object_group,
     time_series_aggregation_object_group,
@@ -40,26 +39,19 @@ from synesis_schemas.main_server import (
     ObjectGroupWithObjects,
     VariableGroupInDB,
     DatasetSources,
-    DatasetFromDataSourceInDB,
-    DatasetFromDatasetInDB,
     DatasetFromPipelineInDB,
     TimeSeriesObjectGroupInDB,
     TimeSeriesAggregationObjectGroupInDB,
     ObjectGroup,
     DataObjectWithParentGroup,
-    AggregationObjectWithRawData,
     AggregationObjectInDB,
     AggregationObjectCreate,
-    AggregationObjectUpdate
+    AggregationObjectUpdate,
 )
 from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_api.modules.project.service import get_dataset_ids_in_project
-
-from synesis_data_structures.time_series.serialization import deserialize_parquet_to_dataframes
-from synesis_data_structures.time_series.definitions import (
-    TIME_SERIES_STRUCTURE,
-    TIME_SERIES_AGGREGATION_STRUCTURE
-)
+from synesis_data_interface.structures.serialization import deserialize_parquet_to_dataframes
+from synesis_data_interface.structures.time_series.definitions import TIME_SERIES_STRUCTURE
+from synesis_data_interface.structures.time_series_aggregation.definitions import TIME_SERIES_AGGREGATION_STRUCTURE
 
 
 async def create_features(features: List[FeatureCreate]) -> List[FeatureInDB]:
@@ -111,24 +103,12 @@ async def create_dataset(
     await execute(insert(dataset).values(dataset_record.model_dump()), commit_after=True)
 
     # Create the sources
-    from_data_source_records, from_dataset_records, from_pipeline_records = [], [], []
-    for source in list(set(dataset_create.sources.data_source_ids)):
-        from_data_source_records.append(DatasetFromDataSourceInDB(
-            dataset_id=dataset_record.id,
-            data_source_id=source).model_dump())
-    for source in list(set(dataset_create.sources.dataset_ids)):
-        from_dataset_records.append(DatasetFromDatasetInDB(
-            dataset_id=dataset_record.id,
-            source_dataset_id=source).model_dump())
+    from_pipeline_records = []
     for source in list(set(dataset_create.sources.pipeline_ids)):
         from_pipeline_records.append(DatasetFromPipelineInDB(
             dataset_id=dataset_record.id,
             pipeline_id=source).model_dump())
 
-    if len(from_data_source_records) > 0:
-        await execute(insert(dataset_from_data_source).values(from_data_source_records), commit_after=True)
-    if len(from_dataset_records) > 0:
-        await execute(insert(dataset_from_dataset).values(from_dataset_records), commit_after=True)
     if len(from_pipeline_records) > 0:
         await execute(insert(dataset_from_pipeline).values(from_pipeline_records), commit_after=True)
 
@@ -353,9 +333,7 @@ async def create_dataset(
         variable_group_record = VariableGroupInDB(
             id=uuid.uuid4(),
             dataset_id=dataset_record.id,
-            name=variable_group_create.name,
-            description=variable_group_create.description,
-            save_path=variable_group_create.save_path,
+            **variable_group_create.model_dump(),
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
         )
@@ -370,7 +348,7 @@ async def create_dataset(
 
 async def get_user_datasets(
         user_id: uuid.UUID,
-        ids: Optional[List[uuid.UUID]] = None,
+        dataset_ids: Optional[List[uuid.UUID]] = None,
         max_features: Optional[int] = None
 ) -> List[Dataset]:
     """Get all datasets for a user"""
@@ -378,8 +356,8 @@ async def get_user_datasets(
     # Get all datasets for the user
     datasets_query = select(dataset).where(dataset.c.user_id == user_id)
 
-    if ids is not None:
-        datasets_query = datasets_query.where(dataset.c.id.in_(ids))
+    if dataset_ids is not None:
+        datasets_query = datasets_query.where(dataset.c.id.in_(dataset_ids))
 
     datasets_result = await fetch_all(datasets_query)
 
@@ -387,17 +365,6 @@ async def get_user_datasets(
         return []
 
     # Get all data source, source dataset, and pipeline IDs
-    source_ids_query = select(dataset_from_data_source).where(
-        dataset_from_data_source.c.dataset_id.in_(
-            [d["id"] for d in datasets_result])
-    )
-    source_ids_result = await fetch_all(source_ids_query)
-
-    source_dataset_ids_query = select(dataset_from_dataset).where(
-        dataset_from_dataset.c.dataset_id.in_(
-            [d["id"] for d in datasets_result])
-    )
-    source_dataset_ids_result = await fetch_all(source_dataset_ids_query)
 
     pipeline_ids_query = select(dataset_from_pipeline).where(
         dataset_from_pipeline.c.dataset_id.in_(
@@ -458,10 +425,6 @@ async def get_user_datasets(
             time_series_aggregation_object_groups
 
         sources = DatasetSources(
-            data_source_ids=[rec["data_source_id"]
-                             for rec in source_ids_result if rec["dataset_id"] == dataset_obj.id],
-            dataset_ids=[rec["source_dataset_id"]
-                         for rec in source_dataset_ids_result if rec["dataset_id"] == dataset_obj.id],
             pipeline_ids=[rec["pipeline_id"]
                           for rec in pipeline_ids_result if rec["dataset_id"] == dataset_obj.id]
         )
@@ -469,11 +432,15 @@ async def get_user_datasets(
         variable_groups = [
             VariableGroupInDB(**group) for group in variable_groups_result if group["dataset_id"] == dataset_obj.id]
 
+        description = get_dataset_description(
+            dataset_obj, all_object_groups, variable_groups)
+
         record = Dataset(
             **dataset_obj.model_dump(),
             object_groups=all_object_groups,
             variable_groups=variable_groups,
-            sources=sources
+            sources=sources,
+            description_for_agent=description
         )
 
         result_records.append(record)
@@ -487,12 +454,7 @@ async def get_user_dataset_by_id(
 ) -> Dataset:
     """Get a dataset for a user"""
 
-    return (await get_user_datasets(user_id, ids=[dataset_id]))[0]
-
-
-async def get_project_datasets(user_id: uuid.UUID, project_id: uuid.UUID) -> List[Dataset]:
-    dataset_ids = await get_dataset_ids_in_project(project_id)
-    return await get_user_datasets(user_id, ids=dataset_ids)
+    return (await get_user_datasets(user_id, dataset_ids=[dataset_id]))[0]
 
 
 async def get_object_groups(
@@ -674,7 +636,6 @@ def _make_timezone_aware(dt: datetime, timezone_str: str) -> datetime:
     # Convert naive datetime to timezone-aware
     tz = pytz.timezone(timezone_str)
     return tz.localize(dt)
-    return result_records
 
 
 async def create_aggregation_object(aggregation_object_create: AggregationObjectCreate) -> AggregationObjectInDB:
@@ -718,4 +679,3 @@ async def get_aggregation_object_by_analysis_result_id(analysis_result_id: uuid.
         raise HTTPException(
             status_code=404, detail="Aggregation object not found")
     return AggregationObjectInDB(**aggregation_object_result)
-

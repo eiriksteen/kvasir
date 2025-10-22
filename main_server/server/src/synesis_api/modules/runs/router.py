@@ -41,12 +41,9 @@ router = APIRouter()
 
 
 @router.get("/runs")
-async def fetch_runs(
-    exclude_swe: bool = True,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> List[Run]:
+async def fetch_runs(user: Annotated[User, Depends(get_current_user)] = None) -> List[Run]:
 
-    runs = await get_runs(user.id, exclude_swe=exclude_swe)
+    runs = await get_runs(user.id)
     return runs
 
 
@@ -70,7 +67,7 @@ async def post_launch_run(
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this run")
 
-    return await launch_run(MainServerClient(token), run_id)
+    return await launch_run(user.id, MainServerClient(token), run_id)
 
 
 @router.patch("/reject-run/{run_id}")
@@ -270,24 +267,21 @@ async def stream_run_code(
 
 
 @router.get("/stream-incomplete-runs")
-async def stream_incomplete_runs(
-    user: Annotated[User, Depends(get_current_user)] = None,
-    exclude_swe: bool = True
-) -> StreamingResponse:
+async def stream_incomplete_runs(user: Annotated[User, Depends(get_current_user)] = None) -> StreamingResponse:
 
     adapter = TypeAdapter(List[Run])
 
     async def stream_incomplete_runs():
         prev_run_ids = []
         while True:
-            incomplete_runs = await get_runs(user.id, filter_status=["running", "pending"], exclude_swe=exclude_swe)
+            incomplete_runs = await get_runs(user.id, filter_status=["running", "pending"])
 
             # Include recently stopped runs to ensure we don't miss the associated state changes
             # Could optionally listen for when a run id is removed from this list in the frontend, then mutate all jobs, but this is more efficient
             stopped_run_ids = [
                 run_id for run_id in prev_run_ids if run_id not in [run.id for run in incomplete_runs]]
 
-            stopped_runs = await get_runs(user.id, run_ids=stopped_run_ids, exclude_swe=exclude_swe)
+            stopped_runs = await get_runs(user.id, run_ids=stopped_run_ids)
 
             runs = stopped_runs + incomplete_runs
 
