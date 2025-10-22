@@ -31,7 +31,6 @@ from synesis_schemas.main_server import (
     VariableGroupCreate,
     DatasetSources,
 )
-from project_server.utils.file_utils import get_data_from_container_from_code
 
 
 from synesis_data_interface.structures.time_series.raw import TimeSeriesStructure

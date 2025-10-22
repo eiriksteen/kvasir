@@ -6,26 +6,6 @@ from synesis_data_interface.structures.overview import get_data_structure_descri
 from synesis_data_interface.sources.overview import get_data_source_description
 
 
-def get_structure_descriptions_from_datasets(datasets: List[Dataset]) -> str:
-    structure_descriptions = {}
-    for dataset in datasets:
-        for structure in dataset.object_groups:
-            structure_type = structure.structure_type
-            structure_descriptions[structure_type] = get_data_structure_description(
-                structure_type)
-
-    return "\n\n".join(structure_descriptions.values())
-
-
-def get_data_source_type_descriptions_from_data_sources(data_sources: List[DataSource]) -> str:
-    data_source_descriptions = {}
-    for data_source in data_sources:
-        data_source_descriptions[data_source.type] = get_data_source_description(
-            data_source.type)
-
-    return "\n\n".join(data_source_descriptions.values())
-
-
 def get_basic_df_info(df: pd.DataFrame):
     shape = df.shape
     sample_data = df.head()

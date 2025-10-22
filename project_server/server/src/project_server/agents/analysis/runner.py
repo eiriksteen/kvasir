@@ -10,13 +10,14 @@ from synesis_schemas.main_server import (
     GetModelEntityByIDsRequest,
     GetDataSourcesByIDsRequest,
     GetDatasetsByIDsRequest,
+    GetAnalysesByIDsRequest,
 )
 from project_server.client import (
     get_model_entities_by_ids,
     get_data_sources_by_ids,
     get_datasets_by_ids,
+    get_analyses_by_ids,
 )
-from project_server.worker import logger
 
 
 class AnalysisReportResult(BaseModel):
@@ -30,12 +31,13 @@ class AnalysisAgentRunner(RunnerBase):
         user_id: str,
         run_id: uuid.UUID,
         bearer_token: str,
-        analysis_id: uuid.UUID,
+        target_analysis_id: uuid.UUID,
         conversation_id: Optional[uuid.UUID] = None,
         project_id: Optional[uuid.UUID] = None,
-        model_entity_ids: Optional[List[uuid.UUID]] = None,
-        data_source_ids: Optional[List[uuid.UUID]] = None,
-        dataset_ids: Optional[List[uuid.UUID]] = None,
+        input_model_entity_ids: Optional[List[uuid.UUID]] = None,
+        input_data_source_ids: Optional[List[uuid.UUID]] = None,
+        input_dataset_ids: Optional[List[uuid.UUID]] = None,
+        input_analysis_ids: Optional[List[uuid.UUID]] = None,
     ):
         super().__init__(
             agent=analysis_agent,
@@ -47,19 +49,16 @@ class AnalysisAgentRunner(RunnerBase):
             run_id=run_id
         )
 
-        self.analysis_id = analysis_id
-        self.model_entity_ids = model_entity_ids
-        self.data_source_ids = data_source_ids
-        self.dataset_ids = dataset_ids
+        self.target_analysis_id = target_analysis_id
+        self.input_model_entity_ids = input_model_entity_ids
+        self.input_data_source_ids = input_data_source_ids
+        self.input_dataset_ids = input_dataset_ids
+        self.input_analysis_ids = input_analysis_ids
 
     async def __call__(self, prompt_content: str):
         try:
-            logger.info(
-                f"Running analysis agent with prompt: {prompt_content}")
             await self._create_run_if_not_exists()
-            logger.info(f"Created run for analysis agent")
             await self._prepare_deps()
-            logger.info(f"Prepared dependencies for analysis agent")
 
             run_result = await self._run_agent(
                 prompt_content=f"Solve this user prompt: {prompt_content}.",
@@ -76,18 +75,20 @@ class AnalysisAgentRunner(RunnerBase):
             raise e
 
     async def _prepare_deps(self) -> None:
-        self.model_entities = await get_model_entities_by_ids(self.project_client, GetModelEntityByIDsRequest(model_entity_ids=self.model_entity_ids))
-        self.data_sources = await get_data_sources_by_ids(self.project_client, GetDataSourcesByIDsRequest(data_source_ids=self.data_source_ids))
-        self.datasets = await get_datasets_by_ids(self.project_client, GetDatasetsByIDsRequest(dataset_ids=self.dataset_ids))
+        self.model_entities = await get_model_entities_by_ids(self.project_client, GetModelEntityByIDsRequest(model_entity_ids=self.input_model_entity_ids))
+        self.data_sources = await get_data_sources_by_ids(self.project_client, GetDataSourcesByIDsRequest(data_source_ids=self.input_data_source_ids))
+        self.datasets = await get_datasets_by_ids(self.project_client, GetDatasetsByIDsRequest(dataset_ids=self.input_dataset_ids))
+        self.analyses = await get_analyses_by_ids(self.project_client, GetAnalysesByIDsRequest(analysis_ids=self.input_analysis_ids))
 
         deps = AnalysisDeps(
             client=self.project_client,
             run_id=self.run_id,
             project_id=self.project_id,
-            analysis_id=self.analysis_id,
+            analysis_id=self.target_analysis_id,
             model_entities_injected=self.model_entities,
             data_sources_injected=self.data_sources,
-            datasets_injected=self.datasets
+            datasets_injected=self.datasets,
+            analyses_injected=self.analyses
         )
 
         self.deps = deps
@@ -110,10 +111,11 @@ async def run_analysis_task(
         bearer_token=bearer_token,
         conversation_id=analysis_request.conversation_id,
         project_id=analysis_request.project_id,
-        analysis_id=analysis_request.analysis_id,
-        model_entity_ids=analysis_request.model_entity_ids,
-        data_source_ids=analysis_request.data_source_ids,
-        dataset_ids=analysis_request.dataset_ids
+        target_analysis_id=analysis_request.target_analysis_id,
+        input_model_entity_ids=analysis_request.input_model_entity_ids,
+        input_data_source_ids=analysis_request.input_data_source_ids,
+        input_dataset_ids=analysis_request.input_dataset_ids,
+        input_analysis_ids=analysis_request.input_analysis_ids
     )
 
     await runner(analysis_request.prompt_content)

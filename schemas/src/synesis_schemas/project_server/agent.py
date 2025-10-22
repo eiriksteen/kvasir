@@ -9,20 +9,20 @@ class RunSWERequest(BaseModel):
     project_id: UUID
     prompt_content: str
     conversation_id: UUID
-    pipeline_id: UUID
-    data_source_ids: List[UUID] = []
-    dataset_ids: List[UUID] = []
-    model_entity_ids: List[UUID] = []
-    analysis_ids: List[UUID] = []
+    target_pipeline_id: UUID
+    input_data_source_ids: List[UUID] = []
+    input_dataset_ids: List[UUID] = []
+    input_model_entity_ids: List[UUID] = []
+    input_analysis_ids: List[UUID] = []
 
 
 class RunAnalysisRequest(BaseModel):
     run_id: UUID
     project_id: UUID
     prompt_content: str
-    analysis_id: UUID
-    data_source_ids: List[UUID] = []
-    dataset_ids: List[UUID] = []
-    analysis_ids: List[UUID] = []
-    model_entity_ids: List[UUID] = []
+    target_analysis_id: UUID
+    input_data_source_ids: List[UUID] = []
+    input_dataset_ids: List[UUID] = []
+    input_analysis_ids: List[UUID] = []
+    input_model_entity_ids: List[UUID] = []
     conversation_id: UUID | None = None

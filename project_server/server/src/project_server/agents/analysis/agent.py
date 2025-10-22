@@ -2,7 +2,13 @@ from pydantic_ai import Agent
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai import RunContext
 from project_server.agents.analysis.prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
-from project_server.utils.pydanticai_utils import get_model
+from project_server.utils.agent_utils import (
+    get_model,
+    get_injected_entities_description,
+    get_sandbox_environment_description,
+    get_structure_descriptions_from_datasets,
+    get_data_source_type_descriptions_from_data_sources
+)
 from project_server.agents.analysis.deps import AnalysisDeps
 from project_server.agents.analysis.tools import (
     search_through_datasets,
@@ -58,19 +64,27 @@ async def analysis_agent_system_prompt(ctx: RunContext[AnalysisDeps]) -> str:
     if not ctx.deps:
         return ANALYSIS_AGENT_SYSTEM_PROMPT
 
-    data_sources_description = "\n\n".join(
-        [data_source.description_for_agent for data_source in ctx.deps.data_sources_injected])
-    datasets_description = "\n\n".join(
-        [dataset.description_for_agent for dataset in ctx.deps.datasets_injected])
-    model_entities_description = "\n\n".join(
-        [model_entity.description_for_agent for model_entity in ctx.deps.model_entities_injected])
+    entities_description = get_injected_entities_description(
+        ctx.deps.data_sources_injected,
+        ctx.deps.datasets_injected,
+        ctx.deps.model_entities_injected,
+        ctx.deps.analyses_injected,
+        tmp=True
+    )
 
-    data_sources_section = f"The input data sources are:\n\n{data_sources_description}\n\n"
-    datasets_section = f"The input datasets are:\n\n{datasets_description}\n\n"
-    model_entities_section = f"The input model entities are:\n\n{model_entities_description}\n\n"
+    data_structure_descriptions = get_structure_descriptions_from_datasets(
+        ctx.deps.datasets_injected)
+    data_source_type_descriptions = get_data_source_type_descriptions_from_data_sources(
+        ctx.deps.data_sources_injected)
+
+    env_description = get_sandbox_environment_description()
 
     final_prompt = (
-        f"{ANALYSIS_AGENT_SYSTEM_PROMPT}\n\n{data_sources_section}{datasets_section}{model_entities_section}"
+        f"{ANALYSIS_AGENT_SYSTEM_PROMPT}\n\n" +
+        f"{env_description}\n\n" +
+        f"{entities_description}\n\n" +
+        f"{data_structure_descriptions}\n\n" +
+        f"{data_source_type_descriptions}\n\n"
     )
 
     logger.info(f"Analysis agent system prompt: {final_prompt}")

@@ -17,33 +17,15 @@ run = Table(
            ForeignKey("orchestrator.conversation.id"), nullable=True),
     Column("project_id", UUID(as_uuid=True),
            ForeignKey("project.project.id"), nullable=True),
-    Column("parent_run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"), nullable=True),
-    Column("type", String, nullable=False),
-    Column("status", String, nullable=False),
-    Column("started_at", DateTime(timezone=True), nullable=False),
-    Column("completed_at", DateTime(timezone=True), nullable=True),
-    schema="runs"
-)
-
-
-# Run spec is only for user-facing runs
-# The run is created with pending status, and the spec is created to display to the user, and allow them to approve or reject it
-run_specification = Table(
-    "run_specification",
-    metadata,
-    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"), nullable=False),
     Column("run_name", String, nullable=False),
     Column("plan_and_deliverable_description_for_user", String, nullable=False),
     Column("plan_and_deliverable_description_for_agent", String, nullable=False),
     Column("questions_for_user", String, nullable=True),
     Column("configuration_defaults_description", String, nullable=True),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    Column("updated_at", DateTime(timezone=True),
-           nullable=False, default=func.now(), onupdate=func.now()),
+    Column("type", String, nullable=False),
+    Column("status", String, nullable=False),
+    Column("started_at", DateTime(timezone=True), nullable=False),
+    Column("completed_at", DateTime(timezone=True), nullable=True),
     schema="runs"
 )
 

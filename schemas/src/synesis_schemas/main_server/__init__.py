@@ -160,7 +160,6 @@ from .data_sources import (
 # Runs schemas
 from .runs import (
     RunInDB,
-    RunSpecificationInDB,
     RunSpecificationCreate,
     RunMessageInDB,
     RunPydanticMessageInDB,
@@ -260,6 +259,7 @@ from .analysis import (
     AnalysisResultFindRequest,
     DataSourceInAnalysisInDB,
     ModelEntityInAnalysisInDB,
+    AnalysisFromPastAnalysisInDB,
     AnalysisInputEntities,
     GetAnalysesByIDsRequest
 )

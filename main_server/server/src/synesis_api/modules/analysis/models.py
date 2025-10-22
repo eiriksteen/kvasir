@@ -139,6 +139,22 @@ model_entity_in_analysis = Table(
 )
 
 
+analysis_from_past_analysis = Table(
+    "analysis_from_past_analysis",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           primary_key=True,
+           default=uuid.uuid4),
+    Column("analysis_id", UUID(as_uuid=True),
+           ForeignKey("analysis.analysis.id"),
+           nullable=False),
+    Column("past_analysis_id", UUID(as_uuid=True),
+           ForeignKey("analysis.analysis.id"),
+           nullable=False),
+    schema="analysis",
+)
+
+
 plot = Table(
     'plot',
     metadata,
