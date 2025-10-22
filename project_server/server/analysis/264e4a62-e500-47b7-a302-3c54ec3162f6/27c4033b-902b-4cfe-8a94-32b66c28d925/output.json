@@ -1,1 +1,0 @@
-{"output_data": {"data": [{"name": "index_0", "value_type": "str", "values": [0, 1, 2, 3, 4, 5]}, {"name": "plot_files", "value_type": "str", "values": ["hist_weighted_ili.png", "hist_ilitotal.png", "box_weighted_ili.png", "box_ilitotal.png", "scatter_ili_ilitotal.png", "timeseries_weighted_ili.png"]}]}}
