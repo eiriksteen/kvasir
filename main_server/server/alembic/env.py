@@ -44,7 +44,8 @@ from synesis_api.modules.model.models import (
 from synesis_api.modules.analysis.models import (
     analysis_status_message, analysis, analysis_result,
     notebook_section, notebook, plot, table,
-    dataset_in_analysis, data_source_in_analysis, model_entity_in_analysis
+    dataset_in_analysis, data_source_in_analysis, model_entity_in_analysis,
+    analysis_from_past_analysis
 )
 from synesis_api.modules.project.models import (
     project, project_dataset, project_analysis, project_pipeline, project_data_source, project_model_entity
@@ -149,6 +150,7 @@ __all__ = [
     model_entity,
     model_entity_implementation,
     model_source,
+    analysis_from_past_analysis,
 ]
 
 # add your model's MetaData object here

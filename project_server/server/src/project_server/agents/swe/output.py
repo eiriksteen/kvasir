@@ -136,7 +136,7 @@ async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name:
                 f"weights_save_dir must be set. If none has been provided, set a placeholder default. ")
 
         # Only do it for those that don't have a weights dir, as we will need to load from the ones that do
-        if not injected_model.implementation.weights_save_dir:
+        if not injected_model.implementation.weights_save_dir and injected_model.implementation.weights_save_dir is not None:
             testing_dirs.append(
                 Path(injected_model.implementation.weights_save_dir))
 

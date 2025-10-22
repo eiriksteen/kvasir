@@ -27,9 +27,9 @@ async function fetchProjectGraph(token: string, projectId: string): Promise<Proj
 
 export const useProjectGraph = (projectId: UUID) => {
     const { data: session } = useSession();
-    const { data: projectGraph, isLoading, error } = useSWR<ProjectGraph>(
+    const { data: projectGraph, isLoading, error, mutate: mutateProjectGraph } = useSWR<ProjectGraph>(
         session ? ["project-graph", projectId] : null,
         () => fetchProjectGraph(session?.APIToken?.accessToken || '', projectId)
     );
-    return { projectGraph, isLoading, error };
+    return { projectGraph, isLoading, error, mutateProjectGraph };
 }

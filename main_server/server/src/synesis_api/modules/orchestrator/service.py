@@ -277,7 +277,7 @@ async def get_run_status_message(user_id: uuid.UUID, conversation_id: uuid.UUID)
 
     def _get_run_string(runs: List[Run]) -> List[str]:
         return "\n\n".join([
-            f"Run name {run.spec.run_name} with id {run.id} has status {run.status} and was started at {run.started_at}" for run in runs if run.spec
+            f"Run name {run.run_name} with id {run.id} has status {run.status} and was started at {run.started_at}" for run in runs
         ])
 
     runs_status_message = (

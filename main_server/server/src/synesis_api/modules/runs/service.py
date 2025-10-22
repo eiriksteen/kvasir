@@ -98,16 +98,16 @@ async def create_run(user_id: uuid.UUID, run_create: RunCreate) -> RunInDB:
     # Create the entity_from_run record from the associated entity id
     analysis_from_run_record = None
     pipeline_from_run_record = None
-    if run_record.type == "analysis" and run_create.associated_entity_id:
+    if run_record.type == "analysis" and run_create.target_entity_id:
         analysis_from_run_record = AnalysisFromRunInDB(
             run_id=run_record.id,
-            analysis_id=run_create.associated_entity_id,
+            analysis_id=run_create.target_entity_id,
             created_at=datetime.now(timezone.utc)
         )
-    elif run_record.type == "swe" and run_create.associated_entity_id:
+    elif run_record.type == "swe" and run_create.target_entity_id:
         pipeline_from_run_record = PipelineFromRunInDB(
             run_id=run_record.id,
-            pipeline_id=run_create.associated_entity_id,
+            pipeline_id=run_create.target_entity_id,
             created_at=datetime.now(timezone.utc)
         )
 
@@ -210,6 +210,7 @@ async def launch_run(user_id: uuid.UUID, client: MainServerClient, run_id: uuid.
                 input_dataset_ids=dataset_ids,
                 input_data_source_ids=data_source_ids,
                 input_model_entity_ids=model_entity_ids,
+                input_analysis_ids=analysis_ids
             )
             target_entity_id = (await create_analysis(analysis_create=analysis_create, user_id=user_id)).id
             await add_entity_to_project(user_id, AddEntityToProject(

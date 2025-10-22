@@ -201,39 +201,44 @@ export const useRuns = () => {
         const streamedRuns = snakeToCamelKeys(JSON.parse(ev.data));
         next(null, async () => {
 
-          const runsAreUndefined = !runs;
-          const newRuns = streamedRuns.filter((run: Run) => !runs?.find((currentRun: Run) => currentRun.id === run.id));
-          const runsChangedStatus = streamedRuns.filter((run: Run) => run.status !== runs?.find((currentRun: Run) => currentRun.id === run.id)?.status);
+          // Use functional update to get the latest runs state and avoid race conditions
+          await mutateRuns((currentRuns) => {
+            if (!currentRuns) {
+              return streamedRuns;
+            }
 
-          // Return without changes if all streamedRuns are the same as the current runs and no run has changed status
-          if (runsAreUndefined || (newRuns.length === 0 && runsChangedStatus.length === 0)) {
-            return undefined;
-          }
+            const newRuns = streamedRuns.filter((run: Run) => !currentRuns.find((currentRun: Run) => currentRun.id === run.id));
+            const runsChangedStatus = streamedRuns.filter((run: Run) => run.status !== currentRuns.find((currentRun: Run) => currentRun.id === run.id)?.status);
 
-          let updatedRuns = runs.map(run => runsChangedStatus.find((changedRun: Run) => changedRun.id === run.id) || run);
-          updatedRuns = updatedRuns.concat(newRuns);
+            // Return without changes if all streamedRuns are the same as the current runs and no run has changed status
+            if (newRuns.length === 0 && runsChangedStatus.length === 0) {
+              return currentRuns;
+            }
 
-          if (updatedRuns.every((run: Run) => run.status !== "running")) {
+            // Update existing runs with status changes and append new runs
+            let updatedRuns = currentRuns.map(run => runsChangedStatus.find((changedRun: Run) => changedRun.id === run.id) || run);
+            updatedRuns = updatedRuns.concat(newRuns);
+
+            // Update run state based on the updated runs
             const newRunState = computeRunState(updatedRuns);
-            mutateRunState(newRunState, {revalidate: false});
-            const noRunningRuns = updatedRuns.filter((run: Run) => run.status === "running").length === 0;
-            if (noRunningRuns) {
-              setTimeout(() => {
-                mutateRunState(emptyRunState, {revalidate: false});
-              }, 5000);
+            if (updatedRuns.every((run: Run) => run.status !== "running")) {
+              mutateRunState(newRunState, {revalidate: false});
+              const noRunningRuns = updatedRuns.filter((run: Run) => run.status === "running").length === 0;
+              if (noRunningRuns) {
+                setTimeout(() => {
+                  mutateRunState(emptyRunState, {revalidate: false});
+                }, 5000);
+              }
             }
-          }
 
-          await mutateRuns(updatedRuns, {revalidate: false});
-
-          const completedRuns = runsChangedStatus.filter((run: Run) => run.status === "completed");
-          
-          if (completedRuns.length > 0) {
-            if (completedRuns.some((run: Run) => run.type === "data_integration")) {
-              mutate("datasets");
+            // Trigger project refresh if any runs completed
+            const completedRuns = runsChangedStatus.filter((run: Run) => run.status === "completed");
+            if (completedRuns.length > 0) {
+              mutate("projects");
             }
-            mutate("projects");
-          }
+
+            return updatedRuns;
+          }, {revalidate: false});
 
           // Return undefined since this is purely to update the jobs by listening to updates from the event source
           return undefined;

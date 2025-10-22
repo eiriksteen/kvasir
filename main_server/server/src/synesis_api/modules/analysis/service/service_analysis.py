@@ -51,29 +51,21 @@ async def create_analysis(analysis_create: AnalysisCreate, user_id: uuid.UUID) -
     dataset_in_analysis_records = [DatasetInAnalysisInDB(
         analysis_id=analysis_id,
         dataset_id=dataset_id,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
     ).model_dump() for dataset_id in analysis_create.input_dataset_ids]
 
     data_source_in_analysis_records = [DataSourceInAnalysisInDB(
         analysis_id=analysis_id,
         data_source_id=data_source_id,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
     ).model_dump() for data_source_id in analysis_create.input_data_source_ids]
 
     model_entity_in_analysis_records = [ModelEntityInAnalysisInDB(
         analysis_id=analysis_id,
         model_entity_id=model_entity_id,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
     ).model_dump() for model_entity_id in analysis_create.input_model_entity_ids]
 
     analysis_from_past_analysis_records = [AnalysisFromPastAnalysisInDB(
         analysis_id=analysis_id,
-        past_analysis_id=past_analysis_id,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
+        past_analysis_id=past_analysis_id
     ).model_dump() for past_analysis_id in analysis_create.input_analysis_ids]
 
     await execute(
@@ -145,6 +137,7 @@ async def get_user_analyses(
                                    for d in input_model_entity_ids if d["analysis_id"] == analysis_object_id]
         record_past_analysis_ids = [d["past_analysis_id"]
                                     for d in input_past_analysis_ids if d["analysis_id"] == analysis_object_id]
+
         inputs = AnalysisInputEntities(
             dataset_ids=record_dataset_ids,
             data_source_ids=record_data_source_ids,

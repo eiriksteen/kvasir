@@ -158,12 +158,13 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
             ))
         return objs
 
-    def _get_datasets_in_graph(datasets: List[Dataset], project_datasets: List[ProjectDatasetInDB], pipelines: List[Pipeline]) -> List[DatasetInGraph]:
+    def _get_datasets_in_graph(datasets: List[Dataset], project_datasets: List[ProjectDatasetInDB], pipelines: List[Pipeline], analyses: List[Analysis]) -> List[DatasetInGraph]:
         objs = []
         for ds, project_ds in zip(datasets, project_datasets):
             output_pipeline_ids = [
                 p.id for p in pipelines if ds.id in p.inputs.dataset_ids]
-            output_analysis_ids = []
+            output_analysis_ids = [
+                a.id for a in analyses if ds.id in a.inputs.dataset_ids]
 
             objs.append(DatasetInGraph(
                 id=ds.id,
@@ -185,7 +186,7 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
             output_dataset_ids = [
                 ds.id for ds in datasets if p.id in ds.sources.pipeline_ids]
             output_model_entity_ids = [
-                me.id for me in model_entities if p.id == me.implementation.pipeline_id]
+                me.id for me in model_entities if p.id == me.implementation.pipeline_id if me.implementation is not None]
 
             objs.append(PipelineInGraph(
                 id=p.id,
@@ -210,7 +211,7 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
             output_pipeline_ids = [
                 p.id for p in pipelines if a.id in p.inputs.analysis_ids]
             output_analysis_ids = [
-                a.id for a in analyses if a.id in a.inputs.analysis_ids]
+                past_a.id for past_a in analyses if a.id in past_a.inputs.analysis_ids]
             objs.append(AnalysisInGraph(
                 id=a.id,
                 name=a.name,
@@ -221,6 +222,7 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
                     from_datasets=a.inputs.dataset_ids,
                     from_data_sources=a.inputs.data_source_ids,
                     from_model_entities=a.inputs.model_entity_ids,
+                    from_analyses=a.inputs.analysis_ids,
                     to_pipelines=output_pipeline_ids,
                     to_analyses=output_analysis_ids
                 )
@@ -247,7 +249,7 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
     data_sources_in_graph = _get_data_sources_in_graph(
         data_sources, project.data_sources, datasets)
     datasets_in_graph = _get_datasets_in_graph(
-        datasets, project.datasets, pipelines)
+        datasets, project.datasets, pipelines, analyses)
     pipelines_in_graph = _get_pipelines_in_graph(
         pipelines, project.pipelines, datasets, model_entities)
     analyses_in_graph = _get_analyses_in_graph(

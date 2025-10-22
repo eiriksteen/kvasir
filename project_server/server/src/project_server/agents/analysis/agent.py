@@ -11,9 +11,9 @@ from project_server.utils.agent_utils import (
 )
 from project_server.agents.analysis.deps import AnalysisDeps
 from project_server.agents.analysis.tools import (
-    search_through_datasets,
-    search_through_data_sources,
-    search_through_analyses,
+    # search_through_datasets,
+    # search_through_data_sources,
+    # search_through_analyses,
     search_through_analysis_results,
     search_knowledge_bank,
     add_analysis_result_to_notebook_section,
@@ -40,9 +40,9 @@ analysis_agent = Agent(
     model_settings=ModelSettings(temperature=0.1),
     retries=3,
     tools=[
-        search_through_datasets,
-        search_through_data_sources,
-        search_through_analyses,
+        # search_through_datasets,
+        # search_through_data_sources,
+        # search_through_analyses,
         search_through_analysis_results,
         search_knowledge_bank,
         add_analysis_result_to_notebook_section,
@@ -84,7 +84,8 @@ async def analysis_agent_system_prompt(ctx: RunContext[AnalysisDeps]) -> str:
         f"{env_description}\n\n" +
         f"{entities_description}\n\n" +
         f"{data_structure_descriptions}\n\n" +
-        f"{data_source_type_descriptions}\n\n"
+        f"{data_source_type_descriptions}\n\n" +
+        f"\n\nThe ID of the current analysis is: {ctx.deps.analysis_id}\n\n"
     )
 
     logger.info(f"Analysis agent system prompt: {final_prompt}")

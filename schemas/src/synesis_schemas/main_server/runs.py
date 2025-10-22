@@ -120,15 +120,6 @@ class CodeForLog(BaseModel):
 # Create Models
 
 
-class RunSpecificationCreate(BaseModel):
-    run_name: str
-    plan_and_deliverable_description_for_user: str
-    plan_and_deliverable_description_for_agent: str
-    questions_for_user: Optional[str] = None
-    configuration_defaults_description: Optional[str] = None
-    associated_entity_id: Optional[uuid.UUID] = None
-
-
 class RunCreate(BaseModel):
     type: RUN_TYPE_LITERAL
     initial_status: Literal["pending", "running",
@@ -138,7 +129,7 @@ class RunCreate(BaseModel):
     plan_and_deliverable_description_for_agent: str
     questions_for_user: Optional[str] = None
     configuration_defaults_description: Optional[str] = None
-    associated_entity_id: Optional[uuid.UUID] = None
+    target_entity_id: Optional[uuid.UUID] = None
     project_id: Optional[uuid.UUID] = None
     conversation_id: Optional[uuid.UUID] = None
     data_sources_in_run: List[uuid.UUID] = []

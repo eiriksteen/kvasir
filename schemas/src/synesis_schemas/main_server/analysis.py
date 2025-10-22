@@ -106,29 +106,21 @@ class AnalysisResultInDB(BaseModel):
 class DatasetInAnalysisInDB(BaseModel):
     analysis_id: UUID
     dataset_id: UUID
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
 
 
 class DataSourceInAnalysisInDB(BaseModel):
     analysis_id: UUID
     data_source_id: UUID
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
 
 
 class ModelEntityInAnalysisInDB(BaseModel):
     analysis_id: UUID
     model_entity_id: UUID
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
 
 
 class AnalysisFromPastAnalysisInDB(BaseModel):
     analysis_id: UUID
     past_analysis_id: UUID
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
 
 # Other schemas
 

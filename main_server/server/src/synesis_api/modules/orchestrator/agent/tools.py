@@ -11,8 +11,7 @@ from synesis_schemas.main_server import (
     AddEntityToProject,
     GetGuidelinesRequest,
     SearchModelsRequest,
-    RunCreate,
-    RunSpecificationCreate
+    RunCreate
 )
 from synesis_api.modules.orchestrator.agent.deps import OrchestratorAgentDeps
 from synesis_api.modules.knowledge_bank.service import query_models, get_task_guidelines
@@ -90,12 +89,11 @@ async def submit_run_for_analysis_agent(
             datasets_in_run=result.input_dataset_ids,
             model_entities_in_run=result.input_model_entity_ids,
             analyses_in_run=result.input_analysis_ids,
-            spec=RunSpecificationCreate(
-                run_name=result.run_name,
-                plan_and_deliverable_description_for_agent=result.plan_and_deliverable_description_for_agent,
-                plan_and_deliverable_description_for_user=result.plan_and_deliverable_description_for_user,
-                associated_entity_id=analysis_entity_id,
-            )
+            run_name=result.run_name,
+            plan_and_deliverable_description_for_agent=result.plan_and_deliverable_description_for_agent,
+            plan_and_deliverable_description_for_user=result.plan_and_deliverable_description_for_user,
+            target_entity_id=analysis_entity_id,
+
         ))
 
     return f"Successfully submitted run for SWE agent, the run id is {run.id}"
@@ -127,14 +125,12 @@ async def submit_run_for_swe_agent(
             datasets_in_run=result.input_dataset_ids,
             model_entities_in_run=result.input_model_entity_ids,
             analyses_in_run=result.input_analysis_ids,
-            spec=RunSpecificationCreate(
-                run_name=result.run_name,
-                plan_and_deliverable_description_for_agent=result.plan_and_deliverable_description_for_agent,
-                plan_and_deliverable_description_for_user=result.plan_and_deliverable_description_for_user,
-                questions_for_user=result.questions_for_user,
-                configuration_defaults_description=result.configuration_defaults_description,
-                associated_entity_id=pipeline_entity_id,
-            )
+            run_name=result.run_name,
+            plan_and_deliverable_description_for_agent=result.plan_and_deliverable_description_for_agent,
+            plan_and_deliverable_description_for_user=result.plan_and_deliverable_description_for_user,
+            questions_for_user=result.questions_for_user,
+            configuration_defaults_description=result.configuration_defaults_description,
+            target_entity_id=pipeline_entity_id,
 
         ))
 

@@ -160,7 +160,6 @@ from .data_sources import (
 # Runs schemas
 from .runs import (
     RunInDB,
-    RunSpecificationCreate,
     RunMessageInDB,
     RunPydanticMessageInDB,
     RunEntityIds,

@@ -349,10 +349,10 @@ export const useAnalysis = (projectId: UUID) => {
 
     const { addEntity } = useProject(projectId);
     
-    const { data: analysisObjects, mutate: mutateAnalysisObjects } = useSWR(session ? "analysisObjects" : null, () => fetchAnalysisObjects(session ? session.APIToken.accessToken : "", projectId), {fallbackData: [] as AnalysisObjectSmall[]});
+    const { data: analysisObjects, mutate: mutateAnalysisObjects } = useSWR(session ? ["analysisObjects", projectId] : null, () => fetchAnalysisObjects(session ? session.APIToken.accessToken : "", projectId), {fallbackData: [] as AnalysisObjectSmall[]});
 
     const { trigger: createAnalysisObject } = useSWRMutation(
-      "analysisObjects",
+      session ? ["analysisObjects", projectId] : null,
       async (_, { arg }: { arg: AnalysisObjectCreate }) => {
         const analysisObject = await postAnalysisObject(session ? session.APIToken.accessToken : "", arg);
         return analysisObject;

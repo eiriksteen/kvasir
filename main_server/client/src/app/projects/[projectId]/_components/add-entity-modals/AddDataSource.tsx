@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { X, Database } from 'lucide-react';
-import { useDataSources } from '@/hooks/useDataSources';
+import { useDataSources, useProjectDataSources } from '@/hooks/useDataSources';
 import { useProject } from '@/hooks/useProject';
 import { DataSource } from '@/types/data-sources';
 import SourceTypeIcon from "@/app/data-sources/_components/SourceTypeIcon";
@@ -31,7 +31,10 @@ interface AddDataSourceProps {
 }
 
 export default function AddDataSource({ onClose, projectId }: AddDataSourceProps) {
-  const { dataSources, mutateDataSources, isLoading, error } = useDataSources();
+  // Need all data sources to display options to add
+  const { dataSources, isLoading, error } = useDataSources();
+  // Need just mutate the project data sources to update the ERD
+  const { mutateDataSources: mutateProjectDataSources } = useProjectDataSources(projectId);
   const { project, addEntity } = useProject(projectId);
   const [isAdding, setIsAdding] = useState<string | null>(null);
 
@@ -64,13 +67,13 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
     setIsAdding(dataSource.id);
     try {
       await addEntity("data_source", dataSource.id);
-      await mutateDataSources();
       // Close the modal after successful addition
       onClose();
     } catch (error) {
       console.error('Failed to add data source to project:', error);
     } finally {
       setIsAdding(null);
+      await mutateProjectDataSources();
     }
   };
 

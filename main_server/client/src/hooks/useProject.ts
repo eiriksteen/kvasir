@@ -190,6 +190,8 @@ export const useProjects = () => {
 
 export const useProject = (projectId: UUID) => {
   const { data: session } = useSession();
+
+  // TODO: Should not need to mutate all projects when just one changes
   const { projects, mutateProjects, triggerUpdateProject } = useProjects();
 
   // Store selected project
@@ -335,5 +337,6 @@ export const useProject = (projectId: UUID) => {
     addEntity,
     removeEntity,
     calculateDatasetPosition: calculateNodePosition,
+    mutateProject: mutateProjects,
   };
 };

@@ -14,7 +14,6 @@ from project_server.entity_manager.dataset_manager.dataclasses import (
     DatasetCreateWithRawData,
     ObjectGroupCreateWithRawData,
     DatasetWithRawData,
-    ObjectGroupWithRawData,
     VariableGroupCreateWithRawData
 )
 from project_server.client import ProjectClient

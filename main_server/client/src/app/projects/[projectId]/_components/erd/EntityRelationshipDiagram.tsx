@@ -177,6 +177,11 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
+
+  console.log("PIPELINES", pipelines);
+  console.log("ANALYSIS OBJECTS", analysisObjects);
+
+
   // Update project tab label when project name changes
   useEffect(() => {
     if (project?.name) {
@@ -296,13 +301,13 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
 
   }, [project, datasets, analysisObjects, dataSources, pipelines, modelEntities, handleOpenTab, triggerRunPipeline, projectId, pipelineRuns]);
 
-  // Memoize edges - uses current node positions from nodes state
+  // Memoize edges - uses current node positions from state for live updates during dragging
   const memoizedEdges = useMemo(() => {
     if (!projectGraph || nodes.length === 0) {
       return [];
     }
 
-    // Helper to get entity position from nodes or graph data
+    // Helper to get entity position from current nodes state (updates during dragging)
     const getEntityPosition = (entityId: UUID): { xPosition: number, yPosition: number } | null => {
       const currentNode = nodes.find(n => n.id === entityId);
       if (currentNode) {
@@ -385,24 +390,20 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     return allEdges;
   }, [projectGraph, getEdgeColor, nodes]);
 
-  // Only update nodes when memoizedNodes changes
+  // Sync nodes: only update if the set of node IDs has changed
   useEffect(() => {
-    setNodes((prevNodes) => {
-      const prev = JSON.stringify(prevNodes);
-      const next = JSON.stringify(memoizedNodes);
-      return prev === next ? prevNodes : memoizedNodes;
-    });
-  }, [memoizedNodes, setNodes]);
+    const currentNodeIds = nodes.map(n => n.id).sort().join(',');
+    const newNodeIds = memoizedNodes.map(n => n.id).sort().join(',');
+    
+    if (currentNodeIds !== newNodeIds) {
+      setNodes(memoizedNodes);
+    }
+  }, [memoizedNodes, nodes, setNodes]);
 
-  // Only update edges when memoizedEdges changes
+  // Sync edges: always update when memoized edges change (they now include live positions)
   useEffect(() => {
-    setEdges((prevEdges) => {
-      const prev = JSON.stringify(prevEdges);
-      const next = JSON.stringify(memoizedEdges);
-      return prev === next ? prevEdges : memoizedEdges;
-    });
+    setEdges(memoizedEdges);
   }, [memoizedEdges, setEdges]);
-
 
   const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
     if (!project) return;

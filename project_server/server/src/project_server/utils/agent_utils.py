@@ -62,7 +62,7 @@ def get_structure_descriptions_from_datasets(datasets: List[Dataset]) -> str:
                 structure_type)
 
     descriptions_joined = "\n\n".join(structure_descriptions.values())
-    return f"The definitions of the structures found in the injected datasets are:\n\n<data_structures>\n\n{descriptions_joined}\n\n</data_structures>\n\n"
+    return f"The definitions of the structures found in the injected datasets are:\n\n<data_structure_definitions>\n\n{descriptions_joined}\n\n</data_structure_definitions>\n\n"
 
 
 def get_data_source_type_descriptions_from_data_sources(data_sources: List[DataSource]) -> str:
@@ -72,7 +72,7 @@ def get_data_source_type_descriptions_from_data_sources(data_sources: List[DataS
             data_source.type)
 
     descriptions_joined = "\n\n".join(data_source_descriptions.values())
-    return f"The definitions of the data source types found in the injected data sources are:\n\n<data_sources>\n\n{descriptions_joined}\n\n</data_sources>\n\n"
+    return f"The definitions of the data source types found in the injected data sources are:\n\n<data_source_definitions>\n\n{descriptions_joined}\n\n</data_source_definitions>\n\n"
 
 
 def get_model():
