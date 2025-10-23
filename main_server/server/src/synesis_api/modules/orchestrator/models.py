@@ -28,6 +28,8 @@ chat_message = Table(
     # User, assistant
     Column("role", String, nullable=False),
     Column("content", String, nullable=False),
+    # tool call or chat
+    Column("type", String, nullable=False),
     Column("context_id", UUID(as_uuid=True),
            ForeignKey("orchestrator.chat_context.id"), nullable=True),
     Column("created_at", DateTime(timezone=True),

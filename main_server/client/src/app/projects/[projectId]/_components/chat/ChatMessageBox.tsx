@@ -1,7 +1,7 @@
 'use client';
 
 import React, { memo } from 'react';
-import { Database, Zap } from 'lucide-react';
+import { Database, Zap, Wrench } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage } from '@/types/orchestrator';
@@ -27,20 +27,24 @@ const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
 
   // Different styling based on message type
   const getMessageStyles = () => {
-      return {
-        container: `max-w-[95%] rounded-2xl px-2 py-1 ${
-          message.role === 'user'
-            ? 'px-3 py-2 rounded-tr-none'
-            : 'px-2 py-1'
-        }`,
-        content: `text-xs leading-relaxed ${
-          message.role === 'user' ? 'text-white' : 'text-gray-800'
-        } ${message.role === 'assistant' ? 'animate-fade-in' : ''}`
-      };
-
+    const isToolCall = message.type === 'tool_call';
+    
+    return {
+      container: `max-w-[95%] rounded-2xl px-2 py-1 ${
+        message.role === 'user'
+          ? 'px-3 py-2 rounded-tr-none'
+          : isToolCall
+          ? 'px-2 py-2'
+          : 'px-2 py-2 border border-gray-800'
+      }`,
+      content: `text-xs leading-relaxed ${
+        message.role === 'user' ? 'text-white' : 'text-gray-800'
+      } ${message.role === 'assistant' && !isToolCall ? 'animate-fade-in' : ''}`
+    };
   };
 
   const styles = getMessageStyles();
+  const isToolCall = message.type === 'tool_call';
 
   return (
     <div 
@@ -87,11 +91,22 @@ const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
           </div>
         )}
         
-        <div className={styles.content}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {message.content}
-          </ReactMarkdown>
-        </div>
+        {isToolCall ? (
+          <div className="flex gap-2 items-start">
+            <Wrench size={12} className="mt-1 flex-shrink-0 text-gray-600" />
+            <div className={styles.content}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {message.content}
+              </ReactMarkdown>
+            </div>
+          </div>
+        ) : (
+          <div className={styles.content}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {message.content}
+            </ReactMarkdown>
+          </div>
+        )}
       </div>
     </div>
   );

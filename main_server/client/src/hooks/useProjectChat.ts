@@ -4,7 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { Dataset } from '@/types/data-objects';
-import { AnalysisSmall } from '@/types/analysis';
+import { AnalysisObjectSmall } from '@/types/analysis';
 import { v4 as uuidv4 } from 'uuid';
 import { UUID } from "crypto";
 import { DataSource } from "@/types/data-sources";
@@ -105,7 +105,7 @@ export const useProjectChat = (projectId: UUID) => {
         datasetIds: datasetsInContext?.map((dataset: Dataset) => dataset.id) || [],
         pipelineIds: pipelinesInContext?.map((pipeline: Pipeline) => pipeline.id) || [],
         modelEntityIds: modelEntitiesInContext?.map((modelEntity: ModelEntity) => modelEntity.id) || [],
-        analysisIds: analysesInContext?.map((analysis: AnalysisSmall) => analysis.id) || [],
+        analysisIds: analysesInContext?.map((analysis: AnalysisObjectSmall) => analysis.id) || [],
       };
 
       // Create user message with proper context
@@ -113,6 +113,7 @@ export const useProjectChat = (projectId: UUID) => {
         // Placeholder id, the backend will create the actual id
         id: uuidv4() as UUID,
         role: "user", 
+        type: "chat",
         conversationId: convId,
         content: content,
         context: context,
@@ -177,7 +178,7 @@ export const useProjectChat = (projectId: UUID) => {
         datasetIds: datasetsInContext?.map((dataset: Dataset) => dataset.id) || [],
         pipelineIds: pipelinesInContext?.map((pipeline: Pipeline) => pipeline.id) || [],
         modelEntityIds: modelEntitiesInContext?.map((modelEntity: ModelEntity) => modelEntity.id) || [],
-        analysisIds: analysesInContext?.map((analysis: AnalysisSmall) => analysis.id) || [],
+        analysisIds: analysesInContext?.map((analysis: AnalysisObjectSmall) => analysis.id) || [],
       };
 
       const prompt: Prompt = {
