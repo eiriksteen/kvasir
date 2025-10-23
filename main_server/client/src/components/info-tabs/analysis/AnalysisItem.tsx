@@ -4,7 +4,7 @@ import SectionItem from '@/components/info-tabs/analysis/SectionItem';
 import TableOfContents from '@/components/info-tabs/analysis/TableOfContents';
 import AnalysisResult from '@/components/info-tabs/analysis/AnalysisResult';
 import { Bot } from 'lucide-react';
-import { useAnalysisObject } from '@/hooks/useAnalysis';
+import { useAnalysis } from '@/hooks/useAnalysis';
 import { buildOrderedList, findParentSections } from '@/lib/utils';
 import { UUID } from 'crypto';
 import { NotebookSection, AnalysisResult as AnalysisResultType, MoveRequest } from '@/types/analysis';
@@ -24,7 +24,7 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
   const {
     currentAnalysisObject: analysis,
     moveElement,
-  } = useAnalysisObject(projectId, analysisObjectId);
+  } = useAnalysis(projectId, analysisObjectId);
   
   // Refs for scrolling to sections
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());

@@ -1,6 +1,12 @@
 import React from 'react';
 import { X, Folder, Database, BarChart3, Bot, Aperture, Zap, Brain } from 'lucide-react';
-import { Tab, useTabContext } from '@/hooks/useTabContext';
+import { TabType, useTabContext } from '@/hooks/useTabContext';
+import { useProject } from '@/hooks/useProject';
+import { useDatasets } from '@/hooks/useDatasets';
+import { useDataSources } from '@/hooks/useDataSources';
+import { useAnalyses } from '@/hooks/useAnalysis';
+import { usePipelines } from '@/hooks/usePipelines';
+import { useModelEntities } from '@/hooks/useModelEntities';
 import { UUID } from 'crypto';
 
 interface CustomTabViewProps {
@@ -8,9 +14,48 @@ interface CustomTabViewProps {
 }
 
 const TabView: React.FC<CustomTabViewProps> = ({ projectId }) => {
-  const { openTabs, activeTabKey, selectTab, closeTabByKey } = useTabContext(projectId);
+  const { openTabs, activeTabId, selectTab, closeTab } = useTabContext(projectId);
+  const { project } = useProject(projectId);
+  const { datasets } = useDatasets(projectId);
+  const { dataSources } = useDataSources();
+  const { analysisObjects } = useAnalyses(projectId);
+  const { pipelines } = usePipelines(projectId);
+  const { modelEntities } = useModelEntities(projectId);
   
-  const getTabColor = (type: Tab['type'], isActive: boolean) => {
+  // Determine the type of a tab based on its ID
+  const getTabType = (id: UUID | null): TabType => {
+    if (id === null) return 'project';
+    
+    if (project?.dataSources.some(ds => ds.dataSourceId === id)) return 'data_source';
+    if (project?.datasets.some(ds => ds.datasetId === id)) return 'dataset';
+    if (project?.analyses.some(a => a.analysisId === id)) return 'analysis';
+    if (project?.pipelines.some(p => p.pipelineId === id)) return 'pipeline';
+    if (project?.modelEntities.some(m => m.modelEntityId === id)) return 'model_entity';
+    
+    return 'project'; // fallback
+  };
+  
+  // Get the label for a tab based on its ID and type
+  const getTabLabel = (id: UUID | null, type: TabType): string => {
+    if (id === null) return ''; // Project tab has no label
+    
+    switch (type) {
+      case 'data_source':
+        return dataSources?.find(ds => ds.id === id)?.name || '';
+      case 'dataset':
+        return datasets?.find(ds => ds.id === id)?.name || '';
+      case 'analysis':
+        return analysisObjects?.find(a => a.id === id)?.name || '';
+      case 'pipeline':
+        return pipelines?.find(p => p.id === id)?.name || '';
+      case 'model_entity':
+        return modelEntities?.find(m => m.id === id)?.name || '';
+      default:
+        return '';
+    }
+  };
+  
+  const getTabColor = (type: TabType, isActive: boolean) => {
     switch (type) {
       case 'project':
         return {
@@ -63,7 +108,7 @@ const TabView: React.FC<CustomTabViewProps> = ({ projectId }) => {
     }
   };
   
-  const getTabIcon = (type: Tab['type'], isActive: boolean) => {
+  const getTabIcon = (type: TabType, isActive: boolean) => {
     const colors = getTabColor(type, isActive);
     const iconClass = `${colors.icon}`;
     
@@ -90,34 +135,36 @@ const TabView: React.FC<CustomTabViewProps> = ({ projectId }) => {
   return (
     <div className="flex items-center bg-gray-100 border-b border-t border-gray-400 h-9 mt-12">
       {openTabs.map((tab, index) => {
-        const isActive = activeTabKey === tab.key;
-        const colors = getTabColor(tab.type, isActive);
+        const type = getTabType(tab.id);
+        const label = getTabLabel(tab.id, type);
+        const isActive = activeTabId === tab.id;
+        const colors = getTabColor(type, isActive);
         
         return (
-          <React.Fragment key={tab.key}>
+          <React.Fragment key={tab.id ?? 'project'}>
             {index > 0 && (
               <div className="h-full w-px bg-gray-300" />
             )}
             <div
-              className={`font-mono text-xs flex items-center ${tab.type !== 'project' ? 'gap-1.5' : ''} px-3 py-3 cursor-pointer h-full ${
+              className={`font-mono text-xs flex items-center ${type !== 'project' ? 'gap-1.5' : ''} px-3 py-3 cursor-pointer h-full ${
                 isActive 
                   ? colors.bg 
                   : colors.hover
               }`}
-              onClick={() => selectTab(tab.key)}
+              onClick={() => selectTab(tab.id)}
             >
-              {getTabIcon(tab.type, isActive)}
-              <span className={isActive && tab.type === 'project' ? 'text-white' : 'text-gray-800'}>{tab.label}</span>
+              {getTabIcon(type, isActive)}
+              <span className={isActive && type === 'project' ? 'text-white' : 'text-gray-800'}>{label}</span>
               {tab.closable !== false && (
                 <button
                   className={`focus:outline-none ${
-                    isActive && tab.type === 'project' 
+                    isActive && type === 'project' 
                       ? 'text-gray-300 hover:text-white' 
                       : 'text-gray-500 hover:text-gray-800'
                   }`}
                   onClick={e => {
                     e.stopPropagation();
-                    closeTabByKey(tab.key);
+                    closeTab(tab.id);
                   }}
                   aria-label="Close tab"
                 >

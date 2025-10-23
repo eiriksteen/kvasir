@@ -1,25 +1,27 @@
 import React from 'react';
 import { Zap, Play, Square } from 'lucide-react';
-import { Pipeline, PipelineRunInDB } from '@/types/pipeline';
+import { PipelineRunInDB } from '@/types/pipeline';
+import { usePipeline } from '@/hooks/usePipelines';
+import { UUID } from 'crypto';
 
 interface PipelineBoxProps {
-  pipeline: Pipeline;
+  pipelineId: UUID;
+  projectId: UUID;
   onClick?: () => void;
-  handleRunClick?: () => void;
-  pipelineRuns: PipelineRunInDB[]; 
 }
 
-export default function PipelineBox({ pipeline, pipelineRuns, onClick, handleRunClick }: PipelineBoxProps) {
+export default function PipelineBox({ pipelineId, projectId, onClick}: PipelineBoxProps) {
   const isDisabled = !onClick;
-  
-  // Check if there's a running pipeline
-  const isRunning = pipelineRuns.some(
-    run => run.status === 'running'
-  );
-  
+  const { pipeline, pipelineRuns, triggerRunPipeline } = usePipeline(pipelineId, projectId);
+  const isRunning = pipelineRuns.some((run: PipelineRunInDB) => run.status === 'running');
+
   const handleStopClick = () => {
-    console.log('Stop pipeline clicked:', pipeline.id);
+    console.log('Stop pipeline clicked:', pipelineId);
   };
+
+  if (!pipeline) {
+    return null;
+  }
 
   
   return (
@@ -48,7 +50,7 @@ export default function PipelineBox({ pipeline, pipelineRuns, onClick, handleRun
       
       {/* Run/Stop button */}
       <button
-        onClick={isRunning ? handleStopClick : (handleRunClick ? handleRunClick : undefined)}
+        onClick={isRunning ? handleStopClick : triggerRunPipeline}
         className={`w-12 px-3 py-3 border-l-2 border-[#840B08] flex-shrink-0 ${
           isDisabled
             ? 'cursor-default opacity-60'

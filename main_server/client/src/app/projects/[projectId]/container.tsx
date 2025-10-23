@@ -23,7 +23,7 @@ interface DashboardProps {
 
 function DashboardContent({ projectId }: { projectId: UUID }) {
   const { project } = useProject(projectId);
-  const { openTabs, activeTabKey, closeTabByKey } = useTabContext(projectId);
+  const { activeTabId, closeTab } = useTabContext(projectId);
   
   // If no project is selected, show loading or return null
   if (!project) {
@@ -37,49 +37,60 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     );
   }
 
-  // Find the active tab
-  const activeTab = openTabs.find(tab => tab.key === activeTabKey);
+  // Determine tab type based on activeTabId
+  const getTabType = () => {
+    if (activeTabId === null) return 'project';
+    if (project.dataSources.some(ds => ds.dataSourceId === activeTabId)) return 'data_source';
+    if (project.datasets.some(ds => ds.datasetId === activeTabId)) return 'dataset';
+    if (project.analyses.some(a => a.analysisId === activeTabId)) return 'analysis';
+    if (project.pipelines.some(p => p.pipelineId === activeTabId)) return 'pipeline';
+    if (project.modelEntities.some(m => m.modelEntityId === activeTabId)) return 'model_entity';
+    return 'project';
+  };
+
+  const tabType = getTabType();
 
   // Render content based on active tab type
   let mainContent: React.ReactNode = null;
   
-  if (activeTab?.type === 'project') {
+  if (tabType === 'project') {
     mainContent = <EntityRelationshipDiagram projectId={projectId} />;
-  } else if (activeTab?.type === 'data_source') {
+  } else if (tabType === 'data_source' && activeTabId) {
     mainContent = (
       <FileInfoTab
-        dataSourceId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
+        dataSourceId={activeTabId}
+        onClose={() => closeTab(activeTabId)}
       />
     );
-  } else if (activeTab?.type === 'dataset') {
+  } else if (tabType === 'dataset' && activeTabId) {
     mainContent = (
       <DatasetInfoTab
-        datasetId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
+        datasetId={activeTabId}
+        onClose={() => closeTab(activeTabId)}
         projectId={projectId}
       />
     );
-  } else if (activeTab?.type === 'analysis') {
+  } else if (tabType === 'analysis' && activeTabId) {
     mainContent = (
       <AnalysisItem
-        analysisObjectId={activeTab.id as UUID}
+        analysisObjectId={activeTabId}
         projectId={projectId}
-        onClose={() => closeTabByKey(activeTab.key)}
+        onClose={() => closeTab(activeTabId)}
       />
     );
-  } else if (activeTab?.type === 'pipeline') {
+  } else if (tabType === 'pipeline' && activeTabId) {
     mainContent = (
       <PipelineInfoTab
-        pipelineId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
+        pipelineId={activeTabId}
+        onClose={() => closeTab(activeTabId)}
+        projectId={projectId}
       />
     );
-  } else if (activeTab?.type === 'model_entity') {
+  } else if (tabType === 'model_entity' && activeTabId) {
     mainContent = (
       <ModelInfoTab
-        modelEntityId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
+        modelEntityId={activeTabId}
+        onClose={() => closeTab(activeTabId)}
         projectId={projectId}
       />
     );

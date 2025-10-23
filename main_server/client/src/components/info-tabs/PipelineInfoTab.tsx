@@ -6,6 +6,7 @@ import { Pipeline } from '@/types/pipeline';
 
 interface PipelineInfoTabProps {
   pipelineId: UUID;
+  projectId: UUID;
   onClose: () => void;
 }   
 
@@ -56,10 +57,11 @@ type SectionType = 'code' | 'runs';
 
 export default function PipelineInfoTab({ 
   pipelineId,
+  projectId,
   onClose
 }: PipelineInfoTabProps) {
 
-  const { pipeline } = usePipeline(pipelineId);
+  const { pipeline } = usePipeline(pipelineId, projectId);
   const [openSections, setOpenSections] = useState<Set<SectionType>>(new Set());
 
   // Prevent body scroll when modal is open

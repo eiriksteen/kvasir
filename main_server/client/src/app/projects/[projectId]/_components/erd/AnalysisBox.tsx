@@ -1,16 +1,23 @@
 import React from 'react';
 import { BarChart3 } from 'lucide-react';
-import { AnalysisObjectSmall } from '@/types/analysis';
+import { UUID } from 'crypto';
+import { useAnalysis } from '@/hooks/useAnalysis';
 
 interface AnalysisBoxProps {
-  analysis: AnalysisObjectSmall;
+  analysisId: UUID;
+  projectId: UUID;
   onClick?: () => void;
   // if null, click is disabled
   // also remove hovering effect to make it look like a disabled button
 }
 
-export default function AnalysisBox({ analysis, onClick }: AnalysisBoxProps) {
+export default function AnalysisBox({ analysisId, projectId, onClick }: AnalysisBoxProps) {
+  const { currentAnalysisObject } = useAnalysis(projectId, analysisId);
   const isDisabled = !onClick;
+  
+  if (!currentAnalysisObject) {
+    return null;
+  }
   
   return (
     <div
@@ -29,7 +36,7 @@ export default function AnalysisBox({ analysis, onClick }: AnalysisBoxProps) {
           <div className="text-[#004806] font-mono text-xs">Analysis</div>
         </div>
         <div>
-          <div className="text-xs font-mono text-gray-800 truncate">{analysis.name}</div>
+          <div className="text-xs font-mono text-gray-800 truncate">{currentAnalysisObject.name}</div>
         </div>
       </div>
     </div>

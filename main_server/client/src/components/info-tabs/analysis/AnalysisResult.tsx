@@ -7,7 +7,7 @@ import { AnalysisResult as AnalysisResultType, AnalysisStatusMessage } from '@/t
 import { MarkdownComponents } from '@/components/MarkdownComponents';
 import { useDatasets } from '@/hooks/useDatasets';
 import { useDataSources } from '@/hooks/useDataSources';
-import { useAnalysisObject } from '@/hooks/useAnalysis';
+import { useAnalysis } from '@/hooks/useAnalysis';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
 import EChartWrapper from '@/components/charts/EChartWrapper';
 import ReactMarkdown from 'react-markdown';
@@ -41,7 +41,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
     const [isUpdating, setIsUpdating] = useState(false);
     const { datasets } = useDatasets(projectId);
     const { dataSources } = useDataSources();
-    const { analysisStatusMessages, getAnalysisResultData, analysisResultData, deleteAnalysisResult, updateAnalysisResult } = useAnalysisObject(projectId, analysisObjectId);
+    const { analysisStatusMessages, getAnalysisResultData, analysisResultData, deleteAnalysisResult, updateAnalysisResult } = useAnalysis(projectId, analysisObjectId);
     const [showOptions, setShowOptions] = useState(false);
     const optionsRef = useRef<HTMLDivElement>(null);
     const analysisTextareaRef = useRef<HTMLTextAreaElement>(null);

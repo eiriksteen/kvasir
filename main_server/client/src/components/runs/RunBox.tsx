@@ -7,14 +7,12 @@ import { useDatasets } from "@/hooks/useDatasets";
 import { useProjectDataSources } from "@/hooks/useDataSources";
 import { useModelEntities } from "@/hooks/useModelEntities";
 import { usePipelines } from "@/hooks/usePipelines";
-import { useAnalysis } from "@/hooks/useAnalysis";
+import { useAnalyses } from "@/hooks/useAnalysis";
 import { Dataset } from "@/types/data-objects";
 import { DataSource } from "@/types/data-sources";
 import { ModelEntity } from "@/types/model";
 import { Pipeline } from "@/types/pipeline";
 import { AnalysisObjectSmall } from "@/types/analysis";
-import { useProjectGraph } from "@/hooks/useProjectGraph";
-import { useProject } from "@/hooks/useProject";
 
 interface RunBoxProps {
   runId: UUID;
@@ -121,7 +119,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
   const { dataSources } = useProjectDataSources(projectId);
   const { modelEntities } = useModelEntities(projectId);
   const { pipelines, mutatePipelines } = usePipelines(projectId);
-  const { analysisObjects, mutateAnalysisObjects } = useAnalysis(projectId);
+  const { analysisObjects, mutateAnalysisObjects } = useAnalyses(projectId);
   const [isRejecting, setIsRejecting] = useState(false);
   const isPending = run?.status === 'pending';
   const [showMessages, setShowMessages] = useState(isPending);
@@ -175,17 +173,12 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
     } finally {
       setIsLaunching(false);
       if (run.type === 'swe') {
-        console.log("MUTATING PIPELINES");
         await mutatePipelines();
       }
       else if (run.type === 'analysis') {
-        console.log("MUTATING ANALYSIS OBJECTS");
         await mutateAnalysisObjects();
       }
       // // Update ERD
-      // await mutateProjectGraph();
-      // // Update project
-      // await mutateProject();
       await mutate("projects");
       await mutate(["project-graph", projectId]);
 

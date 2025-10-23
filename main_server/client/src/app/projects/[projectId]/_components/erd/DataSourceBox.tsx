@@ -1,17 +1,22 @@
 import React from 'react';   
 import { Database } from 'lucide-react';
-import { DataSource } from '@/types/data-sources';
+import { UUID } from 'crypto';
+import { useDataSource } from '@/hooks/useDataSources';
 
 interface DataSourceBoxProps {
-  dataSource: DataSource;
-  gradientClass: string | undefined;
+  dataSourceId: UUID;
   onClick?: () => void;
   // if null, click is disabled
   // also remove hovering effect to make it look like a disabled button
 }
 
-export default function DataSourceBox({ dataSource, gradientClass, onClick }: DataSourceBoxProps) {
+export default function DataSourceBox({ dataSourceId, onClick }: DataSourceBoxProps) {
+  const { dataSource } = useDataSource(dataSourceId);
   const isDisabled = !onClick;
+  
+  if (!dataSource) {
+    return null;
+  }
   
   return (
   <div
@@ -24,7 +29,7 @@ export default function DataSourceBox({ dataSource, gradientClass, onClick }: Da
   >
     <div className="flex flex-col">
       <div className="flex items-center mb-2">
-        <div className={`rounded-full w-6 h-6 flex items-center justify-center bg-gray-500/10 border border-gray-400/30 ${gradientClass || ''} mr-2`}>
+        <div className="rounded-full w-6 h-6 flex items-center justify-center bg-gray-500/10 border border-gray-400/30 mr-2">
           <Database className="w-3 h-3 text-gray-400" />
         </div>
         <div className="text-gray-600 font-mono text-xs">Data Source</div>

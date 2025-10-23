@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { useAnalysis } from '@/hooks/useAnalysis';
+import { useAnalyses } from '@/hooks/useAnalysis';
 import { AnalysisObjectCreate } from '@/types/analysis';
 import { UUID } from 'crypto';
 
@@ -14,7 +14,7 @@ interface AddAnalysisProps {
 export default function AddAnalysis({ projectId, onClose }: AddAnalysisProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const { createAnalysis } = useAnalysis(projectId);
+  const { createAnalysis } = useAnalyses(projectId);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

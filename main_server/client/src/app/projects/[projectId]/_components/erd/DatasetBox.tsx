@@ -1,16 +1,23 @@
 import React from 'react';
-import { Dataset } from '@/types/data-objects';
 import { Folder } from 'lucide-react';
+import { UUID } from 'crypto';
+import { useDataset } from '@/hooks/useDatasets';
 
 interface DatasetProps {
-  dataset: Dataset;
+  datasetId: UUID;
+  projectId: UUID;
   onClick?: () => void;
   // if null, click is disabled
   // also remove hovering effect to make it look like a disabled button
 }
 
-export default function DatasetBox({ dataset, onClick }: DatasetProps) {
+export default function DatasetBox({ datasetId, projectId, onClick }: DatasetProps) {
+  const { dataset } = useDataset(datasetId, projectId);
   const isDisabled = !onClick;
+  
+  if (!dataset) {
+    return null;
+  }
   
   return (
   <div

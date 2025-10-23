@@ -5,7 +5,7 @@ import ConfirmationPopup from '@/components/ConfirmationPopup';
 import SectionItemCreate from '@/components/info-tabs/analysis/SectionItemCreate';
 import AnalysisResult from '@/components/info-tabs/analysis/AnalysisResult';
 import DnDComponent from '@/components/info-tabs/analysis/DnDComponent';
-import { useAnalysisObject } from '@/hooks/useAnalysis';
+import { useAnalysis } from '@/hooks/useAnalysis';
 import { buildOrderedList } from '@/lib/utils';
 import { Plus, Trash2, Move, MoreVertical, Pencil, Save, Loader2, X } from 'lucide-react';
 import { UUID } from 'crypto';
@@ -50,7 +50,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
   const {
     deleteSection,
     updateSection,
-  } = useAnalysisObject(projectId, analysisObjectId);
+  } = useAnalysis(projectId, analysisObjectId);
 
   // Close menu when clicking outside
   useEffect(() => {

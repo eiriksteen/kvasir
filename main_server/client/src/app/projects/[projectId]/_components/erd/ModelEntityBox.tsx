@@ -1,16 +1,23 @@
 import React from 'react';
 import { Brain } from 'lucide-react';
-import { ModelEntity } from '@/types/model';
+import { UUID } from 'crypto';
+import { useModelEntity } from '@/hooks/useModelEntities';
 
 interface ModelEntityBoxProps {
-  modelEntity: ModelEntity;
+  modelEntityId: UUID;
+  projectId: UUID;
   onClick?: () => void;
   // if null, click is disabled
   // also remove hovering effect to make it look like a disabled button
 }
 
-export default function ModelEntityBox({ modelEntity, onClick }: ModelEntityBoxProps) {
+export default function ModelEntityBox({ modelEntityId, projectId, onClick }: ModelEntityBoxProps) {
+  const { modelEntity } = useModelEntity(projectId, modelEntityId);
   const isDisabled = !onClick;
+
+  if (!modelEntity) {
+    return null;
+  }
 
   return (
   <div

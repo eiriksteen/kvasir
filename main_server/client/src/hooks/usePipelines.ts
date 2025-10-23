@@ -7,10 +7,13 @@ import useSWRSubscription from "swr/subscription";
 import useSWRMutation from "swr/mutation";
 import { SSE } from "sse.js";
 import { SWRSubscriptionOptions } from "swr/subscription";
+import { useCallback } from "react";
+import { useMemo } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 async function fetchPipelines(token: string, projectId: UUID): Promise<Pipeline[]> {
+  console.log('fetchPipelines', projectId);
   const response = await fetch(`${API_URL}/project/project-pipelines/${projectId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -27,25 +30,6 @@ async function fetchPipelines(token: string, projectId: UUID): Promise<Pipeline[
   const data = await response.json();
   return snakeToCamelKeys(data);
 }
-
-async function fetchPipeline(token: string, pipelineId: UUID): Promise<Pipeline> {
-  const response = await fetch(`${API_URL}/pipeline/pipelines/${pipelineId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to fetch pipeline', errorText);
-    throw new Error(`Failed to fetch pipeline: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
 
 async function fetchPipelineRuns(token: string): Promise<PipelineRunInDB[]> {
 
@@ -78,7 +62,7 @@ function createPipelineRunsEventSource(token: string): SSE {
 }
 
 
-async function runPipeline(token: string, pipelineId: UUID, projectId: UUID): Promise<Pipeline> {
+async function runPipeline(token: string, pipelineId: UUID, projectId: UUID): Promise<PipelineRunInDB> {
   const response = await fetch(`${API_URL}/pipeline/run-pipeline`, {
     method: "POST",
     headers: {
@@ -110,48 +94,69 @@ export const usePipelines = (projectId: UUID) => {
     }
   );
   const { data: pipelineRuns, mutate: mutatePipelineRuns } = useSWR<PipelineRunInDB[]>(
-    session ? "pipelineRuns" : null, () => fetchPipelineRuns(session ? session.APIToken.accessToken : "")
+    session ? ["pipelineRuns", projectId] : null, () => fetchPipelineRuns(session ? session.APIToken.accessToken : "")
   );
 
   const { trigger: triggerRunPipeline } = useSWRMutation(
-   ["pipelineRun", projectId],
+    session ? ["pipelineRuns", projectId] : null,
      (_, { arg }: { arg: {projectId: UUID, pipelineId: UUID} }) => runPipeline(session ? session.APIToken.accessToken : "", arg.pipelineId, arg.projectId),
     {
-      populateCache: (newPipeline) => newPipeline,
+      populateCache: (newPipelineRun) => {
+        if (pipelineRuns) {
+          return [...pipelineRuns, newPipelineRun];
+        }
+        return [newPipelineRun];
+      },
       revalidate: false
     }
   );
 
   useSWRSubscription(
-    session ? ["pipelineRuns", projectId] : null,
-    (_, {next}: SWRSubscriptionOptions<Pipeline[]>) => {
+    session && pipelineRuns ? ["pipelineRunsStream", pipelineRuns] : null,
+    (_, {next}: SWRSubscriptionOptions<PipelineRunInDB[]>) => {
       const eventSource = createPipelineRunsEventSource(session ? session.APIToken.accessToken : "");
 
       eventSource.onmessage = (ev) => {
         const streamedPipelineRuns = snakeToCamelKeys(JSON.parse(ev.data));
         next(null, async () => {
 
-          const runsAreUndefined = !pipelineRuns;
-          const newRuns = streamedPipelineRuns.filter((run: PipelineRunInDB) => !pipelineRuns?.find((currentRun: PipelineRunInDB) => currentRun.id === run.id));
-          const runsChangedStatus = streamedPipelineRuns.filter((run: PipelineRunInDB) => run.status !== pipelineRuns?.find((currentRun: PipelineRunInDB) => currentRun.id === run.id)?.status);
+          await mutatePipelineRuns(async (currentRuns) => {
+            if (!currentRuns) {
+              return streamedPipelineRuns;
+            }
 
-          // Return without changes if all streamedRuns are the same as the current runs and no run has changed status
-          if (runsAreUndefined || (newRuns.length === 0 && runsChangedStatus.length === 0)) {
-            return undefined;
-          }
+            const newRuns = streamedPipelineRuns.filter((run: PipelineRunInDB) => !currentRuns.find((currentRun: PipelineRunInDB) => currentRun.id === run.id));
+            const runsChangedStatus = streamedPipelineRuns.filter((run: PipelineRunInDB) => run.status !== currentRuns.find((currentRun: PipelineRunInDB) => currentRun.id === run.id)?.status);
 
-          let updatedRuns = pipelineRuns.map(run => runsChangedStatus.find((changedRun: PipelineRunInDB) => changedRun.id === run.id) || run);
-          updatedRuns = updatedRuns.concat(newRuns);
-          mutatePipelineRuns(updatedRuns, {revalidate: false});
+            // Return without changes if all streamedRuns are the same as the current runs and no run has changed status
+            if (newRuns.length === 0 && runsChangedStatus.length === 0) {
+              return currentRuns;
+            }
 
-          const completedRuns = runsChangedStatus.filter((run: PipelineRunInDB) => run.status === "completed");
-          if (completedRuns.length > 0) {
-            // When a pipeline completes we get new datasets and potentially new model entities
-            mutate(["datasets", projectId]);
-            mutate(["model-entities", projectId])
-          }
+            // Update existing runs with status changes and append new runs
+            let updatedRuns = currentRuns.map(run => runsChangedStatus.find((changedRun: PipelineRunInDB) => changedRun.id === run.id) || run);
+            updatedRuns = updatedRuns.concat(newRuns);
+
+            // Trigger project refresh if any runs completed
+            const completedRuns = runsChangedStatus.filter((run: PipelineRunInDB) => run.status === "completed");
+            if (completedRuns.length > 0) {
+              
+              // When a pipeline completes we get new datasets and potentially new model entities
+              await mutate(["datasets", projectId]);
+              await mutate(["model-entities", projectId])
+              await mutate("projects");
+              await mutate(["project-graph", projectId]);
+            }
+
+            return updatedRuns;
+          }, {revalidate: false});
+
+          // Return undefined since this is purely to update the pipeline runs by listening to updates from the event source
           return undefined;
-        })
+        });
+      }
+      eventSource.onerror = (ev) => {
+        console.error("Pipeline run event source error", ev);
       }
 
       return () => eventSource.close();
@@ -169,27 +174,25 @@ export const usePipelines = (projectId: UUID) => {
 }; 
 
 
-export const usePipeline = (pipelineId: UUID) => {
-  const { data: session } = useSession();
+export const usePipeline = (pipelineId: UUID, projectId: UUID) => {
+  const { pipelines, mutatePipelines, triggerRunPipeline: runPipeline, pipelineRuns } = usePipelines(projectId);
 
-  const { data: pipeline, isLoading: isLoadingPipeline, error: errorPipeline } = useSWR<Pipeline>(
-    pipelineId ? `pipeline-${pipelineId}` : null,
-    () => fetchPipeline(session ? session.APIToken.accessToken : "", pipelineId),
-  );
+  const pipeline = useMemo(() => {
+    return pipelines?.find((pipeline: Pipeline) => pipeline.id === pipelineId);
+  }, [pipelines, pipelineId]);
 
-  const { trigger: triggerRunPipeline } = useSWRMutation(
-    pipelineId ? `pipeline-${pipelineId}` : null,
-     (_, { arg }: { arg: {projectId: UUID} }) => runPipeline(session ? session.APIToken.accessToken : "", pipelineId, arg.projectId),
-    {
-      populateCache: (newPipeline) => newPipeline,
-      revalidate: false
-    }
-  );
+  const triggerRunPipeline = useCallback(() => {
+    runPipeline({pipelineId: pipelineId, projectId: projectId});
+  }, [projectId, pipelineId, runPipeline]);
+
+  const pipelineRuns_ = useMemo(() => {
+    return pipelineRuns.filter((run: PipelineRunInDB) => run.pipelineId === pipelineId);
+  }, [pipelineRuns, pipelineId]);
 
   return {
     pipeline,
     triggerRunPipeline,
-    isLoading: isLoadingPipeline,
-    isError: errorPipeline,
+    mutatePipeline: mutatePipelines,
+    pipelineRuns: pipelineRuns_
   };
 };

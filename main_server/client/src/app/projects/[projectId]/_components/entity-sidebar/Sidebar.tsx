@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { ChevronLeft, ChevronRight, BarChart3, Zap, Folder, Brain, Database } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { DataSource } from '@/types/data-sources';
-import { useAgentContext, useAnalysis, useDatasets, usePipelines, useProject, useProjectDataSources } from '@/hooks';
+import { useAgentContext, useAnalyses, useDatasets, usePipelines, useProject, useProjectDataSources } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { AnalysisObjectSmall } from '@/types/analysis';
@@ -71,7 +71,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
     const { datasets } = useDatasets(projectId);
     const { pipelines } = usePipelines(projectId);
     const { modelEntities } = useModelEntities(projectId);
-    const { analysisObjects } = useAnalysis(projectId);
+    const { analysisObjects } = useAnalyses(projectId);
 
     const toggleSection = (section: keyof typeof expandedSections) => {
         setExpandedSections(prev => ({

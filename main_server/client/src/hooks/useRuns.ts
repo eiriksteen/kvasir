@@ -190,7 +190,6 @@ export const useRuns = () => {
     }
   )
 
-
   // This thing will always be running. Do we want to stop it when no runs are active?
   useSWRSubscription(
     session && runs ? ["runStream", runs] : null,
@@ -201,7 +200,6 @@ export const useRuns = () => {
         const streamedRuns = snakeToCamelKeys(JSON.parse(ev.data));
         next(null, async () => {
 
-          // Use functional update to get the latest runs state and avoid race conditions
           await mutateRuns((currentRuns) => {
             if (!currentRuns) {
               return streamedRuns;

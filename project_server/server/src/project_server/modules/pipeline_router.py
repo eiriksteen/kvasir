@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends
-from typing import Annotated
+from typing import Annotated, Optional
 
 from project_server.app_secrets import MODEL_WEIGHTS_DIR
 from project_server.worker import broker
@@ -48,10 +48,15 @@ class PipelineDatasetNamingOutput(BaseModel):
 async def run_pipeline_task(
         bearer_token: str,
         pipeline_id: uuid.UUID,
-        project_id: uuid.UUID):
+        project_id: uuid.UUID,
+        run_id: Optional[uuid.UUID] = None):
 
     client = ProjectClient(bearer_token)
-    pipeline_run = await post_pipeline_run_object(client, pipeline_id)
+
+    if run_id is None:
+        pipeline_run_id = (await post_pipeline_run_object(client, pipeline_id)).id
+    else:
+        pipeline_run_id = run_id
 
     try:
         pipeline_obj = await get_user_pipeline(client, pipeline_id)
@@ -135,10 +140,13 @@ async def run_pipeline_task(
                 entity_id=model_entity.id
             ))
 
-        await patch_pipeline_run_status(client, pipeline_run.id, PipelineRunStatusUpdate(status="completed"))
+        await patch_pipeline_run_status(client, pipeline_run_id, PipelineRunStatusUpdate(status="completed"))
+
+        logger.info(f"PIPELINE RUN {pipeline_run_id} COMPLETED")
 
     except Exception as e:
-        await patch_pipeline_run_status(client, pipeline_run.id, PipelineRunStatusUpdate(status="failed"))
+        await patch_pipeline_run_status(client, pipeline_run_id, PipelineRunStatusUpdate(status="failed"))
+        logger.info(f"PIPELINE RUN {pipeline_run_id} FAILED")
         raise e
 
 
@@ -150,5 +158,6 @@ async def run_pipeline(
     await run_pipeline_task.kiq(
         bearer_token=token_data.bearer_token,
         pipeline_id=request.pipeline_id,
-        project_id=request.project_id
+        project_id=request.project_id,
+        run_id=request.run_id
     )
