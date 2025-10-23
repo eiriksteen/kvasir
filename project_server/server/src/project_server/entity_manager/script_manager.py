@@ -111,5 +111,13 @@ class ScriptManager:
 
         return script_content
 
+    def get_script(self, file_path: Path | str) -> str:
+        file_path = Path(file_path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"Script file not found: {file_path}")
+
+        with open(file_path, "r") as f:
+            return f.read()
+
 
 script_manager = ScriptManager()

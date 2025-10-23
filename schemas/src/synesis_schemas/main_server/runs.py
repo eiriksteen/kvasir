@@ -99,15 +99,7 @@ class Run(RunInDB):
     outputs: Optional[RunEntityIds] = None
 
 
-class MessageForLog(BaseModel):
-    content: str
-    type: Literal["tool_call", "result", "error"]
-    write_to_db: int = 1
-    target: Literal["redis", "taskiq", "both"] = "both"
-    created_at: datetime = datetime.now(timezone.utc)
-
-
-class CodeForLog(BaseModel):
+class StreamedCode(BaseModel):
     code: str
     filename: str
     target: Literal["redis", "taskiq", "both"] = "both"

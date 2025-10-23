@@ -13,7 +13,7 @@ import { useMemo } from "react";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 async function fetchPipelines(token: string, projectId: UUID): Promise<Pipeline[]> {
-  console.log('fetchPipelines', projectId);
+
   const response = await fetch(`${API_URL}/project/project-pipelines/${projectId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
