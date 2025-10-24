@@ -106,7 +106,7 @@ export default function DatasetInfoTab({
                           </div>
                           <h3 className="text-sm font-semibold text-gray-900">Features</h3>
                           <span className="text-xs px-2 py-1 bg-[#0E4F70]/20 rounded-full text-[#0E4F70] font-mono">
-                            {objectGroups[0].features.length} feature(s)
+                            {objectGroups[0].features.length}
                           </span>
                         </div>
                         <div className="space-y-2 overflow-y-auto pr-2 flex-1 min-h-0">
@@ -133,7 +133,7 @@ export default function DatasetInfoTab({
                           </div>
                           <h3 className="text-sm font-semibold text-gray-900">Data Groups</h3>
                           <span className="text-xs px-2 py-1 bg-[#0E4F70]/20 rounded-full text-[#0E4F70] font-mono">
-                            {objectGroups?.length || 0} group(s)
+                            {objectGroups?.length || 0}
                           </span>
                         </div>
 

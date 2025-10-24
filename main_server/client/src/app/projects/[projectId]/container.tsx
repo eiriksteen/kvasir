@@ -8,7 +8,7 @@ import UserHeader from "@/components/headers/UserHeader";
 import EntityRelationshipDiagram from "@/app/projects/[projectId]/_components/erd/EntityRelationshipDiagram";
 import TabView from "@/app/projects/[projectId]/_components/tab-view/TabView";
 import { useProject } from "@/hooks/useProject";
-import { useTabContext } from "@/hooks/useTabContext";
+import { useTabs } from "@/hooks/useTabs";
 import FileInfoTab from "@/components/info-tabs/FileInfoTab";
 import DatasetInfoTab from "@/components/info-tabs/DatasetInfoTab";
 import PipelineInfoTab from "@/components/info-tabs/PipelineInfoTab";
@@ -23,7 +23,7 @@ interface DashboardProps {
 
 function DashboardContent({ projectId }: { projectId: UUID }) {
   const { project } = useProject(projectId);
-  const { activeTabId, closeTab } = useTabContext(projectId);
+  const { openTabs, activeTabId, openTab, closeTab, selectTab } = useTabs();
   
   // If no project is selected, show loading or return null
   if (!project) {
@@ -107,7 +107,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
         {/* ERD positioned absolutely to remain fixed */}
         {isProjectView && (
           <div className="absolute inset-0 z-0">
-            <EntityRelationshipDiagram projectId={projectId} />
+            <EntityRelationshipDiagram projectId={projectId} openTab={openTab} />
           </div>
         )}
         
@@ -117,7 +117,13 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
           isProjectView ? 'bg-transparent pointer-events-none' : 'bg-white'
         }`}>
           <div className="flex flex-col h-full w-full">
-            <TabView projectId={projectId} />
+            <TabView 
+              projectId={projectId}
+              openTabs={openTabs}
+              activeTabId={activeTabId}
+              closeTab={closeTab}
+              selectTab={selectTab}
+            />
             <div className={`flex-1 overflow-auto ${
               isProjectView ? 'bg-transparent pointer-events-none' : 'bg-gray-950'
             }`}>

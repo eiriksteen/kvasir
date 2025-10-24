@@ -223,9 +223,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
       <div className="h-9 flex items-center px-3 gap-3">
         <h3 className="text-xs font-mono text-gray-900 whitespace-nowrap flex-shrink-0">Context</h3>
         <div className="flex items-center gap-2 flex-1">
-          {totalContextCount === 0 ? (
-            <span className="text-xs text-gray-500">No context items</span>
-          ) : (
+          {totalContextCount !== 0 && (
             <>
               {/* Show context items in header row ONLY when collapsed */}
               {!showAllContext && allContextItems.length > 0 && (
