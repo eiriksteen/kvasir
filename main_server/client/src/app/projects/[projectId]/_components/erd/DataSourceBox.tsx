@@ -5,14 +5,10 @@ import { useDataSource } from '@/hooks/useDataSources';
 
 interface DataSourceBoxProps {
   dataSourceId: UUID;
-  onClick?: () => void;
-  // if null, click is disabled
-  // also remove hovering effect to make it look like a disabled button
 }
 
-export default function DataSourceBox({ dataSourceId, onClick }: DataSourceBoxProps) {
+export default function DataSourceBox({ dataSourceId }: DataSourceBoxProps) {
   const { dataSource } = useDataSource(dataSourceId);
-  const isDisabled = !onClick;
   
   if (!dataSource) {
     return null;
@@ -20,12 +16,7 @@ export default function DataSourceBox({ dataSourceId, onClick }: DataSourceBoxPr
   
   return (
   <div
-    className={`px-3 py-3 shadow-md rounded-md border-2 border-gray-600 relative min-w-[100px] max-w-[220px] ${
-      isDisabled
-        ? 'cursor-default opacity-60'
-        : 'cursor-pointer hover:bg-[#6b7280]/10 hover:border-[#6b7280]'
-    }`}
-    onClick={onClick ? onClick : undefined}
+    className="px-3 py-3 shadow-md rounded-md border-2 border-gray-600 relative min-w-[100px] max-w-[220px] cursor-pointer hover:bg-[#6b7280]/10 hover:border-[#6b7280]"
   >
     <div className="flex flex-col">
       <div className="flex items-center mb-2">

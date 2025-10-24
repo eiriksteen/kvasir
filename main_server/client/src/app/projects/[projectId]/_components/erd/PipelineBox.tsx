@@ -7,11 +7,9 @@ import { UUID } from 'crypto';
 interface PipelineBoxProps {
   pipelineId: UUID;
   projectId: UUID;
-  onClick?: () => void;
 }
 
-export default function PipelineBox({ pipelineId, projectId, onClick}: PipelineBoxProps) {
-  const isDisabled = !onClick;
+export default function PipelineBox({ pipelineId, projectId}: PipelineBoxProps) {
   const { pipeline, pipelineRuns, triggerRunPipeline } = usePipeline(pipelineId, projectId);
   const isRunning = pipelineRuns.some((run: PipelineRunInDB) => run.status === 'running');
 
@@ -28,12 +26,7 @@ export default function PipelineBox({ pipelineId, projectId, onClick}: PipelineB
     <div className="flex shadow-md border-2 border-[#840B08] rounded-md min-w-[100px] max-w-[280px] overflow-hidden">
       {/* Main box content */}
       <div
-        className={`px-3 py-3 flex-1 min-w-0 ${
-          isDisabled
-            ? 'cursor-default opacity-60'
-            : 'cursor-pointer hover:bg-[#840B08]/10'
-        }`}
-        onClick={onClick ? onClick : undefined}
+        className="px-3 py-3 flex-1 min-w-0 cursor-pointer hover:bg-[#840B08]/10"
       >
         <div className="flex flex-col">
           <div className="flex items-center mb-2">
@@ -51,12 +44,7 @@ export default function PipelineBox({ pipelineId, projectId, onClick}: PipelineB
       {/* Run/Stop button */}
       <button
         onClick={isRunning ? handleStopClick : triggerRunPipeline}
-        className={`w-12 px-3 py-3 border-l-2 border-[#840B08] flex-shrink-0 ${
-          isDisabled
-            ? 'cursor-default opacity-60'
-            : 'cursor-pointer hover:bg-[#840B08]/10'
-        } flex items-center justify-center transition-colors`}
-        disabled={isDisabled}
+        className="w-12 px-3 py-3 border-l-2 border-[#840B08] flex-shrink-0 cursor-pointer hover:bg-[#840B08]/10 flex items-center justify-center transition-colors"
       >
         {isRunning ? (
           <div className="relative w-6 h-6 flex items-center justify-center">
