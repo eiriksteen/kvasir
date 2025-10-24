@@ -16,6 +16,7 @@ interface SectionItemProps {
   projectId: UUID;
   analysisObjectId: UUID;
   depth?: number;
+  numbering: string;
   onScrollToSection?: (sectionId: string) => void;
   setSectionRef?: (sectionId: string) => (element: HTMLDivElement | null) => void;
   expandedSections?: Set<string>;
@@ -29,6 +30,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
   projectId, 
   analysisObjectId,
   depth = 0,
+  numbering,
   onScrollToSection,
   setSectionRef,
   expandedSections: parentExpandedSections,
@@ -118,10 +120,21 @@ const SectionItem: React.FC<SectionItemProps> = ({
     setShowEditSection(false);
   };
 
+  // Helper function to determine title size based on numbering depth
+  const getTitleStyle = (numbering: string) => {
+    const depth = numbering.split('.').length;
+    switch (depth) {
+      case 1: return 'text-lg font-bold';
+      case 2: return 'text-base font-bold';
+      case 3: return 'text-sm font-semibold';
+      default: return 'text-sm font-semibold';
+    }
+  };
 
   // Build ordered list for this section's children using the new nextType/nextId system
   const childSections = section.notebookSections || [];
   const results = section.analysisResults || [];
+  console.log("results", results);
   
   // Find the first element in the chain for this section's children
   const referencedIds = new Set([
@@ -154,13 +167,10 @@ const SectionItem: React.FC<SectionItemProps> = ({
       {/* Section Header */}
       <div 
         ref={setNodeRef}
-        className={`flex items-center gap-2 py-2 hover:bg-gray-100 transition-colors rounded px-2 ${
+        className={`flex items-center gap-2 py-2 transition-colors ${
           isDragging ? 'opacity-50' : 'opacity-100'
         }`}
-        style={{ 
-          paddingLeft: `${depth * 16 + 8}px`,
-          ...(transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : {})
-        }}
+        style={transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : {}}
       >
         {isDragging ? (
           <div className="w-full h-8 bg-[#0E4F70]/20 flex items-center justify-center rounded-lg">
@@ -194,7 +204,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="w-full px-2 py-1 text-sm rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]"
+                    className={`w-full ${getTitleStyle(numbering)} px-2 py-1 rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E4F70]`}
                     placeholder="Section name..."
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleUpdateSection();
@@ -205,7 +215,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
                   <textarea
                     value={editDescription}
                     onChange={(e) => setEditDescription(e.target.value)}
-                    className="w-full px-2 py-1 text-sm rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E4F70] resize-none"
+                    className="w-full text-xs px-2 py-1 rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E4F70] resize-none"
                     placeholder="Section description (optional)..."
                     rows={2}
                     onKeyDown={(e) => {
@@ -233,8 +243,8 @@ const SectionItem: React.FC<SectionItemProps> = ({
                   </div>
                 </div>
               ) : (
-                <span className="text-sm text-[#0E4F70] flex-1">
-                  {section.sectionName} ({section.analysisResults.length})
+                <span className={`${getTitleStyle(numbering)} text-gray-900 flex-1`}>
+                  {numbering}. {section.sectionName}
                 </span>
               )}
               
@@ -301,7 +311,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
               )}
             </div>
             {showCreateSubsection && (
-              <div className="mb-3" style={{ paddingLeft: `${depth * 16 + 8}px` }}>
+              <div className="mb-3">
                 <SectionItemCreate
                   parentId={section.id}
                   projectId={projectId}
@@ -313,52 +323,58 @@ const SectionItem: React.FC<SectionItemProps> = ({
             
             {/* Expandable Content */}
             {isExpanded && (
-              <div style={{ paddingLeft: `${depth * 16 + 8}px` }}>
+              <div>
                 {/* Create Subsection Form */}
                 
                 
                 {/* Section Description */}
                 {(section.sectionDescription && !showEditSection) && (
-                  <div className="text-sm text-gray-600 mb-3 leading-relaxed">
+                  <div className="text-xs text-gray-700 mb-2 leading-relaxed">
                     {section.sectionDescription}
                   </div>
                 )}
                 
                 {/* Ordered Children (Sections and Results) */}
                 {orderedChildren.length > 0 && (
-                  <div className="space-y-1">
-                    {orderedChildren.map((item: NotebookSection | AnalysisResultType) => {
-                      
-                      return (
-                        <Fragment key={item.id}>
-                          
-                          {('sectionName' in item) ? (
-                            <div ref={setSectionRef ? setSectionRef(item.id) : undefined}>
-                              <SectionItem
-                                section={item}
-                                sections={sections}
-                                projectId={projectId}
-                                analysisObjectId={analysisObjectId}
-                                depth={depth + 1}
-                                onScrollToSection={onScrollToSection}
-                                setSectionRef={setSectionRef}
-                                expandedSections={parentExpandedSections}
-                                setExpandedSections={parentSetExpandedSections}
-                              />
-                            </div>
-                          ) : (
-                            <div ref={setSectionRef ? setSectionRef(item.id) : undefined} className="flex items-start gap-2">
-                              <AnalysisResult 
-                                projectId={projectId}
-                                analysisResult={item}
-                                analysisObjectId={analysisObjectId}
-                              />
-                            </div>
-                          )}
-                          
-                        </Fragment>
-                      );
-                    })}
+                  <div>
+                    {(() => {
+                      let sectionCounter = 0;
+                      return orderedChildren.map((item: NotebookSection | AnalysisResultType) => {
+                        const isSection = 'sectionName' in item;
+                        if (isSection) sectionCounter++;
+                        
+                        return (
+                          <Fragment key={item.id}>
+                            
+                            {isSection ? (
+                              <div ref={setSectionRef ? setSectionRef(item.id) : undefined}>
+                                <SectionItem
+                                  section={item}
+                                  sections={sections}
+                                  projectId={projectId}
+                                  analysisObjectId={analysisObjectId}
+                                  depth={depth + 1}
+                                  numbering={`${numbering}.${sectionCounter}`}
+                                  onScrollToSection={onScrollToSection}
+                                  setSectionRef={setSectionRef}
+                                  expandedSections={parentExpandedSections}
+                                  setExpandedSections={parentSetExpandedSections}
+                                />
+                              </div>
+                            ) : (
+                              <div ref={setSectionRef ? setSectionRef(item.id) : undefined}>
+                                <AnalysisResult 
+                                  projectId={projectId}
+                                  analysisResult={item}
+                                  analysisObjectId={analysisObjectId}
+                                />
+                              </div>
+                            )}
+                            
+                          </Fragment>
+                        );
+                      });
+                    })()}
                   </div>
                 )}
               </div>

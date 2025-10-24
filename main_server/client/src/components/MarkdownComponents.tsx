@@ -4,6 +4,26 @@ import { Copy, Check } from 'lucide-react';
 import { useState } from 'react';
 
 export const MarkdownComponents = {
+    p: ({ children, ...props }: any) => (
+      <p className="text-xs" {...props}>
+        {children}
+      </p>
+    ),
+    ul: ({ children, ...props }: any) => (
+      <ul className="text-xs list-disc list-inside space-y-1 my-2" {...props}>
+        {children}
+      </ul>
+    ),
+    ol: ({ children, ...props }: any) => (
+      <ol className="text-xs list-decimal list-inside space-y-1 my-2" {...props}>
+        {children}
+      </ol>
+    ),
+    li: ({ children, ...props }: any) => (
+      <li className="text-xs" {...props}>
+        {children}
+      </li>
+    ),
     table: ({ children, ...props }: any) => (
       <div className="overflow-x-auto w-[90%] mx-auto my-4">
         <table className="w-full border-collapse bg-[#1a1625] rounded-lg overflow-hidden border border-purple-700/30 shadow-lg" {...props}>
@@ -12,12 +32,12 @@ export const MarkdownComponents = {
       </div>
     ),
     thead: ({ children, ...props }: any) => (
-      <thead className="text-sm bg-purple-900/40 border-b border-purple-700/50" {...props}>
+      <thead className="text-xs bg-purple-900/40 border-b border-purple-700/50" {...props}>
         {children}
       </thead>
     ),
     tbody: ({ children, ...props }: any) => (
-      <tbody className="text-xsdivide-y divide-purple-700/30" {...props}>
+      <tbody className="text-xs divide-y divide-purple-700/30" {...props}>
         {children}
       </tbody>
     ),
@@ -79,7 +99,7 @@ export const MarkdownComponents = {
                 customStyle={{
                   margin: 0,
                   background: 'black',
-                  fontSize: '0.75rem',
+                  fontSize: '0.5rem',
                   padding: '1rem',
                   minWidth: '100%',
                 }}

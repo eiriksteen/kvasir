@@ -238,7 +238,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                 ref={setNodeRef}
                 style={style}
                 {...attributes}
-                className={`bg-gradient-to-br from-gray-50 to-white border border-gray-300 rounded-lg py-2 px-4 mb-2 transition-opacity w-full min-w-0 ${
+                className={`py-1 transition-opacity w-full min-w-0 ${
                     isDragging ? 'opacity-50' : 'opacity-100'
                 }`}
             >   
@@ -254,7 +254,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                         {/* Main Content with Info and Delete Buttons */}
                         <div className="flex items-start justify-between">
                             <div className="flex-1">
-                                <div className="text-xs text-gray-700 leading-relaxed">
+                                <div className="text-base text-gray-800 leading-relaxed text-justify">
                                     {/* Show streaming indicator if there are streaming messages and streaming is not finished */}
                                     {streamingMessages.length > 0 && !showEditAnalysis && (
                                         <div className="mb-2 flex items-center gap-2">
@@ -335,6 +335,28 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                                             <Info size={12} />
                                         </button>
                                         <button
+                                            onClick={() => {
+                                                handlePlot();
+                                                setShowOptions(false);
+                                            }}
+                                            disabled={isLoadingData}
+                                            className="p-1 text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            title="Create plot"
+                                        >
+                                            <BarChart3 size={12} />
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                handleTable();
+                                                setShowOptions(false);
+                                            }}
+                                            disabled={isLoadingData}
+                                            className="p-1 text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            title="Create table"
+                                        >
+                                            <Database size={12} />
+                                        </button>
+                                        <button
                                             onClick={handleDelete}
                                             className="p-1 rounded transition-colors text-red-600 hover:text-red-800"
                                             title="Delete analysis result"
@@ -360,30 +382,30 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
 
                         {/* Details Section - Only shown when info button is pressed */}
                         {showDetails && (
-                            <div className="mt-4 pt-4 border-t border-gray-300">
-                                {/* Datasets Section */}
+                            <div className="mt-3 pt-3 border-t border-gray-200">
+                                {/* Datasets Section
                                 {(currentAnalysisResult.datasetIds.length > 0 || currentAnalysisResult.dataSourceIds?.length > 0) && (
                                     <div className="mb-3">
                                         <button
                                             onClick={() => setShowDatasets(!showDatasets)}
-                                            className="flex items-center gap-2 text-xs text-gray-600 hover:text-gray-900 transition-colors"
+                                            className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 transition-colors"
                                         >
-                                            {showDatasets ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                                            <Database size={12} className="text-[#0E4F70]" />
+                                            {showDatasets ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                            <Database size={14} className="text-[#0E4F70]" />
                                             <span>Data</span>
                                         </button>
                                         {showDatasets && (
-                                            <div className="mt-2 bg-gray-100 rounded border border-gray-300 p-3">
-                                                <div className="space-y-2">
+                                            <div className="mt-2 ml-6">
+                                                <div className="space-y-1.5">
                                                     {currentAnalysisResult.datasetIds.map((datasetId: string, index: number) => (
-                                                        <div key={datasetId} className="flex items-center gap-2 text-xs text-gray-600">
-                                                            <div className="w-2 h-2 bg-[#0E4F70] rounded-full"></div>
+                                                        <div key={datasetId} className="flex items-center gap-2 text-sm text-gray-600">
+                                                            <div className="w-1.5 h-1.5 bg-[#0E4F70] rounded-full"></div>
                                                             <span>Dataset {index + 1}: {getDatasetName(datasetId)}</span>
                                                         </div>
                                                     ))}
                                                     {currentAnalysisResult.dataSourceIds?.map((dataSourceId: string, index: number) => (
-                                                        <div key={dataSourceId} className="flex items-center gap-2 text-xs text-gray-600">
-                                                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                                        <div key={dataSourceId} className="flex items-center gap-2 text-sm text-gray-600">
+                                                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
                                                             <span>Data Source {index + 1}: {getDataSourceName(dataSourceId)}</span>
                                                         </div>
                                                     ))}
@@ -391,21 +413,21 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                                             </div>
                                         )}
                                     </div>
-                                )}
+                                )} */}
 
                                 {/* Python Code Section */}
                                 {currentAnalysisResult.pythonCode && (
-                                    <div className="border-t border-gray-300 pt-3">
+                                    <div className="pt-3">
                                         <button
                                             onClick={() => setShowCode(!showCode)}
-                                            className="flex items-center gap-2 text-xs text-gray-600 hover:text-gray-900 transition-colors mb-2"
+                                            className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 transition-colors mb-2"
                                         >
-                                            {showCode ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                                            <Code size={12} className="text-green-600" />
+                                            {showCode ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                            <Code size={14} className="text-green-600" />
                                             <span>Python Code</span>
                                         </button>
                                         {showCode && (
-                                            <div className="overflow-x-auto">
+                                            <div className="overflow-x-auto ml-6">
                                                 <MarkdownComponents.code
                                                     className="language-python whitespace-pre min-w-0 w-full"
                                                     children={currentAnalysisResult.pythonCode}
@@ -418,9 +440,9 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                         )}
 
                         {plots && plots.map((plot: BasePlot) => (
-                            <div className="mt-4 pt-4 border-t border-gray-300" key={plot.id}>
+                            <div className="mt-4" key={plot.id}>
                                 <div className="mb-3">
-                                    <div className="h-96 bg-gray-100 rounded border border-gray-300 p-3">
+                                    <div className="h-96 bg-gray-50 rounded p-3">
                                         <EChartWrapper
                                             plot={plot}
                                             aggregationData={analysisResultData[analysisResult.id] as AggregationObjectWithRawData}
@@ -431,7 +453,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                         ))}
 
                         {tables && tables.map((table: BaseTable) => (
-                            <div className="mt-4 pt-4 border-t border-gray-300" key={table.id}>
+                            <div className="mt-4" key={table.id}>
                                 <TablesItem
                                     table={table}
                                     aggregationData={analysisResultData[analysisResult.id] as AggregationObjectWithRawData}
@@ -441,25 +463,6 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                                 />
                             </div>
                         ))}
-
-                        <div className="flex">
-                            <button
-                                onClick={handlePlot}
-                                disabled={isLoadingData}
-                                className="flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                <BarChart3 size={16} />
-                                <span>Create plot</span>
-                            </button>
-                            <button
-                                onClick={handleTable}
-                                disabled={isLoadingData}
-                                className="flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                <Database size={16} />
-                                <span>Create table</span>
-                            </button>
-                        </div>
                     </>
                 )}
             </div>
