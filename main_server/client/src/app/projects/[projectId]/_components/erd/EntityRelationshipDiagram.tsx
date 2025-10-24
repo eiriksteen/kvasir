@@ -192,15 +192,15 @@ function EntityRelationshipDiagramContent({ projectId }: EntityRelationshipDiagr
 
   // Handler to open tabs when node is selected
   // Kinda ugly but it's needed to prevent needing to double click the first tab we open
-  const handleSelectionChange = useCallback(
-    ({ nodes }: { nodes: Node[] }) => {
-      if (nodes.length > 0) {
-        const selectedNode = nodes[0];
-        openTab(selectedNode.id as UUID, true);
-      }
-    },
-    [openTab]
-  );
+  // const handleSelectionChange = useCallback(
+  //   ({ nodes }: { nodes: Node[] }) => {
+  //     if (nodes.length > 0) {
+  //       const selectedNode = nodes[0];
+  //       openTab(selectedNode.id as UUID, true);
+  //     }
+  //   },
+  //   [openTab]
+  // );
 
   // Memoize nodes
   const memoizedNodes = useMemo(() => {
@@ -422,7 +422,7 @@ function EntityRelationshipDiagramContent({ projectId }: EntityRelationshipDiagr
         // fitView
         onNodeDragStop={handleNodeDragStop}
         onNodeClick={handleNodeClick}
-        onSelectionChange={handleSelectionChange}
+        // onSelectionChange={handleSelectionChange}
         className="reactflow-no-watermark"
       >
         {/* <Controls /> */}

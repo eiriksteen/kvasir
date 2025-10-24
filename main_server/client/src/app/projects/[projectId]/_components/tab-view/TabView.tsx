@@ -28,8 +28,6 @@ const TabView: React.FC<CustomTabViewProps> = ({ projectId }) => {
   const projectTab = openTabs.find(tab => tab.id === null);
   const otherTabs = openTabs.filter(tab => tab.id !== null);
   
-  
-  
   // Auto-scroll to active tab
   const scrollToActiveTab = useCallback(() => {
     if (scrollContainerRef.current && activeTabId) {

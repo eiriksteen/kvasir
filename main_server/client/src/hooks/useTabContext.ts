@@ -33,7 +33,7 @@ export const useTabContext = (projectId: UUID) => {
       fallbackData: getDefaultTabState(),
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      revalidateOnMount: false, // Prevent revalidation on mount
+      revalidateOnMount: true, // Allow revalidation on mount to get the ref value
       revalidateIfStale: false, // Prevent revalidation if stale
     }
   );

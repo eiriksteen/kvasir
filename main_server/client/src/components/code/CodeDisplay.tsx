@@ -5,15 +5,15 @@ interface CodeViewProps {
   error: string;
 }
 
-export default function CodeDisplay({ filename, code, output, error }: CodeViewProps) {
+export default function CodeDisplay({ code, output, error }: CodeViewProps) {
   return (
     <div className="h-full flex flex-col">
         <div className="flex flex-col h-full">
-          <div className="bg-gray-100 border-b border-gray-300 px-4 py-2 sticky top-0 z-10">
+          {/* <div className="bg-gray-100 border-b border-gray-300 px-4 py-2 sticky top-0 z-10">
             <p className="text-xs font-mono font-semibold text-gray-800">
               {filename}
             </p>
-          </div>
+          </div> */}
           <div className="flex-1 overflow-auto">
             <pre className="text-black p-4 text-xs font-mono leading-relaxed">
               {code}
