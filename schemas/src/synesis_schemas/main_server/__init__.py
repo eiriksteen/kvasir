@@ -31,6 +31,7 @@ from .project import (
     PipelineInGraph,
     AnalysisInGraph,
     UpdateEntityPosition,
+    UpdateProjectViewport,
     GraphNodeConnections,
 )
 

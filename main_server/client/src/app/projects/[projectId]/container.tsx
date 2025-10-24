@@ -110,9 +110,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
             </div>
           </div>
         </main>
-        <div className="w-[400px] shrink-0">
-          <Chatbot projectId={projectId} />
-        </div>
+        <Chatbot projectId={projectId} />
       </div>
     </div>
   );

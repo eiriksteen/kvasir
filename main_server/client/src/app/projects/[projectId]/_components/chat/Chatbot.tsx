@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Send, Plus, History, Database, X, BarChart, Zap, Brain, Folder } from 'lucide-react';
+import { Send, Plus, History, Database, X, BarChart, Zap, Brain, Folder, ChevronLeft } from 'lucide-react';
 import { useProjectChat } from '@/hooks';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { ChatHistory } from '@/app/projects/[projectId]/_components/chat/ChatHistory';
@@ -22,7 +22,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const [input, setInput] = useState('');
   const [width, setWidth] = useState(400);
   const [isDragging, setIsDragging] = useState(false);
-  const [showChatHistory, setShowChatHistory] = useState(false);  
+  const [showChatHistory, setShowChatHistory] = useState(false);
 
   const { submitPrompt, conversation, setProjectConversationId, conversationMessages, continueConversation } = useProjectChat(projectId);
 
@@ -45,7 +45,10 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
   
-  const MIN_WIDTH = 300;
+  const DEFAULT_WIDTH = 400;  
+  const MIN_WIDTH = 150;
+  const COLLAPSE_THRESHOLD = 100; // Auto-collapse when dragged below this
+  const COLLAPSED_WIDTH = 40; // Width when collapsed (same as sidebar w-10)
   const MAX_WIDTH = typeof window !== 'undefined' ? window.innerWidth * 0.8 : 800;
 
   // Continue conversation if job completes or fails
@@ -72,7 +75,15 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
       if (!isDragging) return;
       e.preventDefault();
       
-      const newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, window.innerWidth - e.clientX));
+      let newWidth = window.innerWidth - e.clientX;
+      
+      // Auto-collapse immediately when dragged below threshold
+      if (newWidth < COLLAPSE_THRESHOLD) {
+        newWidth = COLLAPSED_WIDTH;
+      } else {
+        newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth));
+      }
+      
       setWidth(newWidth);
     };
 
@@ -89,7 +100,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, MIN_WIDTH, MAX_WIDTH]);
+  }, [isDragging, MIN_WIDTH, MAX_WIDTH, COLLAPSE_THRESHOLD, COLLAPSED_WIDTH]);
 
   const handleStartDrag = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -102,8 +113,11 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   };
 
   const handleConversationSelect = () => {
-    // Close the history panel when a conversation is selected
+    // Close the history panel and expand chat when a conversation is selected
     setShowChatHistory(false);
+    if (isCollapsed) {
+      handleExpandChat();
+    }
   };
 
   const handleRunCompleteOrFail = () => {
@@ -111,27 +125,84 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
     continueConversation(conversation.id);
   };
 
-  const isCollapsed = width <= MIN_WIDTH;
+  const handleExpandChat = () => {
+    setWidth(DEFAULT_WIDTH);
+  };
+
+  const isCollapsed = width <= COLLAPSED_WIDTH;
 
   return (
     <div
-      className="absolute right-0 h-screen text-gray-800 flex flex-col bg-gray-100 border-l border-gray-200 pt-12"
+      className="h-full text-gray-800 flex flex-col bg-gray-100 border-l border-gray-200 pt-12 flex-shrink-0 relative"
       style={{ width: `${width}px` }}
     >
       {/* Drag handle */}
       <div 
         ref={dragHandleRef}
         onMouseDown={handleStartDrag}
-        className="absolute top-0 bottom-0 left-0 w-3 cursor-col-resize z-10 hover:bg-blue-100"
+        className="absolute top-0 bottom-0 left-0 w-2 cursor-col-resize z-10 hover:bg-gray-300 transition-colors"
       >
       </div>
 
-      {!isCollapsed && (
+      {isCollapsed ? (
+        /* Collapsed view - similar to sidebar */
+        <div className="flex flex-col h-full">
+          {/* History button at top */}
+          <div className="flex items-center justify-center h-9 border-b border-t border-gray-400 bg-gray-100">
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowChatHistory(!showChatHistory);
+                  if (!showChatHistory) {
+                    handleExpandChat();
+                  }
+                }}
+                className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
+                title="Chat History"
+              >
+                <History size={18} />
+              </button>
+              {showChatHistory && (
+                <ChatHistory
+                  projectId={projectId}
+                  onClose={handleConversationSelect}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Plus button below */}
+          <div className="flex items-center justify-center pt-2">
+            <button
+              onClick={() => {
+                setProjectConversationId(null);
+                handleExpandChat();
+              }}
+              className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
+              title="New Chat"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
+
+          {/* Expand button at bottom */}
+          <div className="flex-1"></div>
+          <div className="flex items-center justify-center px-3 py-2">
+            <button
+              onClick={handleExpandChat}
+              className="p-2 rounded-full text-white hover:bg-[#000066] border border-gray-400 bg-[#000034]"
+              title="Expand chat"
+            >
+              <ChevronLeft size={14} />
+            </button>
+          </div>
+        </div>
+      ) : (
         <>
           {/* Header with history button */}
           <div className="border-b border-t border-gray-400 h-9 flex justify-between items-center relative bg-gray-100 px-3">
             <div className="flex-1">
-              <h3 className="text-xs font-mono text-gray-900 animate-fade-in">
+              <h3 className="text-xs font-mono text-gray-900">
                 {conversation?.name || "Chat"}
               </h3>
             </div>

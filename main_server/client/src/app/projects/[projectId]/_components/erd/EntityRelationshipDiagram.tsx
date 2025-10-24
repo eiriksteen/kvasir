@@ -10,7 +10,10 @@ import {
     useNodesState,
     useEdgesState,
     Handle,
-    Position
+    Position,
+    useReactFlow,
+    useOnViewportChange,
+    Viewport
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useProject } from '@/hooks/useProject';
@@ -21,6 +24,7 @@ import {
   ProjectPipelineInDB, 
   ProjectModelEntityInDB 
 } from '@/types/project';
+import { ReactFlowProvider } from '@xyflow/react';
 import DatasetBox from '@/app/projects/[projectId]/_components/erd/DatasetBox';
 import AnalysisBox from '@/app/projects/[projectId]/_components/erd/AnalysisBox';
 import TransportEdge from '@/app/projects/[projectId]/_components/erd/TransportEdge';
@@ -139,7 +143,7 @@ interface EntityRelationshipDiagramProps {
   projectId: UUID;
 }
 
-export default function EntityRelationshipDiagram({ projectId }: EntityRelationshipDiagramProps) {
+function EntityRelationshipDiagramContent({ projectId }: EntityRelationshipDiagramProps) {
 
   const getEdgeColor = useCallback((sourceType: string): string => {
     switch (sourceType) {
@@ -158,12 +162,29 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     }
   }, []);
 
-  const { project, updatePosition } = useProject(projectId);
+  const { project, updatePosition, updateProjectViewPort } = useProject(projectId);
   const { projectGraph } = useProjectGraph(projectId);
   const { openTab } = useTabContext(projectId);
   
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const { setViewport } = useReactFlow();
+
+
+  useOnViewportChange({
+    onEnd: (viewport: Viewport) => updateProjectViewPort({x: viewport.x, y: viewport.y, zoom: viewport.zoom})
+    }
+  );
+
+  useEffect(() => {
+    if (project) {
+      setViewport({
+        x: project.viewPortX,
+        y: project.viewPortY,
+        zoom: project.viewPortZoom,
+      });
+    }
+  }, [project, setViewport]);
 
   // Handler to open tabs
   const handleOpenTab = useCallback(
@@ -395,7 +416,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        fitView
+        // fitView
         onNodeDragStop={handleNodeDragStop}
         className="reactflow-no-watermark"
       >
@@ -412,3 +433,11 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     </div>
   );
 };
+
+export default function EntityRelationshipDiagram({ projectId }: EntityRelationshipDiagramProps) {
+  return (
+    <ReactFlowProvider>
+      <EntityRelationshipDiagramContent projectId={projectId} />
+    </ReactFlowProvider>
+  );
+}

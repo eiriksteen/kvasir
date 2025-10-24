@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, BarChart3, Zap, Folder, Brain, Database } from 'lucide-react';
+import { ChevronRight, BarChart3, Zap, Folder, Brain, Database } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { DataSource } from '@/types/data-sources';
 import { useAgentContext, useAnalyses, useDatasets, usePipelines, useProject, useProjectDataSources } from '@/hooks';
@@ -28,12 +28,18 @@ interface EntitySidebarProps {
 }
 
 export default function EntitySidebar({ projectId }: EntitySidebarProps) {
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [width, setWidth] = useState(260);
+    const [isDragging, setIsDragging] = useState(false);
     const [showAddDataSourceToProject, setShowAddDataSourceToProject] = useState(false);
     const [showAddAnalysis, setShowAddAnalysis] = useState(false);
     const [showAddDatasetToProject, setShowAddDatasetToProject] = useState(false);
     const [showAddPipeline, setShowAddPipeline] = useState(false);
     const [showAddModelToProject, setShowAddModelToProject] = useState(false);
+    
+    const DEFAULT_WIDTH = 260;
+    const MIN_WIDTH = 150;
+    const COLLAPSE_THRESHOLD = 100;
+    const COLLAPSED_WIDTH = 40;
     const [expandedSections, setExpandedSections] = useState({
         dataSources: false,
         datasets: false,
@@ -72,6 +78,49 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
     const { pipelines } = usePipelines(projectId);
     const { modelEntities } = useModelEntities(projectId);
     const { analysisObjects } = useAnalyses(projectId);
+
+    const MAX_WIDTH = typeof window !== 'undefined' ? window.innerWidth * 0.3 : 400;
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            
+            let newWidth = e.clientX;
+            
+            // Auto-collapse immediately when dragged below threshold
+            if (newWidth < COLLAPSE_THRESHOLD) {
+                newWidth = COLLAPSED_WIDTH;
+            } else {
+                newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth));
+            }
+            
+            setWidth(newWidth);
+        };
+
+        const handleMouseUp = () => {
+            setIsDragging(false);
+        };
+
+        if (isDragging) {
+            document.addEventListener("mousemove", handleMouseMove);
+            document.addEventListener("mouseup", handleMouseUp);
+        }
+
+        return () => {
+            document.removeEventListener("mousemove", handleMouseMove);
+            document.removeEventListener("mouseup", handleMouseUp);
+        };
+    }, [isDragging, MIN_WIDTH, MAX_WIDTH, COLLAPSE_THRESHOLD, COLLAPSED_WIDTH]);
+
+    const handleStartDrag = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleExpandSidebar = () => {
+        setWidth(DEFAULT_WIDTH);
+    };
 
     const toggleSection = (section: keyof typeof expandedSections) => {
         setExpandedSections(prev => ({
@@ -116,6 +165,8 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
             addPipelineToContext(pipeline);
         }
     };
+
+    const isCollapsed = width <= COLLAPSED_WIDTH;
 
     const handleModelToggle = (model: ModelEntity) => {
         const isActive = modelEntitiesInContext.some((m: ModelEntity) => m.id === model.id);
@@ -289,22 +340,22 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                         </>
                     )}
                 </div>
-                    <div className="flex items-center justify-end px-3 py-2">
-                    <button
-                        onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="p-2 rounded-full text-white hover:bg-[#000066] border border-gray-400 bg-[#000034]"
-                        title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                    >
-                        {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-                    </button>
-                </div>
             </div>
         );
     };
 
     return (
         <div className="mt-12">
-            <div className={`flex flex-col h-full bg-gray-100 border-r border-gray-200 text-gray-800 transition-all duration-300 ${isCollapsed ? 'w-10' : 'w-[260px]'}`}>
+            <div 
+                className="flex flex-col h-full bg-gray-100 border-r border-gray-200 text-gray-800 relative flex-shrink-0"
+                style={{ width: `${width}px` }}
+            >
+                {/* Drag handle */}
+                <div 
+                    onMouseDown={handleStartDrag}
+                    className="absolute top-0 bottom-0 right-0 w-2 cursor-col-resize z-10 hover:bg-gray-300 transition-colors"
+                />
+
                 {!isCollapsed && renderContent()}
 
                 {isCollapsed && (
@@ -322,10 +373,10 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                             <AddEntityButton type="pipeline" size={14} onAdd={() => setShowAddPipeline(true)} />
                         </div>
 
-                        {/* Collapse/expand button at bottom */}
+                        {/* Expand button at bottom */}
                         <div className="flex items-center justify-center px-3 py-2">
                             <button
-                                onClick={() => setIsCollapsed(!isCollapsed)}
+                                onClick={handleExpandSidebar}
                                 className="p-2 rounded-full text-white hover:bg-[#000066] border border-gray-400 bg-[#000034]"
                                 title="Expand sidebar"
                             >
