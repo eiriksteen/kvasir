@@ -172,6 +172,7 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
                       analysisObjectId={analysisObjectId}
                       projectId={projectId}
                       onScrollToSection={handleScrollToSection}
+                      closeTab={onClose}
                     />
                   </div>
                   {/* Main Content - Right Side */}

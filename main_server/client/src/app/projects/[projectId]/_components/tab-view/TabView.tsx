@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import { X, Folder, Database, BarChart3, Bot, Aperture, Zap, Brain } from 'lucide-react';
-import { TabType, useTabContext } from '@/hooks/useTabContext';
+import { TabType, Tab } from '@/hooks/useTabs';
 import { useProject } from '@/hooks/useProject';
 import { useDatasets } from '@/hooks/useDatasets';
 import { useDataSources } from '@/hooks/useDataSources';
@@ -11,10 +11,19 @@ import { UUID } from 'crypto';
 
 interface CustomTabViewProps {
   projectId: UUID;
+  openTabs: Tab[];
+  activeTabId: UUID | null;
+  closeTab: (id: UUID | null) => void;
+  selectTab: (id: UUID | null) => void;
 }
 
-const TabView: React.FC<CustomTabViewProps> = ({ projectId }) => {
-  const { openTabs, activeTabId, selectTab, closeTab } = useTabContext(projectId);
+const TabView: React.FC<CustomTabViewProps> = ({ 
+  projectId, 
+  openTabs, 
+  activeTabId, 
+  closeTab, 
+  selectTab 
+}) => {
   const { project } = useProject(projectId);
   const { datasets } = useDatasets(projectId);
   const { dataSources } = useDataSources();

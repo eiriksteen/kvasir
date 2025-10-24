@@ -34,7 +34,6 @@ import { UUID } from 'crypto';
 import ModelEntityBox from '@/app/projects/[projectId]/_components/erd/ModelEntityBox';
 import { useProjectGraph } from '@/hooks/useProjectGraph';
 import { computeBoxEdgeLocations } from '@/app/projects/[projectId]/_components/erd/computeBoxEdgeLocations';
-import { useTabContext } from '@/hooks/useTabContext';
 
 const DataSourceNodeWrapper = ({ data }: { data: { dataSourceId: UUID } }) => (
   <>
@@ -136,9 +135,10 @@ const edgeTypes: EdgeTypes = {
 
 interface EntityRelationshipDiagramProps {
   projectId: UUID;
+  openTab: (id: UUID | null, closable?: boolean) => void;
 }
 
-function EntityRelationshipDiagramContent({ projectId }: EntityRelationshipDiagramProps) {
+function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelationshipDiagramProps) {
 
   const getEdgeColor = useCallback((sourceType: string): string => {
     switch (sourceType) {
@@ -159,7 +159,6 @@ function EntityRelationshipDiagramContent({ projectId }: EntityRelationshipDiagr
 
   const { project, updatePosition, updateProjectViewPort } = useProject(projectId);
   const { projectGraph } = useProjectGraph(projectId);
-  const { openTab } = useTabContext(projectId);
   
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -184,7 +183,9 @@ function EntityRelationshipDiagramContent({ projectId }: EntityRelationshipDiagr
   // Handler to open tabs when node is clicked
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
+      console.log('node clicked', node);
       if (!node || !node.id) return;
+      console.log('opening tab', node.id);
       openTab(node.id as UUID, true);
     },
     [openTab]
@@ -439,10 +440,10 @@ function EntityRelationshipDiagramContent({ projectId }: EntityRelationshipDiagr
   );
 };
 
-export default function EntityRelationshipDiagram({ projectId }: EntityRelationshipDiagramProps) {
+export default function EntityRelationshipDiagram({ projectId, openTab }: EntityRelationshipDiagramProps) {
   return (
     <ReactFlowProvider>
-      <EntityRelationshipDiagramContent projectId={projectId} />
+      <EntityRelationshipDiagramContent projectId={projectId} openTab={openTab} />
     </ReactFlowProvider>
   );
 }
