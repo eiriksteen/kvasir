@@ -6,7 +6,7 @@ import { useDatasets } from '@/hooks/useDatasets';
 import { useProjectDataSources } from '@/hooks/useDataSources';
 import { useModelEntities } from '@/hooks/useModelEntities';
 import { useAnalyses } from '@/hooks/useAnalysis';
-import { SquarePlay, FileCode, ArrowDownToLine, ArrowUpFromLine, Database, Folder, Brain, BarChart3, Info } from 'lucide-react';
+import { SquarePlay, FileCode, ArrowDownToLine, ArrowUpFromLine, Database, Folder, Brain, BarChart3, Info, BookOpen } from 'lucide-react';
 import CodeStream from '@/components/code/CodeStream';
 import CodeImplementation from '@/components/code/CodeImplementation';
 import { Dataset } from '@/types/data-objects';
@@ -22,7 +22,7 @@ interface PipelineInfoTabProps {
   onClose: () => void;
 }   
 
-type ViewType = 'overview' | 'code' | 'runs';
+type ViewType = 'overview' | 'code' | 'runs' | 'documentation';
 
 export default function PipelineInfoTab({ 
   pipelineId,
@@ -130,6 +130,19 @@ export default function PipelineInfoTab({
           <SquarePlay className="w-4 h-4" />
           <span className="text-sm font-medium">Runs</span>
         </button>
+        {pipeline.implementation?.docstring && (
+          <button
+            onClick={() => setCurrentView('documentation')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+              currentView === 'documentation'
+                ? 'bg-[#840B08] text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span className="text-sm font-medium">Documentation</span>
+          </button>
+        )}
       </div>
 
       {/* Content Area */}
@@ -177,6 +190,22 @@ export default function PipelineInfoTab({
           </div>
         )}
 
+        {currentView === 'documentation' && (
+          <div className="h-full overflow-y-auto p-4">
+            {pipeline.implementation?.docstring ? (
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
+                  {pipeline.implementation.docstring}
+                </pre>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full text-center">
+                <p className="text-sm text-gray-500">No documentation available</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {currentView === 'overview' && !isInProgress && (
           <div className="h-full overflow-y-auto pl-4 pr-4 pb-4 space-y-4">
             {/* Description */}
@@ -187,6 +216,7 @@ export default function PipelineInfoTab({
             ) : (
               <p className="text-sm text-gray-400 italic">No description provided</p>
             )}
+
             {/* Inputs Box */}
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
               <div className="flex items-center gap-3 mb-4">
@@ -312,6 +342,7 @@ export default function PipelineInfoTab({
                 </div>
               </div>
             </div>
+
           </div>
         )}
       </div>

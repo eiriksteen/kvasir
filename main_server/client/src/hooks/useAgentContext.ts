@@ -2,7 +2,7 @@ import { Pipeline } from "@/types/pipeline";
 import { Dataset } from "@/types/data-objects";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
-import { AnalysisSmall } from "@/types/analysis";
+import { AnalysisObjectSmall } from "@/types/analysis";
 import { DataSource } from "@/types/data-sources";
 import { ModelEntity } from "@/types/model";
 import { UUID } from "crypto";
@@ -12,7 +12,7 @@ import { UUID } from "crypto";
 const emptyDataSourcesInContext: DataSource[] = [];
 const emptyDatasetsInContext: Dataset[] = [];
 const emptyPipelinesInContext: Pipeline[] = [];
-const emptyAnalysisesInContext: [] = [];
+const emptyAnalysisesInContext: AnalysisObjectSmall[] = [];
 const emptyModelEntitiesInContext: ModelEntity[] = [];
 
 
@@ -94,11 +94,11 @@ export const useAgentContext = (projectId: UUID) => {
   );
 
   const { trigger: addAnalysisToContext } = useSWRMutation(["analysisesInContext", projectId],
-    async (_, { arg }: { arg: AnalysisSmall }) => {
+    async (_, { arg }: { arg: AnalysisObjectSmall }) => {
       return arg;
     },
     {
-      populateCache: (newData: AnalysisSmall) => {
+      populateCache: (newData: AnalysisObjectSmall) => {
         if (analysesInContext) {
           return [...analysesInContext, newData];
         }
@@ -108,13 +108,13 @@ export const useAgentContext = (projectId: UUID) => {
   );
 
   const { trigger: removeAnalysisFromContext } = useSWRMutation(["analysisesInContext", projectId],
-    async (_, { arg }: { arg: AnalysisSmall }) => {
+    async (_, { arg }: { arg: AnalysisObjectSmall }) => {
       return arg;
     },
     {
-      populateCache: (newData: AnalysisSmall) => {
+      populateCache: (newData: AnalysisObjectSmall) => {
         if (analysesInContext) {
-          return analysesInContext.filter((a: AnalysisSmall) => a.id !== newData.id);
+          return analysesInContext.filter((a: AnalysisObjectSmall) => a.id !== newData.id);
         }
         return [];
       }

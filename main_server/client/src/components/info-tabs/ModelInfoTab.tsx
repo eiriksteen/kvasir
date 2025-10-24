@@ -1,4 +1,4 @@
-import { Brain, FileCode, Info } from 'lucide-react';
+import { Brain, FileCode, Info, BookOpen } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { UUID } from 'crypto';
 import { useModelEntity } from '@/hooks/useModelEntities';
@@ -10,7 +10,7 @@ interface ModelInfoTabProps {
   onClose: () => void;
 }
 
-type ViewType = 'overview' | 'code';
+type ViewType = 'overview' | 'code' | 'documentation';
 
 export default function ModelInfoTab({
   modelEntityId,
@@ -75,6 +75,21 @@ export default function ModelInfoTab({
             <span className="text-sm font-medium">Code</span>
           </button>
         )}
+        {(modelEntity?.implementation?.modelImplementation?.modelClassDocstring ||
+          modelEntity?.implementation?.modelImplementation?.trainingFunction?.docstring ||
+          modelEntity?.implementation?.modelImplementation?.inferenceFunction?.docstring) && (
+          <button
+            onClick={() => setCurrentView('documentation')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+              currentView === 'documentation'
+                ? 'bg-[#491A32] text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span className="text-sm font-medium">Documentation</span>
+          </button>
+        )}
       </div>
 
       {/* Content Area */}
@@ -82,6 +97,48 @@ export default function ModelInfoTab({
         {currentView === 'code' && modelEntity?.implementation ? (
           <div className="h-full">
             <CodeImplementation scriptId={modelEntity.implementation.modelImplementation.implementationScript?.id || undefined} />
+          </div>
+        ) : currentView === 'documentation' ? (
+          <div className="h-full overflow-y-auto p-4 space-y-4">
+            {modelEntity?.implementation?.modelImplementation?.modelClassDocstring ||
+             modelEntity?.implementation?.modelImplementation?.trainingFunction?.docstring ||
+             modelEntity?.implementation?.modelImplementation?.inferenceFunction?.docstring ? (
+              <div className="space-y-4">
+                {/* Model Class Docstring */}
+                {modelEntity.implementation?.modelImplementation?.modelClassDocstring && (
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Model Class Documentation</h3>
+                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
+                      {modelEntity.implementation.modelImplementation.modelClassDocstring}
+                    </pre>
+                  </div>
+                )}
+
+                {/* Training Function Docstring */}
+                {modelEntity.implementation?.modelImplementation?.trainingFunction?.docstring && (
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Training Function Documentation</h3>
+                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
+                      {modelEntity.implementation.modelImplementation.trainingFunction.docstring}
+                    </pre>
+                  </div>
+                )}
+
+                {/* Inference Function Docstring */}
+                {modelEntity.implementation?.modelImplementation?.inferenceFunction?.docstring && (
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Inference Function Documentation</h3>
+                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
+                      {modelEntity.implementation.modelImplementation.inferenceFunction.docstring}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full text-center">
+                <p className="text-sm text-gray-500">No documentation available</p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="h-full overflow-y-auto pl-4 pr-4 pb-4 space-y-4">
@@ -181,6 +238,7 @@ export default function ModelInfoTab({
                     </div>
                   </div>
                 </div>
+
               </>
             )}
           </div>
