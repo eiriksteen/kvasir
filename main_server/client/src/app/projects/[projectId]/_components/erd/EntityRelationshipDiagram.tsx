@@ -184,6 +184,7 @@ function EntityRelationshipDiagramContent({ projectId }: EntityRelationshipDiagr
   // Handler to open tabs when node is clicked
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
+      if (!node || !node.id) return;
       openTab(node.id as UUID, true);
     },
     [openTab]
@@ -382,7 +383,7 @@ function EntityRelationshipDiagramContent({ projectId }: EntityRelationshipDiagr
   }, [memoizedEdges, setEdges]);
 
   const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
-    if (!project) return;
+    if (!project || !node || !node.id) return;
 
     // Determine entity type by checking which list contains the node ID
     let entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity" | null = null;

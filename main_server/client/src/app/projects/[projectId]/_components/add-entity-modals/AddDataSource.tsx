@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { X, Database } from 'lucide-react';
 import { useDataSources, useProjectDataSources } from '@/hooks/useDataSources';
 import { useProject } from '@/hooks/useProject';
@@ -37,19 +37,20 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
   const { mutateDataSources: mutateProjectDataSources } = useProjectDataSources(projectId);
   const { project, addEntity } = useProject(projectId);
   const [isAdding, setIsAdding] = useState<string | null>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (backdropRef.current && event.target === backdropRef.current) {
         onClose();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
+    const backdrop = backdropRef.current;
+    if (backdrop) {
+      backdrop.addEventListener('click', handleClickOutside);
+      return () => backdrop.removeEventListener('click', handleClickOutside);
+    }
   }, [onClose]);
 
   // Filter out data sources that are already in the project
@@ -78,7 +79,7 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div ref={backdropRef} className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="relative w-full max-w-2xl h-[80vh] bg-white border border-gray-300 rounded-lg shadow-2xl overflow-hidden">
         <button
           onClick={onClose}

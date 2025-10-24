@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { X, Folder, ChevronDown } from 'lucide-react';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { UUID } from 'crypto';
@@ -52,6 +52,7 @@ export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
 
   const { project } = useProject(projectId);
   const { submitPrompt } = useProjectChat(projectId);
+  const backdropRef = useRef<HTMLDivElement>(null);
 
   const datasetsInProject = useMemo(() => {
     if (!project || !datasets) return [];
@@ -60,30 +61,20 @@ export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
   }, [datasets, project]);
 
   useEffect(() => { 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        if (isDropdownOpen) {
-          setIsDropdownOpen(false);
-        } else {
-          onClose();
-        }
-      }
-    };
-
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
-      if (!target.closest('.dropdown-container')) {
+      if (backdropRef.current && event.target === backdropRef.current) {
+        onClose();
+      } else if (!target.closest('.dropdown-container')) {
         setIsDropdownOpen(false);
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('click', handleClickOutside);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('click', handleClickOutside);
-    };
+    const backdrop = backdropRef.current;
+    if (backdrop) {
+      backdrop.addEventListener('click', handleClickOutside);
+      return () => backdrop.removeEventListener('click', handleClickOutside);
+    }
   }, [onClose, isDropdownOpen]);
 
   const handleDatasetToggle = (dataset: Dataset) => {
@@ -108,7 +99,7 @@ export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
   ];
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div ref={backdropRef} className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="relative w-full max-w-2xl h-[80vh] bg-white border border-[#840B08]/20 rounded-lg shadow-2xl overflow-hidden">
         <button
           onClick={onClose}
