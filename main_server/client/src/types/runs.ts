@@ -2,27 +2,20 @@ import { UUID } from "crypto";
 
 // DB Models
 
-export interface RunSpecificationInDB {
+export interface RunInDB {
   id: UUID;
+  userId: UUID;
+  type: "swe" | "analysis";
+  status: "pending" | "running" | "completed" | "failed" | "rejected";
   runName: string;
+  projectId?: UUID | null;
+  conversationId?: UUID | null;
   planAndDeliverableDescriptionForUser: string;
   planAndDeliverableDescriptionForAgent: string;
   questionsForUser?: string | null;
   configurationDefaultsDescription?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface RunInDB {
-  id: UUID;
-  userId: UUID;
-  type: string;
-  status: string;
   startedAt: string;
-  conversationId?: UUID | null;
-  parentRunId?: UUID | null;
   completedAt?: string | null;
-  runName?: string | null;
 }
 
 export interface RunMessageInDB {
@@ -54,7 +47,6 @@ export interface RunEntityIds {
 }
 
 export interface Run extends RunInDB {
-  spec?: RunSpecificationInDB | null;
   inputs?: RunEntityIds | null;
   outputs?: RunEntityIds | null;
 }

@@ -1,28 +1,24 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Send, Plus, History, Database, X, BarChart, Zap, Brain, Folder } from 'lucide-react';
+import { Send, Plus, History, Database, X, BarChart, Zap, Brain, Folder, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { useProjectChat } from '@/hooks';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { ChatHistory } from '@/app/projects/[projectId]/_components/chat/ChatHistory';
 import { ChatMessage } from '@/types/orchestrator';
-import { Dataset } from '@/types/data-objects';
-import { AnalysisObjectSmall } from '@/types/analysis';
-import { DataSource } from '@/types/data-sources';
 import { UUID } from 'crypto';
 import { useRunsInConversation } from '@/hooks/useRuns';
 import RunBox from '@/components/runs/RunBox';
 import { Run } from '@/types/runs';
 import ChatMessageBox from '@/app/projects/[projectId]/_components/chat/ChatMessageBox';
-import { Pipeline } from '@/types/pipeline';
-import { ModelEntity } from '@/types/model';
 
 export default function Chatbot({ projectId }: { projectId: UUID }) {
   
   const [input, setInput] = useState('');
   const [width, setWidth] = useState(400);
   const [isDragging, setIsDragging] = useState(false);
-  const [showChatHistory, setShowChatHistory] = useState(false);  
+  const [showChatHistory, setShowChatHistory] = useState(false);
+  const [showAllContext, setShowAllContext] = useState(false);
 
   const { submitPrompt, conversation, setProjectConversationId, conversationMessages, continueConversation } = useProjectChat(projectId);
 
@@ -45,12 +41,14 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
   
-  const MIN_WIDTH = 300;
+  // Constants for resizing behavior
+  const DEFAULT_WIDTH = 400;  
+  const MIN_WIDTH = 150;
+  const COLLAPSE_THRESHOLD = 100;
+  const COLLAPSED_WIDTH = 40;
   const MAX_WIDTH = typeof window !== 'undefined' ? window.innerWidth * 0.8 : 800;
 
-  // Continue conversation if job completes or fails
-
-
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (messagesContainerRef.current) {
       const container = messagesContainerRef.current;
@@ -66,13 +64,22 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
       return () => clearTimeout(timeoutId);
     }
   }, [conversationMessages, runsInConversation]);
+
   
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
       e.preventDefault();
       
-      const newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, window.innerWidth - e.clientX));
+      let newWidth = window.innerWidth - e.clientX;
+      
+      // Auto-collapse immediately when dragged below threshold
+      if (newWidth < COLLAPSE_THRESHOLD) {
+        newWidth = COLLAPSED_WIDTH;
+      } else {
+        newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth));
+      }
+      
       setWidth(newWidth);
     };
 
@@ -89,7 +96,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, MIN_WIDTH, MAX_WIDTH]);
+  }, [isDragging, MIN_WIDTH, MAX_WIDTH, COLLAPSE_THRESHOLD, COLLAPSED_WIDTH]);
 
   const handleStartDrag = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -102,8 +109,11 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   };
 
   const handleConversationSelect = () => {
-    // Close the history panel when a conversation is selected
+    // Close the history panel and expand chat when a conversation is selected
     setShowChatHistory(false);
+    if (isCollapsed) {
+      handleExpandChat();
+    }
   };
 
   const handleRunCompleteOrFail = () => {
@@ -111,27 +121,235 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
     continueConversation(conversation.id);
   };
 
-  const isCollapsed = width <= MIN_WIDTH;
+  const handleExpandChat = () => {
+    setWidth(DEFAULT_WIDTH);
+  };
+
+  const isCollapsed = width <= COLLAPSED_WIDTH;
+
+  // Context item configuration
+  const contextItemConfigs = [
+    { items: dataSourcesInContext, type: 'dataSource', iconName: 'Database', bgColor: 'bg-gray-200', textColor: 'text-gray-600', removeFn: removeDataSourceFromContext },
+    { items: datasetsInContext, type: 'dataset', iconName: 'Folder', bgColor: 'bg-[#0E4F70]/20', textColor: 'text-[#0E4F70]', removeFn: removeDatasetFromContext },
+    { items: analysesInContext, type: 'analysis', iconName: 'BarChart', bgColor: 'bg-[#004806]/20', textColor: 'text-[#004806]', removeFn: removeAnalysisFromContext },
+    { items: pipelinesInContext, type: 'pipeline', iconName: 'Zap', bgColor: 'bg-[#840B08]/20', textColor: 'text-[#840B08]', removeFn: removePipelineFromContext },
+    { items: modelEntitiesInContext, type: 'modelEntity', iconName: 'Brain', bgColor: 'bg-[#491A32]/20', textColor: 'text-[#491A32]', removeFn: removeModelEntityFromContext }
+  ];
+
+  // Helper function to get all context items
+  const getAllContextItems = () => {
+    return contextItemConfigs.flatMap(config => 
+      config.items.map((item: unknown) => ({ ...config, item }))
+    );
+  };
+
+  // Icon mapping for context items
+  const iconMap = {
+    Database: Database,
+    Folder: Folder,
+    BarChart: BarChart,
+    Zap: Zap,
+    Brain: Brain
+  };
+
+  const renderIcon = (iconName: string, size: number) => {
+    const IconComponent = iconMap[iconName as keyof typeof iconMap] || Database;
+    return <IconComponent size={size} />;
+  };
+
+  const allContextItems = getAllContextItems();
+  const totalContextCount = allContextItems.length;
+  const remainingCount = totalContextCount - 1;
+
+  // Render collapsed chat view
+  const renderCollapsedView = () => (
+    <div className="flex flex-col h-full">
+      {/* History button at top */}
+      <div className="flex items-center justify-center h-9 border-b border-t border-gray-400 bg-gray-100">
+        <div className="relative">
+          <button
+            onClick={() => {
+              setShowChatHistory(!showChatHistory);
+              if (!showChatHistory) {
+                handleExpandChat();
+              }
+            }}
+            className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
+            title="Chat History"
+          >
+            <History size={18} />
+          </button>
+          {showChatHistory && (
+            <ChatHistory
+              projectId={projectId}
+              onClose={handleConversationSelect}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Plus button below */}
+      <div className="flex items-center justify-center pt-2">
+        <button
+          onClick={() => {
+            setProjectConversationId(null);
+            handleExpandChat();
+          }}
+          className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
+          title="New Chat"
+        >
+          <Plus size={18} />
+        </button>
+      </div>
+
+      {/* Expand button at bottom */}
+      <div className="flex-1"></div>
+      <div className="flex items-center justify-center px-3 py-2">
+        <button
+          onClick={handleExpandChat}
+          className="p-2 rounded-full text-white hover:bg-[#000066] border border-gray-400 bg-[#000034]"
+          title="Expand chat"
+        >
+          <ChevronLeft size={14} />
+        </button>
+      </div>
+    </div>
+  );
+
+  // Render context bar
+  const renderContextBar = () => (
+    <div className="border-b border-gray-400 bg-gray-100">
+      {/* Fixed header row - never moves */}
+      <div className="h-9 flex items-center px-3 gap-3">
+        <h3 className="text-xs font-mono text-gray-900 whitespace-nowrap flex-shrink-0">Context</h3>
+        <div className="flex items-center gap-2 flex-1">
+          {totalContextCount === 0 ? (
+            <span className="text-xs text-gray-500">No context items</span>
+          ) : (
+            <>
+              {/* Show context items in header row ONLY when collapsed */}
+              {!showAllContext && allContextItems.length > 0 && (
+                <div
+                  className={`px-2 py-1 text-xs rounded-full flex items-center gap-1 ${allContextItems[0].bgColor} ${allContextItems[0].textColor} flex-shrink-0`}
+                >
+                  {renderIcon(allContextItems[0].iconName, 12)}
+                  <span className="truncate max-w-[150px]">{allContextItems[0].item.name}</span>
+                  <button
+                    onClick={() => allContextItems[0].removeFn(allContextItems[0].item)}
+                    className={`${allContextItems[0].textColor} hover:text-gray-400 flex-shrink-0`}
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+
+              {/* Show (X more) indicator when collapsed and there are items that don't fit */}
+              {!showAllContext && remainingCount > 0 && (
+                <span className="text-xs text-gray-500 flex-shrink-0">
+                  ({remainingCount} more)
+                </span>
+              )}
+
+              {/* Toggle button - only show if there are more than 1 items */}
+              {totalContextCount > 1 && (
+                <button
+                  onClick={() => setShowAllContext(!showAllContext)}
+                  className="p-1 rounded hover:bg-gray-200 transition-colors duration-200 text-gray-600 hover:text-gray-900 flex-shrink-0"
+                  title={showAllContext ? "Show less" : "Show all"}
+                >
+                  {showAllContext ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* All items displayed in rows under header when expanded */}
+      {showAllContext && (
+        <div className="px-3 pb-3">
+          <div className="grid grid-cols-2 gap-2 w-full">
+            {allContextItems.map((contextItem) => (
+              <div
+                key={`${contextItem.type}-${contextItem.item.id}`}
+                className={`px-2 py-1 text-xs rounded-full flex items-center gap-1 ${contextItem.bgColor} ${contextItem.textColor} flex-shrink-0`}
+              >
+                {renderIcon(contextItem.iconName, 12)}
+                <span className="truncate flex-1">{contextItem.item.name}</span>
+                <button
+                  onClick={() => contextItem.removeFn(contextItem.item)}
+                  className={`${contextItem.textColor} hover:text-gray-400 flex-shrink-0`}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // Render timeline of messages and runs
+  const renderTimeline = () => {
+    const timelineItems = [
+      ...conversationMessages.map((message: ChatMessage) => ({
+        type: 'message' as const,
+        item: message,
+        createdAt: message.createdAt
+      })),
+      ...runsInConversation.map((run: Run) => ({
+        type: 'run' as const,
+        item: run,
+        createdAt: run.startedAt
+      }))
+    ];
+
+    timelineItems.sort((a, b) => 
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+
+    return timelineItems.map((timelineItem) => {
+      if (timelineItem.type === 'message') {
+        return (
+          <ChatMessageBox 
+            key={`msg-${timelineItem.item.id}`} 
+            message={timelineItem.item} 
+            projectId={projectId} 
+          />
+        );
+      } else {
+        return (
+          <RunBox 
+            key={`run-${timelineItem.item.id}`} 
+            runId={timelineItem.item.id} 
+            projectId={projectId} 
+            onRunCompleteOrFail={handleRunCompleteOrFail}
+          />
+        );
+      }
+    });
+  };
 
   return (
     <div
-      className="absolute right-0 h-screen text-gray-800 flex flex-col bg-gray-100 border-l border-gray-200 pt-12"
+      className="h-full text-gray-800 flex flex-col bg-gray-100 border-l border-gray-200 pt-12 flex-shrink-0 relative"
       style={{ width: `${width}px` }}
     >
       {/* Drag handle */}
       <div 
         ref={dragHandleRef}
         onMouseDown={handleStartDrag}
-        className="absolute top-0 bottom-0 left-0 w-3 cursor-col-resize z-10 hover:bg-blue-100"
+        className="absolute top-0 bottom-0 left-0 w-2 cursor-col-resize z-10 hover:bg-gray-300 transition-colors"
       >
       </div>
 
-      {!isCollapsed && (
+      {isCollapsed ? renderCollapsedView() : (
         <>
           {/* Header with history button */}
           <div className="border-b border-t border-gray-400 h-9 flex justify-between items-center relative bg-gray-100 px-3">
             <div className="flex-1">
-              <h3 className="text-xs font-mono text-gray-900 animate-fade-in">
+              <h3 className="text-xs font-mono text-gray-900">
                 {conversation?.name || "Chat"}
               </h3>
             </div>
@@ -161,95 +379,9 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
             </div>
           </div>
 
-          {/* Combined context bar */}
-          <div className="border-b border-gray-400 bg-gray-100 h-9 flex items-center px-3 gap-3">
-            <h3 className="text-xs font-mono text-gray-900 whitespace-nowrap">Context</h3>
-            <div className="flex flex-wrap gap-2 flex-1 overflow-hidden">
-                <>
-                  {/* Data Sources */}
-                  {dataSourcesInContext.map((dataSource: DataSource) => (
-                    <div
-                      key={dataSource.id}
-                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-gray-200 text-gray-600"
-                    >
-                      <Database size={12} />
-                      {dataSource.name}
-                      <button
-                        onClick={() => removeDataSourceFromContext(dataSource)}
-                        className="text-gray-600 hover:text-gray-400"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
+          {/* Context bar */}
+          {renderContextBar()}
 
-                  {/* Datasets */}
-                  {datasetsInContext.map((dataset: Dataset) => (
-                    <div
-                      key={dataset.id}
-                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
-                    >
-                      <Folder size={12} />
-                      {dataset.name}
-                      <button 
-                        onClick={() => removeDatasetFromContext(dataset)}
-                        className="text-[#0E4F70] hover:text-gray-400"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
-                  
-                  {/* Analyses */}
-                  {analysesInContext.map((analysis: AnalysisObjectSmall) => (
-                    <div
-                      key={analysis.id}
-                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#004806]/20 text-[#004806]"
-                    >
-                      <BarChart size={12} />
-                      {analysis.name}
-                      <button 
-                        onClick={() => removeAnalysisFromContext(analysis)}
-                        className="text-[#004806] hover:text-gray-400"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* Pipelines */}
-                  {pipelinesInContext.map((pipeline: Pipeline) => (
-                    <div
-                      key={pipeline.id}
-                      className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#840B08]/20 text-[#840B08]"
-                    >
-                      <Zap size={12} />
-                      {pipeline.name}
-                      <button 
-                        onClick={() => removePipelineFromContext(pipeline)}
-                        className="text-[#840B08] hover:text-gray-400"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* Model Entities */}
-                  {modelEntitiesInContext.map((modelEntity: ModelEntity) => (
-                    <div key={modelEntity.id} className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]">
-                      <Brain size={12} />
-                      {modelEntity.name}
-                      <button 
-                        onClick={() => removeModelEntityFromContext(modelEntity)}
-                        className="text-[#491A32] hover:text-gray-400"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
-                </>
-            </div>
-          </div>
 
           {/* Messages container */}
           <div
@@ -267,32 +399,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
               </div>
             )}
             
-            {(() => {
-              const timelineItems = [
-                ...conversationMessages.map((message: ChatMessage) => ({
-                  type: 'message' as const,
-                  item: message,
-                  createdAt: message.createdAt
-                })),
-                ...runsInConversation.map((run: Run) => ({
-                  type: 'run' as const,
-                  item: run,
-                  createdAt: run.startedAt
-                }))
-              ];
-
-              timelineItems.sort((a, b) => 
-                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-              );
-
-              return timelineItems.map((timelineItem) => {
-                if (timelineItem.type === 'message') {
-                  return <ChatMessageBox key={`msg-${timelineItem.item.id}`} message={timelineItem.item} projectId={projectId} />;
-                } else {
-                  return <RunBox key={`run-${timelineItem.item.id}`} runId={timelineItem.item.id} projectId={projectId} onRunCompleteOrFail={handleRunCompleteOrFail}/>;
-                }
-              });
-            })()}
+            {renderTimeline()}
             
             {/* Invisible element for scrolling to bottom */}
             <div ref={messagesEndRef} style={{ height: '1px' }} />
@@ -327,4 +434,3 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
     </div>
   );
 }
-

@@ -1,25 +1,23 @@
 import React from 'react';
-import { Dataset } from '@/types/data-objects';
 import { Folder } from 'lucide-react';
+import { UUID } from 'crypto';
+import { useDataset } from '@/hooks/useDatasets';
 
 interface DatasetProps {
-  dataset: Dataset;
-  onClick?: () => void;
-  // if null, click is disabled
-  // also remove hovering effect to make it look like a disabled button
+  datasetId: UUID;
+  projectId: UUID;
 }
 
-export default function DatasetBox({ dataset, onClick }: DatasetProps) {
-  const isDisabled = !onClick;
+export default function DatasetBox({ datasetId, projectId }: DatasetProps) {
+  const { dataset } = useDataset(datasetId, projectId);
+  
+  if (!dataset) {
+    return null;
+  }
   
   return (
   <div
-    className={`px-3 py-3 shadow-md rounded-md border-2 border-[#0E4F70] relative min-w-[100px] max-w-[220px] ${
-      isDisabled
-        ? 'cursor-default opacity-60'
-        : 'cursor-pointer hover:bg-[#0E4F70]/10 hover:border-[#0E4F70]'
-    }`}
-    onClick={onClick ? onClick : undefined}
+    className="px-3 py-3 shadow-md rounded-md border-2 border-[#0E4F70] relative min-w-[100px] max-w-[220px] cursor-pointer hover:bg-[#0E4F70]/10 hover:border-[#0E4F70]"
   >
     <div className="flex flex-col">
       <div className="flex items-center mb-2">

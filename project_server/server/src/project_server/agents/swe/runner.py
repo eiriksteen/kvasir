@@ -27,7 +27,7 @@ from project_server.client import (
     post_model_entity_implementation,
     get_analyses_by_ids
 )
-from project_server.agents.runner_base import RunnerBase, MessageForLog
+from project_server.agents.runner_base import RunnerBase
 from project_server.entity_manager import script_manager
 from synesis_schemas.main_server import (
     GetModelEntityByIDsRequest,
@@ -62,12 +62,12 @@ class SWEAgentRunner(RunnerBase):
             project_id: uuid.UUID,
             conversation_id: Optional[uuid.UUID] = None,
             run_id: Optional[uuid.UUID] = None,
-            pipeline_id: Optional[uuid.UUID] = None,
+            target_pipeline_id: Optional[uuid.UUID] = None,
             log: bool = False,
-            model_entity_ids: Optional[List[uuid.UUID]] = None,
-            data_source_ids: Optional[List[uuid.UUID]] = None,
-            dataset_ids: Optional[List[uuid.UUID]] = None,
-            analysis_ids: Optional[List[uuid.UUID]] = None,
+            input_data_source_ids: Optional[List[uuid.UUID]] = None,
+            input_dataset_ids: Optional[List[uuid.UUID]] = None,
+            input_analysis_ids: Optional[List[uuid.UUID]] = None,
+            input_model_entity_ids: Optional[List[uuid.UUID]] = None,
     ):
 
         super().__init__(
@@ -84,12 +84,12 @@ class SWEAgentRunner(RunnerBase):
         self.log = log
         self.container_name = "project-sandbox"
         self.container_cwd = Path("/app")
-        self.pipeline_id = pipeline_id
+        self.target_pipeline_id = target_pipeline_id
 
-        self.model_entity_ids = model_entity_ids
-        self.data_source_ids = data_source_ids
-        self.dataset_ids = dataset_ids
-        self.analysis_ids = analysis_ids
+        self.input_data_source_ids = input_data_source_ids
+        self.input_dataset_ids = input_dataset_ids
+        self.input_analysis_ids = input_analysis_ids
+        self.input_model_entity_ids = input_model_entity_ids
 
         self.model_entities = None
         self.data_sources = None
@@ -129,11 +129,10 @@ class SWEAgentRunner(RunnerBase):
             await self._save_results(run_result.output)
 
             if self.log:
-                await self._log_message(MessageForLog(
+                await self._log_message(
                     content=f"Implementation result: {run_result.output.model_dump_json()}",
-                    type="result",
-                    write_to_db=1
-                ))
+                    type="result"
+                )
 
             await self._complete_agent_run("SWE agent run completed")
 
@@ -174,17 +173,17 @@ class SWEAgentRunner(RunnerBase):
 
     async def _prepare_deps(self) -> None:
 
-        self.model_entities = await get_model_entities_by_ids(self.project_client, GetModelEntityByIDsRequest(model_entity_ids=self.model_entity_ids))
-        self.data_sources = await get_data_sources_by_ids(self.project_client, GetDataSourcesByIDsRequest(data_source_ids=self.data_source_ids))
-        self.datasets = await get_datasets_by_ids(self.project_client, GetDatasetsByIDsRequest(dataset_ids=self.dataset_ids))
-        self.analyses = await get_analyses_by_ids(self.project_client, GetAnalysesByIDsRequest(analysis_ids=self.analysis_ids))
+        self.data_sources = await get_data_sources_by_ids(self.project_client, GetDataSourcesByIDsRequest(data_source_ids=self.input_data_source_ids))
+        self.datasets = await get_datasets_by_ids(self.project_client, GetDatasetsByIDsRequest(dataset_ids=self.input_dataset_ids))
+        self.analyses = await get_analyses_by_ids(self.project_client, GetAnalysesByIDsRequest(analysis_ids=self.input_analysis_ids))
+        self.model_entities = await get_model_entities_by_ids(self.project_client, GetModelEntityByIDsRequest(model_entity_ids=self.input_model_entity_ids))
 
         deps = SWEAgentDeps(
             cwd=str(self.container_cwd),
             container_name=self.container_name,
             bearer_token=self.bearer_token,
             client=self.project_client,
-            log_code=self._log_code,
+            log_code=self._stream_code,
             model_entities_injected=self.model_entities,
             data_sources_injected=self.data_sources,
             datasets_injected=self.datasets,
@@ -394,7 +393,7 @@ class SWEAgentRunner(RunnerBase):
             new_model_entity = await post_model_entity_implementation(self.project_client, ModelEntityImplementationCreate(
                 config=mdl.default_config,
                 weights_save_dir=None,
-                pipeline_id=self.pipeline_id,
+                pipeline_id=self.target_pipeline_id,
                 model_implementation_id=mdl.id,
                 model_entity_create=ModelEntityCreate(
                     name=f"{mdl.definition.name} unfitted",
@@ -410,13 +409,13 @@ class SWEAgentRunner(RunnerBase):
 
             new_model_entity_ids.append(new_model_entity.id)
 
-        if not self.pipeline_id:
+        if not self.target_pipeline_id:
             pipeline_create = PipelineCreate(
                 name=final_result.new_main_function.name,
                 description=final_result.new_main_function.description,
-                input_data_source_ids=self.data_source_ids,
-                input_dataset_ids=self.dataset_ids,
-                input_model_entity_ids=self.model_entity_ids+new_model_entity_ids
+                input_data_source_ids=self.input_data_source_ids,
+                input_dataset_ids=self.input_dataset_ids,
+                input_model_entity_ids=self.input_model_entity_ids+new_model_entity_ids
             )
         else:
             pipeline_create = None
@@ -433,12 +432,12 @@ class SWEAgentRunner(RunnerBase):
             function_ids=[
                 f.id for f in final_result.functions_used + new_functions],
             pipeline_create=pipeline_create,
-            pipeline_id=self.pipeline_id
+            pipeline_id=self.target_pipeline_id
         )
 
         pipeline_response = await post_pipeline_implementation(self.project_client, pipeline_implementation_create)
 
-        if not self.pipeline_id:
+        if not self.target_pipeline_id:
             await post_add_entity(self.project_client, AddEntityToProject(
                 project_id=self.project_id,
                 entity_type="pipeline",
@@ -458,11 +457,11 @@ async def run_swe_task(
         project_id=swe_request.project_id,
         conversation_id=swe_request.conversation_id,
         run_id=swe_request.run_id,
-        pipeline_id=swe_request.pipeline_id,
-        data_source_ids=swe_request.data_source_ids,
-        dataset_ids=swe_request.dataset_ids,
-        model_entity_ids=swe_request.model_entity_ids,
-        analysis_ids=swe_request.analysis_ids
+        target_pipeline_id=swe_request.target_pipeline_id,
+        input_data_source_ids=swe_request.input_data_source_ids,
+        input_dataset_ids=swe_request.input_dataset_ids,
+        input_analysis_ids=swe_request.input_analysis_ids,
+        input_model_entity_ids=swe_request.input_model_entity_ids
     )
 
     await runner(swe_request.prompt_content)

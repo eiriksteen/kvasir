@@ -1,25 +1,23 @@
 import React from 'react';
 import { BarChart3 } from 'lucide-react';
-import { AnalysisObjectSmall } from '@/types/analysis';
+import { UUID } from 'crypto';
+import { useAnalysis } from '@/hooks/useAnalysis';
 
 interface AnalysisBoxProps {
-  analysis: AnalysisObjectSmall;
-  onClick?: () => void;
-  // if null, click is disabled
-  // also remove hovering effect to make it look like a disabled button
+  analysisId: UUID;
+  projectId: UUID;
 }
 
-export default function AnalysisBox({ analysis, onClick }: AnalysisBoxProps) {
-  const isDisabled = !onClick;
+export default function AnalysisBox({ analysisId, projectId }: AnalysisBoxProps) {
+  const { currentAnalysisObject } = useAnalysis(projectId, analysisId);
+  
+  if (!currentAnalysisObject) {
+    return null;
+  }
   
   return (
     <div
-      className={`px-3 py-3 shadow-md rounded-md border-2 border-[#004806] relative min-w-[100px] max-w-[220px] ${
-        isDisabled
-          ? 'cursor-default opacity-60'
-          : 'cursor-pointer hover:bg-[#004806]/10 hover:border-[#004806]'
-      }`}
-      onClick={onClick ? onClick : undefined}
+      className="px-3 py-3 shadow-md rounded-md border-2 border-[#004806] relative min-w-[100px] max-w-[220px] cursor-pointer hover:bg-[#004806]/10 hover:border-[#004806]"
     >
       <div className="flex flex-col">
         <div className="flex items-center mb-2">
@@ -29,7 +27,7 @@ export default function AnalysisBox({ analysis, onClick }: AnalysisBoxProps) {
           <div className="text-[#004806] font-mono text-xs">Analysis</div>
         </div>
         <div>
-          <div className="text-xs font-mono text-gray-800 truncate">{analysis.name}</div>
+          <div className="text-xs font-mono text-gray-800 truncate">{currentAnalysisObject.name}</div>
         </div>
       </div>
     </div>

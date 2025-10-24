@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, FileText, Plus, ChevronDown, ChevronUp, ExternalLink, List, Trash2, ArrowRight, Info, Calendar, User, Tag } from 'lucide-react';
-import { useAnalysisObject } from '@/hooks/useAnalysis';
+import { ChevronLeft, ChevronRight, FileText, Plus, ChevronDown, ChevronUp, ExternalLink, List, Trash2, ArrowRight, Info, Calendar } from 'lucide-react';
+import { useAnalysis } from '@/hooks/useAnalysis';
 import { NotebookSection, AnalysisObject, AnalysisObjectSmall } from '@/types/analysis';
 import SectionItemCreate from '@/components/info-tabs/analysis/SectionItemCreate';
 import { buildOrderedSectionsList, findParentSections } from '@/lib/utils';
@@ -124,7 +124,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   onScrollToSection,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { currentAnalysisObject: analysis } = useAnalysisObject(projectId, analysisObjectId);
+  const { currentAnalysisObject: analysis } = useAnalysis(projectId, analysisObjectId);
   const [showCreateRootSection, setShowCreateRootSection] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -133,7 +133,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   const [showDetails, setShowDetails] = useState(false);
 
   const { addAnalysisToContext, removeAnalysisFromContext } = useAgentContext(projectId);
-  const { deleteAnalysisObject } = useAnalysisObject(projectId, analysisObjectId);
+  const { deleteAnalysisObject } = useAnalysis(projectId, analysisObjectId);
   const { closeTab } = useTabContext(projectId);
 
 
@@ -189,7 +189,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   const handleConfirmDelete = async () => {
     await deleteAnalysisObject({analysisObjectId: analysisObjectId});
     // Close the tab for this analysis
-    closeTab(analysisObjectId, 'analysis');
+    closeTab(analysisObjectId);
     setShowDeleteConfirmation(false);
   };
 

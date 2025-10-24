@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
-import { useAnalysis } from '@/hooks/useAnalysis';
+import { useAnalyses } from '@/hooks/useAnalysis';
 import { AnalysisObjectCreate } from '@/types/analysis';
 import { UUID } from 'crypto';
 
@@ -14,27 +14,27 @@ interface AddAnalysisProps {
 export default function AddAnalysis({ projectId, onClose }: AddAnalysisProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const { createAnalysis } = useAnalysis(projectId);
+  const { createAnalysis } = useAnalyses(projectId);
+  const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (backdropRef.current && event.target === backdropRef.current) {
         onClose();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
+    const backdrop = backdropRef.current;
+    if (backdrop) {
+      backdrop.addEventListener('click', handleClickOutside);
+      return () => backdrop.removeEventListener('click', handleClickOutside);
+    }
   }, [onClose]);
 
   const handleSubmit = async () => {
     const AnalysisObjectCreate: AnalysisObjectCreate = {
       name,
-      description,
-      projectId: projectId
+      description
     };
     await createAnalysis(AnalysisObjectCreate);
     setName('');
@@ -43,7 +43,7 @@ export default function AddAnalysis({ projectId, onClose }: AddAnalysisProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+    <div ref={backdropRef} className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="relative w-full max-w-2xl h-[80vh] bg-white border border-gray-300 rounded-lg shadow-2xl overflow-hidden">
         <button
           onClick={onClose}

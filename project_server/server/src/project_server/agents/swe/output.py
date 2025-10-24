@@ -8,7 +8,7 @@ from pathlib import Path
 from synesis_data_interface.structures.overview import get_first_level_structure_ids
 from project_server.agents.swe.deps import SWEAgentDeps
 from project_server.utils.code_utils import run_python_code_in_container
-from project_server.agents.runner_base import CodeForLog
+from project_server.agents.runner_base import StreamedCode
 from project_server.client import submit_swe_result_approval_request
 from project_server.worker import logger
 from project_server.agents.swe.sandbox_code import add_object_group_validation_code_to_implementation, add_entry_point
@@ -27,6 +27,12 @@ from synesis_schemas.main_server import (
     ModelSourceCreate
 )
 from project_server.app_secrets import MODEL_WEIGHTS_DIR
+
+
+class FunctionStages(BaseModel):
+    input: str
+    stages: List[str]
+    output: str
 
 
 class FunctionImplementationSummary(BaseModel):
@@ -136,7 +142,7 @@ async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name:
                 f"weights_save_dir must be set. If none has been provided, set a placeholder default. ")
 
         # Only do it for those that don't have a weights dir, as we will need to load from the ones that do
-        if not injected_model.implementation.weights_save_dir:
+        if not injected_model.implementation.weights_save_dir and injected_model.implementation.weights_save_dir is not None:
             testing_dirs.append(
                 Path(injected_model.implementation.weights_save_dir))
 
@@ -210,7 +216,7 @@ async def submit_implementation_output(ctx: RunContext[SWEAgentDeps], file_name:
         shutil.rmtree(testing_dir, ignore_errors=True)
 
     if ctx.deps.log_code:
-        await ctx.deps.log_code(CodeForLog(
+        await ctx.deps.log_code(StreamedCode(
             code=script,
             filename=file_name,
             output=out,

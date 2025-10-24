@@ -10,11 +10,13 @@ import {
     useNodesState,
     useEdgesState,
     Handle,
-    Position
+    Position,
+    useReactFlow,
+    useOnViewportChange,
+    Viewport
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useProject } from '@/hooks/useProject';
-import { useDatasets, useAnalysis, usePipelines } from '@/hooks';
 import { 
   ProjectDataSourceInDB, 
   ProjectDatasetInDB, 
@@ -22,30 +24,22 @@ import {
   ProjectPipelineInDB, 
   ProjectModelEntityInDB 
 } from '@/types/project';
+import { ReactFlowProvider } from '@xyflow/react';
 import DatasetBox from '@/app/projects/[projectId]/_components/erd/DatasetBox';
 import AnalysisBox from '@/app/projects/[projectId]/_components/erd/AnalysisBox';
 import TransportEdge from '@/app/projects/[projectId]/_components/erd/TransportEdge';
-import { useProjectDataSources } from '@/hooks/useDataSources';
 import DataSourceBox from '@/app/projects/[projectId]/_components/erd/DataSourceBox';
 import PipelineBox from '@/app/projects/[projectId]/_components/erd/PipelineBox';
-import { Pipeline, PipelineRunInDB } from '@/types/pipeline';
 import { UUID } from 'crypto';
-import { ModelEntity } from '@/types/model';
-import { useModelEntities } from '@/hooks/useModelEntities';
 import ModelEntityBox from '@/app/projects/[projectId]/_components/erd/ModelEntityBox';
 import { useProjectGraph } from '@/hooks/useProjectGraph';
 import { computeBoxEdgeLocations } from '@/app/projects/[projectId]/_components/erd/computeBoxEdgeLocations';
 import { useTabContext } from '@/hooks/useTabContext';
-import { DataSource } from '@/types/data-sources';
-import { Dataset } from '@/types/data-objects';
-import { AnalysisObjectSmall } from '@/types/analysis';
 
-const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradientClass: string; onClick: () => void } }) => (
+const DataSourceNodeWrapper = ({ data }: { data: { dataSourceId: UUID } }) => (
   <>
     <DataSourceBox
-      dataSource={data.dataSource}
-      gradientClass={data.gradientClass}
-      onClick={data.onClick}
+      dataSourceId={data.dataSourceId}
     />
     <Handle type="target" position={Position.Top} style={{ background: '#6b7280', left: 'calc(50% - 8px)' }} id="top-target" />
     <Handle type="source" position={Position.Top} style={{ background: '#6b7280', left: 'calc(50% + 8px)' }} id="top-source" />
@@ -59,11 +53,11 @@ const DataSourceNodeWrapper = ({ data }: { data: { dataSource: DataSource; gradi
 );
 
 // Wrapper component to adapt ReactFlow node props to Dataset component props
-const DatasetNodeWrapper = ({ data }: { data: { dataset: Dataset; onClick: () => void } }) => (
+const DatasetNodeWrapper = ({ data }: { data: { datasetId: UUID; projectId: UUID } }) => (
   <>
     <DatasetBox
-      dataset={data.dataset}
-      onClick={data.onClick}
+      datasetId={data.datasetId}
+      projectId={data.projectId}
     />
     <Handle type="target" position={Position.Top} style={{ background: '#0E4F70', left: 'calc(50% - 8px)' }} id="top-target" />
     <Handle type="source" position={Position.Top} style={{ background: '#0E4F70', left: 'calc(50% + 8px)' }} id="top-source" />
@@ -77,11 +71,11 @@ const DatasetNodeWrapper = ({ data }: { data: { dataset: Dataset; onClick: () =>
 );
 
 // Wrapper component to adapt ReactFlow node props to Analysis component props
-const AnalysisNodeWrapper = ({ data }: { data: { analysis: AnalysisObjectSmall; onClick: () => void } }) => (
+const AnalysisNodeWrapper = ({ data }: { data: { analysisId: UUID; projectId: UUID } }) => (
   <>
   <AnalysisBox
-    analysis={data.analysis}
-    onClick={data.onClick}
+    analysisId={data.analysisId}
+    projectId={data.projectId}
   />
   <Handle type="target" position={Position.Top} style={{ background: '#004806', left: 'calc(50% - 8px)' }} id="top-target" />
   <Handle type="source" position={Position.Top} style={{ background: '#004806', left: 'calc(50% + 8px)' }} id="top-source" />
@@ -94,13 +88,11 @@ const AnalysisNodeWrapper = ({ data }: { data: { analysis: AnalysisObjectSmall; 
   </>
 );
 
-const PipelineNodeWrapper = ({ data }: { data: { pipeline: Pipeline; onClick: () => void, handleRunClick: () => void, pipelineRuns: PipelineRunInDB[] } }) => (
+const PipelineNodeWrapper = ({ data }: { data: { pipelineId: UUID; projectId: UUID } }) => (
   <>
     <PipelineBox
-      pipeline={data.pipeline}
-      onClick={data.onClick}
-      handleRunClick={data.handleRunClick}
-      pipelineRuns={data.pipelineRuns}
+      pipelineId={data.pipelineId}
+      projectId={data.projectId}
     />
     <Handle type="target" position={Position.Top} style={{ background: '#840B08', left: 'calc(50% - 8px)' }} id="top-target" />
     <Handle type="source" position={Position.Top} style={{ background: '#840B08', left: 'calc(50% + 8px)' }} id="top-source" />
@@ -113,11 +105,11 @@ const PipelineNodeWrapper = ({ data }: { data: { pipeline: Pipeline; onClick: ()
   </>
 );
 
-const ModelEntityNodeWrapper = ({ data }: { data: { modelEntity: ModelEntity; onClick: () => void } }) => (
+const ModelEntityNodeWrapper = ({ data }: { data: { modelEntityId: UUID; projectId: UUID } }) => (
   <>
     <ModelEntityBox
-      modelEntity={data.modelEntity}
-      onClick={data.onClick}
+      modelEntityId={data.modelEntityId}
+      projectId={data.projectId}
     />
     <Handle type="target" position={Position.Top} style={{ background: '#491A32', left: 'calc(50% - 8px)' }} id="top-target" />
     <Handle type="source" position={Position.Top} style={{ background: '#491A32', left: 'calc(50% + 8px)' }} id="top-source" />
@@ -146,7 +138,7 @@ interface EntityRelationshipDiagramProps {
   projectId: UUID;
 }
 
-export default function EntityRelationshipDiagram({ projectId }: EntityRelationshipDiagramProps) {
+function EntityRelationshipDiagramContent({ projectId }: EntityRelationshipDiagramProps) {
 
   const getEdgeColor = useCallback((sourceType: string): string => {
     switch (sourceType) {
@@ -165,36 +157,54 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     }
   }, []);
 
-  const { project, updatePosition } = useProject(projectId);
-  const { dataSources } = useProjectDataSources(projectId);
-  const { datasets } = useDatasets(projectId);
-  const { pipelines, triggerRunPipeline, pipelineRuns } = usePipelines(projectId);
-  const { modelEntities } = useModelEntities(projectId);
-  const { analysisObjects } = useAnalysis(projectId);
+  const { project, updatePosition, updateProjectViewPort } = useProject(projectId);
   const { projectGraph } = useProjectGraph(projectId);
-  const { openTab, setProjectTabLabel } = useTabContext(projectId);
+  const { openTab } = useTabContext(projectId);
   
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const { setViewport } = useReactFlow();
 
-  // Update project tab label when project name changes
-  useEffect(() => {
-    if (project?.name) {
-      setProjectTabLabel('');
+
+  useOnViewportChange({
+    onEnd: (viewport: Viewport) => updateProjectViewPort({x: viewport.x, y: viewport.y, zoom: viewport.zoom})
     }
-  }, [project?.name, setProjectTabLabel]);
+  );
 
-  // Handler to open tabs
-  const handleOpenTab = useCallback(
-    ({ type, id, label }: { type: 'data_source' | 'dataset' | 'analysis' | 'pipeline' | 'model_entity'; id: string; label: string }) => {
-      openTab({ type, id, label, closable: true });
+  useEffect(() => {
+    if (project) {
+      setViewport({
+        x: project.viewPortX,
+        y: project.viewPortY,
+        zoom: project.viewPortZoom,
+      });
+    }
+  }, [project, setViewport]);
+
+  // Handler to open tabs when node is clicked
+  const handleNodeClick = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      if (!node || !node.id) return;
+      openTab(node.id as UUID, true);
+    },
+    [openTab]
+  );
+
+  // Handler to open tabs when node is selected
+  // Kinda ugly but it's needed to prevent needing to double click the first tab we open
+  const handleSelectionChange = useCallback(
+    ({ nodes }: { nodes: Node[] }) => {
+      if (nodes.length > 0) {
+        const selectedNode = nodes[0];
+        openTab(selectedNode.id as UUID, true);
+      }
     },
     [openTab]
   );
 
   // Memoize nodes
   const memoizedNodes = useMemo(() => {
-    if (!project || !datasets || !analysisObjects || !dataSources || !pipelines || !modelEntities) {
+    if (!project) {
       return [];
     }
 
@@ -202,107 +212,79 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
 
     // Add data source nodes
     project.dataSources.forEach((projectDataSource: ProjectDataSourceInDB) => {
-      const dataSource = dataSources.find(d => d.id === projectDataSource.dataSourceId);
-      if (dataSource) {
-        nodes.push({
-          id: projectDataSource.dataSourceId,
-          type: 'dataSource',
-          position: { x: projectDataSource.xPosition, y: projectDataSource.yPosition },
-          data: {
-            label: dataSource.name,
-            id: projectDataSource.dataSourceId,
-            dataSource: dataSource,
-            onClick: () => handleOpenTab({ type: 'data_source', id: dataSource.id, label: dataSource.name })
-          },
-        });
-      }
+      nodes.push({
+        id: projectDataSource.dataSourceId,
+        type: 'dataSource',
+        position: { x: projectDataSource.xPosition, y: projectDataSource.yPosition },
+        data: {
+          dataSourceId: projectDataSource.dataSourceId,
+        },
+      });
     });
 
     // Add dataset nodes
     project.datasets.forEach((projectDataset: ProjectDatasetInDB) => {
-      const dataset = datasets.find(d => d.id === projectDataset.datasetId);
-      if (dataset) {
-        nodes.push({
-          id: projectDataset.datasetId,
-          type: 'dataset',
-          position: { x: projectDataset.xPosition, y: projectDataset.yPosition },
-          data: {
-            label: dataset.name,
-            id: projectDataset.datasetId,
-            dataset: dataset,
-            onClick: () => handleOpenTab({ type: 'dataset', id: dataset.id, label: dataset.name })
-          },
-        });
-      }
+      nodes.push({
+        id: projectDataset.datasetId,
+        type: 'dataset',
+        position: { x: projectDataset.xPosition, y: projectDataset.yPosition },
+        data: {
+          datasetId: projectDataset.datasetId,
+          projectId: projectId,
+        },
+      });
     });
 
     // Add pipeline nodes
     project.pipelines.forEach((projectPipeline: ProjectPipelineInDB) => {
-      const pipeline = pipelines.find(p => p.id === projectPipeline.pipelineId);
-      if (pipeline) {
-        nodes.push({
-          id: projectPipeline.pipelineId,
-          type: 'pipeline',
-          position: { x: projectPipeline.xPosition, y: projectPipeline.yPosition },
-          data: {
-            label: pipeline.name,
-            id: projectPipeline.pipelineId,
-            pipeline: pipeline,
-            onClick: () => handleOpenTab({ type: 'pipeline', id: pipeline.id, label: pipeline.name }),
-            handleRunClick: () => triggerRunPipeline({projectId: projectId, pipelineId: pipeline.id}),
-            pipelineRuns: pipelineRuns.filter((p: PipelineRunInDB) => p.pipelineId === pipeline.id)
-          },
-        });
-      }
+      nodes.push({
+        id: projectPipeline.pipelineId,
+        type: 'pipeline',
+        position: { x: projectPipeline.xPosition, y: projectPipeline.yPosition },
+        data: {
+          pipelineId: projectPipeline.pipelineId,
+          projectId: projectId,
+        },
+      });
     });
 
     // Add analysis nodes
     project.analyses.forEach((projectAnalysis: ProjectAnalysisInDB) => {
-      const analysisObject = analysisObjects.find(a => a.id === projectAnalysis.analysisId);
-      if (analysisObject) {
-        nodes.push({
-          id: projectAnalysis.analysisId,
-          type: 'analysis',
-          position: { x: projectAnalysis.xPosition, y: projectAnalysis.yPosition },
-          data: {
-            label: analysisObject.name,
-            id: projectAnalysis.analysisId,
-            analysis: analysisObject,
-            onClick: () => handleOpenTab({ type: 'analysis', id: analysisObject.id, label: analysisObject.name })
-          },
-        });
-      }
+      nodes.push({
+        id: projectAnalysis.analysisId,
+        type: 'analysis',
+        position: { x: projectAnalysis.xPosition, y: projectAnalysis.yPosition },
+        data: {
+          analysisId: projectAnalysis.analysisId,
+          projectId: projectId,
+        },
+      });
     });
 
     // Add model entity nodes
     project.modelEntities.forEach((projectModelEntity: ProjectModelEntityInDB) => {
-      const modelEntity = modelEntities.find(m => m.id === projectModelEntity.modelEntityId);
-      if (modelEntity) {
-        nodes.push({
-          id: projectModelEntity.modelEntityId,
-          type: 'modelEntity',
-          position: { x: projectModelEntity.xPosition, y: projectModelEntity.yPosition },
-          data: {
-            label: modelEntity.name,
-            id: projectModelEntity.modelEntityId,
-            modelEntity: modelEntity,
-            onClick: () => handleOpenTab({ type: 'model_entity', id: modelEntity.id, label: modelEntity.name })
-          },
-        });
-      }
+      nodes.push({
+        id: projectModelEntity.modelEntityId,
+        type: 'modelEntity',
+        position: { x: projectModelEntity.xPosition, y: projectModelEntity.yPosition },
+        data: {
+          modelEntityId: projectModelEntity.modelEntityId,
+          projectId: projectId,
+        },
+      });
     });
 
     return nodes;
 
-  }, [project, datasets, analysisObjects, dataSources, pipelines, modelEntities, handleOpenTab, triggerRunPipeline, projectId, pipelineRuns]);
+  }, [project, projectId]);
 
-  // Memoize edges - uses current node positions from nodes state
+  // Memoize edges - uses current node positions from state for live updates during dragging
   const memoizedEdges = useMemo(() => {
     if (!projectGraph || nodes.length === 0) {
       return [];
     }
 
-    // Helper to get entity position from nodes or graph data
+    // Helper to get entity position from current nodes state (updates during dragging)
     const getEntityPosition = (entityId: UUID): { xPosition: number, yPosition: number } | null => {
       const currentNode = nodes.find(n => n.id === entityId);
       if (currentNode) {
@@ -385,27 +367,23 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     return allEdges;
   }, [projectGraph, getEdgeColor, nodes]);
 
-  // Only update nodes when memoizedNodes changes
+  // Sync nodes: only update if the set of node IDs has changed
   useEffect(() => {
-    setNodes((prevNodes) => {
-      const prev = JSON.stringify(prevNodes);
-      const next = JSON.stringify(memoizedNodes);
-      return prev === next ? prevNodes : memoizedNodes;
-    });
-  }, [memoizedNodes, setNodes]);
+    const currentNodeIds = nodes.map(n => n.id).sort().join(',');
+    const newNodeIds = memoizedNodes.map(n => n.id).sort().join(',');
+    
+    if (currentNodeIds !== newNodeIds) {
+      setNodes(memoizedNodes);
+    }
+  }, [memoizedNodes, nodes, setNodes]);
 
-  // Only update edges when memoizedEdges changes
+  // Sync edges: always update when memoized edges change (they now include live positions)
   useEffect(() => {
-    setEdges((prevEdges) => {
-      const prev = JSON.stringify(prevEdges);
-      const next = JSON.stringify(memoizedEdges);
-      return prev === next ? prevEdges : memoizedEdges;
-    });
+    setEdges(memoizedEdges);
   }, [memoizedEdges, setEdges]);
 
-
   const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
-    if (!project) return;
+    if (!project || !node || !node.id) return;
 
     // Determine entity type by checking which list contains the node ID
     let entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity" | null = null;
@@ -441,8 +419,10 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        fitView
+        // fitView
         onNodeDragStop={handleNodeDragStop}
+        onNodeClick={handleNodeClick}
+        onSelectionChange={handleSelectionChange}
         className="reactflow-no-watermark"
       >
         {/* <Controls /> */}
@@ -458,3 +438,11 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     </div>
   );
 };
+
+export default function EntityRelationshipDiagram({ projectId }: EntityRelationshipDiagramProps) {
+  return (
+    <ReactFlowProvider>
+      <EntityRelationshipDiagramContent projectId={projectId} />
+    </ReactFlowProvider>
+  );
+}

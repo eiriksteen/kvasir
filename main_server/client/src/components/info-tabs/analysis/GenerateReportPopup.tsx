@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, FileText, Code, Download } from 'lucide-react';
 import { AnalysisObjectSmall } from '@/types/analysis';
-import { useAnalysisObject } from '@/hooks/useAnalysis';
+import { useAnalysis } from '@/hooks/useAnalysis';
 
 interface GenerateReportPopupProps {
   isOpen: boolean;
@@ -20,7 +20,7 @@ export default function GenerateReportPopup({
   const [includeCode, setIncludeCode] = useState(true);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
-  const { generateReport } = useAnalysisObject(analysis.projectId, analysis.id);
+  const { generateReport } = useAnalysis(analysis.projectId, analysis.id);
 
   // Reset form when popup opens
   useEffect(() => {

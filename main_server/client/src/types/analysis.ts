@@ -39,6 +39,7 @@ export interface AnalysisObjectInputEntities {
     datasetIds: UUID[];
     dataSourceIds: UUID[];
     modelEntityIds: UUID[];
+    analysisIds: UUID[];
 }
 
 export interface AnalysisObjectSmall {

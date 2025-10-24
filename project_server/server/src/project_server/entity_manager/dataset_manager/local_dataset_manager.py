@@ -14,7 +14,6 @@ from project_server.entity_manager.dataset_manager.dataclasses import (
     DatasetCreateWithRawData,
     ObjectGroupCreateWithRawData,
     DatasetWithRawData,
-    ObjectGroupWithRawData,
     VariableGroupCreateWithRawData
 )
 from project_server.client import ProjectClient
@@ -31,7 +30,6 @@ from synesis_schemas.main_server import (
     VariableGroupCreate,
     DatasetSources,
 )
-from project_server.utils.file_utils import get_data_from_container_from_code
 
 
 from synesis_data_interface.structures.time_series.raw import TimeSeriesStructure

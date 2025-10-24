@@ -15,3 +15,7 @@ export interface ScriptInDB {
   updatedAt: string;
 }
 
+
+export interface ScriptWithRawCode extends ScriptInDB {
+  code: string;
+}

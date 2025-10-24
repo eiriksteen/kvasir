@@ -11,6 +11,7 @@ from synesis_schemas.main_server import (
     AddEntityToProject,
     RemoveEntityFromProject,
     UpdateEntityPosition,
+    UpdateProjectViewport,
     ProjectGraph,
     Dataset,
     DataSource,
@@ -26,6 +27,7 @@ from synesis_api.modules.project.service import (
     remove_entity_from_project,
     delete_project,
     update_entity_position,
+    update_project_viewport,
     get_project_graph,
     get_project_datasets,
     get_project_data_sources,
@@ -167,6 +169,22 @@ async def patch_entity_position(
         raise HTTPException(
             status_code=403, detail="Not authorized to modify this project")
     return await update_entity_position(user.id, position_data)
+
+
+@router.patch("/update-project-viewport", response_model=Project)
+async def patch_project_viewport(
+    viewport_data: UpdateProjectViewport,
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> Project:
+    """Update the viewport position and zoom of a project."""
+    project = await get_projects(user.id, [viewport_data.project_id])
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    project = project[0]
+    if project.user_id != user.id:
+        raise HTTPException(
+            status_code=403, detail="Not authorized to modify this project")
+    return await update_project_viewport(user.id, viewport_data)
 
 
 @router.get("/project-graph/{project_id}")

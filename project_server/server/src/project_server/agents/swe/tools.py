@@ -8,12 +8,19 @@ from project_server.utils.code_utils import (
     delete_lines_from_script,
 )
 from project_server.agents.swe.deps import SWEAgentDeps
-from project_server.agents.runner_base import CodeForLog
+from project_server.agents.runner_base import StreamedCode
 from project_server.client import post_search_functions
 from project_server.agents.swe.utils import save_script_with_version_handling
 from project_server.entity_manager.script_manager import script_manager
 from project_server.app_secrets import (
-    MODELS_MODULE, MODELS_MODULE_TMP, FUNCTIONS_MODULE, FUNCTIONS_MODULE_TMP, PIPELINES_MODULE, PIPELINES_MODULE_TMP, DATA_INTEGRATION_MODULE, DATA_INTEGRATION_MODULE_TMP
+    MODELS_MODULE,
+    MODELS_MODULE_TMP,
+    FUNCTIONS_MODULE,
+    FUNCTIONS_MODULE_TMP,
+    PIPELINES_MODULE,
+    PIPELINES_MODULE_TMP,
+    DATA_INTEGRATION_MODULE,
+    DATA_INTEGRATION_MODULE_TMP
 )
 from synesis_schemas.main_server import QueryRequest, SearchFunctionsRequest, script_type_literal
 
@@ -70,7 +77,7 @@ async def write_script(ctx: RunContext[SWEAgentDeps], script: str, file_name: st
     out += f"\n\n The current scripts are: {list(ctx.deps.current_scripts.keys())}"
 
     if ctx.deps.log_code:
-        await ctx.deps.log_code(CodeForLog(
+        await ctx.deps.log_code(StreamedCode(
             code=script, filename=file_storage.filename))
 
     return out
@@ -117,7 +124,7 @@ async def load_function_script_from_search(ctx: RunContext[SWEAgentDeps], module
     )
 
     if ctx.deps.log_code:
-        await ctx.deps.log_code(CodeForLog(
+        await ctx.deps.log_code(StreamedCode(
             code=script, filename=storage.filename))
 
     return out
@@ -191,7 +198,7 @@ async def replace_script_lines(
     out += "Note that the version number may have increased in case of updates. "
 
     if ctx.deps.log_code:
-        await ctx.deps.log_code(CodeForLog(
+        await ctx.deps.log_code(StreamedCode(
             code=updated_script, filename=storage.filename))
 
     return out
@@ -240,7 +247,7 @@ async def add_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, script
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
 
     if ctx.deps.log_code:
-        await ctx.deps.log_code(CodeForLog(
+        await ctx.deps.log_code(StreamedCode(
             code=updated_script, filename=storage.filename))
 
     return out
@@ -290,7 +297,7 @@ async def delete_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, scr
 
     if ctx.deps.log_code:
         await ctx.deps.log_code(
-            CodeForLog(code=updated_script, filename=storage.filename))
+            StreamedCode(code=updated_script, filename=storage.filename))
 
     return out
 

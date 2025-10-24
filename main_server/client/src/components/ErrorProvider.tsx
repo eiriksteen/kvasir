@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode } from 'react';
-import ErrorBanner from './ErrorBanner';
+import ErrorBanner from '@/components/ErrorBanner';
 
 interface ErrorContextType {
   error: string | null;

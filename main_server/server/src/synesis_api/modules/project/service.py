@@ -36,6 +36,7 @@ from synesis_schemas.main_server import (
     ModelEntity,
     Analysis,
     UpdateEntityPosition,
+    UpdateProjectViewport,
     GraphNodeConnections,
 )
 from synesis_api.modules.project.agent import project_agent
@@ -114,12 +115,20 @@ async def get_projects(user_id: UUID, project_ids: Optional[List[UUID]] = None) 
             d for d in model_entity_objs if d["project_id"] == project_id]
 
         project_objects.append(Project(
-            **project_row,
+            id=project_row["id"],
+            user_id=project_row["user_id"],
+            name=project_row["name"],
+            description=project_row["description"],
+            created_at=project_row["created_at"],
+            updated_at=project_row["updated_at"],
             data_sources=data_sources_in_project,
             datasets=datasets_in_project,
             analyses=analyses_in_project,
             pipelines=pipelines_in_project,
-            model_entities=model_entities_in_project
+            model_entities=model_entities_in_project,
+            view_port_x=project_row.get("view_port_x", 0.0),
+            view_port_y=project_row.get("view_port_y", 0.0),
+            view_port_zoom=project_row.get("view_port_zoom", 1.0)
         ))
 
     return project_objects
@@ -158,12 +167,13 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
             ))
         return objs
 
-    def _get_datasets_in_graph(datasets: List[Dataset], project_datasets: List[ProjectDatasetInDB], pipelines: List[Pipeline]) -> List[DatasetInGraph]:
+    def _get_datasets_in_graph(datasets: List[Dataset], project_datasets: List[ProjectDatasetInDB], pipelines: List[Pipeline], analyses: List[Analysis]) -> List[DatasetInGraph]:
         objs = []
         for ds, project_ds in zip(datasets, project_datasets):
             output_pipeline_ids = [
                 p.id for p in pipelines if ds.id in p.inputs.dataset_ids]
-            output_analysis_ids = []
+            output_analysis_ids = [
+                a.id for a in analyses if ds.id in a.inputs.dataset_ids]
 
             objs.append(DatasetInGraph(
                 id=ds.id,
@@ -185,7 +195,7 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
             output_dataset_ids = [
                 ds.id for ds in datasets if p.id in ds.sources.pipeline_ids]
             output_model_entity_ids = [
-                me.id for me in model_entities if p.id == me.implementation.pipeline_id]
+                me.id for me in model_entities if p.id == me.implementation.pipeline_id if me.implementation is not None]
 
             objs.append(PipelineInGraph(
                 id=p.id,
@@ -210,7 +220,7 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
             output_pipeline_ids = [
                 p.id for p in pipelines if a.id in p.inputs.analysis_ids]
             output_analysis_ids = [
-                a.id for a in analyses if a.id in a.inputs.analysis_ids]
+                past_a.id for past_a in analyses if a.id in past_a.inputs.analysis_ids]
             objs.append(AnalysisInGraph(
                 id=a.id,
                 name=a.name,
@@ -221,6 +231,7 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
                     from_datasets=a.inputs.dataset_ids,
                     from_data_sources=a.inputs.data_source_ids,
                     from_model_entities=a.inputs.model_entity_ids,
+                    from_analyses=a.inputs.analysis_ids,
                     to_pipelines=output_pipeline_ids,
                     to_analyses=output_analysis_ids
                 )
@@ -247,7 +258,7 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
     data_sources_in_graph = _get_data_sources_in_graph(
         data_sources, project.data_sources, datasets)
     datasets_in_graph = _get_datasets_in_graph(
-        datasets, project.datasets, pipelines)
+        datasets, project.datasets, pipelines, analyses)
     pipelines_in_graph = _get_pipelines_in_graph(
         pipelines, project.pipelines, datasets, model_entities)
     analyses_in_graph = _get_analyses_in_graph(
@@ -408,6 +419,21 @@ async def update_entity_position(user_id: UUID, position_data: UpdateEntityPosit
     await execute(update(target_table).where(and_(target_table.c.project_id == position_data.project_id, target_column == position_data.entity_id)).values(x_position=position_data.x_position, y_position=position_data.y_position), commit_after=True)
 
     project_obj = await get_projects(user_id, [position_data.project_id])
+    return project_obj[0] if project_obj else None
+
+
+async def update_project_viewport(user_id: UUID, viewport_data: UpdateProjectViewport) -> Project | None:
+    """Update the viewport position and zoom of a project."""
+    query = update(project).where(
+        and_(project.c.id == viewport_data.project_id, project.c.user_id == user_id)
+    ).values(
+        view_port_x=viewport_data.x,
+        view_port_y=viewport_data.y,
+        view_port_zoom=viewport_data.zoom
+    )
+    await execute(query, commit_after=True)
+
+    project_obj = await get_projects(user_id, [viewport_data.project_id])
     return project_obj[0] if project_obj else None
 
 

@@ -13,8 +13,6 @@ from .code_utils import (
 
 
 from .data_utils import (
-    get_structure_descriptions_from_datasets,
-    get_data_source_type_descriptions_from_data_sources,
     get_basic_df_info,
     get_df_info
 )
@@ -31,7 +29,11 @@ from .file_utils import (
     get_data_from_container_from_code
 )
 
-from .pydanticai_utils import (
+from .agent_utils import (
     get_model,
     pydantic_ai_bytes_to_messages,
+    get_injected_entities_description,
+    get_sandbox_environment_description,
+    get_structure_descriptions_from_datasets,
+    get_data_source_type_descriptions_from_data_sources
 )

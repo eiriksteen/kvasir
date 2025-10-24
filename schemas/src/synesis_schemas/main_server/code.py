@@ -22,6 +22,12 @@ class ScriptInDB(BaseModel):
     updated_at: datetime
 
 
+# API Models
+
+class ScriptWithRawCode(ScriptInDB):
+    code: str
+
+
 # Create models
 
 class ScriptCreate(BaseModel):

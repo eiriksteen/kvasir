@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Github, Package } from 'lucide-react';
 import { UUID } from 'crypto';
 import { useProjectChat } from '@/hooks';
@@ -40,19 +40,20 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
   const [description, setDescription] = useState('');
   const [fields, setFields] = useState<ModelSourceFields>({});
   const { submitPrompt } = useProjectChat(projectId);
+  const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (backdropRef.current && event.target === backdropRef.current) {
         onClose();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
+    const backdrop = backdropRef.current;
+    if (backdrop) {
+      backdrop.addEventListener('click', handleClickOutside);
+      return () => backdrop.removeEventListener('click', handleClickOutside);
+    }
   }, [onClose]);
 
   const handleSourceSelect = (source: ModelSourceType) => {
@@ -157,7 +158,7 @@ export default function AddModelEntity({ onClose, projectId }: AddModelEntityPro
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div ref={backdropRef} className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="relative w-full max-w-2xl h-[80vh] bg-white border border-[#491A32]/20 rounded-lg shadow-2xl overflow-hidden">
         <button
           onClick={onClose}

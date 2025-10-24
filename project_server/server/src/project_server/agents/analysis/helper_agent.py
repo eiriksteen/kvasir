@@ -7,8 +7,14 @@ import uuid
 
 from project_server.utils import run_python_function_in_container
 from project_server.agents.analysis.prompt import ANALYSIS_HELPER_SYSTEM_PROMPT
-from project_server.utils.pydanticai_utils import get_model
-from synesis_schemas.main_server import Dataset, DataSource, ModelEntity
+from project_server.utils.agent_utils import (
+    get_model,
+    get_injected_entities_description,
+    get_sandbox_environment_description,
+    get_structure_descriptions_from_datasets,
+    get_data_source_type_descriptions_from_data_sources
+)
+from synesis_schemas.main_server import Dataset, DataSource, ModelEntity, Analysis
 from project_server.app_secrets import ANALYSIS_DIR
 
 model = get_model()
@@ -19,9 +25,10 @@ class HelperAgentDeps:
     bearer_token: str
     analysis_id: uuid.UUID
     analysis_result_id: uuid.UUID
-    model_entities_injected: List[ModelEntity] = field(default_factory=list)
     data_sources_injected: List[DataSource] = field(default_factory=list)
     datasets_injected: List[Dataset] = field(default_factory=list)
+    analyses_injected: List[Analysis] = field(default_factory=list)
+    model_entities_injected: List[ModelEntity] = field(default_factory=list)
 
 
 analysis_helper_agent = Agent(
@@ -37,14 +44,22 @@ analysis_helper_agent = Agent(
 @analysis_helper_agent.system_prompt
 async def analysis_helper_agent_system_prompt(ctx: RunContext[HelperAgentDeps]) -> str:
 
-    model_entities_description = "\n\n".join(
-        [model_entity.description_for_agent for model_entity in ctx.deps.model_entities_injected])
-    data_sources_description = "\n\n".join(
-        [data_source.description_for_agent for data_source in ctx.deps.data_sources_injected])
-    datasets_description = "\n\n".join(
-        [dataset.description_for_agent for dataset in ctx.deps.datasets_injected])
+    entities_description = get_injected_entities_description(
+        ctx.deps.data_sources_injected,
+        ctx.deps.datasets_injected,
+        ctx.deps.model_entities_injected,
+        ctx.deps.analyses_injected,
+        tmp=True
+    )
 
-    return f"{ANALYSIS_HELPER_SYSTEM_PROMPT}\n\n{model_entities_description}\n\n{data_sources_description}\n\n{datasets_description}"
+    data_structure_descriptions = get_structure_descriptions_from_datasets(
+        ctx.deps.datasets_injected)
+    data_source_type_descriptions = get_data_source_type_descriptions_from_data_sources(
+        ctx.deps.data_sources_injected)
+
+    env_description = get_sandbox_environment_description()
+
+    return f"{ANALYSIS_HELPER_SYSTEM_PROMPT}\n\n{env_description}\n\n{entities_description}\n\n{data_structure_descriptions}\n\n{data_source_type_descriptions}\n\n"
 
 
 @analysis_helper_agent.tool()

@@ -23,7 +23,7 @@ interface DashboardProps {
 
 function DashboardContent({ projectId }: { projectId: UUID }) {
   const { project } = useProject(projectId);
-  const { openTabs, activeTabKey, closeTabByKey } = useTabContext(projectId);
+  const { activeTabId, closeTab } = useTabContext(projectId);
   
   // If no project is selected, show loading or return null
   if (!project) {
@@ -37,71 +37,96 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     );
   }
 
-  // Find the active tab
-  const activeTab = openTabs.find(tab => tab.key === activeTabKey);
+  // Determine tab type based on activeTabId
+  const getTabType = () => {
+    if (activeTabId === null) return 'project';
+    if (project.dataSources.some(ds => ds.dataSourceId === activeTabId)) return 'data_source';
+    if (project.datasets.some(ds => ds.datasetId === activeTabId)) return 'dataset';
+    if (project.analyses.some(a => a.analysisId === activeTabId)) return 'analysis';
+    if (project.pipelines.some(p => p.pipelineId === activeTabId)) return 'pipeline';
+    if (project.modelEntities.some(m => m.modelEntityId === activeTabId)) return 'model_entity';
+    return 'project';
+  };
+
+  const tabType = getTabType();
+  const isProjectView = tabType === 'project';
 
   // Render content based on active tab type
   let mainContent: React.ReactNode = null;
   
-  if (activeTab?.type === 'project') {
-    mainContent = <EntityRelationshipDiagram projectId={projectId} />;
-  } else if (activeTab?.type === 'data_source') {
+  if (isProjectView) {
+    // ERD is handled by absolute positioning, so no content needed here
+    mainContent = null;
+  } else if (tabType === 'data_source' && activeTabId) {
     mainContent = (
       <FileInfoTab
-        dataSourceId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
+        dataSourceId={activeTabId}
+        onClose={() => closeTab(activeTabId)}
       />
     );
-  } else if (activeTab?.type === 'dataset') {
+  } else if (tabType === 'dataset' && activeTabId) {
     mainContent = (
       <DatasetInfoTab
-        datasetId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
+        datasetId={activeTabId}
+        onClose={() => closeTab(activeTabId)}
         projectId={projectId}
       />
     );
-  } else if (activeTab?.type === 'analysis') {
+  } else if (tabType === 'analysis' && activeTabId) {
     mainContent = (
       <AnalysisItem
-        analysisObjectId={activeTab.id as UUID}
+        analysisObjectId={activeTabId}
         projectId={projectId}
-        onClose={() => closeTabByKey(activeTab.key)}
+        onClose={() => closeTab(activeTabId)}
       />
     );
-  } else if (activeTab?.type === 'pipeline') {
+  } else if (tabType === 'pipeline' && activeTabId) {
     mainContent = (
       <PipelineInfoTab
-        pipelineId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
+        pipelineId={activeTabId}
+        onClose={() => closeTab(activeTabId)}
+        projectId={projectId}
       />
     );
-  } else if (activeTab?.type === 'model_entity') {
+  } else if (tabType === 'model_entity' && activeTabId) {
     mainContent = (
       <ModelInfoTab
-        modelEntityId={activeTab.id as UUID}
-        onClose={() => closeTabByKey(activeTab.key)}
+        modelEntityId={activeTabId}
+        onClose={() => closeTab(activeTabId)}
         projectId={projectId}
       />
     );
   }
 
-  // If a project is selected, show the main dashboard
+  // This is quite ugly, but turns out to be really hard to let the ERD be fixed while the rest is adaptive. 
+  // It works, but may be worth a revisit. 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white relative">
       <UserHeader projectId={projectId}  />
-      <div className="flex flex-1 h-[calc(100vh-3rem)]">
+      <div className="flex flex-1 h-[calc(100vh-3rem)] relative">
+        {/* ERD positioned absolutely to remain fixed */}
+        {isProjectView && (
+          <div className="absolute inset-0 z-0">
+            <EntityRelationshipDiagram projectId={projectId} />
+          </div>
+        )}
+        
         <EntitySidebar projectId={projectId} />
-        <main className="flex-1 min-w-0 overflow-hidden bg-white">
+        
+        <main className={`flex-1 min-w-0 overflow-hidden relative z-10 ${
+          isProjectView ? 'bg-transparent pointer-events-none' : 'bg-white'
+        }`}>
           <div className="flex flex-col h-full w-full">
             <TabView projectId={projectId} />
-            <div className="flex-1 overflow-auto bg-gray-950">
+            <div className={`flex-1 overflow-auto ${
+              isProjectView ? 'bg-transparent pointer-events-none' : 'bg-gray-950'
+            }`}>
               {mainContent}
             </div>
           </div>
         </main>
-        <div className="w-[400px] shrink-0">
-          <Chatbot projectId={projectId} />
-        </div>
+        
+        <Chatbot projectId={projectId} />
       </div>
     </div>
   );

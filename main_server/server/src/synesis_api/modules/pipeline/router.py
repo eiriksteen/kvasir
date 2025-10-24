@@ -67,20 +67,22 @@ async def post_pipeline_implementation(
     return pipeline
 
 
-@router.post("/run-pipeline", response_model=PipelineInDB)
+@router.post("/run-pipeline", response_model=PipelineRunInDB)
 async def run_pipeline(
     request: RunPipelineRequest,
     user: User = Depends(get_current_user),
     token: str = Depends(oauth2_scheme)
-) -> PipelineInDB:
+) -> PipelineRunInDB:
 
     if not await user_owns_pipeline(user.id, request.pipeline_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to run this pipeline")
 
+    pipe_run = await create_pipeline_run(request.pipeline_id)
+    request.run_id = pipe_run.id
     await post_run_pipeline(MainServerClient(token), request)
 
-    return (await get_user_pipelines(user.id, [request.pipeline_id]))[0]
+    return pipe_run
 
 
 @router.post("/pipelines/{pipeline_id}/run-object", response_model=PipelineRunInDB)

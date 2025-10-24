@@ -5,35 +5,32 @@ import { UUID } from 'crypto';
 export type TabType = 'project' | 'data_source' | 'dataset' | 'analysis' | 'automation' | 'pipeline' | 'model_entity';
 
 export interface Tab {
-  key: string;
-  label: string;
-  type: TabType;
-  id: string;
+  id: UUID | null;  // null = project tab
   closable?: boolean;
 }
 
 interface TabState {
   openTabs: Tab[];
-  activeTabKey: string;
+  activeTabId: UUID | null;
 }
 
 // Default tab state
-const getDefaultTabState = (projectId: UUID): TabState => ({
+const getDefaultTabState = (): TabState => ({
   openTabs: [
-    { key: 'project', label: '', type: 'project', id: projectId, closable: false }
+    { id: null, closable: false }  // null = project tab
   ],
-  activeTabKey: 'project'
+  activeTabId: null
 });
 
 export const useTabContext = (projectId: UUID) => {
   // Use a ref to store the current tab state to prevent SWR from resetting it
-  const tabStateRef = useRef<TabState>(getDefaultTabState(projectId));
+  const tabStateRef = useRef<TabState>(getDefaultTabState());
   
   const { data: tabState, mutate: mutateTabState } = useSWR(
     `tabs-${projectId}`,
     () => tabStateRef.current, // Return the current state instead of default
     {
-      fallbackData: getDefaultTabState(projectId),
+      fallbackData: getDefaultTabState(),
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       revalidateOnMount: false, // Prevent revalidation on mount
@@ -41,101 +38,76 @@ export const useTabContext = (projectId: UUID) => {
     }
   );
 
-  const openTab = useCallback((tab: Omit<Tab, 'key'>) => {
-    const key = `${tab.type}-${tab.id}`;
+  const openTab = useCallback((id: UUID | null, closable: boolean = true) => {
     mutateTabState((current: TabState | undefined) => {
       if (!current) {
-        const defaultState = getDefaultTabState(projectId);
+        const defaultState = getDefaultTabState();
         tabStateRef.current = defaultState;
         return defaultState;
       }
       
-      if (current.openTabs.some(t => t.key === key)) {
-        const newState = { ...current, activeTabKey: key };
+      // If tab is already open, just activate it
+      if (current.openTabs.some(t => t.id === id)) {
+        const newState = { ...current, activeTabId: id };
         tabStateRef.current = newState;
         return newState;
       }
       
+      // Add new tab
       const newState = {
         ...current,
-        openTabs: [...current.openTabs, { ...tab, key }],
-        activeTabKey: key
+        openTabs: [...current.openTabs, { id, closable }],
+        activeTabId: id
       };
       tabStateRef.current = newState;
       return newState;
     }, { revalidate: false });
-  }, [projectId, mutateTabState]);
+  }, [mutateTabState]);
 
-  const closeTab = useCallback((entityId: string, entityType: TabType) => {
-    const key = `${entityType}-${entityId}`;
-    closeTabByKey(key);
-  }, []);
-
-  const closeTabByKey = useCallback((key: string) => {
+  const closeTab = useCallback((id: UUID | null) => {
     mutateTabState((current: TabState | undefined) => {
       if (!current) {
-        const defaultState = getDefaultTabState(projectId);
+        const defaultState = getDefaultTabState();
         tabStateRef.current = defaultState;
         return defaultState;
       }
       
-      const filtered = current.openTabs.filter(tab => tab.key !== key);
-      let newActiveTabKey = current.activeTabKey;
+      const filtered = current.openTabs.filter(tab => tab.id !== id);
+      let newActiveTabId = current.activeTabId;
       
-      // If closing the active tab, switch to the last tab (never closes project tab)
-      if (current.activeTabKey === key) {
-        newActiveTabKey = filtered.length > 0 ? filtered[filtered.length - 1].key : 'project';
+      // If closing the active tab, switch to the last tab (defaults to project tab)
+      if (current.activeTabId === id) {
+        newActiveTabId = filtered.length > 0 ? filtered[filtered.length - 1].id : null;
       }
       
       const newState = {
         ...current,
         openTabs: filtered,
-        activeTabKey: newActiveTabKey
+        activeTabId: newActiveTabId
       };
       tabStateRef.current = newState;
       return newState;
     }, { revalidate: false });
-  }, [projectId, mutateTabState]);
+  }, [mutateTabState]);
 
-  const selectTab = useCallback((key: string) => {
+  const selectTab = useCallback((id: UUID | null) => {
     mutateTabState((current: TabState | undefined) => {
       if (!current) {
-        const defaultState = getDefaultTabState(projectId);
+        const defaultState = getDefaultTabState();
         tabStateRef.current = defaultState;
         return defaultState;
       }
-      const newState = { ...current, activeTabKey: key };
+      const newState = { ...current, activeTabId: id };
       tabStateRef.current = newState;
       return newState;
     }, { revalidate: false });
-  }, [projectId, mutateTabState]);
-
-  const setProjectTabLabel = useCallback((label: string) => {
-    mutateTabState((current: TabState | undefined) => {
-      if (!current) {
-        const defaultState = getDefaultTabState(projectId);
-        tabStateRef.current = defaultState;
-        return defaultState;
-      }
-      
-      const newState = {
-        ...current,
-        openTabs: current.openTabs.map(tab =>
-          tab.key === 'project' ? { ...tab, label } : tab
-        )
-      };
-      tabStateRef.current = newState;
-      return newState;
-    }, { revalidate: false });
-  }, [projectId, mutateTabState]);
+  }, [mutateTabState]);
 
   return {
     openTabs: tabState?.openTabs || [],
-    activeTabKey: tabState?.activeTabKey || 'project',
+    activeTabId: tabState?.activeTabId ?? null,
     openTab,
     closeTab,
-    closeTabByKey,
     selectTab,
-    setProjectTabLabel,
   };
 };

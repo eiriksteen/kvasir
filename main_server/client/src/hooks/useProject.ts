@@ -131,6 +131,25 @@ async function updateEntityPosition(token: string, positionData: UpdateEntityPos
   return snakeToCamelKeys(data);
 }
 
+async function updateProjectViewport(token: string, viewportData: { projectId: UUID; x: number; y: number; zoom: number }): Promise<Project> {
+  const response = await fetch(`${API_URL}/project/update-project-viewport`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(camelToSnakeKeys(viewportData))
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update project viewport: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
+
 
 
 export const useProjects = () => {
@@ -190,6 +209,8 @@ export const useProjects = () => {
 
 export const useProject = (projectId: UUID) => {
   const { data: session } = useSession();
+
+  // TODO: Should not need to mutate all projects when just one changes
   const { projects, mutateProjects, triggerUpdateProject } = useProjects();
 
   // Store selected project
@@ -281,6 +302,41 @@ export const useProject = (projectId: UUID) => {
     await triggerUpdateProject({data, projectId: project.id});
   }, [project, triggerUpdateProject]);
 
+  // Update project viewport
+  const { trigger: updateProjectViewPort } = useSWRMutation(
+    "projects",
+    async (_, { arg }: { arg: { x: number; y: number; zoom: number } }) => {
+      if (!project) return projects;
+
+      await updateProjectViewport(
+        session?.APIToken?.accessToken || '',
+        {
+          projectId: project.id,
+          x: arg.x,
+          y: arg.y,
+          zoom: arg.zoom
+        }
+      );
+
+      // Optimistically update the project in the cache
+      const updatedProjects = projects.map(p => {
+        if (p.id !== project.id) return p;
+        return {
+          ...p,
+          viewPortX: arg.x,
+          viewPortY: arg.y,
+          viewPortZoom: arg.zoom
+        };
+      });
+
+      return updatedProjects;
+    },
+    {
+      populateCache: (updatedProjects) => updatedProjects,
+      revalidate: false
+    }
+  );
+
   const calculateNodePosition = useCallback(() => {
     if (!project || project.dataSources.length === 0) {
       return { x: -300, y: 0 };
@@ -332,8 +388,10 @@ export const useProject = (projectId: UUID) => {
     isLoading: !project,
     updateProjectAndNode,
     updatePosition,
+    updateProjectViewPort,
     addEntity,
     removeEntity,
     calculateDatasetPosition: calculateNodePosition,
+    mutateProject: mutateProjects,
   };
 };

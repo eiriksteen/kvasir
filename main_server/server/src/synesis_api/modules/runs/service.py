@@ -18,7 +18,6 @@ from synesis_schemas.main_server import (
     RunCreate,
     RunMessageCreate,
     RunMessageCreatePydantic,
-    RunSpecificationInDB,
     DatasetInRunInDB,
     ModelEntityInRunInDB,
     PipelineInRunInDB,
@@ -33,7 +32,6 @@ from synesis_schemas.main_server import (
 )
 from synesis_schemas.project_server import RunAnalysisRequest, RunSWERequest
 from synesis_api.modules.runs.models import (
-    run_specification,
     run,
     run_pydantic_message,
     run_message,
@@ -59,16 +57,6 @@ async def create_run(user_id: uuid.UUID, run_create: RunCreate) -> RunInDB:
         started_at=datetime.now(timezone.utc),
         status=run_create.initial_status
     )
-
-    run_specification_record = None
-    if run_create.spec:
-        run_specification_record = RunSpecificationInDB(
-            id=uuid.uuid4(),
-            run_id=run_record.id,
-            **run_create.spec.model_dump(),
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
-        )
 
     data_sources_in_run_records = []
     datasets_in_run_records = []
@@ -110,23 +98,21 @@ async def create_run(user_id: uuid.UUID, run_create: RunCreate) -> RunInDB:
     # Create the entity_from_run record from the associated entity id
     analysis_from_run_record = None
     pipeline_from_run_record = None
-    if run_record.type == "analysis" and run_create.spec.associated_entity_id:
+    if run_record.type == "analysis" and run_create.target_entity_id:
         analysis_from_run_record = AnalysisFromRunInDB(
             run_id=run_record.id,
-            analysis_id=run_create.spec.associated_entity_id,
+            analysis_id=run_create.target_entity_id,
             created_at=datetime.now(timezone.utc)
         )
-    elif run_record.type == "swe" and run_create.spec.associated_entity_id:
+    elif run_record.type == "swe" and run_create.target_entity_id:
         pipeline_from_run_record = PipelineFromRunInDB(
             run_id=run_record.id,
-            pipeline_id=run_create.spec.associated_entity_id,
+            pipeline_id=run_create.target_entity_id,
             created_at=datetime.now(timezone.utc)
         )
 
     await execute(run.insert().values(run_record.model_dump()), commit_after=True)
 
-    if run_specification_record:
-        await execute(run_specification.insert().values(run_specification_record.model_dump()), commit_after=True)
     if data_sources_in_run_records:
         await execute(insert(data_source_in_run).values(data_sources_in_run_records), commit_after=True)
     if datasets_in_run_records:
@@ -149,9 +135,6 @@ async def create_run(user_id: uuid.UUID, run_create: RunCreate) -> RunInDB:
 async def launch_run(user_id: uuid.UUID, client: MainServerClient, run_id: uuid.UUID):
     run_record = RunInDB(**(await fetch_one(select(run).where(run.c.id == run_id))))
     run_record.status = "running"
-    run_spec = RunSpecificationInDB(**(await fetch_one(
-        select(run_specification).where(
-            run_specification.c.run_id == run_id))))
     data_source_ids = [rec["data_source_id"] for rec in await fetch_all(
         select(data_source_in_run).where(
             data_source_in_run.c.run_id == run_id))]
@@ -176,34 +159,34 @@ async def launch_run(user_id: uuid.UUID, client: MainServerClient, run_id: uuid.
             pipeline_from_run.c.run_id == run_id))
 
     if analysis_from_run_record:
-        associated_entity_id = analysis_from_run_record["analysis_id"]
+        target_entity_id = analysis_from_run_record["analysis_id"]
     elif pipeline_from_run_record:
-        associated_entity_id = pipeline_from_run_record["pipeline_id"]
+        target_entity_id = pipeline_from_run_record["pipeline_id"]
     else:
-        associated_entity_id = None
+        target_entity_id = None
     # else:
     #     raise RuntimeError(
     #         "No associated entity found for run (the analysis or pipeline entity must be created before the run is launched. The orchestrator should do this automatically. )")
 
     if run_record.type == "swe":
-        if associated_entity_id is None:
+        if target_entity_id is None:
             pipeline_create = PipelineCreate(
-                name=run_spec.run_name,
-                description=run_spec.plan_and_deliverable_description_for_agent,
+                name=run_record.run_name,
+                description=run_record.plan_and_deliverable_description_for_agent,
                 input_data_source_ids=data_source_ids,
                 input_dataset_ids=dataset_ids,
                 input_model_entity_ids=model_entity_ids,
                 input_analysis_ids=analysis_ids
             )
-            associated_entity_id = (await create_pipeline(pipeline_create=pipeline_create, user_id=user_id)).id
+            target_entity_id = (await create_pipeline(pipeline_create=pipeline_create, user_id=user_id)).id
             await add_entity_to_project(user_id, AddEntityToProject(
                 project_id=run_record.project_id,
                 entity_type="pipeline",
-                entity_id=associated_entity_id
+                entity_id=target_entity_id
             ))
             pipeline_from_run_record = PipelineFromRunInDB(
                 run_id=run_id,
-                pipeline_id=associated_entity_id,
+                pipeline_id=target_entity_id,
                 created_at=datetime.now(timezone.utc)
             )
             await execute(insert(pipeline_from_run).values(pipeline_from_run_record.model_dump()), commit_after=True)
@@ -211,45 +194,46 @@ async def launch_run(user_id: uuid.UUID, client: MainServerClient, run_id: uuid.
             run_id=run_id,
             project_id=run_record.project_id,
             conversation_id=run_record.conversation_id,
-            pipeline_id=associated_entity_id,
-            prompt_content=run_spec.plan_and_deliverable_description_for_user,
-            data_source_ids=data_source_ids,
-            dataset_ids=dataset_ids,
-            model_entity_ids=model_entity_ids,
-            analysis_ids=analysis_ids,
+            target_pipeline_id=target_entity_id,
+            prompt_content=run_record.plan_and_deliverable_description_for_user,
+            input_data_source_ids=data_source_ids,
+            input_dataset_ids=dataset_ids,
+            input_model_entity_ids=model_entity_ids,
+            input_analysis_ids=analysis_ids,
         ))
 
     elif run_record.type == "analysis":
-        if associated_entity_id is None:
+        if target_entity_id is None:
             analysis_create = AnalysisCreate(
-                name=run_spec.run_name,
-                description=run_spec.plan_and_deliverable_description_for_user,
+                name=run_record.run_name,
+                description=run_record.plan_and_deliverable_description_for_user,
                 input_dataset_ids=dataset_ids,
                 input_data_source_ids=data_source_ids,
                 input_model_entity_ids=model_entity_ids,
+                input_analysis_ids=analysis_ids
             )
-            associated_entity_id = (await create_analysis(analysis_create=analysis_create, user_id=user_id)).id
+            target_entity_id = (await create_analysis(analysis_create=analysis_create, user_id=user_id)).id
             await add_entity_to_project(user_id, AddEntityToProject(
                 project_id=run_record.project_id,
                 entity_type="analysis",
-                entity_id=associated_entity_id
+                entity_id=target_entity_id
             ))
             analysis_from_run_record = AnalysisFromRunInDB(
                 run_id=run_id,
-                analysis_id=associated_entity_id,
+                analysis_id=target_entity_id,
                 created_at=datetime.now(timezone.utc)
             )
             await execute(insert(analysis_from_run).values(analysis_from_run_record.model_dump()), commit_after=True)
         await post_run_analysis(client, RunAnalysisRequest(
             run_id=run_id,
-            prompt_content=run_spec.plan_and_deliverable_description_for_agent,
-            analysis_id=associated_entity_id,
+            prompt_content=run_record.plan_and_deliverable_description_for_agent,
+            target_analysis_id=target_entity_id,
             project_id=run_record.project_id,
             conversation_id=run_record.conversation_id,
-            dataset_ids=dataset_ids,
-            data_source_ids=data_source_ids,
-            model_entity_ids=model_entity_ids,
-            analysis_ids=analysis_ids
+            input_dataset_ids=dataset_ids,
+            input_data_source_ids=data_source_ids,
+            input_model_entity_ids=model_entity_ids,
+            input_analysis_ids=analysis_ids
         ))
 
     await execute(run.update().where(run.c.id == run_id).values(status="running"), commit_after=True)
@@ -286,14 +270,6 @@ async def get_runs(
         runs_query = runs_query.where(run.c.conversation_id == conversation_id)
 
     runs = await fetch_all(runs_query)
-
-    # Fetch run specifications
-    run_spec_records = await fetch_all(
-        select(run_specification).where(
-            run_specification.c.run_id.in_(
-                [run_record["id"] for run_record in runs])
-        )
-    )
 
     # Fetch all entity relationships for runs (inputs and outputs)
     run_id_list = [run_record["id"] for run_record in runs]
@@ -343,13 +319,6 @@ async def get_runs(
     for run_record in runs:
         run_id = run_record["id"]
 
-        # Get spec using next() iterator
-        spec = next(
-            (RunSpecificationInDB(**rec)
-             for rec in run_spec_records if rec["run_id"] == run_id),
-            None
-        )
-
         # Build RunEntityIds for inputs
         inputs = RunEntityIds(
             data_source_ids=[r["data_source_id"]
@@ -381,7 +350,6 @@ async def get_runs(
         run_records.append(
             Run(
                 **run_record,
-                spec=spec,
                 inputs=inputs,
                 outputs=outputs
             )

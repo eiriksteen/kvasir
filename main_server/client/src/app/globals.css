@@ -67,3 +67,25 @@ body {
 .animate-fade-in {
   animation: fade-in 1.0s ease-out;
 }
+
+@keyframes shine {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.animate-shine {
+  background: linear-gradient(
+    110deg,
+    rgba(124, 58, 237, 0.08) 0%,
+    rgba(124, 58, 237, 0.08) 40%,
+    rgba(167, 139, 250, 0.2) 50%,
+    rgba(124, 58, 237, 0.08) 60%,
+    rgba(124, 58, 237, 0.08) 100%
+  );
+  background-size: 200% 100%;
+  animation: shine 3s ease-in-out infinite;
+}

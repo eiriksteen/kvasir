@@ -1,6 +1,6 @@
 import uuid
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Literal, Optional
 from pydantic_ai.messages import FunctionToolCallEvent
 from pydantic_ai.agent import Agent, AgentRunResult, OutputSpec
 from pydantic_ai.tools import AgentDepsT
@@ -10,7 +10,7 @@ from project_server.redis import get_redis
 from project_server.client import ProjectClient
 from project_server.worker import logger
 from project_server.agents.tool_descriptions import TOOL_DESCRIPTIONS
-from synesis_schemas.main_server import RunMessageCreate, RunMessageCreatePydantic, RunCreate, RunStatusUpdate, MessageForLog, CodeForLog
+from synesis_schemas.main_server import RunMessageCreate, RunMessageCreatePydantic, RunCreate, RunStatusUpdate, StreamedCode
 
 
 class RunnerBase(ABC):
@@ -73,32 +73,39 @@ class RunnerBase(ABC):
                                     message = TOOL_DESCRIPTIONS[event.part.tool_name]
                                 else:
                                     message = f"Calling tool {event.part.tool_name}"
-                                await self._log_message(MessageForLog(
+                                await self._log_message(
                                     content=message,
-                                    type="tool_call",
-                                    write_to_db=1,
-                                    target="both"
-                                ))
+                                    type="tool_call"
+                                )
 
         await self._update_agent_state(agent_run.result)
         return agent_run.result
 
-    async def _log_message(self, message: MessageForLog):
+    async def _log_message(self,
+                           content: str,
+                           type: Literal["tool_call", "result", "error"],
+                           write_to_db: int = 1,
+                           target: Literal["redis", "taskiq", "both"] = "both"):
+
         log_run_id = self.parent_run_id if self.log_to_parent_run and self.parent_run_id else self.run_id
 
-        if message.target == "redis" or message.target == "both":
-            await self.redis_stream.xadd(str(log_run_id), message.model_dump(mode="json"))
-        if message.target == "taskiq" or message.target == "both":
-            logger.info(message.content)
-
-        if message.write_to_db:
-            await post_run_message(self.project_client, RunMessageCreate(
-                type=message.type,
+        if target == "redis" or target == "both":
+            await self.redis_stream.xadd(str(log_run_id), RunMessageCreate(
+                type=type,
                 run_id=log_run_id,
-                content=message.content
+                content=content
+            ).model_dump(mode="json"))
+        if target == "taskiq" or target == "both":
+            logger.info(content)
+
+        if write_to_db:
+            await post_run_message(self.project_client, RunMessageCreate(
+                type=type,
+                run_id=log_run_id,
+                content=content
             ))
 
-    async def _log_code(self, code: CodeForLog):
+    async def _stream_code(self, code: StreamedCode):
         log_run_id = self.parent_run_id if self.log_to_parent_run and self.parent_run_id else self.run_id
 
         if code.target == "redis" or code.target == "both":
@@ -134,12 +141,10 @@ class RunnerBase(ABC):
         ))
 
         if success_message:
-            await self._log_message(MessageForLog(
+            await self._log_message(
                 content=success_message,
-                type="result",
-                write_to_db=1,
-                target="both"
-            ))
+                type="result"
+            )
 
     async def _fail_agent_run(self, error_message: Optional[str] = None):
         if self.message_history_json:
@@ -154,9 +159,7 @@ class RunnerBase(ABC):
         ))
 
         if error_message:
-            await self._log_message(MessageForLog(
+            await self._log_message(
                 content=error_message,
-                type="error",
-                write_to_db=1,
-                target="both"
-            ))
+                type="error"
+            )

@@ -1,37 +1,32 @@
 import React from 'react';
 import { Zap, Play, Square } from 'lucide-react';
-import { Pipeline, PipelineRunInDB } from '@/types/pipeline';
+import { PipelineRunInDB } from '@/types/pipeline';
+import { usePipeline } from '@/hooks/usePipelines';
+import { UUID } from 'crypto';
 
 interface PipelineBoxProps {
-  pipeline: Pipeline;
-  onClick?: () => void;
-  handleRunClick?: () => void;
-  pipelineRuns: PipelineRunInDB[]; 
+  pipelineId: UUID;
+  projectId: UUID;
 }
 
-export default function PipelineBox({ pipeline, pipelineRuns, onClick, handleRunClick }: PipelineBoxProps) {
-  const isDisabled = !onClick;
-  
-  // Check if there's a running pipeline
-  const isRunning = pipelineRuns.some(
-    run => run.status === 'running'
-  );
-  
+export default function PipelineBox({ pipelineId, projectId}: PipelineBoxProps) {
+  const { pipeline, pipelineRuns, triggerRunPipeline } = usePipeline(pipelineId, projectId);
+  const isRunning = pipelineRuns.some((run: PipelineRunInDB) => run.status === 'running');
+
   const handleStopClick = () => {
-    console.log('Stop pipeline clicked:', pipeline.id);
+    console.log('Stop pipeline clicked:', pipelineId);
   };
+
+  if (!pipeline) {
+    return null;
+  }
 
   
   return (
     <div className="flex shadow-md border-2 border-[#840B08] rounded-md min-w-[100px] max-w-[280px] overflow-hidden">
       {/* Main box content */}
       <div
-        className={`px-3 py-3 flex-1 min-w-0 ${
-          isDisabled
-            ? 'cursor-default opacity-60'
-            : 'cursor-pointer hover:bg-[#840B08]/10'
-        }`}
-        onClick={onClick ? onClick : undefined}
+        className="px-3 py-3 flex-1 min-w-0 cursor-pointer hover:bg-[#840B08]/10"
       >
         <div className="flex flex-col">
           <div className="flex items-center mb-2">
@@ -48,13 +43,8 @@ export default function PipelineBox({ pipeline, pipelineRuns, onClick, handleRun
       
       {/* Run/Stop button */}
       <button
-        onClick={isRunning ? handleStopClick : (handleRunClick ? handleRunClick : undefined)}
-        className={`w-12 px-3 py-3 border-l-2 border-[#840B08] flex-shrink-0 ${
-          isDisabled
-            ? 'cursor-default opacity-60'
-            : 'cursor-pointer hover:bg-[#840B08]/10'
-        } flex items-center justify-center transition-colors`}
-        disabled={isDisabled}
+        onClick={isRunning ? handleStopClick : triggerRunPipeline}
+        className="w-12 px-3 py-3 border-l-2 border-[#840B08] flex-shrink-0 cursor-pointer hover:bg-[#840B08]/10 flex items-center justify-center transition-colors"
       >
         {isRunning ? (
           <div className="relative w-6 h-6 flex items-center justify-center">

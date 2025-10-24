@@ -1,5 +1,5 @@
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Literal
 from pydantic import BaseModel
 
@@ -118,13 +118,20 @@ class ModelEntityInAnalysisInDB(BaseModel):
     model_entity_id: UUID
 
 
+class AnalysisFromPastAnalysisInDB(BaseModel):
+    analysis_id: UUID
+    past_analysis_id: UUID
+
 # Other schemas
+
+
 class AnalysisCreate(BaseModel):
     name: str
     description: str | None = None
     input_data_source_ids: List[UUID]
     input_dataset_ids: List[UUID]
     input_model_entity_ids: List[UUID]
+    input_analysis_ids: List[UUID]
 
 
 class AnalysisResultUpdate(BaseModel):

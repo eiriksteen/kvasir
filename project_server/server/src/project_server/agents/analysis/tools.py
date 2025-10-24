@@ -46,61 +46,61 @@ from project_server.agents.analysis.deps import AnalysisDeps
 from project_server.agents.analysis.output import AnalysisResultModelResponse, AggregationObjectCreateResponse, AnalysisResultMoveRequest, SectionMoveRequest
 
 
-async def search_through_datasets(ctx: RunContext[AnalysisDeps]) -> str:
-    """
-    Searches through all datasets in a project. This tool is useful when the context the user has provided is incomplete.
+# async def search_through_datasets(ctx: RunContext[AnalysisDeps]) -> str:
+#     """
+#     Searches through all datasets in a project. This tool is useful when the context the user has provided is incomplete.
 
-    Args:
-        ctx (RunContext[AnalysisDeps]): The context of the analysis.
-    """
-    project = await get_project(ctx.deps.client, ctx.deps.project_id)
-    dataset_ids = [
-        project_dataset.dataset_id for project_dataset in project.datasets]
-    datasets = await get_datasets_by_ids(ctx.deps.client, GetDatasetsByIDsRequest(dataset_ids=dataset_ids))
-    datasets_overview = simplify_dataset_overview(datasets)
+#     Args:
+#         ctx (RunContext[AnalysisDeps]): The context of the analysis.
+#     """
+#     project = await get_project(ctx.deps.client, ctx.deps.project_id)
+#     dataset_ids = [
+#         project_dataset.dataset_id for project_dataset in project.datasets]
+#     datasets = await get_datasets_by_ids(ctx.deps.client, GetDatasetsByIDsRequest(dataset_ids=dataset_ids))
+#     datasets_overview = simplify_dataset_overview(datasets)
 
-    dataset_message = f"""
-        <Available datasets>
-        {datasets_overview}
-        </Available datasets>
-    """
-    return dataset_message
-
-
-async def search_through_data_sources(ctx: RunContext[AnalysisDeps]) -> str:
-    """
-    Searches through all data sources in a project. This tool is useful when the context the user has provided is incomplete.
-
-    Args:
-        ctx (RunContext[AnalysisDeps]): The context of the analysis.    
-    """
-    project = await get_project(ctx.deps.client, ctx.deps.project_id)
-    data_source_ids = [pds.data_source_id for pds in project.data_sources]
-    data_sources = await get_data_sources_by_ids(ctx.deps.client, GetDataSourcesByIDsRequest(data_source_ids=data_source_ids))
-    data_source_message = f"""
-        <Available data sources>
-        {data_sources}
-        </Available data sources>
-    """
-    return data_source_message
+#     dataset_message = f"""
+#         <Available datasets>
+#         {datasets_overview}
+#         </Available datasets>
+#     """
+#     return dataset_message
 
 
-async def search_through_analyses(ctx: RunContext[AnalysisDeps]) -> str:
-    """
-    Returns all the analysis objects in a project. This tool is useful when you do not know which analysis object to add or edit an analysis result to.
+# async def search_through_data_sources(ctx: RunContext[AnalysisDeps]) -> str:
+#     """
+#     Searches through all data sources in a project. This tool is useful when the context the user has provided is incomplete.
 
-    Args:
-        ctx (RunContext[AnalysisDeps]): The context of the analysis.
-    """
-    analyses = await get_analyses_by_project_request(ctx.deps.client, ctx.deps.project_id)
+#     Args:
+#         ctx (RunContext[AnalysisDeps]): The context of the analysis.
+#     """
+#     project = await get_project(ctx.deps.client, ctx.deps.project_id)
+#     data_source_ids = [pds.data_source_id for pds in project.data_sources]
+#     data_sources = await get_data_sources_by_ids(ctx.deps.client, GetDataSourcesByIDsRequest(data_source_ids=data_source_ids))
+#     data_source_message = f"""
+#         <Available data sources>
+#         {data_sources}
+#         </Available data sources>
+#     """
+#     return data_source_message
 
-    analyses_message = f"""
-        <Available analyses>
-        Analyses in project: {analyses}
-        </Available analyses>
-    """
 
-    return analyses_message
+# async def search_through_analyses(ctx: RunContext[AnalysisDeps]) -> str:
+#     """
+#     Returns all the analysis objects in a project. This tool is useful when you do not know which analysis object to add or edit an analysis result to.
+
+#     Args:
+#         ctx (RunContext[AnalysisDeps]): The context of the analysis.
+#     """
+#     analyses = await get_analyses_by_project_request(ctx.deps.client, ctx.deps.project_id)
+
+#     analyses_message = f"""
+#         <Available analyses>
+#         Analyses in project: {analyses}
+#         </Available analyses>
+#     """
+
+#     return analyses_message
 
 
 async def search_through_analysis_results(ctx: RunContext[AnalysisDeps], analysis_result_ids: List[uuid.UUID]) -> str:

@@ -11,8 +11,7 @@ from synesis_schemas.main_server import (
     AddEntityToProject,
     GetGuidelinesRequest,
     SearchModelsRequest,
-    RunCreate,
-    RunSpecificationCreate
+    RunCreate
 )
 from synesis_api.modules.orchestrator.agent.deps import OrchestratorAgentDeps
 from synesis_api.modules.knowledge_bank.service import query_models, get_task_guidelines
@@ -25,19 +24,16 @@ class AnalysisRunSubmission(BaseModel):
     run_name: str
     plan_and_deliverable_description_for_user: str
     plan_and_deliverable_description_for_agent: str
-    input_dataset_ids: List[uuid.UUID] = []
     input_data_source_ids: List[uuid.UUID] = []
+    input_dataset_ids: List[uuid.UUID] = []
     input_model_entity_ids: List[uuid.UUID] = []
+    input_analysis_ids: List[uuid.UUID] = []
 
     @model_validator(mode="after")
-    def validate_dataset_ids(self) -> "AnalysisRunSubmission":
-        if self.input_dataset_ids is None:
-            assert self.input_data_source_ids is not None, "Data source IDs are required when dataset IDs are not provided"
+    def validate_input_ids(self) -> "AnalysisRunSubmission":
+        assert len(
+            self.input_dataset_ids) + len(self.input_data_source_ids) > 0, "One or more dataset or data source IDs are required"
         return self
-
-
-# class AnalysisRunSubmissionWithCreate(AnalysisRunSubmission):
-#     analysis_create: AnalysisCreate
 
 
 class AnalysisRunSubmissionWithEntityId(AnalysisRunSubmission):
@@ -60,10 +56,6 @@ class SWERunSubmission(BaseModel):
         assert len(
             self.input_dataset_ids) + len(self.input_data_source_ids) > 0, "One or more dataset or data source IDs are required"
         return self
-
-
-# class SWERunSubmissionWithCreate(SWERunSubmission):
-#     pipeline_create: PipelineCreate
 
 
 class SWERunSubmissionWithEntityId(SWERunSubmission):
@@ -96,12 +88,12 @@ async def submit_run_for_analysis_agent(
             data_sources_in_run=result.input_data_source_ids,
             datasets_in_run=result.input_dataset_ids,
             model_entities_in_run=result.input_model_entity_ids,
-            spec=RunSpecificationCreate(
-                run_name=result.run_name,
-                plan_and_deliverable_description_for_agent=result.plan_and_deliverable_description_for_agent,
-                plan_and_deliverable_description_for_user=result.plan_and_deliverable_description_for_user,
-                associated_entity_id=analysis_entity_id,
-            )
+            analyses_in_run=result.input_analysis_ids,
+            run_name=result.run_name,
+            plan_and_deliverable_description_for_agent=result.plan_and_deliverable_description_for_agent,
+            plan_and_deliverable_description_for_user=result.plan_and_deliverable_description_for_user,
+            target_entity_id=analysis_entity_id,
+
         ))
 
     return f"Successfully submitted run for SWE agent, the run id is {run.id}"
@@ -133,14 +125,12 @@ async def submit_run_for_swe_agent(
             datasets_in_run=result.input_dataset_ids,
             model_entities_in_run=result.input_model_entity_ids,
             analyses_in_run=result.input_analysis_ids,
-            spec=RunSpecificationCreate(
-                run_name=result.run_name,
-                plan_and_deliverable_description_for_agent=result.plan_and_deliverable_description_for_agent,
-                plan_and_deliverable_description_for_user=result.plan_and_deliverable_description_for_user,
-                questions_for_user=result.questions_for_user,
-                configuration_defaults_description=result.configuration_defaults_description,
-                associated_entity_id=pipeline_entity_id,
-            )
+            run_name=result.run_name,
+            plan_and_deliverable_description_for_agent=result.plan_and_deliverable_description_for_agent,
+            plan_and_deliverable_description_for_user=result.plan_and_deliverable_description_for_user,
+            questions_for_user=result.questions_for_user,
+            configuration_defaults_description=result.configuration_defaults_description,
+            target_entity_id=pipeline_entity_id,
 
         ))
 

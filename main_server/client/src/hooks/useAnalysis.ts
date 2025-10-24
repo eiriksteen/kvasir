@@ -342,17 +342,17 @@ export async function deleteAnalysisResultEndpoint(token: string, analysisObject
 // hooks for analysis object
 
 
-export const useAnalysis = (projectId: UUID) => {
+export const useAnalyses = (projectId: UUID) => {
     const { data: session } = useSession();
 
     // const { datasetsInContext, analysesInContext } = useAgentContext(projectId);
 
     const { addEntity } = useProject(projectId);
     
-    const { data: analysisObjects, mutate: mutateAnalysisObjects } = useSWR(session ? "analysisObjects" : null, () => fetchAnalysisObjects(session ? session.APIToken.accessToken : "", projectId), {fallbackData: [] as AnalysisObjectSmall[]});
+    const { data: analysisObjects, mutate: mutateAnalysisObjects } = useSWR(session ? ["analysisObjects", projectId] : null, () => fetchAnalysisObjects(session ? session.APIToken.accessToken : "", projectId), {fallbackData: [] as AnalysisObjectSmall[]});
 
     const { trigger: createAnalysisObject } = useSWRMutation(
-      "analysisObjects",
+      session ? ["analysisObjects", projectId] : null,
       async (_, { arg }: { arg: AnalysisObjectCreate }) => {
         const analysisObject = await postAnalysisObject(session ? session.APIToken.accessToken : "", arg);
         return analysisObject;
@@ -383,11 +383,11 @@ export const useAnalysis = (projectId: UUID) => {
     };
   }
 
-export const useAnalysisObject = (projectId: UUID, analysisObjectId: UUID) => {
+export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
   const { data: session } = useSession();
   const {data: currentAnalysisObject, mutate: mutateCurrentAnalysisObject} = useSWR(["analysisObject", analysisObjectId], () => fetchAnalysisObject(session?.APIToken.accessToken || "", analysisObjectId));
 
-  const { analysisObjects, mutateAnalysisObjects } = useAnalysis(projectId);
+  const { analysisObjects, mutateAnalysisObjects } = useAnalyses(projectId);
 
   const { data: analysisResultData, mutate: mutateAnalysisResultData } = useSWR(["analysisResultData"], null, {fallbackData: {} as Record<UUID, AggregationObjectWithRawData>});
 

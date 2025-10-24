@@ -1,10 +1,10 @@
-import React, { Fragment, useRef, useCallback, useState } from 'react';
+import React, { Fragment, useRef, useCallback, useState, useEffect } from 'react';
 import { DndContext, DragEndEvent } from '@dnd-kit/core';
 import SectionItem from '@/components/info-tabs/analysis/SectionItem';
 import TableOfContents from '@/components/info-tabs/analysis/TableOfContents';
 import AnalysisResult from '@/components/info-tabs/analysis/AnalysisResult';
 import { Bot } from 'lucide-react';
-import { useAnalysisObject } from '@/hooks/useAnalysis';
+import { useAnalysis } from '@/hooks/useAnalysis';
 import { buildOrderedList, findParentSections } from '@/lib/utils';
 import { UUID } from 'crypto';
 import { NotebookSection, AnalysisResult as AnalysisResultType, MoveRequest } from '@/types/analysis';
@@ -24,13 +24,27 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
   const {
     currentAnalysisObject: analysis,
     moveElement,
-  } = useAnalysisObject(projectId, analysisObjectId);
+  } = useAnalysis(projectId, analysisObjectId);
   
   // Refs for scrolling to sections
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   
   // Expansion state for sections in main content
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+
+  // Handle escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose?.();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape, { capture: true });
+    return () => document.removeEventListener('keydown', handleEscape, { capture: true });
+  }, [onClose]);
 
   // Function to scroll to a specific section
   const scrollToSection = useCallback((sectionId: string) => {

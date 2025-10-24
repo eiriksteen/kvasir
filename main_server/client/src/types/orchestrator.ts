@@ -11,6 +11,7 @@ export type Context = {
 export type ChatMessage = {
     id: UUID;
     role: "user" | "assistant";
+    type: "tool_call" | "chat";
     conversationId: UUID;
     context: Context | null;
     content: string;

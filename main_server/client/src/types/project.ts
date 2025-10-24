@@ -85,6 +85,9 @@ export interface Project {
     datasetsBeingCreated: ProjectDatasetBeingCreatedInDB[];
     pipelinesBeingCreated: ProjectPipelineBeingCreatedInDB[];
     modelEntitiesBeingCreated: ProjectModelEntityBeingCreatedInDB[];
+    viewPortX: number;
+    viewPortY: number;
+    viewPortZoom: number;
     createdAt: string;
     updatedAt: string;
 }

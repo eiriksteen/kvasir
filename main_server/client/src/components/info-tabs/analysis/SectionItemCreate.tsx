@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { useAnalysisObject } from '@/hooks/useAnalysis';
+import { useAnalysis } from '@/hooks/useAnalysis';
 import { useError } from '@/components/ErrorProvider';
 import { Loader2, Plus, X } from 'lucide-react';
 import { UUID } from 'crypto';
@@ -22,7 +22,7 @@ const SectionItemCreate: React.FC<SectionItemCreateProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   
-  const { createSection } = useAnalysisObject(projectId, analysisObjectId);
+  const { createSection } = useAnalysis(projectId, analysisObjectId);
   const { showError } = useError();
 
   useEffect(() => {

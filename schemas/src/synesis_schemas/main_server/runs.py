@@ -10,27 +10,19 @@ from pydantic import BaseModel
 RUN_TYPE_LITERAL = Literal["swe", "analysis"]
 
 
-class RunSpecificationInDB(BaseModel):
-    id: uuid.UUID
-    run_id: uuid.UUID
-    run_name: str
-    plan_and_deliverable_description_for_user: str
-    plan_and_deliverable_description_for_agent: str
-    questions_for_user: Optional[str] = None
-    configuration_defaults_description: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
-
-
 class RunInDB(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     type: RUN_TYPE_LITERAL
     status: Literal["pending", "running", "completed", "failed", "rejected"]
-    started_at: datetime
-    conversation_id: Optional[uuid.UUID] = None
+    run_name: str
     project_id: Optional[uuid.UUID] = None
-    parent_run_id: Optional[uuid.UUID] = None
+    conversation_id: Optional[uuid.UUID] = None
+    plan_and_deliverable_description_for_user: str
+    plan_and_deliverable_description_for_agent: str
+    questions_for_user: Optional[str] = None
+    configuration_defaults_description: Optional[str] = None
+    started_at: datetime
     completed_at: Optional[datetime] = None
 
 
@@ -103,20 +95,11 @@ class RunEntityIds(BaseModel):
 
 
 class Run(RunInDB):
-    spec: Optional[RunSpecificationInDB] = None
     inputs: Optional[RunEntityIds] = None
     outputs: Optional[RunEntityIds] = None
 
 
-class MessageForLog(BaseModel):
-    content: str
-    type: Literal["tool_call", "result", "error"]
-    write_to_db: int = 1
-    target: Literal["redis", "taskiq", "both"] = "both"
-    created_at: datetime = datetime.now(timezone.utc)
-
-
-class CodeForLog(BaseModel):
+class StreamedCode(BaseModel):
     code: str
     filename: str
     target: Literal["redis", "taskiq", "both"] = "both"
@@ -129,22 +112,18 @@ class CodeForLog(BaseModel):
 # Create Models
 
 
-class RunSpecificationCreate(BaseModel):
+class RunCreate(BaseModel):
+    type: RUN_TYPE_LITERAL
+    initial_status: Literal["pending", "running",
+                            "completed", "failed"] = "pending"
     run_name: str
     plan_and_deliverable_description_for_user: str
     plan_and_deliverable_description_for_agent: str
     questions_for_user: Optional[str] = None
     configuration_defaults_description: Optional[str] = None
-    associated_entity_id: Optional[uuid.UUID] = None
-
-
-class RunCreate(BaseModel):
-    type: RUN_TYPE_LITERAL
-    initial_status: Literal["pending", "running",
-                            "completed", "failed"] = "pending"
+    target_entity_id: Optional[uuid.UUID] = None
     project_id: Optional[uuid.UUID] = None
     conversation_id: Optional[uuid.UUID] = None
-    spec: Optional[RunSpecificationCreate] = None
     data_sources_in_run: List[uuid.UUID] = []
     datasets_in_run: List[uuid.UUID] = []
     model_entities_in_run: List[uuid.UUID] = []

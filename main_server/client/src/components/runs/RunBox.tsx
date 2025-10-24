@@ -1,4 +1,5 @@
 import { UUID } from "crypto";
+import { useSWRConfig } from "swr"
 import { useRun, useRunMessages } from "@/hooks/useRuns";
 import { BarChart3, Zap, Clock, CheckCircle, XCircle, Loader2, Folder, Brain, Check, X, Database } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
@@ -6,7 +7,7 @@ import { useDatasets } from "@/hooks/useDatasets";
 import { useProjectDataSources } from "@/hooks/useDataSources";
 import { useModelEntities } from "@/hooks/useModelEntities";
 import { usePipelines } from "@/hooks/usePipelines";
-import { useAnalysis } from "@/hooks/useAnalysis";
+import { useAnalyses } from "@/hooks/useAnalysis";
 import { Dataset } from "@/types/data-objects";
 import { DataSource } from "@/types/data-sources";
 import { ModelEntity } from "@/types/model";
@@ -117,12 +118,13 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
   const { datasets } = useDatasets(projectId);
   const { dataSources } = useProjectDataSources(projectId);
   const { modelEntities } = useModelEntities(projectId);
-  const { pipelines } = usePipelines(projectId);
-  const { analysisObjects } = useAnalysis(projectId);
+  const { pipelines, mutatePipelines } = usePipelines(projectId);
+  const { analysisObjects, mutateAnalysisObjects } = useAnalyses(projectId);
   const [isRejecting, setIsRejecting] = useState(false);
   const isPending = run?.status === 'pending';
   const [showMessages, setShowMessages] = useState(isPending);
   const [isLaunching, setIsLaunching] = useState(false);
+  const { mutate } = useSWRConfig()
   const previousStatusRef = useRef<string | undefined>(run?.status);
 
   useEffect(() => {
@@ -170,6 +172,16 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
       console.error('Failed to launch run', error);
     } finally {
       setIsLaunching(false);
+      if (run.type === 'swe') {
+        await mutatePipelines();
+      }
+      else if (run.type === 'analysis') {
+        await mutateAnalysisObjects();
+      }
+      // // Update ERD
+      await mutate("projects");
+      await mutate(["project-graph", projectId]);
+
     }
   };
 
@@ -206,31 +218,30 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
       {/* Spec and Messages */}
       {showMessages && (
         <>
-          {/* Run Spec */}
-          {run.spec && (
-            <div className="px-3 pb-4 space-y-2 border-gray-700/30">
-              <div className="text-xs font-mono text-gray-700">
-                {run.spec.runName}
-              </div>
-              <div className="text-xs text-gray-500 leading-relaxed">
-                {run.spec.planAndDeliverableDescriptionForUser}
-              </div>
-              {run.spec.questionsForUser && (
-                <div className="mt-2">
-                  <div className="text-[10px] font-medium text-gray-600 mb-1">Questions:</div>
-                  <div className="text-xs text-gray-500 leading-relaxed">
-                    {run.spec.questionsForUser}
-                  </div>
+          {/* Run Details */}
+          <div className="px-3 pb-4 space-y-2 border-gray-700/30">
+            <div className="text-xs font-mono text-gray-700">
+              {run.runName}
+            </div>
+            <div className="text-xs text-gray-500 leading-relaxed">
+              {run.planAndDeliverableDescriptionForUser}
+            </div>
+            {run.questionsForUser && (
+              <div className="mt-2">
+                <div className="text-[10px] font-medium text-gray-600 mb-1">Questions:</div>
+                <div className="text-xs text-gray-500 leading-relaxed">
+                  {run.questionsForUser}
                 </div>
-              )}
-              {run.spec.configurationDefaultsDescription && (
-                <div className="mt-2 pt-2">
-                  <div className="text-[10px] font-medium text-gray-600 mb-1">Default Configuration:</div>
-                  <div className="text-xs text-gray-500 leading-relaxed">
-                    {run.spec.configurationDefaultsDescription}
-                  </div>
+              </div>
+            )}
+            {run.configurationDefaultsDescription && (
+              <div className="mt-2 pt-2">
+                <div className="text-[10px] font-medium text-gray-600 mb-1">Default Configuration:</div>
+                <div className="text-xs text-gray-500 leading-relaxed">
+                  {run.configurationDefaultsDescription}
                 </div>
-              )}
+              </div>
+            )}
               
               {/* Entity Context - Inputs */}
               {hasInputs && (
@@ -338,10 +349,10 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                     ))}
                   </div>
                 </div>
-              )}
-              
-              {/* Accept/Reject Buttons for Pending Runs */}
-              {isPending && (
+            )}
+            
+            {/* Accept/Reject Buttons for Pending Runs */}
+            {isPending && (
                 <div className="flex gap-2 pt-2">
                   <button
                     onClick={handleAccept}
@@ -359,10 +370,9 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                     <X size={12} />
                     {isRejecting ? 'Rejecting...' : 'Reject'}
                   </button>
-                </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
 
           {/* Messages */}
           <RunMessageList runId={runId} />
