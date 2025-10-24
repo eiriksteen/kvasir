@@ -43,8 +43,8 @@ def upgrade() -> None:
                   sa.String(), nullable=True), schema='runs')
     op.add_column('run', sa.Column('configuration_defaults_description',
                   sa.String(), nullable=True), schema='runs')
-    op.drop_constraint(op.f('run_parent_run_id_fkey'), 'run',
-                       schema='runs', type_='foreignkey')
+    # op.drop_constraint(op.f('run_parent_run_id_fkey'), 'run',
+    #                    schema='runs', type_='foreignkey')
     op.drop_column('run', 'parent_run_id', schema='runs')
     # ### end Alembic commands ###
 

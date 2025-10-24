@@ -115,10 +115,10 @@ def upgrade() -> None:
                     existing_type=sa.VARCHAR(),
                     nullable=True,
                     schema='model')
-    op.drop_constraint(op.f('model_entity_model_id_fkey'),
-                       'model_entity', schema='model', type_='foreignkey')
-    op.drop_constraint(op.f('model_entity_pipeline_id_fkey'),
-                       'model_entity', schema='model', type_='foreignkey')
+    # op.drop_constraint(op.f('model_entity_model_id_fkey'),
+    #                    'model_entity', schema='model', type_='foreignkey')
+    # op.drop_constraint(op.f('model_entity_pipeline_id_fkey'),
+    #                    'model_entity', schema='model', type_='foreignkey')
     op.drop_column('model_entity', 'model_id', schema='model')
     op.drop_column('model_entity', 'config', schema='model')
     op.drop_column('model_entity', 'weights_save_dir', schema='model')
