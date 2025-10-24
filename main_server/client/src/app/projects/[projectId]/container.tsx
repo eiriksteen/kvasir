@@ -49,12 +49,14 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
   };
 
   const tabType = getTabType();
+  const isProjectView = tabType === 'project';
 
   // Render content based on active tab type
   let mainContent: React.ReactNode = null;
   
-  if (tabType === 'project') {
-    mainContent = <EntityRelationshipDiagram projectId={projectId} />;
+  if (isProjectView) {
+    // ERD is handled by absolute positioning, so no content needed here
+    mainContent = null;
   } else if (tabType === 'data_source' && activeTabId) {
     mainContent = (
       <FileInfoTab
@@ -96,20 +98,34 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     );
   }
 
-  // If a project is selected, show the main dashboard
+  // This is quite ugly, but turns out to be really hard to let the ERD be fixed while the rest is adaptive. 
+  // It works, but may be worth a revisit. 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white relative">
       <UserHeader projectId={projectId}  />
-      <div className="flex flex-1 h-[calc(100vh-3rem)]">
+      <div className="flex flex-1 h-[calc(100vh-3rem)] relative">
+        {/* ERD positioned absolutely to remain fixed */}
+        {isProjectView && (
+          <div className="absolute inset-0 z-0">
+            <EntityRelationshipDiagram projectId={projectId} />
+          </div>
+        )}
+        
         <EntitySidebar projectId={projectId} />
-        <main className="flex-1 min-w-0 overflow-hidden bg-white">
+        
+        <main className={`flex-1 min-w-0 overflow-hidden relative z-10 ${
+          isProjectView ? 'bg-transparent pointer-events-none' : 'bg-white'
+        }`}>
           <div className="flex flex-col h-full w-full">
             <TabView projectId={projectId} />
-            <div className="flex-1 overflow-auto bg-gray-950">
+            <div className={`flex-1 overflow-auto ${
+              isProjectView ? 'bg-transparent pointer-events-none' : 'bg-gray-950'
+            }`}>
               {mainContent}
             </div>
           </div>
         </main>
+        
         <Chatbot projectId={projectId} />
       </div>
     </div>

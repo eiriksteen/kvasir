@@ -35,7 +35,7 @@ const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
           ? 'px-3 py-2 rounded-tr-none'
           : isToolCall
           ? 'px-2 py-2'
-          : 'px-2 py-2 border border-gray-800'
+          : 'px-2 py-2 bg-white'
       }`,
       content: `text-xs leading-relaxed ${
         message.role === 'user' ? 'text-white' : 'text-gray-800'

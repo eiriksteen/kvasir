@@ -37,7 +37,7 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
     const [showAddModelToProject, setShowAddModelToProject] = useState(false);
     
     const DEFAULT_WIDTH = 260;
-    const MIN_WIDTH = 150;
+    const MIN_WIDTH = 160;
     const COLLAPSE_THRESHOLD = 100;
     const COLLAPSED_WIDTH = 40;
     const [expandedSections, setExpandedSections] = useState({
