@@ -98,7 +98,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     );
   }
 
-  // This is quite ugly, but turns out to be really hard to let the ERD be fixed while the rest is adaptive. 
+  // This is ugly, but turns out to be really hard to let the ERD be fixed while the rest is adaptive. 
   // It works, but may be worth a revisit. 
   return (
     <div className="flex flex-col h-full bg-white relative">
@@ -117,13 +117,15 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
           isProjectView ? 'bg-transparent pointer-events-none' : 'bg-white'
         }`}>
           <div className="flex flex-col h-full w-full">
-            <TabView 
-              projectId={projectId}
-              openTabs={openTabs}
-              activeTabId={activeTabId}
-              closeTab={closeTab}
-              selectTab={selectTab}
-            />
+            <div className={isProjectView ? 'pointer-events-auto' : ''}>
+              <TabView 
+                projectId={projectId}
+                openTabs={openTabs}
+                activeTabId={activeTabId}
+                closeTab={closeTab}
+                selectTab={selectTab}
+              />
+            </div>
             <div className={`flex-1 overflow-auto ${
               isProjectView ? 'bg-transparent pointer-events-none' : 'bg-gray-950'
             }`}>
