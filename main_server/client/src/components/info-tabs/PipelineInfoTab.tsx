@@ -6,7 +6,7 @@ import { useDatasets } from '@/hooks/useDatasets';
 import { useProjectDataSources } from '@/hooks/useDataSources';
 import { useModelEntities } from '@/hooks/useModelEntities';
 import { useAnalyses } from '@/hooks/useAnalysis';
-import { SquarePlay, FileCode, ArrowDownToLine, ArrowUpFromLine, Database, Folder, Brain, BarChart3, Info, BookOpen } from 'lucide-react';
+import { SquarePlay, FileCode, Database, Folder, Brain, BarChart3, Info, Code2, FileText, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import CodeStream from '@/components/code/CodeStream';
 import CodeImplementation from '@/components/code/CodeImplementation';
 import { Dataset } from '@/types/data-objects';
@@ -22,7 +22,7 @@ interface PipelineInfoTabProps {
   onClose: () => void;
 }   
 
-type ViewType = 'overview' | 'code' | 'runs' | 'documentation';
+type ViewType = 'overview' | 'code' | 'runs';
 
 export default function PipelineInfoTab({ 
   pipelineId,
@@ -95,14 +95,13 @@ export default function PipelineInfoTab({
         {!isInProgress && (
           <button
             onClick={() => setCurrentView('overview')}
-            className={`flex items-center gap-2 px-4 py-0 rounded-lg transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
               currentView === 'overview'
                 ? 'bg-[#840B08] text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             <Info className="w-4 h-4" />
-            <span className="text-sm font-medium">Overview</span>
           </button>
         )}
         <button
@@ -130,19 +129,6 @@ export default function PipelineInfoTab({
           <SquarePlay className="w-4 h-4" />
           <span className="text-sm font-medium">Runs</span>
         </button>
-        {pipeline.implementation?.docstring && (
-          <button
-            onClick={() => setCurrentView('documentation')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-              currentView === 'documentation'
-                ? 'bg-[#840B08] text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <span className="text-sm font-medium">Documentation</span>
-          </button>
-        )}
       </div>
 
       {/* Content Area */}
@@ -190,155 +176,142 @@ export default function PipelineInfoTab({
           </div>
         )}
 
-        {currentView === 'documentation' && (
-          <div className="h-full overflow-y-auto p-4">
+        {currentView === 'overview' && !isInProgress && (
+          <div className="h-full overflow-y-auto pl-4 pr-4 pb-4 space-y-4">
+            {/* Docstring */}
             {pipeline.implementation?.docstring ? (
               <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
+                <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">
                   {pipeline.implementation.docstring}
                 </pre>
               </div>
             ) : (
-              <div className="flex items-center justify-center h-full text-center">
-                <p className="text-sm text-gray-500">No documentation available</p>
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <p className="text-sm text-gray-400 italic">No documentation available</p>
               </div>
             )}
-          </div>
-        )}
 
-        {currentView === 'overview' && !isInProgress && (
-          <div className="h-full overflow-y-auto pl-4 pr-4 pb-4 space-y-4">
-            {/* Description */}
-            {pipeline.description ? (
-              <p className="text-sm text-gray-700">
-                {pipeline.description}
-              </p>
-            ) : (
-              <p className="text-sm text-gray-400 italic">No description provided</p>
-            )}
-
-            {/* Inputs Box */}
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-[#840B08]/20 rounded-lg">
-                  <ArrowDownToLine className="w-4 h-4 text-[#840B08]" />
-                </div>
-                <h3 className="text-sm font-semibold text-gray-900">Inputs</h3>
-              </div>
-
-              <div className="space-y-4">
-                {/* Args */}
-                {pipeline.implementation?.args && Object.keys(pipeline.implementation.args).length > 0 && (
-                  <div>
-                    <h4 className="text-xs font-semibold text-gray-700 mb-2">Arguments</h4>
-                    <div className="bg-white rounded-lg p-3 border border-gray-200">
-                      <pre className="text-xs text-gray-600 whitespace-pre-wrap">
-                        {JSON.stringify(pipeline.implementation.args, null, 2)}
-                      </pre>
+            {/* Four Separate Boxes - Perfect 2x2 Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{gridTemplateRows: 'auto auto'}}>
+              {/* Arguments Box - Top Left */}
+              {pipeline.implementation?.args && Object.keys(pipeline.implementation.args).length > 0 && (
+                <div className={`bg-gray-50 rounded-xl p-4 ${!pipeline.implementation?.outputVariablesSchema || Object.keys(pipeline.implementation.outputVariablesSchema).length === 0 ? 'lg:col-span-2' : ''}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-1.5 bg-[#840B08]/20 rounded-lg">
+                      <Code2 size={16} className="text-[#840B08]" />
                     </div>
+                    <h4 className="text-sm font-semibold text-gray-900">Arguments</h4>
                   </div>
-                )}
-
-                {/* Input Entities */}
-                <div>
-                  <h4 className="text-xs font-semibold text-gray-700 mb-2">Input Entities</h4>
-                  <div className="flex flex-wrap gap-1">
-                    {pipeline.inputs.dataSourceIds.map((dataSourceId) => (
-                      <div
-                        key={dataSourceId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-gray-200 text-gray-600"
-                      >
-                        <Database size={12} />
-                        {dataSources?.find((ds: DataSource) => ds.id === dataSourceId)?.name || 'Data Source'}
-                      </div>
-                    ))}
-                    {pipeline.inputs.datasetIds.map((datasetId) => (
-                      <div
-                        key={datasetId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
-                      >
-                        <Folder size={12} />
-                        {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
-                      </div>
-                    ))}
-                    {pipeline.inputs.modelEntityIds.map((modelEntityId) => (
-                      <div
-                        key={modelEntityId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]"
-                      >
-                        <Brain size={12} />
-                        {modelEntities?.find((me: ModelEntity) => me.id === modelEntityId)?.name || 'Model'}
-                      </div>
-                    ))}
-                    {pipeline.inputs.analysisIds.map((analysisId) => (
-                      <div
-                        key={analysisId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#004806]/20 text-[#004806]"
-                      >
-                        <BarChart3 size={12} />
-                        {analysisObjects?.find((a: AnalysisObjectSmall) => a.id === analysisId)?.name || 'Analysis'}
-                      </div>
-                    ))}
-                    {pipeline.inputs.dataSourceIds.length === 0 &&
-                     pipeline.inputs.datasetIds.length === 0 &&
-                     pipeline.inputs.modelEntityIds.length === 0 &&
-                     pipeline.inputs.analysisIds.length === 0 && (
-                      <p className="text-xs text-gray-500 italic">No input entities</p>
-                    )}
+                  <div className="bg-white rounded p-3 border border-gray-200">
+                    <pre className="text-xs text-gray-600 whitespace-pre-wrap">
+                      {JSON.stringify(pipeline.implementation.args, null, 2)}
+                    </pre>
                   </div>
                 </div>
-              </div>
-            </div>
+              )}
 
-            {/* Outputs Box */}
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-[#840B08]/20 rounded-lg">
-                  <ArrowUpFromLine className="w-4 h-4 text-[#840B08]" />
-                </div>
-                <h3 className="text-sm font-semibold text-gray-900">Outputs</h3>
-              </div>
-
-              <div className="space-y-4">
-                {/* Output Variables Schema */}
-                {pipeline.implementation?.outputVariablesSchema && Object.keys(pipeline.implementation.outputVariablesSchema).length > 0 && (
-                  <div>
-                    <h4 className="text-xs font-semibold text-gray-700 mb-2">Output Variables Schema</h4>
-                    <div className="bg-white rounded-lg p-3 border border-gray-200">
-                      <pre className="text-xs text-gray-600 whitespace-pre-wrap">
-                        {JSON.stringify(pipeline.implementation.outputVariablesSchema, null, 2)}
-                      </pre>
+              {/* Output Variables Schema Box - Top Right */}
+              {pipeline.implementation?.outputVariablesSchema && Object.keys(pipeline.implementation.outputVariablesSchema).length > 0 && (
+                <div className={`bg-gray-50 rounded-xl p-4 ${!pipeline.implementation?.args || Object.keys(pipeline.implementation.args).length === 0 ? 'lg:col-span-2' : ''}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-1.5 bg-[#840B08]/20 rounded-lg">
+                      <FileText size={16} className="text-[#840B08]" />
                     </div>
+                    <h4 className="text-sm font-semibold text-gray-900">Output Variables Schema</h4>
                   </div>
-                )}
+                  <div className="bg-white rounded p-3 border border-gray-200">
+                    <pre className="text-xs text-gray-600 whitespace-pre-wrap">
+                      {JSON.stringify(pipeline.implementation.outputVariablesSchema, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              )}
 
-                {/* Output Entities */}
-                <div>
-                  <h4 className="text-xs font-semibold text-gray-700 mb-2">Output Entities</h4>
-                  <div className="flex flex-wrap gap-1">
-                    {pipeline.outputs.datasetIds.map((datasetId) => (
-                      <div
-                        key={datasetId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
-                      >
-                        <Folder size={12} />
-                        {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
-                      </div>
-                    ))}
-                    {pipeline.outputs.modelEntityIds.map((modelEntityId) => (
-                      <div
-                        key={modelEntityId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]"
-                      >
-                        <Brain size={12} />
-                        {modelEntities?.find((me: ModelEntity) => me.id === modelEntityId)?.name || 'Model'}
-                      </div>
-                    ))}
-                    {pipeline.outputs.datasetIds.length === 0 &&
-                     pipeline.outputs.modelEntityIds.length === 0 && (
-                      <p className="text-xs text-gray-500 italic">No output entities</p>
-                    )}
+              {/* Input Entities Box - Bottom Left */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 bg-[#840B08]/20 rounded-lg">
+                    <ArrowDownRight size={16} className="text-[#840B08]" />
                   </div>
+                  <h4 className="text-sm font-semibold text-gray-900">Input Entities</h4>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {pipeline.inputs.dataSourceIds.map((dataSourceId) => (
+                    <div
+                      key={dataSourceId}
+                      className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-gray-200 text-gray-600"
+                    >
+                      <Database size={10} />
+                      {dataSources?.find((ds: DataSource) => ds.id === dataSourceId)?.name || 'Data Source'}
+                    </div>
+                  ))}
+                  {pipeline.inputs.datasetIds.map((datasetId) => (
+                    <div
+                      key={datasetId}
+                      className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
+                    >
+                      <Folder size={10} />
+                      {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
+                    </div>
+                  ))}
+                  {pipeline.inputs.modelEntityIds.map((modelEntityId) => (
+                    <div
+                      key={modelEntityId}
+                      className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]"
+                    >
+                      <Brain size={10} />
+                      {modelEntities?.find((me: ModelEntity) => me.id === modelEntityId)?.name || 'Model'}
+                    </div>
+                  ))}
+                  {pipeline.inputs.analysisIds.map((analysisId) => (
+                    <div
+                      key={analysisId}
+                      className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#004806]/20 text-[#004806]"
+                    >
+                      <BarChart3 size={10} />
+                      {analysisObjects?.find((a: AnalysisObjectSmall) => a.id === analysisId)?.name || 'Analysis'}
+                    </div>
+                  ))}
+                  {pipeline.inputs.dataSourceIds.length === 0 &&
+                   pipeline.inputs.datasetIds.length === 0 &&
+                   pipeline.inputs.modelEntityIds.length === 0 &&
+                   pipeline.inputs.analysisIds.length === 0 && (
+                    <p className="text-sm text-gray-400 italic">No input entities</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Output Entities Box - Bottom Right */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 bg-[#840B08]/20 rounded-lg">
+                    <ArrowUpRight size={16} className="text-[#840B08]" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-gray-900">Output Entities</h4>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {pipeline.outputs.datasetIds.map((datasetId) => (
+                    <div
+                      key={datasetId}
+                      className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
+                    >
+                      <Folder size={10} />
+                      {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
+                    </div>
+                  ))}
+                  {pipeline.outputs.modelEntityIds.map((modelEntityId) => (
+                    <div
+                      key={modelEntityId}
+                      className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]"
+                    >
+                      <Brain size={10} />
+                      {modelEntities?.find((me: ModelEntity) => me.id === modelEntityId)?.name || 'Model'}
+                    </div>
+                  ))}
+                  {pipeline.outputs.datasetIds.length === 0 &&
+                   pipeline.outputs.modelEntityIds.length === 0 && (
+                    <p className="text-sm text-gray-400 italic">No output entities</p>
+                  )}
                 </div>
               </div>
             </div>
