@@ -14,6 +14,8 @@ class AnalysisResult(BaseModel):
     next_type: Literal['analysis_result', 'notebook_section'] | None = None
     next_id: UUID | None = None
     section_id: UUID | None = None
+    plot_urls: List[str] = []
+
 
 
 class NotebookSection(BaseModel):

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, FileText, Plus, ChevronDown, ChevronUp, ExternalLink, List, Trash2, ArrowRight, Info, Calendar } from 'lucide-react';
 import { useAnalysis } from '@/hooks/useAnalysis';
 import { NotebookSection, AnalysisObject, AnalysisObjectSmall } from '@/types/analysis';
@@ -124,7 +124,9 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   onScrollToSection,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { currentAnalysisObject: analysis } = useAnalysis(projectId, analysisObjectId);
+  // console.log('analysisObjectId', analysisObjectId);
+  // console.log('projectId', projectId);
+  const { currentAnalysisObject: analysis, deleteAnalysisObject } = useAnalysis(projectId, analysisObjectId);
   const [showCreateRootSection, setShowCreateRootSection] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -133,9 +135,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   const [showDetails, setShowDetails] = useState(false);
 
   const { addAnalysisToContext, removeAnalysisFromContext } = useAgentContext(projectId);
-  const { deleteAnalysisObject } = useAnalysis(projectId, analysisObjectId);
   const { closeTab } = useTabContext(projectId);
-
 
   // Function to collect all section IDs recursively
   const getAllSectionIds = (sections: NotebookSection[]): string[] => {
@@ -148,6 +148,14 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
     });
     return ids;
   };
+
+  // Initialize all sections as expanded when analysis data loads
+  useEffect(() => {
+    if (analysis?.notebook?.notebookSections && expandedSections.size === 0) {
+      const allIds = getAllSectionIds(analysis.notebook.notebookSections);
+      setExpandedSections(new Set(allIds));
+    }
+  }, [analysis]);
 
   // Function to toggle a single section's expanded state
   const toggleSectionExpanded = (sectionId: string) => {
@@ -284,10 +292,10 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   // Early return for collapsed state
   if (!isExpanded) {
     return (
-      <div className="w-8 bg-white border-r border-gray-300 flex flex-col h-full">
+      <div className="w-5 bg-white border-r border-gray-300 flex grid place-items-center h-full">
         <button 
           onClick={() => setIsExpanded(true)}
-          className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+          className="text-gray-600 hover:text-gray-900 transition-colors"
         >
           <ChevronRight size={16} />
         </button>

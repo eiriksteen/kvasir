@@ -4,14 +4,7 @@ from pydantic_ai import RunContext
 from typing import List, Literal
 
 
-from project_server.client import (
-    get_project,
-    get_datasets_by_ids,
-    get_data_sources_by_ids,
-)
 from synesis_schemas.main_server import (
-    GetDatasetsByIDsRequest,
-    GetDataSourcesByIDsRequest,
     AnalysisResult,
     NotebookSectionCreate,
     MoveRequest,
@@ -25,9 +18,8 @@ from synesis_schemas.main_server import (
     TableColumn,
     AggregationObjectCreate,
 )
-from project_server.agents.analysis.utils import simplify_dataset_overview, post_analysis_result_to_redis
+from project_server.agents.analysis.utils import post_analysis_result_to_redis
 from project_server.client import (
-    get_analyses_by_project_request,
     create_section_request,
     update_section_request,
     delete_section_request,
@@ -44,80 +36,7 @@ from project_server.client.requests.tables import create_table
 from project_server.agents.analysis.helper_agent import analysis_helper_agent, HelperAgentDeps
 from project_server.agents.analysis.deps import AnalysisDeps
 from project_server.agents.analysis.output import AnalysisResultModelResponse, AggregationObjectCreateResponse, AnalysisResultMoveRequest, SectionMoveRequest
-
-
-# async def search_through_datasets(ctx: RunContext[AnalysisDeps]) -> str:
-#     """
-#     Searches through all datasets in a project. This tool is useful when the context the user has provided is incomplete.
-
-#     Args:
-#         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-#     """
-#     project = await get_project(ctx.deps.client, ctx.deps.project_id)
-#     dataset_ids = [
-#         project_dataset.dataset_id for project_dataset in project.datasets]
-#     datasets = await get_datasets_by_ids(ctx.deps.client, GetDatasetsByIDsRequest(dataset_ids=dataset_ids))
-#     datasets_overview = simplify_dataset_overview(datasets)
-
-#     dataset_message = f"""
-#         <Available datasets>
-#         {datasets_overview}
-#         </Available datasets>
-#     """
-#     return dataset_message
-
-
-# async def search_through_data_sources(ctx: RunContext[AnalysisDeps]) -> str:
-#     """
-#     Searches through all data sources in a project. This tool is useful when the context the user has provided is incomplete.
-
-#     Args:
-#         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-#     """
-#     project = await get_project(ctx.deps.client, ctx.deps.project_id)
-#     data_source_ids = [pds.data_source_id for pds in project.data_sources]
-#     data_sources = await get_data_sources_by_ids(ctx.deps.client, GetDataSourcesByIDsRequest(data_source_ids=data_source_ids))
-#     data_source_message = f"""
-#         <Available data sources>
-#         {data_sources}
-#         </Available data sources>
-#     """
-#     return data_source_message
-
-
-# async def search_through_analyses(ctx: RunContext[AnalysisDeps]) -> str:
-#     """
-#     Returns all the analysis objects in a project. This tool is useful when you do not know which analysis object to add or edit an analysis result to.
-
-#     Args:
-#         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-#     """
-#     analyses = await get_analyses_by_project_request(ctx.deps.client, ctx.deps.project_id)
-
-#     analyses_message = f"""
-#         <Available analyses>
-#         Analyses in project: {analyses}
-#         </Available analyses>
-#     """
-
-#     return analyses_message
-
-
-async def search_through_analysis_results(ctx: RunContext[AnalysisDeps], analysis_result_ids: List[uuid.UUID]) -> str:
-    """
-    Searches through all analysis results you provide the id to. This tool is useful when you do not know which analysis result to add or edit an analysis result to.
-
-    Args:
-        ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        analysis_result_ids (List[uuid.UUID]): The IDs of the analysis results to search through.
-    """
-    analysis_results = await get_analysis_results_by_ids_request(ctx.deps.client, AnalysisResultFindRequest(analysis_result_ids=analysis_result_ids))
-    analysis_results_message = f"""
-        <Analysis results>
-        Analysis results: {analysis_results}
-        </Analysis results>
-    """
-    return analysis_results_message
+from project_server.app_secrets import ANALYSIS_DIR
 
 
 def search_knowledge_bank(prompt: str) -> List[str]:
@@ -337,6 +256,8 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
                 await post_analysis_result_to_redis(analysis_result, ctx.deps.run_id)
             except ValidationError:
                 continue
+
+    
     aggregation_object_result = await analysis_helper_agent.run(
         "Give a name and a description of the analysis result you just created.",
         message_history=result.new_messages(),
@@ -350,6 +271,13 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
     )
 
     await create_aggregation_object_request(ctx.deps.client, aggregation_object_create)
+
+    plot_files = []
+    plot_dir = ANALYSIS_DIR / str(ctx.deps.analysis_id) / str(analysis_result_id) / "plots"
+    if plot_dir.exists():
+        plot_files = [str(p.name) for p in plot_dir.glob("*.png")]
+
+    analysis_result.plot_urls = plot_files
 
     await update_analysis_result_request(ctx.deps.client, analysis_result)
     return_string = f"""

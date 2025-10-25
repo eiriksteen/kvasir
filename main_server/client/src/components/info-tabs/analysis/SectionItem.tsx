@@ -134,7 +134,6 @@ const SectionItem: React.FC<SectionItemProps> = ({
   // Build ordered list for this section's children using the new nextType/nextId system
   const childSections = section.notebookSections || [];
   const results = section.analysisResults || [];
-  console.log("results", results);
   
   // Find the first element in the chain for this section's children
   const referencedIds = new Set([

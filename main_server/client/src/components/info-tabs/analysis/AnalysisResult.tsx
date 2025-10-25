@@ -2,11 +2,9 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { Code, Database, ChevronDown, ChevronRight, Info, Trash2, EllipsisVertical, Move, FileSearch, BarChart3, Pencil, Save, Loader2, X } from 'lucide-react';
+import { Database, ChevronDown, ChevronRight, Info, Trash2, EllipsisVertical, Move, FileSearch, BarChart3, Pencil, Save, Loader2, X } from 'lucide-react';
 import { AnalysisResult as AnalysisResultType, AnalysisStatusMessage } from '@/types/analysis';
 import { MarkdownComponents } from '@/components/MarkdownComponents';
-import { useDatasets } from '@/hooks/useDatasets';
-import { useDataSources } from '@/hooks/useDataSources';
 import { useAnalysis } from '@/hooks/useAnalysis';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
 import EChartWrapper from '@/components/charts/EChartWrapper';
@@ -14,8 +12,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { UUID } from 'crypto';
 import { AggregationObjectWithRawData } from '@/types/data-objects';
-import { usePlots } from '@/hooks/usePlots';
-import { BasePlot } from '@/types/plots';
+
 import PlotConfigurationPopup from './PlotConfigurationPopup';
 import DnDComponent from './DnDComponent';
 import { useTables } from '@/hooks/useTables';
@@ -32,21 +29,17 @@ interface AnalysisResultProps {
 export default function AnalysisResult({ projectId, analysisResult, analysisObjectId }: AnalysisResultProps) {
     const [showDetails, setShowDetails] = useState(false);
     const [showCode, setShowCode] = useState(false);
-    const [showDatasets, setShowDatasets] = useState(false);
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
     const [showPlotConfiguration, setShowPlotConfiguration] = useState(false);
     const [showTableConfiguration, setShowTableConfiguration] = useState(false);
     const [showEditAnalysis, setShowEditAnalysis] = useState(false);
     const [editAnalysis, setEditAnalysis] = useState(analysisResult.analysis);
     const [isUpdating, setIsUpdating] = useState(false);
-    const { datasets } = useDatasets(projectId);
-    const { dataSources } = useDataSources();
-    const { analysisStatusMessages, getAnalysisResultData, analysisResultData, deleteAnalysisResult, updateAnalysisResult } = useAnalysis(projectId, analysisObjectId);
+    const { analysisStatusMessages, getAnalysisResultData, analysisResultData, deleteAnalysisResult, updateAnalysisResult, getAnalysisResultPlots, analysisResultPlots } = useAnalysis(projectId, analysisObjectId);
     const [showOptions, setShowOptions] = useState(false);
     const optionsRef = useRef<HTMLDivElement>(null);
     const analysisTextareaRef = useRef<HTMLTextAreaElement>(null);
     const [isLoadingData, setIsLoadingData] = useState(false);
-    const { plots } = usePlots(analysisResult.id);
     const { tables, updateTable, deleteTable } = useTables(analysisResult.id);
     
     // Handle click outside to close options
@@ -74,6 +67,17 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
             analysisTextareaRef.current.focus();
         }
     }, [showEditAnalysis]);
+
+    // Fetch analysis result plots on mount (converted to blob URLs for authenticated access)
+    useEffect(() => {
+        if (!analysisResultPlots[analysisResult.id] && analysisResult.plotUrls && analysisResult.plotUrls.length > 0) {
+            getAnalysisResultPlots({ 
+                analysisObjectId, 
+                analysisResultId: analysisResult.id,
+                plotUrls: analysisResult.plotUrls
+            });
+        }
+    }, [analysisResult.id, analysisObjectId]);
 
     // Filter streaming messages for this specific analysis result
     const streamingMessages = useMemo(() => {
@@ -120,27 +124,6 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
     } : undefined;
 
-    // Helper function to get dataset name by ID
-    const getDatasetName = (datasetId: string) => {
-        if (!datasets) return `Dataset ${datasetId}`;
-        
-        // Check time series datasets
-        const timeSeriesDataset = datasets.find((dataset: any) => dataset.id === datasetId);
-        if (timeSeriesDataset) return timeSeriesDataset.name;
-        
-        return `Dataset ${datasetId}`;
-    };
-
-    // Helper function to get data source name by ID
-    const getDataSourceName = (dataSourceId: string) => {
-        if (!dataSources) return `Data Source ${dataSourceId}`;
-        
-        // Find the data source by ID
-        const dataSource = dataSources.find((ds: any) => ds.id === dataSourceId);
-        if (dataSource) return dataSource.name;
-        
-        return `Data Source ${dataSourceId}`;
-    };
 
     const handleDelete = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -188,8 +171,16 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
             try {
                 await updateAnalysisResult({
                     analysisResultId: analysisResult.id,
-                    analysisResultUpdate: {
+                    analysisResult: {
+                        id: analysisResult.id,
                         analysis: editAnalysis.trim(),
+                        pythonCode: analysisResult.pythonCode,
+                        outputVariable: analysisResult.outputVariable,
+                        inputVariable: analysisResult.inputVariable,
+                        nextType: analysisResult.nextType,
+                        nextId: analysisResult.nextId,
+                        sectionId: analysisResult.sectionId,
+                        plotUrls: analysisResult.plotUrls,
                     }
                 });
                 setShowEditAnalysis(false);
@@ -216,12 +207,15 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
         return [];
     }, [analysisResultData, analysisResult.id]);
 
-    if (analysisResultData[analysisResult.id] === undefined && ((plots && plots.length > 0) || (tables && tables.length > 0))) {
-        getAnalysisResultData({ 
-            analysisObjectId, 
-            analysisResultId: analysisResult.id 
-        });
-    }
+    // Fetch data for tables when needed
+    useEffect(() => {
+        if (analysisResultData[analysisResult.id] === undefined && tables && tables.length > 0) {
+            getAnalysisResultData({ 
+                analysisObjectId, 
+                analysisResultId: analysisResult.id 
+            });
+        }
+    }, [analysisResult.id, tables]);
 
     return (
         <div className="w-full">
@@ -381,40 +375,8 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                         </div>
 
                         {/* Details Section - Only shown when info button is pressed */}
-                        {showDetails && (
-                            <div className="mt-3 pt-3 border-t border-gray-200">
-                                {/* Datasets Section
-                                {(currentAnalysisResult.datasetIds.length > 0 || currentAnalysisResult.dataSourceIds?.length > 0) && (
-                                    <div className="mb-3">
-                                        <button
-                                            onClick={() => setShowDatasets(!showDatasets)}
-                                            className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 transition-colors"
-                                        >
-                                            {showDatasets ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                            <Database size={14} className="text-[#0E4F70]" />
-                                            <span>Data</span>
-                                        </button>
-                                        {showDatasets && (
-                                            <div className="mt-2 ml-6">
-                                                <div className="space-y-1.5">
-                                                    {currentAnalysisResult.datasetIds.map((datasetId: string, index: number) => (
-                                                        <div key={datasetId} className="flex items-center gap-2 text-sm text-gray-600">
-                                                            <div className="w-1.5 h-1.5 bg-[#0E4F70] rounded-full"></div>
-                                                            <span>Dataset {index + 1}: {getDatasetName(datasetId)}</span>
-                                                        </div>
-                                                    ))}
-                                                    {currentAnalysisResult.dataSourceIds?.map((dataSourceId: string, index: number) => (
-                                                        <div key={dataSourceId} className="flex items-center gap-2 text-sm text-gray-600">
-                                                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                                                            <span>Data Source {index + 1}: {getDataSourceName(dataSourceId)}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )} */}
-
+                        {/* {showDetails && ( */}
+                            {/* <div className="mt-3 pt-3 border-t border-gray-200"> */}
                                 {/* Python Code Section */}
                                 {currentAnalysisResult.pythonCode && (
                                     <div className="pt-3">
@@ -423,11 +385,10 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                                             className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 transition-colors mb-2"
                                         >
                                             {showCode ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                            <Code size={14} className="text-green-600" />
-                                            <span>Python Code</span>
+                                            <span className="text-xs text-gray-500">Python Code</span>
                                         </button>
                                         {showCode && (
-                                            <div className="overflow-x-auto ml-6">
+                                            <div className="overflow-x-auto">
                                                 <MarkdownComponents.code
                                                     className="language-python whitespace-pre min-w-0 w-full"
                                                     children={currentAnalysisResult.pythonCode}
@@ -436,10 +397,10 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                                         )}
                                     </div>
                                 )}
-                            </div>
-                        )}
+                            {/* </div> */}
+                        {/* )} */}
 
-                        {plots && plots.map((plot: BasePlot) => (
+                        {/* {plots && plots.map((plot: BasePlot) => (
                             <div className="mt-4" key={plot.id}>
                                 <div className="mb-3">
                                     <div className="h-96 bg-gray-50 rounded p-3">
@@ -450,7 +411,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                                     </div>
                                 </div>
                             </div>
-                        ))}
+                        ))} */}
 
                         {tables && tables.map((table: BaseTable) => (
                             <div className="mt-4" key={table.id}>
@@ -463,6 +424,30 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                                 />
                             </div>
                         ))}
+
+                        {/* Render plots from analysis storage */}
+                        {analysisResultPlots[analysisResult.id] && analysisResultPlots[analysisResult.id].length > 0 && (
+                            <div className="mt-4 space-y-4">
+                                {analysisResultPlots[analysisResult.id].map((plotBlobUrl: string, index: number) => (
+                                    <div key={index} className="bg-gray-50 rounded p-3">
+                                        {plotBlobUrl ? (
+                                            console.log(plotBlobUrl),
+                                            <div>
+                                                <img 
+                                                    src={plotBlobUrl} 
+                                                    alt={`Analysis plot ${index + 1}`}
+                                                    className="w-full h-auto rounded"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="w-full h-auto rounded bg-gray-50 p-3">
+                                                <Loader2 size={16} className="animate-spin" />
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </>
                 )}
             </div>
@@ -480,12 +465,12 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                 onCancel={() => setShowDeleteConfirmation(false)}
             />
 
-            <PlotConfigurationPopup
+            {/* <PlotConfigurationPopup
                 isOpen={showPlotConfiguration}
                 onClose={() => setShowPlotConfiguration(false)}
                 availableColumns={availableColumns}
                 analysisResultId={analysisResult.id}
-            />
+            /> */}
 
             <TableConfigurationPopup
                 isOpen={showTableConfiguration}

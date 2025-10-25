@@ -162,11 +162,11 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
 
   return (
     <div className="w-full h-full bg-white overflow-hidden">
-      <div className="bg-white h-full px-0 pb-2 relative">
+      <div className="bg-white h-full relative">
         <div className="flex flex-col h-full">
           {/* Content Section */}
           <div className="flex-1 min-h-0">
-            <div className="h-full p-4">
+            <div className="h-full">
               <DndContext onDragEnd={handleDragEnd}>
                 <div className="flex h-full">
                   {/* Table of Contents - Left Side - Responsive */}

@@ -54,6 +54,16 @@ async def create_analysis_result(analysis_result_arg: AnalysisResult) -> Analysi
         commit_after=True
     )
 
+    for plot_url in analysis_result_arg.plot_urls:
+        await execute(
+            insert(plot).values(
+                id=uuid.uuid4(),
+                analysis_result_id=analysis_result_in_db.id,
+                plot_url=plot_url
+            ),
+            commit_after=True
+        )
+
     return analysis_result_in_db
 
 
@@ -154,6 +164,14 @@ async def get_analysis_result_by_id(analysis_result_id: uuid.UUID) -> AnalysisRe
     if result is None:
         return None
 
+
+    plot_urls = await fetch_all(
+        select(plot).where(
+            plot.c.analysis_result_id == analysis_result_id
+        )
+    )
+    result["plot_urls"] = [plot_in_db["plot_url"] for plot_in_db in plot_urls]
+
     return AnalysisResult(**result)
 
 
@@ -169,6 +187,13 @@ async def get_analysis_results_by_section_id(section_id: uuid.UUID) -> List[Anal
     analysis_results_list = []
     for result in results:
         analysis_results_list.append(AnalysisResult(**result))
+        for result in analysis_results_list:
+            plot_urls = await fetch_all(
+                select(plot).where(
+                    plot.c.analysis_result_id == result.id
+                )
+            )
+            result.plot_urls = [plot_in_db["plot_url"] for plot_in_db in plot_urls]
 
     return analysis_results_list
 
@@ -182,6 +207,15 @@ async def get_analysis_results_by_ids(analysis_result_ids: List[uuid.UUID]) -> L
     analysis_results_list = []
     for result in results:
         analysis_results_list.append(AnalysisResult(**result))
+
+    plot_urls = await fetch_all(
+        select(plot).where(
+            plot.c.analysis_result_id.in_(analysis_result_ids)
+        )
+    )
+    for result in analysis_results_list:
+        result.plot_urls = [plot_in_db["plot_url"] for plot_in_db in plot_urls if plot_in_db["analysis_result_id"] == result.id]
+
     return analysis_results_list
 
 
@@ -194,5 +228,20 @@ async def update_analysis_result(analysis_result_arg: AnalysisResult) -> Analysi
         ),
         commit_after=True
     )
+
+    await execute(
+        delete(plot).where(plot.c.analysis_result_id == analysis_result_arg.id),
+        commit_after=True
+    )
+
+    for plot_url in analysis_result_arg.plot_urls:
+        await execute(
+            insert(plot).values(
+                id=uuid.uuid4(),
+                analysis_result_id=analysis_result_arg.id,
+                plot_url=plot_url
+            ),
+            commit_after=True
+        )
 
     return analysis_result_arg

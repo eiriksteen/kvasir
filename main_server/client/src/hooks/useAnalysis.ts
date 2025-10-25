@@ -9,7 +9,6 @@ import {
   AnalysisResult,
   NotebookSectionCreate,
   NotebookSectionUpdate,
-  AnalysisResultUpdate,
   SectionReorderRequest,
   SectionMoveRequest,
   NotebookSection,
@@ -186,14 +185,14 @@ export async function updateNotebookSection(token: string, analysisObjectId: str
   return snakeToCamelKeys(data);
 }
 
-export async function updateAnalysisResult(token: string, analysisResultId: string, analysisResultUpdate: AnalysisResultUpdate): Promise<AnalysisResult> {
+export async function updateAnalysisResult(token: string, analysisResultId: string, analysisResult: AnalysisResult): Promise<AnalysisResult> {
   const response = await fetch(`${API_URL}/analysis/analysis-result/${analysisResultId}`, {
     method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(camelToSnakeKeys(analysisResultUpdate))
+    body: JSON.stringify(camelToSnakeKeys(analysisResult))
   });
 
   if (!response.ok) {
@@ -336,6 +335,23 @@ export async function deleteAnalysisResultEndpoint(token: string, analysisObject
     const errorText = await response.text();
     throw new Error(`Failed to delete analysis result: ${response.status} ${errorText}`);
   }
+}
+
+export async function getAnalysisResultPlotsEndpoint(token: string, analysisObjectId: string, analysisResultId: string, plotUrl: string): Promise<string> {
+  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/analysis-result/${analysisResultId}/${plotUrl}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    
+    throw new Error(`Failed to get analysis result plots: ${response.status} ${errorText}`);
+  }
+  const url = URL.createObjectURL(await response.blob());
+  return url;
 } 
 
 
@@ -349,10 +365,10 @@ export const useAnalyses = (projectId: UUID) => {
 
     const { addEntity } = useProject(projectId);
     
-    const { data: analysisObjects, mutate: mutateAnalysisObjects } = useSWR(session ? ["analysisObjects", projectId] : null, () => fetchAnalysisObjects(session ? session.APIToken.accessToken : "", projectId), {fallbackData: [] as AnalysisObjectSmall[]});
+    const { data: analysisObjects, mutate: mutateAnalysisObjects } = useSWR(session && projectId ? ["analysisObjects", projectId] : null, () => fetchAnalysisObjects(session ? session.APIToken.accessToken : "", projectId), {fallbackData: [] as AnalysisObjectSmall[]});
 
     const { trigger: createAnalysisObject } = useSWRMutation(
-      session ? ["analysisObjects", projectId] : null,
+      session && projectId ? ["analysisObjects", projectId] : null,
       async (_, { arg }: { arg: AnalysisObjectCreate }) => {
         const analysisObject = await postAnalysisObject(session ? session.APIToken.accessToken : "", arg);
         return analysisObject;
@@ -505,11 +521,11 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
 
   const { trigger: updateAnalysisResultMutation } = useSWRMutation(
     "analysisObject",
-    async (_, { arg }: { arg: { analysisResultId: UUID, analysisResultUpdate: AnalysisResultUpdate } }): Promise<AnalysisResult> => {
+    async (_, { arg }: { arg: { analysisResultId: UUID, analysisResult: AnalysisResult } }): Promise<AnalysisResult> => {
       const analysisResult: AnalysisResult = await updateAnalysisResult(
         session ? session.APIToken.accessToken : "", 
         arg.analysisResultId,
-        arg.analysisResultUpdate
+        arg.analysisResult
       );
       return analysisResult;
     },
@@ -605,6 +621,31 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
     }
   );
 
+  const { data: analysisResultPlots, mutate: mutateAnalysisResultPlots } = useSWR(["analysisResultPlots"], null, {fallbackData: {} as Record<UUID, string[]>});
+
+  const { trigger: getAnalysisResultPlots } = useSWRMutation(
+    "analysisObject",
+    async (_, { arg }: { arg: { analysisObjectId: UUID, analysisResultId: UUID, plotUrls: string[] } }) => {
+      // Fetch all plots and convert them to blob URLs
+      const plotBlobUrls = await Promise.all(
+        arg.plotUrls.map(plotUrl => 
+          getAnalysisResultPlotsEndpoint(
+            session ? session.APIToken.accessToken : "", 
+            arg.analysisObjectId, 
+            arg.analysisResultId, 
+            plotUrl
+          )
+        )
+      );
+      return {analysisResultId: arg.analysisResultId, plots: plotBlobUrls};
+    },
+    {
+      populateCache: (data) => {
+        mutateAnalysisResultPlots((current: Record<UUID, string[]> = {}) => ({...current, [data.analysisResultId]: data.plots}));
+      }
+    }
+  );
+
 
   return {
     currentAnalysisObject,
@@ -621,6 +662,8 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
     getAnalysisResultData,
     analysisResultData,
     moveElement,
-    deleteAnalysisResult
+    deleteAnalysisResult,
+    getAnalysisResultPlots,
+    analysisResultPlots
   }
 }

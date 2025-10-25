@@ -17,7 +17,7 @@ class FileInput:
 class MainServerClientResponse:
     status: int
     headers: dict
-    body: bytes
+    body: bytes | dict  # Can be bytes for files or dict for JSON
     content_type: str
 
 
@@ -68,10 +68,17 @@ class MainServerClient:
                     raise RuntimeError(
                         f"Error {response.status}: {await response.text()}")
 
+                # Check content type to determine how to read the body
+                content_type = response.headers.get('content-type', '')
+                if 'application/json' in content_type:
+                    body = await response.json()
+                else:
+                    # For other content types (like images), read as bytes
+                    body = await response.read()
+                
                 return MainServerClientResponse(
                     status=response.status,
                     headers=dict(response.headers),
-                    # We assume the response is json, maybe should be more robust
-                    body=await response.json(),
-                    content_type=response.headers.get('content-type', '')
+                    body=body,
+                    content_type=content_type
                 )

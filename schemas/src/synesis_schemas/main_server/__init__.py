@@ -260,7 +260,7 @@ from .analysis import (
     ModelEntityInAnalysisInDB,
     AnalysisFromPastAnalysisInDB,
     AnalysisInputEntities,
-    GetAnalysesByIDsRequest
+    GetAnalysesByIDsRequest,
 )
 
 from .code import (

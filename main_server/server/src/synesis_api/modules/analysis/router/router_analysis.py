@@ -48,7 +48,7 @@ from synesis_api.modules.analysis.service import (
 from synesis_api.modules.data_objects.service import get_aggregation_object_by_analysis_result_id
 from synesis_api.redis import get_redis
 from synesis_api.utils.markdown_utils import convert_markdown_to_html
-from synesis_api.client import MainServerClient, get_aggregation_object_payload_data_by_analysis_result_id
+from synesis_api.client import MainServerClient, get_aggregation_object_payload_data_by_analysis_result_id, get_plots_for_analysis_result_request
 from synesis_api.auth.service import oauth2_scheme
 
 router = APIRouter()
@@ -289,6 +289,25 @@ async def get_data_for_analysis_result(
         **aggregation_object_in_db.model_dump(), data=result)
     return aggregation_object_with_raw_data
 
+
+@router.get("/analysis-object/{analysis_id}/analysis-result/{analysis_result_id}/{plot_url}")
+async def get_plots_for_analysis_result(
+    analysis_id: uuid.UUID,
+    analysis_result_id: uuid.UUID,
+    plot_url: str,
+    user: Annotated[User, Depends(get_current_user)] = None,
+    token: str = Depends(oauth2_scheme)
+) -> Response:
+    if not await check_user_owns_analysis(user.id, analysis_id):
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to access this analysis object"
+        )
+
+    client = MainServerClient(token)
+
+    response = await get_plots_for_analysis_result_request(client, analysis_id, analysis_result_id, plot_url)
+    return response
 
 @router.patch("/analysis-object/{analysis_id}/move-element")
 async def move_element(

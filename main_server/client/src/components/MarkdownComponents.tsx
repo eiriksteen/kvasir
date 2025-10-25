@@ -1,5 +1,5 @@
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Copy, Check } from 'lucide-react';
 import { useState } from 'react';
 
@@ -80,12 +80,12 @@ export const MarkdownComponents = {
       };
   
       return (
-        <div className="markdown-code-block w-[90%] mx-auto my-4" data-language={language}>
-          <div className="bg-black rounded-lg overflow-hidden border border-gray-700 relative">
+        <div className="markdown-code-block" data-language={language}>
+          <div className="rounded-sm overflow-hidden relative w-full">
             {/* Copy button */}
             <button
               onClick={handleCopy}
-              className="absolute top-2 right-2 p-2 rounded-md bg-gray-800/80 hover:bg-gray-700/80 text-gray-300 hover:text-white transition-all duration-200 z-10"
+              className="absolute top-2 right-2 p-2 rounded-md bg-gray-300 hover:bg-gray-200 text-gray-100 hover:text-white transition-all duration-200 z-10"
               title="Copy code"
             >
               {copied ? <Check size={16} /> : <Copy size={16} />}
@@ -93,12 +93,12 @@ export const MarkdownComponents = {
             
             <div className="overflow-auto max-h-96" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 #1F2937' }}>
               <SyntaxHighlighter
-                style={oneDark}
+                style={oneLight}
                 language={language}
                 PreTag="div"
                 customStyle={{
                   margin: 0,
-                  background: 'black',
+                  background: 'white',
                   fontSize: '0.5rem',
                   padding: '1rem',
                   minWidth: '100%',
