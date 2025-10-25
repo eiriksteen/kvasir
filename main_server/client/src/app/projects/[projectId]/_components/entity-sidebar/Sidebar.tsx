@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useState } from 'react';
-import { ChevronRight, BarChart3, Zap, Folder, Brain, Database } from 'lucide-react';
+import { BarChart3, Zap, Folder, Brain, Database } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { DataSource } from '@/types/data-sources';
 import { useAgentContext, useAnalyses, useDatasets, usePipelines, useProject, useProjectDataSources } from '@/hooks';
@@ -25,9 +25,10 @@ import AddModelEntity from '@/app/projects/[projectId]/_components/add-entity-mo
 
 interface EntitySidebarProps {
     projectId: UUID;
+    openTab: (id: UUID | null, closable?: boolean) => void;
 }
 
-export default function EntitySidebar({ projectId }: EntitySidebarProps) {
+export default function EntitySidebar({ projectId, openTab }: EntitySidebarProps) {
     const [width, setWidth] = useState(260);
     const [isDragging, setIsDragging] = useState(false);
     const [showAddDataSourceToProject, setShowAddDataSourceToProject] = useState(false);
@@ -130,50 +131,67 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
     };
 
     const handleDatasetToggle = (dataset: Dataset) => {
-        const isActive = datasetsInContext.some((d: Dataset) => d.id === dataset.id);
+        const isActive = datasetsInContext.some((d: UUID) => d === dataset.id);
         if (isActive) {
-            removeDatasetFromContext(dataset);
+            removeDatasetFromContext(dataset.id);
         } else {
-            addDatasetToContext(dataset);
+            addDatasetToContext(dataset.id);
         }
     };
 
     const handleDataSourceToggle = (dataSource: DataSource) => {
-        const isActive = dataSourcesInContext.some((ds: DataSource) => ds.id === dataSource.id);
+        const isActive = dataSourcesInContext.some((ds: UUID) => ds === dataSource.id);
         if (isActive) {
-            removeDataSourceFromContext(dataSource);
+            removeDataSourceFromContext(dataSource.id);
         } else {
-            addDataSourceToContext(dataSource);
+            addDataSourceToContext(dataSource.id);
         }
     };
 
     const handleAnalysisToggle = (analysis: AnalysisObjectSmall) => {
-        const isActive = analysesInContext.some((a: AnalysisObjectSmall) => a.id === analysis.id);
+        const isActive = analysesInContext.some((a: UUID) => a === analysis.id);
         if (isActive) {
-            removeAnalysisFromContext(analysis);
+            removeAnalysisFromContext(analysis.id);
         } else {
-            addAnalysisToContext(analysis);
+            addAnalysisToContext(analysis.id);
         }
     };
 
     const handlePipelineToggle = (pipeline: Pipeline) => {
 
-        const isActive = pipelinesInContext.some((p: Pipeline) => p.id === pipeline.id);
+        const isActive = pipelinesInContext.some((p: UUID) => p === pipeline.id);
         if (isActive) {
-            removePipelineFromContext(pipeline);
+            removePipelineFromContext(pipeline.id);
         } else {
-            addPipelineToContext(pipeline);
+            addPipelineToContext(pipeline.id);
         }
     };
 
     const isCollapsed = width <= COLLAPSED_WIDTH;
 
+    // Keyboard shortcut for CMD + B to toggle sidebar
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if ((event.metaKey || event.ctrlKey) && event.key === 'b') {
+                event.preventDefault();
+                if (isCollapsed) {
+                    handleExpandSidebar();
+                } else {
+                    setWidth(COLLAPSED_WIDTH);
+                }
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isCollapsed]);
+
     const handleModelToggle = (model: ModelEntity) => {
-        const isActive = modelEntitiesInContext.some((m: ModelEntity) => m.id === model.id);
+        const isActive = modelEntitiesInContext.some((m: UUID) => m === model.id);
         if (isActive) {
-            removeModelEntityFromContext(model);
+            removeModelEntityFromContext(model.id);
         } else {
-            addModelEntityToContext(model);
+            addModelEntityToContext(model.id);
         }
     };
 
@@ -203,8 +221,9 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                         key={dataSource.id}
                                         item={dataSource}
                                         type="data_source"
-                                        isInContext={dataSourcesInContext.some((ds: DataSource) => ds.id === dataSource.id)}
+                                        isInContext={dataSourcesInContext.some((ds: UUID) => ds === dataSource.id)}
                                         onClick={() => handleDataSourceToggle(dataSource)}
+                                        onOpenTab={() => openTab(dataSource.id, true)}
                                     />
                                 ))}
                                 {dataSources.length === 0 && (
@@ -240,8 +259,9 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                             key={dataset.id}
                                             item={dataset}
                                             type="dataset"
-                                            isInContext={datasetsInContext.some((d: Dataset) => d.id === dataset.id)}
+                                            isInContext={datasetsInContext.some((d: UUID) => d === dataset.id)}
                                             onClick={() => handleDatasetToggle(dataset)}
+                                            onOpenTab={() => openTab(dataset.id, true)}
                                         />
                                     ))}
                                 {datasets.length === 0 && (
@@ -266,7 +286,14 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                         {modelEntities && expandedSections.models && (
                             <div className="bg-[#491A32]/10 border-l-2 border-[#491A32]">
                                 {modelEntities.map((model) => (
-                                    <EntityItem key={model.id} item={model} type="model_entity" isInContext={modelEntitiesInContext.some((m: ModelEntity) => m.id === model.id)} onClick={() => handleModelToggle(model)} />
+                                    <EntityItem 
+                                        key={model.id} 
+                                        item={model} 
+                                        type="model_entity" 
+                                        isInContext={modelEntitiesInContext.some((m: UUID) => m === model.id)} 
+                                        onClick={() => handleModelToggle(model)}
+                                        onOpenTab={() => openTab(model.id, true)}
+                                    />
                                 ))}
                                 {modelEntities.length === 0 && (
                                     <div className="px-3 py-4 text-center">
@@ -294,8 +321,9 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                         key={analysis.id}
                                         item={analysis}
                                         type="analysis"
-                                        isInContext={analysesInContext.some((a: AnalysisObjectSmall) => a.id === analysis.id)}
+                                        isInContext={analysesInContext.some((a: UUID) => a === analysis.id)}
                                         onClick={() => handleAnalysisToggle(analysis)}
+                                        onOpenTab={() => openTab(analysis.id, true)}
                                     />
                                 ))}
                                 {analysisObjects.length === 0 && (
@@ -324,8 +352,9 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                                         key={pipeline.id}
                                         item={pipeline}
                                         type="pipeline"
-                                        isInContext={pipelinesInContext.some((p: Pipeline) => p.id === pipeline.id)}
+                                        isInContext={pipelinesInContext.some((p: UUID) => p === pipeline.id)}
                                         onClick={() => handlePipelineToggle(pipeline)}
+                                        onOpenTab={() => openTab(pipeline.id, true)}
                                     />
                                 ))}
                                 {pipelines.length === 0 && (
@@ -371,17 +400,6 @@ export default function EntitySidebar({ projectId }: EntitySidebarProps) {
                             <AddEntityButton type="model_entity" size={14} onAdd={() => setShowAddModelToProject(true)} />
                             <AddEntityButton type="analysis" size={14} onAdd={() => setShowAddAnalysis(true)} />
                             <AddEntityButton type="pipeline" size={14} onAdd={() => setShowAddPipeline(true)} />
-                        </div>
-
-                        {/* Expand button at bottom */}
-                        <div className="flex items-center justify-center px-3 py-2">
-                            <button
-                                onClick={handleExpandSidebar}
-                                className="p-2 rounded-full text-white hover:bg-[#000066] border border-gray-400 bg-[#000034]"
-                                title="Expand sidebar"
-                            >
-                                <ChevronRight size={14} />
-                            </button>
                         </div>
                     </div>
                 )}

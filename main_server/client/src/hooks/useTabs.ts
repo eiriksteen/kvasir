@@ -58,6 +58,15 @@ export const useTabs = () => {
     });
   }, []);
 
+  const closeTabToProject = useCallback(() => {
+    setTabState(current => {
+      return {
+        ...current,
+        activeTabId: null  // Always go back to project view
+      };
+    });
+  }, []);
+
   const selectTab = useCallback((id: UUID | null) => {
     setTabState(current => ({ ...current, activeTabId: id }));
   }, []);
@@ -67,6 +76,7 @@ export const useTabs = () => {
     activeTabId: tabState.activeTabId,
     openTab,
     closeTab,
+    closeTabToProject,
     selectTab,
   };
 };

@@ -197,11 +197,11 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
     if (!analysis) return;
     
     if (analysisInContext) {
-      await removeAnalysisFromContext(analysis as AnalysisObject);
+      await removeAnalysisFromContext(analysis.id);
       setAnalysisInContext(false);
     }
     else {
-      await addAnalysisToContext(analysis as AnalysisObject);
+      await addAnalysisToContext(analysis.id);
       setAnalysisInContext(true);
     }
   };

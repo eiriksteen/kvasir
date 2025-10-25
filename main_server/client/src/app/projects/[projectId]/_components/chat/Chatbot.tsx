@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Send, Plus, History, Database, X, BarChart, Zap, Brain, Folder, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { useProjectChat } from '@/hooks';
 import { useAgentContext } from '@/hooks/useAgentContext';
+import { useProjectDataSources, useDatasets, usePipelines, useModelEntities, useAnalyses } from '@/hooks';
 import { ChatHistory } from '@/app/projects/[projectId]/_components/chat/ChatHistory';
 import { ChatMessage } from '@/types/orchestrator';
 import { UUID } from 'crypto';
@@ -11,6 +12,11 @@ import { useRunsInConversation } from '@/hooks/useRuns';
 import RunBox from '@/components/runs/RunBox';
 import { Run } from '@/types/runs';
 import ChatMessageBox from '@/app/projects/[projectId]/_components/chat/ChatMessageBox';
+import { DataSource } from '@/types/data-sources';
+import { Dataset } from '@/types/data-objects';
+import { Pipeline } from '@/types/pipeline';
+import { ModelEntity } from '@/types/model';
+import { AnalysisObjectSmall } from '@/types/analysis';
 
 export default function Chatbot({ projectId }: { projectId: UUID }) {
   
@@ -34,6 +40,13 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
     modelEntitiesInContext,
     removeModelEntityFromContext,
   } = useAgentContext(projectId);
+
+  // Get the actual objects to display names
+  const { dataSources } = useProjectDataSources(projectId);
+  const { datasets } = useDatasets(projectId);
+  const { pipelines } = usePipelines(projectId);
+  const { modelEntities } = useModelEntities(projectId);
+  const { analysisObjects } = useAnalyses(projectId);
 
   const { runsInConversation } = useRunsInConversation(conversation?.id || "");
 
@@ -127,13 +140,66 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
 
   const isCollapsed = width <= COLLAPSED_WIDTH;
 
+  // Keyboard shortcut for CMD + i to toggle chatbot
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'i') {
+        event.preventDefault();
+        if (isCollapsed) {
+          handleExpandChat();
+        } else {
+          setWidth(COLLAPSED_WIDTH);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isCollapsed]);
+
+  // Helper functions to get context items with names
+  const getDataSourcesInContext = () => {
+    if (!dataSources) return [];
+    return dataSourcesInContext
+      .map((id: UUID) => dataSources.find((ds: DataSource) => ds.id === id))
+      .filter((ds: DataSource | undefined): ds is DataSource => ds !== undefined);
+  };
+
+  const getDatasetsInContext = () => {
+    if (!datasets) return [];
+    return datasetsInContext
+      .map((id: UUID) => datasets.find((ds: Dataset) => ds.id === id))
+      .filter((ds: Dataset | undefined): ds is Dataset => ds !== undefined);
+  };
+
+  const getPipelinesInContext = () => {
+    if (!pipelines) return [];
+    return pipelinesInContext
+      .map((id: UUID) => pipelines.find((p: Pipeline) => p.id === id))
+      .filter((p: Pipeline | undefined): p is Pipeline => p !== undefined);
+  };
+
+  const getModelEntitiesInContext = () => {
+    if (!modelEntities) return [];
+    return modelEntitiesInContext
+      .map((id: UUID) => modelEntities.find((m: ModelEntity) => m.id === id))
+      .filter((m: ModelEntity | undefined): m is ModelEntity => m !== undefined);
+  };
+
+  const getAnalysesInContext = () => {
+    if (!analysisObjects) return [];
+    return analysesInContext
+      .map((id: UUID) => analysisObjects.find((a: AnalysisObjectSmall) => a.id === id))
+      .filter((a: AnalysisObjectSmall | undefined): a is AnalysisObjectSmall => a !== undefined);
+  };
+
   // Context item configuration
   const contextItemConfigs = [
-    { items: dataSourcesInContext, type: 'dataSource', iconName: 'Database', bgColor: 'bg-gray-200', textColor: 'text-gray-600', removeFn: removeDataSourceFromContext },
-    { items: datasetsInContext, type: 'dataset', iconName: 'Folder', bgColor: 'bg-[#0E4F70]/20', textColor: 'text-[#0E4F70]', removeFn: removeDatasetFromContext },
-    { items: analysesInContext, type: 'analysis', iconName: 'BarChart', bgColor: 'bg-[#004806]/20', textColor: 'text-[#004806]', removeFn: removeAnalysisFromContext },
-    { items: pipelinesInContext, type: 'pipeline', iconName: 'Zap', bgColor: 'bg-[#840B08]/20', textColor: 'text-[#840B08]', removeFn: removePipelineFromContext },
-    { items: modelEntitiesInContext, type: 'modelEntity', iconName: 'Brain', bgColor: 'bg-[#491A32]/20', textColor: 'text-[#491A32]', removeFn: removeModelEntityFromContext }
+    { items: getDataSourcesInContext(), type: 'dataSource', iconName: 'Database', bgColor: 'bg-gray-200', textColor: 'text-gray-600', removeFn: (item: DataSource) => removeDataSourceFromContext(item.id) },
+    { items: getDatasetsInContext(), type: 'dataset', iconName: 'Folder', bgColor: 'bg-[#0E4F70]/20', textColor: 'text-[#0E4F70]', removeFn: (item: Dataset) => removeDatasetFromContext(item.id) },
+    { items: getAnalysesInContext(), type: 'analysis', iconName: 'BarChart', bgColor: 'bg-[#004806]/20', textColor: 'text-[#004806]', removeFn: (item: AnalysisObjectSmall) => removeAnalysisFromContext(item.id) },
+    { items: getPipelinesInContext(), type: 'pipeline', iconName: 'Zap', bgColor: 'bg-[#840B08]/20', textColor: 'text-[#840B08]', removeFn: (item: Pipeline) => removePipelineFromContext(item.id) },
+    { items: getModelEntitiesInContext(), type: 'modelEntity', iconName: 'Brain', bgColor: 'bg-[#491A32]/20', textColor: 'text-[#491A32]', removeFn: (item: ModelEntity) => removeModelEntityFromContext(item.id) }
   ];
 
   // Helper function to get all context items

@@ -2,19 +2,42 @@ import React from 'react';
 import { Zap, Play, Square } from 'lucide-react';
 import { PipelineRunInDB } from '@/types/pipeline';
 import { usePipeline } from '@/hooks/usePipelines';
+import { useAgentContext } from '@/hooks/useAgentContext';
 import { UUID } from 'crypto';
 
 interface PipelineBoxProps {
   pipelineId: UUID;
   projectId: UUID;
+  openTab: (id: UUID | null, closable?: boolean) => void;
 }
 
-export default function PipelineBox({ pipelineId, projectId}: PipelineBoxProps) {
+export default function PipelineBox({ pipelineId, projectId, openTab }: PipelineBoxProps) {
   const { pipeline, pipelineRuns, triggerRunPipeline } = usePipeline(pipelineId, projectId);
+  const { 
+    pipelinesInContext, 
+    addPipelineToContext, 
+    removePipelineFromContext 
+  } = useAgentContext(projectId);
   const isRunning = pipelineRuns.some((run: PipelineRunInDB) => run.status === 'running');
+  
+  const isInContext = pipelinesInContext.includes(pipelineId);
 
   const handleStopClick = () => {
     console.log('Stop pipeline clicked:', pipelineId);
+  };
+
+  const handleMainBoxClick = (event: React.MouseEvent) => {
+    if (event.metaKey || event.ctrlKey) {
+      // Cmd+click or Ctrl+click - add to context
+      if (isInContext) {
+        removePipelineFromContext(pipelineId);
+      } else {
+        addPipelineToContext(pipelineId);
+      }
+    } else {
+      // Regular click - open tab
+      openTab(pipelineId, true);
+    }
   };
 
   if (!pipeline) {
@@ -23,10 +46,15 @@ export default function PipelineBox({ pipelineId, projectId}: PipelineBoxProps) 
 
   
   return (
-    <div className="flex shadow-md border-2 border-[#840B08] rounded-md min-w-[100px] max-w-[280px] overflow-hidden">
-      {/* Main box content */}
+    <div className={`flex shadow-md border-2 rounded-md min-w-[100px] max-w-[280px] overflow-hidden ${
+      isInContext 
+        ? 'border-[#840B08] bg-[#840B08]/10 ring-2 ring-[#840B08]/30' 
+        : 'border-[#840B08]'
+    }`}>
+
       <div
         className="px-3 py-3 flex-1 min-w-0 cursor-pointer hover:bg-[#840B08]/10"
+        onClick={handleMainBoxClick}
       >
         <div className="flex flex-col">
           <div className="flex items-center mb-2">
@@ -41,7 +69,6 @@ export default function PipelineBox({ pipelineId, projectId}: PipelineBoxProps) 
         </div>
       </div>
       
-      {/* Run/Stop button */}
       <button
         onClick={isRunning ? handleStopClick : triggerRunPipeline}
         className="w-12 px-3 py-3 border-l-2 border-[#840B08] flex-shrink-0 cursor-pointer hover:bg-[#840B08]/10 flex items-center justify-center transition-colors"
