@@ -66,11 +66,11 @@ export default function AddDataset({ onClose, projectId }: AddDatasetProps) {
   }, [onClose]);
 
   const handleDataSourceToggle = (dataSource: DataSource) => {
-    const isActive = dataSourcesInContext.some((d: DataSource) => d.id === dataSource.id);
+    const isActive = dataSourcesInContext.some((d: UUID) => d === dataSource.id);
     if (isActive) {
-      removeDataSourceFromContext(dataSource);
+      removeDataSourceFromContext(dataSource.id);
     } else {
-      addDataSourceToContext(dataSource);
+      addDataSourceToContext(dataSource.id);
     }
   };
 
@@ -106,7 +106,7 @@ export default function AddDataset({ onClose, projectId }: AddDatasetProps) {
               {dataSources && dataSources.length > 0 ? (
                 <div className="grid gap-0">
                   {dataSources.map((dataSource: DataSource, index: number) => {
-                    const isInContext = dataSourcesInContext.some((d: DataSource) => d.id === dataSource.id);
+                    const isInContext = dataSourcesInContext.some((d: UUID) => d === dataSource.id);
                     return (
                       <div key={dataSource.id} onClick={() => handleDataSourceToggle(dataSource)}>
                         <DataSourceListItem 

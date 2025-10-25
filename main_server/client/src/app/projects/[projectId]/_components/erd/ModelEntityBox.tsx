@@ -2,14 +2,37 @@ import React from 'react';
 import { Brain } from 'lucide-react';
 import { UUID } from 'crypto';
 import { useModelEntity } from '@/hooks/useModelEntities';
+import { useAgentContext } from '@/hooks/useAgentContext';
 
 interface ModelEntityBoxProps {
   modelEntityId: UUID;
   projectId: UUID;
+  openTab: (id: UUID | null, closable?: boolean) => void;
 }
 
-export default function ModelEntityBox({ modelEntityId, projectId }: ModelEntityBoxProps) {
+export default function ModelEntityBox({ modelEntityId, projectId, openTab }: ModelEntityBoxProps) {
   const { modelEntity } = useModelEntity(projectId, modelEntityId);
+  const { 
+    modelEntitiesInContext, 
+    addModelEntityToContext, 
+    removeModelEntityFromContext 
+  } = useAgentContext(projectId);
+  
+  const isInContext = modelEntitiesInContext.includes(modelEntityId);
+
+  const handleClick = (event: React.MouseEvent) => {
+    if (event.metaKey || event.ctrlKey) {
+      // Cmd+click or Ctrl+click - add to context
+      if (isInContext) {
+        removeModelEntityFromContext(modelEntityId);
+      } else {
+        addModelEntityToContext(modelEntityId);
+      }
+    } else {
+      // Regular click - open tab
+      openTab(modelEntityId, true);
+    }
+  };
 
   if (!modelEntity) {
     return null;
@@ -17,7 +40,12 @@ export default function ModelEntityBox({ modelEntityId, projectId }: ModelEntity
 
   return (
   <div
-    className="px-3 py-3 shadow-md rounded-md border-2 border-[#491A32] relative min-w-[100px] max-w-[220px] cursor-pointer hover:bg-[#491A32]/10 hover:border-[#491A32]"
+    className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[220px] cursor-pointer hover:bg-[#491A32]/10 hover:border-[#491A32] ${
+      isInContext 
+        ? 'border-[#491A32] bg-[#491A32]/10 ring-2 ring-[#491A32]/30' 
+        : 'border-[#491A32]'
+    }`}
+    onClick={handleClick}
   >
     <div className="flex flex-col">
       <div className="flex items-center mb-2">

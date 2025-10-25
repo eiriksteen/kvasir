@@ -23,7 +23,7 @@ interface DashboardProps {
 
 function DashboardContent({ projectId }: { projectId: UUID }) {
   const { project } = useProject(projectId);
-  const { openTabs, activeTabId, openTab, closeTab, selectTab } = useTabs();
+  const { openTabs, activeTabId, openTab, closeTab, closeTabToProject, selectTab } = useTabs();
   
   // If no project is selected, show loading or return null
   if (!project) {
@@ -61,14 +61,14 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     mainContent = (
       <FileInfoTab
         dataSourceId={activeTabId}
-        onClose={() => closeTab(activeTabId)}
+        onClose={() => closeTabToProject()}
       />
     );
   } else if (tabType === 'dataset' && activeTabId) {
     mainContent = (
       <DatasetInfoTab
         datasetId={activeTabId}
-        onClose={() => closeTab(activeTabId)}
+        onClose={() => closeTabToProject()}
         projectId={projectId}
       />
     );
@@ -77,14 +77,14 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
       <AnalysisItem
         analysisObjectId={activeTabId}
         projectId={projectId}
-        onClose={() => closeTab(activeTabId)}
+        onClose={() => closeTabToProject()}
       />
     );
   } else if (tabType === 'pipeline' && activeTabId) {
     mainContent = (
       <PipelineInfoTab
         pipelineId={activeTabId}
-        onClose={() => closeTab(activeTabId)}
+        onClose={() => closeTabToProject()}
         projectId={projectId}
       />
     );
@@ -92,7 +92,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     mainContent = (
       <ModelInfoTab
         modelEntityId={activeTabId}
-        onClose={() => closeTab(activeTabId)}
+        onClose={() => closeTabToProject()}
         projectId={projectId}
       />
     );
@@ -111,7 +111,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
           </div>
         )}
         
-        <EntitySidebar projectId={projectId} />
+        <EntitySidebar projectId={projectId} openTab={openTab} />
         
         <main className={`flex-1 min-w-0 overflow-hidden relative z-10 ${
           isProjectView ? 'bg-transparent pointer-events-none' : 'bg-white'

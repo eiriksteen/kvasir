@@ -2,14 +2,37 @@ import React from 'react';
 import { Folder } from 'lucide-react';
 import { UUID } from 'crypto';
 import { useDataset } from '@/hooks/useDatasets';
+import { useAgentContext } from '@/hooks/useAgentContext';
 
 interface DatasetProps {
   datasetId: UUID;
   projectId: UUID;
+  openTab: (id: UUID | null, closable?: boolean) => void;
 }
 
-export default function DatasetBox({ datasetId, projectId }: DatasetProps) {
+export default function DatasetBox({ datasetId, projectId, openTab }: DatasetProps) {
   const { dataset } = useDataset(datasetId, projectId);
+  const { 
+    datasetsInContext, 
+    addDatasetToContext, 
+    removeDatasetFromContext 
+  } = useAgentContext(projectId);
+  
+  const isInContext = datasetsInContext.includes(datasetId);
+
+  const handleClick = (event: React.MouseEvent) => {
+    if (event.metaKey || event.ctrlKey) {
+      // Cmd+click or Ctrl+click - add to context
+      if (isInContext) {
+        removeDatasetFromContext(datasetId);
+      } else {
+        addDatasetToContext(datasetId);
+      }
+    } else {
+      // Regular click - open tab
+      openTab(datasetId, true);
+    }
+  };
   
   if (!dataset) {
     return null;
@@ -17,7 +40,12 @@ export default function DatasetBox({ datasetId, projectId }: DatasetProps) {
   
   return (
   <div
-    className="px-3 py-3 shadow-md rounded-md border-2 border-[#0E4F70] relative min-w-[100px] max-w-[220px] cursor-pointer hover:bg-[#0E4F70]/10 hover:border-[#0E4F70]"
+    className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[220px] cursor-pointer hover:bg-[#0E4F70]/10 hover:border-[#0E4F70] ${
+      isInContext 
+        ? 'border-[#0E4F70] bg-[#0E4F70]/10 ring-2 ring-[#0E4F70]/30' 
+        : 'border-[#0E4F70]'
+    }`}
+    onClick={handleClick}
   >
     <div className="flex flex-col">
       <div className="flex items-center mb-2">

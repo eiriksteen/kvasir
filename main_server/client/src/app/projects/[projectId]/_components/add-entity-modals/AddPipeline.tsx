@@ -78,11 +78,11 @@ export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
   }, [onClose, isDropdownOpen]);
 
   const handleDatasetToggle = (dataset: Dataset) => {
-    const isActive = datasetsInContext.some((d: Dataset) => d.id === dataset.id);
+    const isActive = datasetsInContext.some((d: UUID) => d === dataset.id);
     if (isActive) {
-      removeDatasetFromContext(dataset);
+      removeDatasetFromContext(dataset.id);
     } else {
-      addDatasetToContext(dataset);
+      addDatasetToContext(dataset.id);
     }
   };
 
@@ -125,7 +125,7 @@ export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
               {datasetsInProject && datasetsInProject.length > 0 ? (
                 <div className="grid gap-0">
                   {datasetsInProject.map((dataset: Dataset, index: number) => {
-                    const isInContext = datasetsInContext.some((d: Dataset) => d.id === dataset.id);
+                    const isInContext = datasetsInContext.some((d: UUID) => d === dataset.id);
                     return (
                       <div key={dataset.id} onClick={() => handleDatasetToggle(dataset)}>
                         <DatasetListItem 
