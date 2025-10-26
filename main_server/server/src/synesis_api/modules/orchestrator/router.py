@@ -1,6 +1,8 @@
 import uuid
 import asyncio
 import logging
+from pydantic_ai.agent import Agent
+from pydantic_ai.messages import FunctionToolCallEvent
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -72,6 +74,7 @@ async def post_chat(
             id=uuid.uuid4(),
             conversation_id=conversation_record.id,
             role="assistant",
+            type="chat",
             content="",
             context_id=None,
             created_at=datetime.now(timezone.utc)
@@ -81,6 +84,7 @@ async def post_chat(
             id=uuid.uuid4(),
             conversation_id=conversation_record.id,
             role="assistant",
+            type="chat",
             content="",
             context_id=None,
             created_at=datetime.now(timezone.utc)
@@ -91,6 +95,7 @@ async def post_chat(
             context_in_db = await create_context(prompt.context)
             plan_response_message.context_id = context_in_db.id
             result_response_message.context_id = context_in_db.id
+        context_id = context_in_db.id if context_in_db else None
 
         # Build the initial prompt with all context information
         initial_prompt = (
@@ -131,12 +136,20 @@ async def post_chat(
                 conversation_record.id,
                 "user",
                 prompt.content,
-                context_id=context_in_db.id if context_in_db else None
+                context_id=context_id,
+                type="chat"
             )
 
-        await create_chat_message(conversation_record.id, "assistant", plan_response_message.content, plan_response_message.context_id, plan_response_message.id)
+        await create_chat_message(
+            conversation_record.id,
+            "assistant",
+            plan_response_message.content,
+            type="chat",
+            context_id=context_id,
+            id=plan_response_message.id
+        )
 
-        orchestator_run = await orchestrator_agent.run(
+        async with orchestrator_agent.iter(
             "Now decide whether to launch an agent, call some other tools, or just respond directly. " +
             "Please limit yourself to one agent launch at a time, unless it really makes sense to parallelize. " +
             "The output is a bool indicating whether you would like to explain the results of your run. " +
@@ -147,17 +160,32 @@ async def post_chat(
             deps=deps,
             message_history=messages+plan_run.new_messages(),
             toolsets=[orchestrator_toolset]
-        )
+        ) as orchestator_run:
+            async for node in orchestator_run:
+                if Agent.is_call_tools_node(node):
+                    async with node.stream(orchestator_run.ctx) as handle_stream:
+                        async for event in handle_stream:
+                            if isinstance(event, FunctionToolCallEvent):
+                                tool_call_message = await create_chat_message(
+                                    conversation_record.id,
+                                    "assistant",
+                                    f"Calling {event.part.tool_name}",
+                                    type="tool_call",
+                                    context_id=context_id
+                                )
+                                yield f"data: {tool_call_message.model_dump_json(by_alias=True)}\n\n"
 
         all_messages_pydantic = [
-            plan_run.new_messages_json(), orchestator_run.new_messages_json()]
+            plan_run.new_messages_json(),
+            orchestator_run.result.new_messages_json()
+        ]
 
-        if orchestator_run.output:
+        if orchestator_run.result.output:
             async with orchestrator_agent.run_stream(
                 "Now explain the results of your run.",
                 output_type=str,
                 deps=deps,
-                message_history=messages+plan_run.new_messages()
+                message_history=messages+plan_run.new_messages()+orchestator_run.result.new_messages()
             ) as result_run:
                 prev_result_text = ""
                 async for result_text in result_run.stream_output(debounce_by=0.01):
@@ -169,7 +197,14 @@ async def post_chat(
             all_messages_pydantic.append(result_run.new_messages_json())
 
             if result_response_message.content:
-                await create_chat_message(conversation_record.id, "assistant", result_response_message.content, result_response_message.context_id, result_response_message.id)
+                await create_chat_message(
+                    conversation_record.id,
+                    "assistant",
+                    result_response_message.content,
+                    type="chat",
+                    context_id=context_id,
+                    id=result_response_message.id
+                )
 
         await create_chat_message_pydantic(conversation_record.id, all_messages_pydantic)
 
@@ -189,6 +224,7 @@ async def post_chat(
             id=uuid.uuid4(),
             conversation_id=conversation_record.id,
             role="assistant",
+            type="chat",
             content="DONE",
             context_id=None,
             created_at=datetime.now(timezone.utc)

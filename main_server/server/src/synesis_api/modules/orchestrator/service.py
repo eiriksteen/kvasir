@@ -109,11 +109,7 @@ async def get_chat_messages_with_context(conversation_id: uuid.UUID) -> list[Cha
 
         # Create ChatMessage with full context
         chat_message_obj = ChatMessage(
-            id=message_data['id'],
-            conversation_id=message_data['conversation_id'],
-            role=message_data['role'],
-            content=message_data['content'],
-            created_at=message_data['created_at'],
+            **message_data,
             context=context_obj,
         )
         chat_messages.append(chat_message_obj)
@@ -138,16 +134,18 @@ async def create_chat_message(
         conversation_id: uuid.UUID,
         role: Literal["user", "assistant"],
         content: str,
+        type: Literal["tool_call", "chat"],
         context_id: Optional[uuid.UUID] = None,
         id: Optional[uuid.UUID] = None,
         created_at: Optional[datetime] = None,
-) -> ChatMessage:
+) -> ChatMessageInDB:
     # Create the message in database using ChatMessageInDB structure
 
     chat_message_record = ChatMessageInDB(
         id=id if id else uuid.uuid4(),
         conversation_id=conversation_id,
         role=role,
+        type=type,
         content=content,
         context_id=context_id,
         created_at=created_at if created_at else datetime.now(timezone.utc)

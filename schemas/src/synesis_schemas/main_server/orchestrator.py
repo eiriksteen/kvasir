@@ -28,6 +28,7 @@ class ChatMessageInDB(BaseModel):
     content: str
     conversation_id: uuid.UUID
     role: Literal["user", "assistant"]
+    type: Literal["tool_call", "chat"]
     context_id: Optional[uuid.UUID] = None
     created_at: datetime = datetime.now(timezone.utc)
 

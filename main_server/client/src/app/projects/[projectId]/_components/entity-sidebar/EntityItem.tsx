@@ -15,9 +15,10 @@ interface EntityItemProps {
     type: ItemType;
     isInContext: boolean;
     onClick: () => void;
+    onOpenTab: () => void;
 }
 
-export default function EntityItem({ item, type, isInContext, onClick }: EntityItemProps) {
+export default function EntityItem({ item, type, isInContext, onClick, onOpenTab }: EntityItemProps) {
     const getTheme = (type: ItemType) => {
         switch (type) {
             case 'model_entity':
@@ -65,9 +66,19 @@ export default function EntityItem({ item, type, isInContext, onClick }: EntityI
 
     const theme = getTheme(type);
 
+    const handleClick = (event: React.MouseEvent) => {
+        if (event.metaKey || event.ctrlKey) {
+            // Cmd+click or Ctrl+click - add to context
+            onClick();
+        } else {
+            // Regular click - open tab
+            onOpenTab();
+        }
+    };
+
     return (
         <div
-            onClick={onClick}
+            onClick={handleClick}
             className={`group relative flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer transition-all duration-150 ${theme.bg} ${theme.hover}`}
         >
             <div className={`flex-shrink-0 ${theme.iconColor}`}>

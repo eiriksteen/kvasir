@@ -48,6 +48,19 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
       setExpandedSections(allSectionIds);
     }
   }, [analysis]);
+  // Handle escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose?.();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape, { capture: true });
+    return () => document.removeEventListener('keydown', handleEscape, { capture: true });
+  }, [onClose]);
 
   // Function to scroll to a specific section
   const scrollToSection = useCallback((sectionId: string) => {
@@ -175,6 +188,7 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
                       analysisObjectId={analysisObjectId}
                       projectId={projectId}
                       onScrollToSection={handleScrollToSection}
+                      closeTab={onClose}
                     />
                   </div>
                   {/* Main Content - Right Side */}

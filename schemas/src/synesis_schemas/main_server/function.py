@@ -3,7 +3,7 @@ from typing import Optional, Literal, List
 from datetime import datetime
 from uuid import UUID
 
-from .code import ScriptInDB, ScriptCreate
+from .code import ScriptCreate, ScriptInDB
 
 
 # DB models

@@ -10,7 +10,10 @@ import {
     useNodesState,
     useEdgesState,
     Handle,
-    Position
+    Position,
+    useReactFlow,
+    useOnViewportChange,
+    Viewport
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useProject } from '@/hooks/useProject';
@@ -21,6 +24,7 @@ import {
   ProjectPipelineInDB, 
   ProjectModelEntityInDB 
 } from '@/types/project';
+import { ReactFlowProvider } from '@xyflow/react';
 import DatasetBox from '@/app/projects/[projectId]/_components/erd/DatasetBox';
 import AnalysisBox from '@/app/projects/[projectId]/_components/erd/AnalysisBox';
 import TransportEdge from '@/app/projects/[projectId]/_components/erd/TransportEdge';
@@ -30,13 +34,13 @@ import { UUID } from 'crypto';
 import ModelEntityBox from '@/app/projects/[projectId]/_components/erd/ModelEntityBox';
 import { useProjectGraph } from '@/hooks/useProjectGraph';
 import { computeBoxEdgeLocations } from '@/app/projects/[projectId]/_components/erd/computeBoxEdgeLocations';
-import { useTabContext } from '@/hooks/useTabContext';
 
-const DataSourceNodeWrapper = ({ data }: { data: { dataSourceId: UUID; onClick: () => void } }) => (
+const DataSourceNodeWrapper = ({ data }: { data: { dataSourceId: UUID; projectId: UUID; openTab: (id: UUID | null, closable?: boolean) => void } }) => (
   <>
     <DataSourceBox
       dataSourceId={data.dataSourceId}
-      onClick={data.onClick}
+      projectId={data.projectId}
+      openTab={data.openTab}
     />
     <Handle type="target" position={Position.Top} style={{ background: '#6b7280', left: 'calc(50% - 8px)' }} id="top-target" />
     <Handle type="source" position={Position.Top} style={{ background: '#6b7280', left: 'calc(50% + 8px)' }} id="top-source" />
@@ -50,12 +54,12 @@ const DataSourceNodeWrapper = ({ data }: { data: { dataSourceId: UUID; onClick: 
 );
 
 // Wrapper component to adapt ReactFlow node props to Dataset component props
-const DatasetNodeWrapper = ({ data }: { data: { datasetId: UUID; projectId: UUID; onClick: () => void } }) => (
+const DatasetNodeWrapper = ({ data }: { data: { datasetId: UUID; projectId: UUID; openTab: (id: UUID | null, closable?: boolean) => void } }) => (
   <>
     <DatasetBox
       datasetId={data.datasetId}
       projectId={data.projectId}
-      onClick={data.onClick}
+      openTab={data.openTab}
     />
     <Handle type="target" position={Position.Top} style={{ background: '#0E4F70', left: 'calc(50% - 8px)' }} id="top-target" />
     <Handle type="source" position={Position.Top} style={{ background: '#0E4F70', left: 'calc(50% + 8px)' }} id="top-source" />
@@ -69,12 +73,12 @@ const DatasetNodeWrapper = ({ data }: { data: { datasetId: UUID; projectId: UUID
 );
 
 // Wrapper component to adapt ReactFlow node props to Analysis component props
-const AnalysisNodeWrapper = ({ data }: { data: { analysisId: UUID; projectId: UUID; onClick: () => void } }) => (
+const AnalysisNodeWrapper = ({ data }: { data: { analysisId: UUID; projectId: UUID; openTab: (id: UUID | null, closable?: boolean) => void } }) => (
   <>
   <AnalysisBox
     analysisId={data.analysisId}
     projectId={data.projectId}
-    onClick={data.onClick}
+    openTab={data.openTab}
   />
   <Handle type="target" position={Position.Top} style={{ background: '#004806', left: 'calc(50% - 8px)' }} id="top-target" />
   <Handle type="source" position={Position.Top} style={{ background: '#004806', left: 'calc(50% + 8px)' }} id="top-source" />
@@ -87,12 +91,12 @@ const AnalysisNodeWrapper = ({ data }: { data: { analysisId: UUID; projectId: UU
   </>
 );
 
-const PipelineNodeWrapper = ({ data }: { data: { pipelineId: UUID; projectId: UUID; onClick: () => void } }) => (
+const PipelineNodeWrapper = ({ data }: { data: { pipelineId: UUID; projectId: UUID; openTab: (id: UUID | null, closable?: boolean) => void } }) => (
   <>
     <PipelineBox
       pipelineId={data.pipelineId}
       projectId={data.projectId}
-      onClick={data.onClick}
+      openTab={data.openTab}
     />
     <Handle type="target" position={Position.Top} style={{ background: '#840B08', left: 'calc(50% - 8px)' }} id="top-target" />
     <Handle type="source" position={Position.Top} style={{ background: '#840B08', left: 'calc(50% + 8px)' }} id="top-source" />
@@ -105,12 +109,12 @@ const PipelineNodeWrapper = ({ data }: { data: { pipelineId: UUID; projectId: UU
   </>
 );
 
-const ModelEntityNodeWrapper = ({ data }: { data: { modelEntityId: UUID; projectId: UUID; onClick: () => void } }) => (
+const ModelEntityNodeWrapper = ({ data }: { data: { modelEntityId: UUID; projectId: UUID; openTab: (id: UUID | null, closable?: boolean) => void } }) => (
   <>
     <ModelEntityBox
       modelEntityId={data.modelEntityId}
       projectId={data.projectId}
-      onClick={data.onClick}
+      openTab={data.openTab}
     />
     <Handle type="target" position={Position.Top} style={{ background: '#491A32', left: 'calc(50% - 8px)' }} id="top-target" />
     <Handle type="source" position={Position.Top} style={{ background: '#491A32', left: 'calc(50% + 8px)' }} id="top-source" />
@@ -137,9 +141,10 @@ const edgeTypes: EdgeTypes = {
 
 interface EntityRelationshipDiagramProps {
   projectId: UUID;
+  openTab: (id: UUID | null, closable?: boolean) => void;
 }
 
-export default function EntityRelationshipDiagram({ projectId }: EntityRelationshipDiagramProps) {
+function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelationshipDiagramProps) {
 
   const getEdgeColor = useCallback((sourceType: string): string => {
     switch (sourceType) {
@@ -158,20 +163,30 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     }
   }, []);
 
-  const { project, updatePosition } = useProject(projectId);
+  const { project, updatePosition, updateProjectViewPort } = useProject(projectId);
   const { projectGraph } = useProjectGraph(projectId);
-  const { openTab } = useTabContext(projectId);
+  
   
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const { setViewport } = useReactFlow();
 
-  // Handler to open tabs
-  const handleOpenTab = useCallback(
-    (id: UUID) => {
-      openTab(id, true);
-    },
-    [openTab]
+
+  useOnViewportChange({
+    onEnd: (viewport: Viewport) => updateProjectViewPort({x: viewport.x, y: viewport.y, zoom: viewport.zoom})
+    }
   );
+
+  useEffect(() => {
+    if (project) {
+      setViewport({
+        x: project.viewPortX,
+        y: project.viewPortY,
+        zoom: project.viewPortZoom,
+      });
+    }
+  }, [project, setViewport]);
+
 
   // Memoize nodes
   const memoizedNodes = useMemo(() => {
@@ -189,7 +204,8 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
         position: { x: projectDataSource.xPosition, y: projectDataSource.yPosition },
         data: {
           dataSourceId: projectDataSource.dataSourceId,
-          onClick: () => handleOpenTab(projectDataSource.dataSourceId)
+          projectId: projectId,
+          openTab,
         },
       });
     });
@@ -203,7 +219,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
         data: {
           datasetId: projectDataset.datasetId,
           projectId: projectId,
-          onClick: () => handleOpenTab(projectDataset.datasetId)
+          openTab,
         },
       });
     });
@@ -217,7 +233,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
         data: {
           pipelineId: projectPipeline.pipelineId,
           projectId: projectId,
-          onClick: () => handleOpenTab(projectPipeline.pipelineId),
+          openTab,
         },
       });
     });
@@ -231,7 +247,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
         data: {
           analysisId: projectAnalysis.analysisId,
           projectId: projectId,
-          onClick: () => handleOpenTab(projectAnalysis.analysisId)
+          openTab,
         },
       });
     });
@@ -245,14 +261,14 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
         data: {
           modelEntityId: projectModelEntity.modelEntityId,
           projectId: projectId,
-          onClick: () => handleOpenTab(projectModelEntity.modelEntityId)
+          openTab,
         },
       });
     });
 
     return nodes;
 
-  }, [project, handleOpenTab, projectId]);
+  }, [project, projectId, openTab]);
 
   // Memoize edges - uses current node positions from state for live updates during dragging
   const memoizedEdges = useMemo(() => {
@@ -359,7 +375,7 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
   }, [memoizedEdges, setEdges]);
 
   const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
-    if (!project) return;
+    if (!project || !node || !node.id) return;
 
     // Determine entity type by checking which list contains the node ID
     let entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity" | null = null;
@@ -395,8 +411,9 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        fitView
+        // fitView
         onNodeDragStop={handleNodeDragStop}
+        // onSelectionChange={handleSelectionChange}
         className="reactflow-no-watermark"
       >
         {/* <Controls /> */}
@@ -412,3 +429,11 @@ export default function EntityRelationshipDiagram({ projectId }: EntityRelations
     </div>
   );
 };
+
+export default function EntityRelationshipDiagram({ projectId, openTab }: EntityRelationshipDiagramProps) {
+  return (
+    <ReactFlowProvider>
+      <EntityRelationshipDiagramContent projectId={projectId} openTab={openTab} />
+    </ReactFlowProvider>
+  );
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Folder } from 'lucide-react';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { UUID } from 'crypto';
@@ -49,27 +49,28 @@ export default function AddDataset({ onClose, projectId }: AddDatasetProps) {
   } = useAgentContext(projectId);
 
   const { submitPrompt } = useProjectChat(projectId);
+  const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (backdropRef.current && event.target === backdropRef.current) {
         onClose();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
+    const backdrop = backdropRef.current;
+    if (backdrop) {
+      backdrop.addEventListener('click', handleClickOutside);
+      return () => backdrop.removeEventListener('click', handleClickOutside);
+    }
   }, [onClose]);
 
   const handleDataSourceToggle = (dataSource: DataSource) => {
-    const isActive = dataSourcesInContext.some((d: DataSource) => d.id === dataSource.id);
+    const isActive = dataSourcesInContext.some((d: UUID) => d === dataSource.id);
     if (isActive) {
-      removeDataSourceFromContext(dataSource);
+      removeDataSourceFromContext(dataSource.id);
     } else {
-      addDataSourceToContext(dataSource);
+      addDataSourceToContext(dataSource.id);
     }
   };
 
@@ -79,7 +80,7 @@ export default function AddDataset({ onClose, projectId }: AddDatasetProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div ref={backdropRef} className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="relative w-full max-w-2xl h-[80vh] bg-white border border-[#0E4F70]/20 rounded-lg shadow-2xl overflow-hidden">
         <button
           onClick={onClose}
@@ -105,7 +106,7 @@ export default function AddDataset({ onClose, projectId }: AddDatasetProps) {
               {dataSources && dataSources.length > 0 ? (
                 <div className="grid gap-0">
                   {dataSources.map((dataSource: DataSource, index: number) => {
-                    const isInContext = dataSourcesInContext.some((d: DataSource) => d.id === dataSource.id);
+                    const isInContext = dataSourcesInContext.some((d: UUID) => d === dataSource.id);
                     return (
                       <div key={dataSource.id} onClick={() => handleDataSourceToggle(dataSource)}>
                         <DataSourceListItem 
