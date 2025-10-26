@@ -317,6 +317,9 @@ This review step ensures the implementation aligns with the user's requirements 
 
 ### Analysis Agent
 The analysis agent handles exploratory data analysis and answering analytical questions about datasets and data sources.
+Usually the input for an analysis is not another analysis, it is a dataset or a data source. Therefore, if the user puts an
+analysis entity in the context, you should most likely use this as the target analysis. It means that the user wants the new analyis
+to be part of a larger analysis object.
 
 ### Dispatching Guidelines
 If the user makes it clear they want to create a new entity from their prompt, you should use your tools to dispatch the relevant agent to achieve this. 

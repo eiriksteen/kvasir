@@ -19,6 +19,7 @@ import { useTables } from '@/hooks/useTables';
 import { BaseTable } from '@/types/tables';
 import TablesItem from '@/components/tables/TableItem';
 import TableConfigurationPopup from '@/components/info-tabs/analysis/TableConfigurationPopup';
+import { createSmoothTextStream } from '@/lib/utils';
 
 interface AnalysisResultProps {
     projectId: UUID;
@@ -27,7 +28,6 @@ interface AnalysisResultProps {
 }
 
 export default function AnalysisResult({ projectId, analysisResult, analysisObjectId }: AnalysisResultProps) {
-    const [showDetails, setShowDetails] = useState(false);
     const [showCode, setShowCode] = useState(false);
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
     const [showPlotConfiguration, setShowPlotConfiguration] = useState(false);
@@ -41,6 +41,8 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
     const analysisTextareaRef = useRef<HTMLTextAreaElement>(null);
     const [isLoadingData, setIsLoadingData] = useState(false);
     const { tables, updateTable, deleteTable } = useTables(analysisResult.id);
+    const [smoothStreamedText, setSmoothStreamedText] = useState(analysisResult.analysis);
+    const streamCancelRef = useRef<{ cancel: () => void } | null>(null);
     
     // Handle click outside to close options
     useEffect(() => {
@@ -77,7 +79,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                 plotUrls: analysisResult.plotUrls
             });
         }
-    }, [analysisResult.id, analysisObjectId]);
+    }, [analysisResult.id, analysisObjectId, analysisResult.plotUrls]);
 
     // Filter streaming messages for this specific analysis result
     const streamingMessages = useMemo(() => {
@@ -110,6 +112,60 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
         }
         return analysisResult;
     }, [latestStreamingMessage, analysisResult]);
+
+    // Ref to track previous content for incremental streaming
+    const previousDisplayContentRef = useRef<string>(displayContent);
+
+    // Smooth streaming effect - triggers when displayContent changes
+    useEffect(() => {
+        const previousContent = previousDisplayContentRef.current;
+        
+        // Check if this is an incremental update (new text appended)
+        if (displayContent.startsWith(previousContent) && displayContent.length > previousContent.length) {
+            // Cancel any existing stream
+            if (streamCancelRef.current) {
+                streamCancelRef.current.cancel();
+            }
+
+            // Extract only the NEW text that was appended
+            const newText = displayContent.slice(previousContent.length);
+            
+            // Stream only the new text, appending to existing smoothStreamedText
+            streamCancelRef.current = createSmoothTextStream(
+                newText,
+                (incrementalText) => {
+                    setSmoothStreamedText(prev => previousContent + incrementalText);
+                },
+                {
+                    mode: 'word',
+                    intervalMs: 15,
+                }
+            );
+        } else if (displayContent !== previousContent) {
+            // Content changed completely (not an append), restart from scratch
+            if (streamCancelRef.current) {
+                streamCancelRef.current.cancel();
+            }
+
+            streamCancelRef.current = createSmoothTextStream(
+                displayContent,
+                setSmoothStreamedText,
+                {
+                    mode: 'word',
+                    intervalMs: 15,
+                }
+            );
+        }
+
+        // Update the ref to track current content
+        previousDisplayContentRef.current = displayContent;
+
+        return () => {
+            if (streamCancelRef.current) {
+                streamCancelRef.current.cancel();
+            }
+        };
+    }, [displayContent]);
 
     // Drag functionality with dnd-kit
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -249,13 +305,6 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                         <div className="flex items-start justify-between">
                             <div className="flex-1">
                                 <div className="text-base text-gray-800 leading-relaxed text-justify">
-                                    {/* Show streaming indicator if there are streaming messages and streaming is not finished */}
-                                    {streamingMessages.length > 0 && !showEditAnalysis && (
-                                        <div className="mb-2 flex items-center gap-2">
-                                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                                            <span className="text-xs text-green-400">Streaming...</span>
-                                        </div>
-                                    )}
                                     {showEditAnalysis ? (
                                         <div className="space-y-3">
                                             <textarea
@@ -294,7 +343,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                                             remarkPlugins={[remarkGfm]}
                                             components={MarkdownComponents}
                                         >
-                                            {displayContent}
+                                            {smoothStreamedText}
                                         </ReactMarkdown>
                                     )}
                                 </div>
@@ -321,14 +370,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                                         >
                                             <Pencil size={12} />
                                         </button>
-                                        <button
-                                            onClick={() => setShowDetails(!showDetails)}
-                                            className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
-                                            title="View details"
-                                        >
-                                            <Info size={12} />
-                                        </button>
-                                        <button
+                                        {/* <button
                                             onClick={() => {
                                                 handlePlot();
                                                 setShowOptions(false);
@@ -349,7 +391,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                                             title="Create table"
                                         >
                                             <Database size={12} />
-                                        </button>
+                                        </button> */}
                                         <button
                                             onClick={handleDelete}
                                             className="p-1 rounded transition-colors text-red-600 hover:text-red-800"
@@ -374,31 +416,25 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                             </div>
                         </div>
 
-                        {/* Details Section - Only shown when info button is pressed */}
-                        {/* {showDetails && ( */}
-                            {/* <div className="mt-3 pt-3 border-t border-gray-200"> */}
-                                {/* Python Code Section */}
-                                {currentAnalysisResult.pythonCode && (
-                                    <div className="pt-3">
-                                        <button
-                                            onClick={() => setShowCode(!showCode)}
-                                            className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 transition-colors mb-2"
-                                        >
-                                            {showCode ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                            <span className="text-xs text-gray-500">Python Code</span>
-                                        </button>
-                                        {showCode && (
-                                            <div className="overflow-x-auto">
-                                                <MarkdownComponents.code
-                                                    className="language-python whitespace-pre min-w-0 w-full"
-                                                    children={currentAnalysisResult.pythonCode}
-                                                />
-                                            </div>
-                                        )}
+                        {currentAnalysisResult.pythonCode && (
+                            <div className="pt-3">
+                                <button
+                                    onClick={() => setShowCode(!showCode)}
+                                    className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 transition-colors mb-2"
+                                >
+                                    {showCode ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                    <span className="text-xs text-gray-500">Python Code</span>
+                                </button>
+                                {showCode && (
+                                    <div className="overflow-x-auto">
+                                        <MarkdownComponents.code
+                                            className="language-python whitespace-pre min-w-0 w-full"
+                                            children={currentAnalysisResult.pythonCode}
+                                        />
                                     </div>
                                 )}
-                            {/* </div> */}
-                        {/* )} */}
+                            </div>
+                        )}
 
                         {/* {plots && plots.map((plot: BasePlot) => (
                             <div className="mt-4" key={plot.id}>
@@ -413,7 +449,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                             </div>
                         ))} */}
 
-                        {tables && tables.map((table: BaseTable) => (
+                        {/* {tables && tables.map((table: BaseTable) => (
                             <div className="mt-4" key={table.id}>
                                 <TablesItem
                                     table={table}
@@ -423,7 +459,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                                     onUpdate={(tableId, tableUpdate) => updateTable({ tableId, tableUpdate })}
                                 />
                             </div>
-                        ))}
+                        ))} */}
 
                         {/* Render plots from analysis storage */}
                         {analysisResultPlots[analysisResult.id] && analysisResultPlots[analysisResult.id].length > 0 && (

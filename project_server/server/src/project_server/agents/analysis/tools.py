@@ -233,6 +233,9 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
         bearer_token=ctx.deps.client.bearer_token,
     )
 
+    plot_path = ANALYSIS_DIR / str(ctx.deps.analysis_id) / str(analysis_result_id) / "plots"
+    plot_path.mkdir(parents=True, exist_ok=True)
+
     async with analysis_helper_agent.run_stream(
         f"You will now create some code and analysis for the user. Generate code and analysis for the following user prompt: {prompt}. \n\n",
         output_type=AnalysisResultModelResponse,

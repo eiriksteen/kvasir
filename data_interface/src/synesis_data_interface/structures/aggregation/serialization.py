@@ -32,8 +32,11 @@ def serialize_dataframe_for_aggregation_object(data: pd.DataFrame) -> RawDataStr
         col = data[col_name]
         dtype = simplify_dtype(col.dtype)
 
-        columns.append(Column(name=col_name, value_type=dtype,
-                       values=col.values.tolist()))
+        if dtype == 'datetime':
+            values = pd.Series(col.values).dt.strftime('%Y-%m-%dT%H:%M:%S').to_list()
+        else:
+            values = col.values.tolist()
+        columns.append(Column(name=col_name, value_type=dtype, values=values))
 
     return RawDataStructure(data=columns)
 

@@ -124,16 +124,7 @@ async def delete_analysis_result(analysis_result_id: uuid.UUID) -> None:
             ),
             commit_after=True
         )
-    await execute(
-        delete(dataset_in_analysis).where(
-            dataset_in_analysis.c.analysis_result_id == analysis_result_id),
-        commit_after=True
-    )
-    await execute(
-        delete(data_source_in_analysis).where(
-            data_source_in_analysis.c.analysis_result_id == analysis_result_id),
-        commit_after=True
-    )
+        
     await execute(
         delete(plot).where(plot.c.analysis_result_id == analysis_result_id),
         commit_after=True

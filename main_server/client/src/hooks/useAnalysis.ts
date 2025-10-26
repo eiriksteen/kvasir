@@ -18,7 +18,7 @@ import {
 } from "@/types/analysis";
 import { AggregationObjectWithRawData } from "@/types/data-objects";
 import { useProject } from "./useProject";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 // import { useAgentContext } from './useAgentContext';
 import { useRuns } from './useRuns';
 import { Run } from "@/types/runs";
@@ -441,13 +441,36 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
   // Subscribe to streaming updates for the first running job
   // Note: For multiple running runs, we would need a more complex implementation
   const firstRunningJob = runningJobs[0];
+
+
+  // TODO: This is a hack to get the latest analysis object while a job is running. We should find a better way to do this.
+  // Poll analysis object while there's a running job to catch new sections/results
+  useEffect(() => {
+    if (!firstRunningJob || !session?.APIToken?.accessToken) {
+      return;
+    }
+
+    // Refetch immediately when job starts
+    mutateCurrentAnalysisObject();
+
+    // Then poll every 2 seconds while job is running
+    const intervalId = setInterval(() => {
+      mutateCurrentAnalysisObject();
+    }, 2000);
+
+    return () => {
+      clearInterval(intervalId);
+      // Final refetch when job completes to ensure we have the latest state
+      mutateCurrentAnalysisObject();
+    };
+  }, [firstRunningJob?.id, session?.APIToken?.accessToken]);
+  
   useSWRSubscription<AnalysisStatusMessage[]>(
     session && firstRunningJob ? ["analysis-agent-stream", firstRunningJob.id, analysisObjectId] : null,
     (_: string, { next }: SWRSubscriptionOptions<AnalysisStatusMessage[]>) => {
       if (!session?.APIToken?.accessToken) {
         return;
       }
-      mutateCurrentAnalysisObject();
       const eventSource = createAnalysisEventSource(session.APIToken.accessToken, firstRunningJob.id);
       eventSource.onmessage = (event) => {
         const newMessage = JSON.parse(event.data) as AnalysisStatusMessage;
@@ -465,8 +488,8 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
       };
       return () => {
         eventSource.close();
-        mutateCurrentAnalysisObject();
-        mutateAnalysisStatusMessages([]);
+        // mutateCurrentAnalysisObject();
+        // mutateAnalysisStatusMessages([]);
       };
     },
     { fallbackData: [] }
