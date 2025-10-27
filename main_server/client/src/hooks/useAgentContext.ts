@@ -1,19 +1,14 @@
-import { Pipeline } from "@/types/pipeline";
-import { Dataset } from "@/types/data-objects";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
-import { AnalysisSmall } from "@/types/analysis";
-import { DataSource } from "@/types/data-sources";
-import { ModelEntity } from "@/types/model";
 import { UUID } from "crypto";
 
 
 // Do this to avoid "possibly undefined" type errors
-const emptyDataSourcesInContext: DataSource[] = [];
-const emptyDatasetsInContext: Dataset[] = [];
-const emptyPipelinesInContext: Pipeline[] = [];
-const emptyAnalysisesInContext: [] = [];
-const emptyModelEntitiesInContext: ModelEntity[] = [];
+const emptyDataSourcesInContext: UUID[] = [];
+const emptyDatasetsInContext: UUID[] = [];
+const emptyPipelinesInContext: UUID[] = [];
+const emptyAnalysisesInContext: UUID[] = [];
+const emptyModelEntitiesInContext: UUID[] = [];
 
 
 export const useAgentContext = (projectId: UUID) => {
@@ -25,22 +20,22 @@ export const useAgentContext = (projectId: UUID) => {
   const { data: modelEntitiesInContext } = useSWR(["modelEntitiesInContext", projectId], { fallbackData: emptyModelEntitiesInContext });
 
   const { trigger: addDataSourceToContext } = useSWRMutation(["dataSourcesInContext", projectId],
-    async (_, { arg }: { arg: DataSource }) => {
+    async (_, { arg }: { arg: UUID }) => {
       return arg;
     },
     {
-      populateCache: (newData: DataSource) => ([...(dataSourcesInContext || []), newData])
+      populateCache: (newData: UUID) => ([...(dataSourcesInContext || []), newData])
     }
   );
 
   const { trigger: removeDataSourceFromContext } = useSWRMutation(["dataSourcesInContext", projectId],
-    async (_, { arg }: { arg: DataSource }) => {
+    async (_, { arg }: { arg: UUID }) => {
       return arg;
     },
     {
-      populateCache: (newData: DataSource) => {
+      populateCache: (newData: UUID) => {
         if (dataSourcesInContext) {
-          return dataSourcesInContext.filter((d: DataSource) => d.id !== newData.id);
+          return dataSourcesInContext.filter((d: UUID) => d !== newData);
         }
         return [];
       }
@@ -48,22 +43,22 @@ export const useAgentContext = (projectId: UUID) => {
   );
 
   const { trigger: addDatasetToContext } = useSWRMutation(["datasetsInContext", projectId],
-    async (_, { arg }: { arg: Dataset }) => {
+    async (_, { arg }: { arg: UUID }) => {
       return arg;
     },
     {
-      populateCache: (newData: Dataset) => ([...(datasetsInContext || []), newData])
+      populateCache: (newData: UUID) => ([...(datasetsInContext || []), newData])
     }
   );
 
   const { trigger: removeDatasetFromContext } = useSWRMutation(["datasetsInContext", projectId],
-    async (_, { arg }: { arg: Dataset }) => {
+    async (_, { arg }: { arg: UUID }) => {
       return arg;
     },
     {
-      populateCache: (newData: Dataset) => {
+      populateCache: (newData: UUID) => {
         if (datasetsInContext) {
-          return datasetsInContext.filter((d: Dataset) => d.id !== newData.id);
+          return datasetsInContext.filter((d: UUID) => d !== newData);
         }
         return [];
       }
@@ -71,22 +66,22 @@ export const useAgentContext = (projectId: UUID) => {
   );
 
   const { trigger: addPipelineToContext } = useSWRMutation(["pipelinesInContext", projectId],
-    async (_, { arg }: { arg: Pipeline }) => {
+    async (_, { arg }: { arg: UUID }) => {
       return arg;
     },
     {
-      populateCache: (newData: Pipeline) => ([...(pipelinesInContext || []), newData])
+      populateCache: (newData: UUID) => ([...(pipelinesInContext || []), newData])
     }
   );
 
   const { trigger: removePipelineFromContext } = useSWRMutation(["pipelinesInContext", projectId],
-    async (_, { arg }: { arg: Pipeline }) => {
+    async (_, { arg }: { arg: UUID }) => {
       return arg;
     },
     {
-      populateCache: (newData: Pipeline) => {
+      populateCache: (newData: UUID) => {
         if (pipelinesInContext) {
-          return pipelinesInContext.filter((a: Pipeline) => a.id !== newData.id);
+          return pipelinesInContext.filter((a: UUID) => a !== newData);
         }
         return [];
       }
@@ -94,11 +89,11 @@ export const useAgentContext = (projectId: UUID) => {
   );
 
   const { trigger: addAnalysisToContext } = useSWRMutation(["analysisesInContext", projectId],
-    async (_, { arg }: { arg: AnalysisSmall }) => {
+    async (_, { arg }: { arg: UUID }) => {
       return arg;
     },
     {
-      populateCache: (newData: AnalysisSmall) => {
+      populateCache: (newData: UUID) => {
         if (analysesInContext) {
           return [...analysesInContext, newData];
         }
@@ -108,13 +103,13 @@ export const useAgentContext = (projectId: UUID) => {
   );
 
   const { trigger: removeAnalysisFromContext } = useSWRMutation(["analysisesInContext", projectId],
-    async (_, { arg }: { arg: AnalysisSmall }) => {
+    async (_, { arg }: { arg: UUID }) => {
       return arg;
     },
     {
-      populateCache: (newData: AnalysisSmall) => {
+      populateCache: (newData: UUID) => {
         if (analysesInContext) {
-          return analysesInContext.filter((a: AnalysisSmall) => a.id !== newData.id);
+          return analysesInContext.filter((a: UUID) => a !== newData);
         }
         return [];
       }
@@ -122,22 +117,22 @@ export const useAgentContext = (projectId: UUID) => {
   );
 
   const { trigger: addModelEntityToContext } = useSWRMutation(["modelEntitiesInContext", projectId],
-    async (_, { arg }: { arg: ModelEntity }) => {
+    async (_, { arg }: { arg: UUID }) => {
       return arg;
     },
     {
-      populateCache: (newData: ModelEntity) => ([...(modelEntitiesInContext || []), newData])
+      populateCache: (newData: UUID) => ([...(modelEntitiesInContext || []), newData])
     }
   );
 
   const { trigger: removeModelEntityFromContext } = useSWRMutation(["modelEntitiesInContext", projectId],
-    async (_, { arg }: { arg: ModelEntity }) => {
+    async (_, { arg }: { arg: UUID }) => {
       return arg;
     },
     {
-      populateCache: (newData: ModelEntity) => {
+      populateCache: (newData: UUID) => {
         if (modelEntitiesInContext) {
-          return modelEntitiesInContext.filter((m: ModelEntity) => m.id !== newData.id);
+          return modelEntitiesInContext.filter((m: UUID) => m !== newData);
         }
         return [];
       }

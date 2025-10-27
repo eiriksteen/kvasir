@@ -2,18 +2,37 @@ import React from 'react';
 import { BarChart3 } from 'lucide-react';
 import { UUID } from 'crypto';
 import { useAnalysis } from '@/hooks/useAnalysis';
+import { useAgentContext } from '@/hooks/useAgentContext';
 
 interface AnalysisBoxProps {
   analysisId: UUID;
   projectId: UUID;
-  onClick?: () => void;
-  // if null, click is disabled
-  // also remove hovering effect to make it look like a disabled button
+  openTab: (id: UUID | null, closable?: boolean) => void;
 }
 
-export default function AnalysisBox({ analysisId, projectId, onClick }: AnalysisBoxProps) {
+export default function AnalysisBox({ analysisId, projectId, openTab }: AnalysisBoxProps) {
   const { currentAnalysisObject } = useAnalysis(projectId, analysisId);
-  const isDisabled = !onClick;
+  const { 
+    analysesInContext, 
+    addAnalysisToContext, 
+    removeAnalysisFromContext 
+  } = useAgentContext(projectId);
+  
+  const isInContext = analysesInContext.includes(analysisId);
+
+  const handleClick = (event: React.MouseEvent) => {
+    if (event.metaKey || event.ctrlKey) {
+      // Cmd+click or Ctrl+click - add to context
+      if (isInContext) {
+        removeAnalysisFromContext(analysisId);
+      } else {
+        addAnalysisToContext(analysisId);
+      }
+    } else {
+      // Regular click - open tab
+      openTab(analysisId, true);
+    }
+  };
   
   if (!currentAnalysisObject) {
     return null;
@@ -21,12 +40,12 @@ export default function AnalysisBox({ analysisId, projectId, onClick }: Analysis
   
   return (
     <div
-      className={`px-3 py-3 shadow-md rounded-md border-2 border-[#004806] relative min-w-[100px] max-w-[220px] ${
-        isDisabled
-          ? 'cursor-default opacity-60'
-          : 'cursor-pointer hover:bg-[#004806]/10 hover:border-[#004806]'
+      className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[220px] cursor-pointer hover:bg-[#004806]/10 hover:border-[#004806] ${
+        isInContext 
+          ? 'border-[#004806] bg-[#004806]/10 ring-2 ring-[#004806]/30' 
+          : 'border-[#004806]'
       }`}
-      onClick={onClick ? onClick : undefined}
+      onClick={handleClick}
     >
       <div className="flex flex-col">
         <div className="flex items-center mb-2">

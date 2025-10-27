@@ -2,17 +2,37 @@ import React from 'react';
 import { Database } from 'lucide-react';
 import { UUID } from 'crypto';
 import { useDataSource } from '@/hooks/useDataSources';
+import { useAgentContext } from '@/hooks/useAgentContext';
 
 interface DataSourceBoxProps {
   dataSourceId: UUID;
-  onClick?: () => void;
-  // if null, click is disabled
-  // also remove hovering effect to make it look like a disabled button
+  projectId: UUID;
+  openTab: (id: UUID | null, closable?: boolean) => void;
 }
 
-export default function DataSourceBox({ dataSourceId, onClick }: DataSourceBoxProps) {
+export default function DataSourceBox({ dataSourceId, projectId, openTab }: DataSourceBoxProps) {
   const { dataSource } = useDataSource(dataSourceId);
-  const isDisabled = !onClick;
+  const { 
+    dataSourcesInContext, 
+    addDataSourceToContext, 
+    removeDataSourceFromContext 
+  } = useAgentContext(projectId);
+  
+  const isInContext = dataSourcesInContext.includes(dataSourceId);
+
+  const handleClick = (event: React.MouseEvent) => {
+    if (event.metaKey || event.ctrlKey) {
+      // Cmd+click or Ctrl+click - add to context
+      if (isInContext) {
+        removeDataSourceFromContext(dataSourceId);
+      } else {
+        addDataSourceToContext(dataSourceId);
+      }
+    } else {
+      // Regular click - open tab
+      openTab(dataSourceId, true);
+    }
+  };
   
   if (!dataSource) {
     return null;
@@ -20,12 +40,12 @@ export default function DataSourceBox({ dataSourceId, onClick }: DataSourceBoxPr
   
   return (
   <div
-    className={`px-3 py-3 shadow-md rounded-md border-2 border-gray-600 relative min-w-[100px] max-w-[220px] ${
-      isDisabled
-        ? 'cursor-default opacity-60'
-        : 'cursor-pointer hover:bg-[#6b7280]/10 hover:border-[#6b7280]'
+    className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[220px] cursor-pointer hover:bg-[#6b7280]/10 hover:border-[#6b7280] ${
+      isInContext 
+        ? 'border-[#6b7280] bg-[#6b7280]/20 ring-4 ring-[#6b7280]/50 shadow-lg' 
+        : 'border-gray-600'
     }`}
-    onClick={onClick ? onClick : undefined}
+    onClick={handleClick}
   >
     <div className="flex flex-col">
       <div className="flex items-center mb-2">

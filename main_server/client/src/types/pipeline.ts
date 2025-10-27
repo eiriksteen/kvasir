@@ -1,6 +1,6 @@
 import { UUID } from "crypto";
 import { FunctionWithoutEmbedding } from "./function";
-import { ScriptInDB } from "./code";
+import { Script } from "./code";
 
 // DB Models
 
@@ -42,6 +42,7 @@ export interface PipelineInputEntities {
   dataSourceIds: UUID[];
   datasetIds: UUID[];
   modelEntityIds: UUID[];
+  analysisIds: UUID[];
 }
 
 export interface PipelineOutputEntities {
@@ -51,7 +52,7 @@ export interface PipelineOutputEntities {
 
 export interface PipelineImplementation extends PipelineImplementationInDB {
   functions: FunctionWithoutEmbedding[];
-  implementationScript: ScriptInDB;
+  implementationScript: Script;
   runs: PipelineRunInDB[];
 }
 

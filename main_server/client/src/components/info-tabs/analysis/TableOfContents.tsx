@@ -9,12 +9,12 @@ import { AnalysisResult as AnalysisResultType } from '@/types/analysis';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
 import GenerateReportPopup from '@/components/info-tabs/analysis/GenerateReportPopup';
 import { useAgentContext } from '@/hooks/useAgentContext';
-import { useTabContext } from '@/hooks/useTabContext';
 
 interface TableOfContentsProps {
   analysisObjectId: UUID;
   projectId: UUID;
   onScrollToSection?: (sectionId: string) => void;
+  closeTab: (id: UUID | null) => void;
 }
 
 interface TocItemProps {
@@ -122,6 +122,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   analysisObjectId,
   projectId,
   onScrollToSection,
+  closeTab,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   // console.log('analysisObjectId', analysisObjectId);
@@ -135,7 +136,6 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   const [showDetails, setShowDetails] = useState(false);
 
   const { addAnalysisToContext, removeAnalysisFromContext } = useAgentContext(projectId);
-  const { closeTab } = useTabContext(projectId);
 
   // Function to collect all section IDs recursively
   const getAllSectionIds = (sections: NotebookSection[]): string[] => {
@@ -205,11 +205,11 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
     if (!analysis) return;
     
     if (analysisInContext) {
-      await removeAnalysisFromContext(analysis as AnalysisObject);
+      await removeAnalysisFromContext(analysis.id);
       setAnalysisInContext(false);
     }
     else {
-      await addAnalysisToContext(analysis as AnalysisObject);
+      await addAnalysisToContext(analysis.id);
       setAnalysisInContext(true);
     }
   };

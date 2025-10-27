@@ -2,10 +2,13 @@ import uuid
 from datetime import datetime, timezone
 from typing import List
 from sqlalchemy import select
-from synesis_schemas.main_server import ScriptCreate, ScriptInDB
+from fastapi import Depends
 
+from synesis_api.auth.service import oauth2_scheme
 from synesis_api.database.service import execute, fetch_all
 from synesis_api.modules.code.models import script
+from synesis_api.client import MainServerClient, get_raw_script
+from synesis_schemas.main_server import ScriptCreate, ScriptInDB
 
 
 async def create_script(user_id: uuid.UUID, script_create: ScriptCreate) -> ScriptInDB:
@@ -23,4 +26,8 @@ async def create_script(user_id: uuid.UUID, script_create: ScriptCreate) -> Scri
 async def get_scripts(script_ids: List[uuid.UUID]) -> List[ScriptInDB]:
     script_query = select(script).where(script.c.id.in_(script_ids))
     script_records = await fetch_all(script_query)
-    return [ScriptInDB(**s) for s in script_records]
+    script_objs = [
+        ScriptInDB(**script_record) for script_record in script_records
+    ]
+
+    return script_objs

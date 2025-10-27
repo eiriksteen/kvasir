@@ -36,6 +36,7 @@ from synesis_schemas.main_server import (
     ModelEntity,
     Analysis,
     UpdateEntityPosition,
+    UpdateProjectViewport,
     GraphNodeConnections,
 )
 from synesis_api.modules.project.agent import project_agent
@@ -114,12 +115,20 @@ async def get_projects(user_id: UUID, project_ids: Optional[List[UUID]] = None) 
             d for d in model_entity_objs if d["project_id"] == project_id]
 
         project_objects.append(Project(
-            **project_row,
+            id=project_row["id"],
+            user_id=project_row["user_id"],
+            name=project_row["name"],
+            description=project_row["description"],
+            created_at=project_row["created_at"],
+            updated_at=project_row["updated_at"],
             data_sources=data_sources_in_project,
             datasets=datasets_in_project,
             analyses=analyses_in_project,
             pipelines=pipelines_in_project,
-            model_entities=model_entities_in_project
+            model_entities=model_entities_in_project,
+            view_port_x=project_row.get("view_port_x", 0.0),
+            view_port_y=project_row.get("view_port_y", 0.0),
+            view_port_zoom=project_row.get("view_port_zoom", 1.0)
         ))
 
     return project_objects
@@ -410,6 +419,21 @@ async def update_entity_position(user_id: UUID, position_data: UpdateEntityPosit
     await execute(update(target_table).where(and_(target_table.c.project_id == position_data.project_id, target_column == position_data.entity_id)).values(x_position=position_data.x_position, y_position=position_data.y_position), commit_after=True)
 
     project_obj = await get_projects(user_id, [position_data.project_id])
+    return project_obj[0] if project_obj else None
+
+
+async def update_project_viewport(user_id: UUID, viewport_data: UpdateProjectViewport) -> Project | None:
+    """Update the viewport position and zoom of a project."""
+    query = update(project).where(
+        and_(project.c.id == viewport_data.project_id, project.c.user_id == user_id)
+    ).values(
+        view_port_x=viewport_data.x,
+        view_port_y=viewport_data.y,
+        view_port_zoom=viewport_data.zoom
+    )
+    await execute(query, commit_after=True)
+
+    project_obj = await get_projects(user_id, [viewport_data.project_id])
     return project_obj[0] if project_obj else None
 
 

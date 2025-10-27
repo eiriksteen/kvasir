@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Set, Callable
 
 from project_server.client import ProjectClient
-from project_server.agents.runner_base import CodeForLog
+from project_server.agents.runner_base import StreamedCode
 from synesis_schemas.main_server import ModelEntity, DataSource, Dataset, Function, Analysis
 
 
@@ -24,4 +24,4 @@ class SWEAgentDeps:
     modified_scripts_old_to_new_name: Dict[str, str] = field(
         default_factory=dict)
     new_scripts: Set[str] = field(default_factory=set)
-    log_code: Optional[Callable[CodeForLog, None]] = None
+    log_code: Optional[Callable[StreamedCode, None]] = None

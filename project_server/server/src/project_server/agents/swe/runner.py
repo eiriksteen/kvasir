@@ -27,7 +27,7 @@ from project_server.client import (
     post_model_entity_implementation,
     get_analyses_by_ids
 )
-from project_server.agents.runner_base import RunnerBase, MessageForLog
+from project_server.agents.runner_base import RunnerBase
 from project_server.entity_manager import script_manager
 from synesis_schemas.main_server import (
     GetModelEntityByIDsRequest,
@@ -129,11 +129,10 @@ class SWEAgentRunner(RunnerBase):
             await self._save_results(run_result.output)
 
             if self.log:
-                await self._log_message(MessageForLog(
+                await self._log_message(
                     content=f"Implementation result: {run_result.output.model_dump_json()}",
-                    type="result",
-                    write_to_db=1
-                ))
+                    type="result"
+                )
 
             await self._complete_agent_run("SWE agent run completed")
 
@@ -184,7 +183,7 @@ class SWEAgentRunner(RunnerBase):
             container_name=self.container_name,
             bearer_token=self.bearer_token,
             client=self.project_client,
-            log_code=self._log_code,
+            log_code=self._stream_code,
             model_entities_injected=self.model_entities,
             data_sources_injected=self.data_sources,
             datasets_injected=self.datasets,

@@ -18,6 +18,9 @@ class ProjectInDB(BaseModel):
     user_id: UUID
     name: str
     description: str
+    view_port_x: float = 0.0
+    view_port_y: float = 0.0
+    view_port_zoom: float = 1.0
     created_at: datetime = datetime.now(timezone.utc)
     updated_at: datetime = datetime.now(timezone.utc)
 
@@ -113,6 +116,13 @@ class UpdateEntityPosition(BaseModel):
     y_position: float
 
 
+class UpdateProjectViewport(BaseModel):
+    project_id: UUID
+    x: float
+    y: float
+    zoom: float
+
+
 class GraphNodeConnections(BaseModel):
     from_data_sources: List[UUID] = []
     from_datasets: List[UUID] = []
@@ -189,5 +199,8 @@ class Project(BaseModel):
     analyses: List[ProjectAnalysisInDB] = []
     pipelines: List[ProjectPipelineInDB] = []
     model_entities: List[ProjectModelEntityInDB] = []
+    view_port_x: float = 0.0
+    view_port_y: float = 0.0
+    view_port_zoom: float = 1.0
     created_at: datetime = datetime.now(timezone.utc)
     updated_at: datetime = datetime.now(timezone.utc)

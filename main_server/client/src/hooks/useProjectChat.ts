@@ -3,16 +3,11 @@ import { ChatMessage, Prompt, Context } from "@/types/orchestrator";
 import { useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useAgentContext } from '@/hooks/useAgentContext';
-import { Dataset } from '@/types/data-objects';
-import { AnalysisSmall } from '@/types/analysis';
 import { v4 as uuidv4 } from 'uuid';
 import { UUID } from "crypto";
-import { DataSource } from "@/types/data-sources";
 import { useConversations } from "@/hooks/useConversations";
 import { SSE } from 'sse.js';
-import { Pipeline } from "@/types/pipeline";
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
-import { ModelEntity } from "@/types/model";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -101,11 +96,11 @@ export const useProjectChat = (projectId: UUID) => {
 
       // Create the context with the context data from hooks
       const context: Context = {
-        dataSourceIds: dataSourcesInContext?.map((dataSource: DataSource) => dataSource.id) || [],
-        datasetIds: datasetsInContext?.map((dataset: Dataset) => dataset.id) || [],
-        pipelineIds: pipelinesInContext?.map((pipeline: Pipeline) => pipeline.id) || [],
-        modelEntityIds: modelEntitiesInContext?.map((modelEntity: ModelEntity) => modelEntity.id) || [],
-        analysisIds: analysesInContext?.map((analysis: AnalysisSmall) => analysis.id) || [],
+        dataSourceIds: dataSourcesInContext || [],
+        datasetIds: datasetsInContext || [],
+        pipelineIds: pipelinesInContext || [],
+        modelEntityIds: modelEntitiesInContext || [],
+        analysisIds: analysesInContext || [],
       };
 
       // Create user message with proper context
@@ -113,6 +108,7 @@ export const useProjectChat = (projectId: UUID) => {
         // Placeholder id, the backend will create the actual id
         id: uuidv4() as UUID,
         role: "user", 
+        type: "chat",
         conversationId: convId,
         content: content,
         context: context,
@@ -173,11 +169,11 @@ export const useProjectChat = (projectId: UUID) => {
   const continueConversation = useCallback(async (conversationId: UUID) => {
 
       const context: Context = {
-        dataSourceIds: dataSourcesInContext?.map((dataSource: DataSource) => dataSource.id) || [],
-        datasetIds: datasetsInContext?.map((dataset: Dataset) => dataset.id) || [],
-        pipelineIds: pipelinesInContext?.map((pipeline: Pipeline) => pipeline.id) || [],
-        modelEntityIds: modelEntitiesInContext?.map((modelEntity: ModelEntity) => modelEntity.id) || [],
-        analysisIds: analysesInContext?.map((analysis: AnalysisSmall) => analysis.id) || [],
+        dataSourceIds: dataSourcesInContext || [],
+        datasetIds: datasetsInContext || [],
+        pipelineIds: pipelinesInContext || [],
+        modelEntityIds: modelEntitiesInContext || [],
+        analysisIds: analysesInContext || [],
       };
 
       const prompt: Prompt = {
