@@ -59,7 +59,13 @@ async def analysis_helper_agent_system_prompt(ctx: RunContext[HelperAgentDeps]) 
 
     env_description = get_sandbox_environment_description()
 
-    return f"{ANALYSIS_HELPER_SYSTEM_PROMPT}\n\n{env_description}\n\n{entities_description}\n\n{data_structure_descriptions}\n\n{data_source_type_descriptions}\n\n"
+    return f"""{ANALYSIS_HELPER_SYSTEM_PROMPT}
+        \n\n{env_description}
+        \n\n{entities_description}
+        \n\n{data_structure_descriptions}
+        \n\n{data_source_type_descriptions}\n\n
+        If you are plotting then you do not need to run plt.show(), but save the plots to the directory: "{ANALYSIS_DIR / str(ctx.deps.analysis_id) / str(ctx.deps.analysis_result_id)}/plots" with the a unique filename.
+    """
 
 
 @analysis_helper_agent.tool()

@@ -1,9 +1,11 @@
 import uuid
 from typing import List, Literal
 from datetime import datetime
+import json
 
 
 from project_server.redis import get_redis
+from project_server.worker import logger
 from synesis_schemas.main_server import (
     Dataset,
     AnalysisResult,
@@ -54,16 +56,25 @@ def get_relevant_metadata_for_prompt(metadata_list: List[dict], datatype: Litera
     return context_part
 
 
-async def post_analysis_result_to_redis(message: AnalysisResult, run_id: uuid.UUID):
+async def post_update_to_redis(analysis_status_message: AnalysisStatusMessage, run_id: uuid.UUID):
     redis_stream = get_redis()
 
-    analysis_status_message = AnalysisStatusMessage(
-        id=uuid.uuid4(),
-        run_id=run_id,
-        result=message,
-        created_at=datetime.now()
-    )
+    message_dict = analysis_status_message.model_dump(mode="json", exclude={"section", "analysis_result"})
+    if analysis_status_message.section:
+        try:
+            message_dict["section"] = analysis_status_message.section.model_dump_json()
+        except Exception as e:
+            logger.error(f"Error dumping section: {e}")
+            raise e
+    if analysis_status_message.analysis_result:
+        try:
+            message_dict["analysis_result"] = analysis_status_message.analysis_result.model_dump_json()
+        except Exception as e:
+            logger.error(f"Error dumping analysis result: {e}")
+            raise e
 
-    message_dict = analysis_status_message.model_dump(mode="json")
-    message_dict['result'] = message.model_dump_json()
-    await redis_stream.xadd(str(run_id) + "-result", message_dict)
+    try:
+        await redis_stream.xadd(str(run_id) + "-analysis-status-message", message_dict)
+    except Exception as e:
+        logger.error(f"Error posting to redis: {e}")
+        raise e

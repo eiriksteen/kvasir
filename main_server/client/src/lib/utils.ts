@@ -192,3 +192,58 @@ export const buildOrderedList = (
 	// Generate and download file
 	XLSX.writeFile(workbook, `${filename}.xlsx`);
   };
+
+  // Smooth text streaming utility
+  // Streams text character by character or word by word for a smoother UX
+  export const createSmoothTextStream = (
+	targetText: string,
+	onUpdate: (currentText: string) => void,
+	options: {
+	  chunkSize?: number; // Number of characters to add per interval
+	  intervalMs?: number; // Milliseconds between updates
+	  mode?: 'character' | 'word'; // Stream by character or by word
+	} = {}
+  ): { cancel: () => void } => {
+	const { chunkSize = 3, intervalMs = 20, mode = 'character' } = options;
+	
+	let currentIndex = 0;
+	let cancelled = false;
+	
+	const streamNext = () => {
+	  if (cancelled || currentIndex >= targetText.length) {
+		// Ensure final text is set
+		if (!cancelled) {
+		  onUpdate(targetText);
+		}
+		return;
+	  }
+	  
+	  if (mode === 'word') {
+		// Stream by words for a more natural reading experience
+		const remainingText = targetText.slice(currentIndex);
+		const wordMatch = remainingText.match(/^(\s*\S+\s*)/);
+		
+		if (wordMatch) {
+		  currentIndex += wordMatch[0].length;
+		} else {
+		  currentIndex = targetText.length;
+		}
+	  } else {
+		// Stream by characters
+		currentIndex = Math.min(currentIndex + chunkSize, targetText.length);
+	  }
+	  
+	  onUpdate(targetText.slice(0, currentIndex));
+	  setTimeout(streamNext, intervalMs);
+	};
+	
+	// Start streaming
+	setTimeout(streamNext, 0);
+	
+	return {
+	  cancel: () => {
+		cancelled = true;
+		onUpdate(targetText); // Show full text immediately on cancel
+	  }
+	};
+  };

@@ -29,9 +29,25 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
   // Refs for scrolling to sections
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   
-  // Expansion state for sections in main content
+  // Expansion state for sections in main content - initially expand all sections
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
+  // Update expanded sections when analysis loads
+  useEffect(() => {
+    if (analysis?.notebook?.notebookSections) {
+      const allSectionIds = new Set<string>();
+      const collectSectionIds = (sections: NotebookSection[]) => {
+        sections.forEach(section => {
+          allSectionIds.add(section.id);
+          if (section.notebookSections) {
+            collectSectionIds(section.notebookSections);
+          }
+        });
+      };
+      collectSectionIds(analysis.notebook.notebookSections);
+      setExpandedSections(allSectionIds);
+    }
+  }, [analysis]);
   // Handle escape key to close modal
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -159,15 +175,15 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
 
   return (
     <div className="w-full h-full bg-white overflow-hidden">
-      <div className="bg-white h-full px-0 pb-2 relative">
+      <div className="bg-white h-full relative">
         <div className="flex flex-col h-full">
           {/* Content Section */}
           <div className="flex-1 min-h-0">
-            <div className="h-full p-4">
+            <div className="h-full">
               <DndContext onDragEnd={handleDragEnd}>
                 <div className="flex h-full">
                   {/* Table of Contents - Left Side - Responsive */}
-                  <div className="flex-shrink-0 sticky top-0 h-full overflow-y-auto">
+                  <div className="flex-shrink-0 sticky h-full overflow-y-auto">
                     <TableOfContents
                       analysisObjectId={analysisObjectId}
                       projectId={projectId}
@@ -179,41 +195,47 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
                   <div className="flex-1 text-sm text-gray-600 flex flex-col overflow-y-auto">
                     {/* Sections Content */}
                     {orderedItems.length > 0 && (
-                      <div className="flex-1 px-1">
-                        <div className="space-y-1">
-                          {orderedItems.map((item: NotebookSection | AnalysisResultType) => {
-                            
-                            return (
-                              <Fragment key={item.id}>
-                                
-                                {('sectionName' in item) ? (
-                                  <div ref={setSectionRef(item.id)}>
-                                    <SectionItem
-                                      section={item}
-                                      sections={allSections}
-                                      projectId={projectId}
-                                      analysisObjectId={analysisObjectId}
-                                      depth={0}
-                                      onScrollToSection={handleScrollToSection}
-                                      setSectionRef={setSectionRef}
-                                      expandedSections={expandedSections}
-                                      setExpandedSections={setExpandedSections}
-                                    />
-                                  </div>
-                                ) : (
-                                  <div ref={setSectionRef(item.id)} className="flex items-start gap-2">
-                                    <AnalysisResult 
-                                      projectId={projectId}
-                                      analysisResult={item}
-                                      analysisObjectId={analysisObjectId}
-                                    />
-                                  </div>
-                                )}
-                                
-                              </Fragment>
-                            );
-                          })}
-                        </div>
+                      <div className="flex-1 px-2">
+                        {/* <div className="space-y-3"> */}
+                          {(() => {
+                            let sectionCounter = 0;
+                            return orderedItems.map((item: NotebookSection | AnalysisResultType) => {
+                              const isSection = 'sectionName' in item;
+                              if (isSection) sectionCounter++;
+                              
+                              return (
+                                <Fragment key={item.id}>
+                                  
+                                  {isSection ? (
+                                    <div ref={setSectionRef(item.id)}>
+                                      <SectionItem
+                                        section={item}
+                                        sections={allSections}
+                                        projectId={projectId}
+                                        analysisObjectId={analysisObjectId}
+                                        depth={0}
+                                        numbering={`${sectionCounter}`}
+                                        onScrollToSection={handleScrollToSection}
+                                        setSectionRef={setSectionRef}
+                                        expandedSections={expandedSections}
+                                        setExpandedSections={setExpandedSections}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div ref={setSectionRef(item.id)}>
+                                      <AnalysisResult 
+                                        projectId={projectId}
+                                        analysisResult={item}
+                                        analysisObjectId={analysisObjectId}
+                                      />
+                                    </div>
+                                  )}
+                                  
+                                </Fragment>
+                              );
+                            });
+                          })()}
+                        {/* </div> */}
                       </div>
                     )}
 

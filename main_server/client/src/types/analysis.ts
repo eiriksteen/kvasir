@@ -3,7 +3,8 @@ import { UUID } from "crypto";
 export interface AnalysisStatusMessage {
     id: UUID;
     runId: UUID;
-    result: AnalysisResult;
+    section: NotebookSection | null;
+    analysisResult: AnalysisResult | null;
     createdAt: string;
 }
 
@@ -16,6 +17,7 @@ export interface AnalysisResult {
     nextType: 'analysis_result' | 'notebook_section' | null;
     nextId: UUID | null;
     sectionId: UUID | null;
+    plotUrls: string[];
 }
 
 export interface NotebookSection {
@@ -86,9 +88,6 @@ export interface NotebookSectionUpdate {
     sectionDescription?: string | null;
 }
 
-export interface AnalysisResultUpdate {
-    analysis?: string;
-}
 
 export interface SectionReorderRequest {
     reorderSections: UUID[];

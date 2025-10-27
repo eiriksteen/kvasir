@@ -12,6 +12,7 @@ class AnalysisDeps:
     run_id: uuid.UUID
     project_id: uuid.UUID
     analysis_id: uuid.UUID
+    results_generated: bool = False
     model_entities_injected: List[ModelEntity] = field(default_factory=list)
     analyses_injected: List[Analysis] = field(default_factory=list)
     data_sources_injected: List[DataSource] = field(default_factory=list)

@@ -161,7 +161,8 @@ plot = Table(
     Column('id', UUID, primary_key=True, default=uuid.uuid4),
     Column('analysis_result_id', UUID, ForeignKey(
         'analysis.analysis_result.id'), nullable=False),
-    Column('plot_config', JSON, nullable=False),
+#     Column('plot_config', JSON, nullable=False), # TODO: uncomment this when we change to echarts.
+    Column('plot_url', String, nullable=False),
     schema='analysis',
 )
 

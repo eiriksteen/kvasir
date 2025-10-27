@@ -1,17 +1,11 @@
 import uuid
 from pydantic import ValidationError
 from pydantic_ai import RunContext
-from typing import List, Literal
+from typing import List, Literal, Optional
+from datetime import datetime
 
 
-from project_server.client import (
-    get_project,
-    get_datasets_by_ids,
-    get_data_sources_by_ids,
-)
 from synesis_schemas.main_server import (
-    GetDatasetsByIDsRequest,
-    GetDataSourcesByIDsRequest,
     AnalysisResult,
     NotebookSectionCreate,
     MoveRequest,
@@ -23,11 +17,12 @@ from synesis_schemas.main_server import (
     TableCreate,
     TableConfig,
     TableColumn,
+    NotebookSection,
     AggregationObjectCreate,
+    AnalysisStatusMessage,
 )
-from project_server.agents.analysis.utils import simplify_dataset_overview, post_analysis_result_to_redis
+from project_server.agents.analysis.utils import post_update_to_redis
 from project_server.client import (
-    get_analyses_by_project_request,
     create_section_request,
     update_section_request,
     delete_section_request,
@@ -44,80 +39,8 @@ from project_server.client.requests.tables import create_table
 from project_server.agents.analysis.helper_agent import analysis_helper_agent, HelperAgentDeps
 from project_server.agents.analysis.deps import AnalysisDeps
 from project_server.agents.analysis.output import AnalysisResultModelResponse, AggregationObjectCreateResponse, AnalysisResultMoveRequest, SectionMoveRequest
-
-
-# async def search_through_datasets(ctx: RunContext[AnalysisDeps]) -> str:
-#     """
-#     Searches through all datasets in a project. This tool is useful when the context the user has provided is incomplete.
-
-#     Args:
-#         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-#     """
-#     project = await get_project(ctx.deps.client, ctx.deps.project_id)
-#     dataset_ids = [
-#         project_dataset.dataset_id for project_dataset in project.datasets]
-#     datasets = await get_datasets_by_ids(ctx.deps.client, GetDatasetsByIDsRequest(dataset_ids=dataset_ids))
-#     datasets_overview = simplify_dataset_overview(datasets)
-
-#     dataset_message = f"""
-#         <Available datasets>
-#         {datasets_overview}
-#         </Available datasets>
-#     """
-#     return dataset_message
-
-
-# async def search_through_data_sources(ctx: RunContext[AnalysisDeps]) -> str:
-#     """
-#     Searches through all data sources in a project. This tool is useful when the context the user has provided is incomplete.
-
-#     Args:
-#         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-#     """
-#     project = await get_project(ctx.deps.client, ctx.deps.project_id)
-#     data_source_ids = [pds.data_source_id for pds in project.data_sources]
-#     data_sources = await get_data_sources_by_ids(ctx.deps.client, GetDataSourcesByIDsRequest(data_source_ids=data_source_ids))
-#     data_source_message = f"""
-#         <Available data sources>
-#         {data_sources}
-#         </Available data sources>
-#     """
-#     return data_source_message
-
-
-# async def search_through_analyses(ctx: RunContext[AnalysisDeps]) -> str:
-#     """
-#     Returns all the analysis objects in a project. This tool is useful when you do not know which analysis object to add or edit an analysis result to.
-
-#     Args:
-#         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-#     """
-#     analyses = await get_analyses_by_project_request(ctx.deps.client, ctx.deps.project_id)
-
-#     analyses_message = f"""
-#         <Available analyses>
-#         Analyses in project: {analyses}
-#         </Available analyses>
-#     """
-
-#     return analyses_message
-
-
-async def search_through_analysis_results(ctx: RunContext[AnalysisDeps], analysis_result_ids: List[uuid.UUID]) -> str:
-    """
-    Searches through all analysis results you provide the id to. This tool is useful when you do not know which analysis result to add or edit an analysis result to.
-
-    Args:
-        ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        analysis_result_ids (List[uuid.UUID]): The IDs of the analysis results to search through.
-    """
-    analysis_results = await get_analysis_results_by_ids_request(ctx.deps.client, AnalysisResultFindRequest(analysis_result_ids=analysis_result_ids))
-    analysis_results_message = f"""
-        <Analysis results>
-        Analysis results: {analysis_results}
-        </Analysis results>
-    """
-    return analysis_results_message
+from project_server.app_secrets import ANALYSIS_DIR
+from project_server.worker import logger
 
 
 def search_knowledge_bank(prompt: str) -> List[str]:
@@ -145,21 +68,6 @@ def search_knowledge_bank(prompt: str) -> List[str]:
             ]
 
 
-async def add_analysis_result_to_notebook_section(ctx: RunContext[AnalysisDeps], notebook_section_id: uuid.UUID, analysis_result_id: uuid.UUID) -> str:
-    """
-    Add an analysis result to a notebook section.
-
-    Args:
-        ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        notebook_section_id (uuid.UUID): The ID of the notebook section.
-        analysis_result_id (uuid.UUID): The ID of the analysis result.
-    """
-    try:
-        await add_analysis_result_to_section_request(ctx.deps.client, ctx.deps.analysis_id, notebook_section_id, analysis_result_id)
-        return "Analysis result successfully added to notebook section"
-    except Exception as e:
-        return f"Error adding analysis result to notebook section: {e}"
-
 
 async def create_notebook_section(ctx: RunContext[AnalysisDeps], section_create: List[NotebookSectionCreate]) -> str:
     """
@@ -173,6 +81,14 @@ async def create_notebook_section(ctx: RunContext[AnalysisDeps], section_create:
         section_ids = []
         for section in section_create:  # Must have synchronous creation of sections to avoid race conditions
             section_in_db = await create_section_request(ctx.deps.client, ctx.deps.analysis_id, section)
+            analysis_status_message = AnalysisStatusMessage(
+                id=uuid.uuid4(),
+                run_id=ctx.deps.run_id,
+                section=section_in_db,
+                created_at=datetime.now()
+            )
+
+            await post_update_to_redis(analysis_status_message, ctx.deps.run_id)
             section_ids.append(section_in_db.id)
         return f"Notebook sections successfully created. Section ids: {section_ids}"
     except Exception as e:
@@ -261,33 +177,40 @@ async def move_sections(ctx: RunContext[AnalysisDeps], section_move_requests: Li
         return f"Error moving section: {e}"
 
 
-async def create_empty_analysis_result(ctx: RunContext[AnalysisDeps], section_id: uuid.UUID) -> str:
-    """
-    Create an empty analysis result.
+# async def create_empty_analysis_result(ctx: RunContext[AnalysisDeps], section_id: uuid.UUID) -> str:
+#     """
+#     Create an empty analysis result.
 
-    Args:
-        ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        section_id (uuid.UUID): The ID of the section the analysis result should be added to.
-    """
-    analysis_result = AnalysisResult(
-        id=uuid.uuid4(),
-        analysis='',
-        python_code='',
-        output_variable='',
-        input_variable='',
-        dataset_ids=[],
-        next_type=None,
-        next_id=None,
-        section_id=section_id
-    )
-    try:
-        analysis_result_in_db = await create_analysis_result_request(ctx.deps.client, analysis_result)
-        return f"Empty analysis result successfully created. Analysis result id: {analysis_result_in_db.id}"
-    except Exception as e:
-        return f"Error creating empty analysis result: {e}"
+#     Args:
+#         ctx (RunContext[AnalysisDeps]): The context of the analysis.
+#         section_id (uuid.UUID): The ID of the section the analysis result should be added to.
+#     """
+#     analysis_result = AnalysisResult(
+#         id=uuid.uuid4(),
+#         analysis='',
+#         python_code='',
+#         output_variable='',
+#         input_variable='',
+#         dataset_ids=[],
+#         next_type=None,
+#         next_id=None,
+#         section_id=section_id
+#     )
+#     try:
+#         analysis_result_in_db = await create_analysis_result_request(ctx.deps.client, analysis_result)
+#         return f"Empty analysis result successfully created. Analysis result id: {analysis_result_in_db.id}"
+#     except Exception as e:
+#         return f"Error creating empty analysis result: {e}"
 
 
-async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_result_id: uuid.UUID, prompt: str, dataset_ids: List[uuid.UUID], data_source_ids: List[uuid.UUID]) -> str:
+async def generate_analysis_result(
+    ctx: RunContext[AnalysisDeps],
+    prompt: str,
+    dataset_ids: List[uuid.UUID],
+    data_source_ids: List[uuid.UUID],
+    analysis_result_id: Optional[uuid.UUID] = None,
+    section_id: Optional[uuid.UUID] = None,
+) -> str:
     """
     This tool generates code and runs it in a python container. It streams the analysis result to the user.
     This tool can also be used to edit an analysis result. A user might want to edit for several reasons:
@@ -298,12 +221,50 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
 
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        analysis_result_id (uuid.UUID): The ID of the analysis result to make.
         prompt (str): The prompt to generate the analysis result for. 
         dataset_ids (List[uuid.UUID]): List of the IDs of the datasets to use for the analysis.
         data_source_ids (List[uuid.UUID]): List of the IDs of the datasources to use for the analysis.
+        analysis_result_id (Optional[uuid.UUID]): The ID of the analysis result to edit. If not provided, a new analysis result will be created.
+        section_id (Optional[uuid.UUID]): The ID of the section to add the analysis result to. Required if analysis result ID is not provided. Not used if analysis result ID is provided.
     """
-    current_analysis_result = await get_analysis_result_by_id_request(ctx.deps.client, analysis_result_id)
+
+    if analysis_result_id is None:
+        assert section_id is not None, "Section ID is required if analysis result ID is not provided"
+        current_analysis_result = AnalysisResult(
+            id=uuid.uuid4(),
+            analysis='',
+            python_code='',
+            output_variable='',
+            input_variable='',
+            dataset_ids=[],
+            next_type=None,
+            next_id=None,
+            section_id=section_id
+        )
+        analysis_result_in_db = await create_analysis_result_request(ctx.deps.client, current_analysis_result)
+        analysis_result_id = analysis_result_in_db.id
+    else:
+        current_analysis_result = await get_analysis_result_by_id_request(ctx.deps.client, analysis_result_id)
+
+    # analysis_result = AnalysisResult(
+    #     id=analysis_result_id,
+    #     analysis='',
+    #     python_code='',
+    #     output_variable='',
+    #     input_variable='',
+    #     dataset_ids=dataset_ids,
+    #     data_source_ids=data_source_ids,
+    #     next_type=current_analysis_result.next_type,
+    #     next_id=current_analysis_result.next_id,
+    #     section_id=current_analysis_result.section_id,
+    # )
+    analysis_status_message = AnalysisStatusMessage(
+        id=uuid.uuid4(),
+        run_id=ctx.deps.run_id,
+        analysis_result=current_analysis_result,
+        created_at=datetime.now()
+    )
+    await post_update_to_redis(analysis_status_message, ctx.deps.run_id)
 
     helper_agent_deps = HelperAgentDeps(
         model_entities_injected=ctx.deps.model_entities_injected,
@@ -313,6 +274,10 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
         analysis_result_id=analysis_result_id,
         bearer_token=ctx.deps.client.bearer_token,
     )
+
+    plot_path = ANALYSIS_DIR / \
+        str(ctx.deps.analysis_id) / str(analysis_result_id) / "plots"
+    plot_path.mkdir(parents=True, exist_ok=True)
 
     async with analysis_helper_agent.run_stream(
         f"You will now create some code and analysis for the user. Generate code and analysis for the following user prompt: {prompt}. \n\n",
@@ -334,9 +299,16 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
                     next_id=current_analysis_result.next_id,
                     section_id=current_analysis_result.section_id,
                 )
-                await post_analysis_result_to_redis(analysis_result, ctx.deps.run_id)
+                analysis_status_message = AnalysisStatusMessage(
+                    id=uuid.uuid4(),
+                    run_id=ctx.deps.run_id,
+                    analysis_result=analysis_result,
+                    created_at=datetime.now()
+                )
+                await post_update_to_redis(analysis_status_message, ctx.deps.run_id)
             except ValidationError:
                 continue
+
     aggregation_object_result = await analysis_helper_agent.run(
         "Give a name and a description of the analysis result you just created.",
         message_history=result.new_messages(),
@@ -351,6 +323,14 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
 
     await create_aggregation_object_request(ctx.deps.client, aggregation_object_create)
 
+    plot_files = []
+    plot_dir = ANALYSIS_DIR / \
+        str(ctx.deps.analysis_id) / str(analysis_result_id) / "plots"
+    if plot_dir.exists():
+        plot_files = [str(p.name) for p in plot_dir.glob("*.png")]
+
+    analysis_result.plot_urls = plot_files
+
     await update_analysis_result_request(ctx.deps.client, analysis_result)
     return_string = f"""
         Analysis result successfully created. Analysis result id: {analysis_result.id}
@@ -358,6 +338,7 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
         This is the python code that was used to generate the analysis result: {analysis_result.python_code}
     """
 
+    ctx.deps.results_generated = True
     return return_string
 
 

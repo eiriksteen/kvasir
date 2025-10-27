@@ -1,7 +1,7 @@
 from uuid import UUID
 from datetime import datetime, timezone
 from typing import List, Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 # API schemas
@@ -14,6 +14,8 @@ class AnalysisResult(BaseModel):
     next_type: Literal['analysis_result', 'notebook_section'] | None = None
     next_id: UUID | None = None
     section_id: UUID | None = None
+    plot_urls: List[str] = []
+
 
 
 class NotebookSection(BaseModel):
@@ -58,8 +60,15 @@ class Analysis(AnalysisSmall):
 class AnalysisStatusMessage(BaseModel):
     id: UUID
     run_id: UUID
-    result: AnalysisResult
+    section: NotebookSection | None = None
+    analysis_result: AnalysisResult | None = None
     created_at: datetime = datetime.now()
+
+    @model_validator(mode='after')
+    def check_section_or_analysis_result(self) -> 'AnalysisStatusMessage':
+        if self.section is None and self.analysis_result is None:
+            raise ValueError("Either section or analysis_result must be set")
+        return self
 
 
 class GetAnalysesByIDsRequest(BaseModel):

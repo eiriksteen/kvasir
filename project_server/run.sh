@@ -33,17 +33,17 @@ fi
 if [ "$1" = "dev" ]; then
     if [ "$2" = "build" ]; then
         echo "Building and starting development environment..."
-        docker-compose -f docker/docker-compose-dev.yaml -p project up --build
+        docker compose -f docker/docker-compose-dev.yaml -p project up --build
     else
         echo "Starting development environment..."
-        docker-compose -f docker/docker-compose-dev.yaml -p project up
+        docker compose -f docker/docker-compose-dev.yaml -p project up
     fi
 elif [ "$1" = "prod" ]; then
     if [ "$2" = "build" ]; then
         echo "Building and starting production environment..."
-        docker-compose -f docker/docker-compose.yaml -p project up --build
+        docker compose -f docker/docker-compose.yaml -p project up --build
     else
         echo "Starting production environment..."
-        docker-compose -f docker/docker-compose.yaml -p project up
+        docker compose -f docker/docker-compose.yaml -p project up
     fi
 fi

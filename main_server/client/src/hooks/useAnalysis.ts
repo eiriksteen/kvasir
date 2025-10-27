@@ -9,7 +9,6 @@ import {
   AnalysisResult,
   NotebookSectionCreate,
   NotebookSectionUpdate,
-  AnalysisResultUpdate,
   SectionReorderRequest,
   SectionMoveRequest,
   NotebookSection,
@@ -19,7 +18,7 @@ import {
 } from "@/types/analysis";
 import { AggregationObjectWithRawData } from "@/types/data-objects";
 import { useProject } from "./useProject";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 // import { useAgentContext } from './useAgentContext';
 import { useRuns } from './useRuns';
 import { Run } from "@/types/runs";
@@ -186,14 +185,14 @@ export async function updateNotebookSection(token: string, analysisObjectId: str
   return snakeToCamelKeys(data);
 }
 
-export async function updateAnalysisResult(token: string, analysisResultId: string, analysisResultUpdate: AnalysisResultUpdate): Promise<AnalysisResult> {
+export async function updateAnalysisResult(token: string, analysisResultId: string, analysisResult: AnalysisResult): Promise<AnalysisResult> {
   const response = await fetch(`${API_URL}/analysis/analysis-result/${analysisResultId}`, {
     method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(camelToSnakeKeys(analysisResultUpdate))
+    body: JSON.stringify(camelToSnakeKeys(analysisResult))
   });
 
   if (!response.ok) {
@@ -336,6 +335,23 @@ export async function deleteAnalysisResultEndpoint(token: string, analysisObject
     const errorText = await response.text();
     throw new Error(`Failed to delete analysis result: ${response.status} ${errorText}`);
   }
+}
+
+export async function getAnalysisResultPlotsEndpoint(token: string, analysisObjectId: string, analysisResultId: string, plotUrl: string): Promise<string> {
+  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/analysis-result/${analysisResultId}/${plotUrl}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    
+    throw new Error(`Failed to get analysis result plots: ${response.status} ${errorText}`);
+  }
+  const url = URL.createObjectURL(await response.blob());
+  return url;
 } 
 
 
@@ -349,10 +365,10 @@ export const useAnalyses = (projectId: UUID) => {
 
     const { addEntity } = useProject(projectId);
     
-    const { data: analysisObjects, mutate: mutateAnalysisObjects } = useSWR(session ? ["analysisObjects", projectId] : null, () => fetchAnalysisObjects(session ? session.APIToken.accessToken : "", projectId), {fallbackData: [] as AnalysisObjectSmall[]});
+    const { data: analysisObjects, mutate: mutateAnalysisObjects } = useSWR(session && projectId ? ["analysisObjects", projectId] : null, () => fetchAnalysisObjects(session ? session.APIToken.accessToken : "", projectId), {fallbackData: [] as AnalysisObjectSmall[]});
 
     const { trigger: createAnalysisObject } = useSWRMutation(
-      session ? ["analysisObjects", projectId] : null,
+      session && projectId ? ["analysisObjects", projectId] : null,
       async (_, { arg }: { arg: AnalysisObjectCreate }) => {
         const analysisObject = await postAnalysisObject(session ? session.APIToken.accessToken : "", arg);
         return analysisObject;
@@ -425,16 +441,35 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
   // Subscribe to streaming updates for the first running job
   // Note: For multiple running runs, we would need a more complex implementation
   const firstRunningJob = runningJobs[0];
+  
+  // Track which sections and results we've already seen to trigger refetch only once
+  const seenSectionsRef = useRef<Set<UUID>>(new Set());
+  const seenResultsRef = useRef<Set<UUID>>(new Set());
+  
   useSWRSubscription<AnalysisStatusMessage[]>(
     session && firstRunningJob ? ["analysis-agent-stream", firstRunningJob.id, analysisObjectId] : null,
     (_: string, { next }: SWRSubscriptionOptions<AnalysisStatusMessage[]>) => {
       if (!session?.APIToken?.accessToken) {
         return;
       }
-      mutateCurrentAnalysisObject();
       const eventSource = createAnalysisEventSource(session.APIToken.accessToken, firstRunningJob.id);
       eventSource.onmessage = (event) => {
-        const newMessage = JSON.parse(event.data) as AnalysisStatusMessage;
+        // Parse and convert snake_case keys to camelCase
+        const rawMessage = JSON.parse(event.data);
+        const newMessage = snakeToCamelKeys(rawMessage) as AnalysisStatusMessage;
+        console.log("newMessage (converted to camelCase)", newMessage);
+
+        // If the message contains a new section we haven't seen, refetch the analysis object
+        if (newMessage.section && !seenSectionsRef.current.has(newMessage.section.id)) {
+          seenSectionsRef.current.add(newMessage.section.id);
+          mutateCurrentAnalysisObject();
+        }
+
+        // If the message contains a new result we haven't seen, refetch the analysis object
+        if (newMessage.analysisResult && !seenResultsRef.current.has(newMessage.analysisResult.id)) {
+          seenResultsRef.current.add(newMessage.analysisResult.id);
+          mutateCurrentAnalysisObject();
+        }
 
         // Append the new message to analysisStatusMessages, deduplicating by id
         mutateAnalysisStatusMessages((current: AnalysisStatusMessage[] = []) => {
@@ -449,8 +484,11 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
       };
       return () => {
         eventSource.close();
-        mutateCurrentAnalysisObject();
-        mutateAnalysisStatusMessages([]);
+        // Clear seen tracking when subscription ends
+        seenSectionsRef.current.clear();
+        seenResultsRef.current.clear();
+        // mutateCurrentAnalysisObject();
+        // mutateAnalysisStatusMessages([]);
       };
     },
     { fallbackData: [] }
@@ -505,11 +543,11 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
 
   const { trigger: updateAnalysisResultMutation } = useSWRMutation(
     "analysisObject",
-    async (_, { arg }: { arg: { analysisResultId: UUID, analysisResultUpdate: AnalysisResultUpdate } }): Promise<AnalysisResult> => {
+    async (_, { arg }: { arg: { analysisResultId: UUID, analysisResult: AnalysisResult } }): Promise<AnalysisResult> => {
       const analysisResult: AnalysisResult = await updateAnalysisResult(
         session ? session.APIToken.accessToken : "", 
         arg.analysisResultId,
-        arg.analysisResultUpdate
+        arg.analysisResult
       );
       return analysisResult;
     },
@@ -605,6 +643,31 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
     }
   );
 
+  const { data: analysisResultPlots, mutate: mutateAnalysisResultPlots } = useSWR(["analysisResultPlots"], null, {fallbackData: {} as Record<UUID, string[]>});
+
+  const { trigger: getAnalysisResultPlots } = useSWRMutation(
+    "analysisObject",
+    async (_, { arg }: { arg: { analysisObjectId: UUID, analysisResultId: UUID, plotUrls: string[] } }) => {
+      // Fetch all plots and convert them to blob URLs
+      const plotBlobUrls = await Promise.all(
+        arg.plotUrls.map(plotUrl => 
+          getAnalysisResultPlotsEndpoint(
+            session ? session.APIToken.accessToken : "", 
+            arg.analysisObjectId, 
+            arg.analysisResultId, 
+            plotUrl
+          )
+        )
+      );
+      return {analysisResultId: arg.analysisResultId, plots: plotBlobUrls};
+    },
+    {
+      populateCache: (data) => {
+        mutateAnalysisResultPlots((current: Record<UUID, string[]> = {}) => ({...current, [data.analysisResultId]: data.plots}));
+      }
+    }
+  );
+
 
   return {
     currentAnalysisObject,
@@ -621,6 +684,8 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
     getAnalysisResultData,
     analysisResultData,
     moveElement,
-    deleteAnalysisResult
+    deleteAnalysisResult,
+    getAnalysisResultPlots,
+    analysisResultPlots
   }
 }

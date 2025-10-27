@@ -5,6 +5,7 @@ from project_server.modules.data_source_router import router as data_source_rout
 from project_server.modules.pipeline_router import router as pipeline_router
 from project_server.modules.agent_router import router as agents_router
 from project_server.modules.data_object_router import router as data_object_router
+from project_server.modules.analysis_router import router as analysis_router
 from project_server.modules.code_router import router as code_router
 
 
@@ -31,4 +32,5 @@ app.include_router(data_object_router,
                    prefix="/data-object", tags=["Data Object"])
 app.include_router(pipeline_router, prefix="/pipeline", tags=["Pipeline"])
 app.include_router(agents_router, prefix="/agents", tags=["Agents"])
+app.include_router(analysis_router, prefix="/analysis", tags=["Analysis"])
 app.include_router(code_router, prefix="/code", tags=["Code"])

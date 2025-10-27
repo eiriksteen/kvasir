@@ -1,6 +1,10 @@
 import uuid
 from pydantic import BaseModel, Field
-from typing import Literal
+from pydantic_ai import RunContext, ModelRetry
+from typing import Literal, List
+
+
+from project_server.agents.analysis.deps import AnalysisDeps
 
 
 class AnalysisResultModelResponse(BaseModel):
@@ -36,3 +40,9 @@ class SectionMoveRequest(BaseModel):
         description="The ID of the next element.")
     new_section_id: uuid.UUID | None = Field(
         description="The ID of the new parent section (should be None if the section is to be a root section).")
+
+
+def submit_final_output(ctx: RunContext[AnalysisDeps], _: str) -> str:
+    if not ctx.deps.results_generated:
+        raise ModelRetry(
+            "No analysis results generated! You must actually DO the analysis, NOT just create sections!")
