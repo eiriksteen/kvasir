@@ -1,23 +1,20 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { Database, ChevronDown, ChevronRight, Info, Trash2, EllipsisVertical, Move, FileSearch, BarChart3, Pencil, Save, Loader2, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Trash2, EllipsisVertical, Move, FileSearch, Pencil, Save, Loader2, X } from 'lucide-react';
 import { AnalysisResult as AnalysisResultType, AnalysisStatusMessage } from '@/types/analysis';
 import { MarkdownComponents } from '@/components/MarkdownComponents';
 import { useAnalysis } from '@/hooks/useAnalysis';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
-import EChartWrapper from '@/components/charts/EChartWrapper';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { UUID } from 'crypto';
 import { AggregationObjectWithRawData } from '@/types/data-objects';
 
-import PlotConfigurationPopup from './PlotConfigurationPopup';
 import DnDComponent from './DnDComponent';
 import { useTables } from '@/hooks/useTables';
-import { BaseTable } from '@/types/tables';
-import TablesItem from '@/components/tables/TableItem';
 import TableConfigurationPopup from '@/components/info-tabs/analysis/TableConfigurationPopup';
 import { createSmoothTextStream } from '@/lib/utils';
 
@@ -30,7 +27,6 @@ interface AnalysisResultProps {
 export default function AnalysisResult({ projectId, analysisResult, analysisObjectId }: AnalysisResultProps) {
     const [showCode, setShowCode] = useState(false);
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-    const [showPlotConfiguration, setShowPlotConfiguration] = useState(false);
     const [showTableConfiguration, setShowTableConfiguration] = useState(false);
     const [showEditAnalysis, setShowEditAnalysis] = useState(false);
     const [editAnalysis, setEditAnalysis] = useState(analysisResult.analysis);
@@ -39,8 +35,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
     const [showOptions, setShowOptions] = useState(false);
     const optionsRef = useRef<HTMLDivElement>(null);
     const analysisTextareaRef = useRef<HTMLTextAreaElement>(null);
-    const [isLoadingData, setIsLoadingData] = useState(false);
-    const { tables, updateTable, deleteTable } = useTables(analysisResult.id);
+    const { tables } = useTables(analysisResult.id);
     const [smoothStreamedText, setSmoothStreamedText] = useState(analysisResult.analysis);
     const streamCancelRef = useRef<{ cancel: () => void } | null>(null);
     
@@ -79,7 +74,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                 plotUrls: analysisResult.plotUrls
             });
         }
-    }, [analysisResult.id, analysisObjectId, analysisResult.plotUrls]);
+    }, [analysisResult.id, analysisObjectId, analysisResult.plotUrls, analysisResultPlots, getAnalysisResultPlots]);
 
     // Filter streaming messages for this specific analysis result
     const streamingMessages = useMemo(() => {
@@ -134,7 +129,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
             streamCancelRef.current = createSmoothTextStream(
                 newText,
                 (incrementalText) => {
-                    setSmoothStreamedText(prev => previousContent + incrementalText);
+                    setSmoothStreamedText(() => previousContent + incrementalText);
                 },
                 {
                     mode: 'word',
@@ -165,7 +160,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                 streamCancelRef.current.cancel();
             }
         };
-    }, [displayContent]);
+    }, [displayContent, previousDisplayContentRef]);
 
     // Drag functionality with dnd-kit
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -189,36 +184,6 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
     const handleConfirmDelete = async () => {
         await deleteAnalysisResult({ analysisObjectId, analysisResultId: analysisResult.id });
 
-    };
-
-    const handlePlot = async () => {
-        try {
-            setIsLoadingData(true);
-            await getAnalysisResultData({ 
-                analysisObjectId, 
-                analysisResultId: analysisResult.id 
-            });
-            setShowPlotConfiguration(true);
-        } catch (error) {
-            console.error('Failed to get analysis result data:', error);
-        } finally {
-            setIsLoadingData(false);
-        }
-    };
-
-    const handleTable = async () => {
-        try {
-            setIsLoadingData(true);
-            await getAnalysisResultData({ 
-                analysisObjectId, 
-                analysisResultId: analysisResult.id 
-            });
-            setShowTableConfiguration(true);
-        } catch (error) {
-            console.error('Failed to get analysis result data:', error);
-        } finally {
-            setIsLoadingData(false);
-        }
     };
 
     const handleUpdateAnalysis = async () => {
@@ -271,7 +236,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                 analysisResultId: analysisResult.id 
             });
         }
-    }, [analysisResult.id, tables]);
+    }, [analysisResult.id, tables, analysisObjectId, analysisResultData, getAnalysisResultData]);
 
     return (
         <div className="w-full">
@@ -417,20 +382,22 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                         </div>
 
                         {currentAnalysisResult.pythonCode && (
-                            <div className="pt-3">
+                            <div>
                                 <button
                                     onClick={() => setShowCode(!showCode)}
-                                    className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 transition-colors mb-2"
+                                    className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 transition-colors"
                                 >
                                     {showCode ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                    <span className="text-xs text-gray-500">Python Code</span>
+                                    <span className="text-xs text-gray-500">Code</span>
                                 </button>
                                 {showCode && (
                                     <div className="overflow-x-auto">
-                                        <MarkdownComponents.code
-                                            className="language-python whitespace-pre min-w-0 w-full"
-                                            children={currentAnalysisResult.pythonCode}
-                                        />
+                                        <ReactMarkdown
+                                            remarkPlugins={[remarkGfm]}
+                                            components={MarkdownComponents}
+                                        >
+                                            {`\`\`\`python\n${currentAnalysisResult.pythonCode}\n\`\`\``}
+                                        </ReactMarkdown>
                                     </div>
                                 )}
                             </div>
@@ -465,11 +432,13 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                         {analysisResultPlots[analysisResult.id] && analysisResultPlots[analysisResult.id].length > 0 && (
                             <div className="mt-4 space-y-4">
                                 {analysisResultPlots[analysisResult.id].map((plotBlobUrl: string, index: number) => (
-                                    <div key={index} className="bg-gray-50 rounded p-3">
+                                    <div key={index} className="max-w-2xl mx-auto">
                                         {plotBlobUrl ? (
                                             console.log(plotBlobUrl),
                                             <div>
-                                                <img 
+                                                <Image 
+                                                    width={600}
+                                                    height={450}
                                                     src={plotBlobUrl} 
                                                     alt={`Analysis plot ${index + 1}`}
                                                     className="w-full h-auto rounded"

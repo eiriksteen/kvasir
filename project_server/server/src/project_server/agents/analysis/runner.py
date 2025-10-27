@@ -3,6 +3,7 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 from project_server.agents.analysis.agent import analysis_agent, AnalysisDeps
+from project_server.agents.analysis.output import submit_final_output
 from project_server.worker import broker
 from project_server.agents.runner_base import RunnerBase
 from synesis_schemas.project_server import RunAnalysisRequest
@@ -63,7 +64,7 @@ class AnalysisAgentRunner(RunnerBase):
             run_result = await self._run_agent(
                 prompt_content=f"Solve this user prompt: {prompt_content}.",
                 deps=self.deps,
-                output_type=str
+                output_type=submit_final_output
             )
 
             await self._complete_agent_run("Analysis agent run completed")

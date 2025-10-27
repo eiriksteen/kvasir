@@ -18,10 +18,10 @@ from project_server.agents.analysis.tools import (
     delete_notebook_section,
     edit_section_name,
     move_sections,
-    create_empty_analysis_result,
+    # create_empty_analysis_result,
     generate_analysis_result,
-    plot_analysis_result,
-    create_table_for_analysis_result,
+    # plot_analysis_result,
+    # create_table_for_analysis_result,
 )
 from project_server.worker import logger
 
@@ -43,7 +43,7 @@ analysis_agent = Agent(
         delete_notebook_section,
         edit_section_name,
         move_sections,
-        create_empty_analysis_result,
+        # create_empty_analysis_result,
         generate_analysis_result,
         # plot_analysis_result,
         # create_table_for_analysis_result,

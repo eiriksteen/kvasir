@@ -1,120 +1,195 @@
+import React, { useState, ReactNode } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Copy, Check } from 'lucide-react';
-import { useState } from 'react';
+
+interface BaseComponentProps {
+  children?: ReactNode;
+  className?: string;
+  [key: string]: unknown;
+}
+
+interface CodeComponentProps extends BaseComponentProps {
+  inline?: boolean;
+  className?: string;
+}
+
+const CodeBlock = ({ inline, className, children, ...props }: CodeComponentProps) => {
+  const match = /language-(\w+)/.exec(className || '');
+  const language = match ? match[1] : '';
+  const [copied, setCopied] = useState(false);
+
+  if (inline) {
+    return (
+      <code className="bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
+        {children}
+      </code>
+    );
+  }
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy code:', err);
+    }
+  };
+
+  return (
+    <span className="block relative w-full my-4" data-language={language}>
+      <span className="block rounded-lg overflow-hidden border border-gray-200 bg-white">
+        {/* Copy button */}
+        <button
+          onClick={handleCopy}
+          className="absolute top-2 right-2 p-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all duration-200 z-10"
+          title="Copy code"
+        >
+          {copied ? <Check size={16} /> : <Copy size={16} />}
+        </button>
+        
+        <SyntaxHighlighter
+          style={oneLight}
+          language={language}
+          PreTag="span"
+          customStyle={{
+            margin: 0,
+            background: 'white',
+            fontSize: '0.75rem',
+            padding: '1rem',
+            minWidth: '100%',
+            maxHeight: '24rem',
+            overflow: 'auto',
+            display: 'block',
+          }}
+          {...props}
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      </span>
+    </span>
+  );
+};
 
 export const MarkdownComponents = {
-    p: ({ children, ...props }: any) => (
-      <p className="text-xs" {...props}>
+    p: ({ children, ...props }: BaseComponentProps) => (
+      <p className="text-sm leading-relaxed mb-3" {...props}>
         {children}
       </p>
     ),
-    ul: ({ children, ...props }: any) => (
-      <ul className="text-xs list-disc list-inside space-y-1 my-2" {...props}>
+    ul: ({ children, ...props }: BaseComponentProps) => (
+      <ul className="text-sm list-disc list-inside space-y-1 my-3 ml-4" {...props}>
         {children}
       </ul>
     ),
-    ol: ({ children, ...props }: any) => (
-      <ol className="text-xs list-decimal list-inside space-y-1 my-2" {...props}>
+    ol: ({ children, ...props }: BaseComponentProps) => (
+      <ol className="text-sm list-decimal list-inside space-y-1 my-3 ml-4" {...props}>
         {children}
       </ol>
     ),
-    li: ({ children, ...props }: any) => (
-      <li className="text-xs" {...props}>
+    li: ({ children, ...props }: BaseComponentProps) => (
+      <li className="text-sm leading-relaxed" {...props}>
         {children}
       </li>
     ),
-    table: ({ children, ...props }: any) => (
+    table: ({ children, ...props }: BaseComponentProps) => (
       <div className="overflow-x-auto w-[90%] mx-auto my-4">
         <table className="w-full border-collapse bg-[#1a1625] rounded-lg overflow-hidden border border-purple-700/30 shadow-lg" {...props}>
           {children}
         </table>
       </div>
     ),
-    thead: ({ children, ...props }: any) => (
-      <thead className="text-xs bg-purple-900/40 border-b border-purple-700/50" {...props}>
+    thead: ({ children, ...props }: BaseComponentProps) => (
+      <thead className="text-sm bg-purple-900/40 border-b border-purple-700/50" {...props}>
         {children}
       </thead>
     ),
-    tbody: ({ children, ...props }: any) => (
-      <tbody className="text-xs divide-y divide-purple-700/30" {...props}>
+    tbody: ({ children, ...props }: BaseComponentProps) => (
+      <tbody className="text-sm divide-y divide-purple-700/30" {...props}>
         {children}
       </tbody>
     ),
-    tr: ({ children, ...props }: any) => (
+    tr: ({ children, ...props }: BaseComponentProps) => (
       <tr className="hover:bg-purple-800/20 transition-colors duration-200" {...props}>
         {children}
       </tr>
     ),
-    th: ({ children, ...props }: any) => (
-      <th className="px-4 py-3 text-left text-xs font-semibold text-purple-200 border-r border-purple-700/30 last:border-r-0" {...props}>
+    th: ({ children, ...props }: BaseComponentProps) => (
+      <th className="px-4 py-3 text-left text-sm font-semibold text-purple-200 border-r border-purple-700/30 last:border-r-0" {...props}>
         {children}
       </th>
     ),
-    td: ({ children, ...props }: any) => (
-      <td className="px-4 py-3 text-xs text-gray-300 border-r border-purple-700/30 last:border-r-0" {...props}>
+    td: ({ children, ...props }: BaseComponentProps) => (
+      <td className="px-4 py-3 text-sm text-gray-300 border-r border-purple-700/30 last:border-r-0" {...props}>
         {children}
       </td>
     ),
-    code: ({ node, inline, className, children, ...props }: any) => {
-      const match = /language-(\w+)/.exec(className || '');
-      const language = match ? match[1] : '';
-      const [copied, setCopied] = useState(false);
-
-      if (node) {
-        return (
-          <code className="markdown-inline-code" {...props}>
-            {children}
-          </code>
-        );
+    code: CodeBlock,
+    pre: ({ children, ...props }: BaseComponentProps) => {
+      // Check if this pre contains a code element with SyntaxHighlighter
+      const hasCodeBlock = React.isValidElement(children) && 
+        children.props && 
+        typeof children.props === 'object' &&
+        'className' in children.props &&
+        typeof children.props.className === 'string' &&
+        children.props.className.includes('language-');
+      
+      if (hasCodeBlock) {
+        // If it's a code block, return the children directly (they're already wrapped in our custom div)
+        return <>{children}</>;
       }
-
-      const handleCopy = async () => {
-        try {
-          await navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        } catch (err) {
-          console.error('Failed to copy code:', err);
-        }
-      };
-  
+      
+      // For regular pre elements, use standard styling
       return (
-        <div className="markdown-code-block" data-language={language}>
-          <div className="rounded-sm overflow-hidden relative w-full">
-            {/* Copy button */}
-            <button
-              onClick={handleCopy}
-              className="absolute top-2 right-2 p-2 rounded-md bg-gray-300 hover:bg-gray-200 text-gray-100 hover:text-white transition-all duration-200 z-10"
-              title="Copy code"
-            >
-              {copied ? <Check size={16} /> : <Copy size={16} />}
-            </button>
-            
-            <div className="overflow-auto max-h-96" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 #1F2937' }}>
-              <SyntaxHighlighter
-                style={oneLight}
-                language={language}
-                PreTag="div"
-                customStyle={{
-                  margin: 0,
-                  background: 'white',
-                  fontSize: '0.5rem',
-                  padding: '1rem',
-                  minWidth: '100%',
-                }}
-                {...props}
-              >
-                {String(children).replace(/\n$/, '')}
-              </SyntaxHighlighter>
-            </div>
-          </div>
-        </div>
+        <pre className="bg-gray-50 p-4 rounded-lg overflow-x-auto text-sm font-mono" {...props}>
+          {children}
+        </pre>
       );
     },
-    pre: ({ children, ...props }: any) => (
-      <pre className="markdown-code" {...props}>
+    h1: ({ children, ...props }: BaseComponentProps) => (
+      <h1 className="text-lg font-bold mb-4 mt-6 text-gray-900" {...props}>
         {children}
-      </pre>
+      </h1>
+    ),
+    h2: ({ children, ...props }: BaseComponentProps) => (
+      <h2 className="text-base font-semibold mb-3 mt-5 text-gray-900" {...props}>
+        {children}
+      </h2>
+    ),
+    h3: ({ children, ...props }: BaseComponentProps) => (
+      <h3 className="text-sm font-semibold mb-2 mt-4 text-gray-900" {...props}>
+        {children}
+      </h3>
+    ),
+    h4: ({ children, ...props }: BaseComponentProps) => (
+      <h4 className="text-sm font-medium mb-2 mt-3 text-gray-900" {...props}>
+        {children}
+      </h4>
+    ),
+    h5: ({ children, ...props }: BaseComponentProps) => (
+      <h5 className="text-sm font-medium mb-2 mt-3 text-gray-900" {...props}>
+        {children}
+      </h5>
+    ),
+    h6: ({ children, ...props }: BaseComponentProps) => (
+      <h6 className="text-sm font-medium mb-2 mt-3 text-gray-900" {...props}>
+        {children}
+      </h6>
+    ),
+    blockquote: ({ children, ...props }: BaseComponentProps) => (
+      <blockquote className="border-l-4 border-gray-300 pl-4 my-4 italic text-gray-700" {...props}>
+        {children}
+      </blockquote>
+    ),
+    strong: ({ children, ...props }: BaseComponentProps) => (
+      <strong className="font-semibold text-gray-900" {...props}>
+        {children}
+      </strong>
+    ),
+    em: ({ children, ...props }: BaseComponentProps) => (
+      <em className="italic" {...props}>
+        {children}
+      </em>
     ),
   };

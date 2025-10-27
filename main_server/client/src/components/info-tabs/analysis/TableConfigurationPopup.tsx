@@ -43,7 +43,7 @@ export default function TableConfigurationPopup({ isOpen, onClose, availableColu
             setColumnUnits(initialUnits);
             setColumnSignificantDigits(initialSignificantDigits);
         }
-    }, [availableColumns]);
+    }, [availableColumns, selectedColumns.length]);
 
     // Populate form fields when editing an existing table
     useEffect(() => {
