@@ -124,10 +124,10 @@ const SectionItem: React.FC<SectionItemProps> = ({
   const getTitleStyle = (numbering: string) => {
     const depth = numbering.split('.').length;
     switch (depth) {
-      case 1: return 'text-lg font-bold';
-      case 2: return 'text-base font-bold';
-      case 3: return 'text-sm font-semibold';
-      default: return 'text-sm font-semibold';
+      case 1: return 'text-base font-mono';
+      case 2: return 'text-base font-mono';
+      case 3: return 'text-lg font-semibold';
+      default: return 'text-lg font-semibold';
     }
   };
 
@@ -327,11 +327,11 @@ const SectionItem: React.FC<SectionItemProps> = ({
                 
                 
                 {/* Section Description */}
-                {(section.sectionDescription && !showEditSection) && (
-                  <div className="text-xs text-gray-700 mb-2 leading-relaxed">
+                {/* {(section.sectionDescription && !showEditSection) && (
+                  <div className="text-sm text-gray-700 mb-2 leading-relaxed">
                     {section.sectionDescription}
                   </div>
-                )}
+                )} */}
                 
                 {/* Ordered Children (Sections and Results) */}
                 {orderedChildren.length > 0 && (

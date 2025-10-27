@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, FileText, Plus, ChevronDown, ChevronUp, ExternalLink, List, Trash2, ArrowRight, Info, Calendar } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, FileText, Plus, Trash2, ArrowRight, Info, Calendar } from 'lucide-react';
 import { useAnalysis } from '@/hooks/useAnalysis';
-import { NotebookSection, AnalysisObject, AnalysisObjectSmall } from '@/types/analysis';
+import { NotebookSection, AnalysisObjectSmall } from '@/types/analysis';
 import SectionItemCreate from '@/components/info-tabs/analysis/SectionItemCreate';
 import { buildOrderedSectionsList, findParentSections } from '@/lib/utils';
 import { UUID } from 'crypto';
@@ -24,10 +24,11 @@ interface TocItemProps {
   onToggleExpanded: (sectionId: string) => void;
   onScrollToSection?: (sectionId: string) => void;
   allSections: NotebookSection[];
+  numbering: string;
 }
 
 
-const TocItem: React.FC<TocItemProps> = ({ section, level, expandedSections, onToggleExpanded, onScrollToSection, allSections }) => {
+const TocItem: React.FC<TocItemProps> = ({ section, level, expandedSections, onToggleExpanded, onScrollToSection, allSections, numbering }) => {
   const isExpanded = expandedSections.has(section.id);
   
   
@@ -76,41 +77,41 @@ const TocItem: React.FC<TocItemProps> = ({ section, level, expandedSections, onT
 
   return (
     <div className="w-full">
-      <div className="flex items-center gap-2 py-2 px-2 hover:bg-gray-100 rounded transition-colors">
+      <div className="group">
         <div 
-          className="flex items-center gap-2 flex-1 cursor-pointer"
-          onClick={() => onToggleExpanded(section.id)}
+          className="flex items-center gap-2 py-2 px-2 hover:bg-gray-100 rounded transition-colors cursor-pointer"
+          onClick={handleScrollToSection}
         >
-          {/* <FileText size={12} className="text-gray-500 flex-shrink-0" /> */}
-          <span className="text-sm text-gray-700 truncate">{section.sectionName}</span>
+        <div className="flex items-center flex-1 text-left">
+          <span className={`${level === 0 ? 'text-xs' : 'text-xs'} font-mono text-gray-500 flex-shrink-0 ${level === 0 ? 'min-w-[1.5rem]' : 'min-w-[2rem]'}`}>
+            {numbering}
+          </span>
+          <span className={`${level === 0 ? 'text-sm' : 'text-xs'} text-gray-700 truncate text-left`}>{section.sectionName}</span>
+          </div>
         </div>
-        {onScrollToSection && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleScrollToSection();
-            }}
-            className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
-            title="Scroll to section"
-          >
-            <ExternalLink size={12} />
-          </button>
-        )}
       </div>
       {isExpanded && hasChildren && (
         <div className="ml-2 border-l border-gray-300">
           <div className="">
-            {orderedChildSections.map((childSection) => (
-              <TocItem
-                key={childSection.id}
-                section={childSection as NotebookSection}
-                level={level + 1}
-                expandedSections={expandedSections}
-                onToggleExpanded={onToggleExpanded}
-                onScrollToSection={onScrollToSection}
-                allSections={allSections}
-              />
-            ))}
+            {(() => {
+              let childCounter = 0;
+              return orderedChildSections.map((childSection) => {
+                const isSection = 'sectionName' in childSection;
+                if (isSection) childCounter++;
+                return (
+                  <TocItem
+                    key={childSection.id}
+                    section={childSection as NotebookSection}
+                    level={level + 1}
+                    expandedSections={expandedSections}
+                    onToggleExpanded={onToggleExpanded}
+                    onScrollToSection={onScrollToSection}
+                    allSections={allSections}
+                    numbering={`${numbering}.${childCounter}`}
+                  />
+                );
+              });
+            })()}
           </div>
         </div>
       )}
@@ -122,7 +123,6 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   analysisObjectId,
   projectId,
   onScrollToSection,
-  closeTab,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   // console.log('analysisObjectId', analysisObjectId);
@@ -138,7 +138,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   const { addAnalysisToContext, removeAnalysisFromContext } = useAgentContext(projectId);
 
   // Function to collect all section IDs recursively
-  const getAllSectionIds = (sections: NotebookSection[]): string[] => {
+  const getAllSectionIds = useCallback((sections: NotebookSection[]): string[] => {
     const ids: string[] = [];
     sections.forEach(section => {
       ids.push(section.id);
@@ -147,7 +147,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
       }
     });
     return ids;
-  };
+  }, []);
 
   // Initialize all sections as expanded when analysis data loads
   useEffect(() => {
@@ -155,7 +155,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
       const allIds = getAllSectionIds(analysis.notebook.notebookSections);
       setExpandedSections(new Set(allIds));
     }
-  }, [analysis]);
+  }, [analysis, expandedSections.size, getAllSectionIds]);
 
   // Function to toggle a single section's expanded state
   const toggleSectionExpanded = (sectionId: string) => {
@@ -170,24 +170,6 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
     });
   };
 
-  // Function to expand all sections
-  const expandAllSections = () => {
-    if (!analysis?.notebook?.notebookSections) return;
-    const allIds = getAllSectionIds(analysis.notebook.notebookSections);
-    setExpandedSections(new Set(allIds));
-  };
-
-  // Function to collapse all sections
-  const collapseAllSections = () => {
-    setExpandedSections(new Set());
-  };
-  const expandCollapseAllSections = () => {
-    if (expandedSections.size === 0) {
-      expandAllSections();
-    } else {
-      collapseAllSections();
-    }
-  };
 
   const handleDeleteAnalysis = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -196,8 +178,6 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
 
   const handleConfirmDelete = async () => {
     await deleteAnalysisObject({analysisObjectId: analysisObjectId});
-    // Close the tab for this analysis
-    closeTab(analysisObjectId);
     setShowDeleteConfirmation(false);
   };
 
@@ -291,14 +271,62 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
 
   // Early return for collapsed state
   if (!isExpanded) {
+    // Get ordered root sections for display
+    const allSections = analysis?.notebook?.notebookSections || [];
+    const allResults = allSections.flatMap(section => section.analysisResults || []);
+    
+    // Find the first element in the chain
+    const referencedIds = new Set([
+      ...allSections.map(s => s.nextId).filter(Boolean),
+      ...allResults.map(r => r.nextId).filter(Boolean)
+    ]);
+    
+    const firstSection = allSections.find(s => !referencedIds.has(s.id));
+    const firstResult = allResults.find(r => !referencedIds.has(r.id));
+    
+    let orderedRootSections: (NotebookSection | AnalysisResultType)[] = [];
+    
+    if (firstSection) {
+      orderedRootSections = buildOrderedSectionsList(allSections, allResults, firstSection.id, 'notebook_section');
+    } else if (firstResult) {
+      orderedRootSections = buildOrderedSectionsList(allSections, allResults, firstResult.id, 'analysis_result');
+    }
+    
     return (
-      <div className="w-5 bg-white border-r border-gray-300 flex grid place-items-center h-full">
-        <button 
-          onClick={() => setIsExpanded(true)}
-          className="text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ChevronRight size={16} />
-        </button>
+      <div className="bg-white border-r border-gray-300 flex flex-col h-full">
+        <div className="font-mono text-xs flex flex-col items-center px-3 py-3 h-full">
+          <div className="flex-1 flex flex-col justify-center">
+            {showDetails ? (
+              <div className="w-full">
+                <DetailsView />
+              </div>
+            ) : (
+              (() => {
+                let sectionCounter = 0;
+                return orderedRootSections.map((item) => {
+                  const isSection = 'sectionName' in item;
+                  if (isSection) sectionCounter++;
+                  
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => onScrollToSection?.(item.id)}
+                      className="text-xs font-mono text-gray-400 hover:text-gray-900 transition-colors mb-3 cursor-pointer"
+                    >
+                      {sectionCounter}
+                    </button>
+                  );
+                });
+              })()
+            )}
+          </div>
+          <button 
+            onClick={() => setIsExpanded(true)}
+            className="text-gray-600 hover:text-gray-900 transition-colors mt-2"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
       </div>
     );
   }
@@ -327,22 +355,9 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   }
 
   return (
-    <div className="w-64 bg-white border-r border-gray-300 flex flex-col h-full">
+    <div className="w-56 bg-white border-r border-gray-300 flex flex-col h-full">
       {/* Header */}
       <div className="p-1 border-b border-gray-300 flex justify-center items-center flex-shrink-0 gap-1">
-        {!showDetails && (
-          <button
-            onClick={expandCollapseAllSections}
-            className="p-1 text-gray-600 hover:text-gray-900 transition-colors" 
-            title="Expand all"
-            >
-            {(expandedSections.size === 0) ? (
-              <ChevronDown size={16} />
-              ) : (
-              <ChevronUp size={16} />
-            )}
-          </button>
-        )}
         {!showDetails && (
           <button
             onClick={() => setShowCreateRootSection(!showCreateRootSection)}
@@ -358,14 +373,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
           className="p-1 text-gray-400 hover:text-gray-200 transition-colors"
           title={showDetails ? "Show table of contents" : "Show details"}
         >
-          <List size={16} />
-        </button>
-        <button 
-          onClick={() => setIsExpanded(false)}
-          className="p-1 text-gray-400 hover:text-gray-200 transition-colors"
-          title="Collapse sidebar"
-        >
-          <ChevronLeft size={16} />
+          <Info size={16} />
         </button>
       </div>
       
@@ -377,17 +385,25 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
           <>
             {orderedRootSections.length > 0 ? (
               <div className="">
-                {orderedRootSections.map((section) => (
-                  <TocItem
-                    key={section.id}
-                    section={section as NotebookSection}
-                    level={0}
-                    expandedSections={expandedSections}
-                    onToggleExpanded={toggleSectionExpanded}
-                    onScrollToSection={onScrollToSection}
-                    allSections={allSections}
-                  />
-                ))}
+                {(() => {
+                  let rootCounter = 0;
+                  return orderedRootSections.map((section) => {
+                    const isSection = 'sectionName' in section;
+                    if (isSection) rootCounter++;
+                    return (
+                      <TocItem
+                        key={section.id}
+                        section={section as NotebookSection}
+                        level={0}
+                        expandedSections={expandedSections}
+                        onToggleExpanded={toggleSectionExpanded}
+                        onScrollToSection={onScrollToSection}
+                        allSections={allSections}
+                        numbering={`${rootCounter}`}
+                      />
+                    );
+                  });
+                })()}
                 {showCreateRootSection && (
                   <div className="mb-4">
                     <SectionItemCreate
@@ -419,6 +435,17 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
             )}
           </>
         )}
+      </div>
+      
+      {/* Footer with collapse button */}
+      <div className="p-1 border-t border-gray-300 flex justify-end items-center flex-shrink-0">
+        <button 
+          onClick={() => setIsExpanded(false)}
+          className="p-1 text-gray-400 hover:text-gray-200 transition-colors"
+          title="Collapse sidebar"
+        >
+          <ChevronLeft size={16} />
+        </button>
       </div>
       
       {/* Popups */}

@@ -104,8 +104,6 @@ export default function PlotConfigurationPopup({ isOpen, onClose, availableColum
     }, [plot, availableColumns]);
 
     const handleConfirm = () => {
-        const enabledColumns = yAxisColumns.filter(col => col.enabled);
-        
         const plotConfig: PlotConfig = {
             title: title,
             subtitle: subtitle,

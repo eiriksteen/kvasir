@@ -32,11 +32,12 @@ def get_dataset_description(dataset_in_db: DatasetInDB,
                 f"**{object_group.name}** (ID: {object_group.id}, Type: {object_group.structure_type})")
             if object_group.description:
                 lines.append(f"{object_group.description}")
-            lines.append("")
 
             if object_group.structure_type == "time_series":
                 # Time series data
                 lines.append(f"*{TIME_SERIES_DATA_SECOND_LEVEL_ID}:*")
+                lines.append(
+                    f"Save path: `{object_group.save_path}/{TIME_SERIES_DATA_SECOND_LEVEL_ID}.parquet`")
                 lines.append(f"```")
                 lines.append(
                     f"{object_group.structure_fields.time_series_df_schema}")
@@ -49,6 +50,8 @@ def get_dataset_description(dataset_in_db: DatasetInDB,
 
                 # Entity metadata
                 lines.append(f"*{ENTITY_METADATA_SECOND_LEVEL_ID}:*")
+                lines.append(
+                    f"Save path: `{object_group.save_path}/{ENTITY_METADATA_SECOND_LEVEL_ID}.parquet`")
                 lines.append(f"```")
                 lines.append(
                     f"{object_group.structure_fields.entity_metadata_df_schema}")
@@ -61,6 +64,8 @@ def get_dataset_description(dataset_in_db: DatasetInDB,
 
                 # Feature information
                 lines.append(f"*{FEATURE_INFORMATION_SECOND_LEVEL_ID}:*")
+                lines.append(
+                    f"Save path: `{object_group.save_path}/{FEATURE_INFORMATION_SECOND_LEVEL_ID}.parquet`")
                 lines.append(f"```")
                 lines.append(
                     f"{object_group.structure_fields.feature_information_df_schema}")
@@ -75,6 +80,8 @@ def get_dataset_description(dataset_in_db: DatasetInDB,
                 # Aggregation outputs
                 lines.append(
                     f"*{TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID}:*")
+                lines.append(
+                    f"Save path: `{object_group.save_path}/{TIME_SERIES_AGGREGATION_OUTPUTS_SECOND_LEVEL_ID}.parquet`")
                 lines.append(f"```")
                 lines.append(
                     f"{object_group.structure_fields.time_series_aggregation_outputs_df_schema}")
@@ -88,6 +95,8 @@ def get_dataset_description(dataset_in_db: DatasetInDB,
                 # Aggregation inputs
                 lines.append(
                     f"*{TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID}:*")
+                lines.append(
+                    f"Save path: `{object_group.save_path}/{TIME_SERIES_AGGREGATION_INPUTS_SECOND_LEVEL_ID}.parquet`")
                 lines.append(f"```")
                 lines.append(
                     f"{object_group.structure_fields.time_series_aggregation_inputs_df_schema}")
@@ -100,6 +109,8 @@ def get_dataset_description(dataset_in_db: DatasetInDB,
 
                 # Entity metadata
                 lines.append(f"*{ENTITY_METADATA_SECOND_LEVEL_ID}:*")
+                lines.append(
+                    f"Save path: `{object_group.save_path}/{ENTITY_METADATA_SECOND_LEVEL_ID}.parquet`")
                 lines.append(f"```")
                 lines.append(
                     f"{object_group.structure_fields.entity_metadata_df_schema}")
@@ -112,6 +123,8 @@ def get_dataset_description(dataset_in_db: DatasetInDB,
 
                 # Feature information
                 lines.append(f"*{FEATURE_INFORMATION_SECOND_LEVEL_ID}:*")
+                lines.append(
+                    f"Save path: `{object_group.save_path}/{FEATURE_INFORMATION_SECOND_LEVEL_ID}.parquet`")
                 lines.append(f"```")
                 lines.append(
                     f"{object_group.structure_fields.feature_information_df_schema}")
@@ -131,6 +144,7 @@ def get_dataset_description(dataset_in_db: DatasetInDB,
                 f"**{variable_group.name}** (ID: {variable_group.id})")
             if variable_group.description:
                 lines.append(f"{variable_group.description}")
+            lines.append(f"Save path: `{variable_group.save_path}`")
             lines.append(f"Schema: `{variable_group.group_schema}`")
             lines.append("")
 

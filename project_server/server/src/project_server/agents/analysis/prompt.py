@@ -23,6 +23,14 @@ General instructions:
 - The interpretation of the results are going into an analysis report, i.e. you should not say anything like "I did this and that", just get straight to the point.
 - Do not output lists or tables of the results the user will be able to see this through the variable you stored the results in.
 - If you have run code, you should always output the code that you ran.
+- You MUST generate code to actually conduct the analysis! It doesn't suffice to just create the sections!
+
+Markdown formatting instructions: 
+- No triple backticks or code blocks in your markdown 
+    - That means no "The results are stored in" followed by triple backticks!
+- Do not write in the markdown that you use variables in your code, it should be just to describe the analysis!
+- No headers inside your markdown! The section headers will be the main headers in the user-facing report. Create a new section header or subsection header if you need it, but no headers inside your markdown. Bolding is fine however.  
+- The user will not automatically see your dataframes or cell outputs. You must explicitly output the results using available tools. 
 """
 
 ANALYSIS_AGENT_SYSTEM_PROMPT = """
@@ -38,7 +46,6 @@ In theory sections can be infinitely nested, but in practice it is much better t
 Your workflow will vary depending on the user prompt, however, most of the time the user will ask questions specifically related to the data in the project. Then the workflow will often look like this:
 1. Search through the project for relevant datasets, data sources and analyses if you believe the given context is incomplete (you have a tool for this).
 2. Create a section for the analysis you are going to perform (you have a tool for this). Only complete this step if no section is relevant for the analysis.
-3. Create an empty analysis result (you have a tool for this).
 4. Generate and run code to answer the question (you have a tool for this).
 5. Plot or make a table of the results if it makes sense to do so or if the user has specifically requested it (you have tools for this). For instance, it does not make sense to plot a scalar.
 6. Output a brief description/summary of how you solved the problem, don't be too verbose. Do not output the analysis result as this will be visible to the user through the analysis object.
@@ -82,4 +89,12 @@ General instructions:
 - If the prompt requires many analyses which are not directly related, you should divide the task into subtasks and create analysis results and sections for each of the subtasks.
 - The section description should only be a full sentence of the section name - never too specific as multiple sections and analysis results can be added to the same section.
 - Datasets and data sources are not the same thing. The intuition is that a dataset can exist of multiple data sources and is often more structured than a data source. Analysis can be performed on both, however, if the analysis require rigid structure of the data, it is often better to use a dataset.
+- You MUST generate code to actually conduct the analysis! It doesn't suffice to just create the sections! Invoke the helper agent to generate the code! 
+
+Markdown formatting instructions: 
+- No triple backticks or code blocks in your markdown 
+    - That means no "The results are stored in" followed by triple backticks!
+- Do not write in the markdown that you use variables in your code, it should be just to describe the analysis!
+- No headers inside your markdown! The section headers will be the main headers in the user-facing report. Create a new section header or subsection header if you need it, but no headers inside your markdown. Bolding is fine however. 
+- The user will not automatically see your dataframes or cell outputs. You must explicitly output the results using available tools. 
 """

@@ -1,7 +1,7 @@
 import uuid
 from pydantic import ValidationError
 from pydantic_ai import RunContext
-from typing import List, Literal
+from typing import List, Literal, Optional
 from datetime import datetime
 
 
@@ -177,33 +177,40 @@ async def move_sections(ctx: RunContext[AnalysisDeps], section_move_requests: Li
         return f"Error moving section: {e}"
 
 
-async def create_empty_analysis_result(ctx: RunContext[AnalysisDeps], section_id: uuid.UUID) -> str:
-    """
-    Create an empty analysis result.
+# async def create_empty_analysis_result(ctx: RunContext[AnalysisDeps], section_id: uuid.UUID) -> str:
+#     """
+#     Create an empty analysis result.
 
-    Args:
-        ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        section_id (uuid.UUID): The ID of the section the analysis result should be added to.
-    """
-    analysis_result = AnalysisResult(
-        id=uuid.uuid4(),
-        analysis='',
-        python_code='',
-        output_variable='',
-        input_variable='',
-        dataset_ids=[],
-        next_type=None,
-        next_id=None,
-        section_id=section_id
-    )
-    try:
-        analysis_result_in_db = await create_analysis_result_request(ctx.deps.client, analysis_result)
-        return f"Empty analysis result successfully created. Analysis result id: {analysis_result_in_db.id}"
-    except Exception as e:
-        return f"Error creating empty analysis result: {e}"
+#     Args:
+#         ctx (RunContext[AnalysisDeps]): The context of the analysis.
+#         section_id (uuid.UUID): The ID of the section the analysis result should be added to.
+#     """
+#     analysis_result = AnalysisResult(
+#         id=uuid.uuid4(),
+#         analysis='',
+#         python_code='',
+#         output_variable='',
+#         input_variable='',
+#         dataset_ids=[],
+#         next_type=None,
+#         next_id=None,
+#         section_id=section_id
+#     )
+#     try:
+#         analysis_result_in_db = await create_analysis_result_request(ctx.deps.client, analysis_result)
+#         return f"Empty analysis result successfully created. Analysis result id: {analysis_result_in_db.id}"
+#     except Exception as e:
+#         return f"Error creating empty analysis result: {e}"
 
 
-async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_result_id: uuid.UUID, prompt: str, dataset_ids: List[uuid.UUID], data_source_ids: List[uuid.UUID]) -> str:
+async def generate_analysis_result(
+    ctx: RunContext[AnalysisDeps],
+    prompt: str,
+    dataset_ids: List[uuid.UUID],
+    data_source_ids: List[uuid.UUID],
+    analysis_result_id: Optional[uuid.UUID] = None,
+    section_id: Optional[uuid.UUID] = None,
+) -> str:
     """
     This tool generates code and runs it in a python container. It streams the analysis result to the user.
     This tool can also be used to edit an analysis result. A user might want to edit for several reasons:
@@ -214,29 +221,47 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
 
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        analysis_result_id (uuid.UUID): The ID of the analysis result to make.
         prompt (str): The prompt to generate the analysis result for. 
         dataset_ids (List[uuid.UUID]): List of the IDs of the datasets to use for the analysis.
         data_source_ids (List[uuid.UUID]): List of the IDs of the datasources to use for the analysis.
+        analysis_result_id (Optional[uuid.UUID]): The ID of the analysis result to edit. If not provided, a new analysis result will be created.
+        section_id (Optional[uuid.UUID]): The ID of the section to add the analysis result to. Required if analysis result ID is not provided. Not used if analysis result ID is provided.
     """
-    current_analysis_result = await get_analysis_result_by_id_request(ctx.deps.client, analysis_result_id)
 
-    analysis_result = AnalysisResult(
-        id=analysis_result_id,
-        analysis='',
-        python_code='',
-        output_variable='',
-        input_variable='',
-        dataset_ids=dataset_ids,
-        data_source_ids=data_source_ids,
-        next_type=current_analysis_result.next_type,
-        next_id=current_analysis_result.next_id,
-        section_id=current_analysis_result.section_id,
-    )
+    if analysis_result_id is None:
+        assert section_id is not None, "Section ID is required if analysis result ID is not provided"
+        current_analysis_result = AnalysisResult(
+            id=uuid.uuid4(),
+            analysis='',
+            python_code='',
+            output_variable='',
+            input_variable='',
+            dataset_ids=[],
+            next_type=None,
+            next_id=None,
+            section_id=section_id
+        )
+        analysis_result_in_db = await create_analysis_result_request(ctx.deps.client, current_analysis_result)
+        analysis_result_id = analysis_result_in_db.id
+    else:
+        current_analysis_result = await get_analysis_result_by_id_request(ctx.deps.client, analysis_result_id)
+
+    # analysis_result = AnalysisResult(
+    #     id=analysis_result_id,
+    #     analysis='',
+    #     python_code='',
+    #     output_variable='',
+    #     input_variable='',
+    #     dataset_ids=dataset_ids,
+    #     data_source_ids=data_source_ids,
+    #     next_type=current_analysis_result.next_type,
+    #     next_id=current_analysis_result.next_id,
+    #     section_id=current_analysis_result.section_id,
+    # )
     analysis_status_message = AnalysisStatusMessage(
         id=uuid.uuid4(),
         run_id=ctx.deps.run_id,
-        analysis_result=analysis_result,
+        analysis_result=current_analysis_result,
         created_at=datetime.now()
     )
     await post_update_to_redis(analysis_status_message, ctx.deps.run_id)
@@ -250,7 +275,8 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
         bearer_token=ctx.deps.client.bearer_token,
     )
 
-    plot_path = ANALYSIS_DIR / str(ctx.deps.analysis_id) / str(analysis_result_id) / "plots"
+    plot_path = ANALYSIS_DIR / \
+        str(ctx.deps.analysis_id) / str(analysis_result_id) / "plots"
     plot_path.mkdir(parents=True, exist_ok=True)
 
     async with analysis_helper_agent.run_stream(
@@ -283,7 +309,6 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
             except ValidationError:
                 continue
 
-    
     aggregation_object_result = await analysis_helper_agent.run(
         "Give a name and a description of the analysis result you just created.",
         message_history=result.new_messages(),
@@ -299,7 +324,8 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
     await create_aggregation_object_request(ctx.deps.client, aggregation_object_create)
 
     plot_files = []
-    plot_dir = ANALYSIS_DIR / str(ctx.deps.analysis_id) / str(analysis_result_id) / "plots"
+    plot_dir = ANALYSIS_DIR / \
+        str(ctx.deps.analysis_id) / str(analysis_result_id) / "plots"
     if plot_dir.exists():
         plot_files = [str(p.name) for p in plot_dir.glob("*.png")]
 
@@ -312,6 +338,7 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
         This is the python code that was used to generate the analysis result: {analysis_result.python_code}
     """
 
+    ctx.deps.results_generated = True
     return return_string
 
 
