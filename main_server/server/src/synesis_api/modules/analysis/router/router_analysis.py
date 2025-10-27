@@ -172,31 +172,44 @@ async def analysis_agent_sse(
     timeout = min(timeout, SSE_MAX_TIMEOUT)
 
     async def stream_run_updates():
-        response = await cache.xread({str(run_id) + "-result": "$"}, count=1, block=timeout*1000)
+        response = await cache.xread({str(run_id) + "-analysis-status-message": "$"}, count=1, block=timeout*1000)
 
         start_time = time.time()
         last_id = response[0][1][-1][0] if response else None
         data = response[0][1][0][1]
-
-        if 'result' in data.keys():
+        
+        if 'analysis_result' in data.keys():
             analysis_result = AnalysisResult.model_validate_json(
-                data["result"])
-            data["result"] = analysis_result
+                data["analysis_result"])
+            data["analysis_result"] = analysis_result
+            status_message = AnalysisStatusMessage.model_validate(data)
+
+            yield f"data: {status_message.model_dump_json(by_alias=True)}\n\n"
+        elif 'section' in data.keys():
+            section = NotebookSection.model_validate_json(
+                data["section"])
+            data["section"] = section
             status_message = AnalysisStatusMessage.model_validate(data)
 
             yield f"data: {status_message.model_dump_json(by_alias=True)}\n\n"
 
         while True:
-            response = await cache.xread({str(run_id) + "-result": last_id}, count=1)
+            response = await cache.xread({str(run_id) + "-analysis-status-message": last_id}, count=1)
 
             if response:
                 start_time = time.time()
                 last_id = response[0][1][-1][0]
                 data = response[0][1][0][1]
-                if "result" in data.keys():
+                if "analysis_result" in data.keys():
                     analysis_result = AnalysisResult.model_validate_json(
-                        data["result"])
-                    data["result"] = analysis_result
+                        data["analysis_result"])
+                    data["analysis_result"] = analysis_result
+                    status_message = AnalysisStatusMessage.model_validate(data)
+                    yield f"data: {status_message.model_dump_json(by_alias=True)}\n\n"
+                elif "section" in data.keys():
+                    section = NotebookSection.model_validate_json(
+                        data["section"])
+                    data["section"] = section
                     status_message = AnalysisStatusMessage.model_validate(data)
                     yield f"data: {status_message.model_dump_json(by_alias=True)}\n\n"
 

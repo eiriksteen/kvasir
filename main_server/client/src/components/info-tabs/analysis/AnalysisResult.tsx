@@ -85,7 +85,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
     const streamingMessages = useMemo(() => {
         if (!analysisStatusMessages) return [];
         const filtered = analysisStatusMessages.filter((message: AnalysisStatusMessage) => 
-            message.result.id === analysisResult.id
+            message.analysisResult?.id === analysisResult.id
         );
         return filtered;
     }, [analysisStatusMessages, analysisResult.id]);
@@ -99,16 +99,16 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
 
     // Determine which content to display (streaming or static)
     const displayContent = useMemo(() => {
-        if (latestStreamingMessage) {
-            return latestStreamingMessage.result.analysis;
+        if (latestStreamingMessage?.analysisResult) {
+            return latestStreamingMessage.analysisResult.analysis;
         }
         return analysisResult.analysis;
-    }, [latestStreamingMessage, analysisResult.analysis]);
+    }, [latestStreamingMessage, analysisResult, analysisResult.analysis]);
 
     // Get the most up-to-date analysis result data (either from streaming or static)
     const currentAnalysisResult = useMemo(() => {
-        if (latestStreamingMessage) {
-            return latestStreamingMessage.result;
+        if (latestStreamingMessage?.analysisResult) {
+            return latestStreamingMessage.analysisResult;
         }
         return analysisResult;
     }, [latestStreamingMessage, analysisResult]);
@@ -165,7 +165,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                 streamCancelRef.current.cancel();
             }
         };
-    }, [displayContent]);
+    }, [displayContent, analysisResult.id]);
 
     // Drag functionality with dnd-kit
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({

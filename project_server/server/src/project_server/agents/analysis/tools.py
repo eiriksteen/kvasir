@@ -2,6 +2,7 @@ import uuid
 from pydantic import ValidationError
 from pydantic_ai import RunContext
 from typing import List, Literal
+from datetime import datetime
 
 
 from synesis_schemas.main_server import (
@@ -16,9 +17,11 @@ from synesis_schemas.main_server import (
     TableCreate,
     TableConfig,
     TableColumn,
+    NotebookSection,
     AggregationObjectCreate,
+    AnalysisStatusMessage,
 )
-from project_server.agents.analysis.utils import post_analysis_result_to_redis
+from project_server.agents.analysis.utils import post_update_to_redis
 from project_server.client import (
     create_section_request,
     update_section_request,
@@ -37,6 +40,7 @@ from project_server.agents.analysis.helper_agent import analysis_helper_agent, H
 from project_server.agents.analysis.deps import AnalysisDeps
 from project_server.agents.analysis.output import AnalysisResultModelResponse, AggregationObjectCreateResponse, AnalysisResultMoveRequest, SectionMoveRequest
 from project_server.app_secrets import ANALYSIS_DIR
+from project_server.worker import logger
 
 
 def search_knowledge_bank(prompt: str) -> List[str]:
@@ -64,21 +68,6 @@ def search_knowledge_bank(prompt: str) -> List[str]:
             ]
 
 
-async def add_analysis_result_to_notebook_section(ctx: RunContext[AnalysisDeps], notebook_section_id: uuid.UUID, analysis_result_id: uuid.UUID) -> str:
-    """
-    Add an analysis result to a notebook section.
-
-    Args:
-        ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        notebook_section_id (uuid.UUID): The ID of the notebook section.
-        analysis_result_id (uuid.UUID): The ID of the analysis result.
-    """
-    try:
-        await add_analysis_result_to_section_request(ctx.deps.client, ctx.deps.analysis_id, notebook_section_id, analysis_result_id)
-        return "Analysis result successfully added to notebook section"
-    except Exception as e:
-        return f"Error adding analysis result to notebook section: {e}"
-
 
 async def create_notebook_section(ctx: RunContext[AnalysisDeps], section_create: List[NotebookSectionCreate]) -> str:
     """
@@ -92,6 +81,14 @@ async def create_notebook_section(ctx: RunContext[AnalysisDeps], section_create:
         section_ids = []
         for section in section_create:  # Must have synchronous creation of sections to avoid race conditions
             section_in_db = await create_section_request(ctx.deps.client, ctx.deps.analysis_id, section)
+            analysis_status_message = AnalysisStatusMessage(
+                id=uuid.uuid4(),
+                run_id=ctx.deps.run_id,
+                section=section_in_db,
+                created_at=datetime.now()
+            )
+
+            await post_update_to_redis(analysis_status_message, ctx.deps.run_id)
             section_ids.append(section_in_db.id)
         return f"Notebook sections successfully created. Section ids: {section_ids}"
     except Exception as e:
@@ -224,6 +221,26 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
     """
     current_analysis_result = await get_analysis_result_by_id_request(ctx.deps.client, analysis_result_id)
 
+    analysis_result = AnalysisResult(
+        id=analysis_result_id,
+        analysis='',
+        python_code='',
+        output_variable='',
+        input_variable='',
+        dataset_ids=dataset_ids,
+        data_source_ids=data_source_ids,
+        next_type=current_analysis_result.next_type,
+        next_id=current_analysis_result.next_id,
+        section_id=current_analysis_result.section_id,
+    )
+    analysis_status_message = AnalysisStatusMessage(
+        id=uuid.uuid4(),
+        run_id=ctx.deps.run_id,
+        analysis_result=analysis_result,
+        created_at=datetime.now()
+    )
+    await post_update_to_redis(analysis_status_message, ctx.deps.run_id)
+
     helper_agent_deps = HelperAgentDeps(
         model_entities_injected=ctx.deps.model_entities_injected,
         data_sources_injected=ctx.deps.data_sources_injected,
@@ -256,7 +273,13 @@ async def generate_analysis_result(ctx: RunContext[AnalysisDeps], analysis_resul
                     next_id=current_analysis_result.next_id,
                     section_id=current_analysis_result.section_id,
                 )
-                await post_analysis_result_to_redis(analysis_result, ctx.deps.run_id)
+                analysis_status_message = AnalysisStatusMessage(
+                    id=uuid.uuid4(),
+                    run_id=ctx.deps.run_id,
+                    analysis_result=analysis_result,
+                    created_at=datetime.now()
+                )
+                await post_update_to_redis(analysis_status_message, ctx.deps.run_id)
             except ValidationError:
                 continue
 

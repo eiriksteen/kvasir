@@ -12,7 +12,6 @@ from project_server.utils.agent_utils import (
 from project_server.agents.analysis.deps import AnalysisDeps
 from project_server.agents.analysis.tools import (
     search_knowledge_bank,
-    add_analysis_result_to_notebook_section,
     create_notebook_section,
     move_analysis_result,
     delete_notebook_section,
@@ -37,7 +36,6 @@ analysis_agent = Agent(
     retries=3,
     tools=[
         search_knowledge_bank,
-        add_analysis_result_to_notebook_section,
         create_notebook_section,
         move_analysis_result,
         delete_notebook_section,

@@ -18,7 +18,7 @@ import {
 } from "@/types/analysis";
 import { AggregationObjectWithRawData } from "@/types/data-objects";
 import { useProject } from "./useProject";
-import { useMemo, useEffect } from "react";
+import { useMemo, useRef } from "react";
 // import { useAgentContext } from './useAgentContext';
 import { useRuns } from './useRuns';
 import { Run } from "@/types/runs";
@@ -441,29 +441,10 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
   // Subscribe to streaming updates for the first running job
   // Note: For multiple running runs, we would need a more complex implementation
   const firstRunningJob = runningJobs[0];
-
-
-  // TODO: This is a hack to get the latest analysis object while a job is running. We should find a better way to do this.
-  // Poll analysis object while there's a running job to catch new sections/results
-  useEffect(() => {
-    if (!firstRunningJob || !session?.APIToken?.accessToken) {
-      return;
-    }
-
-    // Refetch immediately when job starts
-    mutateCurrentAnalysisObject();
-
-    // Then poll every 2 seconds while job is running
-    const intervalId = setInterval(() => {
-      mutateCurrentAnalysisObject();
-    }, 2000);
-
-    return () => {
-      clearInterval(intervalId);
-      // Final refetch when job completes to ensure we have the latest state
-      mutateCurrentAnalysisObject();
-    };
-  }, [firstRunningJob?.id, session?.APIToken?.accessToken]);
+  
+  // Track which sections and results we've already seen to trigger refetch only once
+  const seenSectionsRef = useRef<Set<UUID>>(new Set());
+  const seenResultsRef = useRef<Set<UUID>>(new Set());
   
   useSWRSubscription<AnalysisStatusMessage[]>(
     session && firstRunningJob ? ["analysis-agent-stream", firstRunningJob.id, analysisObjectId] : null,
@@ -473,7 +454,22 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
       }
       const eventSource = createAnalysisEventSource(session.APIToken.accessToken, firstRunningJob.id);
       eventSource.onmessage = (event) => {
-        const newMessage = JSON.parse(event.data) as AnalysisStatusMessage;
+        // Parse and convert snake_case keys to camelCase
+        const rawMessage = JSON.parse(event.data);
+        const newMessage = snakeToCamelKeys(rawMessage) as AnalysisStatusMessage;
+        console.log("newMessage (converted to camelCase)", newMessage);
+
+        // If the message contains a new section we haven't seen, refetch the analysis object
+        if (newMessage.section && !seenSectionsRef.current.has(newMessage.section.id)) {
+          seenSectionsRef.current.add(newMessage.section.id);
+          mutateCurrentAnalysisObject();
+        }
+
+        // If the message contains a new result we haven't seen, refetch the analysis object
+        if (newMessage.analysisResult && !seenResultsRef.current.has(newMessage.analysisResult.id)) {
+          seenResultsRef.current.add(newMessage.analysisResult.id);
+          mutateCurrentAnalysisObject();
+        }
 
         // Append the new message to analysisStatusMessages, deduplicating by id
         mutateAnalysisStatusMessages((current: AnalysisStatusMessage[] = []) => {
@@ -488,6 +484,9 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
       };
       return () => {
         eventSource.close();
+        // Clear seen tracking when subscription ends
+        seenSectionsRef.current.clear();
+        seenResultsRef.current.clear();
         // mutateCurrentAnalysisObject();
         // mutateAnalysisStatusMessages([]);
       };

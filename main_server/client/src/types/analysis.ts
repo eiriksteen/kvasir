@@ -3,7 +3,8 @@ import { UUID } from "crypto";
 export interface AnalysisStatusMessage {
     id: UUID;
     runId: UUID;
-    result: AnalysisResult;
+    section: NotebookSection | null;
+    analysisResult: AnalysisResult | null;
     createdAt: string;
 }
 
