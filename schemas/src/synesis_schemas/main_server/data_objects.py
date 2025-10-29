@@ -1,11 +1,16 @@
 import uuid
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Union, Literal
+from typing import List, Optional, Dict, Any, Union, Literal, Type, Tuple
 from pydantic import BaseModel
 
-from synesis_data_interface.structures.aggregation.schema import AggregationOutput
+
+from .data_sources import DataSource
+from .pipeline import Pipeline
+
 
 # DB Schemas
+
+MODALITY_LITERAL = Literal["time_series", "tabular"]
 
 
 class DatasetInDB(BaseModel):
@@ -13,162 +18,98 @@ class DatasetInDB(BaseModel):
     user_id: uuid.UUID
     name: str
     description: str
+    additional_variables: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
-
-
-class DatasetFromPipelineInDB(BaseModel):
-    pipeline_id: uuid.UUID
-    dataset_id: uuid.UUID
 
 
 class DataObjectInDB(BaseModel):
     id: uuid.UUID
     name: str
-    structure_type: str
-    group_id: Optional[uuid.UUID] = None
-    original_id: Optional[str] = None
+    group_id: uuid.UUID
+    original_id: str
     description: Optional[str] = None
     additional_variables: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
 
 
-class FeatureInDB(BaseModel):
-    name: str
-    description: str
-    type: Literal["numerical", "categorical"]
-    subtype: Literal["continuous", "discrete"]
-    scale: Literal["ratio", "interval", "ordinal", "nominal"]
-    created_at: datetime
-    updated_at: datetime
-    unit: Optional[str] = None
-
-
-class FeatureInGroupInDB(BaseModel):
-    group_id: uuid.UUID
-    feature_name: str
-    source: Literal["data", "metadata"]
-    category_id: Optional[int] = None
-    created_at: datetime
-    updated_at: datetime
-
-
 class ObjectGroupInDB(BaseModel):
     id: uuid.UUID
-    dataset_id: uuid.UUID  # Foreign key to dataset.id
     name: str
     description: str
-    structure_type: str
-    save_path: str
-    created_at: datetime
-    updated_at: datetime
-    original_id_name: Optional[str] = None
-
-
-class TimeSeriesObjectGroupInDB(BaseModel):
-    id: uuid.UUID
-    time_series_df_schema: str
-    time_series_df_head: str
-    entity_metadata_df_schema: Optional[str] = None
-    entity_metadata_df_head: Optional[str] = None
-    feature_information_df_schema: Optional[str] = None
-    feature_information_df_head: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
-
-
-class TimeSeriesAggregationObjectGroupInDB(BaseModel):
-    id: uuid.UUID
-    time_series_aggregation_outputs_df_schema: str
-    time_series_aggregation_outputs_df_head: str
-    time_series_aggregation_inputs_df_schema: str
-    time_series_aggregation_inputs_df_head: str
-    entity_metadata_df_schema: Optional[str] = None
-    entity_metadata_df_head: Optional[str] = None
-    feature_information_df_schema: Optional[str] = None
-    feature_information_df_head: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
-
-
-class VariableGroupInDB(BaseModel):
-    id: uuid.UUID
-    name: str
-    group_schema: Dict[str, Any]
+    modality: MODALITY_LITERAL
     dataset_id: uuid.UUID
-    description: str
-    save_path: str
+    original_id_name: str
+    additional_variables: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
 
 
 class TimeSeriesInDB(BaseModel):
     id: uuid.UUID  # Foreign key to data_object.id
-    num_timestamps: int
     start_timestamp: datetime
     end_timestamp: datetime
+    num_timestamps: int
     sampling_frequency: Literal["m", "h", "d", "w", "y", "irr"]
     timezone: str
-
-
-class TimeSeriesAggregationInDB(BaseModel):
-    id: uuid.UUID  # Foreign key to data_object.id
-    is_multi_series_computation: bool
-
-
-class TimeSeriesAggregationInputInDB(BaseModel):
-    id: uuid.UUID  # Foreign key to data_object.id
-    time_series_id: uuid.UUID  # Foreign key to time_series.id
-    aggregation_id: uuid.UUID  # Foreign key to time_series_aggregation.id
-    input_feature_name: str  # Foreign key to feature.feature_name
-    start_timestamp: datetime
-    end_timestamp: datetime
+    features_schema: Dict[str, Any]
     created_at: datetime
     updated_at: datetime
 
 
-class AggregationObjectInDB(BaseModel):
+class TimeSeriesGroupInDB(BaseModel):
     id: uuid.UUID
-    name: str
-    description: str
+    total_timestamps: int
+    number_of_series: int
+    # None if varying between series
+    sampling_frequency: Optional[Literal["m",
+                                         "h", "d", "w", "y", "irr"]] = None
+    # None if varying between series
+    timezone: Optional[str] = None
+    # None if varying between series
+    features_schema: Optional[Dict[str, Any]] = None
+    earliest_timestamp: datetime
+    latest_timestamp: datetime
     created_at: datetime
     updated_at: datetime
-    analysis_result_id: uuid.UUID | None = None  # Foreign key to analysis_result.id
-    # Other variabels used to reference where the aggregation was created. This is so you can run a script to get the raw data.
-    # For instance: in analysis result there is python code, this python code should be run to get the raw data. A serialization function is then applied to the raw data to get the final data structure.
-    # automation_id: uuid.UUID | None = None # Foreign key to automation.id
-    # script_path: str | None = None # The path to the script that defines the input and output of the aggregation
+
+
+class ObjectGroupFromDataSourceInDB(BaseModel):
+    data_source_id: uuid.UUID
+    dataset_id: uuid.UUID
+
+
+class ObjectGroupFromPipelineInDB(BaseModel):
+    pipeline_id: uuid.UUID
+    dataset_id: uuid.UUID
 
 
 # Schemas for the API
 
 
-class FeatureWithSource(FeatureInDB):
-    source: Literal["data", "metadata"]
+class DataObject(DataObjectInDB):
+    modality_fields: Union[TimeSeriesInDB]
+
+
+class ObjectGroupSources(BaseModel):
+    data_sources: List[DataSource]
+    pipelines: List[Pipeline]
 
 
 class ObjectGroup(ObjectGroupInDB):
-    structure_fields: Union[TimeSeriesObjectGroupInDB,
-                            TimeSeriesAggregationObjectGroupInDB]
-    features: List[FeatureWithSource]
+    modality_fields: Union[TimeSeriesGroupInDB]
+    sources: ObjectGroupSources
 
 
-class DataObject(DataObjectInDB):
-    structure_fields: Union[TimeSeriesInDB, TimeSeriesAggregationInDB]
-
-
-class DataObjectWithParentGroup(DataObject):
-    object_group: ObjectGroup
-
-
+# Derive from object groups in dataset (for ERD viz)
 class DatasetSources(BaseModel):
+    data_source_ids: List[uuid.UUID]
     pipeline_ids: List[uuid.UUID]
 
 
 class Dataset(DatasetInDB):
     object_groups: List[ObjectGroup]
-    variable_groups: List[VariableGroupInDB]
     sources: DatasetSources
     description_for_agent: str
 
@@ -181,79 +122,105 @@ class GetDatasetsByIDsRequest(BaseModel):
     dataset_ids: List[uuid.UUID]
 
 
-class AggregationObjectWithRawData(AggregationObjectInDB):
-    data: AggregationOutput
-
-
 # Create schemas
 
 
-class FeatureCreate(BaseModel):
+class DataObjectCreate(BaseModel):
+    original_id: str
+    description: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+
+class DataObjectGroupCreate(BaseModel):
     name: str
+    original_object_id_name: str
     description: str
-    type: Literal["numerical", "categorical"]
-    subtype: Literal["continuous", "discrete"]
-    scale: Literal["ratio", "interval", "ordinal", "nominal"]
-    unit: Optional[str] = None
+    modality: str
+    # data source ids for groups coming directly from (files etc)
+    data_source_ids: List[uuid.UUID]
+    # pipeline ids for groups coming from in-memory, i.e pipelines applied to sources, but without saving the outputs permanently
+    pipeline_ids: List[uuid.UUID]
+
+    # For custom fields decided by the agent to be interesting enough to be added
+    class Config:
+        extra = "allow"
 
 
-class MetadataDataframe(BaseModel):
+class TimeSeriesCreate(DataObjectCreate):
+    original_id: str
+    start_timestamp: datetime
+    end_timestamp: datetime
+    num_timestamps: int
+    sampling_frequency: Literal["m", "h", "d", "w", "y", "irr"]
+    timezone: str
+    features_schema: Dict[str, Any]
+
+
+class TimeSeriesGroupCreate(DataObjectGroupCreate):
+    total_timestamps: int
+    number_of_series: int
+    # None if varying between series
+    sampling_frequency: Optional[Literal["m",
+                                         "h", "d", "w", "y", "irr"]] = None
+    # None if varying between series
+    timezone: Optional[str] = None
+    # None if varying between series
+    features_schema: Optional[Dict[str, Any]] = None
+    earliest_timestamp: datetime
+    latest_timestamp: datetime
+
+
+class MetadataFile(BaseModel):
     filename: str
-    second_level_id: str
+    type: Literal["object_group", "object"]
+    modality: MODALITY_LITERAL
 
 
-class ObjectGroupCreate(BaseModel):
-    name: str
-    entity_id_name: str
-    description: str
-    structure_type: str
-    save_path: str
-    metadata_dataframes: List[MetadataDataframe]
-
-
-class TimeSeriesObjectGroupCreate(ObjectGroupCreate):
-    time_series_df_schema: str
-    time_series_df_head: str
-    entity_metadata_df_schema: Optional[str] = None
-    entity_metadata_df_head: Optional[str] = None
-    feature_information_df_schema: Optional[str] = None
-    feature_information_df_head: Optional[str] = None
-
-
-class TimeSeriesAggregationObjectGroupCreate(ObjectGroupCreate):
-    time_series_aggregation_outputs_df_schema: str
-    time_series_aggregation_outputs_df_head: str
-    time_series_aggregation_inputs_df_schema: str
-    time_series_aggregation_inputs_df_head: str
-    entity_metadata_df_schema: Optional[str] = None
-    entity_metadata_df_head: Optional[str] = None
-    feature_information_df_schema: Optional[str] = None
-    feature_information_df_head: Optional[str] = None
-
-
-class VariableGroupCreate(BaseModel):
-    name: str
-    description: str
-    save_path: str
-    group_schema: Dict[str, Any]
-
-
+# The object groups will be added through separate requests after the base dataset is created
 class DatasetCreate(BaseModel):
     name: str
     description: str
-    object_groups: List[Union[TimeSeriesObjectGroupCreate,
-                              TimeSeriesAggregationObjectGroupCreate]]
-    variable_groups: List[VariableGroupCreate]
-    sources: DatasetSources
+
+    class Config:
+        extra = "allow"
 
 
-class AggregationObjectCreate(BaseModel):
-    name: str
-    description: str
-    # Do not need dataset_ids or data_source_ids here because they are already in the analysis result
-    analysis_result_id: uuid.UUID | None = None
+# Raw data schemas
+
+class TimeSeriesWithRawData(DataObject):
+    data: Dict[str, List[Tuple[datetime, Union[float, int]]]]
 
 
-class AggregationObjectUpdate(BaseModel):
-    name: str
-    description: str
+# Helpers
+# Used to let the agent know the schemas it's dataframes must abide by
+
+class DataObjectsInDBInfo(BaseModel):
+    child_model: Type[BaseModel]
+    parent_model: Type[BaseModel]
+    create_model: Type[BaseModel]
+    child_table_name: str
+    parent_table_name: str
+
+
+def get_data_objects_in_db_info(modality: MODALITY_LITERAL, type: Literal["object_group", "data_object"]) -> DataObjectsInDBInfo:
+    if modality == "time_series":
+        if type == "object_group":
+            return DataObjectsInDBInfo(
+                child_model=TimeSeriesGroupInDB,
+                parent_model=ObjectGroupInDB,
+                create_model=TimeSeriesGroupCreate,
+                child_table_name="time_series_group",
+                parent_table_name="object_group"
+            )
+        elif type == "data_object":
+            return DataObjectsInDBInfo(
+                child_model=TimeSeriesInDB,
+                parent_model=DataObjectInDB,
+                create_model=TimeSeriesCreate,
+                child_table_name="time_series",
+                parent_table_name="data_object"
+            )
+    else:
+        raise ValueError(f"Invalid modality: {modality}")

@@ -247,7 +247,6 @@ async def stream_run_code(
         filename_to_most_recent_message = {}
         last_id = None
         for response_num, response in enumerate(all_code_responses):
-            print("response", response, file=sys.stderr)
             message = StreamedCode(**response[1][0][1])
             filename_to_most_recent_message[message.filename] = message
             if response_num == len(all_code_responses) - 1:
@@ -256,6 +255,7 @@ async def stream_run_code(
         if len(filename_to_most_recent_message) > 0:
             yield f"data: {adapter.dump_json(list(filename_to_most_recent_message.values()), by_alias=True).decode("utf-8")}\n\n"
 
+        start_time = time.time()
         while True:
             if last_id:
                 response = await cache.xread({f"{run_id}-code": last_id}, count=1)

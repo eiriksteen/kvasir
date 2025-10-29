@@ -1,5 +1,5 @@
 from synesis_api.client import MainServerClient, FileInput
-from synesis_schemas.main_server import TabularFileDataSourceCreate, KeyValueFileDataSourceCreate
+from synesis_schemas.main_server import TabularFileDataSourceCreate, FileDataSourceCreate
 
 
 async def post_tabular_file_data_source(
@@ -23,7 +23,7 @@ async def post_key_value_file_data_source(
     file_data: bytes,
     filename: str,
     content_type: str
-) -> KeyValueFileDataSourceCreate:
+) -> FileDataSourceCreate:
     file_input = FileInput(
         field_name="file",
         filename=filename,
@@ -31,4 +31,4 @@ async def post_key_value_file_data_source(
         content_type=content_type
     )
     response = await client.send_request("post", "/data-source/key-value-file", files=[file_input])
-    return KeyValueFileDataSourceCreate(**response.body)
+    return FileDataSourceCreate(**response.body)

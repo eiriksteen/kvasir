@@ -28,7 +28,7 @@ from project_server.client import (
     get_analyses_by_ids
 )
 from project_server.agents.runner_base import RunnerBase
-from project_server.entity_manager import script_manager
+from project_server.script_manager import script_manager
 from synesis_schemas.main_server import (
     GetModelEntityByIDsRequest,
     GetDataSourcesByIDsRequest,

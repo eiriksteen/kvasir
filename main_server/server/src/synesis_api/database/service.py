@@ -1,4 +1,8 @@
+import asyncio
+import asyncpg
+import pandas as pd
 from typing import Any
+from io import StringIO
 from sqlalchemy import (
     CursorResult,
     Insert,
@@ -6,7 +10,7 @@ from sqlalchemy import (
     Update,
 )
 from sqlalchemy.ext.asyncio import AsyncConnection
-from synesis_api.database.core import engine
+from synesis_api.database.core import engine, get_asyncpg_connection
 
 
 async def fetch_one(
@@ -59,3 +63,32 @@ async def _execute_query(
         await connection.commit()
 
     return result
+
+
+async def insert_df(
+    df: pd.DataFrame,
+    table_name: str,
+    connection: asyncpg.Connection = None,
+    chunk_size: int = 10000
+) -> None:
+
+    if not connection:
+        connection = await get_asyncpg_connection()
+
+    try:
+        async with connection.transaction():
+            for chunk in df.groupby(df.index // chunk_size):
+                buffer = StringIO()
+                chunk[1].to_csv(buffer, index=False, header=False)
+                buffer.seek(0)
+
+                await connection.copy_records_to_table(
+                    table_name,
+                    source=buffer,
+                    columns=list(df.columns),
+                    format="csv"
+                )
+    finally:
+        await connection.close()
+
+    await connection.close()

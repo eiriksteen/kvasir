@@ -425,7 +425,8 @@ async def update_entity_position(user_id: UUID, position_data: UpdateEntityPosit
 async def update_project_viewport(user_id: UUID, viewport_data: UpdateProjectViewport) -> Project | None:
     """Update the viewport position and zoom of a project."""
     query = update(project).where(
-        and_(project.c.id == viewport_data.project_id, project.c.user_id == user_id)
+        and_(project.c.id == viewport_data.project_id,
+             project.c.user_id == user_id)
     ).values(
         view_port_x=viewport_data.x,
         view_port_y=viewport_data.y,
@@ -453,8 +454,6 @@ async def _generate_entity_position(user_id: UUID, entity_data: AddEntityToProje
         entity_info = await get_user_analyses(user_id=user_id, analysis_ids=[entity_data.entity_id])
     elif entity_data.entity_type == "pipeline":
         entity_info = await get_user_pipelines(user_id=user_id, pipeline_ids=[entity_data.entity_id])
-
-    print("ENTITY INFO", entity_info)
 
     assert len(
         entity_info) == 1, f"Multiple or no entities found for the given ID: {entity_data.entity_id}"

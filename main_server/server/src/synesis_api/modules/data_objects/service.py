@@ -1,355 +1,107 @@
+import io
 import uuid
-import pytz
-from typing import List, Optional, Dict, Union
-from datetime import datetime, timezone
-from sqlalchemy import insert, select, update
-from fastapi import UploadFile, HTTPException
+import pandas as pd
+import jsonschema
+from typing import List, Optional, Union, Tuple, Type
+from datetime import datetime
+from sqlalchemy import insert, select
+from fastapi import UploadFile
+from pydantic import BaseModel
 
 from synesis_api.modules.data_objects.description import get_dataset_description
+from synesis_api.modules.data_sources.service import get_user_data_sources
+from synesis_api.modules.pipeline.service import get_user_pipelines
 from synesis_api.modules.data_objects.models import (
     dataset,
     time_series,
-    time_series_aggregation,
     object_group,
     data_object,
-    feature,
-    feature_in_group,
-    time_series_aggregation_input,
-    variable_group,
-    dataset_from_pipeline,
-    time_series_object_group,
-    time_series_aggregation_object_group,
-    aggregation_object
+    time_series_group,
+    object_group_from_pipeline,
+    object_group_from_data_source,
 )
 from synesis_schemas.main_server import (
-    FeatureCreate,
     DatasetCreate,
     DatasetInDB,
-    ObjectGroupInDB,
     ObjectGroupWithObjects,
     DataObjectInDB,
     TimeSeriesInDB,
-    TimeSeriesAggregationInDB,
-    FeatureInDB,
-    FeatureInGroupInDB,
-    FeatureWithSource,
-    TimeSeriesAggregationInputInDB,
     Dataset,
     DataObject,
     ObjectGroupWithObjects,
-    VariableGroupInDB,
     DatasetSources,
-    DatasetFromPipelineInDB,
-    TimeSeriesObjectGroupInDB,
-    TimeSeriesAggregationObjectGroupInDB,
     ObjectGroup,
-    DataObjectWithParentGroup,
-    AggregationObjectInDB,
-    AggregationObjectCreate,
-    AggregationObjectUpdate,
+    ObjectGroupSources,
+    get_data_objects_in_db_info,
+    MetadataFile
 )
-from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_data_interface.structures.serialization import deserialize_parquet_to_dataframes
-from synesis_data_interface.structures.time_series.definitions import TIME_SERIES_STRUCTURE
-from synesis_data_interface.structures.time_series_aggregation.definitions import TIME_SERIES_AGGREGATION_STRUCTURE
+from pandas.io.json._table_schema import build_table_schema
+from synesis_api.database.service import execute, fetch_all, insert_df
 
 
-async def create_features(features: List[FeatureCreate]) -> List[FeatureInDB]:
+async def create_dataset_metadata(
+    user_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    files: List[UploadFile],
+    metadata_files: List[MetadataFile]
+) -> Dataset:
 
-    features_records = [FeatureInDB(
-        name=feature.name,
-        unit=feature.unit,
-        description=feature.description,
-        type=feature.type,
-        subtype=feature.subtype,
-        scale=feature.scale,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    ) for feature in features]
+    for file in files:
+        mapping_obj = next(
+            m for m in metadata_files if m.filename == file.filename)
+        in_db_model_info = get_data_objects_in_db_info(
+            mapping_obj.modality, mapping_obj.type)
 
-    # Check if features already exist
-    existing_features_query = select(feature).where(
-        feature.c.name.in_([feature.name for feature in features_records])
-    )
-    existing_features_result = await fetch_all(existing_features_query)
-    existing_feature_names = [feature["name"]
-                              for feature in existing_features_result]
+        content = await file.read()
+        df = pd.read_parquet(io.BytesIO(content))
+        df_schema = build_table_schema(df)
 
-    new_features = [
-        feature for feature in features_records if feature.name not in existing_feature_names]
+        jsonschema.validate(
+            df_schema, in_db_model_info.create_model.model_json_schema())
 
-    if len(new_features) > 0:
-        new_features_dump = [feature.model_dump() for feature in new_features]
-        await execute(insert(feature).values(new_features_dump), commit_after=True)
+        parent_df, child_df = _split_create_df_into_parent_and_child(
+            df, in_db_model_info.parent_model, in_db_model_info.child_model)
 
-    return new_features
+        parent_df["id"] = uuid.uuid4()
+        parent_df["created_at"] = datetime.now()
+        parent_df["updated_at"] = datetime.now()
+        child_df["id"] = parent_df["id"]
+        child_df["created_at"] = parent_df["created_at"]
+        child_df["updated_at"] = parent_df["updated_at"]
+
+        if mapping_obj.type == "object":
+            parent_df["group_id"] = uuid.uuid4()
+        elif mapping_obj.type == "object_group":
+            parent_df["dataset_id"] = dataset_id
+
+        await insert_df(parent_df, table_name=in_db_model_info.parent_table_name)
+        await insert_df(child_df, table_name=in_db_model_info.child_table_name)
+
+    # Return the created dataset
+    return await get_user_datasets(user_id, dataset_ids=[dataset_id])[0]
 
 
 async def create_dataset(
-        files: list[UploadFile],
-        dataset_create: DatasetCreate,
-        user_id: uuid.UUID) -> Dataset:
+        user_id: uuid.UUID,
+        files: List[UploadFile],
+        dataset_create: DatasetCreate) -> Dataset:
 
-    # Create dataset
-    dataset_record = DatasetInDB(
+    dataset_obj = DatasetInDB(
         id=uuid.uuid4(),
         user_id=user_id,
         name=dataset_create.name,
         description=dataset_create.description,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
+        created_at=datetime.now(),
+        updated_at=datetime.now()
     )
+    await execute(insert(dataset).values(dataset_obj.model_dump()), commit_after=True)
 
-    await execute(insert(dataset).values(dataset_record.model_dump()), commit_after=True)
-
-    # Create the sources
-    from_pipeline_records = []
-    for source in list(set(dataset_create.sources.pipeline_ids)):
-        from_pipeline_records.append(DatasetFromPipelineInDB(
-            dataset_id=dataset_record.id,
-            pipeline_id=source).model_dump())
-
-    if len(from_pipeline_records) > 0:
-        await execute(insert(dataset_from_pipeline).values(from_pipeline_records), commit_after=True)
-
-    # Variables to collect object groups for the response
-    object_group_records: List[ObjectGroupInDB] = []
-    time_series_object_group_records: List[TimeSeriesObjectGroupInDB] = []
-    time_series_aggregation_object_group_records: List[TimeSeriesAggregationObjectGroupInDB] = [
-    ]
-    for group in dataset_create.object_groups:
-        object_group_record = ObjectGroupInDB(
-            id=uuid.uuid4(),
-            dataset_id=dataset_record.id,
-            name=group.name,
-            original_id_name=group.entity_id_name,
-            description=group.description,
-            structure_type=group.structure_type,
-            save_path=group.save_path,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
-        )
-
-        await execute(insert(object_group).values(object_group_record.model_dump()), commit_after=True)
-
-        object_group_records.append(object_group_record)
-
-        if group.structure_type == TIME_SERIES_STRUCTURE.first_level_id:
-            time_series_object_group_record = TimeSeriesObjectGroupInDB(
-                id=object_group_record.id,
-                time_series_df_schema=group.time_series_df_schema,
-                time_series_df_head=group.time_series_df_head,
-                entity_metadata_df_schema=group.entity_metadata_df_schema,
-                entity_metadata_df_head=group.entity_metadata_df_head,
-                feature_information_df_schema=group.feature_information_df_schema,
-                feature_information_df_head=group.feature_information_df_head,
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc)
-            )
-
-            await execute(insert(time_series_object_group).values(time_series_object_group_record.model_dump()), commit_after=True)
-
-            time_series_object_group_records.append(
-                time_series_object_group_record)
-        elif group.structure_type == TIME_SERIES_AGGREGATION_STRUCTURE.first_level_id:
-            time_series_aggregation_object_group_record = TimeSeriesAggregationObjectGroupInDB(
-                id=object_group_record.id,
-                time_series_aggregation_outputs_df_schema=group.time_series_aggregation_outputs_df_schema,
-                time_series_aggregation_outputs_df_head=group.time_series_aggregation_outputs_df_head,
-                time_series_aggregation_inputs_df_schema=group.time_series_aggregation_inputs_df_schema,
-                time_series_aggregation_inputs_df_head=group.time_series_aggregation_inputs_df_head,
-                entity_metadata_df_schema=group.entity_metadata_df_schema,
-                entity_metadata_df_head=group.entity_metadata_df_head,
-                feature_information_df_schema=group.feature_information_df_schema,
-                feature_information_df_head=group.feature_information_df_head,
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc)
-            )
-
-            await execute(insert(time_series_aggregation_object_group).values(time_series_aggregation_object_group_record.model_dump()), commit_after=True)
-
-            time_series_aggregation_object_group_records.append(
-                time_series_aggregation_object_group_record)
-        else:
-            raise ValueError(
-                f"Data structure not supported: {group.structure_type}")
-        # To create the data objects, we must read and deserialize the parquet files from the uploaded file buffers
-        parquet_dict = {}
-        for dataframe_create in group.metadata_dataframes:
-            matching_file = None
-            for file in files:
-                if file.filename == dataframe_create.filename:
-                    matching_file = file
-                    break
-
-            if matching_file is None:
-                raise RuntimeError(
-                    f"File {dataframe_create.filename} not found in uploaded files"
-                )
-
-            file_content = await matching_file.read()
-            parquet_dict[dataframe_create.second_level_id] = file_content
-
-        structure = deserialize_parquet_to_dataframes(
-            parquet_dict, group.structure_type, only_metadata=True)
-
-        # Check what data structures are present
-        is_time_series_structure = group.structure_type == TIME_SERIES_STRUCTURE.first_level_id
-        is_time_series_aggregation_structure = group.structure_type == TIME_SERIES_AGGREGATION_STRUCTURE.first_level_id
-
-        if structure.feature_information is not None:
-            features_info = structure.feature_information.reset_index()
-            await create_features(features=[FeatureCreate(**record) for record in features_info.reset_index().to_dict(orient="records")])
-
-            feature_in_group_dumps = []
-            for record in features_info.reset_index().to_dict(orient="records"):
-                feature_in_group_dumps.append(FeatureInGroupInDB(
-                    group_id=object_group_record.id,
-                    feature_name=record["name"],
-                    source=record['source'],
-                    category_id=record['category_id'] if 'category_id' in record else None,
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc)
-                ).model_dump())
-
-            await execute(insert(feature_in_group).values(feature_in_group_dumps), commit_after=True)
-
-        original_entity_id_to_generated_id = {}
-        if is_time_series_structure:
-            metadata = structure.entity_metadata
-            fixed_columns = ["num_timestamps", "start_timestamp",
-                             "end_timestamp", "sampling_frequency", "timezone"]
-            additional_columns = [
-                col for col in metadata.columns if col not in fixed_columns]
-
-            fixed_metadata = metadata[fixed_columns]
-            additional_metadata = metadata[additional_columns]
-
-            object_records = []
-            time_series_records = []
-
-            for entity_id in metadata.index:
-                object_record = DataObjectInDB(
-                    id=uuid.uuid4(),
-                    name=entity_id,
-                    structure_type=TIME_SERIES_STRUCTURE.first_level_id,
-                    group_id=object_group_record.id,
-                    original_id=entity_id,
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc),
-                    additional_variables=additional_metadata.loc[entity_id].to_dict(
-                    )
-                )
-
-                object_records.append(object_record.model_dump())
-
-                # Extract timestamp values and make them timezone-aware
-                entity_timezone = fixed_metadata.loc[entity_id, 'timezone']
-                start_timestamp = _make_timezone_aware(
-                    fixed_metadata.loc[entity_id, 'start_timestamp'],
-                    entity_timezone
-                )
-                end_timestamp = _make_timezone_aware(
-                    fixed_metadata.loc[entity_id, 'end_timestamp'],
-                    entity_timezone
-                )
-
-                time_series_record = TimeSeriesInDB(
-                    id=object_record.id,
-                    num_timestamps=fixed_metadata.loc[entity_id,
-                                                      'num_timestamps'],
-                    start_timestamp=start_timestamp,
-                    end_timestamp=end_timestamp,
-                    sampling_frequency=fixed_metadata.loc[entity_id,
-                                                          'sampling_frequency'],
-                    timezone=entity_timezone
-                )
-
-                original_entity_id_to_generated_id[entity_id] = time_series_record.id
-
-                time_series_records.append(time_series_record.model_dump())
-
-            await execute(insert(data_object).values(object_records), commit_after=True)
-            await execute(insert(time_series).values(time_series_records), commit_after=True)
-
-        elif is_time_series_aggregation_structure:
-
-            metadata = structure.entity_metadata
-            fixed_columns = ["is_multi_series_computation"]
-            additional_columns = [
-                col for col in metadata.columns if col not in fixed_columns]
-
-            fixed_metadata = metadata[fixed_columns]
-            additional_metadata = metadata[additional_columns]
-            inputs_metadata = structure.time_series_aggregation_inputs
-
-            object_records = []
-            agg_records = []
-            input_records = []
-
-            for aggregation_id in metadata.index:
-                object_record = DataObjectInDB(
-                    id=uuid.uuid4(),
-                    name=aggregation_id,
-                    structure_type=TIME_SERIES_AGGREGATION_STRUCTURE.first_level_id,
-                    group_id=object_group_record.id,
-                    original_id=aggregation_id,
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc),
-                    additional_variables=additional_metadata.loc[aggregation_id].to_dict(
-                    )
-                )
-
-                object_records.append(object_record.model_dump())
-
-                time_series_aggregation_record = TimeSeriesAggregationInDB(
-                    id=object_record.id,
-                    **fixed_metadata.loc[aggregation_id].to_dict()
-                )
-
-                agg_records.append(
-                    time_series_aggregation_record.model_dump())
-
-                for agg_input in inputs_metadata.iterrows():
-                    time_series_aggregation_input_record = TimeSeriesAggregationInputInDB(
-                        id=uuid.uuid4(),
-                        time_series_id=original_entity_id_to_generated_id[agg_input["time_series_id"]],
-                        aggregation_id=object_record.id,
-                        **agg_input.to_dict()
-                    )
-                    input_records.append(
-                        time_series_aggregation_input_record.model_dump())
-
-            await execute(insert(data_object).values(object_records), commit_after=True)
-            await execute(insert(time_series_aggregation).values(agg_records), commit_after=True)
-            await execute(insert(time_series_aggregation_input).values(input_records), commit_after=True)
-
-        else:
-            raise ValueError(
-                f"Data structure not supported: {structure}")
-
-    variable_group_records = []
-    for variable_group_create in dataset_create.variable_groups:
-        variable_group_record = VariableGroupInDB(
-            id=uuid.uuid4(),
-            dataset_id=dataset_record.id,
-            **variable_group_create.model_dump(),
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
-        )
-
-        variable_group_records.append(variable_group_record.model_dump())
-
-    if len(variable_group_records) > 0:
-        await execute(insert(variable_group).values(variable_group_records), commit_after=True)
-
-    return await get_user_dataset_by_id(dataset_record.id, user_id)
+    return await create_dataset_metadata(user_id, dataset_obj.id, files, dataset_create.metadata_files)
 
 
 async def get_user_datasets(
         user_id: uuid.UUID,
-        dataset_ids: Optional[List[uuid.UUID]] = None,
-        max_features: Optional[int] = None
+        dataset_ids: Optional[List[uuid.UUID]] = None
 ) -> List[Dataset]:
     """Get all datasets for a user"""
 
@@ -364,14 +116,6 @@ async def get_user_datasets(
     if not datasets_result:
         return []
 
-    # Get all data source, source dataset, and pipeline IDs
-
-    pipeline_ids_query = select(dataset_from_pipeline).where(
-        dataset_from_pipeline.c.dataset_id.in_(
-            [d["id"] for d in datasets_result])
-    )
-    pipeline_ids_result = await fetch_all(pipeline_ids_query)
-
     # Get all object groups
     dataset_ids = [d["id"] for d in datasets_result]
     object_groups_query = select(object_group).where(
@@ -381,64 +125,106 @@ async def get_user_datasets(
 
     group_ids = [group["id"] for group in object_groups_result]
 
-    time_series_object_groups_query = select(time_series_object_group).where(
-        time_series_object_group.c.id.in_(group_ids)
+    # Get pipeline IDs from object groups
+    pipeline_ids_query = select(object_group_from_pipeline).where(
+        object_group_from_pipeline.c.object_group_id.in_(group_ids)
     )
-    time_series_object_groups_result = await fetch_all(time_series_object_groups_query)
+    pipeline_ids_result = await fetch_all(pipeline_ids_query)
 
-    time_series_aggregation_object_groups_query = select(time_series_aggregation_object_group).where(
-        time_series_aggregation_object_group.c.id.in_(group_ids)
+    # Get data source IDs from object groups
+    data_source_ids_query = select(object_group_from_data_source).where(
+        object_group_from_data_source.c.object_group_id.in_(group_ids)
     )
-    time_series_aggregation_object_groups_result = await fetch_all(time_series_aggregation_object_groups_query)
+    data_source_ids_result = await fetch_all(data_source_ids_query)
 
-    features_per_group = await _get_features_per_group_id(group_ids, max_features=max_features)
-
-    # Get all variable groups
-    variable_groups_query = select(variable_group).where(
-        variable_group.c.dataset_id.in_(dataset_ids)
+    time_series_groups_query = select(time_series_group).where(
+        time_series_group.c.id.in_(group_ids)
     )
-    variable_groups_result = await fetch_all(variable_groups_query)
+    time_series_groups_result = await fetch_all(time_series_groups_query)
+
+    # Get all unique pipeline and data source IDs to fetch full objects
+    all_pipeline_ids = list(set([rec["pipeline_id"]
+                            for rec in pipeline_ids_result]))
+    all_data_source_ids = list(
+        set([rec["data_source_id"] for rec in data_source_ids_result]))
+
+    # Fetch full pipeline and data source objects
+    pipelines = await get_user_pipelines(user_id, all_pipeline_ids)
+    data_sources = await get_user_data_sources(user_id, all_data_source_ids)
+
+    # Create lookup dictionaries for quick access
+    pipeline_lookup = {p.id: p for p in pipelines}
+    data_source_lookup = {ds.id: ds for ds in data_sources}
 
     # Prepare the final records
     result_records = []
     for dataset_result in datasets_result:
         dataset_obj = DatasetInDB(**dataset_result)
 
-        time_series_object_groups = [
-            ObjectGroup(
-                **group,
-                structure_fields=ts_record,
-                features=features_per_group[group["id"]]
-            )
-            for group, ts_record in zip(object_groups_result, time_series_object_groups_result) if group["dataset_id"] == dataset_obj.id
-        ]
-        time_series_aggregation_object_groups = [
-            ObjectGroup(
-                **group,
-                structure_fields=agg_record,
-                features=features_per_group[group["id"]]
-            )
-            for group, agg_record in zip(object_groups_result, time_series_aggregation_object_groups_result) if group["dataset_id"] == dataset_obj.id
-        ]
+        # Create object groups with populated sources
+        time_series_object_groups: List[ObjectGroup] = []
+        for group in object_groups_result:
+            if group["dataset_id"] == dataset_obj.id:
+                # Get sources for this object group
+                group_pipeline_ids = [
+                    rec["pipeline_id"] for rec in pipeline_ids_result if rec["object_group_id"] == group["id"]]
+                group_data_source_ids = [
+                    rec["data_source_id"] for rec in data_source_ids_result if rec["object_group_id"] == group["id"]]
 
-        all_object_groups = time_series_object_groups + \
-            time_series_aggregation_object_groups
+                # Get full objects
+                group_pipelines = [pipeline_lookup[pid]
+                                   for pid in group_pipeline_ids if pid in pipeline_lookup]
+                group_data_sources = [data_source_lookup[dsid]
+                                      for dsid in group_data_source_ids if dsid in data_source_lookup]
+
+                # Create ObjectGroupSources
+                object_group_sources = ObjectGroupSources(
+                    data_sources=group_data_sources,
+                    pipelines=group_pipelines
+                )
+
+                if group["modality"] == "time_series":
+                    ts_record = next(
+                        (ts_record for ts_record in time_series_groups_result if ts_record["id"] == group["id"]), None)
+                else:
+                    raise ValueError(
+                        f"Unknown modality: {group['modality']}")
+
+                # Create ObjectGroup with sources
+                object_group_obj = ObjectGroup(
+                    **group,
+                    modality_fields=ts_record,
+                    sources=object_group_sources
+                )
+                time_series_object_groups.append(object_group_obj)
+
+        all_object_groups = time_series_object_groups
+        # TODO: Add other object groups here
+
+        # Compute dataset sources from populated object groups
+        dataset_pipeline_ids = []
+        dataset_data_source_ids = []
+        for obj_group in all_object_groups:
+            dataset_pipeline_ids.extend(
+                [p.id for p in obj_group.sources.pipelines])
+            dataset_data_source_ids.extend(
+                [ds.id for ds in obj_group.sources.data_sources])
 
         sources = DatasetSources(
-            pipeline_ids=[rec["pipeline_id"]
-                          for rec in pipeline_ids_result if rec["dataset_id"] == dataset_obj.id]
+            pipeline_ids=list(set(dataset_pipeline_ids)),
+            data_source_ids=list(set(dataset_data_source_ids))
         )
 
-        variable_groups = [
-            VariableGroupInDB(**group) for group in variable_groups_result if group["dataset_id"] == dataset_obj.id]
-
         description = get_dataset_description(
-            dataset_obj, all_object_groups, variable_groups)
+            dataset_obj,
+            all_object_groups,
+            include_full_data_source_description=True,
+            include_full_pipeline_description=True
+        )
 
         record = Dataset(
             **dataset_obj.model_dump(),
             object_groups=all_object_groups,
-            variable_groups=variable_groups,
             sources=sources,
             description_for_agent=description
         )
@@ -448,19 +234,11 @@ async def get_user_datasets(
     return result_records
 
 
-async def get_user_dataset_by_id(
-        dataset_id: uuid.UUID,
-        user_id: uuid.UUID,
-) -> Dataset:
-    """Get a dataset for a user"""
-
-    return (await get_user_datasets(user_id, dataset_ids=[dataset_id]))[0]
-
-
 async def get_object_groups(
+    user_id: uuid.UUID,
     dataset_id: Optional[uuid.UUID] = None,
     group_ids: Optional[List[uuid.UUID]] = None,
-    include_objects: bool = False
+    include_objects: bool = False,
 ) -> List[Union[ObjectGroupWithObjects, ObjectGroup]]:
     """Get object groups"""
 
@@ -476,63 +254,87 @@ async def get_object_groups(
     object_groups_result = await fetch_all(object_group_query)
     object_group_ids = [group["id"] for group in object_groups_result]
 
-    time_series_object_groups_query = select(time_series_object_group).where(
-        time_series_object_group.c.id.in_(object_group_ids))
-    time_series_object_groups_result = await fetch_all(time_series_object_groups_query)
-    time_series_aggregation_object_groups_query = select(time_series_aggregation_object_group).where(
-        time_series_aggregation_object_group.c.id.in_(object_group_ids))
-    time_series_aggregation_object_groups_result = await fetch_all(time_series_aggregation_object_groups_query)
+    time_series_groups_query = select(time_series_group).where(
+        time_series_group.c.id.in_(object_group_ids))
+    time_series_groups_result = await fetch_all(time_series_groups_query)
 
-    features_per_group = await _get_features_per_group_id(object_group_ids)
+    # Get pipeline and data source IDs for these object groups
+    pipeline_ids_query = select(object_group_from_pipeline).where(
+        object_group_from_pipeline.c.object_group_id.in_(object_group_ids)
+    )
+    pipeline_ids_result = await fetch_all(pipeline_ids_query)
+
+    data_source_ids_query = select(object_group_from_data_source).where(
+        object_group_from_data_source.c.object_group_id.in_(object_group_ids)
+    )
+    data_source_ids_result = await fetch_all(data_source_ids_query)
+
+    # Get all unique pipeline and data source IDs to fetch full objects
+    all_pipeline_ids = list(set([rec["pipeline_id"]
+                            for rec in pipeline_ids_result]))
+    all_data_source_ids = list(
+        set([rec["data_source_id"] for rec in data_source_ids_result]))
+
+    pipelines = await get_user_pipelines(user_id, all_pipeline_ids)
+    data_sources = await get_user_data_sources(user_id, all_data_source_ids)
+
+    # Create lookup dictionaries for quick access
+    pipeline_lookup = {p.id: p for p in pipelines}
+    data_source_lookup = {ds.id: ds for ds in data_sources}
 
     data_object_records = None
     if include_objects:
-        data_object_records = await get_data_objects(group_ids=object_group_ids, include_object_group=False)
+        data_object_records = await get_data_objects(group_ids=object_group_ids)
 
     result_records = []
     for group in object_groups_result:
-        if group["structure_type"] == TIME_SERIES_STRUCTURE.first_level_id:
+        if group["modality"] == "time_series":
             structure_fields = next(
-                (ts_group for ts_group in time_series_object_groups_result if ts_group["id"] == group["id"]), None)
-        elif group["structure_type"] == TIME_SERIES_AGGREGATION_STRUCTURE.first_level_id:
-            structure_fields = next(
-                (ts_agg_group for ts_agg_group in time_series_aggregation_object_groups_result if ts_agg_group["id"] == group["id"]), None)
+                (ts_group for ts_group in time_series_groups_result if ts_group["id"] == group["id"]), None)
         else:
-            raise ValueError(
-                f"Unknown structure type: {group['structure_type']}")
+            raise ValueError(f"Unknown modality: {group['modality']}")
+
+        # Get sources for this object group
+        group_pipeline_ids = [rec["pipeline_id"]
+                              for rec in pipeline_ids_result if rec["object_group_id"] == group["id"]]
+        group_data_source_ids = [rec["data_source_id"]
+                                 for rec in data_source_ids_result if rec["object_group_id"] == group["id"]]
+
+        # Get full objects
+        group_pipelines = [pipeline_lookup[pid]
+                           for pid in group_pipeline_ids if pid in pipeline_lookup]
+        group_data_sources = [data_source_lookup[dsid]
+                              for dsid in group_data_source_ids if dsid in data_source_lookup]
+
+        # Create ObjectGroupSources
+        object_group_sources = ObjectGroupSources(
+            data_sources=group_data_sources,
+            pipelines=group_pipelines
+        )
 
         if include_objects:
             objects_in_group = [
                 obj_rec for obj_rec in data_object_records if obj_rec.group_id == group["id"]]
             result_records.append(ObjectGroupWithObjects(
                 **group,
-                structure_fields=structure_fields,
-                features=features_per_group[group["id"]],
+                modality_fields=structure_fields,
+                sources=object_group_sources,
                 objects=objects_in_group
             ))
         else:
             result_records.append(ObjectGroup(
                 **group,
-                structure_fields=structure_fields,
-                features=features_per_group[group["id"]]
+                modality_fields=structure_fields,
+                sources=object_group_sources
             ))
 
     return result_records
 
 
-async def get_object_group(
-        group_id: uuid.UUID,
-        include_objects: bool = False,
-) -> Union[ObjectGroupWithObjects, ObjectGroup]:
-    """Get an object group"""
-    return (await get_object_groups(group_ids=[group_id], include_objects=include_objects))[0]
-
-
 async def get_data_objects(
     object_ids: Optional[List[uuid.UUID]] = None,
-    group_ids: Optional[List[uuid.UUID]] = None,
-    include_object_group: bool = False
-) -> List[Union[DataObjectWithParentGroup, DataObject]]:
+    group_ids: Optional[List[uuid.UUID]] = None
+) -> List[DataObject]:
 
     assert object_ids is not None or group_ids is not None, "Either object_ids or group_ids must be provided"
 
@@ -547,7 +349,6 @@ async def get_data_objects(
     object_ids = [obj["id"] for obj in objects_result]
 
     time_series_objects = await fetch_all(select(time_series).where(time_series.c.id.in_(object_ids)))
-    time_series_aggregation_objects = await fetch_all(select(time_series_aggregation).where(time_series_aggregation.c.id.in_(object_ids)))
 
     result_records = []
     for object_id in object_ids:
@@ -557,125 +358,29 @@ async def get_data_objects(
         time_series_object_record = next((TimeSeriesInDB(
             **obj) for obj in time_series_objects if obj["id"] == object_id), None)
 
-        time_series_aggregation_object_record = next((TimeSeriesAggregationInDB(
-            **obj) for obj in time_series_aggregation_objects if obj["id"] == object_id), None)
+        assert time_series_object_record is not None, "Time series object not found"
 
-        assert time_series_object_record is not None or time_series_aggregation_object_record is not None, "Time series object or time series aggregation not found"
-
-        if include_object_group:
-            result_records.append(DataObjectWithParentGroup(
-                **data_object_record.model_dump(),
-                structure_fields=time_series_object_record if time_series_object_record is not None else time_series_aggregation_object_record,
-                object_group=await get_object_group(data_object_record.group_id, include_objects=False)
-            ))
-
-        else:
-            result_records.append(DataObject(
-                **data_object_record.model_dump(),
-                structure_fields=time_series_object_record if time_series_object_record is not None else time_series_aggregation_object_record,
-            ))
+        result_records.append(DataObject(
+            **data_object_record.model_dump(),
+            modality_fields=time_series_object_record,
+        ))
 
     return result_records
 
 
-async def get_data_object(object_id: uuid.UUID, include_object_group: bool = False) -> Union[DataObjectWithParentGroup, DataObject]:
-    return (await get_data_objects(object_ids=[object_id], include_object_group=include_object_group))[0]
+##
 
 
-async def _get_features_per_group_id(group_ids: List[uuid.UUID], max_features: Optional[int] = None) -> Dict[uuid.UUID, List[FeatureWithSource]]:
-    """Helper function to get an object group with its features"""
+def _split_create_df_into_parent_and_child(df: pd.DataFrame, parent_model: Type[BaseModel], child_model: Type[BaseModel]) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    # Get fields unique to parent and child
+    parent_cols = list(parent_model.model_fields.keys())
+    child_cols = list(child_model.model_fields.keys())
 
-    # Get features for this group by joining feature and feature_in_group tables
-    features_query = select(
-        feature.c.name,
-        feature.c.unit,
-        feature.c.description,
-        feature.c.type,
-        feature.c.subtype,
-        feature.c.scale,
-        feature_in_group.c.source,
-        feature_in_group.c.category_id,
-        feature_in_group.c.group_id,
-        feature.c.created_at,
-        feature.c.updated_at
-    ).join(
-        feature_in_group,
-        feature.c.name == feature_in_group.c.feature_name
-    ).where(
-        feature_in_group.c.group_id.in_(group_ids)
-    )
+    # Remove id and created_at and updated_at since we haven't created them yet
+    parent_cols = [c for c in parent_cols if c in df.columns]
+    child_cols = [c for c in child_cols if c in df.columns]
 
-    if max_features:
-        features_query = features_query.limit(max_features)
+    parent_df = df[parent_cols]
+    child_df = df[child_cols]
 
-    features_result = await fetch_all(features_query)
-
-    result_dict = {}
-    for group_id in group_ids:
-        group_features = [FeatureWithSource(
-            **feature) for feature in features_result if feature["group_id"] == group_id]
-        result_dict[group_id] = group_features
-
-    return result_dict
-
-
-def _make_timezone_aware(dt: datetime, timezone_str: str) -> datetime:
-    """Convert a naive datetime to timezone-aware using the provided timezone string.
-
-    Args:
-        dt: The datetime object to convert (may be naive)
-        timezone_str: The timezone string (e.g., 'UTC', 'America/New_York')
-
-    Returns:
-        Timezone-aware datetime object
-    """
-    if dt.tzinfo is not None:
-        # Already timezone-aware, return as-is
-        return dt
-
-    # Convert naive datetime to timezone-aware
-    tz = pytz.timezone(timezone_str)
-    return tz.localize(dt)
-
-
-async def create_aggregation_object(aggregation_object_create: AggregationObjectCreate) -> AggregationObjectInDB:
-    id = uuid.uuid4()
-    aggregation_object_in_db = AggregationObjectInDB(
-        id=id,
-        name=aggregation_object_create.name,
-        description=aggregation_object_create.description,
-        analysis_result_id=aggregation_object_create.analysis_result_id,
-        created_at=datetime.now(),
-        updated_at=datetime.now()
-    )
-
-    await execute(insert(aggregation_object).values(aggregation_object_in_db.model_dump()), commit_after=True)
-    return aggregation_object_in_db
-
-
-async def update_aggregation_object(aggregation_object_id: uuid.UUID, aggregation_object_update: AggregationObjectUpdate) -> AggregationObjectInDB:
-    aggregation_object_query = select(aggregation_object).where(
-        aggregation_object.c.id == aggregation_object_id)
-    aggregation_object_result = await fetch_one(aggregation_object_query)
-    if not aggregation_object_result:
-        raise HTTPException(
-            status_code=404, detail="Aggregation object not found")
-    await execute(update(aggregation_object).where(aggregation_object.c.id == aggregation_object_id).values(aggregation_object_update.model_dump()), commit_after=True)
-    return AggregationObjectInDB(**aggregation_object_result)
-
-
-async def get_aggregation_object(aggregation_object_id: uuid.UUID) -> AggregationObjectInDB:
-    aggregation_object_query = select(aggregation_object).where(
-        aggregation_object.c.id == aggregation_object_id)
-    aggregation_object_result = await fetch_one(aggregation_object_query)
-    return AggregationObjectInDB(**aggregation_object_result)
-
-
-async def get_aggregation_object_by_analysis_result_id(analysis_result_id: uuid.UUID) -> AggregationObjectInDB:
-    aggregation_object_query = select(aggregation_object).where(
-        aggregation_object.c.analysis_result_id == analysis_result_id)
-    aggregation_object_result = await fetch_one(aggregation_object_query)
-    if not aggregation_object_result:
-        raise HTTPException(
-            status_code=404, detail="Aggregation object not found")
-    return AggregationObjectInDB(**aggregation_object_result)
+    return parent_df, child_df

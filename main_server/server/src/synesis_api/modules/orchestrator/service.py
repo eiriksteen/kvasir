@@ -242,7 +242,7 @@ async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
     model_entities = []
 
     if len(context.dataset_ids) > 0:
-        datasets = await get_user_datasets(user_id, context.dataset_ids, max_features=20)
+        datasets = await get_user_datasets(user_id, context.dataset_ids)
     if len(context.data_source_ids) > 0:
         data_sources = await get_user_data_sources(user_id, context.data_source_ids)
     if len(context.pipeline_ids) > 0:

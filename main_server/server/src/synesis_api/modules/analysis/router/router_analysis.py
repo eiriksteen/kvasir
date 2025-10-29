@@ -45,7 +45,6 @@ from synesis_api.modules.analysis.service import (
     get_analysis_result_by_id,
     create_analysis_result
 )
-from synesis_api.modules.data_objects.service import get_aggregation_object_by_analysis_result_id
 from synesis_api.redis import get_redis
 from synesis_api.utils.markdown_utils import convert_markdown_to_html
 from synesis_api.client import MainServerClient, get_aggregation_object_payload_data_by_analysis_result_id, get_plots_for_analysis_result_request
@@ -177,7 +176,7 @@ async def analysis_agent_sse(
         start_time = time.time()
         last_id = response[0][1][-1][0] if response else None
         data = response[0][1][0][1]
-        
+
         if 'analysis_result' in data.keys():
             analysis_result = AnalysisResult.model_validate_json(
                 data["analysis_result"])
@@ -297,10 +296,13 @@ async def get_data_for_analysis_result(
 
     client = MainServerClient(token)
     result = await get_aggregation_object_payload_data_by_analysis_result_id(client, analysis_id, analysis_result_id)
-    aggregation_object_in_db = await get_aggregation_object_by_analysis_result_id(analysis_result_id)
-    aggregation_object_with_raw_data = AggregationObjectWithRawData(
-        **aggregation_object_in_db.model_dump(), data=result)
-    return aggregation_object_with_raw_data
+    # TODO: Fix this - get_aggregation_object_by_analysis_result_id function doesn't exist
+    # aggregation_object_in_db = await get_aggregation_object_by_analysis_result_id(analysis_result_id)
+    # aggregation_object_with_raw_data = AggregationObjectWithRawData(
+    #     **aggregation_object_in_db.model_dump(), data=result)
+    # return aggregation_object_with_raw_data
+    raise HTTPException(
+        status_code=501, detail="Function not implemented - needs to be fixed")
 
 
 @router.get("/analysis-object/{analysis_id}/analysis-result/{analysis_result_id}/{plot_url}")
@@ -321,6 +323,7 @@ async def get_plots_for_analysis_result(
 
     response = await get_plots_for_analysis_result_request(client, analysis_id, analysis_result_id, plot_url)
     return response
+
 
 @router.patch("/analysis-object/{analysis_id}/move-element")
 async def move_element(

@@ -4,7 +4,7 @@ from uuid import UUID
 
 from project_server.entity_manager import DataSourceManager
 from project_server.auth import TokenData, decode_token
-from synesis_schemas.main_server import TabularFileDataSourceCreate, KeyValueFileDataSourceCreate
+from synesis_schemas.main_server import TabularFileDataSourceCreate, FileDataSourceCreate
 
 
 router = APIRouter()
@@ -24,11 +24,11 @@ async def tabular_file_data_source(
     return data_source_create
 
 
-@router.post("/key-value-file", response_model=KeyValueFileDataSourceCreate)
+@router.post("/key-value-file", response_model=FileDataSourceCreate)
 async def key_value_file_data_source(
     file: UploadFile = File(...),
     token_data: Annotated[TokenData, Depends(decode_token)] = None
-) -> KeyValueFileDataSourceCreate:
+) -> FileDataSourceCreate:
 
     file_content = await file.read()
     data_source_manager = DataSourceManager(

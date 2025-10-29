@@ -8,7 +8,7 @@ from synesis_schemas.main_server import (
     DataSourceAnalysisInDB,
     DataSourceAnalysisCreate,
     TabularFileDataSourceCreate,
-    TabularFileDataSourceInDB,
+    FileDataSourceInDB,
     GetDataSourcesByIDsRequest
 )
 
@@ -41,6 +41,6 @@ async def post_data_source_analysis(client: ProjectClient, analysis: DataSourceA
     return DataSourceAnalysisInDB(**response.body)
 
 
-async def post_data_source_details(client: ProjectClient, details: TabularFileDataSourceCreate) -> Union[TabularFileDataSourceInDB]:
+async def post_data_source_details(client: ProjectClient, details: TabularFileDataSourceCreate) -> Union[FileDataSourceInDB]:
     response = await client.send_request("post", "/data-sources/data-source-details", json=details.model_dump(mode="json"))
-    return TabularFileDataSourceInDB(**response.body)
+    return FileDataSourceInDB(**response.body)
