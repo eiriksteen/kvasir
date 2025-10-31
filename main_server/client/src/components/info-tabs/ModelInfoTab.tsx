@@ -2,7 +2,6 @@ import { Brain, FileCode, Info, Settings, ArrowLeft, ArrowRight } from 'lucide-r
 import { useEffect, useState } from 'react';
 import { UUID } from 'crypto';
 import { useModelEntity } from '@/hooks/useModelEntities';
-import CodeImplementation from '@/components/code/CodeImplementation';
 
 interface ModelInfoTabProps {
   modelEntityId: UUID;
@@ -80,7 +79,10 @@ export default function ModelInfoTab({
       <div className="flex-1 min-h-0 overflow-hidden">
         {currentView === 'code' && modelEntity?.implementation ? (
           <div className="h-full">
-            <CodeImplementation scriptId={modelEntity.implementation.modelImplementation.implementationScript?.id || undefined} />
+            {/* Note: implementationScriptPath is now a string path, not a UUID. Code view not available. */}
+            <div className="flex items-center justify-center h-full">
+              <p className="text-gray-500 text-sm">Code view not available - implementation uses script path instead of script ID</p>
+            </div>
           </div>
         ) : (
           <div className="h-full overflow-y-auto pl-4 pr-4 pb-4 space-y-4">
@@ -140,21 +142,7 @@ export default function ModelInfoTab({
                       <h3 className="text-sm font-semibold text-gray-900">Inputs</h3>
                     </div>
                     <div className="overflow-y-auto pr-2 space-y-3">
-                      {modelEntity.implementation?.modelImplementation?.inferenceFunction?.inputObjectGroups?.length > 0 ? (
-                        modelEntity.implementation.modelImplementation.inferenceFunction.inputObjectGroups.map((input) => (
-                          <div key={input.id} className="border-l-2 border-[#491A32]/30 pl-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-gray-900">{input.name}</span>
-                            </div>
-                            <p className="text-xs text-gray-600 font-mono mb-1">{input.structureId}</p>
-                            {input.description && (
-                              <p className="text-xs text-gray-600">{input.description}</p>
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-gray-400 italic">No inputs defined</p>
-                      )}
+                      <p className="text-sm text-gray-400 italic">Inputs/outputs information not available</p>
                     </div>
                   </div>
 
@@ -166,21 +154,7 @@ export default function ModelInfoTab({
                       <h3 className="text-sm font-semibold text-gray-900">Outputs</h3>
                     </div>
                     <div className="overflow-y-auto pr-2 space-y-3">
-                      {modelEntity.implementation?.modelImplementation?.inferenceFunction?.outputObjectGroups?.length > 0 ? (
-                        modelEntity.implementation.modelImplementation.inferenceFunction.outputObjectGroups.map((output) => (
-                          <div key={output.id} className="border-l-2 border-[#491A32]/30 pl-3">
-                            {output.name && (
-                              <span className="text-sm font-semibold text-gray-900">{output.name}</span>
-                            )}
-                            <p className="text-xs text-gray-600 font-mono mb-1">{output.structureId}</p>
-                            {output.description && (
-                              <p className="text-xs text-gray-600">{output.description}</p>
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-gray-400 italic">No outputs defined</p>
-                      )}
+                      <p className="text-sm text-gray-400 italic">Inputs/outputs information not available</p>
                     </div>
                   </div>
                 </div>

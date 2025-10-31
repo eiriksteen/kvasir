@@ -37,9 +37,10 @@ from synesis_schemas.main_server import (
     DatasetInPipelineInDB,
     ModelEntityInPipelineInDB,
     FunctionInPipelineInDB,
-    AnalysisInPipelineInDB
+    AnalysisInPipelineInDB,
+    RunPipelineRequest
 )
-from synesis_api.modules.code.service import create_script, get_scripts
+from synesis_api.modules.pipeline.description import get_pipeline_description
 
 
 async def create_pipeline(user_id: uuid.UUID, pipeline_create: PipelineCreate) -> PipelineInDB:
@@ -105,11 +106,8 @@ async def create_pipeline_implementation(user_id: uuid.UUID, pipeline_implementa
         pipeline_record = await create_pipeline(user_id, pipeline_implementation_create.pipeline_create)
         pipeline_id = pipeline_record.id
 
-    implementation_script_record = await create_script(user_id, pipeline_implementation_create.implementation_script_create)
-
     pipeline_obj = PipelineImplementationInDB(
         id=pipeline_id,
-        implementation_script_id=implementation_script_record.id,
         **pipeline_implementation_create.model_dump(),
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
@@ -188,14 +186,10 @@ async def get_user_pipelines(
         pipeline_output_model_entity.c.pipeline_id.in_(pipeline_ids))
     output_model_entities = await fetch_all(output_model_entities_query)
 
-    # script
-    implementation_scripts = await get_scripts(
-        [p["implementation_script_id"] for p in pipeline_implementations])
-
     output_objs = []
     for pipe_id in pipeline_ids:
-        pipe_record = next(
-            iter([p for p in pipelines if p["id"] == pipe_id]), None)
+        pipe_obj = PipelineInDB(**next(
+            iter([p for p in pipelines if p["id"] == pipe_id])))
 
         data_source_ids = [s["data_source_id"]
                            for s in data_sources if s["pipeline_id"] == pipe_id]
@@ -226,14 +220,10 @@ async def get_user_pipelines(
             functions_records = [
                 f for f in function_records if f.id in function_ids_in_pipeline]
 
-            implementation_script = next(
-                iter([s for s in implementation_scripts if s.id == pipe_implementation_record["implementation_script_id"]]), None)
-
             pipeline_implementation_obj = PipelineImplementation(
                 **pipe_implementation_record,
                 functions=functions_records,
-                runs=runs_records,
-                implementation_script=implementation_script
+                runs=runs_records
             )
 
             pipeline_outputs_obj = PipelineOutputEntities(
@@ -241,8 +231,8 @@ async def get_user_pipelines(
                 model_entity_ids=output_model_entity_ids
             )
 
-        output_objs.append(Pipeline(
-            **pipe_record,
+        pipeline_description = get_pipeline_description(
+            pipeline_in_db=pipe_obj,
             inputs=PipelineInputEntities(
                 data_source_ids=data_source_ids,
                 dataset_ids=dataset_ids,
@@ -251,15 +241,28 @@ async def get_user_pipelines(
             ),
             outputs=pipeline_outputs_obj,
             implementation=pipeline_implementation_obj
+        )
+
+        output_objs.append(Pipeline(
+            **pipe_obj.model_dump(),
+            inputs=PipelineInputEntities(
+                data_source_ids=data_source_ids,
+                dataset_ids=dataset_ids,
+                model_entity_ids=model_entity_ids,
+                analysis_ids=analysis_ids
+            ),
+            outputs=pipeline_outputs_obj,
+            implementation=pipeline_implementation_obj,
+            description_for_agent=pipeline_description
         ))
 
     return output_objs
 
 
-async def create_pipeline_run(pipeline_id: uuid.UUID) -> PipelineRunInDB:
+async def create_pipeline_run(run_request: RunPipelineRequest) -> PipelineRunInDB:
     pipeline_run_obj = PipelineRunInDB(
         id=uuid.uuid4(),
-        pipeline_id=pipeline_id,
+        **run_request.model_dump(),
         status="running",
         start_time=datetime.now(timezone.utc),
         created_at=datetime.now(timezone.utc),

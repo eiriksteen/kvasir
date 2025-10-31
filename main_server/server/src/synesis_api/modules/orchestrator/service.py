@@ -38,7 +38,7 @@ from synesis_api.modules.analysis.service import get_user_analyses
 from synesis_api.modules.data_sources.service import get_user_data_sources
 from synesis_api.modules.pipeline.service import get_user_pipelines
 from synesis_api.modules.model.service import get_user_model_entities
-from synesis_api.modules.project.service import get_project_graph
+from synesis_api.modules.project.service import get_projects
 
 
 async def create_conversation(
@@ -266,7 +266,10 @@ async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
 
 
 async def get_project_graph_message(user_id: uuid.UUID, project_id: uuid.UUID) -> str:
-    project_graph = await get_project_graph(user_id, project_id)
+    projects = await get_projects(user_id, [project_id])
+    if not projects:
+        raise HTTPException(status_code=404, detail="Project not found")
+    project_graph = projects[0].graph
     return f"{PROJECT_GRAPH_PATTERN.start}\n\n{project_graph.model_dump_json()}\n\n{PROJECT_GRAPH_PATTERN.end}"
 
 

@@ -1,5 +1,5 @@
 from synesis_api.client import MainServerClient
-from synesis_schemas.project_server import RunPipelineRequest
+from synesis_schemas.main_server import RunPipelineRequest
 
 
 async def post_run_pipeline(client: MainServerClient, request: RunPipelineRequest) -> None:

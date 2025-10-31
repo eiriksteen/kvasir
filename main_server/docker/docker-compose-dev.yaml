@@ -29,9 +29,6 @@ services:
         source: ../server
         target: /app
       - type: bind
-        source: ../../data_interface
-        target: /app/data_interface
-      - type: bind
         source: ../../schemas
         target: /app/schemas
       - ${HOME}/.ssh/es256-private.pem:/app/.ssh/es256-private.pem

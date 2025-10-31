@@ -1,11 +1,6 @@
-from typing import List
-
 from synesis_schemas.main_server import (
     FunctionWithoutEmbedding,
     FunctionDefinitionInDB,
-    FunctionInputObjectGroupDefinitionInDB,
-    FunctionOutputObjectGroupDefinitionInDB,
-    ScriptInDB
 )
 
 
@@ -14,10 +9,8 @@ from synesis_schemas.main_server import (
 def get_function_description(
     function: FunctionWithoutEmbedding,
     definition: FunctionDefinitionInDB,
-    input_object_groups: List[FunctionInputObjectGroupDefinitionInDB],
-    output_object_groups: List[FunctionOutputObjectGroupDefinitionInDB],
-    implementation_script: ScriptInDB,
-    # setup_script: Optional[ScriptInDB] = None
+    implementation_script_path: str,
+    # setup_script_path: Optional[str] = None
 ) -> str:
     """
     Generate a comprehensive description of a function for use in prompts or displays.
@@ -36,7 +29,7 @@ def get_function_description(
         f"",
         f"**Implementation ID:** `{function.id}`",
         f"**Version:** v{function.version}",
-        f"**Module Path:** `{implementation_script.module_path}`",
+        f"**Save Path:** `{implementation_script_path}`",
         f"**Python Function:** `{function.python_function_name}`",
         f"",
     ]
@@ -66,30 +59,5 @@ def get_function_description(
     lines.append(
         f"**Returns the variables:** `{function.output_variables_schema}`")
     lines.append("")
-
-    # Input object groups
-    if input_object_groups:
-        lines.append("### Input Object Groups")
-        lines.append("")
-        for obj_group in input_object_groups:
-            req_marker = "✓" if obj_group.required else "○"
-            lines.append(
-                f"- {req_marker} `{obj_group.name}` (ID: {obj_group.id}, Type: {obj_group.structure_id})")
-            if obj_group.description:
-                lines.append(f"  {obj_group.description}")
-        lines.append("")
-
-    # Output object groups
-    if output_object_groups:
-        lines.append("### Output Object Groups")
-        lines.append("")
-        for obj_group in output_object_groups:
-            lines.append(
-                f"- `{obj_group.name}` (ID: {obj_group.id}, Type: {obj_group.structure_id})")
-            lines.append(
-                f"  Entity ID name: `{obj_group.output_entity_id_name}`")
-            if obj_group.description:
-                lines.append(f"  {obj_group.description}")
-        lines.append("")
 
     return "\n".join(lines)

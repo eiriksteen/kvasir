@@ -3,15 +3,13 @@ from fastapi import APIRouter, Depends
 from uuid import UUID
 
 from synesis_api.modules.data_sources.service import (
-    create_data_source,
     create_file_data_source,
     get_user_data_sources,
 )
 from synesis_schemas.main_server import (
     DataSource,
-    DataSourceCreate,
     GetDataSourcesByIDsRequest,
-    FileDataSourceCreate,
+    FileDataSourceCreate
 )
 from synesis_schemas.main_server import User
 from synesis_api.auth.service import get_current_user
@@ -47,15 +45,6 @@ async def fetch_data_sources_by_ids(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> List[DataSource]:
     return await get_user_data_sources(data_source_ids=request.data_source_ids, user_id=user.id)
-
-
-@router.post("/data-source", response_model=DataSource)
-async def create_data_source_endpoint(
-    data_source_create: DataSourceCreate,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> DataSource:
-    """Create a basic data source (immediate insert with additional_variables=None typically)"""
-    return await create_data_source(user.id, data_source_create)
 
 
 @router.post("/file-data-source", response_model=DataSource)

@@ -5,8 +5,7 @@ from synesis_schemas.main_server import (
     ModelImplementation,
     ModelImplementationInDB,
     ModelDefinitionInDB,
-    ModelFunction,
-    ScriptInDB,
+    ModelFunctionInDB,
     ModelEntityImplementation
 )
 
@@ -14,10 +13,10 @@ from synesis_schemas.main_server import (
 def get_model_description(
     model_in_db: ModelImplementationInDB,
     definition: ModelDefinitionInDB,
-    training_function: ModelFunction,
-    inference_function: ModelFunction,
-    implementation_script: ScriptInDB,
-    setup_script: Optional[ScriptInDB] = None
+    training_function: ModelFunctionInDB,
+    inference_function: ModelFunctionInDB,
+    implementation_script_path: str,
+    setup_script_path: Optional[str] = None
 
 ) -> str:
     lines = []
@@ -37,7 +36,7 @@ def get_model_description(
         f"### Model Implementation with name `{model_in_db.python_class_name}`, ID: {model_in_db.id} and version (v{model_in_db.version})",
         f"*(An implemented version of the model definition)*",
         f"",
-        f"**Module Path:** `{implementation_script.module_path}`",
+        f"**Module Path:** `{implementation_script_path}`",
         f"**Python Class Name:** `{model_in_db.python_class_name}`",
         f"",
     ])
@@ -77,26 +76,6 @@ def get_model_description(
         f"**Returns the variables:** `{training_function.output_variables_schema}`")
     lines.append("")
 
-    if training_function.input_object_groups:
-        lines.append("**Input Object Groups:**")
-        for obj_group in training_function.input_object_groups:
-            req_marker = "✓" if obj_group.required else "○"
-            lines.append(
-                f"- {req_marker} `{obj_group.name}` (ID: {obj_group.id}, Type: {obj_group.structure_id})")
-            if obj_group.description:
-                lines.append(f"  {obj_group.description}")
-        lines.append("")
-
-    if training_function.output_object_groups:
-        lines.append("**Output Object Groups:**")
-        for obj_group in training_function.output_object_groups:
-            name = obj_group.name if obj_group.name else "Unnamed"
-            lines.append(
-                f"- `{name}` (ID: {obj_group.id}, Type: {obj_group.structure_id})")
-            if obj_group.description:
-                lines.append(f"  {obj_group.description}")
-        lines.append("")
-
     # Inference function
     lines.extend([
         "#### Inference Function",
@@ -115,26 +94,6 @@ def get_model_description(
     lines.append(
         f"**Returns the variables:** `{inference_function.output_variables_schema}`")
     lines.append("")
-
-    if inference_function.input_object_groups:
-        lines.append("**Input Object Groups:**")
-        for obj_group in inference_function.input_object_groups:
-            req_marker = "✓" if obj_group.required else "○"
-            lines.append(
-                f"- {req_marker} `{obj_group.name}` (ID: {obj_group.id}, Type: {obj_group.structure_id})")
-            if obj_group.description:
-                lines.append(f"  {obj_group.description}")
-        lines.append("")
-
-    if inference_function.output_object_groups:
-        lines.append("**Output Object Groups:**")
-        for obj_group in inference_function.output_object_groups:
-            name = obj_group.name if obj_group.name else "Unnamed"
-            lines.append(
-                f"- `{name}` (ID: {obj_group.id}, Type: {obj_group.structure_id})")
-            if obj_group.description:
-                lines.append(f"  {obj_group.description}")
-        lines.append("")
 
     return "\n".join(lines)
 
@@ -169,8 +128,8 @@ def get_model_entity_description(model_entity: ModelEntityInDB, model_entity_imp
         model_impl.definition,
         model_impl.training_function,
         model_impl.inference_function,
-        model_impl.implementation_script,
-        model_impl.setup_script
+        model_impl.implementation_script_path,
+        model_impl.setup_script_path
     )
     lines.append("")
     lines.append(model_description)

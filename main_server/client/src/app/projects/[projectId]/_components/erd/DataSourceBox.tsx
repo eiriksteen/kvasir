@@ -11,7 +11,7 @@ interface DataSourceBoxProps {
 }
 
 export default function DataSourceBox({ dataSourceId, projectId, openTab }: DataSourceBoxProps) {
-  const { dataSource } = useDataSource(dataSourceId);
+  const { dataSource } = useDataSource(projectId, dataSourceId);
   const { 
     dataSourcesInContext, 
     addDataSourceToContext, 

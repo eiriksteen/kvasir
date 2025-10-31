@@ -3,6 +3,7 @@ import uuid
 import pandas as pd
 import jsonschema
 from typing import List, Optional, Union, Tuple, Type
+from pandas.io.json._table_schema import build_table_schema
 from datetime import datetime
 from sqlalchemy import insert, select
 from fastapi import UploadFile
@@ -33,24 +34,42 @@ from synesis_schemas.main_server import (
     ObjectGroup,
     ObjectGroupSources,
     get_data_objects_in_db_info,
-    MetadataFile
+    ObjectsFile,
+    TimeSeriesGroupCreate,
+    DataObjectGroupCreate,
+    ObjectGroupInDB
 )
-from pandas.io.json._table_schema import build_table_schema
 from synesis_api.database.service import execute, fetch_all, insert_df
 
+# Table mapping for different modalities
+GROUP_MODALITY_TABLE_MAPPING = {
+    "time_series_group": time_series_group,
+    # Add new modality tables here as they're created
+    # "tabular_group": tabular_group,
+    # "image_group": image_group,
+}
 
-async def create_dataset_metadata(
-    user_id: uuid.UUID,
-    dataset_id: uuid.UUID,
+# No hardcoded field constants - everything is derived dynamically from models
+
+
+# =============================================================================
+# CREATE FUNCTIONS
+# =============================================================================
+
+
+async def create_data_objects(
+    group_id: uuid.UUID,
     files: List[UploadFile],
-    metadata_files: List[MetadataFile]
-) -> Dataset:
+    objects_files: List[ObjectsFile]
+) -> List[DataObject]:
+    created_objects = []
 
     for file in files:
-        mapping_obj = next(
-            m for m in metadata_files if m.filename == file.filename)
+        objects_file = next(
+            of for of in objects_files if of.filename == file.filename)
+
         in_db_model_info = get_data_objects_in_db_info(
-            mapping_obj.modality, mapping_obj.type)
+            objects_file.modality, "object")
 
         content = await file.read()
         df = pd.read_parquet(io.BytesIO(content))
@@ -62,42 +81,109 @@ async def create_dataset_metadata(
         parent_df, child_df = _split_create_df_into_parent_and_child(
             df, in_db_model_info.parent_model, in_db_model_info.child_model)
 
-        parent_df["id"] = uuid.uuid4()
-        parent_df["created_at"] = datetime.now()
-        parent_df["updated_at"] = datetime.now()
-        child_df["id"] = parent_df["id"]
-        child_df["created_at"] = parent_df["created_at"]
-        child_df["updated_at"] = parent_df["updated_at"]
+        object_ids = [uuid.uuid4() for _ in range(len(parent_df))]
+        now = datetime.now()
 
-        if mapping_obj.type == "object":
-            parent_df["group_id"] = uuid.uuid4()
-        elif mapping_obj.type == "object_group":
-            parent_df["dataset_id"] = dataset_id
+        parent_df["id"] = object_ids
+        parent_df["created_at"] = now
+        parent_df["updated_at"] = now
+        parent_df["group_id"] = group_id
+        child_df["id"] = object_ids
+        child_df["created_at"] = now
+        child_df["updated_at"] = now
 
         await insert_df(parent_df, table_name=in_db_model_info.parent_table_name)
         await insert_df(child_df, table_name=in_db_model_info.child_table_name)
 
-    # Return the created dataset
-    return await get_user_datasets(user_id, dataset_ids=[dataset_id])[0]
+        # Get the created objects
+        created_objects.extend(await get_data_objects(object_ids=object_ids))
+
+    return created_objects
+
+
+async def create_object_group(
+    user_id: uuid.UUID,
+    dataset_id: uuid.UUID,
+    group_create: DataObjectGroupCreate,
+    files: List[UploadFile] = []
+) -> ObjectGroup:
+
+    in_db_model_info = get_data_objects_in_db_info(
+        group_create.modality, "object_group")
+
+    object_group_data = ObjectGroupInDB(
+        id=uuid.uuid4(),
+        **group_create.model_dump(),
+        dataset_id=dataset_id,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+        additional_variables=group_create.__pydantic_extra__,
+    )
+
+    # Extract modality-specific fields
+    modality_group_data = in_db_model_info.child_model(
+        id=uuid.uuid4(),
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+        **group_create.modality_fields.model_dump()
+    )
+    await execute(insert(object_group).values(object_group_data.model_dump()), commit_after=True)
+    modality_table = GROUP_MODALITY_TABLE_MAPPING[in_db_model_info.child_table_name]
+    await execute(insert(modality_table).values(modality_group_data.model_dump()), commit_after=True)
+    await create_data_objects(object_group_data.id, files, group_create.objects_files)
+
+    if group_create.data_source_ids:
+        data_source_relationships = [
+            {
+                "data_source_id": ds_id,
+                "object_group_id": object_group_data.id
+            }
+            for ds_id in group_create.data_source_ids
+        ]
+        await execute(insert(object_group_from_data_source).values(data_source_relationships), commit_after=True)
+
+    if group_create.pipeline_ids:
+        pipeline_relationships = [{"pipeline_id": p_id, "object_group_id": object_group_data.id}
+                                  for p_id in group_create.pipeline_ids]
+        await execute(insert(object_group_from_pipeline).values(pipeline_relationships), commit_after=True)
+
+    object_groups = await get_object_groups(user_id, group_ids=[object_group_data.id])
+    return object_groups[0]
 
 
 async def create_dataset(
         user_id: uuid.UUID,
-        files: List[UploadFile],
-        dataset_create: DatasetCreate) -> Dataset:
+        dataset_create: DatasetCreate,
+        files: List[UploadFile] = []) -> Dataset:
 
     dataset_obj = DatasetInDB(
         id=uuid.uuid4(),
         user_id=user_id,
-        name=dataset_create.name,
-        description=dataset_create.description,
+        **dataset_create.model_dump(),
         created_at=datetime.now(),
-        updated_at=datetime.now()
+        updated_at=datetime.now(),
+        additional_variables=dataset_create.__pydantic_extra__
     )
     await execute(insert(dataset).values(dataset_obj.model_dump()), commit_after=True)
 
-    return await create_dataset_metadata(user_id, dataset_obj.id, files, dataset_create.metadata_files)
+    for group_create in dataset_create.groups:
+        group = await create_object_group(user_id, dataset_obj.id, group_create)
 
+        if files and group_create.objects_files:
+            group_files = []
+            for file in files:
+                if any(of.filename == file.filename for of in group_create.objects_files):
+                    group_files.append(file)
+
+            if group_files:
+                await create_data_objects(group.id, group_files, group_create.objects_files)
+
+    return await get_user_datasets(user_id, dataset_ids=[dataset_obj.id])[0]
+
+
+# =============================================================================
+# GET/READ FUNCTIONS
+# =============================================================================
 
 async def get_user_datasets(
         user_id: uuid.UUID,
@@ -368,8 +454,9 @@ async def get_data_objects(
     return result_records
 
 
-##
-
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
 
 def _split_create_df_into_parent_and_child(df: pd.DataFrame, parent_model: Type[BaseModel], child_model: Type[BaseModel]) -> Tuple[pd.DataFrame, pd.DataFrame]:
     # Get fields unique to parent and child

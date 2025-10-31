@@ -1,3 +1,9 @@
+from synesis_schemas.main_server.model import ModelEntity
+from synesis_schemas.main_server.analysis import Analysis
+from synesis_schemas.main_server.pipeline import Pipeline
+from synesis_schemas.main_server.data_objects import Dataset
+from synesis_schemas.main_server.data_sources import DataSource
+from synesis_schemas.main_server.project import ProjectAnalysisInDB, ProjectDataSourceInDB, ProjectDatasetInDB, ProjectModelEntityInDB, ProjectPipelineInDB
 from uuid import UUID
 from typing import List, Optional
 from sqlalchemy import select, delete, insert, update, and_
@@ -48,14 +54,19 @@ from synesis_api.modules.analysis.service import get_user_analyses
 
 
 async def create_project(user_id: UUID, project_data: ProjectCreate) -> Project:
+    if project_data.python_package_name is None:
+        project_data.python_package_name = project_data.name.replace(
+            " ", "_").lower()
+
     query = insert(project).values(
         user_id=user_id,
-        name=project_data.name,
-        description=project_data.description
+        **project_data.model_dump()
     ).returning(project)
 
     project_row = await fetch_one(query, commit_after=True)
-    return Project(**project_row)
+    # Return project with graph field populated
+    projects = await get_projects(user_id, [project_row["id"]])
+    return projects[0]
 
 
 async def get_project_data_sources(project_id: UUID) -> List[ProjectDataSourceInDB]:
@@ -83,68 +94,20 @@ async def get_project_model_entities(project_id: UUID) -> List[ProjectModelEntit
     return [ProjectModelEntityInDB(**model_entity_row) for model_entity_row in model_entity_rows]
 
 
-async def get_projects(user_id: UUID, project_ids: Optional[List[UUID]] = None) -> List[Project]:
-    # Get project details
-    query = select(project).where(project.c.user_id == user_id)
-    if project_ids is not None:
-        query = query.where(project.c.id.in_(project_ids))
-    project_rows = await fetch_all(query)
-    project_ids = [p["id"] for p in project_rows]
-
-    if not project_rows:
-        return []
-
-    data_source_objs = await fetch_all(select(project_data_source).where(project_data_source.c.project_id.in_(project_ids)))
-    dataset_objs = await fetch_all(select(project_dataset).where(project_dataset.c.project_id.in_(project_ids)))
-    analysis_objs = await fetch_all(select(project_analysis).where(project_analysis.c.project_id.in_(project_ids)))
-    pipeline_objs = await fetch_all(select(project_pipeline).where(project_pipeline.c.project_id.in_(project_ids)))
-    model_entity_objs = await fetch_all(select(project_model_entity).where(project_model_entity.c.project_id.in_(project_ids)))
-
-    project_objects = []
-    for project_id in project_ids:
-        project_row = next((p for p in project_rows if p["id"] == project_id))
-        data_sources_in_project = [
-            d for d in data_source_objs if d["project_id"] == project_id]
-        datasets_in_project = [
-            d for d in dataset_objs if d["project_id"] == project_id]
-        analyses_in_project = [
-            d for d in analysis_objs if d["project_id"] == project_id]
-        pipelines_in_project = [
-            d for d in pipeline_objs if d["project_id"] == project_id]
-        model_entities_in_project = [
-            d for d in model_entity_objs if d["project_id"] == project_id]
-
-        project_objects.append(Project(
-            id=project_row["id"],
-            user_id=project_row["user_id"],
-            name=project_row["name"],
-            description=project_row["description"],
-            created_at=project_row["created_at"],
-            updated_at=project_row["updated_at"],
-            data_sources=data_sources_in_project,
-            datasets=datasets_in_project,
-            analyses=analyses_in_project,
-            pipelines=pipelines_in_project,
-            model_entities=model_entities_in_project,
-            view_port_x=project_row.get("view_port_x", 0.0),
-            view_port_y=project_row.get("view_port_y", 0.0),
-            view_port_zoom=project_row.get("view_port_zoom", 1.0)
-        ))
-
-    return project_objects
-
-
-async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
-    project = await get_projects(user_id, [project_id])
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    project = project[0]
-
-    data_sources = await get_user_data_sources(user_id=user_id, data_source_ids=[ds.data_source_id for ds in project.data_sources])
-    datasets = await get_user_datasets(user_id=user_id, dataset_ids=[ds.dataset_id for ds in project.datasets])
-    pipelines = await get_user_pipelines(user_id=user_id, pipeline_ids=[ds.pipeline_id for ds in project.pipelines])
-    model_entities = await get_user_model_entities(user_id=user_id, model_entity_ids=[ds.model_entity_id for ds in project.model_entities])
-    analyses = await get_user_analyses(user_id=user_id, analysis_ids=[ds.analysis_id for ds in project.analyses])
+async def _build_project_graph(
+    user_id: UUID,
+    project_data_sources: List[ProjectDataSourceInDB],
+    project_datasets: List[ProjectDatasetInDB],
+    project_pipelines: List[ProjectPipelineInDB],
+    project_model_entities: List[ProjectModelEntityInDB],
+    project_analyses: List[ProjectAnalysisInDB]
+) -> ProjectGraph:
+    """Build a project graph from project entity lists."""
+    data_sources = await get_user_data_sources(user_id=user_id, data_source_ids=[ds.data_source_id for ds in project_data_sources])
+    datasets = await get_user_datasets(user_id=user_id, dataset_ids=[ds.dataset_id for ds in project_datasets])
+    pipelines = await get_user_pipelines(user_id=user_id, pipeline_ids=[ds.pipeline_id for ds in project_pipelines])
+    model_entities = await get_user_model_entities(user_id=user_id, model_entity_ids=[ds.model_entity_id for ds in project_model_entities])
+    analyses = await get_user_analyses(user_id=user_id, analysis_ids=[ds.analysis_id for ds in project_analyses])
 
     def _get_data_sources_in_graph(data_sources: List[DataSource], project_data_sources: List[ProjectDataSourceInDB], datasets: List[Dataset]) -> List[DataSourceInGraph]:
         objs = []
@@ -195,7 +158,7 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
             output_dataset_ids = [
                 ds.id for ds in datasets if p.id in ds.sources.pipeline_ids]
             output_model_entity_ids = [
-                me.id for me in model_entities if p.id == me.implementation.pipeline_id if me.implementation is not None]
+                me.id for me in model_entities if me.implementation is not None and p.id == me.implementation.pipeline_id]
 
             objs.append(PipelineInGraph(
                 id=p.id,
@@ -256,15 +219,15 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
         return objs
 
     data_sources_in_graph = _get_data_sources_in_graph(
-        data_sources, project.data_sources, datasets)
+        data_sources, project_data_sources, datasets)
     datasets_in_graph = _get_datasets_in_graph(
-        datasets, project.datasets, pipelines, analyses)
+        datasets, project_datasets, pipelines, analyses)
     pipelines_in_graph = _get_pipelines_in_graph(
-        pipelines, project.pipelines, datasets, model_entities)
+        pipelines, project_pipelines, datasets, model_entities)
     analyses_in_graph = _get_analyses_in_graph(
-        analyses, project.analyses, pipelines)
+        analyses, project_analyses, pipelines)
     model_entities_in_graph = _get_model_entities_in_graph(
-        model_entities, project.model_entities, pipelines)
+        model_entities, project_model_entities, pipelines)
 
     return ProjectGraph(
         data_sources=data_sources_in_graph,
@@ -273,6 +236,54 @@ async def get_project_graph(user_id: UUID, project_id: UUID) -> ProjectGraph:
         analyses=analyses_in_graph,
         model_entities=model_entities_in_graph
     )
+
+
+async def get_projects(user_id: UUID, project_ids: Optional[List[UUID]] = None) -> List[Project]:
+    # Get project details
+    query = select(project).where(project.c.user_id == user_id)
+    if project_ids is not None:
+        query = query.where(project.c.id.in_(project_ids))
+    project_rows = await fetch_all(query)
+    project_ids_list = [p["id"] for p in project_rows]
+
+    if not project_rows:
+        return []
+
+    data_source_objs = await fetch_all(select(project_data_source).where(project_data_source.c.project_id.in_(project_ids_list)))
+    dataset_objs = await fetch_all(select(project_dataset).where(project_dataset.c.project_id.in_(project_ids_list)))
+    analysis_objs = await fetch_all(select(project_analysis).where(project_analysis.c.project_id.in_(project_ids_list)))
+    pipeline_objs = await fetch_all(select(project_pipeline).where(project_pipeline.c.project_id.in_(project_ids_list)))
+    model_entity_objs = await fetch_all(select(project_model_entity).where(project_model_entity.c.project_id.in_(project_ids_list)))
+
+    project_objects = []
+    for project_id in project_ids_list:
+        project_row = next((p for p in project_rows if p["id"] == project_id))
+        data_sources_in_project = [
+            ProjectDataSourceInDB(**d) for d in data_source_objs if d["project_id"] == project_id]
+        datasets_in_project = [
+            ProjectDatasetInDB(**d) for d in dataset_objs if d["project_id"] == project_id]
+        analyses_in_project = [
+            ProjectAnalysisInDB(**d) for d in analysis_objs if d["project_id"] == project_id]
+        pipelines_in_project = [
+            ProjectPipelineInDB(**d) for d in pipeline_objs if d["project_id"] == project_id]
+        model_entities_in_project = [
+            ProjectModelEntityInDB(**d) for d in model_entity_objs if d["project_id"] == project_id]
+
+        project_graph = await _build_project_graph(
+            user_id,
+            data_sources_in_project,
+            datasets_in_project,
+            pipelines_in_project,
+            model_entities_in_project,
+            analyses_in_project
+        )
+
+        project_objects.append(Project(
+            **project_row,
+            graph=project_graph
+        ))
+
+    return project_objects
 
 
 async def update_project_details(user_id: UUID, project_data: ProjectDetailsUpdate) -> Project | None:
@@ -442,7 +453,10 @@ async def update_project_viewport(user_id: UUID, viewport_data: UpdateProjectVie
 
 async def _generate_entity_position(user_id: UUID, entity_data: AddEntityToProject) -> EntityPositionCreate:
     """Generate a suitable position for an entity."""
-    project_graph = await get_project_graph(user_id, entity_data.project_id)
+    projects = await get_projects(user_id, [entity_data.project_id])
+    if not projects:
+        raise HTTPException(status_code=404, detail="Project not found")
+    project_graph = projects[0].graph
 
     if entity_data.entity_type == "data_source":
         entity_info = await get_user_data_sources(user_id=user_id, data_source_ids=[entity_data.entity_id])

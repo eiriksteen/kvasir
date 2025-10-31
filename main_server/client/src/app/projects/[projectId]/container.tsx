@@ -40,11 +40,11 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
   // Determine tab type based on activeTabId
   const getTabType = () => {
     if (activeTabId === null) return 'project';
-    if (project.dataSources.some(ds => ds.dataSourceId === activeTabId)) return 'data_source';
-    if (project.datasets.some(ds => ds.datasetId === activeTabId)) return 'dataset';
-    if (project.analyses.some(a => a.analysisId === activeTabId)) return 'analysis';
-    if (project.pipelines.some(p => p.pipelineId === activeTabId)) return 'pipeline';
-    if (project.modelEntities.some(m => m.modelEntityId === activeTabId)) return 'model_entity';
+    if (project.graph.dataSources.some(ds => ds.id === activeTabId)) return 'data_source';
+    if (project.graph.datasets.some(ds => ds.id === activeTabId)) return 'dataset';
+    if (project.graph.analyses.some(a => a.id === activeTabId)) return 'analysis';
+    if (project.graph.pipelines.some(p => p.id === activeTabId)) return 'pipeline';
+    if (project.graph.modelEntities.some(m => m.id === activeTabId)) return 'model_entity';
     return 'project';
   };
 
@@ -61,6 +61,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     mainContent = (
       <FileInfoTab
         dataSourceId={activeTabId}
+        projectId={projectId}
         onClose={() => closeTabToProject()}
       />
     );

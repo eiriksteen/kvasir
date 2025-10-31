@@ -144,7 +144,6 @@ export const usePipelines = (projectId: UUID) => {
               await mutate(["datasets", projectId]);
               await mutate(["model-entities", projectId])
               await mutate("projects");
-              await mutate(["project-graph", projectId]);
             }
 
             return updatedRuns;

@@ -2,12 +2,18 @@ from typing import Optional
 
 from synesis_schemas.main_server import (
     PipelineInDB,
-    PipelineImplementationInDB,
-    Pipeline,
+    PipelineInputEntities,
+    PipelineOutputEntities,
+    PipelineImplementation,
 )
 
 
-def get_pipeline_description(pipeline: Pipeline) -> str:
+def get_pipeline_description(
+    pipeline_in_db: PipelineInDB,
+    inputs: PipelineInputEntities,
+    outputs: PipelineOutputEntities,
+    implementation: Optional[PipelineImplementation]
+) -> str:
     """
     Generate a comprehensive description of a pipeline for use in prompts or displays.
 
@@ -17,32 +23,32 @@ def get_pipeline_description(pipeline: Pipeline) -> str:
     Returns:
         A formatted string description of the pipeline
     """
-    description = f"Pipeline: {pipeline.name}\n"
-    description += f"- ID: {pipeline.id}\n"
-    description += f"- Created: {pipeline.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
+    description = f"Pipeline: {pipeline_in_db.name}\n"
+    description += f"- ID: {pipeline_in_db.id}\n"
+    description += f"- Created: {pipeline_in_db.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
 
-    if pipeline.description:
-        description += f"- Description: {pipeline.description}\n"
+    if pipeline_in_db.description:
+        description += f"- Description: {pipeline_in_db.description}\n"
 
     # Input entities
-    if pipeline.inputs.data_source_ids:
-        description += f"- Input Data Sources: {len(pipeline.inputs.data_source_ids)} sources\n"
-    if pipeline.inputs.dataset_ids:
-        description += f"- Input Datasets: {len(pipeline.inputs.dataset_ids)} datasets\n"
-    if pipeline.inputs.model_entity_ids:
-        description += f"- Input Model Entities: {len(pipeline.inputs.model_entity_ids)} entities\n"
-    if pipeline.inputs.analysis_ids:
-        description += f"- Input Analyses: {len(pipeline.inputs.analysis_ids)} analyses\n"
+    if inputs.data_source_ids:
+        description += f"- Input Data Sources: {len(inputs.data_source_ids)} sources\n"
+    if inputs.dataset_ids:
+        description += f"- Input Datasets: {len(inputs.dataset_ids)} datasets\n"
+    if inputs.model_entity_ids:
+        description += f"- Input Model Entities: {len(inputs.model_entity_ids)} entities\n"
+    if inputs.analysis_ids:
+        description += f"- Input Analyses: {len(inputs.analysis_ids)} analyses\n"
 
     # Output entities
-    if pipeline.outputs.dataset_ids:
-        description += f"- Output Datasets: {len(pipeline.outputs.dataset_ids)} datasets\n"
-    if pipeline.outputs.model_entity_ids:
-        description += f"- Output Model Entities: {len(pipeline.outputs.model_entity_ids)} entities\n"
+    if outputs.dataset_ids:
+        description += f"- Output Datasets: {len(outputs.dataset_ids)} datasets\n"
+    if outputs.model_entity_ids:
+        description += f"- Output Model Entities: {len(outputs.model_entity_ids)} entities\n"
 
     # Implementation details
-    if pipeline.implementation:
-        impl = pipeline.implementation
+    if implementation:
+        impl = implementation
         description += f"\nImplementation Details:\n"
         description += f"- Function Name: {impl.python_function_name}\n"
         description += f"- Docstring: {impl.docstring}\n"

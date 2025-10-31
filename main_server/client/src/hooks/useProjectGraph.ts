@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { ProjectGraph } from "@/types/orchestrator";
+import { ProjectGraph } from "@/types/project";
 import { UUID } from "crypto";
 import { snakeToCamelKeys } from "@/lib/utils";
 import { useSession } from "next-auth/react";

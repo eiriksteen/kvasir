@@ -6,7 +6,6 @@ import useSWRSubscription from "swr/subscription";
 import { SSE } from "sse.js";
 import { snakeToCamelKeys } from "@/lib/utils";
 import { useRun } from "./useRuns";
-import { ScriptWithRawCode } from "@/types/code";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -15,6 +14,20 @@ interface StreamedCode {
   code: string;
   output: string | null;
   error: string | null;
+}
+
+interface ScriptWithRawCode {
+  id: UUID;
+  userId: UUID;
+  filename: string;
+  path: string;
+  modulePath: string;
+  type: string;
+  output: string | null;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+  code: string;
 }
 
 function createCodeStreamEventSource(token: string, runId: UUID): SSE {

@@ -1,7 +1,7 @@
 import { UUID } from "crypto";
 
-
 // API Schemas
+
 export interface TableColumn {
   name: string;
   unit?: string | null;
@@ -9,14 +9,14 @@ export interface TableColumn {
 }
 
 export interface TableConfig {
-    title: string;
-    subtitle: string;
-    columns: TableColumn[];
-    showRowNumbers: boolean;
-    maxRows: number | null;
-    sortBy: string | null;
-    sortOrder: 'asc' | 'desc' | null;
-  }
+  title: string;
+  subtitle?: string | null;
+  columns: TableColumn[];
+  showRowNumbers: boolean;
+  maxRows?: number | null;
+  sortBy?: string | null;
+  sortOrder?: string | null;
+}
 
 export interface BaseTable {
   id: UUID;
@@ -25,10 +25,6 @@ export interface BaseTable {
 }
 
 // CRUD Schemas
-export interface TableColumnCreate {
-  name: string;
-  unit?: string | null;
-}
 
 export interface TableCreate {
   analysisResultId: UUID;

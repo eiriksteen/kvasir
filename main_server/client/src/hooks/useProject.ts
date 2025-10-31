@@ -237,52 +237,67 @@ export const useProject = (projectId: UUID) => {
       const updatedProjects = projects.map(p => {
         if (p.id !== project.id) return p;
 
-        // Update the appropriate entity list
+        // Update the appropriate entity list in the graph
         switch (arg.entityType) {
           case "data_source":
             return {
               ...p,
-              dataSources: p.dataSources.map(ds => 
-                ds.dataSourceId === arg.entityId 
-                  ? { ...ds, xPosition: arg.xPosition, yPosition: arg.yPosition }
-                  : ds
-              )
+              graph: {
+                ...p.graph,
+                dataSources: p.graph.dataSources.map(ds => 
+                  ds.id === arg.entityId 
+                    ? { ...ds, xPosition: arg.xPosition, yPosition: arg.yPosition }
+                    : ds
+                )
+              }
             };
           case "dataset":
             return {
               ...p,
-              datasets: p.datasets.map(ds => 
-                ds.datasetId === arg.entityId 
-                  ? { ...ds, xPosition: arg.xPosition, yPosition: arg.yPosition }
-                  : ds
-              )
+              graph: {
+                ...p.graph,
+                datasets: p.graph.datasets.map(ds => 
+                  ds.id === arg.entityId 
+                    ? { ...ds, xPosition: arg.xPosition, yPosition: arg.yPosition }
+                    : ds
+                )
+              }
             };
           case "analysis":
             return {
               ...p,
-              analyses: p.analyses.map(a => 
-                a.analysisId === arg.entityId 
-                  ? { ...a, xPosition: arg.xPosition, yPosition: arg.yPosition }
-                  : a
-              )
+              graph: {
+                ...p.graph,
+                analyses: p.graph.analyses.map(a => 
+                  a.id === arg.entityId 
+                    ? { ...a, xPosition: arg.xPosition, yPosition: arg.yPosition }
+                    : a
+                )
+              }
             };
           case "pipeline":
             return {
               ...p,
-              pipelines: p.pipelines.map(pl => 
-                pl.pipelineId === arg.entityId 
-                  ? { ...pl, xPosition: arg.xPosition, yPosition: arg.yPosition }
-                  : pl
-              )
+              graph: {
+                ...p.graph,
+                pipelines: p.graph.pipelines.map(pl => 
+                  pl.id === arg.entityId 
+                    ? { ...pl, xPosition: arg.xPosition, yPosition: arg.yPosition }
+                    : pl
+                )
+              }
             };
           case "model_entity":
             return {
               ...p,
-              modelEntities: p.modelEntities.map(me => 
-                me.modelEntityId === arg.entityId 
-                  ? { ...me, xPosition: arg.xPosition, yPosition: arg.yPosition }
-                  : me
-              )
+              graph: {
+                ...p.graph,
+                modelEntities: p.graph.modelEntities.map(me => 
+                  me.id === arg.entityId 
+                    ? { ...me, xPosition: arg.xPosition, yPosition: arg.yPosition }
+                    : me
+                )
+              }
             };
           default:
             return p;
@@ -338,18 +353,18 @@ export const useProject = (projectId: UUID) => {
   );
 
   const calculateNodePosition = useCallback(() => {
-    if (!project || project.dataSources.length === 0) {
+    if (!project?.graph || project.graph.dataSources.length === 0) {
       return { x: -300, y: 0 };
     }
 
     const baseX = -300;
     const verticalSpacing = 75; 
 
-    const yPositions = project.dataSources.map(ds => ds.yPosition);
+    const yPositions = project.graph.dataSources.map(ds => ds.yPosition);
     const highestY = Math.max(...yPositions);
 
     return { x: baseX, y: highestY + verticalSpacing };
-  }, [project]);
+  }, [project?.graph]);
 
   // Unified function to add any entity to project
   const addEntity = async (

@@ -18,7 +18,6 @@ from synesis_api.modules.pipeline.service import (
     get_user_pipelines
 )
 from synesis_api.client import MainServerClient, post_run_pipeline
-from synesis_schemas.project_server import RunPipelineRequest
 from synesis_schemas.main_server import (
     Pipeline,
     PipelineImplementationCreate,
@@ -30,7 +29,9 @@ from synesis_schemas.main_server import (
     PipelineRunDatasetOutputCreate,
     PipelineRunModelEntityOutputCreate,
     PipelineCreate,
-    PipelineImplementationInDB
+    PipelineImplementationInDB,
+    RunPipelineRequest,
+    GetPipelinesByIDsRequest
 )
 from synesis_api.app_secrets import SSE_MIN_SLEEP_TIME
 
@@ -48,6 +49,15 @@ async def fetch_pipeline(
     user: User = Depends(get_current_user),
 ) -> Pipeline:
     return (await get_user_pipelines(user.id, [pipeline_id]))[0]
+
+
+@router.get("/pipelines-by-ids", response_model=List[Pipeline])
+async def fetch_pipelines_by_ids(
+    request: GetPipelinesByIDsRequest,
+    user: User = Depends(get_current_user),
+) -> List[Pipeline]:
+    """Get pipelines by IDs"""
+    return await get_user_pipelines(user.id, pipeline_ids=request.pipeline_ids)
 
 
 @router.post("/pipeline", response_model=PipelineInDB)
@@ -83,20 +93,6 @@ async def run_pipeline(
     await post_run_pipeline(MainServerClient(token), request)
 
     return pipe_run
-
-
-@router.post("/pipelines/{pipeline_id}/run-object", response_model=PipelineRunInDB)
-async def post_pipeline_run_object(
-    pipeline_id: str,
-    user: User = Depends(get_current_user),
-) -> PipelineRunInDB:
-
-    if not await user_owns_pipeline(user.id, pipeline_id):
-        raise HTTPException(
-            status_code=403, detail="You do not have permission to run this pipeline")
-
-    pipeline = await create_pipeline_run(pipeline_id)
-    return pipeline
 
 
 @router.patch("/pipelines/{pipeline_run_id}/status", response_model=PipelineRunInDB)

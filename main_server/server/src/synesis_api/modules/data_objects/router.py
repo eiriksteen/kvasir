@@ -8,9 +8,9 @@ from synesis_api.modules.data_objects.service import (
     get_object_groups,
     create_dataset,
     get_user_datasets,
-    get_object_groups,
     get_data_objects,
-    create_dataset_metadata
+    create_object_group,
+    create_data_objects
 )
 # from synesis_api.modules.data_objects.service import get_time_series_payload_data_by_id
 from synesis_schemas.main_server import (
@@ -20,10 +20,11 @@ from synesis_schemas.main_server import (
     ObjectGroup,
     ObjectGroupWithObjects,
     DataObject,
-    MetadataFile
+    ObjectsFile,
+    DataObjectGroupCreate,
+    TimeSeriesWithRawData
 )
 from synesis_schemas.main_server import User
-from synesis_data_interface.structures.time_series.schema import TimeSeries
 from synesis_api.auth.service import get_current_user, user_owns_dataset, user_owns_object_group, user_owns_data_object
 # from synesis_api.client import MainServerClient, get_time_series_data
 from synesis_api.auth.service import oauth2_scheme
@@ -37,32 +38,54 @@ async def post_dataset(
     metadata: str = Form(...),
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> Dataset:
+    """Create a new dataset with groups and objects"""
 
     try:
-        metadata_parsed = DatasetCreate(**json.loads(metadata))
+        dataset_create = DatasetCreate(**json.loads(metadata))
     except Exception as e:
         raise HTTPException(
             status_code=400, detail=f"Invalid metadata: {e}")
 
-    return await create_dataset(user.id, files, metadata_parsed)
+    return await create_dataset(user.id, dataset_create, files)
 
 
-@router.post("/dataset-metadata/{dataset_id}")
-async def post_dataset_metadata(
+@router.post("/object-group/{dataset_id}", response_model=ObjectGroup)
+async def post_object_group(
     dataset_id: UUID,
+    group_create: DataObjectGroupCreate,
+    files: list[UploadFile] = [],
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> ObjectGroup:
+    """Create an object group in a dataset"""
+
+    if not await user_owns_dataset(user.id, dataset_id):
+        raise HTTPException(
+            status_code=403, detail="Not authorized to access this dataset")
+
+    return await create_object_group(user.id, dataset_id, group_create, files)
+
+
+@router.post("/objects/{group_id}")
+async def post_objects(
+    group_id: UUID,
     files: list[UploadFile] = [],
     metadata: str = Form(...),
     user: Annotated[User, Depends(get_current_user)] = None
-) -> Dataset:
+) -> List[DataObject]:
+    """Create objects in a group (using DataFrame insertion)"""
+
+    if not await user_owns_object_group(user.id, group_id):
+        raise HTTPException(
+            status_code=403, detail="Not authorized to access this object group")
 
     try:
         data_list = json.loads(metadata)
-        metadata_parsed = [MetadataFile(**data) for data in data_list]
+        objects_files = [ObjectsFile(**data) for data in data_list]
     except Exception as e:
         raise HTTPException(
             status_code=400, detail=f"Invalid metadata: {e}")
 
-    return await create_dataset_metadata(user.id, dataset_id, files, metadata_parsed)
+    return await create_data_objects(group_id, files, objects_files)
 
 
 @router.get("/dataset/{dataset_id}", response_model=Dataset)
@@ -138,13 +161,13 @@ async def fetch_data_object(
     return data_objects[0]
 
 
-@router.get("/time-series-data/{time_series_id}", response_model=TimeSeries)
+@router.get("/time-series-data/{time_series_id}", response_model=TimeSeriesWithRawData)
 async def get_time_series_data_from_project_server(
         time_series_id: UUID,
         start_date: Optional[datetime] = None,
         end_date: datetime = datetime.now(),
         user: Annotated[User, Depends(get_current_user)] = None,
-        token: str = Depends(oauth2_scheme)) -> TimeSeries:
+        token: str = Depends(oauth2_scheme)) -> TimeSeriesWithRawData:
 
     if not await user_owns_data_object(user.id, time_series_id):
         raise HTTPException(

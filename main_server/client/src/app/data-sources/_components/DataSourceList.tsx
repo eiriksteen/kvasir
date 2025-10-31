@@ -1,5 +1,4 @@
 import { DataSource } from "@/types/data-sources";
-import FileInfoTab from "@/components/info-tabs/FileInfoTab";
 import { useState } from "react";
 import SourceTypeIcon from "@/app/data-sources/_components/SourceTypeIcon";
 
@@ -45,7 +44,21 @@ export default function DataSourceList({ dataSources, isLoading, error }: { data
                 <div className="text-gray-600">No data sources yet</div>
             </div>
         )}
-        {selectedDataSource && <FileInfoTab dataSourceId={selectedDataSource.id} onClose={() => setSelectedDataSource(null)} asModal={true} />}
+        {selectedDataSource && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setSelectedDataSource(null)}>
+            <div className="bg-white rounded-lg shadow-xl max-w-md p-6 m-4" onClick={(e) => e.stopPropagation()}>
+              <p className="text-sm text-gray-700 mb-4">
+                Data sources are now project-scoped. Please view data sources from within a project.
+              </p>
+              <button
+                onClick={() => setSelectedDataSource(null)}
+                className="w-full px-4 py-2 bg-[#000034] text-white rounded-md hover:bg-[#000028] transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

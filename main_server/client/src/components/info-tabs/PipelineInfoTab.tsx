@@ -3,16 +3,15 @@ import { UUID } from 'crypto';
 import { usePipeline } from '@/hooks/usePipelines';
 import { useRuns } from '@/hooks/useRuns';
 import { useDatasets } from '@/hooks/useDatasets';
-import { useProjectDataSources } from '@/hooks/useDataSources';
+import { useDataSources } from '@/hooks/useDataSources';
 import { useModelEntities } from '@/hooks/useModelEntities';
 import { useAnalyses } from '@/hooks/useAnalysis';
-import { SquarePlay, FileCode, Database, Folder, Brain, BarChart3, Info, Code2, FileText, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { SquarePlay, FileCode, Database, Folder, Brain, BarChart3, Info, FileText, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import CodeStream from '@/components/code/CodeStream';
-import CodeImplementation from '@/components/code/CodeImplementation';
 import { Dataset } from '@/types/data-objects';
 import { DataSource } from '@/types/data-sources';
 import { ModelEntity } from '@/types/model';
-import { AnalysisObjectSmall } from '@/types/analysis';
+import { AnalysisSmall } from '@/types/analysis';
 import { Run } from '@/types/runs';
 import { mutate } from 'swr';
 
@@ -33,7 +32,7 @@ export default function PipelineInfoTab({
   const { pipeline } = usePipeline(pipelineId, projectId);
   const { runs } = useRuns();
   const { datasets } = useDatasets(projectId);
-  const { dataSources } = useProjectDataSources(projectId);
+  const { dataSources } = useDataSources(projectId);
   const { modelEntities } = useModelEntities(projectId);
   const { analysisObjects } = useAnalyses(projectId);
   
@@ -144,7 +143,10 @@ export default function PipelineInfoTab({
                 </div>
               ))
             ) : (
-              <CodeImplementation scriptId={pipeline.implementation.implementationScript.id} />
+              <div className="flex items-center justify-center h-full">
+                {/* Note: implementationScriptPath is now a string path, not a UUID. Code view not available. */}
+                <p className="text-sm text-gray-500">Code view not available - implementation uses script path instead of script ID</p>
+              </div>
             )}
           </div>
         )}
@@ -193,26 +195,9 @@ export default function PipelineInfoTab({
 
             {/* Four Separate Boxes - Perfect 2x2 Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{gridTemplateRows: 'auto auto'}}>
-              {/* Arguments Box - Top Left */}
-              {pipeline.implementation?.args && Object.keys(pipeline.implementation.args).length > 0 && (
-                <div className={`bg-gray-50 rounded-xl p-4 ${!pipeline.implementation?.outputVariablesSchema || Object.keys(pipeline.implementation.outputVariablesSchema).length === 0 ? 'lg:col-span-2' : ''}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="p-1.5 bg-[#840B08]/20 rounded-lg">
-                      <Code2 size={16} className="text-[#840B08]" />
-                    </div>
-                    <h4 className="text-sm font-semibold text-gray-900">Arguments</h4>
-                  </div>
-                  <div className="bg-white rounded p-3 border border-gray-200">
-                    <pre className="text-xs text-gray-600 whitespace-pre-wrap">
-                      {JSON.stringify(pipeline.implementation.args, null, 2)}
-                    </pre>
-                  </div>
-                </div>
-              )}
-
-              {/* Output Variables Schema Box - Top Right */}
+              {/* Output Variables Schema Box */}
               {pipeline.implementation?.outputVariablesSchema && Object.keys(pipeline.implementation.outputVariablesSchema).length > 0 && (
-                <div className={`bg-gray-50 rounded-xl p-4 ${!pipeline.implementation?.args || Object.keys(pipeline.implementation.args).length === 0 ? 'lg:col-span-2' : ''}`}>
+                <div className="bg-gray-50 rounded-xl p-4 lg:col-span-2">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="p-1.5 bg-[#840B08]/20 rounded-lg">
                       <FileText size={16} className="text-[#840B08]" />
@@ -269,7 +254,7 @@ export default function PipelineInfoTab({
                       className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#004806]/20 text-[#004806]"
                     >
                       <BarChart3 size={10} />
-                      {analysisObjects?.find((a: AnalysisObjectSmall) => a.id === analysisId)?.name || 'Analysis'}
+                      {analysisObjects?.find((a: AnalysisSmall) => a.id === analysisId)?.name || 'Analysis'}
                     </div>
                   ))}
                   {pipeline.inputs.dataSourceIds.length === 0 &&

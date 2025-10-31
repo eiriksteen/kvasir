@@ -4,7 +4,7 @@ import { useRun, useRunMessages } from "@/hooks/useRuns";
 import { BarChart3, Zap, Clock, CheckCircle, XCircle, Loader2, Folder, Brain, Check, X, Database } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useDatasets } from "@/hooks/useDatasets";
-import { useProjectDataSources } from "@/hooks/useDataSources";
+import { useDataSources } from "@/hooks/useDataSources";
 import { useModelEntities } from "@/hooks/useModelEntities";
 import { usePipelines } from "@/hooks/usePipelines";
 import { useAnalyses } from "@/hooks/useAnalysis";
@@ -12,7 +12,7 @@ import { Dataset } from "@/types/data-objects";
 import { DataSource } from "@/types/data-sources";
 import { ModelEntity } from "@/types/model";
 import { Pipeline } from "@/types/pipeline";
-import { AnalysisObjectSmall } from "@/types/analysis";
+import { AnalysisSmall } from "@/types/analysis";
 
 interface RunBoxProps {
   runId: UUID;
@@ -116,7 +116,7 @@ function RunMessageList({ runId }: { runId: UUID }) {
 export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBoxProps) {
   const { run, triggerLaunchRun, triggerRejectRun } = useRun(runId);
   const { datasets } = useDatasets(projectId);
-  const { dataSources } = useProjectDataSources(projectId);
+  const { dataSources } = useDataSources(projectId);
   const { modelEntities } = useModelEntities(projectId);
   const { pipelines, mutatePipelines } = usePipelines(projectId);
   const { analysisObjects, mutateAnalysisObjects } = useAnalyses(projectId);
@@ -180,7 +180,6 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
       }
       // // Update ERD
       await mutate("projects");
-      await mutate(["project-graph", projectId]);
 
     }
   };
@@ -290,7 +289,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                         className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#004806]/20 text-[#004806]"
                       >
                         <BarChart3 size={12} />
-                        {analysisObjects?.find((a: AnalysisObjectSmall) => a.id === analysisId)?.name || 'Analysis'}
+                        {analysisObjects?.find((a: AnalysisSmall) => a.id === analysisId)?.name || 'Analysis'}
                       </div>
                     ))}
                   </div>
@@ -344,7 +343,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                         className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#004806]/20 text-[#004806]"
                       >
                         <BarChart3 size={12} />
-                        {analysisObjects?.find((a: AnalysisObjectSmall) => a.id === analysisId)?.name || 'Analysis'}
+                        {analysisObjects?.find((a: AnalysisSmall) => a.id === analysisId)?.name || 'Analysis'}
                       </div>
                     ))}
                   </div>

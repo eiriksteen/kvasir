@@ -5,7 +5,6 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse, Response
 from pathlib import Path
-from starlette.background import BackgroundTask
 import aiofiles
 # from weasyprint import HTML
 
@@ -23,7 +22,7 @@ from synesis_schemas.main_server import (
     MoveRequest,
     AnalysisResultFindRequest,
     User,
-    AggregationObjectWithRawData,
+    # AggregationObjectWithRawData,
     GetAnalysesByIDsRequest,
 )
 from synesis_api.auth.service import get_current_user, user_owns_runs
@@ -47,7 +46,7 @@ from synesis_api.modules.analysis.service import (
 )
 from synesis_api.redis import get_redis
 from synesis_api.utils.markdown_utils import convert_markdown_to_html
-from synesis_api.client import MainServerClient, get_aggregation_object_payload_data_by_analysis_result_id, get_plots_for_analysis_result_request
+from synesis_api.client import MainServerClient, get_plots_for_analysis_result_request
 from synesis_api.auth.service import oauth2_scheme
 
 router = APIRouter()
@@ -281,13 +280,15 @@ async def add_analysis_result_to_section_endpoint(
     return await add_analysis_result_to_section(section_id, analysis_result_id)
 
 
-@router.get("/analysis-object/{analysis_id}/analysis-result/{analysis_result_id}/get-data", response_model=AggregationObjectWithRawData)
+@router.get("/analysis-object/{analysis_id}/analysis-result/{analysis_result_id}/get-data", response_model=None)
 async def get_data_for_analysis_result(
     analysis_id: uuid.UUID,
     analysis_result_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None,
     token: str = Depends(oauth2_scheme)
-) -> AggregationObjectWithRawData:
+) -> None:
+    return HTTPException(
+        status_code=501, detail="Function not implemented - needs to be fixed")
     if not await check_user_owns_analysis(user.id, analysis_id):
         raise HTTPException(
             status_code=403,

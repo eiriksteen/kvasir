@@ -1,9 +1,6 @@
 import uuid
-from sqlalchemy import Column, String, ForeignKey, Table, UUID, Float, JSON
-from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean
+from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean, JSON
 
-
-from synesis_api.database.core import metadata
 from synesis_api.database.core import metadata
 
 analysis = Table(

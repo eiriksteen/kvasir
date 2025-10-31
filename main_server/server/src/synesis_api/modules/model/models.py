@@ -6,15 +6,11 @@ from pgvector.sqlalchemy import Vector
 
 from synesis_api.database.core import metadata
 from synesis_api.app_secrets import EMBEDDING_DIM
-from synesis_data_interface.structures.overview import get_first_level_structure_ids
 
-structure_ids = get_first_level_structure_ids()
 SUPPORTED_MODEL_SOURCES = ["github", "pypi"]
 
 model_modality_constraint = "modality IN ('time_series', 'tabular', 'multimodal', 'image', 'text', 'audio', 'video')"
 model_task_constraint = "task IN ('forecasting', 'classification', 'regression', 'clustering', 'anomaly_detection', 'generation', 'segmentation')"
-structure_constraint = "structure_id IN (" + \
-    ", ".join(f"'{id}'" for id in structure_ids) + ")"
 function_type_constraint = "function_type IN ('training', 'inference')"
 
 # Build the constraint string with proper quotes
@@ -66,12 +62,8 @@ model_implementation = Table(
            nullable=False),
     Column("config_schema", JSONB, nullable=False),
     Column("default_config", JSONB, nullable=False),
-    Column("implementation_script_id", UUID(as_uuid=True),
-           ForeignKey("code.script.id"),
-           nullable=False),
-    Column("setup_script_id", UUID(as_uuid=True),
-           ForeignKey("code.script.id"),
-           nullable=True),
+    Column("implementation_script_path", String, nullable=False),
+    Column("setup_script_path", String, nullable=True),
     Column("model_class_docstring", String, nullable=False),
     Column("training_function_id", UUID(as_uuid=True),
            ForeignKey("model.model_function.id"),
@@ -148,51 +140,6 @@ model_function = Table(
     Column("args_schema", JSONB, nullable=False),
     Column("output_variables_schema", JSONB, nullable=False),
     Column("default_args", JSONB, nullable=False),
-    Column("created_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc), nullable=False),
-    Column("updated_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc),
-           onupdate=datetime.now(timezone.utc), nullable=False),
-    schema="model"
-)
-
-
-model_function_input_object_group_definition = Table(
-    "model_function_input_object_group_definition",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           default=uuid.uuid4,
-           primary_key=True),
-    Column("function_id", UUID(as_uuid=True),
-           ForeignKey("model.model_function.id"),
-           nullable=False),
-    Column("name", String, nullable=False),
-    Column("structure_id", String, nullable=False),
-    Column("description", String, nullable=False),
-    Column("required", Boolean, nullable=False),
-    CheckConstraint(structure_constraint),
-    Column("created_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc), nullable=False),
-    Column("updated_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc),
-           onupdate=datetime.now(timezone.utc), nullable=False),
-    schema="model"
-)
-
-
-model_function_output_object_group_definition = Table(
-    "model_function_output_object_group_definition",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           default=uuid.uuid4,
-           primary_key=True),
-    Column("function_id", UUID(as_uuid=True),
-           ForeignKey("model.model_function.id"),
-           nullable=False),
-    Column("name", String, nullable=True),
-    Column("structure_id", String, nullable=False),
-    Column("description", String, nullable=False),
-    CheckConstraint(structure_constraint),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),

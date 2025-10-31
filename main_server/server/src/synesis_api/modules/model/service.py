@@ -2,7 +2,7 @@ import uuid
 import jsonschema
 from datetime import datetime, timezone
 from typing import List
-from sqlalchemy import select, insert, update, delete, func, and_
+from sqlalchemy import select, insert, update, func, and_
 from fastapi import HTTPException
 
 from synesis_api.database.service import fetch_all, execute, fetch_one
@@ -12,8 +12,6 @@ from synesis_api.modules.model.models import (
     model_entity,
     model_entity_implementation,
     model_function,
-    model_function_input_object_group_definition,
-    model_function_output_object_group_definition,
     model_source,
     pypi_model_source
 )
@@ -31,16 +29,12 @@ from synesis_schemas.main_server import (
     ModelEntityImplementation,
     ModelImplementation,
     ModelUpdateCreate,
-    ModelFunction,
-    ModelFunctionInputObjectGroupDefinitionInDB,
-    ModelFunctionOutputObjectGroupDefinitionInDB,
     ModelSource,
     ModelSourceCreate,
     ModelSourceInDB,
     PypiModelSourceInDB,
 )
 from synesis_api.utils.rag_utils import embed
-from synesis_api.modules.code.service import create_script, get_scripts
 from synesis_api.modules.model.description import get_model_entity_description, get_model_description
 
 
@@ -69,13 +63,6 @@ async def create_model(user_id: uuid.UUID, model_create: ModelImplementationCrea
         updated_at=datetime.now(timezone.utc)
     )
 
-    implementation_script_obj = await create_script(user_id, model_create.implementation_script_create)
-
-    if model_create.setup_script_create:
-        setup_script_obj = await create_script(user_id, model_create.setup_script_create)
-    else:
-        setup_script_obj = None
-
     model_source_obj = await create_model_source(model_create.source)
 
     model_obj = ModelImplementationInDB(
@@ -89,8 +76,6 @@ async def create_model(user_id: uuid.UUID, model_create: ModelImplementationCrea
         training_function_id=training_function_obj.id,
         inference_function_id=inference_function_obj.id,
         embedding=embedding,
-        implementation_script_id=implementation_script_obj.id,
-        setup_script_id=setup_script_obj.id if setup_script_obj else None,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
     )
@@ -100,75 +85,16 @@ async def create_model(user_id: uuid.UUID, model_create: ModelImplementationCrea
     await execute(insert(model_function).values(**inference_function_obj.model_dump()), commit_after=True)
     await execute(insert(model_implementation).values(**model_obj.model_dump()), commit_after=True)
 
-    training_input_records = [
-        ModelFunctionInputObjectGroupDefinitionInDB(
-            id=uuid.uuid4(),
-            function_id=training_function_obj.id,
-            **input_group.model_dump(),
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
-        ).model_dump() for input_group in model_create.training_function.input_object_groups
-    ]
-
-    training_output_object_records = [
-        ModelFunctionOutputObjectGroupDefinitionInDB(
-            id=uuid.uuid4(),
-            function_id=training_function_obj.id,
-            **output_group.model_dump(),
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
-        ).model_dump() for output_group in model_create.training_function.output_object_groups
-    ]
-
-    inference_input_records = [
-        ModelFunctionInputObjectGroupDefinitionInDB(
-            id=uuid.uuid4(),
-            function_id=inference_function_obj.id,
-            **input_group.model_dump(),
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
-        ).model_dump() for input_group in model_create.inference_function.input_object_groups
-    ]
-
-    inference_output_object_records = [
-        ModelFunctionOutputObjectGroupDefinitionInDB(
-            id=uuid.uuid4(),
-            function_id=inference_function_obj.id,
-            **output_group.model_dump(),
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
-        ).model_dump() for output_group in model_create.inference_function.output_object_groups
-    ]
-
-    all_input_records = training_input_records + inference_input_records
-    if all_input_records:
-        await execute(insert(model_function_input_object_group_definition).values(all_input_records), commit_after=True)
-
-    all_output_object_records = training_output_object_records + \
-        inference_output_object_records
-    if all_output_object_records:
-        await execute(insert(model_function_output_object_group_definition).values(all_output_object_records), commit_after=True)
-
-    training_function_full = ModelFunction(
-        **training_function_obj.model_dump(),
-        input_object_groups=[ModelFunctionInputObjectGroupDefinitionInDB(
-            **i) for i in training_input_records],
-        output_object_groups=[ModelFunctionOutputObjectGroupDefinitionInDB(
-            **o) for o in training_output_object_records],
-
+    training_function_full = ModelFunctionInDB(
+        **training_function_obj.model_dump()
     )
 
-    inference_function_full = ModelFunction(
-        **inference_function_obj.model_dump(),
-        input_object_groups=[ModelFunctionInputObjectGroupDefinitionInDB(
-            **i) for i in inference_input_records],
-        output_object_groups=[ModelFunctionOutputObjectGroupDefinitionInDB(
-            **o) for o in inference_output_object_records],
-
+    inference_function_full = ModelFunctionInDB(
+        **inference_function_obj.model_dump()
     )
 
     description = get_model_description(
-        model_obj, model_definition_obj, training_function_full, inference_function_full, implementation_script_obj, setup_script_obj
+        model_obj, model_definition_obj, training_function_full, inference_function_full, model_obj.implementation_script_path, model_obj.setup_script_path
     )
 
     return ModelImplementation(
@@ -176,8 +102,6 @@ async def create_model(user_id: uuid.UUID, model_create: ModelImplementationCrea
         definition=model_definition_obj,
         training_function=training_function_full,
         inference_function=inference_function_full,
-        implementation_script=implementation_script_obj,
-        setup_script=setup_script_obj,
         description_for_agent=description
     )
 
@@ -203,12 +127,9 @@ async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> M
     )
 
     # update script
-
-    implementation_script_obj = await create_script(user_id, model_update.new_implementation_create)
-    if model_update.new_setup_create:
-        setup_script_obj = await create_script(user_id, model_update.new_setup_create)
-    else:
-        setup_script_obj = None
+    implementation_script_path = model_update.new_implementation_script_path
+    setup_script_path = model_update.new_setup_script_path if model_update.new_setup_script_path else existing_model.get(
+        "setup_script_path")
 
     if model_update.updated_training_function:
         training_function_obj = ModelFunctionInDB(
@@ -246,9 +167,8 @@ async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> M
 
     model_obj = ModelImplementationInDB(
         id=uuid.uuid4(),
-        implementation_script_id=implementation_script_obj.id,
-        setup_script_id=setup_script_obj.id if setup_script_obj else existing_model[
-            "setup_script_id"],
+        implementation_script_path=implementation_script_path,
+        setup_script_path=setup_script_path,
         definition_id=model_update.definition_id,
         python_class_name=model_update.updated_python_class_name if model_update.updated_python_class_name else existing_model[
             "python_class_name"],
@@ -275,79 +195,11 @@ async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> M
 
     # Handle training function updates
     if model_update.updated_training_function:
-        if model_update.updated_training_function.input_object_groups_to_add:
-            training_input_records = [
-                ModelFunctionInputObjectGroupDefinitionInDB(
-                    id=uuid.uuid4(),
-                    function_id=training_function_id,
-                    **input_group.model_dump(),
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc)
-                ).model_dump() for input_group in model_update.updated_training_function.input_object_groups_to_add
-            ]
-            await execute(insert(model_function_input_object_group_definition).values(training_input_records), commit_after=True)
-
-        if model_update.updated_training_function.output_object_group_definitions_to_add:
-            training_output_records = [
-                ModelFunctionOutputObjectGroupDefinitionInDB(
-                    id=uuid.uuid4(),
-                    function_id=training_function_id,
-                    **output_group.model_dump(),
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc)
-                ).model_dump() for output_group in model_update.updated_training_function.output_object_group_definitions_to_add
-            ]
-            await execute(insert(model_function_output_object_group_definition).values(training_output_records), commit_after=True)
-
-        if model_update.updated_training_function.input_object_groups_to_remove:
-            await execute(delete(model_function_input_object_group_definition).where(
-                model_function_input_object_group_definition.c.id.in_(
-                    model_update.updated_training_function.input_object_groups_to_remove)
-            ), commit_after=True)
-
-        if model_update.updated_training_function.output_object_group_definitions_to_remove:
-            await execute(delete(model_function_output_object_group_definition).where(
-                model_function_output_object_group_definition.c.id.in_(
-                    model_update.updated_training_function.output_object_group_definitions_to_remove)
-            ), commit_after=True)
+        await execute(update(model_function).where(model_function.c.id == training_function_id).values(**model_update.updated_training_function.model_dump()), commit_after=True)
 
     # Handle inference function updates
     if model_update.updated_inference_function:
-        if model_update.updated_inference_function.input_object_groups_to_add:
-            inference_input_records = [
-                ModelFunctionInputObjectGroupDefinitionInDB(
-                    id=uuid.uuid4(),
-                    function_id=inference_function_id,
-                    **input_group.model_dump(),
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc)
-                ).model_dump() for input_group in model_update.updated_inference_function.input_object_groups_to_add
-            ]
-            await execute(insert(model_function_input_object_group_definition).values(inference_input_records), commit_after=True)
-
-        if model_update.updated_inference_function.output_object_group_definitions_to_add:
-            inference_output_records = [
-                ModelFunctionOutputObjectGroupDefinitionInDB(
-                    id=uuid.uuid4(),
-                    function_id=inference_function_id,
-                    **output_group.model_dump(),
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc)
-                ).model_dump() for output_group in model_update.updated_inference_function.output_object_group_definitions_to_add
-            ]
-            await execute(insert(model_function_output_object_group_definition).values(inference_output_records), commit_after=True)
-
-        if model_update.updated_inference_function.input_object_groups_to_remove:
-            await execute(delete(model_function_input_object_group_definition).where(
-                model_function_input_object_group_definition.c.id.in_(
-                    model_update.updated_inference_function.input_object_groups_to_remove)
-            ), commit_after=True)
-
-        if model_update.updated_inference_function.output_object_group_definitions_to_remove:
-            await execute(delete(model_function_output_object_group_definition).where(
-                model_function_output_object_group_definition.c.id.in_(
-                    model_update.updated_inference_function.output_object_group_definitions_to_remove)
-            ), commit_after=True)
+        await execute(update(model_function).where(model_function.c.id == inference_function_id).values(**model_update.updated_inference_function.model_dump()), commit_after=True)
 
     # Handle model entities updates
     if model_update.model_entities_to_update:
@@ -379,19 +231,6 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[ModelImplementation]:
         model_function.c.id.in_(function_ids))
     function_records = await fetch_all(function_query)
 
-    # Query input/output definitions by function_id
-    input_object_group_definition_query = select(model_function_input_object_group_definition).where(
-        model_function_input_object_group_definition.c.function_id.in_(function_ids))
-    all_input_object_group_definition_records = await fetch_all(input_object_group_definition_query)
-
-    output_object_group_definition_query = select(model_function_output_object_group_definition).where(
-        model_function_output_object_group_definition.c.function_id.in_(function_ids))
-    all_output_object_group_definition_records = await fetch_all(output_object_group_definition_query)
-
-    # Query script records
-    implementation_script_records = await get_scripts(m["implementation_script_id"] for m in models)
-    # setup_script_records = await get_scripts(next(m["setup_script_id"] for m in models if m["setup_script_id"]), None)
-
     output_objs = []
     for model_id in model_ids:
         model_obj = ModelImplementationInDB(
@@ -405,50 +244,12 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[ModelImplementation]:
         inference_function_record = next(
             f for f in function_records if f["id"] == model_obj.inference_function_id)
 
-        # Filter input/output definitions by function_id
-        training_input_records = [
-            i for i in all_input_object_group_definition_records
-            if i["function_id"] == model_obj.training_function_id
-        ]
-        training_output_object_records = [
-            o for o in all_output_object_group_definition_records
-            if o["function_id"] == model_obj.training_function_id
-        ]
-
-        inference_input_records = [
-            i for i in all_input_object_group_definition_records
-            if i["function_id"] == model_obj.inference_function_id
-        ]
-        inference_output_object_records = [
-            o for o in all_output_object_group_definition_records
-            if o["function_id"] == model_obj.inference_function_id
-        ]
-
         # Build ModelFunction objects
-        training_function_obj = ModelFunction(
-            **training_function_record,
-            input_object_groups=[ModelFunctionInputObjectGroupDefinitionInDB(
-                **i) for i in training_input_records],
-            output_object_groups=[ModelFunctionOutputObjectGroupDefinitionInDB(
-                **o) for o in training_output_object_records],
-        )
-
-        inference_function_obj = ModelFunction(
-            **inference_function_record,
-            input_object_groups=[ModelFunctionInputObjectGroupDefinitionInDB(
-                **i) for i in inference_input_records],
-            output_object_groups=[ModelFunctionOutputObjectGroupDefinitionInDB(
-                **o) for o in inference_output_object_records],
-        )
-
-        # Get script records for this model
-        implementation_script_obj = next(
-            s for s in implementation_script_records if s.id == model_obj.implementation_script_id)
-        # TODO: Add
-        setup_script_obj = None
+        training_function_obj = ModelFunctionInDB(**training_function_record)
+        inference_function_obj = ModelFunctionInDB(**inference_function_record)
 
         model_description = get_model_description(
-            model_obj, model_definition_obj, training_function_obj, inference_function_obj, implementation_script_obj, setup_script_obj)
+            model_obj, model_definition_obj, training_function_obj, inference_function_obj, model_obj.implementation_script_path, model_obj.setup_script_path)
 
         # Build Model object (excluding embedding)
         output_objs.append(
@@ -457,8 +258,6 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[ModelImplementation]:
                 definition=model_definition_obj,
                 training_function=training_function_obj,
                 inference_function=inference_function_obj,
-                implementation_script=implementation_script_obj,
-                setup_script=setup_script_obj,
                 description_for_agent=model_description
             )
         )
@@ -634,8 +433,6 @@ async def get_user_model_entities(user_id: uuid.UUID, model_entity_ids: List[uui
 
 
 async def set_new_model_entity_config(user_id: uuid.UUID, model_entity_id: uuid.UUID, model_entity_config_update: ModelEntityConfigUpdate) -> ModelEntityInDB:
-    """Update the config of a model entity implementation."""
-
     model_entity_obj = (await get_user_model_entities(user_id, [model_entity_id]))[0]
 
     # Check if entity has implementation

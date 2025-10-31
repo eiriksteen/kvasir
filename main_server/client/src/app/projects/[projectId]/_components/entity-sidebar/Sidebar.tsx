@@ -5,10 +5,10 @@ import { useState } from 'react';
 import { BarChart3, Zap, Folder, Brain, Database } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { DataSource } from '@/types/data-sources';
-import { useAgentContext, useAnalyses, useDatasets, usePipelines, useProject, useProjectDataSources } from '@/hooks';
+import { useAgentContext, useAnalyses, useDatasets, usePipelines, useProject, useDataSources } from '@/hooks';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import { AnalysisObjectSmall } from '@/types/analysis';
+import { AnalysisSmall } from '@/types/analysis';
 import AddDataSource from '@/app/projects/[projectId]/_components/add-entity-modals/AddDataSource';
 import AddAnalysis from '@/app/projects/[projectId]/_components/add-entity-modals/AddAnalysis';
 import EntityItem from '@/app/projects/[projectId]/_components/entity-sidebar/EntityItem';
@@ -74,7 +74,7 @@ export default function EntitySidebar({ projectId, openTab }: EntitySidebarProps
         redirect("/login");
     }
 
-    const { dataSources } = useProjectDataSources(projectId);
+    const { dataSources } = useDataSources(projectId);
     const { datasets } = useDatasets(projectId);
     const { pipelines } = usePipelines(projectId);
     const { modelEntities } = useModelEntities(projectId);
@@ -148,7 +148,7 @@ export default function EntitySidebar({ projectId, openTab }: EntitySidebarProps
         }
     };
 
-    const handleAnalysisToggle = (analysis: AnalysisObjectSmall) => {
+    const handleAnalysisToggle = (analysis: AnalysisSmall) => {
         const isActive = analysesInContext.some((a: UUID) => a === analysis.id);
         if (isActive) {
             removeAnalysisFromContext(analysis.id);

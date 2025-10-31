@@ -15,6 +15,7 @@ dataset = Table(
     Column("user_id", UUID, ForeignKey("auth.users.id"), nullable=False),
     Column("description", String, nullable=False),
     Column("name", String, nullable=False),
+    Column("additional_variables", JSONB, nullable=True),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
@@ -55,6 +56,7 @@ object_group = Table(
     Column("description", String, nullable=False),
     # Modality indicates the actual data structure: time_series, tabular, etc.
     Column("modality", String, nullable=False),
+    Column("additional_variables", JSONB, nullable=True),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
@@ -74,6 +76,11 @@ time_series = Table(
     # m, h, d, w, y, or irr (irregular)
     Column("sampling_frequency", String, nullable=False),
     Column("timezone", String, nullable=False),
+    Column("features_schema", JSONB, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
     schema="data_objects"
 )
 
@@ -83,12 +90,13 @@ time_series_group = Table(
     metadata,
     Column("id", UUID(as_uuid=True), ForeignKey(
         "data_objects.object_group.id"), primary_key=True, default=uuid.uuid4),
-    Column("time_series_df_schema", String, nullable=False),
-    Column("time_series_df_head", String, nullable=False),
-    Column("entity_metadata_df_schema", String, nullable=True),
-    Column("entity_metadata_df_head", String, nullable=True),
-    Column("feature_information_df_schema", String, nullable=True),
-    Column("feature_information_df_head", String, nullable=True),
+    Column("total_timestamps", Integer, nullable=False),
+    Column("number_of_series", Integer, nullable=False),
+    Column("sampling_frequency", String, nullable=True),
+    Column("timezone", String, nullable=True),
+    Column("features_schema", JSONB, nullable=True),
+    Column("earliest_timestamp", DateTime(timezone=True), nullable=False),
+    Column("latest_timestamp", DateTime(timezone=True), nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
@@ -104,6 +112,9 @@ object_group_from_pipeline = Table(
         "pipeline.pipeline.id"), primary_key=True, nullable=False),
     Column("object_group_id", UUID, ForeignKey(
         "data_objects.object_group.id"), primary_key=True, nullable=False),
+    # If we have done any runs
+    Column("pipeline_run_id", UUID, ForeignKey(
+        "pipeline.pipeline_run.id"), nullable=True),
     schema="data_objects"
 )
 

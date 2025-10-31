@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Folder } from 'lucide-react';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { UUID } from 'crypto';
-import { useProjectDataSources } from '@/hooks/useDataSources';
+import { useDataSources } from '@/hooks/useDataSources';
 import { useProjectChat } from '@/hooks/useProjectChat';
 import { DataSource } from '@/types/data-sources';
 import SourceTypeIcon from "@/app/data-sources/_components/SourceTypeIcon";
@@ -41,7 +41,7 @@ export default function AddDataset({ onClose, projectId }: AddDatasetProps) {
   const [description, setDescription] = useState('');
   const [isSubmitting] = useState(false);
 
-  const { dataSources } = useProjectDataSources(projectId);
+  const { dataSources } = useDataSources(projectId);
   const { 
     dataSourcesInContext, 
     addDataSourceToContext, 

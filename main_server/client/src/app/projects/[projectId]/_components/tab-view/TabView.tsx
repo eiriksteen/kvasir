@@ -26,7 +26,7 @@ const TabView: React.FC<CustomTabViewProps> = ({
 }) => {
   const { project } = useProject(projectId);
   const { datasets } = useDatasets(projectId);
-  const { dataSources } = useDataSources();
+  const { dataSources } = useDataSources(projectId);
   const { analysisObjects } = useAnalyses(projectId);
   const { pipelines } = usePipelines(projectId);
   const { modelEntities } = useModelEntities(projectId);
@@ -68,11 +68,11 @@ const TabView: React.FC<CustomTabViewProps> = ({
   const getTabType = (id: UUID | null): TabType => {
     if (id === null) return 'project';
     
-    if (project?.dataSources.some(ds => ds.dataSourceId === id)) return 'data_source';
-    if (project?.datasets.some(ds => ds.datasetId === id)) return 'dataset';
-    if (project?.analyses.some(a => a.analysisId === id)) return 'analysis';
-    if (project?.pipelines.some(p => p.pipelineId === id)) return 'pipeline';
-    if (project?.modelEntities.some(m => m.modelEntityId === id)) return 'model_entity';
+    if (project?.graph.dataSources.some(ds => ds.id === id)) return 'data_source';
+    if (project?.graph.datasets.some(ds => ds.id === id)) return 'dataset';
+    if (project?.graph.analyses.some(a => a.id === id)) return 'analysis';
+    if (project?.graph.pipelines.some(p => p.id === id)) return 'pipeline';
+    if (project?.graph.modelEntities.some(m => m.id === id)) return 'model_entity';
     
     return 'project'; // fallback
   };

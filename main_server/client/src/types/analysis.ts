@@ -1,114 +1,168 @@
 import { UUID } from "crypto";
 
-export interface AnalysisStatusMessage {
-    id: UUID;
-    runId: UUID;
-    section: NotebookSection | null;
-    analysisResult: AnalysisResult | null;
-    createdAt: string;
-}
+// API schemas
 
 export interface AnalysisResult {
-    id: UUID;
-    analysis: string;
-    pythonCode: string | null;
-    outputVariable: string | null;
-    inputVariable: string | null;
-    nextType: 'analysis_result' | 'notebook_section' | null;
-    nextId: UUID | null;
-    sectionId: UUID | null;
-    plotUrls: string[];
+  id: UUID;
+  analysis: string;
+  pythonCode?: string | null;
+  inputVariable?: string | null;
+  outputVariable?: string | null;
+  nextType?: "analysis_result" | "notebook_section" | null;
+  nextId?: UUID | null;
+  sectionId?: UUID | null;
+  plotUrls: string[];
 }
 
 export interface NotebookSection {
-    id: UUID;
-    notebookId: UUID;
-    sectionName: string;
-    sectionDescription?: string;
-    nextType: 'analysis_result' | 'notebook_section' | null;
-    nextId: UUID | null;
-    parentSectionId: UUID | null;
-    notebookSections: NotebookSection[];
-    analysisResults: AnalysisResult[];
+  id: UUID;
+  notebookId: UUID;
+  sectionName: string;
+  sectionDescription?: string | null;
+  nextType?: "analysis_result" | "notebook_section" | null;
+  nextId?: UUID | null;
+  parentSectionId?: UUID | null;
+  notebookSections: NotebookSection[];
+  analysisResults: AnalysisResult[];
 }
 
 export interface Notebook {
-    id: UUID;
-    notebookSections: NotebookSection[];
+  id: UUID;
+  notebookSections: NotebookSection[];
 }
 
-export interface AnalysisObjectInputEntities {
-    datasetIds: UUID[];
-    dataSourceIds: UUID[];
-    modelEntityIds: UUID[];
-    analysisIds: UUID[];
+export interface AnalysisInputEntities {
+  datasetIds: UUID[];
+  dataSourceIds: UUID[];
+  modelEntityIds: UUID[];
+  analysisIds: UUID[];
 }
 
-export interface AnalysisObjectSmall {
-    id: UUID;
-    name: string;
-    description: string | null;
-    reportGenerated: boolean;
-    createdAt: string;
-    inputs: AnalysisObjectInputEntities;
+export interface AnalysisSmall {
+  id: UUID;
+  name: string;
+  description?: string | null;
+  reportGenerated: boolean;
+  createdAt: string;
+  inputs: AnalysisInputEntities;
 }
 
-export interface AnalysisObject extends AnalysisObjectSmall {
-    notebook: Notebook;
+export interface Analysis extends AnalysisSmall {
+  notebook: Notebook;
+  inputs: AnalysisInputEntities;
+  descriptionForAgent: string;
 }
 
-export interface AnalysisObjectCreate {
-    name: string;
-    description: string | null;
+export interface AnalysisStatusMessage {
+  id: UUID;
+  runId: UUID;
+  section?: NotebookSection | null;
+  analysisResult?: AnalysisResult | null;
+  createdAt: string;
 }
 
-export interface AnalysisRequest {
-    projectId: UUID;
-    datasetIds: UUID[];
-    analysisIds: UUID[];
-    automationIds: UUID[];
-    prompt: string | null;
-    conversationId: UUID;
+export interface GetAnalysesByIDsRequest {
+  analysisIds: UUID[];
 }
 
-export interface ReportOutlineRequest {
-    includeAgentSuggestions: boolean;
-    requirements: string | null;
+// DB schemas
+
+export interface AnalysisInDB {
+  id: UUID;
+  name: string;
+  description?: string | null;
+  reportGenerated: boolean;
+  createdAt: string;
+  userId: UUID;
+  notebookId: UUID;
+}
+
+export interface NotebookInDB {
+  id: UUID;
+}
+
+export interface NotebookSectionInDB {
+  id: UUID;
+  notebookId: UUID;
+  sectionName: string;
+  sectionDescription?: string | null;
+  nextType?: "analysis_result" | "notebook_section" | null;
+  nextId?: UUID | null;
+  parentSectionId?: UUID | null;
+}
+
+export interface AnalysisResultInDB {
+  id: UUID;
+  analysis: string;
+  pythonCode?: string | null;
+  inputVariable?: string | null;
+  outputVariable?: string | null;
+  nextType?: "analysis_result" | "notebook_section" | null;
+  nextId?: UUID | null;
+  sectionId?: UUID | null;
+}
+
+export interface DatasetInAnalysisInDB {
+  analysisId: UUID;
+  datasetId: UUID;
+}
+
+export interface DataSourceInAnalysisInDB {
+  analysisId: UUID;
+  dataSourceId: UUID;
+}
+
+export interface ModelEntityInAnalysisInDB {
+  analysisId: UUID;
+  modelEntityId: UUID;
+}
+
+export interface AnalysisFromPastAnalysisInDB {
+  analysisId: UUID;
+  pastAnalysisId: UUID;
+}
+
+// Other schemas
+
+export interface AnalysisCreate {
+  name: string;
+  description?: string | null;
+  inputDataSourceIds: UUID[];
+  inputDatasetIds: UUID[];
+  inputModelEntityIds: UUID[];
+  inputAnalysisIds: UUID[];
+}
+
+export interface AnalysisResultUpdate {
+  analysis?: string | null;
+  pythonCode?: string | null;
 }
 
 export interface NotebookSectionCreate {
-    analysisObjectId: UUID;
-    sectionName: string;
-    sectionDescription: string | null;
-    parentSectionId: UUID | null;
+  analysisId: UUID;
+  sectionName: string;
+  sectionDescription?: string | null;
+  parentSectionId?: UUID | null;
 }
 
 export interface NotebookSectionUpdate {
-    sectionName?: string;
-    sectionDescription?: string | null;
-}
-
-
-export interface SectionReorderRequest {
-    reorderSections: UUID[];
-    precedingSectionId: UUID | null;
-    succeedingSectionId: UUID | null;
-}
-
-export interface SectionMoveRequest {
-    sectionIds: UUID[];
-    newParentSectionId: UUID | null;
+  sectionName?: string | null;
+  sectionDescription?: string | null;
 }
 
 export interface GenerateReportRequest {
-    filename: string;
-    includeCode: boolean;
+  filename: string;
+  includeCode: boolean;
 }
 
 export interface MoveRequest {
-    newSectionId: UUID | null;
-    movingElementType: 'analysis_result' | 'notebook_section';
-    movingElementId: UUID;
-    nextElementType: 'analysis_result' | 'notebook_section' | null;
-    nextElementId: UUID | null;
+  newSectionId?: UUID | null;
+  movingElementType: "analysis_result" | "notebook_section";
+  movingElementId: UUID;
+  nextElementType?: "analysis_result" | "notebook_section" | null;
+  nextElementId?: UUID | null;
+}
+
+export interface AnalysisResultFindRequest {
+  analysisResultIds: UUID[];
 }

@@ -3,20 +3,17 @@ import useSWR from "swr";
 import useSWRMutation from 'swr/mutation'
 import useSWRSubscription, { SWRSubscriptionOptions } from "swr/subscription";
 import { 
-  AnalysisObject, 
-  AnalysisObjectCreate, 
+  Analysis, 
+  AnalysisCreate, 
   AnalysisStatusMessage,
   AnalysisResult,
   NotebookSectionCreate,
   NotebookSectionUpdate,
-  SectionReorderRequest,
-  SectionMoveRequest,
   NotebookSection,
   GenerateReportRequest,
   MoveRequest,
-  AnalysisObjectSmall
+  AnalysisSmall
 } from "@/types/analysis";
-import { AggregationObjectWithRawData } from "@/types/data-objects";
 import { useProject } from "./useProject";
 import { useMemo, useRef } from "react";
 // import { useAgentContext } from './useAgentContext';
@@ -49,7 +46,7 @@ export async function deleteAnalysisObjectEndpoint(token: string, analysisObject
   return snakeToCamelKeys(data);
 }
 
-export async function fetchAnalysisObjects(token: string, projectId: UUID): Promise<AnalysisObjectSmall[]> {
+export async function fetchAnalysisObjects(token: string, projectId: UUID): Promise<AnalysisSmall[]> {
   const response = await fetch(`${API_URL}/project/project-analyses/${projectId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -67,7 +64,7 @@ export async function fetchAnalysisObjects(token: string, projectId: UUID): Prom
   return snakeToCamelKeys(data);
 }
 
-export async function postAnalysisObject(token: string, analysisObjectCreate: AnalysisObjectCreate): Promise<AnalysisObject> {
+export async function postAnalysisObject(token: string, analysisObjectCreate: AnalysisCreate): Promise<Analysis> {
   const response = await fetch(`${API_URL}/analysis/analysis-object`, {
     method: 'POST',
     headers: {
@@ -129,7 +126,7 @@ export function createAnalysisEventSource(token: string, jobId: string): SSE {
 }
 
 
-export async function fetchAnalysisObject(token: string, analysisObjectId: string): Promise<AnalysisObject> {
+export async function fetchAnalysisObject(token: string, analysisObjectId: string): Promise<Analysis> {
   const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -239,7 +236,8 @@ export async function changeAnalysisResultSectionEndpoint(token: string, analysi
   return snakeToCamelKeys(data);
 }
 
-export async function reorderNotebookSections(token: string, analysisObjectId: string, sectionReorderRequest: SectionReorderRequest): Promise<void> {
+export async function reorderNotebookSections(token: string, analysisObjectId: string, sectionReorderRequest: unknown): Promise<void> {
+  // Note: SectionReorderRequest type no longer exists in schema - function kept for backward compatibility but may not work
   const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/reorder-sections`, {
     method: 'PATCH',
     headers: {
@@ -259,7 +257,8 @@ export async function reorderNotebookSections(token: string, analysisObjectId: s
 }
 
 
-export async function moveNotebookSections(token: string, analysisObjectId: string, sectionMoveRequest: SectionMoveRequest): Promise<void> {
+export async function moveNotebookSections(token: string, analysisObjectId: string, sectionMoveRequest: unknown): Promise<void> {
+  // Note: SectionMoveRequest type no longer exists in schema - function kept for backward compatibility but may not work
   const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/move-sections`, {
     method: 'PATCH',
     headers: {
@@ -278,7 +277,7 @@ export async function moveNotebookSections(token: string, analysisObjectId: stri
   return snakeToCamelKeys(data);
 }
 
-export async function getAnalysisResultDataEndpoint(token: string, analysisObjectId: string, analysisResultId: string): Promise<AggregationObjectWithRawData> {
+export async function getAnalysisResultDataEndpoint(token: string, analysisObjectId: string, analysisResultId: string): Promise<unknown> {
   const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/analysis-result/${analysisResultId}/get-data`, {
     method: 'GET',
     headers: {
@@ -365,11 +364,11 @@ export const useAnalyses = (projectId: UUID) => {
 
     const { addEntity } = useProject(projectId);
     
-    const { data: analysisObjects, mutate: mutateAnalysisObjects } = useSWR(session && projectId ? ["analysisObjects", projectId] : null, () => fetchAnalysisObjects(session ? session.APIToken.accessToken : "", projectId), {fallbackData: [] as AnalysisObjectSmall[]});
+    const { data: analysisObjects, mutate: mutateAnalysisObjects } = useSWR(session && projectId ? ["analysisObjects", projectId] : null, () => fetchAnalysisObjects(session ? session.APIToken.accessToken : "", projectId), {fallbackData: [] as AnalysisSmall[]});
 
     const { trigger: createAnalysisObject } = useSWRMutation(
       session && projectId ? ["analysisObjects", projectId] : null,
-      async (_, { arg }: { arg: AnalysisObjectCreate }) => {
+      async (_, { arg }: { arg: AnalysisCreate }) => {
         const analysisObject = await postAnalysisObject(session ? session.APIToken.accessToken : "", arg);
         return analysisObject;
       },
@@ -384,7 +383,7 @@ export const useAnalyses = (projectId: UUID) => {
       }
     );
 
-    const createAnalysis = async (analysisObjectCreate: AnalysisObjectCreate) => {
+    const createAnalysis = async (analysisObjectCreate: AnalysisCreate) => {
       const analysisObject = await createAnalysisObject(analysisObjectCreate);
 
       await addEntity("analysis", analysisObject.id);
@@ -405,7 +404,7 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
 
   const { analysisObjects, mutateAnalysisObjects } = useAnalyses(projectId);
 
-  const { data: analysisResultData, mutate: mutateAnalysisResultData } = useSWR(["analysisResultData"], null, {fallbackData: {} as Record<UUID, AggregationObjectWithRawData>});
+  const { data: analysisResultData, mutate: mutateAnalysisResultData } = useSWR(["analysisResultData"], null, {fallbackData: {} as Record<UUID, unknown>});
 
   const { trigger: deleteAnalysisObject } = useSWRMutation(
     "analysisObject",
@@ -503,7 +502,7 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
       }
 
       const notebookSectionCreate: NotebookSectionCreate = {
-        analysisObjectId: analysisObjectId,
+        analysisId: analysisObjectId,
         sectionName: arg.sectionName,
         sectionDescription: arg.sectionDescription,
         parentSectionId: arg.parentSectionId
@@ -585,7 +584,7 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
 
   const { trigger: reorderSections } = useSWRMutation(
     "analysisObject",
-    async (_, { arg }: { arg: { analysisObjectId: UUID, sectionReorderRequest: SectionReorderRequest } }) => {
+    async (_, { arg }: { arg: { analysisObjectId: UUID, sectionReorderRequest: unknown } }) => {
       await reorderNotebookSections(session ? session.APIToken.accessToken : "", arg.analysisObjectId, arg.sectionReorderRequest);
     },
     {
@@ -597,7 +596,7 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
 
   const { trigger: moveSections } = useSWRMutation(
     "analysisObject",
-    async (_, { arg }: { arg: { analysisObjectId: UUID, sectionMoveRequest: SectionMoveRequest } }) => {
+    async (_, { arg }: { arg: { analysisObjectId: UUID, sectionMoveRequest: unknown } }) => {
       await moveNotebookSections(session ? session.APIToken.accessToken : "", arg.analysisObjectId, arg.sectionMoveRequest);
     },
     {
@@ -615,7 +614,7 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
     },
     {
       populateCache: (data) => {
-        mutateAnalysisResultData((current: Record<UUID, AggregationObjectWithRawData> = {}) => ({...current, [data.analysisResultId]: data.data}));
+        mutateAnalysisResultData((current: Record<UUID, unknown> = {}) => ({...current, [data.analysisResultId]: data.data}));
       }
     }
   );

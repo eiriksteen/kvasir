@@ -55,10 +55,10 @@ export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
   const backdropRef = useRef<HTMLDivElement>(null);
 
   const datasetsInProject = useMemo(() => {
-    if (!project || !datasets) return [];
-    const projectDatasetIds = project.datasets.map(ds => ds.datasetId);
+    if (!project?.graph || !datasets) return [];
+    const projectDatasetIds = project.graph.datasets.map(ds => ds.id);
     return datasets.filter((dataset: Dataset) => projectDatasetIds.includes(dataset.id));
-  }, [datasets, project]);
+  }, [datasets, project?.graph]);
 
   useEffect(() => { 
     const handleClickOutside = (event: MouseEvent) => {

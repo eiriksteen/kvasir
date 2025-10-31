@@ -11,7 +11,7 @@ from synesis_api.modules.analysis.models import (
     notebook_section,
     data_source_in_analysis,
 )
-from synesis_api.modules.data_objects.models import aggregation_object
+# from synesis_api.modules.data_objects.models import aggregation_object
 from synesis_api.modules.analysis.models import plot
 from synesis_api.modules.analysis.models import table
 from synesis_schemas.main_server import (
@@ -124,7 +124,7 @@ async def delete_analysis_result(analysis_result_id: uuid.UUID) -> None:
             ),
             commit_after=True
         )
-        
+
     await execute(
         delete(plot).where(plot.c.analysis_result_id == analysis_result_id),
         commit_after=True
@@ -133,11 +133,11 @@ async def delete_analysis_result(analysis_result_id: uuid.UUID) -> None:
         delete(table).where(table.c.analysis_result_id == analysis_result_id),
         commit_after=True
     )
-    await execute(
-        delete(aggregation_object).where(
-            aggregation_object.c.analysis_result_id == analysis_result_id),
-        commit_after=True
-    )
+    # await execute(
+    #     delete(aggregation_object).where(
+    #         aggregation_object.c.analysis_result_id == analysis_result_id),
+    #     commit_after=True
+    # )
 
     await execute(
         delete(analysis_result).where(
@@ -154,7 +154,6 @@ async def get_analysis_result_by_id(analysis_result_id: uuid.UUID) -> AnalysisRe
 
     if result is None:
         return None
-
 
     plot_urls = await fetch_all(
         select(plot).where(
@@ -184,7 +183,8 @@ async def get_analysis_results_by_section_id(section_id: uuid.UUID) -> List[Anal
                     plot.c.analysis_result_id == result.id
                 )
             )
-            result.plot_urls = [plot_in_db["plot_url"] for plot_in_db in plot_urls]
+            result.plot_urls = [plot_in_db["plot_url"]
+                                for plot_in_db in plot_urls]
 
     return analysis_results_list
 
@@ -205,7 +205,8 @@ async def get_analysis_results_by_ids(analysis_result_ids: List[uuid.UUID]) -> L
         )
     )
     for result in analysis_results_list:
-        result.plot_urls = [plot_in_db["plot_url"] for plot_in_db in plot_urls if plot_in_db["analysis_result_id"] == result.id]
+        result.plot_urls = [plot_in_db["plot_url"]
+                            for plot_in_db in plot_urls if plot_in_db["analysis_result_id"] == result.id]
 
     return analysis_results_list
 
