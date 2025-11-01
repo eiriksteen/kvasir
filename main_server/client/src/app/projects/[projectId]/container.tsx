@@ -63,6 +63,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
         dataSourceId={activeTabId}
         projectId={projectId}
         onClose={() => closeTabToProject()}
+        onDelete={() => closeTab(activeTabId)}
       />
     );
   } else if (tabType === 'dataset' && activeTabId) {
@@ -70,6 +71,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
       <DatasetInfoTab
         datasetId={activeTabId}
         onClose={() => closeTabToProject()}
+        onDelete={() => closeTab(activeTabId)}
         projectId={projectId}
       />
     );
@@ -86,6 +88,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
       <PipelineInfoTab
         pipelineId={activeTabId}
         onClose={() => closeTabToProject()}
+        onDelete={() => closeTab(activeTabId)}
         projectId={projectId}
       />
     );
@@ -94,6 +97,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
       <ModelInfoTab
         modelEntityId={activeTabId}
         onClose={() => closeTabToProject()}
+        onDelete={() => closeTab(activeTabId)}
         projectId={projectId}
       />
     );

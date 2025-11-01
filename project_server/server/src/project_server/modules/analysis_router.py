@@ -4,10 +4,10 @@ import uuid
 from fastapi.responses import FileResponse
 
 from project_server.auth import TokenData, decode_token
-from project_server.app_secrets import ANALYSIS_DIR
 
 
 router = APIRouter()
+
 
 @router.get("/analysis-object/{analysis_id}/analysis-result/{analysis_result_id}/{url}", response_class=FileResponse)
 async def get_plots_for_analysis_result(
@@ -16,12 +16,12 @@ async def get_plots_for_analysis_result(
     url: str,
     token_data: Annotated[TokenData, Depends(decode_token)] = None
 ) -> FileResponse:
-    analysis_output_path = ANALYSIS_DIR / \
-        str(analysis_id) / str(analysis_result_id) / "plots"
-    analysis_output_filepath = analysis_output_path / url
-    
-    if not analysis_output_filepath.exists():
-        raise HTTPException(status_code=404, detail="Plot not found")
-    
-    return FileResponse(path=analysis_output_filepath, media_type="image/png")
+    return HTTPException(status_code=501, detail="Function not implemented - needs to be fixed")
+    # analysis_output_path = ANALYSIS_DIR / \
+    #     str(analysis_id) / str(analysis_result_id) / "plots"
+    # analysis_output_filepath = analysis_output_path / url
 
+    # if not analysis_output_filepath.exists():
+    #     raise HTTPException(status_code=404, detail="Plot not found")
+
+    # return FileResponse(path=analysis_output_filepath, media_type="image/png")

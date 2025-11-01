@@ -2,7 +2,10 @@ import uuid
 from typing import Literal, List, Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, field_validator
-from .code import script_type_literal
+from typing import Literal
+
+script_type_literal = Literal["function", "model", "pipeline",
+                              "data_integration", "analysis"]
 
 
 # DB Models
@@ -83,39 +86,6 @@ class Context(BaseModel):
 
 class ChatMessage(ChatMessageInDB):
     context: Optional[Context] = None
-
-
-class SetupImplementation(BaseModel):
-    dependencies: List[str]
-    python_version: str
-    script: str
-
-
-class NewScript(BaseModel):
-    filename: str
-    script: str
-
-
-class ModifiedScript(BaseModel):
-    original_filename: str
-    new_filename: str
-    original_script: str
-    new_script: str
-    type: script_type_literal
-
-
-class Implementation(BaseModel):
-    conversation_id: uuid.UUID
-    main_script: NewScript
-    run_output: str
-    new_scripts: List[NewScript] = []
-    modified_scripts: List[ModifiedScript] = []
-
-
-class SWEResult(BaseModel):
-    conversation_id: uuid.UUID
-    implementation: Implementation
-    setup: Optional[SetupImplementation] = None
 
 
 class ImplementationApprovalResponse(BaseModel):

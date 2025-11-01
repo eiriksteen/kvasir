@@ -29,6 +29,13 @@ class FileDataSourceInDB(BaseModel):
     updated_at: datetime
 
 
+class DataSourceFromPipelineInDB(BaseModel):
+    data_source_id: UUID
+    pipeline_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
 # API Models
 
 
@@ -37,6 +44,7 @@ class DataSource(DataSourceInDB):
     # Optional until agent has filled it (we want the data source to show up right away so we allow it to be null until then)
     type_fields: Optional[Union[FileDataSourceInDB]] = None
     description_for_agent: str
+    from_pipelines: List[UUID]
 
 
 class GetDataSourcesByIDsRequest(BaseModel):
@@ -44,16 +52,6 @@ class GetDataSourcesByIDsRequest(BaseModel):
 
 
 # Create models
-
-
-class DataSourceCreate(BaseModel):
-    name: str
-    type: DATA_SOURCE_TYPE_LITERAL
-    # In addition to general extra info, this can be used to store info about "wildcard" sources that we don't have dedicated tables for
-    # We don't need to create fill the tables below
-
-    class Config:
-        extra = "allow"
 
 
 class FileDataSourceCreate(BaseModel):
@@ -77,6 +75,18 @@ class TabularFileDataSourceCreate(FileDataSourceCreate):
     num_columns: int
     missing_fraction_per_column: str
     iqr_anomalies_fraction_per_column: str
+
+    class Config:
+        extra = "allow"
+
+
+class DataSourceCreate(BaseModel):
+    name: str
+    type: DATA_SOURCE_TYPE_LITERAL
+    type_fields: Union[FileDataSourceCreate, TabularFileDataSourceCreate]
+    from_pipelines: Optional[List[UUID]] = None
+    # In addition to general extra info, this can be used to store info about "wildcard" sources that we don't have dedicated tables for
+    # We don't need to create fill the tables below
 
     class Config:
         extra = "allow"

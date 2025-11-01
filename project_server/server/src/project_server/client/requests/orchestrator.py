@@ -10,8 +10,8 @@ from synesis_schemas.main_server import (
     ContextCreate,
     ContextInDB,
     ImplementationApprovalResponse,
-    Implementation
 )
+from synesis_schemas.project_server import ImplementationSummary
 
 
 async def post_conversation(client: ProjectClient, conversation_data: ConversationCreate) -> ConversationInDB:
@@ -39,6 +39,6 @@ async def create_context_request(client: ProjectClient, context: ContextCreate) 
     return ContextInDB(**response.body)
 
 
-async def submit_swe_result_approval_request(client: ProjectClient, swe_result_approval_request: Implementation) -> ImplementationApprovalResponse:
-    response = await client.send_request("post", "/orchestrator/swe-result-approval-request", json=swe_result_approval_request.model_dump(mode="json"))
+async def post_swe_result_approval_request(client: ProjectClient, implementation_summary: ImplementationSummary) -> ImplementationApprovalResponse:
+    response = await client.send_request("post", "/orchestrator/swe-result-approval-request", json=implementation_summary.model_dump(mode="json"))
     return ImplementationApprovalResponse(**response.body)

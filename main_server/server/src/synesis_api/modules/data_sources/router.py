@@ -3,13 +3,13 @@ from fastapi import APIRouter, Depends
 from uuid import UUID
 
 from synesis_api.modules.data_sources.service import (
-    create_file_data_source,
+    create_data_source,
     get_user_data_sources,
 )
 from synesis_schemas.main_server import (
     DataSource,
     GetDataSourcesByIDsRequest,
-    FileDataSourceCreate
+    DataSourceCreate
 )
 from synesis_schemas.main_server import User
 from synesis_api.auth.service import get_current_user
@@ -47,10 +47,10 @@ async def fetch_data_sources_by_ids(
     return await get_user_data_sources(data_source_ids=request.data_source_ids, user_id=user.id)
 
 
-@router.post("/file-data-source", response_model=DataSource)
-async def create_file_data_source_endpoint(
-    file_data_source_create: FileDataSourceCreate,
+@router.post("/data-source", response_model=DataSource)
+async def create_data_source_endpoint(
+    data_source_create: DataSourceCreate,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> DataSource:
-    """Create a file data source (used by agents to add FileDataSourceInDB)"""
-    return await create_file_data_source(user.id, file_data_source_create)
+    """Create a data source with conditional type-specific fields"""
+    return await create_data_source(user.id, data_source_create)

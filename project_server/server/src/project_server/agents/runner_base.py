@@ -7,10 +7,11 @@ from pydantic_ai.tools import AgentDepsT
 
 from project_server.client import post_run_message, post_run_message_pydantic, post_run, patch_run_status
 from project_server.redis import get_redis
-from project_server.client import ProjectClient
+from project_server.client import ProjectClient, get_project
 from project_server.worker import logger
 from project_server.agents.tool_descriptions import TOOL_DESCRIPTIONS
-from synesis_schemas.main_server import RunMessageCreate, RunMessageCreatePydantic, RunCreate, RunStatusUpdate, StreamedCode
+from synesis_schemas.main_server import RunMessageCreate, RunMessageCreatePydantic, RunCreate, RunStatusUpdate, StreamedCode, Project
+from project_server.utils.docker_utils import create_project_container_if_not_exists
 
 
 class RunnerBase(ABC):
@@ -41,13 +42,10 @@ class RunnerBase(ABC):
         self.log_to_parent_run = log_to_parent_run
         self.project_client = ProjectClient(bearer_token)
         self.redis_stream = get_redis()
+        self.project: Project | None = None
 
     @abstractmethod
     async def __call__(self, *args, **kwargs):
-        pass
-
-    @abstractmethod
-    async def _save_results(self, *args, **kwargs):
         pass
 
     async def _run_agent(
@@ -113,9 +111,17 @@ class RunnerBase(ABC):
         if code.target == "taskiq" or code.target == "both":
             logger.info(code.code)
 
+    async def _setup_project_container(self):
+        if self.project is None:
+            raise ValueError("self.project is required to setup container")
+        await create_project_container_if_not_exists(self.project)
+
     async def _create_run_if_not_exists(self):
         if self.run_id is None:
             run = await post_run(self.project_client, RunCreate(
+                run_name=f"{self.run_type} run",
+                plan_and_deliverable_description_for_user=f"The {self.run_type} agent will run and complete the task.",
+                plan_and_deliverable_description_for_agent=f"The {self.run_type} agent will run and complete the task.",
                 type=self.run_type,
                 conversation_id=self.conversation_id,
                 project_id=self.project_id,

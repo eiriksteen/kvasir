@@ -58,6 +58,7 @@ class AnalysisAgentRunner(RunnerBase):
 
     async def __call__(self, prompt_content: str):
         try:
+            await self._setup_project_container()
             await self._create_run_if_not_exists()
             await self._prepare_deps()
 
@@ -93,10 +94,6 @@ class AnalysisAgentRunner(RunnerBase):
         )
 
         self.deps = deps
-
-    async def _save_results(self, *args, **kwargs):
-        """Analysis results are saved through tools during execution, no additional saving needed."""
-        pass
 
 
 @broker.task

@@ -1,15 +1,17 @@
-import { Layers, ChevronDown, ChevronRight, Database, Calendar } from 'lucide-react';  
+import { Layers, ChevronDown, ChevronRight, Database, Calendar, Trash2 } from 'lucide-react';  
 import { useEffect, useState } from 'react';
-import { useDataset } from "@/hooks/useDatasets";
+import { useDataset, useDatasets } from "@/hooks/useDatasets";
 import { ObjectGroupWithObjects, DataObject, TimeSeriesInDB } from "@/types/data-objects";
 import TimeSeriesChart from '@/components/charts/TimeSeriesChart';
 import { UUID } from 'crypto';
+import ConfirmationPopup from '@/components/ConfirmationPopup';
 
 
 interface DatasetInfoTabProps {
   datasetId: UUID;
   projectId: UUID;
   onClose: () => void;
+  onDelete?: () => void;
 }   
 
 type SelectedEntity = {
@@ -21,12 +23,25 @@ type SelectedEntity = {
 export default function DatasetInfoTab({ 
   datasetId,
   projectId,
-  onClose
+  onClose,
+  onDelete
 }: DatasetInfoTabProps) {
 
   const { dataset, objectGroups } = useDataset(datasetId, projectId);
+  const { deleteDataset } = useDatasets(projectId);
   const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      await deleteDataset({ datasetId });
+      onDelete?.();
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete dataset:', error);
+    }
+  };
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -81,14 +96,23 @@ export default function DatasetInfoTab({
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="h-full p-4 space-y-4 flex flex-col">
               {/* Full Width Description */}
-              <div className="p-4 w-full">
-                {dataset.description ? (
-                  <p className="text-sm text-gray-700">
-                    {dataset.description}
-                  </p>
-                ) : (
-                  <p className="text-sm text-gray-400 italic">No description provided</p>
-                )}
+              <div className="p-4 w-full flex items-start justify-between">
+                <div className="flex-1">
+                  {dataset.description ? (
+                    <p className="text-sm text-gray-700">
+                      {dataset.description}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-400 italic">No description provided</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="p-2 text-red-800 hover:bg-red-100 rounded-lg transition-colors ml-4 flex-shrink-0"
+                  title="Delete dataset"
+                >
+                  <Trash2 size={18} />
+                </button>
               </div>
               {selectedEntity && selectedEntity.type === "time_series" ? (
                 <div className="w-full flex-1">
@@ -198,6 +222,13 @@ export default function DatasetInfoTab({
           </div>
         </div>
       </div>
+      
+      <ConfirmationPopup
+        message={`Are you sure you want to delete "${dataset.name}"? This will permanently delete the dataset and all its data. This action cannot be undone.`}
+        isOpen={showDeleteConfirm}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

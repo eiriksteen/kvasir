@@ -13,7 +13,8 @@ from synesis_schemas.main_server import (
     PipelineRunDatasetOutputCreate,
     PipelineRunModelEntityOutputCreate,
     PipelineCreate,
-    PipelineImplementationInDB
+    PipelineImplementationInDB,
+    GetPipelinesByIDsRequest
 )
 
 
@@ -23,16 +24,10 @@ async def get_user_pipelines(client: ProjectClient) -> List[PipelineInDB]:
     return [PipelineInDB(**pipeline) for pipeline in response.body]
 
 
-async def get_user_pipeline(client: ProjectClient, pipeline_id: str) -> Pipeline:
-    """Get a specific pipeline with functions"""
-    response = await client.send_request("get", f"/pipeline/pipelines/{pipeline_id}")
-    return Pipeline(**response.body)
-
-
-async def post_pipeline_run_object(client: ProjectClient, pipeline_id: str) -> PipelineRunInDB:
-    """Run a pipeline"""
-    response = await client.send_request("post", f"/pipeline/pipelines/{pipeline_id}/run-object")
-    return PipelineRunInDB(**response.body)
+async def get_pipelines_by_ids(client: ProjectClient, request: GetPipelinesByIDsRequest) -> List[Pipeline]:
+    """Get pipelines by IDs"""
+    response = await client.send_request("get", "/pipeline/pipelines-by-ids", json=request.model_dump(mode="json"))
+    return [Pipeline(**pipeline) for pipeline in response.body]
 
 
 async def patch_pipeline_run_status(client: ProjectClient, pipeline_run_id: UUID, request: PipelineRunStatusUpdate) -> PipelineRunInDB:

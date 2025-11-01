@@ -5,6 +5,7 @@ import { DataSource } from '@/types/data-sources';
 import { useMemo } from "react";
 import { UUID } from "crypto";
 import { snakeToCamelKeys } from "@/lib/utils";
+import { mutate } from "swr";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const PROJECT_SERVER_URL = process.env.NEXT_PUBLIC_PROJECT_API_URL;
@@ -49,6 +50,22 @@ async function createFileDataSource(token: string, projectId: UUID, file: File):
   return snakeToCamelKeys(data);
 }
 
+async function deleteDataSourceEndpoint(token: string, dataSourceId: UUID): Promise<void> {
+  const response = await fetch(`${API_URL}/deletion/data-source/${dataSourceId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to delete data source', errorText);
+    throw new Error(`Failed to delete data source: ${response.status} ${errorText}`);
+  }
+}
+
 export const useDataSources = (projectId: UUID) => {
   const { data: session } = useSession();
   const { data: dataSources, mutate: mutateDataSources, error, isLoading } = useSWR(
@@ -69,12 +86,22 @@ export const useDataSources = (projectId: UUID) => {
     }
   );
 
+  const { trigger: deleteDataSource } = useSWRMutation(
+    session ? ["data-sources", projectId] : null,
+    async (_, { arg }: { arg: { dataSourceId: UUID } }) => {
+      await deleteDataSourceEndpoint(session ? session.APIToken.accessToken : "", arg.dataSourceId);
+      await mutateDataSources();
+      await mutate(["projects"]);
+    }
+  );
+
   return { 
     dataSources, 
     mutateDataSources, 
     error, 
     isLoading, 
-    triggerCreateFileDataSource
+    triggerCreateFileDataSource,
+    deleteDataSource
   };
 }
 

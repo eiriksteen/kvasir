@@ -25,3 +25,4 @@ analysis_storage
 .ssh
 *weights
 analysis_storage
+project_server/sandbox/*-*-*-*-*/

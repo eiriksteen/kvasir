@@ -4,7 +4,6 @@ from datetime import datetime
 from uuid import UUID
 
 from .function import FunctionWithoutEmbedding
-from .code import ScriptCreate, ScriptInDB
 
 # DB models
 
@@ -23,10 +22,10 @@ class PipelineImplementationInDB(BaseModel):
     python_function_name: str
     docstring: str
     description: str
-    args: dict
     args_schema: dict
+    default_args: dict
     output_variables_schema: dict
-    implementation_script_id: UUID
+    implementation_script_path: str
     created_at: datetime
     updated_at: datetime
 
@@ -70,6 +69,8 @@ class PipelineRunInDB(BaseModel):
     id: UUID
     pipeline_id: UUID
     status: Literal["running", "completed", "failed"]
+    args: dict
+    output_variables: dict
     start_time: datetime
     end_time: Optional[datetime] = None
     created_at: datetime
@@ -107,7 +108,7 @@ class PipelineOutputEntities(BaseModel):
 
 class PipelineImplementation(PipelineImplementationInDB):
     functions: List[FunctionWithoutEmbedding]
-    implementation_script: ScriptInDB
+    implementation_script_path: str
     runs: List[PipelineRunInDB] = []
 
 
@@ -115,6 +116,7 @@ class Pipeline(PipelineInDB):
     inputs: PipelineInputEntities
     outputs: PipelineOutputEntities
     implementation: Optional[PipelineImplementation] = None
+    description_for_agent: str
 
 
 class PipelineRunStatusUpdate(BaseModel):
@@ -146,10 +148,10 @@ class PipelineImplementationCreate(BaseModel):
     docstring: str
     description: str
     args_schema: dict
-    args: dict
+    default_args: dict
     output_variables_schema: dict
     function_ids: List[UUID]
-    implementation_script_create: ScriptCreate
+    implementation_script_path: str
     pipeline_id: Optional[UUID] = None
     pipeline_create: Optional[PipelineCreate] = None
 
@@ -162,3 +164,26 @@ class PipelineImplementationCreate(BaseModel):
             raise ValueError(
                 'Only one of pipeline_id or pipeline_create should be provided, not both')
         return self
+
+
+class RunPipelineRequest(BaseModel):
+    args: dict
+    project_id: UUID
+    pipeline_id: UUID
+    args: dict
+    conversation_id: Optional[UUID] = None
+    run_id: Optional[UUID] = None
+
+
+class GetPipelinesByIDsRequest(BaseModel):
+    pipeline_ids: List[UUID]
+
+
+class PipelineRunStatusUpdate(BaseModel):
+    status: Literal["running", "completed", "failed"]
+
+
+class PipelineRunOutputVariablesUpdate(BaseModel):
+    pipeline_run_id: UUID
+    # Default, add the key, if key exists, update the value
+    new_output_variables: dict

@@ -5,9 +5,7 @@ from project_server.agents.analysis.prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
 from project_server.utils.agent_utils import (
     get_model,
     get_injected_entities_description,
-    get_sandbox_environment_description,
-    get_structure_descriptions_from_datasets,
-    get_data_source_type_descriptions_from_data_sources
+    get_sandbox_environment_description
 )
 from project_server.agents.analysis.deps import AnalysisDeps
 from project_server.agents.analysis.tools import (
@@ -58,14 +56,8 @@ async def analysis_agent_system_prompt(ctx: RunContext[AnalysisDeps]) -> str:
         ctx.deps.data_sources_injected,
         ctx.deps.datasets_injected,
         ctx.deps.model_entities_injected,
-        ctx.deps.analyses_injected,
-        tmp=True
+        ctx.deps.analyses_injected
     )
-
-    data_structure_descriptions = get_structure_descriptions_from_datasets(
-        ctx.deps.datasets_injected)
-    data_source_type_descriptions = get_data_source_type_descriptions_from_data_sources(
-        ctx.deps.data_sources_injected)
 
     env_description = get_sandbox_environment_description()
 
@@ -73,8 +65,6 @@ async def analysis_agent_system_prompt(ctx: RunContext[AnalysisDeps]) -> str:
         f"{ANALYSIS_AGENT_SYSTEM_PROMPT}\n\n" +
         f"{env_description}\n\n" +
         f"{entities_description}\n\n" +
-        f"{data_structure_descriptions}\n\n" +
-        f"{data_source_type_descriptions}\n\n" +
         f"\n\nThe ID of the current analysis is: {ctx.deps.analysis_id}\n\n"
     )
 

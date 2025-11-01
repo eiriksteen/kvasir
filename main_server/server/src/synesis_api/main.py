@@ -13,6 +13,7 @@ from synesis_api.modules.runs.router import router as runs_router
 from synesis_api.modules.knowledge_bank.router import router as knowledge_bank_router
 from synesis_api.modules.model.router import router as model_router
 from synesis_api.modules.function.router import router as function_router
+from synesis_api.modules.deletion.router import router as deletion_router
 
 
 @asynccontextmanager
@@ -99,6 +100,10 @@ app.include_router(table_router,
 app.include_router(plot_router,
                    prefix="/analysis",
                    tags=["Analysis"])
+
+app.include_router(deletion_router,
+                   prefix="/deletion",
+                   tags=["Deletion"])
 
 
 @app.get("/")

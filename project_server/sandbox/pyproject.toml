@@ -31,6 +31,24 @@ dependencies = [
     "tensorflow",
     "keras",
     
+    # Image processing & computer vision
+    "pillow",
+    "opencv-python",
+    "imageio",
+    "scikit-image",
+    "albumentations",
+    
+    # Text processing & NLP
+    "nltk",
+    "spacy",
+    "gensim",
+    "textblob",
+    "regex",
+    "beautifulsoup4",
+    "langdetect",
+    "sentence-transformers",
+    "wordcloud",
+    
     # Data processing & utilities
     "scipy",
     "statsmodels",

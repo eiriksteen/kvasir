@@ -5,17 +5,14 @@ from dataclasses import dataclass, field
 from typing import List, Tuple
 import uuid
 
-from project_server.utils import run_python_function_in_container
+from project_server.utils.code_utils import run_python_function_in_container
 from project_server.agents.analysis.prompt import ANALYSIS_HELPER_SYSTEM_PROMPT
 from project_server.utils.agent_utils import (
     get_model,
     get_injected_entities_description,
     get_sandbox_environment_description,
-    get_structure_descriptions_from_datasets,
-    get_data_source_type_descriptions_from_data_sources
 )
 from synesis_schemas.main_server import Dataset, DataSource, ModelEntity, Analysis
-from project_server.app_secrets import ANALYSIS_DIR
 
 model = get_model()
 
@@ -48,23 +45,14 @@ async def analysis_helper_agent_system_prompt(ctx: RunContext[HelperAgentDeps]) 
         ctx.deps.data_sources_injected,
         ctx.deps.datasets_injected,
         ctx.deps.model_entities_injected,
-        ctx.deps.analyses_injected,
-        tmp=True
+        ctx.deps.analyses_injected
     )
-
-    data_structure_descriptions = get_structure_descriptions_from_datasets(
-        ctx.deps.datasets_injected)
-    data_source_type_descriptions = get_data_source_type_descriptions_from_data_sources(
-        ctx.deps.data_sources_injected)
 
     env_description = get_sandbox_environment_description()
 
     return f"""{ANALYSIS_HELPER_SYSTEM_PROMPT}
         \n\n{env_description}
         \n\n{entities_description}
-        \n\n{data_structure_descriptions}
-        \n\n{data_source_type_descriptions}\n\n
-        If you are plotting then you do not need to run plt.show(), but save the plots to the directory: "{ANALYSIS_DIR / str(ctx.deps.analysis_id) / str(ctx.deps.analysis_result_id)}/plots" with the a unique filename.
     """
 
 

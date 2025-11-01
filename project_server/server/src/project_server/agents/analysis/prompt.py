@@ -1,5 +1,3 @@
-from synesis_data_interface.structures.aggregation.schema import RawDataStructure
-
 ANALYSIS_HELPER_SYSTEM_PROMPT = f"""
 You are an AI agent tasked with doing data analysis. Your workflow will look like this:
 1. Generate code and run it in a python container.
@@ -16,7 +14,7 @@ Instructions for the code:
 - The code you generate will go through some postprocessing which will give you access to the result of the analysis.
 - The postprocessing will include a validation of the output variable. The output variable will be serialized into the json schema:
 ```json
-{RawDataStructure.model_json_schema()}
+NOT YET ADDED
 ```
 
 General instructions:

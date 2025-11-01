@@ -1,13 +1,15 @@
-import { BarChart3, X } from 'lucide-react';
-import { useEffect } from 'react';
-import { useDataSource } from "@/hooks/useDataSources";
+import { BarChart3, X, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useDataSource, useDataSources } from "@/hooks/useDataSources";
 import { UUID } from 'crypto';
 import JsonViewer from '@/components/JsonViewer';
+import ConfirmationPopup from '@/components/ConfirmationPopup';
 
 interface FileInfoTabProps {
   dataSourceId: UUID;
   projectId: UUID;
   onClose: () => void;
+  onDelete?: () => void;
   asModal?: boolean;
 }
 
@@ -15,10 +17,23 @@ export default function FileInfoTab({
   dataSourceId, 
   projectId,
   onClose,
+  onDelete,
   asModal = false
 }: FileInfoTabProps) {
   
   const { dataSource } = useDataSource(projectId, dataSourceId);
+  const { deleteDataSource } = useDataSources(projectId);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      await deleteDataSource({ dataSourceId });
+      onDelete?.();
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete data source:', error);
+    }
+  };
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -72,9 +87,22 @@ export default function FileInfoTab({
   const content = (
     <div className="h-full p-4 flex flex-col gap-4">
       <div className="bg-gray-50 rounded-xl p-4 flex-1 min-h-0 flex flex-col">
+        <div className="flex items-center justify-between mb-3 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gray-500/20 rounded-lg">
+              <BarChart3 size={18} className="text-gray-600" />
+            </div>
+            <h3 className="text-sm font-semibold text-gray-900">{dataSource.name}</h3>
+          </div>
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="p-2 text-red-800 hover:bg-red-100 rounded-lg transition-colors"
+            title="Delete data source"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
         <JsonViewer 
-          title="File Stats"
-          icon={BarChart3}
           data={mergedData} 
           className="flex-1 min-h-0"
         />
@@ -86,8 +114,7 @@ export default function FileInfoTab({
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
         <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden m-4" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <h2 className="text-sm font-mono text-gray-900">{dataSource.name}</h2>
+          <div className="flex items-center justify-end p-4 border-b border-gray-200">
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -99,6 +126,12 @@ export default function FileInfoTab({
             {content}
           </div>
         </div>
+        <ConfirmationPopup
+          message={`Are you sure you want to delete "${dataSource.name}"? This will permanently delete the data source. This action cannot be undone.`}
+          isOpen={showDeleteConfirm}
+          onConfirm={handleDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
       </div>
     );
   }
@@ -112,6 +145,13 @@ export default function FileInfoTab({
           </div>
         </div>
       </div>
+      
+      <ConfirmationPopup
+        message={`Are you sure you want to delete "${dataSource.name}"? This will permanently delete the data source. This action cannot be undone.`}
+        isOpen={showDeleteConfirm}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

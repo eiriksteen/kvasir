@@ -81,6 +81,22 @@ async function runPipeline(token: string, pipelineId: UUID, projectId: UUID): Pr
   return snakeToCamelKeys(data);
 }
 
+async function deletePipelineEndpoint(token: string, pipelineId: UUID): Promise<void> {
+  const response = await fetch(`${API_URL}/deletion/pipeline/${pipelineId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to delete pipeline', errorText);
+    throw new Error(`Failed to delete pipeline: ${response.status} ${errorText}`);
+  }
+}
+
 export const usePipelines = (projectId: UUID) => {
   const { data: session } = useSession();
   const { data: pipelines, mutate: mutatePipelines, error, isLoading } = useSWR<Pipeline[]>(
@@ -107,6 +123,15 @@ export const usePipelines = (projectId: UUID) => {
         return [newPipelineRun];
       },
       revalidate: false
+    }
+  );
+
+  const { trigger: deletePipeline } = useSWRMutation(
+    session ? ["pipelines", projectId] : null,
+    async (_, { arg }: { arg: { pipelineId: UUID } }) => {
+      await deletePipelineEndpoint(session ? session.APIToken.accessToken : "", arg.pipelineId);
+      await mutatePipelines();
+      await mutate(["projects"]);
     }
   );
 
@@ -168,6 +193,7 @@ export const usePipelines = (projectId: UUID) => {
     mutatePipelines,
     isLoading,
     isError: error,
+    deletePipeline,
   };
 }; 
 

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import List, Literal
+from typing import List, Literal, Optional
 from uuid import UUID
 from pydantic import model_validator
 from pydantic import BaseModel
@@ -18,6 +18,7 @@ class ProjectInDB(BaseModel):
     user_id: UUID
     name: str
     description: str
+    python_package_name: str
     view_port_x: float = 0.0
     view_port_y: float = 0.0
     view_port_zoom: float = 1.0
@@ -76,6 +77,7 @@ class ProjectModelEntityInDB(BaseModel):
 class ProjectCreate(BaseModel):
     name: str
     description: str
+    python_package_name: Optional[str] = None
 
 
 class ProjectDetailsUpdate(BaseModel):
@@ -189,18 +191,5 @@ class ProjectGraph(BaseModel):
     model_entities: List[ModelEntityInGraph] = []
 
 
-class Project(BaseModel):
-    id: UUID
-    user_id: UUID
-    name: str
-    description: str
-    data_sources: List[ProjectDataSourceInDB] = []
-    datasets: List[ProjectDatasetInDB] = []
-    analyses: List[ProjectAnalysisInDB] = []
-    pipelines: List[ProjectPipelineInDB] = []
-    model_entities: List[ProjectModelEntityInDB] = []
-    view_port_x: float = 0.0
-    view_port_y: float = 0.0
-    view_port_zoom: float = 1.0
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
+class Project(ProjectInDB):
+    graph: ProjectGraph

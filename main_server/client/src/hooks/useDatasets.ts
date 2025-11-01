@@ -1,9 +1,11 @@
 import useSWR from "swr";
+import useSWRMutation from "swr/mutation";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import { Dataset, ObjectGroupWithObjects } from "@/types/data-objects";
 import { snakeToCamelKeys } from "@/lib/utils";
 import { UUID } from "crypto";
+import { mutate } from "swr";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -43,6 +45,22 @@ async function fetchObjectGroupsInDataset(token: string, datasetId: string): Pro
   return snakeToCamelKeys(data);
 }
 
+async function deleteDatasetEndpoint(token: string, datasetId: UUID): Promise<void> {
+  const response = await fetch(`${API_URL}/deletion/dataset/${datasetId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to delete dataset', errorText);
+    throw new Error(`Failed to delete dataset: ${response.status} ${errorText}`);
+  }
+}
+
 
 export const useDatasets = (projectId: UUID) => {
   const { data: session } = useSession();
@@ -56,11 +74,21 @@ export const useDatasets = (projectId: UUID) => {
     }
   );
 
+  const { trigger: deleteDataset } = useSWRMutation(
+    session ? ["datasets", projectId] : null,
+    async (_, { arg }: { arg: { datasetId: UUID } }) => {
+      await deleteDatasetEndpoint(session ? session.APIToken.accessToken : "", arg.datasetId);
+      await mutateDatasets();
+      await mutate(["projects"]);
+    }
+  );
+
   return {
     datasets,
     mutateDatasets,
     isLoading,
     isError: error,
+    deleteDataset,
   };
 }; 
 

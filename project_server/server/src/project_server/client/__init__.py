@@ -22,13 +22,12 @@ from .requests.runs import (
 
 from .requests.pipeline import (
     get_user_pipelines,
-    get_user_pipeline,
     post_pipeline,
     post_pipeline_output_model_entity,
     post_pipeline_output_dataset,
-    post_pipeline_run_object,
     patch_pipeline_run_status,
-    post_pipeline_implementation
+    post_pipeline_implementation,
+    get_pipelines_by_ids
 )
 
 from .requests.orchestrator import (
@@ -37,16 +36,14 @@ from .requests.orchestrator import (
     get_conversations,
     create_chat_message_pydantic_request,
     create_context_request,
-    submit_swe_result_approval_request
+    post_swe_result_approval_request
 )
 
 
 from .requests.data_sources import (
     get_data_sources,
     get_data_sources_by_ids,
-    post_file_data_source,
-    post_data_source_analysis,
-    post_data_source_details,
+    post_data_source,
     get_data_source
 )
 
@@ -57,9 +54,6 @@ from .requests.data_objects import (
     get_object_group,
     get_object_groups_in_dataset,
     get_datasets_by_ids,
-    create_aggregation_object_request,
-    update_aggregation_object_request,
-    get_aggregation_object_by_analysis_result_id_request,
 )
 
 from .requests.project import (
@@ -159,7 +153,6 @@ __all__ = [
     "post_function",
     "post_model",
     "post_model_entity",
-    "post_pipeline_run_object",
 
     # Function functions
     "post_function",
@@ -185,10 +178,8 @@ __all__ = [
     # Data sources functions
     "get_data_sources",
     "get_data_sources_by_ids",
-    "post_file_data_source",
-    "post_data_source_analysis",
-    "post_data_source_details",
-    "get_data_sources_descriptions",
+    "post_data_source",
+    "get_data_source",
     # Data objects functions
     "post_dataset",
     "get_project_datasets",
@@ -208,7 +199,6 @@ __all__ = [
     "delete_entity",
     "delete_project",
     "get_user_projects",
-
     # Knowledge bank functions
     "post_search_functions",
 

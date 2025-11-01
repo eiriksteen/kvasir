@@ -1,12 +1,14 @@
-import { Brain, FileCode, Info, Settings, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Brain, FileCode, Info, Settings, ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { UUID } from 'crypto';
-import { useModelEntity } from '@/hooks/useModelEntities';
+import { useModelEntity, useModelEntities } from '@/hooks/useModelEntities';
+import ConfirmationPopup from '@/components/ConfirmationPopup';
 
 interface ModelInfoTabProps {
   modelEntityId: UUID;
   projectId: UUID;
   onClose: () => void;
+  onDelete?: () => void;
 }
 
 type ViewType = 'overview' | 'code';
@@ -14,11 +16,24 @@ type ViewType = 'overview' | 'code';
 export default function ModelInfoTab({
   modelEntityId,
   projectId,
-  onClose
+  onClose,
+  onDelete
 }: ModelInfoTabProps) {
 
   const { modelEntity } = useModelEntity(projectId, modelEntityId);
+  const { deleteModelEntity } = useModelEntities(projectId);
   const [currentView, setCurrentView] = useState<ViewType>('overview');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      await deleteModelEntity({ modelEntityId });
+      onDelete?.();
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete model entity:', error);
+    }
+  };
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -49,7 +64,8 @@ export default function ModelInfoTab({
   return (
     <div className="w-full h-full bg-white overflow-hidden flex flex-col">
       {/* Top Buttons */}
-      <div className="flex gap-2 px-4 py-4">
+      <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex gap-2">
         <button
           onClick={() => setCurrentView('overview')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
@@ -73,6 +89,14 @@ export default function ModelInfoTab({
             <span className="text-sm font-medium">Code</span>
           </button>
         )}
+        </div>
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          className="p-2 text-red-800 hover:bg-red-100 rounded-lg transition-colors"
+          title="Delete model entity"
+        >
+          <Trash2 size={18} />
+        </button>
       </div>
 
       {/* Content Area */}
@@ -164,6 +188,13 @@ export default function ModelInfoTab({
           </div>
         )}
       </div>
+      
+      <ConfirmationPopup
+        message={`Are you sure you want to delete "${modelEntity.name}"? This will permanently delete the model entity and all its implementations. This action cannot be undone.`}
+        isOpen={showDeleteConfirm}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

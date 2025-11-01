@@ -1,19 +1,11 @@
 
 
 TOOL_DESCRIPTIONS = {
-    # Data integration tools
-    "get_data_structures_overview_tool": "Retrieving data structure overview",
-    "get_data_structure_description_tool": "Getting data structure details",
-    "write_script": "Writing new script file",
-    "replace_script_lines": "Modifying script lines",
-    "add_script_lines": "Adding new lines to script",
-    "delete_script_lines": "Deleting lines from script",
-    "switch_script": "Switching to different script",
-    "execute_python_code": "Running Python code",
-    "final_result": "Submitting final result",
-    "read_script": "Reading script",
-
-    # Analysis tools
+    "write_file": "Writing new script file",
+    "read_file": "Reading script",
+    "replace_file_lines": "Modifying script lines",
+    "add_file_lines": "Adding new lines to script",
+    "delete_file_lines": "Deleting lines from script",
     "search_through_datasets": "Searching through datasets",
     "search_through_data_sources": "Searching through data sources",
     "search_through_analyses": "Searching through analyses",

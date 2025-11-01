@@ -40,7 +40,7 @@ class ObjectGroupInDB(BaseModel):
     description: str
     modality: MODALITY_LITERAL
     dataset_id: uuid.UUID
-    original_id_name: str
+    original_id_name: Optional[str] = None
     additional_variables: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
@@ -77,12 +77,13 @@ class TimeSeriesGroupInDB(BaseModel):
 
 class ObjectGroupFromDataSourceInDB(BaseModel):
     data_source_id: uuid.UUID
-    dataset_id: uuid.UUID
+    object_group_id: uuid.UUID
 
 
 class ObjectGroupFromPipelineInDB(BaseModel):
     pipeline_id: uuid.UUID
-    dataset_id: uuid.UUID
+    object_group_id: uuid.UUID
+    pipeline_run_id: Optional[uuid.UUID] = None
 
 
 # Schemas for the API
@@ -125,30 +126,7 @@ class GetDatasetsByIDsRequest(BaseModel):
 # Create schemas
 
 
-class DataObjectCreate(BaseModel):
-    original_id: str
-    description: Optional[str] = None
-
-    class Config:
-        extra = "allow"
-
-
-class DataObjectGroupCreate(BaseModel):
-    name: str
-    original_object_id_name: str
-    description: str
-    modality: str
-    # data source ids for groups coming directly from (files etc)
-    data_source_ids: List[uuid.UUID]
-    # pipeline ids for groups coming from in-memory, i.e pipelines applied to sources, but without saving the outputs permanently
-    pipeline_ids: List[uuid.UUID]
-
-    # For custom fields decided by the agent to be interesting enough to be added
-    class Config:
-        extra = "allow"
-
-
-class TimeSeriesCreate(DataObjectCreate):
+class TimeSeriesCreate(BaseModel):
     original_id: str
     start_timestamp: datetime
     end_timestamp: datetime
@@ -158,7 +136,7 @@ class TimeSeriesCreate(DataObjectCreate):
     features_schema: Dict[str, Any]
 
 
-class TimeSeriesGroupCreate(DataObjectGroupCreate):
+class TimeSeriesGroupCreate(BaseModel):
     total_timestamps: int
     number_of_series: int
     # None if varying between series
@@ -172,16 +150,42 @@ class TimeSeriesGroupCreate(DataObjectGroupCreate):
     latest_timestamp: datetime
 
 
-class MetadataFile(BaseModel):
+class DataObjectCreate(BaseModel):
+    original_id: str
+    description: Optional[str] = None
+    modality_fields: Union[TimeSeriesCreate]
+
+    class Config:
+        extra = "allow"
+
+
+class ObjectsFile(BaseModel):
     filename: str
-    type: Literal["object_group", "object"]
     modality: MODALITY_LITERAL
 
 
-# The object groups will be added through separate requests after the base dataset is created
+class DataObjectGroupCreate(BaseModel):
+    name: str
+    original_id_name: str
+    description: str
+    modality: str
+    # data source ids for groups coming directly from (files etc)
+    data_source_ids: List[uuid.UUID]
+    # pipeline ids for groups coming from in-memory, i.e pipelines applied to sources, but without saving the outputs permanently
+    pipeline_ids: List[uuid.UUID]
+    modality_fields: Union[TimeSeriesGroupCreate]
+    objects_files: List[ObjectsFile] = []  # Objects that belong to this group
+
+    # For custom fields decided by the agent to be interesting enough to be added
+    class Config:
+        extra = "allow"
+
+
 class DatasetCreate(BaseModel):
     name: str
     description: str
+    # TODO: Add more modalities
+    groups: List[DataObjectGroupCreate] = []
 
     class Config:
         extra = "allow"

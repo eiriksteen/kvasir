@@ -10,11 +10,9 @@ from synesis_schemas.main_server import (
     ObjectGroup,
     ObjectGroupWithObjects,
     GetDatasetsByIDsRequest,
-    DataObjectWithParentGroup,
     DataObject,
-    AggregationObjectCreate,
-    AggregationObjectUpdate,
-    AggregationObjectInDB
+    DataObjectGroupCreate,
+    ObjectsFile
 )
 
 
@@ -27,6 +25,27 @@ async def post_dataset(client: ProjectClient, files: List[FileInput], metadata: 
     )
 
     return Dataset(**response.body)
+
+
+async def post_object_group(client: ProjectClient, dataset_id: UUID, group_create: DataObjectGroupCreate, files: List[FileInput]) -> ObjectGroup:
+    response = await client.send_request(
+        "post",
+        f"/data-objects/object-group/{dataset_id}",
+        files=files,
+        data={"group_create": json.dumps(group_create.model_dump(mode="json"))}
+    )
+    return ObjectGroup(**response.body)
+
+
+async def post_data_objects(client: ProjectClient, group_id: UUID, files: List[FileInput], metadata: List[ObjectsFile]) -> List[DataObject]:
+    response = await client.send_request(
+        "post",
+        f"/data-objects/objects/{group_id}",
+        files=files,
+        data={"metadata": json.dumps(
+            [obj.model_dump(mode="json") for obj in metadata])}
+    )
+    return [DataObject(**obj) for obj in response.body]
 
 
 async def get_project_datasets(client: ProjectClient, project_id: UUID) -> List[Dataset]:
@@ -57,24 +76,6 @@ async def get_object_groups_in_dataset(client: ProjectClient, dataset_id: UUID) 
     return [ObjectGroupWithObjects(**group) for group in response.body]
 
 
-async def get_data_object(client: ProjectClient, object_id: UUID, include_object_group: bool = False) -> Union[DataObjectWithParentGroup, DataObject]:
-    response = await client.send_request("get", f"/data-objects/data-object/{object_id}?include_object_group={include_object_group}")
-    if include_object_group:
-        return DataObjectWithParentGroup(**response.body)
-    else:
-        return DataObject(**response.body)
-
-
-async def create_aggregation_object_request(client: ProjectClient, aggregation_object_create: AggregationObjectCreate) -> AggregationObjectInDB:
-    response = await client.send_request("post", "/data-objects/aggregation-object", json=aggregation_object_create.model_dump(mode="json"))
-    return AggregationObjectInDB(**response.body)
-
-
-async def update_aggregation_object_request(client: ProjectClient, aggregation_object_id: UUID, aggregation_object_update: AggregationObjectUpdate) -> AggregationObjectInDB:
-    response = await client.send_request("put", f"/data-objects/aggregation-object/{aggregation_object_id}", json=aggregation_object_update.model_dump(mode="json"))
-    return AggregationObjectInDB(**response.body)
-
-
-async def get_aggregation_object_by_analysis_result_id_request(client: ProjectClient, analysis_result_id: UUID) -> AggregationObjectInDB:
-    response = await client.send_request("get", f"/data-objects/aggregation-object/analysis-result/{analysis_result_id}")
-    return AggregationObjectInDB(**response.body)
+async def get_data_object(client: ProjectClient, object_id: UUID) -> DataObject:
+    response = await client.send_request("get", f"/data-objects/data-object/{object_id}")
+    return DataObject(**response.body)

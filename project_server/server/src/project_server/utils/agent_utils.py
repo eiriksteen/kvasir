@@ -1,5 +1,6 @@
 from typing import List
 
+from synesis_schemas.main_server import Project
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.models.anthropic import AnthropicModel
@@ -10,10 +11,17 @@ from pydantic_ai.providers.grok import GrokProvider
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 
-from project_server.app_secrets import MODEL_TO_USE, ANTHROPIC_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY, SUPPORTED_MODELS, XAI_API_KEY,  MODELS_MODULE, MODELS_MODULE_TMP, SANDBOX_PYPROJECT_PATH
-from synesis_schemas.main_server import DataSource, Dataset, ModelEntity, Analysis
-from synesis_data_interface.structures.overview import get_data_structure_description
-from synesis_data_interface.sources.overview import get_data_source_description
+from project_server.utils.docker_utils import get_container_working_directory, list_container_working_directory_contents
+from project_server.app_secrets import (
+    MODEL_TO_USE,
+    ANTHROPIC_API_KEY,
+    GOOGLE_API_KEY,
+    OPENAI_API_KEY,
+    SUPPORTED_MODELS,
+    XAI_API_KEY,
+    SANDBOX_PYPROJECT_PATH
+)
+from synesis_schemas.main_server import DataSource, Dataset, ModelEntity, Analysis, Pipeline, ProjectGraph
 
 
 def get_injected_entities_description(
@@ -21,7 +29,7 @@ def get_injected_entities_description(
     datasets: List[Dataset],
     model_entities: List[ModelEntity],
     analyses: List[Analysis],
-    tmp: bool = True
+    pipelines: List[Pipeline]
 ) -> str:
 
     data_sources_description = "\n\n".join(
@@ -32,17 +40,16 @@ def get_injected_entities_description(
         [analysis.description_for_agent for analysis in analyses])
     model_entities_description = "\n\n".join(
         [model_entity.description_for_agent for model_entity in model_entities])
+    pipelines_description = "\n\n".join(
+        [pipeline.description_for_agent for pipeline in pipelines])
 
     data_sources_section = f"<data_sources>\n\n{data_sources_description}\n\n</data_sources>\n\n"
     datasets_section = f"<datasets>\n\n{datasets_description}\n\n</datasets>\n\n"
     analyses_section = f"<analyses>\n\n{analyses_description}\n\n</analyses>\n\n"
     model_entities_section = f"<model_entities>\n\n{model_entities_description}\n\n</model_entities>\n\n"
+    pipelines_section = f"<pipelines>\n\n{pipelines_description}\n\n</pipelines>\n\n"
 
-    if tmp:
-        model_entities_section = model_entities_section.replace(
-            MODELS_MODULE, MODELS_MODULE_TMP)
-
-    return f"The injected entities:\n\n{data_sources_section}{datasets_section}{analyses_section}{model_entities_section}"
+    return f"The injected entities:\n\n{data_sources_section}{datasets_section}{analyses_section}{model_entities_section}{pipelines_section}"
 
 
 def get_sandbox_environment_description() -> str:
@@ -53,26 +60,32 @@ def get_sandbox_environment_description() -> str:
     return env_section
 
 
-def get_structure_descriptions_from_datasets(datasets: List[Dataset]) -> str:
-    structure_descriptions = {}
-    for dataset in datasets:
-        for structure in dataset.object_groups:
-            structure_type = structure.structure_type
-            structure_descriptions[structure_type] = get_data_structure_description(
-                structure_type)
+def get_project_description(project: Project) -> str:
 
-    descriptions_joined = "\n\n".join(structure_descriptions.values())
-    return f"The definitions of the structures found in the injected datasets are:\n\n<data_structure_definitions>\n\n{descriptions_joined}\n\n</data_structure_definitions>\n\n"
+    desc = (
+        "**Project Name:**\n\n" +
+        f"{project.name}\n\n" +
+        "**Project Description:**\n\n" +
+        f"{project.description}\n\n" +
+        "**Project Python Package Name:**\n\n" +
+        f"{project.python_package_name}\n\n" +
+        "**Project Graph:**\n\n" +
+        f"{project.graph.model_dump_json(indent=2)}\n\n"
+    )
+
+    return desc
 
 
-def get_data_source_type_descriptions_from_data_sources(data_sources: List[DataSource]) -> str:
-    data_source_descriptions = {}
-    for data_source in data_sources:
-        data_source_descriptions[data_source.type] = get_data_source_description(
-            data_source.type)
+async def get_working_directory_description(container_name: str) -> str:
+    pwd, err = await get_container_working_directory(container_name)
+    if err:
+        raise RuntimeError(f"Failed to get working directory: {err}")
 
-    descriptions_joined = "\n\n".join(data_source_descriptions.values())
-    return f"The definitions of the data source types found in the injected data sources are:\n\n<data_source_definitions>\n\n{descriptions_joined}\n\n</data_source_definitions>\n\n"
+    ls, err = await list_container_working_directory_contents(container_name)
+    if err:
+        raise RuntimeError(f"Failed to list working directory contents: {err}")
+
+    return f"pwd out: {pwd}\n\nls out:\n{ls}\n\n"
 
 
 def get_model():
@@ -107,7 +120,6 @@ def get_model():
 
 
 def pydantic_ai_bytes_to_messages(message_list: List[bytes]) -> list[ModelMessage]:
-
     messages: list[ModelMessage] = []
     for message in message_list:
         messages.extend(

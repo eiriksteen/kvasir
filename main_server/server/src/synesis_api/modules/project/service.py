@@ -51,6 +51,12 @@ from synesis_api.modules.data_objects.service import get_user_datasets
 from synesis_api.modules.pipeline.service import get_user_pipelines
 from synesis_api.modules.model.service import get_user_model_entities
 from synesis_api.modules.analysis.service import get_user_analyses
+from synesis_api.modules.deletion.service import (
+    delete_data_source as delete_data_source_entity,
+    delete_dataset as delete_dataset_entity,
+    delete_model_entity as delete_model_entity_entity,
+    delete_pipeline as delete_pipeline_entity,
+)
 
 
 async def create_project(user_id: UUID, project_data: ProjectCreate) -> Project:
@@ -447,6 +453,118 @@ async def update_project_viewport(user_id: UUID, viewport_data: UpdateProjectVie
 
     project_obj = await get_projects(user_id, [viewport_data.project_id])
     return project_obj[0] if project_obj else None
+
+
+async def delete_data_source_from_project(user_id: UUID, data_source_id: UUID) -> UUID:
+    """
+    Delete a data source entity and remove it from all projects.
+    """
+    # Find all projects containing this data source
+    project_data_source_records = await fetch_all(
+        select(project_data_source).where(
+            project_data_source.c.data_source_id == data_source_id
+        )
+    )
+    project_ids = list(set([r["project_id"] for r in project_data_source_records]))
+    
+    # Remove from all projects
+    for project_id in project_ids:
+        await execute(
+            delete(project_data_source).where(
+                and_(
+                    project_data_source.c.project_id == project_id,
+                    project_data_source.c.data_source_id == data_source_id
+                )
+            ),
+            commit_after=True
+        )
+    
+    # Delete the entity itself
+    return await delete_data_source_entity(user_id, data_source_id)
+
+
+async def delete_dataset_from_project(user_id: UUID, dataset_id: UUID) -> UUID:
+    """
+    Delete a dataset entity and remove it from all projects.
+    """
+    # Find all projects containing this dataset
+    project_dataset_records = await fetch_all(
+        select(project_dataset).where(
+            project_dataset.c.dataset_id == dataset_id
+        )
+    )
+    project_ids = list(set([r["project_id"] for r in project_dataset_records]))
+    
+    # Remove from all projects
+    for project_id in project_ids:
+        await execute(
+            delete(project_dataset).where(
+                and_(
+                    project_dataset.c.project_id == project_id,
+                    project_dataset.c.dataset_id == dataset_id
+                )
+            ),
+            commit_after=True
+        )
+    
+    # Delete the entity itself
+    return await delete_dataset_entity(user_id, dataset_id)
+
+
+async def delete_model_entity_from_project(user_id: UUID, model_entity_id: UUID) -> UUID:
+    """
+    Delete a model entity and remove it from all projects.
+    """
+    # Find all projects containing this model entity
+    project_model_entity_records = await fetch_all(
+        select(project_model_entity).where(
+            project_model_entity.c.model_entity_id == model_entity_id
+        )
+    )
+    project_ids = list(set([r["project_id"] for r in project_model_entity_records]))
+    
+    # Remove from all projects
+    for project_id in project_ids:
+        await execute(
+            delete(project_model_entity).where(
+                and_(
+                    project_model_entity.c.project_id == project_id,
+                    project_model_entity.c.model_entity_id == model_entity_id
+                )
+            ),
+            commit_after=True
+        )
+    
+    # Delete the entity itself
+    return await delete_model_entity_entity(user_id, model_entity_id)
+
+
+async def delete_pipeline_from_project(user_id: UUID, pipeline_id: UUID) -> UUID:
+    """
+    Delete a pipeline entity and remove it from all projects.
+    """
+    # Find all projects containing this pipeline
+    project_pipeline_records = await fetch_all(
+        select(project_pipeline).where(
+            project_pipeline.c.pipeline_id == pipeline_id
+        )
+    )
+    project_ids = list(set([r["project_id"] for r in project_pipeline_records]))
+    
+    # Remove from all projects
+    for project_id in project_ids:
+        await execute(
+            delete(project_pipeline).where(
+                and_(
+                    project_pipeline.c.project_id == project_id,
+                    project_pipeline.c.pipeline_id == pipeline_id
+                )
+            ),
+            commit_after=True
+        )
+    
+    # Delete the entity itself
+    return await delete_pipeline_entity(user_id, pipeline_id)
 
 
 #

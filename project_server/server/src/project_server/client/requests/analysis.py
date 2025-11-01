@@ -12,7 +12,7 @@ from synesis_schemas.main_server import (
     NotebookSectionCreate,
     NotebookSectionUpdate,
     MoveRequest,
-    AggregationObjectWithRawData,
+    # AggregationObjectWithRawData,
     GetAnalysesByIDsRequest
 )
 
@@ -51,9 +51,10 @@ async def add_analysis_result_to_section_request(client: ProjectClient, analysis
     return NotebookSection(**response.body)
 
 
-async def get_data_for_analysis_result_request(client: ProjectClient, analysis_id: uuid.UUID, analysis_result_id: uuid.UUID) -> AggregationObjectWithRawData:
+async def get_data_for_analysis_result_request(client: ProjectClient, analysis_id: uuid.UUID, analysis_result_id: uuid.UUID) -> None:
+    raise NotImplementedError("Function not implemented - needs to be fixed")
     response = await client.send_request("post", f"/analysis/analysis-object/{analysis_id}/analysis-result/{analysis_result_id}/get-data")
-    return AggregationObjectWithRawData(**response.body)
+    return None
 
 
 async def move_element_request(client: ProjectClient, analysis_id: uuid.UUID, move_request: MoveRequest) -> None:

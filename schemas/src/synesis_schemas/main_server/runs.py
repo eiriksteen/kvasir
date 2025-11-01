@@ -7,7 +7,7 @@ from pydantic import BaseModel
 # DB Models
 
 
-RUN_TYPE_LITERAL = Literal["swe", "analysis"]
+RUN_TYPE_LITERAL = Literal["swe", "analysis", "extraction"]
 
 
 class RunInDB(BaseModel):

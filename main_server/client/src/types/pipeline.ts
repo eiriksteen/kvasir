@@ -18,6 +18,7 @@ export interface PipelineImplementationInDB {
   docstring: string;
   description: string;
   argsSchema: Record<string, unknown>;
+  defaultArgs: Record<string, unknown>;
   outputVariablesSchema: Record<string, unknown>;
   implementationScriptPath: string;
   createdAt: string;

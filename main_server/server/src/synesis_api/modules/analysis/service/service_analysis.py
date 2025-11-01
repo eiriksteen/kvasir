@@ -70,7 +70,7 @@ async def create_analysis(analysis_create: AnalysisCreate, user_id: uuid.UUID) -
 
     await execute(
         insert(analysis).values(
-            **analysis_in_db.model_dump(exclude={"dataset_ids"})
+            **analysis_in_db.model_dump()
         ),
         commit_after=True
     )

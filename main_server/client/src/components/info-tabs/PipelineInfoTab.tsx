@@ -1,12 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import { UUID } from 'crypto';
-import { usePipeline } from '@/hooks/usePipelines';
+import { usePipeline, usePipelines } from '@/hooks/usePipelines';
 import { useRuns } from '@/hooks/useRuns';
 import { useDatasets } from '@/hooks/useDatasets';
 import { useDataSources } from '@/hooks/useDataSources';
 import { useModelEntities } from '@/hooks/useModelEntities';
 import { useAnalyses } from '@/hooks/useAnalysis';
-import { SquarePlay, FileCode, Database, Folder, Brain, BarChart3, Info, FileText, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { SquarePlay, FileCode, Database, Folder, Brain, BarChart3, Info, FileText, ArrowDownRight, ArrowUpRight, Trash2 } from 'lucide-react';
 import CodeStream from '@/components/code/CodeStream';
 import { Dataset } from '@/types/data-objects';
 import { DataSource } from '@/types/data-sources';
@@ -14,11 +14,13 @@ import { ModelEntity } from '@/types/model';
 import { AnalysisSmall } from '@/types/analysis';
 import { Run } from '@/types/runs';
 import { mutate } from 'swr';
+import ConfirmationPopup from '@/components/ConfirmationPopup';
 
 interface PipelineInfoTabProps {
   pipelineId: UUID;
   projectId: UUID;
   onClose: () => void;
+  onDelete?: () => void;
 }   
 
 type ViewType = 'overview' | 'code' | 'runs';
@@ -26,10 +28,12 @@ type ViewType = 'overview' | 'code' | 'runs';
 export default function PipelineInfoTab({ 
   pipelineId,
   projectId,
-  onClose
+  onClose,
+  onDelete
 }: PipelineInfoTabProps) {
 
   const { pipeline } = usePipeline(pipelineId, projectId);
+  const { deletePipeline } = usePipelines(projectId);
   const { runs } = useRuns();
   const { datasets } = useDatasets(projectId);
   const { dataSources } = useDataSources(projectId);
@@ -38,6 +42,17 @@ export default function PipelineInfoTab({
   
   const isInProgress = !pipeline?.implementation;
   const [currentView, setCurrentView] = useState<ViewType>(isInProgress ? 'code' : 'overview');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      await deletePipeline({ pipelineId });
+      onDelete?.();
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete pipeline:', error);
+    }
+  };
 
   // Find the run that has this pipeline in its outputs
   const pipelineAgentRun: Run | undefined = useMemo(() => {
@@ -90,7 +105,8 @@ export default function PipelineInfoTab({
   return (
     <div className="w-full h-full bg-white overflow-hidden flex flex-col">
       {/* Top Buttons */}
-      <div className="flex gap-2 px-4 py-4">
+      <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex gap-2">
         {!isInProgress && (
           <button
             onClick={() => setCurrentView('overview')}
@@ -127,6 +143,14 @@ export default function PipelineInfoTab({
         >
           <SquarePlay className="w-4 h-4" />
           <span className="text-sm font-medium">Runs</span>
+        </button>
+        </div>
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          className="p-2 text-red-800 hover:bg-red-100 rounded-lg transition-colors"
+          title="Delete pipeline"
+        >
+          <Trash2 size={18} />
         </button>
       </div>
 
@@ -304,6 +328,13 @@ export default function PipelineInfoTab({
           </div>
         )}
       </div>
+      
+      <ConfirmationPopup
+        message={`Are you sure you want to delete "${pipeline.name}"? This will permanently delete the pipeline and all its runs. This action cannot be undone.`}
+        isOpen={showDeleteConfirm}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

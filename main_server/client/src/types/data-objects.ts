@@ -33,7 +33,7 @@ export interface ObjectGroupInDB {
   description: string;
   modality: Modality;
   datasetId: UUID;
-  originalIdName: string;
+  originalIdName?: string | null;
   additionalVariables?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
@@ -69,12 +69,12 @@ export interface TimeSeriesGroupInDB {
 
 export interface ObjectGroupFromDataSourceInDB {
   dataSourceId: UUID;
-  datasetId: UUID;
+  objectGroupId: UUID;
 }
 
 export interface ObjectGroupFromPipelineInDB {
   pipelineId: UUID;
-  datasetId: UUID;
+  objectGroupId: UUID;
   pipelineRunId?: UUID | null;
 }
 
@@ -152,7 +152,7 @@ export interface ObjectsFile {
 
 export interface DataObjectGroupCreate {
   name: string;
-  originalObjectIdName: string;
+  originalIdName: string;
   description: string;
   modality: string;
   // data source ids for groups coming directly from (files etc)

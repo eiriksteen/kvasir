@@ -32,10 +32,28 @@ NB: The folder may be empty or near-empty. This can for example be if we are dea
 General instructions:
 Your environment with available libraries will be defined. 
 For each entity you detect, if relevant, you must first decide what type it is (what data source type, dataset modality, etc). 
-Then, you call the relevant tool to get the corresponding schema, before creating a json_str that abides by the schema and contains the data. 
+Then, you call the relevant tool to get the corresponding schema, before creating a Python dictionary that abides by the schema and contains the data. 
 The data will be validated and sent to the main server for storage. 
 For almost all entities, additional fields beyond the ones required by the schema will be acceptable. 
 This is to accomodate unique contexts or data that is important to fully understand the data, and is not covered by the strict fields of the schema. 
+Call the relevant tools to get the schemas your outputs should abide by. 
+
+For small and serializable data, you will output python dictionaries. 
+For bigger data, you should output dataframes. 
+To send the data to the API, the dataframes must be converted to a list of FileInput objects. 
+FileInput must be imported from project_server.client and is defined as follows:
+
+```python
+@dataclass
+class FileInput:
+    field_name: str # The name of the field in the API request
+    filename: str # The name of the file
+    file_data: bytes # The bytes of the file
+    content_type: str # The content type of the file
+```
+
+Do not save the files to disk, keep them in memory. 
+
 
 Data Sources: 
 We define data sources as data stored on disk or in other permanent storage. 
@@ -70,6 +88,7 @@ The currently supported modalities are:
 
 You must infer from the context which object groups belong to the same dataset. Often, a dataset may be composed of just one object group. 
 When detecting a dataset, you must output specified information about it. Then, you should output all the object groups that belong to the dataset. 
+When submitting a dataset, you must prepare a `files` variable containing a list of `FileInput` objects for all dataframes across all groups in the dataset. Collect files from all groups' `objects_files`. 
 
 Analyses:
 Analyses are analytical reports or processes conducted on the data. 

@@ -1,19 +1,20 @@
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
-from sqlalchemy import insert, select, update
+from sqlalchemy import insert, select
 
 from synesis_api.modules.data_sources.description import get_data_source_description
 from synesis_schemas.main_server import (
     DataSourceInDB,
     FileDataSourceInDB,
+    DataSourceFromPipelineInDB,
     DataSource,
     DataSourceCreate,
-    FileDataSourceCreate,
 )
 from synesis_api.modules.data_sources.models import (
     file_data_source,
     data_source,
+    data_source_from_pipeline,
 )
 from synesis_api.database.service import execute, fetch_all
 
@@ -26,16 +27,19 @@ async def create_data_source(
     create_data = data_source_create.model_dump()
     additional_variables = {}
 
-    # Get the fields defined in DataSourceCreate
+    # Get the fields defined in DataSourceCreate (excluding type_fields and from_pipelines)
     create_fields = set(DataSourceCreate.model_fields.keys())
     for key, value in create_data.items():
         if key not in create_fields:
             additional_variables[key] = value
 
+    # Create the base data source
+    data_source_id = uuid.uuid4()
     data_source_obj = DataSourceInDB(
-        id=uuid.uuid4(),
+        id=data_source_id,
         user_id=user_id,
-        **{k: v for k, v in create_data.items() if k in create_fields},
+        type=create_data["type"],
+        name=create_data["name"],
         additional_variables=additional_variables if additional_variables else None,
         created_at=datetime.now(timezone.utc)
     )
@@ -45,68 +49,37 @@ async def create_data_source(
         commit_after=True
     )
 
-    return (await get_user_data_sources(user_id, [data_source_obj.id]))[0]
+    # Handle type-specific fields
+    type_fields = data_source_create.type_fields
+    if type_fields:
+        if data_source_create.type == "file":
+            # Insert into file_data_source table
+            file_data_source_obj = FileDataSourceInDB(
+                id=data_source_id,
+                **type_fields.model_dump(),
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
+            )
+            await execute(
+                insert(file_data_source).values(
+                    file_data_source_obj.model_dump()),
+                commit_after=True
+            )
 
-
-async def create_file_data_source(
-        user_id: uuid.UUID,
-        data_source_create: FileDataSourceCreate,
-        data_source_id: Optional[uuid.UUID] = None) -> DataSource:
-
-    # Extract additional variables from the create request
-    create_data = data_source_create.model_dump()
-    additional_variables = {}
-
-    # Get the fields defined in FileDataSourceCreate
-    create_fields = set(FileDataSourceCreate.model_fields.keys())
-    for key, value in create_data.items():
-        if key not in create_fields:
-            additional_variables[key] = value
-
-    if not data_source_id:
-        # Create new data source
-        data_source_id = uuid.uuid4()
-        data_source_obj = DataSourceInDB(
-            id=data_source_id,
-            user_id=user_id,
-            type="file",
-            **{k: v for k, v in create_data.items() if k in create_fields},
-            additional_variables=additional_variables if additional_variables else None,
-            created_at=datetime.now(timezone.utc)
-        )
-
-        await execute(
-            insert(data_source).values(data_source_obj.model_dump()),
-            commit_after=True
-        )
-    elif additional_variables:
-        existing_query = select(data_source.c.additional_variables).where(
-            data_source.c.id == data_source_id)
-        existing_result = await fetch_all(existing_query)
-        if existing_result:
-            existing_additional_variables = existing_result[0]["additional_variables"]
-            additional_variables = {
-                **(existing_additional_variables or {}), **additional_variables}
-
-        await execute(
-            update(data_source)
-            .where(data_source.c.id == data_source_id)
-            .values(additional_variables=additional_variables),
-            commit_after=True
-        )
-
-    file_data_source_obj = FileDataSourceInDB(
-        id=data_source_id,
-        **create_data,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    )
-
-    await execute(
-        insert(file_data_source).values(
-            file_data_source_obj.model_dump()),
-        commit_after=True
-    )
+    # Handle from_pipelines
+    if data_source_create.from_pipelines:
+        for pipeline_id in data_source_create.from_pipelines:
+            pipeline_link_obj = DataSourceFromPipelineInDB(
+                data_source_id=data_source_id,
+                pipeline_id=pipeline_id,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
+            )
+            await execute(
+                insert(data_source_from_pipeline).values(
+                    pipeline_link_obj.model_dump()),
+                commit_after=True
+            )
 
     return (await get_user_data_sources(user_id, [data_source_id]))[0]
 
@@ -131,6 +104,12 @@ async def get_user_data_sources(user_id: uuid.UUID, data_source_ids: Optional[Li
     )
     file_source_records = await fetch_all(file_source_query)
 
+    # Get pipeline associations
+    pipeline_query = select(data_source_from_pipeline).where(
+        data_source_from_pipeline.c.data_source_id.in_(source_ids)
+    )
+    pipeline_records = await fetch_all(pipeline_query)
+
     output_records = []
     for source_id in source_ids:
         source_obj = DataSourceInDB(**next(
@@ -143,12 +122,20 @@ async def get_user_data_sources(user_id: uuid.UUID, data_source_ids: Optional[Li
         if file_record:
             type_fields_obj = FileDataSourceInDB(**file_record)
 
+        # Get pipeline IDs for this data source
+        from_pipelines = [
+            record["pipeline_id"]
+            for record in pipeline_records
+            if record["data_source_id"] == source_id
+        ]
+
         description = get_data_source_description(source_obj, type_fields_obj)
 
         output_records.append(DataSource(
             **source_obj.model_dump(),
             type_fields=type_fields_obj,
-            description_for_agent=description
+            description_for_agent=description,
+            from_pipelines=from_pipelines
         ))
 
     return output_records

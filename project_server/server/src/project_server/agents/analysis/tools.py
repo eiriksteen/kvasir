@@ -18,7 +18,7 @@ from synesis_schemas.main_server import (
     TableConfig,
     TableColumn,
     NotebookSection,
-    AggregationObjectCreate,
+    # AggregationObjectCreate,
     AnalysisStatusMessage,
 )
 from project_server.agents.analysis.utils import post_update_to_redis
@@ -32,14 +32,13 @@ from project_server.client import (
     create_analysis_result_request,
     get_analysis_result_by_id_request,
     get_analysis_results_by_ids_request,
-    create_aggregation_object_request,
+    # create_aggregation_object_request,
 )
 from project_server.client.requests.plots import create_plot
 from project_server.client.requests.tables import create_table
 from project_server.agents.analysis.helper_agent import analysis_helper_agent, HelperAgentDeps
 from project_server.agents.analysis.deps import AnalysisDeps
 from project_server.agents.analysis.output import AnalysisResultModelResponse, AggregationObjectCreateResponse, AnalysisResultMoveRequest, SectionMoveRequest
-from project_server.app_secrets import ANALYSIS_DIR
 from project_server.worker import logger
 
 
@@ -66,7 +65,6 @@ def search_knowledge_bank(prompt: str) -> List[str]:
             "Checking for multicollinearity",
             "Checking for autocorrelation",
             ]
-
 
 
 async def create_notebook_section(ctx: RunContext[AnalysisDeps], section_create: List[NotebookSectionCreate]) -> str:
@@ -275,10 +273,6 @@ async def generate_analysis_result(
         bearer_token=ctx.deps.client.bearer_token,
     )
 
-    plot_path = ANALYSIS_DIR / \
-        str(ctx.deps.analysis_id) / str(analysis_result_id) / "plots"
-    plot_path.mkdir(parents=True, exist_ok=True)
-
     async with analysis_helper_agent.run_stream(
         f"You will now create some code and analysis for the user. Generate code and analysis for the following user prompt: {prompt}. \n\n",
         output_type=AnalysisResultModelResponse,
@@ -315,21 +309,15 @@ async def generate_analysis_result(
         output_type=AggregationObjectCreateResponse
     )
 
-    aggregation_object_create = AggregationObjectCreate(
-        name=aggregation_object_result.output.name,
-        description=aggregation_object_result.output.description,
-        analysis_result_id=analysis_result_id
-    )
+    # aggregation_object_create = AggregationObjectCreate(
+    #     name=aggregation_object_result.output.name,
+    #     description=aggregation_object_result.output.description,
+    #     analysis_result_id=analysis_result_id
+    # )
 
-    await create_aggregation_object_request(ctx.deps.client, aggregation_object_create)
+    # await create_aggregation_object_request(ctx.deps.client, aggregation_object_create)
 
     plot_files = []
-    plot_dir = ANALYSIS_DIR / \
-        str(ctx.deps.analysis_id) / str(analysis_result_id) / "plots"
-    if plot_dir.exists():
-        plot_files = [str(p.name) for p in plot_dir.glob("*.png")]
-
-    analysis_result.plot_urls = plot_files
 
     await update_analysis_result_request(ctx.deps.client, analysis_result)
     return_string = f"""
