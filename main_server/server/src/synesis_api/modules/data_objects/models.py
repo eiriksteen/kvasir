@@ -105,13 +105,13 @@ time_series_group = Table(
 )
 
 
-object_group_from_pipeline = Table(
-    "object_group_from_pipeline",
+dataset_from_pipeline = Table(
+    "dataset_from_pipeline",
     metadata,
     Column("pipeline_id", UUID, ForeignKey(
         "pipeline.pipeline.id"), primary_key=True, nullable=False),
-    Column("object_group_id", UUID, ForeignKey(
-        "data_objects.object_group.id"), primary_key=True, nullable=False),
+    Column("dataset_id", UUID, ForeignKey(
+        "data_objects.dataset.id"), primary_key=True, nullable=False),
     # If we have done any runs
     Column("pipeline_run_id", UUID, ForeignKey(
         "pipeline.pipeline_run.id"), nullable=True),
@@ -119,12 +119,12 @@ object_group_from_pipeline = Table(
 )
 
 
-object_group_from_data_source = Table(
-    "object_group_from_data_source",
+dataset_from_data_source = Table(
+    "dataset_from_data_source",
     metadata,
     Column("data_source_id", UUID, ForeignKey(
         "data_sources.data_source.id"), primary_key=True, nullable=False),
-    Column("object_group_id", UUID, ForeignKey(
-        "data_objects.object_group.id"), primary_key=True, nullable=False),
+    Column("dataset_id", UUID, ForeignKey(
+        "data_objects.dataset.id"), primary_key=True, nullable=False),
     schema="data_objects"
 )

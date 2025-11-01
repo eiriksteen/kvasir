@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any, Union, Literal, Type, Tuple
 from pydantic import BaseModel
 
-
 from .data_sources import DataSource
 from .pipeline import Pipeline
 
@@ -75,14 +74,14 @@ class TimeSeriesGroupInDB(BaseModel):
     updated_at: datetime
 
 
-class ObjectGroupFromDataSourceInDB(BaseModel):
+class DatasetFromDataSourceInDB(BaseModel):
     data_source_id: uuid.UUID
-    object_group_id: uuid.UUID
+    dataset_id: uuid.UUID
 
 
-class ObjectGroupFromPipelineInDB(BaseModel):
+class DatasetFromPipelineInDB(BaseModel):
     pipeline_id: uuid.UUID
-    object_group_id: uuid.UUID
+    dataset_id: uuid.UUID
     pipeline_run_id: Optional[uuid.UUID] = None
 
 
@@ -93,20 +92,13 @@ class DataObject(DataObjectInDB):
     modality_fields: Union[TimeSeriesInDB]
 
 
-class ObjectGroupSources(BaseModel):
-    data_sources: List[DataSource]
-    pipelines: List[Pipeline]
-
-
 class ObjectGroup(ObjectGroupInDB):
     modality_fields: Union[TimeSeriesGroupInDB]
-    sources: ObjectGroupSources
 
 
-# Derive from object groups in dataset (for ERD viz)
 class DatasetSources(BaseModel):
-    data_source_ids: List[uuid.UUID]
-    pipeline_ids: List[uuid.UUID]
+    data_sources: List[DataSource]
+    pipelines: List[Pipeline]
 
 
 class Dataset(DatasetInDB):
@@ -127,7 +119,10 @@ class GetDatasetsByIDsRequest(BaseModel):
 
 
 class TimeSeriesCreate(BaseModel):
-    original_id: str
+    """
+    Metadata for one time series object. Each DataFrame row represents one series.
+    Compute all values from actual data - don't assume values.
+    """
     start_timestamp: datetime
     end_timestamp: datetime
     num_timestamps: int
@@ -137,6 +132,10 @@ class TimeSeriesCreate(BaseModel):
 
 
 class TimeSeriesGroupCreate(BaseModel):
+    """
+    Aggregated metadata computed from all time series in the group.
+    Values are computed by aggregating across all series (e.g., earliest_timestamp = min of all start_timestamps).
+    """
     total_timestamps: int
     number_of_series: int
     # None if varying between series
@@ -151,6 +150,11 @@ class TimeSeriesGroupCreate(BaseModel):
 
 
 class DataObjectCreate(BaseModel):
+    """
+    Metadata for one data object. Each DataFrame row represents one object with its specific metadata.
+    Compute all values from actual data - don't assume values.
+    """
+    name: str
     original_id: str
     description: Optional[str] = None
     modality_fields: Union[TimeSeriesCreate]
@@ -165,14 +169,15 @@ class ObjectsFile(BaseModel):
 
 
 class DataObjectGroupCreate(BaseModel):
+    """
+    Group of related data objects sharing the same modality.
+    objects_files: Parquet files where each row represents one data object with its metadata.
+    modality_fields: Aggregated statistics computed from all objects in the group.
+    """
     name: str
     original_id_name: str
     description: str
     modality: str
-    # data source ids for groups coming directly from (files etc)
-    data_source_ids: List[uuid.UUID]
-    # pipeline ids for groups coming from in-memory, i.e pipelines applied to sources, but without saving the outputs permanently
-    pipeline_ids: List[uuid.UUID]
     modality_fields: Union[TimeSeriesGroupCreate]
     objects_files: List[ObjectsFile] = []  # Objects that belong to this group
 
@@ -182,8 +187,18 @@ class DataObjectGroupCreate(BaseModel):
 
 
 class DatasetCreate(BaseModel):
+    """
+    Complete dataset with object groups. Each group has:
+    - Parquet files (objects_files) where each row = one data object with computed metadata
+    - Aggregated group-level statistics (modality_fields)
+    Compute all values from actual data - don't assume!
+    """
     name: str
     description: str
+    # data source ids for datasets coming directly from (files etc)
+    from_data_source_ids: List[uuid.UUID] = []
+    # pipeline ids for datasets coming from in-memory, i.e pipelines applied to sources, but without saving the outputs permanently
+    from_pipeline_ids: List[uuid.UUID] = []
     # TODO: Add more modalities
     groups: List[DataObjectGroupCreate] = []
 
@@ -200,31 +215,24 @@ class TimeSeriesWithRawData(DataObject):
 # Helpers
 # Used to let the agent know the schemas it's dataframes must abide by
 
-class DataObjectsInDBInfo(BaseModel):
+class ModalityModels(BaseModel):
     child_model: Type[BaseModel]
-    parent_model: Type[BaseModel]
-    create_model: Type[BaseModel]
     child_table_name: str
-    parent_table_name: str
 
 
-def get_data_objects_in_db_info(modality: MODALITY_LITERAL, type: Literal["object_group", "data_object"]) -> DataObjectsInDBInfo:
+def get_modality_models(modality: MODALITY_LITERAL, type: Literal["object_group", "data_object"]) -> ModalityModels:
     if modality == "time_series":
         if type == "object_group":
-            return DataObjectsInDBInfo(
+            return ModalityModels(
                 child_model=TimeSeriesGroupInDB,
-                parent_model=ObjectGroupInDB,
-                create_model=TimeSeriesGroupCreate,
-                child_table_name="time_series_group",
-                parent_table_name="object_group"
+                child_table_name="time_series_group"
             )
         elif type == "data_object":
-            return DataObjectsInDBInfo(
+            return ModalityModels(
                 child_model=TimeSeriesInDB,
-                parent_model=DataObjectInDB,
-                create_model=TimeSeriesCreate,
-                child_table_name="time_series",
-                parent_table_name="data_object"
+                child_table_name="time_series"
             )
+        else:
+            raise ValueError(f"Invalid type: {type}")
     else:
         raise ValueError(f"Invalid modality: {modality}")

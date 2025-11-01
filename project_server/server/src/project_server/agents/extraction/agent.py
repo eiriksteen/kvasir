@@ -2,8 +2,15 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.models import ModelSettings
 
 from project_server.agents.extraction.deps import ExtractionDeps
-from project_server.agents.extraction.tools import schema_toolset, submission_toolset
-from project_server.agents.shared_tools import navigation_toolset, execute_python_code
+from project_server.agents.extraction.tools import (
+    submission_toolset,
+    get_data_source_schema,
+    get_dataset_schema,
+    get_pipeline_implementation_schema,
+    get_model_entity_schema,
+)
+# , execute_python_code
+from project_server.agents.shared_tools import navigation_toolset
 from project_server.agents.extraction.prompt import EXTRACTION_AGENT_SYSTEM_PROMPT
 from project_server.utils.agent_utils import get_model, get_project_description, get_working_directory_description
 from project_server.worker import logger
@@ -16,8 +23,12 @@ extraction_agent = Agent[ExtractionDeps, str](
     model,
     deps_type=ExtractionDeps,
     system_prompt=EXTRACTION_AGENT_SYSTEM_PROMPT,
-    tools=[execute_python_code],
-    toolsets=[navigation_toolset, submission_toolset, schema_toolset],
+    # tools=[execute_python_code],
+    toolsets=[
+        navigation_toolset,
+        submission_toolset,
+        # schema_toolset
+    ],
     model_settings=ModelSettings(temperature=0),
     retries=3
 )
@@ -32,10 +43,22 @@ async def extraction_agent_system_prompt(ctx: RunContext[ExtractionDeps]) -> str
     project_description = get_project_description(ctx.deps.project)
     working_directory_section = await get_working_directory_description(ctx.deps.container_name)
 
+    # If the schemas become large, we can move to tools
+    schema_section = (
+        f"The schemas for the entities you can create:\n\n" +
+        "<schemas>\n\n" +
+        f"{get_data_source_schema()}\n\n" +
+        f"{get_dataset_schema()}\n\n" +
+        f"{get_pipeline_implementation_schema()}\n\n" +
+        f"{get_model_entity_schema()}\n\n" +
+        "</schemas>\n\n"
+    )
+
     full_prompt = (
         f"{EXTRACTION_AGENT_SYSTEM_PROMPT}\n\n" +
         f"{project_description}\n\n"
         f"{working_directory_section}\n\n"
+        f"{schema_section}\n\n"
     )
 
     logger.info(

@@ -1,6 +1,4 @@
 import { UUID } from "crypto";
-import { DataSource } from "./data-sources";
-import { Pipeline } from "./pipeline";
 
 export type Modality = "time_series" | "tabular";
 
@@ -67,14 +65,14 @@ export interface TimeSeriesGroupInDB {
   updatedAt: string;
 }
 
-export interface ObjectGroupFromDataSourceInDB {
+export interface DatasetFromDataSourceInDB {
   dataSourceId: UUID;
-  objectGroupId: UUID;
+  datasetId: UUID;
 }
 
-export interface ObjectGroupFromPipelineInDB {
+export interface DatasetFromPipelineInDB {
   pipelineId: UUID;
-  objectGroupId: UUID;
+  datasetId: UUID;
   pipelineRunId?: UUID | null;
 }
 
@@ -84,14 +82,8 @@ export interface DataObject extends DataObjectInDB {
   modalityFields: TimeSeriesInDB; // TODO: Add more modalities when implemented
 }
 
-export interface ObjectGroupSources {
-  dataSources: DataSource[];
-  pipelines: Pipeline[];
-}
-
 export interface ObjectGroup extends ObjectGroupInDB {
   modalityFields: TimeSeriesGroupInDB; // TODO: Add more modalities when implemented
-  sources: ObjectGroupSources;
 }
 
 // Derive from object groups in dataset (for ERD viz)
@@ -155,10 +147,6 @@ export interface DataObjectGroupCreate {
   originalIdName: string;
   description: string;
   modality: string;
-  // data source ids for groups coming directly from (files etc)
-  dataSourceIds: UUID[];
-  // pipeline ids for groups coming from in-memory, i.e pipelines applied to sources, but without saving the outputs permanently
-  pipelineIds: UUID[];
   modalityFields: TimeSeriesGroupCreate; // TODO: Add more modalities when implemented
   objectsFiles: ObjectsFile[]; // Objects that belong to this group
 }
@@ -166,6 +154,10 @@ export interface DataObjectGroupCreate {
 export interface DatasetCreate {
   name: string;
   description: string;
+  // data source ids for datasets coming directly from (files etc)
+  dataSourceIds: UUID[];
+  // pipeline ids for datasets coming from in-memory, i.e pipelines applied to sources, but without saving the outputs permanently
+  pipelineIds: UUID[];
   // TODO: Add more modalities
   groups: DataObjectGroupCreate[];
 }

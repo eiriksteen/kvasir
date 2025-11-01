@@ -65,7 +65,7 @@ def get_pipeline_description(
         if impl.functions:
             description += f"- Functions Used: {len(impl.functions)} functions\n"
             for func in impl.functions:
-                description += f"  * {func.name}: {func.description}\n"
+                description += f"  * {func.python_function_name}: {func.description}\n"
 
         if impl.runs:
             latest_run = max(impl.runs, key=lambda r: r.start_time)

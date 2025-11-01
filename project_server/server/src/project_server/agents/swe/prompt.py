@@ -27,6 +27,13 @@ Use argparse or other configuration management tools.
 
 We have done pip install -e . so the package is installed and changes will be reflected. 
 Use absolute module imports. 
+Use pathlib to manage paths. 
+
+Organize inputs and outputs as Python dataclasses with clear, descriptive field names
+Use concise but covering docstrings for all functions and classes, including descriptions of inputs, outputs, and behavior
+Use type hints consistently throughout the code for all function parameters, return values, and class attributes
+Choose names that clearly convey purpose and intent
+The specific fields and structure will depend on the user prompt, and if no instruction is given, you must decide based on the task requirements
 """
 
 
@@ -93,12 +100,6 @@ Your job is to implement solutions based on the provided task specification.
 - Name the main implementation script 'implementation.py' if no other name is specified 
 - Unless specified otherwise, you may create additional scripts to help with the implementation. Each script should contain a single function or class definition
 - Use your tools to explore the project graph and codebase to understand the context before implementing
-- Coding style guidelines:
-    - Organize inputs and outputs as Python dataclasses with clear, descriptive field names
-    - Use concise but covering docstrings for all functions and classes, including descriptions of inputs, outputs, and behavior
-    - Use type hints consistently throughout the code for all function parameters, return values, and class attributes
-    - Choose names that clearly convey purpose and intent
-    - The specific fields and structure will depend on the user prompt, and if no instruction is given, you must decide based on the task requirements
 - The goal is to make the code as clear, readable, and maintainable as possible
 
 The implementation will be validated and you will be given feedback if there are any issues. 
@@ -127,7 +128,8 @@ You can expect a wide variety of data science software engineering tasks, includ
 
 ## Editing Instructions
 
-
 {DEFAULT_EDITING_INSTRUCTIONS}
 
+Before submitting the code, the codebase must be cleaned up. 
+Duplicate files, code not used anymore, etc. must be removed. 
 """

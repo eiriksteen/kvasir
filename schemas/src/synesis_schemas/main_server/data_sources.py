@@ -54,7 +54,11 @@ class GetDataSourcesByIDsRequest(BaseModel):
 # Create models
 
 
-class FileDataSourceCreate(BaseModel):
+class UnknownFileCreate(BaseModel):
+    """"
+    This is for file types not covered by the other file create schemas. 
+    It is for any type we haven't added yet. 
+    """
     name: str
     file_name: str
     file_path: str
@@ -65,9 +69,10 @@ class FileDataSourceCreate(BaseModel):
         extra = "allow"
 
 
-class TabularFileDataSourceCreate(FileDataSourceCreate):
-    # These are stored as additional variables on the file data source DB model
-    # Don't want to create a new table for each file category
+class TabularFileCreate(UnknownFileCreate):
+    """"
+    This is for tabular files, including csv, parquet, excel, etc. 
+    """
     json_schema: str
     pandas_df_info: str
     pandas_df_head: str
@@ -83,7 +88,7 @@ class TabularFileDataSourceCreate(FileDataSourceCreate):
 class DataSourceCreate(BaseModel):
     name: str
     type: DATA_SOURCE_TYPE_LITERAL
-    type_fields: Union[FileDataSourceCreate, TabularFileDataSourceCreate]
+    type_fields: Union[UnknownFileCreate, TabularFileCreate]
     from_pipelines: Optional[List[UUID]] = None
     # In addition to general extra info, this can be used to store info about "wildcard" sources that we don't have dedicated tables for
     # We don't need to create fill the tables below
@@ -108,13 +113,13 @@ def get_data_sources_in_db_info(type: DATA_SOURCE_TYPE_LITERAL, subtype: Optiona
             return DataSourcesInDBInfo(
                 in_db_model=FileDataSourceInDB,
                 # We specify some extra fields to add to additional_variables
-                create_model=TabularFileDataSourceCreate,
+                create_model=TabularFileCreate,
                 in_db_table_name="file_data_source"
             )
         else:
             return DataSourcesInDBInfo(
                 in_db_model=FileDataSourceInDB,
-                create_model=FileDataSourceCreate,
+                create_model=UnknownFileCreate,
                 in_db_table_name="file_data_source"
             )
     else:

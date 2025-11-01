@@ -1,8 +1,10 @@
 import re
 import asyncio
 from typing import Tuple, Optional
+from pathlib import Path
 
 from project_server.worker import logger
+from project_server.app_secrets import READABLE_EXTENSIONS
 
 
 def parse_code(python_code: str) -> str:
@@ -227,3 +229,14 @@ def remove_print_statements_from_code(code: str) -> str:
     cleaned_lines = [line for line in lines if line.strip()]
 
     return '\n'.join(cleaned_lines)
+
+
+def is_readable_extension(file_path: str | Path) -> bool:
+    file_path_str = str(file_path).lower()
+    return any(file_path_str.endswith(ext) for ext in READABLE_EXTENSIONS)
+
+
+def filter_content_by_extension(file_path: str | Path, content: str, placeholder: str = "content too long for display") -> str:
+    if is_readable_extension(file_path):
+        return content
+    return placeholder

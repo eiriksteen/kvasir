@@ -1,8 +1,9 @@
-import { Brain, FileCode, Info, Settings, ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
+import { Brain, FileCode, Info, Settings, ArrowLeft, ArrowRight, Trash2, FileText } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { UUID } from 'crypto';
 import { useModelEntity, useModelEntities } from '@/hooks/useModelEntities';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
+import JsonSchemaViewer from '@/components/JsonSchemaViewer';
 
 interface ModelInfoTabProps {
   modelEntityId: UUID;
@@ -132,6 +133,19 @@ export default function ModelInfoTab({
               </div>
             ) : (
               <>
+                {/* Config Schema */}
+                {modelEntity.implementation?.modelImplementation?.configSchema && Object.keys(modelEntity.implementation.modelImplementation.configSchema).length > 0 && (
+                  <div className="bg-gray-50 rounded-xl p-4 flex flex-col min-h-0">
+                    <JsonSchemaViewer
+                      schema={modelEntity.implementation.modelImplementation.configSchema}
+                      title="Configuration Schema"
+                      icon={FileText}
+                      iconColor="#491A32"
+                      className="flex-1 min-h-0"
+                    />
+                  </div>
+                )}
+
                 {/* Configuration */}
                 <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                   <div className="flex items-center gap-3">

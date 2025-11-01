@@ -6,6 +6,7 @@ from project_server.utils.code_utils import (
     replace_lines_in_script,
     add_lines_to_script_at_line,
     delete_lines_from_script,
+    filter_content_by_extension,
 )
 from project_server.agents.swe.deps import SWEAgentDeps, RenamedFile
 from project_server.agents.runner_base import StreamedCode
@@ -27,8 +28,12 @@ def _update_modified_files_state(
 
     is_in_new = any(f.path == file_path for f in ctx.deps.new_files)
 
+    # Filter content for non-readable files
+    filtered_new_content = filter_content_by_extension(file_path, new_content)
+    filtered_old_content = filter_content_by_extension(file_path, old_content)
+
     if is_in_new:
-        new_version = FileInRun(path=file_path, content=new_content)
+        new_version = FileInRun(path=file_path, content=filtered_new_content)
         ctx.deps.new_files = [
             f for f in ctx.deps.new_files if f.path != file_path] + [new_version]
     else:
@@ -39,10 +44,10 @@ def _update_modified_files_state(
             # Preserve the original old_content if it exists, otherwise use content
             original_content = old_version.old_content
             new_version = FileInRun(
-                path=str(file_path), content=new_content, old_content=original_content)
+                path=str(file_path), content=filtered_new_content, old_content=original_content)
         else:
             new_version = FileInRun(
-                path=str(file_path), content=new_content, old_content=old_content)
+                path=str(file_path), content=filtered_new_content, old_content=filtered_old_content)
 
         ctx.deps.modified_files = [
             f for f in ctx.deps.modified_files if f.path != str(file_path)] + [new_version]
@@ -75,7 +80,9 @@ async def write_file(ctx: RunContext[SWEAgentDeps], content: str, file_path: str
         ctx.deps.container_name
     )
 
-    ctx.deps.new_files.append(FileInRun(path=str(file_path), content=content))
+    filtered_content = filter_content_by_extension(file_path, content)
+    ctx.deps.new_files.append(
+        FileInRun(path=str(file_path), content=filtered_content))
 
     if ctx.deps.log_code:
         await ctx.deps.log_code(StreamedCode(
@@ -272,7 +279,8 @@ async def rename_file(ctx: RunContext[SWEAgentDeps], old_path: str, new_path: st
             f"File {new_path} already exists. Cannot rename to an existing file.")
 
     # Read the content before renaming for revert purposes
-    content = await read_file_from_container(old_file_path, ctx.deps.container_name)
+    file_content = await read_file_from_container(old_file_path, ctx.deps.container_name)
+    content = filter_content_by_extension(old_file_path, file_content)
 
     _, err = await rename_in_container(old_file_path, new_file_path, ctx.deps.container_name)
 
@@ -331,9 +339,11 @@ async def delete_file(ctx: RunContext[SWEAgentDeps], file_path: str) -> str:
         raise ModelRetry(f"File {file_path} does not exist.")
 
     # Read the content before deleting for revert purposes
-    content = await read_file_from_container(path, ctx.deps.container_name)
+    # Only store full content for text-based files with allowed extensions
+    file_content = await read_file_from_container(path, ctx.deps.container_name)
+    content = filter_content_by_extension(path, file_content)
 
-    out, err = await remove_from_container(path, ctx.deps.container_name)
+    _, err = await remove_from_container(path, ctx.deps.container_name)
 
     if err:
         raise ModelRetry(f"Error deleting file: {err}")

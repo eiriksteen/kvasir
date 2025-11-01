@@ -2,7 +2,7 @@ import asyncio
 import asyncpg
 import pandas as pd
 from typing import Any
-from io import StringIO
+from io import StringIO, BytesIO
 from sqlalchemy import (
     CursorResult,
     Insert,
@@ -68,27 +68,30 @@ async def _execute_query(
 async def insert_df(
     df: pd.DataFrame,
     table_name: str,
+    schema_name: str,
     connection: asyncpg.Connection = None,
     chunk_size: int = 10000
 ) -> None:
-
+    own_connection = False
     if not connection:
         connection = await get_asyncpg_connection()
+        own_connection = True
 
     try:
         async with connection.transaction():
             for chunk in df.groupby(df.index // chunk_size):
-                buffer = StringIO()
-                chunk[1].to_csv(buffer, index=False, header=False)
-                buffer.seek(0)
+                string_buffer = StringIO()
+                chunk[1].to_csv(string_buffer, index=False, header=False)
+                csv_data = string_buffer.getvalue().encode('utf-8')
+                buffer = BytesIO(csv_data)
 
-                await connection.copy_records_to_table(
+                await connection.copy_to_table(
                     table_name,
+                    schema_name=schema_name,
                     source=buffer,
                     columns=list(df.columns),
                     format="csv"
                 )
     finally:
-        await connection.close()
-
-    await connection.close()
+        if own_connection:
+            await connection.close()

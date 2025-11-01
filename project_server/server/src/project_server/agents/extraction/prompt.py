@@ -40,13 +40,14 @@ Call the relevant tools to get the schemas your outputs should abide by.
 
 For small and serializable data, you will output python dictionaries. 
 For bigger data, you should output dataframes. 
+For many, of the variables, you must write code to populate them! 
+For example, if you need to output a dataframe head, you must use df.head() to get the string you place in the variable. 
 To send the data to the API, the dataframes must be converted to a list of FileInput objects. 
-FileInput must be imported from project_server.client and is defined as follows:
+FileInput must be imported from project_server.client and is defined as follows: 
 
 ```python
 @dataclass
 class FileInput:
-    field_name: str # The name of the field in the API request
     filename: str # The name of the file
     file_data: bytes # The bytes of the file
     content_type: str # The content type of the file
@@ -54,6 +55,10 @@ class FileInput:
 
 Do not save the files to disk, keep them in memory. 
 
+Regarding input and output entities, only create links between nearest neighbors. 
+For example, if a pipeline creates a data source from which we derive a dataset, create a link from pipeline to the data source, then from the data source to the dataset. 
+In this example, do not create a link from the pipeline to the dataset. 
+However, if we don't save a data source before creating the dataset, but rather keep it in memory, create a link from the pipeline to the dataset. 
 
 Data Sources: 
 We define data sources as data stored on disk or in other permanent storage. 
@@ -66,6 +71,19 @@ The currently supported data source types are:
 {DATA_SOURCE_TYPE_LITERAL}
 </data_source_types_overview>
 
+NB: 
+We will extract the final output by printing from the code, so do not print anything in your code. 
+Be careful when using functions such as df.info() which will print to the console by default. 
+To get the schema and head of a dataframe, you must do: 
+
+```python
+from io import StringIO
+buffer = StringIO()
+df.info(buf=buffer)
+schema = buffer.getvalue()
+head = df.head().to_string()
+```
+
 Datasets:
 Datasets are in-memory data in the code that are processed, usually cleaned, and ready for modeling. 
 We derive and create datasets from the data sources. 
@@ -77,7 +95,7 @@ Information about the source must be included, as it is crucial to know where th
 
 We divide a dataset into three levels:
 1. Data objects: The samples in the dataset, usually each corresponding to a single input. This can be a time series, and image, a document, etc. 
-2. Data object groups: A collection of data objectsthat are related to each other. For example related time series from various sensors, or documents in a single email thread. 
+2. Data object groups: A collection of data objects that are related to each other. For example related time series from various sensors, or documents in a single email thread. 
     - Crucially, each object group corresponds to a single modality. All objects in the group must be of the same modality. 
 3. Datasets: A collection of one or more data groups
 The currently supported modalities are:
@@ -86,9 +104,38 @@ The currently supported modalities are:
 {MODALITY_LITERAL}
 </modalities_overview>
 
-You must infer from the context which object groups belong to the same dataset. Often, a dataset may be composed of just one object group. 
-When detecting a dataset, you must output specified information about it. Then, you should output all the object groups that belong to the dataset. 
-When submitting a dataset, you must prepare a `files` variable containing a list of `FileInput` objects for all dataframes across all groups in the dataset. Collect files from all groups' `objects_files`. 
+How to structure your dataset submission:
+You will submit metadata about data objects, not the objects themselves. 
+
+For each object group, create a DataFrame where each row corresponds to one data object.
+Example for time series:
+- If you have 10 time series, your DataFrame will have 10 rows
+- Each row contains metadata specific to that series: original_id, start_timestamp, end_timestamp, 
+  num_timestamps, sampling_frequency, timezone, features_schema
+- Compute these values by analyzing each individual series - don't assume values
+
+The object group's modality_fields contain aggregated statistics:
+- Computed by aggregating across all rows in the DataFrame
+- Example: earliest_timestamp = min(all start_timestamps), total_timestamps = sum(all num_timestamps)
+
+When submitting a dataset:
+1. Write Python code to analyze the actual data files
+2. Create DataFrame(s) where each row = one data object with computed or inferred metadata
+3. Convert DataFrames to parquet and create FileInput objects
+4. Compute aggregated statistics for the group's modality_fields
+5. Prepare a `files` variable containing all FileInput objects from all groups
+"from pandas.io.json._table_schema import build_table_schema" will be used to validate the dataframes. 
+
+NB:
+It is important to distringuish between data sources and datasets. 
+A dataset will be in-memory data, and a data source saved to disk. 
+For example, if we have a raw data source, do a cleaning pipeline, save the cleaned data, then load the cleaned data into a dataset, 
+the flow would be raw data source -> cleaning pipeline -> cleaned data source -> dataset. 
+However, if we don't save the cleaned data to disk, the flow would be raw data source -> cleaning pipeline -> dataset. 
+Inspect the code, what is being saved, and what is being loaded, to determine if it is a data source or a dataset. 
+Typically, all saved data files should be data sources. Datasets loaded from them, either directly or through a pipeline, should be datasets. 
+Create dataset entities based on the contents of the code. 
+If a dataset entity is derived from a data source, the data source entity must exist before we can create the dataset. 
 
 Analyses:
 Analyses are analytical reports or processes conducted on the data. 
@@ -114,4 +161,8 @@ This means you must use the tool to submit the pipeline entity before creating t
 Equivalent dependencies exist for other entities. 
 It can be a good strategy to start your codebase analysis by look for "root" entities that the rest of the project depends on. 
 This can be the very basic data sources, pipelines, etc. 
+
+Also, the project graph should be one-to-one with the codebase. 
+If you see that they are not in sync, you must fix it. 
+Also, if the relevant entity already exists and is updated, you don't need to do anything. 
 """

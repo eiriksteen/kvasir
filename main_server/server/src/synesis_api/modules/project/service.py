@@ -1,9 +1,3 @@
-from synesis_schemas.main_server.model import ModelEntity
-from synesis_schemas.main_server.analysis import Analysis
-from synesis_schemas.main_server.pipeline import Pipeline
-from synesis_schemas.main_server.data_objects import Dataset
-from synesis_schemas.main_server.data_sources import DataSource
-from synesis_schemas.main_server.project import ProjectAnalysisInDB, ProjectDataSourceInDB, ProjectDatasetInDB, ProjectModelEntityInDB, ProjectPipelineInDB
 from uuid import UUID
 from typing import List, Optional
 from sqlalchemy import select, delete, insert, update, and_
@@ -122,6 +116,8 @@ async def _build_project_graph(
                 a.id for a in analyses if ds.id in a.inputs.data_source_ids]
             output_pipeline_ids = [
                 p.id for p in pipelines if ds.id in p.inputs.data_source_ids]
+            output_dataset_ids = [
+                dset.id for dset in datasets if ds.id in [src.id for src in dset.sources.data_sources]]
             objs.append(DataSourceInGraph(
                 id=ds.id,
                 name=ds.name,
@@ -130,8 +126,10 @@ async def _build_project_graph(
                 x_position=project_ds.x_position,
                 y_position=project_ds.y_position,
                 connections=GraphNodeConnections(
+                    from_pipelines=ds.from_pipelines,
                     to_analyses=output_analysis_ids,
-                    to_pipelines=output_pipeline_ids
+                    to_pipelines=output_pipeline_ids,
+                    to_datasets=output_dataset_ids
                 )
             ))
         return objs
@@ -143,6 +141,10 @@ async def _build_project_graph(
                 p.id for p in pipelines if ds.id in p.inputs.dataset_ids]
             output_analysis_ids = [
                 a.id for a in analyses if ds.id in a.inputs.dataset_ids]
+            input_pipeline_ids = [
+                p.id for p in ds.sources.pipelines]
+            input_data_source_ids = [
+                src.id for src in ds.sources.data_sources]
 
             objs.append(DatasetInGraph(
                 id=ds.id,
@@ -151,20 +153,23 @@ async def _build_project_graph(
                 x_position=project_ds.x_position,
                 y_position=project_ds.y_position,
                 connections=GraphNodeConnections(
-                    from_pipelines=ds.sources.pipeline_ids,
+                    from_pipelines=input_pipeline_ids,
+                    from_data_sources=input_data_source_ids,
                     to_analyses=output_analysis_ids,
                     to_pipelines=output_pipeline_ids
                 )
             ))
         return objs
 
-    def _get_pipelines_in_graph(pipelines: List[Pipeline], project_pipelines: List[ProjectPipelineInDB], datasets: List[Dataset], model_entities: List[ModelEntity]) -> List[PipelineInGraph]:
+    def _get_pipelines_in_graph(pipelines: List[Pipeline], project_pipelines: List[ProjectPipelineInDB], datasets: List[Dataset], model_entities: List[ModelEntity], data_sources: List[DataSource]) -> List[PipelineInGraph]:
         objs = []
         for p, project_p in zip(pipelines, project_pipelines):
             output_dataset_ids = [
-                ds.id for ds in datasets if p.id in ds.sources.pipeline_ids]
+                ds.id for ds in datasets if p.id in [p.id for p in ds.sources.pipelines]]
             output_model_entity_ids = [
                 me.id for me in model_entities if me.implementation is not None and p.id == me.implementation.pipeline_id]
+            output_data_source_ids = [
+                ds.id for ds in data_sources if p.id in ds.from_pipelines]
 
             objs.append(PipelineInGraph(
                 id=p.id,
@@ -177,6 +182,7 @@ async def _build_project_graph(
                     from_datasets=p.inputs.dataset_ids,
                     from_model_entities=p.inputs.model_entity_ids,
                     from_analyses=p.inputs.analysis_ids,
+                    to_data_sources=output_data_source_ids,
                     to_datasets=output_dataset_ids,
                     to_model_entities=output_model_entity_ids
                 )
@@ -229,7 +235,7 @@ async def _build_project_graph(
     datasets_in_graph = _get_datasets_in_graph(
         datasets, project_datasets, pipelines, analyses)
     pipelines_in_graph = _get_pipelines_in_graph(
-        pipelines, project_pipelines, datasets, model_entities)
+        pipelines, project_pipelines, datasets, model_entities, data_sources)
     analyses_in_graph = _get_analyses_in_graph(
         analyses, project_analyses, pipelines)
     model_entities_in_graph = _get_model_entities_in_graph(
@@ -313,6 +319,50 @@ async def add_entity_to_project(user_id: UUID, entity_data: AddEntityToProject) 
     """Add an entity (data source, dataset, analysis, pipeline) to a project."""
     entity_type = entity_data.entity_type
     entity_id = entity_data.entity_id
+
+    # Check if the entity already exists in the project
+    existing_entity = None
+    if entity_type == "data_source":
+        existing_entity = await fetch_one(
+            select(project_data_source).where(
+                and_(project_data_source.c.project_id == entity_data.project_id,
+                     project_data_source.c.data_source_id == entity_id)
+            )
+        )
+    elif entity_type == "model_entity":
+        existing_entity = await fetch_one(
+            select(project_model_entity).where(
+                and_(project_model_entity.c.project_id == entity_data.project_id,
+                     project_model_entity.c.model_entity_id == entity_id)
+            )
+        )
+    elif entity_type == "dataset":
+        existing_entity = await fetch_one(
+            select(project_dataset).where(
+                and_(project_dataset.c.project_id == entity_data.project_id,
+                     project_dataset.c.dataset_id == entity_id)
+            )
+        )
+    elif entity_type == "analysis":
+        existing_entity = await fetch_one(
+            select(project_analysis).where(
+                and_(project_analysis.c.project_id == entity_data.project_id,
+                     project_analysis.c.analysis_id == entity_id)
+            )
+        )
+    elif entity_type == "pipeline":
+        existing_entity = await fetch_one(
+            select(project_pipeline).where(
+                and_(project_pipeline.c.project_id == entity_data.project_id,
+                     project_pipeline.c.pipeline_id == entity_id)
+            )
+        )
+
+    # If entity already exists, just return the project
+    if existing_entity is not None:
+        project_obj = await get_projects(user_id, [entity_data.project_id])
+        return project_obj[0] if project_obj else None
+
     # entity_position = await _generate_entity_position(user_id, entity_data)
 
     # TODO: Add more sophisticated position generation
@@ -465,8 +515,9 @@ async def delete_data_source_from_project(user_id: UUID, data_source_id: UUID) -
             project_data_source.c.data_source_id == data_source_id
         )
     )
-    project_ids = list(set([r["project_id"] for r in project_data_source_records]))
-    
+    project_ids = list(set([r["project_id"]
+                       for r in project_data_source_records]))
+
     # Remove from all projects
     for project_id in project_ids:
         await execute(
@@ -478,7 +529,7 @@ async def delete_data_source_from_project(user_id: UUID, data_source_id: UUID) -
             ),
             commit_after=True
         )
-    
+
     # Delete the entity itself
     return await delete_data_source_entity(user_id, data_source_id)
 
@@ -494,7 +545,7 @@ async def delete_dataset_from_project(user_id: UUID, dataset_id: UUID) -> UUID:
         )
     )
     project_ids = list(set([r["project_id"] for r in project_dataset_records]))
-    
+
     # Remove from all projects
     for project_id in project_ids:
         await execute(
@@ -506,7 +557,7 @@ async def delete_dataset_from_project(user_id: UUID, dataset_id: UUID) -> UUID:
             ),
             commit_after=True
         )
-    
+
     # Delete the entity itself
     return await delete_dataset_entity(user_id, dataset_id)
 
@@ -521,8 +572,9 @@ async def delete_model_entity_from_project(user_id: UUID, model_entity_id: UUID)
             project_model_entity.c.model_entity_id == model_entity_id
         )
     )
-    project_ids = list(set([r["project_id"] for r in project_model_entity_records]))
-    
+    project_ids = list(set([r["project_id"]
+                       for r in project_model_entity_records]))
+
     # Remove from all projects
     for project_id in project_ids:
         await execute(
@@ -534,7 +586,7 @@ async def delete_model_entity_from_project(user_id: UUID, model_entity_id: UUID)
             ),
             commit_after=True
         )
-    
+
     # Delete the entity itself
     return await delete_model_entity_entity(user_id, model_entity_id)
 
@@ -549,8 +601,9 @@ async def delete_pipeline_from_project(user_id: UUID, pipeline_id: UUID) -> UUID
             project_pipeline.c.pipeline_id == pipeline_id
         )
     )
-    project_ids = list(set([r["project_id"] for r in project_pipeline_records]))
-    
+    project_ids = list(set([r["project_id"]
+                       for r in project_pipeline_records]))
+
     # Remove from all projects
     for project_id in project_ids:
         await execute(
@@ -562,7 +615,7 @@ async def delete_pipeline_from_project(user_id: UUID, pipeline_id: UUID) -> UUID
             ),
             commit_after=True
         )
-    
+
     # Delete the entity itself
     return await delete_pipeline_entity(user_id, pipeline_id)
 

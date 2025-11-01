@@ -15,6 +15,7 @@ import { AnalysisSmall } from '@/types/analysis';
 import { Run } from '@/types/runs';
 import { mutate } from 'swr';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
+import JsonSchemaViewer from '@/components/JsonSchemaViewer';
 
 interface PipelineInfoTabProps {
   pipelineId: UUID;
@@ -221,18 +222,13 @@ export default function PipelineInfoTab({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{gridTemplateRows: 'auto auto'}}>
               {/* Output Variables Schema Box */}
               {pipeline.implementation?.outputVariablesSchema && Object.keys(pipeline.implementation.outputVariablesSchema).length > 0 && (
-                <div className="bg-gray-50 rounded-xl p-4 lg:col-span-2">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="p-1.5 bg-[#840B08]/20 rounded-lg">
-                      <FileText size={16} className="text-[#840B08]" />
-                    </div>
-                    <h4 className="text-sm font-semibold text-gray-900">Output Variables Schema</h4>
-                  </div>
-                  <div className="bg-white rounded p-3 border border-gray-200">
-                    <pre className="text-xs text-gray-600 whitespace-pre-wrap">
-                      {JSON.stringify(pipeline.implementation.outputVariablesSchema, null, 2)}
-                    </pre>
-                  </div>
+                <div className="bg-gray-50 rounded-xl p-4 lg:col-span-2 flex flex-col min-h-0">
+                  <JsonSchemaViewer
+                    schema={pipeline.implementation.outputVariablesSchema}
+                    title="Output Variables Schema"
+                    icon={FileText}
+                    className="flex-1 min-h-0"
+                  />
                 </div>
               )}
 

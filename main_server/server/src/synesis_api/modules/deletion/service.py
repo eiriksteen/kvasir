@@ -15,8 +15,8 @@ from synesis_api.modules.data_objects.models import (
     data_object,
     time_series_group,
     time_series,
-    object_group_from_pipeline,
-    object_group_from_data_source,
+    dataset_from_pipeline,
+    dataset_from_data_source,
 )
 from synesis_api.modules.data_objects.service import get_user_datasets
 from synesis_api.modules.model.models import (
@@ -79,8 +79,8 @@ async def delete_data_source(user_id: uuid.UUID, data_source_id: uuid.UUID) -> u
     )
 
     await execute(
-        delete(object_group_from_data_source).where(
-            object_group_from_data_source.c.data_source_id == data_source_id
+        delete(dataset_from_data_source).where(
+            dataset_from_data_source.c.data_source_id == data_source_id
         ),
         commit_after=True
     )
@@ -172,26 +172,24 @@ async def delete_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID) -> uuid.UUID
         )
 
         await execute(
-            delete(object_group_from_pipeline).where(
-                object_group_from_pipeline.c.object_group_id.in_(
-                    object_group_ids)
-            ),
-            commit_after=True
-        )
-
-        await execute(
-            delete(object_group_from_data_source).where(
-                object_group_from_data_source.c.object_group_id.in_(
-                    object_group_ids)
-            ),
-            commit_after=True
-        )
-
-        await execute(
             delete(object_group).where(
                 object_group.c.id.in_(object_group_ids)),
             commit_after=True
         )
+
+    await execute(
+        delete(dataset_from_pipeline).where(
+            dataset_from_pipeline.c.dataset_id == dataset_id
+        ),
+        commit_after=True
+    )
+
+    await execute(
+        delete(dataset_from_data_source).where(
+            dataset_from_data_source.c.dataset_id == dataset_id
+        ),
+        commit_after=True
+    )
 
     await execute(
         delete(dataset_in_pipeline).where(
@@ -326,6 +324,20 @@ async def delete_pipeline(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> uuid.UU
     )
 
     await execute(
+        delete(pipeline_from_run).where(
+            pipeline_from_run.c.pipeline_id == pipeline_id
+        ),
+        commit_after=True
+    )
+
+    await execute(
+        delete(pipeline_in_run).where(
+            pipeline_in_run.c.pipeline_id == pipeline_id
+        ),
+        commit_after=True
+    )
+
+    await execute(
         delete(function_in_pipeline).where(
             function_in_pipeline.c.pipeline_id == pipeline_id
         ),
@@ -382,15 +394,8 @@ async def delete_pipeline(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> uuid.UU
     )
 
     await execute(
-        delete(pipeline_from_run).where(
-            pipeline_from_run.c.pipeline_id == pipeline_id
-        ),
-        commit_after=True
-    )
-
-    await execute(
-        delete(pipeline_in_run).where(
-            pipeline_in_run.c.pipeline_id == pipeline_id
+        delete(dataset_from_pipeline).where(
+            dataset_from_pipeline.c.pipeline_id == pipeline_id
         ),
         commit_after=True
     )

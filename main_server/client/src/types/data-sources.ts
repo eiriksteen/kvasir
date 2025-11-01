@@ -30,6 +30,7 @@ export interface DataSource extends DataSourceInDB {
   // Optional until agent has filled it (we want the data source to show up right away so we allow it to be null until then)
   typeFields?: FileDataSourceInDB | null;
   descriptionForAgent: string;
+  fromPipelines?: UUID[];
 }
 
 export interface GetDataSourcesByIDsRequest {

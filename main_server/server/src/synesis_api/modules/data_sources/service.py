@@ -10,6 +10,7 @@ from synesis_schemas.main_server import (
     DataSourceFromPipelineInDB,
     DataSource,
     DataSourceCreate,
+    UnknownFileCreate,
 )
 from synesis_api.modules.data_sources.models import (
     file_data_source,
@@ -23,24 +24,24 @@ async def create_data_source(
         user_id: uuid.UUID,
         data_source_create: DataSourceCreate) -> DataSource:
 
-    # Extract additional variables from the create request
-    create_data = data_source_create.model_dump()
-    additional_variables = {}
-
     # Get the fields defined in DataSourceCreate (excluding type_fields and from_pipelines)
-    create_fields = set(DataSourceCreate.model_fields.keys())
-    for key, value in create_data.items():
-        if key not in create_fields:
-            additional_variables[key] = value
+    extra_fields = data_source_create.model_extra or {}
+    extra_type_fields = data_source_create.type_fields.model_extra or {}
+    # We also add all fields present in type fields and not present in unknown file create into the additional variables
+    file_type_fields = {k: v for k, v in data_source_create.type_fields.model_dump().items()
+                        if k not in UnknownFileCreate.model_fields}
+
+    additional_variables = {**extra_fields,
+                            **extra_type_fields,
+                            **file_type_fields}
 
     # Create the base data source
     data_source_id = uuid.uuid4()
     data_source_obj = DataSourceInDB(
         id=data_source_id,
         user_id=user_id,
-        type=create_data["type"],
-        name=create_data["name"],
-        additional_variables=additional_variables if additional_variables else None,
+        **data_source_create.model_dump(),
+        additional_variables=additional_variables,
         created_at=datetime.now(timezone.utc)
     )
 

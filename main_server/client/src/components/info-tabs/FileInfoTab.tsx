@@ -1,4 +1,4 @@
-import { BarChart3, X, Trash2 } from 'lucide-react';
+import { X, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useDataSource, useDataSources } from "@/hooks/useDataSources";
 import { UUID } from 'crypto';
@@ -86,14 +86,8 @@ export default function FileInfoTab({
 
   const content = (
     <div className="h-full p-4 flex flex-col gap-4">
-      <div className="bg-gray-50 rounded-xl p-4 flex-1 min-h-0 flex flex-col">
-        <div className="flex items-center justify-between mb-3 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gray-500/20 rounded-lg">
-              <BarChart3 size={18} className="text-gray-600" />
-            </div>
-            <h3 className="text-sm font-semibold text-gray-900">{dataSource.name}</h3>
-          </div>
+      <div className="bg-gray-50 rounded-xl p-4 flex-1 min-h-0 flex flex-col relative">
+        <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
           <button
             onClick={() => setShowDeleteConfirm(true)}
             className="p-2 text-red-800 hover:bg-red-100 rounded-lg transition-colors"

@@ -17,7 +17,7 @@ from synesis_api.modules.runs.models import (
 )
 from synesis_api.modules.data_objects.models import (
     dataset, data_object, object_group, time_series, time_series_group,
-    object_group_from_pipeline, object_group_from_data_source
+    dataset_from_pipeline, dataset_from_data_source
 )
 from synesis_api.modules.orchestrator.models import (
     chat_message, chat_pydantic_message, conversation,
@@ -84,8 +84,8 @@ __all__ = [
     object_group,
     time_series,
     time_series_group,
-    object_group_from_pipeline,
-    object_group_from_data_source,
+    dataset_from_pipeline,
+    dataset_from_data_source,
     analysis,
     analysis_result,
     notebook_section,

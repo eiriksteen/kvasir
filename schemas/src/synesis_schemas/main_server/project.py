@@ -131,6 +131,7 @@ class GraphNodeConnections(BaseModel):
     from_analyses: List[UUID] = []
     from_pipelines: List[UUID] = []
     from_model_entities: List[UUID] = []
+    to_data_sources: List[UUID] = []
     to_datasets: List[UUID] = []
     to_analyses: List[UUID] = []
     to_pipelines: List[UUID] = []

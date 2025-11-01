@@ -122,7 +122,7 @@ async def fetch_object_group(
         raise HTTPException(
             status_code=403, detail="Not authorized to access this object group")
 
-    object_groups = await get_object_groups(user.id, group_ids=[group_id], include_objects=include_objects)
+    object_groups = await get_object_groups(group_ids=[group_id], include_objects=include_objects)
     if not object_groups:
         raise HTTPException(
             status_code=404, detail="Object group not found")
@@ -140,7 +140,7 @@ async def fetch_object_groups_in_dataset(
         raise HTTPException(
             status_code=403, detail="Not authorized to access this dataset")
 
-    return await get_object_groups(user.id, dataset_id=dataset_id, include_objects=True)
+    return await get_object_groups(dataset_id=dataset_id, include_objects=True)
 
 
 @router.get("/data-object/{object_id}", response_model=DataObject)

@@ -1,9 +1,10 @@
 from typing import Literal, Optional
 from pydantic_ai import ModelRetry, RunContext, FunctionToolset
 
-from project_server.utils.code_utils import add_line_numbers_to_script, run_python_code_in_container, run_shell_code_in_container
+from project_server.utils.code_utils import add_line_numbers_to_script, run_python_code_in_container, run_shell_code_in_container, is_readable_extension
 from synesis_schemas.main_server import GetGuidelinesRequest
 from project_server.client.requests.knowledge_bank import get_task_guidelines
+from project_server.app_secrets import READABLE_EXTENSIONS
 
 
 async def execute_python_code(ctx: RunContext, python_code: str):
@@ -60,7 +61,22 @@ async def grep_tool(ctx: RunContext, pattern: str, path: str = "/app", recursive
     if not out.strip():
         return f"No matches found for pattern '{pattern}' in {path}"
 
-    return out
+    # Filter out content from non-text files
+    filtered_lines = []
+    for line in out.split('\n'):
+        if ':' in line:
+            # Parse grep output format: file_path:line_number:content
+            parts = line.split(':', 2)
+            if len(parts) >= 3:
+                file_path = parts[0]
+                if not is_readable_extension(file_path):
+                    # Replace content with placeholder for non-text files
+                    filtered_lines.append(
+                        f"{parts[0]}:{parts[1]}:content too long for display")
+                    continue
+        filtered_lines.append(line)
+
+    return '\n'.join(filtered_lines)
 
 
 async def ls_tool(ctx: RunContext, path: str = "/app", show_hidden: bool = False, long_format: bool = False) -> str:
@@ -113,16 +129,10 @@ async def read_file_tool(ctx: RunContext, file_path: str) -> str:
     """
     assert hasattr(ctx.deps, "container_name"), "Container name is required"
 
-    ALLOWED_EXTENSIONS = {
-        ".py", ".txt", ".md", ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf",
-        ".sh", ".bash", ".zsh", ".xml", ".html", ".css", ".js", ".ts", ".jsx", ".tsx",
-        ".sql", ".log"
-    }
-
     # Check if file has an allowed extension
-    if not any(file_path.lower().endswith(ext) for ext in ALLOWED_EXTENSIONS):
+    if not is_readable_extension(file_path):
         raise ModelRetry(
-            f"File {file_path} does not have an allowed extension. Only text-based files are supported: {', '.join(sorted(ALLOWED_EXTENSIONS))}")
+            f"File {file_path} does not have an allowed extension. Only text-based files are supported: {', '.join(sorted(READABLE_EXTENSIONS))}")
 
     shell_code = f"cat {file_path} || echo 'Error: File not found or cannot be read'"
 

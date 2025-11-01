@@ -4,11 +4,12 @@ from typing import List
 # Import description functions
 from synesis_api.modules.data_sources.description import get_data_source_description
 from synesis_api.modules.pipeline.description import get_pipeline_description
-from synesis_schemas.main_server import DatasetInDB, ObjectGroup
+from synesis_schemas.main_server import DatasetInDB, ObjectGroup, DatasetSources
 
 
 def get_dataset_description(dataset_in_db: DatasetInDB,
                             object_groups: List[ObjectGroup],
+                            sources: DatasetSources,
                             include_full_data_source_description: bool = True,
                             include_full_pipeline_description: bool = True) -> str:
     """
@@ -38,6 +39,54 @@ def get_dataset_description(dataset_in_db: DatasetInDB,
             lines.append(f"- **{key}:** {value}")
         lines.append("")
 
+    # Dataset sources
+    if sources.data_sources or sources.pipelines:
+        lines.append("### Dataset Sources")
+        lines.append("")
+
+        if sources.data_sources:
+            lines.append("#### Data Sources")
+            for data_source in sources.data_sources:
+                if include_full_data_source_description:
+                    lines.append("```")
+                    lines.append(get_data_source_description(
+                        data_source,
+                        data_source.type_fields
+                    ))
+                    lines.append("```")
+                else:
+                    lines.append(
+                        f"- **{data_source.name}** (ID: {data_source.id}, Type: {data_source.type})")
+                    if data_source.type_fields:
+                        if hasattr(data_source.type_fields, 'file_path'):
+                            lines.append(
+                                f"  - File Path: `{data_source.type_fields.file_path}`")
+                        if hasattr(data_source.type_fields, 'file_type'):
+                            lines.append(
+                                f"  - File Type: {data_source.type_fields.file_type}")
+                        if hasattr(data_source.type_fields, 'num_rows'):
+                            lines.append(
+                                f"  - Dimensions: {data_source.type_fields.num_rows:,} rows × {data_source.type_fields.num_columns} columns")
+            lines.append("")
+
+        if sources.pipelines:
+            lines.append("#### Pipelines")
+            for pipeline in sources.pipelines:
+                if include_full_pipeline_description:
+                    lines.append("```")
+                    lines.append(get_pipeline_description(
+                        pipeline,
+                        pipeline.inputs,
+                        pipeline.outputs,
+                        pipeline.implementation
+                    ))
+                    lines.append("```")
+                else:
+                    lines.append(f"- **{pipeline.name}** (ID: {pipeline.id})")
+                    if pipeline.description:
+                        lines.append(f"  Description: {pipeline.description}")
+            lines.append("")
+
     if object_groups:
         lines.append("### Object Groups")
         lines.append("")
@@ -55,47 +104,6 @@ def get_dataset_description(dataset_in_db: DatasetInDB,
                 lines.append("**Additional Variables:**")
                 for key, value in object_group.additional_variables.items():
                     lines.append(f"- **{key}:** {value}")
-                lines.append("")
-
-            # Data Sources for this object group
-            if object_group.sources.data_sources:
-                lines.append(
-                    "**Data sources that provide data for this object group:**")
-                for data_source in object_group.sources.data_sources:
-                    if include_full_data_source_description:
-                        lines.append("```")
-                        lines.append(get_data_source_description(
-                            data_source,
-                            data_source.type_fields,
-                            data_source.analysis
-                        ))
-                        lines.append("```")
-                    else:
-                        lines.append(
-                            f"- **{data_source.name}** (ID: {data_source.id}, Type: {data_source.type})")
-                        lines.append(
-                            f"  - File Path: `{data_source.type_fields.file_path}`")
-                        lines.append(
-                            f"  - File Type: {data_source.type_fields.file_type}")
-                        if hasattr(data_source.type_fields, 'num_rows'):
-                            lines.append(
-                                f"  - Dimensions: {data_source.type_fields.num_rows:,} rows × {data_source.type_fields.num_columns} columns")
-                lines.append("")
-
-            # Pipelines for this object group
-            if object_group.sources.pipelines:
-                lines.append("**Pipelines that create this object group:**")
-                for pipeline in object_group.sources.pipelines:
-                    if include_full_pipeline_description:
-                        lines.append("```")
-                        lines.append(get_pipeline_description(pipeline))
-                        lines.append("```")
-                    else:
-                        lines.append(
-                            f"- **{pipeline.name}** (ID: {pipeline.id})")
-                        if pipeline.description:
-                            lines.append(
-                                f"  Description: {pipeline.description}")
                 lines.append("")
 
             # Data structure information based on modality

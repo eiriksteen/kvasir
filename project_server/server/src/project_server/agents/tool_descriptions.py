@@ -6,6 +6,8 @@ TOOL_DESCRIPTIONS = {
     "replace_file_lines": "Modifying script lines",
     "add_file_lines": "Adding new lines to script",
     "delete_file_lines": "Deleting lines from script",
+    "delete_file": "Deleting script file",
+    "rename_file": "Renaming script file",
     "search_through_datasets": "Searching through datasets",
     "search_through_data_sources": "Searching through data sources",
     "search_through_analyses": "Searching through analyses",
