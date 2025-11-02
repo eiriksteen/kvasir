@@ -5,7 +5,7 @@ import pandas as pd
 import jsonschema
 from typing import List, Optional, Union
 from datetime import datetime
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 from fastapi import UploadFile, HTTPException
 
 from synesis_api.modules.data_objects.description import get_dataset_description
@@ -256,6 +256,26 @@ async def get_user_datasets(
         )
         time_series_groups_result = await fetch_all(time_series_groups_query)
 
+    # Get first data object for each group
+    first_data_objects = {}
+    if group_ids:
+        first_object_ids_query = select(
+            data_object.c.group_id,
+            data_object.c.id
+        ).where(
+            data_object.c.group_id.in_(group_ids)
+        ).order_by(
+            data_object.c.group_id,
+            data_object.c.created_at
+        ).distinct(data_object.c.group_id)
+
+        first_object_ids_result = await fetch_all(first_object_ids_query)
+        first_object_ids = [row["id"] for row in first_object_ids_result]
+
+        if first_object_ids:
+            first_objects = await get_data_objects(object_ids=first_object_ids)
+            first_data_objects = {obj.group_id: obj for obj in first_objects}
+
     # Collect all unique data source and pipeline IDs
     all_data_source_ids = list(set(
         rec["data_source_id"] for rec in from_data_source_ids_result
@@ -296,7 +316,8 @@ async def get_user_datasets(
                 # Create ObjectGroup without sources
                 object_group_obj = ObjectGroup(
                     **group,
-                    modality_fields=ts_record
+                    modality_fields=ts_record,
+                    first_data_object=first_data_objects.get(group["id"])
                 )
                 all_object_groups.append(object_group_obj)
 
@@ -367,6 +388,26 @@ async def get_object_groups(
             time_series_group.c.id.in_(object_group_ids))
         time_series_groups_result = await fetch_all(time_series_groups_query)
 
+    # Get first data object for each group
+    first_data_objects = {}
+    if object_group_ids:
+        first_object_ids_query = select(
+            data_object.c.group_id,
+            data_object.c.id
+        ).where(
+            data_object.c.group_id.in_(object_group_ids)
+        ).order_by(
+            data_object.c.group_id,
+            data_object.c.created_at
+        ).distinct(data_object.c.group_id)
+
+        first_object_ids_result = await fetch_all(first_object_ids_query)
+        first_object_ids = [row["id"] for row in first_object_ids_result]
+
+        if first_object_ids:
+            first_objects = await get_data_objects(object_ids=first_object_ids)
+            first_data_objects = {obj.group_id: obj for obj in first_objects}
+
     data_object_records = None
     if include_objects:
         data_object_records = await get_data_objects(group_ids=object_group_ids)
@@ -388,12 +429,14 @@ async def get_object_groups(
             result_records.append(ObjectGroupWithObjects(
                 **group,
                 modality_fields=structure_fields,
+                first_data_object=first_data_objects.get(group["id"]),
                 objects=objects_in_group
             ))
         else:
             result_records.append(ObjectGroup(
                 **group,
-                modality_fields=structure_fields
+                modality_fields=structure_fields,
+                first_data_object=first_data_objects.get(group["id"])
             ))
 
     return result_records
@@ -443,6 +486,37 @@ async def get_data_objects(
         ))
 
     return result_records
+
+
+# =============================================================================
+# UPDATE FUNCTIONS
+# =============================================================================
+
+async def update_object_group_raw_data_script_path(
+    group_id: uuid.UUID,
+    raw_data_read_script_path: str
+) -> ObjectGroup:
+    """Update the raw data read script path for an object group"""
+
+    # Update the object group
+    update_stmt = (
+        update(object_group)
+        .where(object_group.c.id == group_id)
+        .values(
+            raw_data_read_script_path=raw_data_read_script_path,
+            updated_at=datetime.now()
+        )
+    )
+
+    await execute(update_stmt, commit_after=True)
+
+    # Return the updated object group
+    updated_groups = await get_object_groups(group_ids=[group_id])
+    if not updated_groups:
+        raise HTTPException(
+            status_code=404, detail=f"Object group {group_id} not found")
+
+    return updated_groups[0]
 
 
 # =============================================================================

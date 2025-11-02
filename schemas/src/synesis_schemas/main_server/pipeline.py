@@ -30,29 +30,22 @@ class PipelineImplementationInDB(BaseModel):
     updated_at: datetime
 
 
-class DataSourceInPipelineInDB(BaseModel):
+class DataSourceSupportedInPipelineInDB(BaseModel):
     data_source_id: UUID
     pipeline_id: UUID
     created_at: datetime
     updated_at: datetime
 
 
-class DatasetInPipelineInDB(BaseModel):
+class DatasetSupportedInPipelineInDB(BaseModel):
     dataset_id: UUID
     pipeline_id: UUID
     created_at: datetime
     updated_at: datetime
 
 
-class ModelEntityInPipelineInDB(BaseModel):
+class ModelEntitySupportedInPipelineInDB(BaseModel):
     model_entity_id: UUID
-    pipeline_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class AnalysisInPipelineInDB(BaseModel):
-    analysis_id: UUID
     pipeline_id: UUID
     created_at: datetime
     updated_at: datetime
@@ -68,6 +61,8 @@ class FunctionInPipelineInDB(BaseModel):
 class PipelineRunInDB(BaseModel):
     id: UUID
     pipeline_id: UUID
+    name: Optional[str] = None
+    description: Optional[str] = None
     status: Literal["running", "completed", "failed"]
     args: dict
     output_variables: dict
@@ -77,16 +72,44 @@ class PipelineRunInDB(BaseModel):
     updated_at: datetime
 
 
-class PipelineOutputDatasetInDB(BaseModel):
-    pipeline_id: UUID
+class DatasetInPipelineRunInDB(BaseModel):
+    pipeline_run_id: UUID
     dataset_id: UUID
     created_at: datetime
     updated_at: datetime
 
 
-class PipelineOutputModelEntityInDB(BaseModel):
-    pipeline_id: UUID
+class DataSourceInPipelineRunInDB(BaseModel):
+    pipeline_run_id: UUID
+    data_source_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class ModelEntityInPipelineRunInDB(BaseModel):
+    pipeline_run_id: UUID
     model_entity_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class PipelineRunOutputDatasetInDB(BaseModel):
+    pipeline_run_id: UUID
+    dataset_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class PipelineRunOutputModelEntityInDB(BaseModel):
+    pipeline_run_id: UUID
+    model_entity_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class PipelineRunOutputDataSourceInDB(BaseModel):
+    pipeline_run_id: UUID
+    data_source_id: UUID
     created_at: datetime
     updated_at: datetime
 
@@ -94,27 +117,24 @@ class PipelineOutputModelEntityInDB(BaseModel):
 # API models
 
 
-class PipelineInputEntities(BaseModel):
-    data_source_ids: List[UUID] = []
-    dataset_ids: List[UUID] = []
-    model_entity_ids: List[UUID] = []
-    analysis_ids: List[UUID] = []
-
-
-class PipelineOutputEntities(BaseModel):
-    dataset_ids: List[UUID]
-    model_entity_ids: List[UUID]
-
-
 class PipelineImplementation(PipelineImplementationInDB):
     functions: List[FunctionWithoutEmbedding]
-    implementation_script_path: str
-    runs: List[PipelineRunInDB] = []
+
+
+class PipelineRunEntities(BaseModel):
+    dataset_ids: List[UUID]
+    model_entity_ids: List[UUID]
+    data_source_ids: List[UUID]
+
+
+class PipelineRun(PipelineRunInDB):
+    inputs: PipelineRunEntities
+    outputs: PipelineRunEntities
 
 
 class Pipeline(PipelineInDB):
-    inputs: PipelineInputEntities
-    outputs: PipelineOutputEntities
+    supported_inputs: PipelineRunEntities
+    runs: List[PipelineRun] = []
     implementation: Optional[PipelineImplementation] = None
     description_for_agent: str
 
@@ -123,12 +143,10 @@ class PipelineRunStatusUpdate(BaseModel):
     status: Literal["running", "completed", "failed"]
 
 
-class PipelineRunDatasetOutputCreate(BaseModel):
-    dataset_id: UUID
-
-
-class PipelineRunModelEntityOutputCreate(BaseModel):
-    model_entity_id: UUID
+class PipelineRunOutputsCreate(BaseModel):
+    dataset_ids: List[UUID] = []
+    model_entity_ids: List[UUID] = []
+    data_source_ids: List[UUID] = []
 
 
 # Create models
@@ -137,10 +155,7 @@ class PipelineRunModelEntityOutputCreate(BaseModel):
 class PipelineCreate(BaseModel):
     name: str
     description: Optional[str] = None
-    input_data_source_ids: List[UUID]
-    input_dataset_ids: List[UUID]
-    input_model_entity_ids: List[UUID]
-    input_analysis_ids: List[UUID] = []
+    supported_inputs: PipelineRunEntities
 
 
 class PipelineImplementationCreate(BaseModel):
@@ -167,10 +182,12 @@ class PipelineImplementationCreate(BaseModel):
 
 
 class RunPipelineRequest(BaseModel):
-    args: dict
     project_id: UUID
     pipeline_id: UUID
     args: dict
+    inputs: PipelineRunEntities
+    name: Optional[str] = None
+    description: Optional[str] = None
     conversation_id: Optional[UUID] = None
     run_id: Optional[UUID] = None
 

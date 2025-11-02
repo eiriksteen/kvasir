@@ -42,23 +42,25 @@ from .pipeline import (
     PipelineImplementationInDB,
     Pipeline,
     PipelineImplementationCreate,
-    PipelineInputEntities,
-    PipelineOutputEntities,
-    DataSourceInPipelineInDB,
-    DatasetInPipelineInDB,
-    ModelEntityInPipelineInDB,
+    ModelEntitySupportedInPipelineInDB,
+    DataSourceSupportedInPipelineInDB,
+    DatasetSupportedInPipelineInDB,
     PipelineRunInDB,
-    PipelineOutputDatasetInDB,
-    PipelineOutputModelEntityInDB,
-    PipelineRunDatasetOutputCreate,
-    PipelineRunModelEntityOutputCreate,
+    PipelineRunOutputDatasetInDB,
+    PipelineRunOutputModelEntityInDB,
+    PipelineRunOutputDataSourceInDB,
+    PipelineRunOutputsCreate,
     PipelineCreate,
     FunctionInPipelineInDB,
     PipelineImplementation,
-    AnalysisInPipelineInDB,
     RunPipelineRequest,
     PipelineRunStatusUpdate,
     GetPipelinesByIDsRequest,
+    PipelineRunEntities,
+    PipelineRun,
+    DatasetInPipelineRunInDB,
+    DataSourceInPipelineRunInDB,
+    ModelEntityInPipelineRunInDB,
 )
 
 from .function import (
@@ -126,7 +128,8 @@ from .data_objects import (
     get_modality_models,
     ModalityModels,
     MODALITY_LITERAL,
-    TimeSeriesWithRawData
+    DataObjectRawData,
+    GetRawDataRequest
 )
 
 # Data Sources schemas

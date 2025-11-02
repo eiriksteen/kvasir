@@ -25,10 +25,11 @@ from synesis_api.modules.orchestrator.models import (
     data_source_context, model_entity_context
 )
 from synesis_api.modules.pipeline.models import (
-    pipeline, pipeline_implementation, model_entity_in_pipeline, function_in_pipeline,
-    pipeline_output_dataset, pipeline_output_model_entity, data_source_in_pipeline, dataset_in_pipeline,
-    model_entity_in_pipeline, pipeline_run,
-    analysis_in_pipeline
+    pipeline, pipeline_implementation, function_in_pipeline,
+    data_source_supported_in_pipeline, dataset_supported_in_pipeline, model_entity_supported_in_pipeline,
+    pipeline_run,
+    dataset_in_pipeline_run, data_source_in_pipeline_run, model_entity_in_pipeline_run,
+    pipeline_run_output_dataset, pipeline_run_output_model_entity, pipeline_run_output_data_source
 )
 from synesis_api.modules.function.models import (
     function, function_definition
@@ -109,13 +110,16 @@ __all__ = [
     pipeline,
     pipeline_implementation,
     function_in_pipeline,
-    data_source_in_pipeline,
-    dataset_in_pipeline,
-    model_entity_in_pipeline,
+    data_source_supported_in_pipeline,
+    dataset_supported_in_pipeline,
+    model_entity_supported_in_pipeline,
     pipeline_run,
-    pipeline_output_dataset,
-    pipeline_output_model_entity,
-    analysis_in_pipeline,
+    dataset_in_pipeline_run,
+    data_source_in_pipeline_run,
+    model_entity_in_pipeline_run,
+    pipeline_run_output_dataset,
+    pipeline_run_output_model_entity,
+    pipeline_run_output_data_source,
     function,
     function_definition,
     model_definition,

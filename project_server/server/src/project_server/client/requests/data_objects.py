@@ -79,3 +79,12 @@ async def get_object_groups_in_dataset(client: ProjectClient, dataset_id: UUID) 
 async def get_data_object(client: ProjectClient, object_id: UUID) -> DataObject:
     response = await client.send_request("get", f"/data-objects/data-object/{object_id}")
     return DataObject(**response.body)
+
+
+async def patch_object_group_raw_data_script_path(client: ProjectClient, group_id: UUID, raw_data_read_script_path: str) -> ObjectGroup:
+    response = await client.send_request(
+        "patch",
+        f"/data-objects/object-group/{group_id}/raw-data-script-path",
+        params={"raw_data_read_script_path": raw_data_read_script_path}
+    )
+    return ObjectGroup(**response.body)

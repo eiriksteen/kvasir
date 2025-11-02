@@ -13,8 +13,7 @@ from synesis_api.modules.pipeline.service import (
     get_pipeline_runs,
     create_pipeline_run,
     update_pipeline_run_status,
-    create_pipeline_output_model_entity,
-    create_pipeline_output_dataset,
+    create_pipeline_run_outputs,
     get_user_pipelines
 )
 from synesis_api.client import MainServerClient, post_run_pipeline
@@ -23,11 +22,9 @@ from synesis_schemas.main_server import (
     PipelineImplementationCreate,
     PipelineInDB,
     PipelineRunInDB,
-    PipelineOutputModelEntityInDB,
-    PipelineOutputDatasetInDB,
+    PipelineRun,
     PipelineRunStatusUpdate,
-    PipelineRunDatasetOutputCreate,
-    PipelineRunModelEntityOutputCreate,
+    PipelineRunOutputsCreate,
     PipelineCreate,
     PipelineImplementationInDB,
     RunPipelineRequest,
@@ -38,8 +35,8 @@ from synesis_api.app_secrets import SSE_MIN_SLEEP_TIME
 router = APIRouter()
 
 
-@router.get("/pipelines/runs", response_model=List[PipelineRunInDB])
-async def fetch_pipeline_runs(user: User = Depends(get_current_user)) -> List[PipelineRunInDB]:
+@router.get("/pipelines/runs", response_model=List[PipelineRun])
+async def fetch_pipeline_runs(user: User = Depends(get_current_user)) -> List[PipelineRun]:
     return await get_pipeline_runs(user.id)
 
 
@@ -88,7 +85,7 @@ async def run_pipeline(
         raise HTTPException(
             status_code=403, detail="You do not have permission to run this pipeline")
 
-    pipe_run = await create_pipeline_run(request.pipeline_id)
+    pipe_run = await create_pipeline_run(request)
     request.run_id = pipe_run.id
     await post_run_pipeline(MainServerClient(token), request)
 
@@ -112,7 +109,7 @@ async def patch_pipeline_run_status(
 
 @router.get("/stream-pipeline-runs")
 async def stream_pipeline_runs(user: User = Depends(get_current_user),) -> StreamingResponse:
-    adapter = TypeAdapter(List[PipelineRunInDB])
+    adapter = TypeAdapter(List[PipelineRun])
 
     async def stream_incomplete_runs():
         prev_run_ids = []
@@ -126,7 +123,7 @@ async def stream_pipeline_runs(user: User = Depends(get_current_user),) -> Strea
             stopped_runs = await get_pipeline_runs(user.id, run_ids=stopped_run_ids)
 
             runs = stopped_runs + incomplete_runs
-            yield f"data: {adapter.dump_json(runs, by_alias=True).decode("utf-8")}\n\n"
+            yield f"data: {adapter.dump_json(runs, by_alias=True).decode('utf-8')}\n\n"
             prev_run_ids = [run.id for run in runs]
 
             await asyncio.sleep(SSE_MIN_SLEEP_TIME)
@@ -134,27 +131,14 @@ async def stream_pipeline_runs(user: User = Depends(get_current_user),) -> Strea
     return StreamingResponse(stream_incomplete_runs(), media_type="text/event-stream")
 
 
-@router.post("/pipelines/{pipeline_id}/output-model-entity", response_model=PipelineOutputModelEntityInDB)
-async def post_output_model_entity(
-    pipeline_id: str,
-    request: PipelineRunModelEntityOutputCreate,
+@router.post("/pipeline-runs/{pipeline_run_id}/outputs")
+async def post_pipeline_run_outputs(
+    pipeline_run_id: str,
+    request: PipelineRunOutputsCreate,
     user: User = Depends(get_current_user)
-) -> PipelineOutputModelEntityInDB:
-    if not await user_owns_pipeline(user.id, pipeline_id):
+) -> None:
+    if not await user_owns_pipeline_run(user.id, pipeline_run_id):
         raise HTTPException(
-            status_code=403, detail="You do not have permission to output a model entity to this pipeline")
+            status_code=403, detail="You do not have permission to add outputs to this pipeline run")
 
-    return await create_pipeline_output_model_entity(pipeline_id, request)
-
-
-@router.post("/pipelines/{pipeline_id}/output-dataset", response_model=PipelineOutputDatasetInDB)
-async def post_output_dataset(
-    pipeline_id: str,
-    request: PipelineRunDatasetOutputCreate,
-    user: User = Depends(get_current_user)
-) -> PipelineOutputDatasetInDB:
-    if not await user_owns_pipeline(user.id, pipeline_id):
-        raise HTTPException(
-            status_code=403, detail="You do not have permission to output a dataset to this pipeline")
-
-    return await create_pipeline_output_dataset(pipeline_id, request)
+    await create_pipeline_run_outputs(pipeline_run_id, request)

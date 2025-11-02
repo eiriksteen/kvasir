@@ -1,10 +1,11 @@
-import { Layers, ChevronDown, ChevronRight, Database, Calendar, Trash2 } from 'lucide-react';  
+import { Layers, ChevronDown, ChevronRight, Database, Calendar, Trash2, Settings } from 'lucide-react';  
 import { useEffect, useState } from 'react';
 import { useDataset, useDatasets } from "@/hooks/useDatasets";
-import { ObjectGroupWithObjects, DataObject, TimeSeriesInDB } from "@/types/data-objects";
+import { ObjectGroupWithObjects, DataObject, TimeSeriesInDB, Modality } from "@/types/data-objects";
 import TimeSeriesChart from '@/components/charts/TimeSeriesChart';
 import { UUID } from 'crypto';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
+import JsonViewer from '@/components/JsonViewer';
 
 
 interface DatasetInfoTabProps {
@@ -14,9 +15,9 @@ interface DatasetInfoTabProps {
   onDelete?: () => void;
 }   
 
-type SelectedEntity = {
+type SelectedDataObject = {
   id: UUID;
-  type: "time_series" | "time_series_aggregation";
+  modality: Modality;
 }
 
 
@@ -29,7 +30,7 @@ export default function DatasetInfoTab({
 
   const { dataset, objectGroups } = useDataset(datasetId, projectId);
   const { deleteDataset } = useDatasets(projectId);
-  const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
+  const [selectedDataObject, setSelectedDataObject] = useState<SelectedDataObject | null>(null);
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -73,10 +74,6 @@ export default function DatasetInfoTab({
     });
   };
 
-  const isTimeSeries = (obj: DataObject): boolean => {
-    return obj.modalityFields !== undefined && 'startTimestamp' in obj.modalityFields;
-  };
-
   const formatTimeRange = (obj: DataObject) => {
     const fields = obj.modalityFields as TimeSeriesInDB;
     const start = new Date(fields.startTimestamp).toLocaleDateString();
@@ -114,15 +111,32 @@ export default function DatasetInfoTab({
                   <Trash2 size={18} />
                 </button>
               </div>
-              {selectedEntity && selectedEntity.type === "time_series" ? (
+              {selectedDataObject && selectedDataObject.modality === "time_series" ? (
                 <div className="w-full flex-1">
-                  <TimeSeriesChart timeSeriesId={selectedEntity.id} />
+                  <TimeSeriesChart timeSeriesId={selectedDataObject.id} />
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+                <div className={`flex gap-4 h-full ${dataset.additionalVariables && Object.keys(dataset.additionalVariables).length > 0 ? 'flex-row' : ''}`}>
+                  {/* Left Column - Additional Variables */}
+                  {dataset.additionalVariables && Object.keys(dataset.additionalVariables).length > 0 && (
+                    <div className="flex-shrink-0 w-96">
+                      <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-300 rounded-xl p-4 h-full flex flex-col">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="p-2 bg-purple-500/20 rounded-lg">
+                            <Settings size={18} className="text-purple-700" />
+                          </div>
+                          <h3 className="text-sm font-semibold text-gray-900">Additional Variables</h3>
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                          <JsonViewer data={dataset.additionalVariables} className="h-full" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Right Column - Data Groups */}
                   {objectGroups && (
-                    <div className="lg:col-span-2">
+                    <div className="flex-1 min-w-0">
                       <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-300 rounded-xl p-4 h-full flex flex-col">
                         <div className="flex items-center gap-3 mb-4">
                           <div className="p-2 bg-[#0E4F70]/20 rounded-lg">
@@ -172,22 +186,24 @@ export default function DatasetInfoTab({
                                   <div className="border-t border-gray-300 bg-gray-50">
                                     <div className="p-2 space-y-2">
                                       {group.objects?.map((obj: DataObject) => {
-                                        const objIsTimeSeries = isTimeSeries(obj);
+                                        const modality = objectGroups.find(group => group.id === obj.groupId)?.modality;
+                                        const hasRawDataFn = objectGroups.find(group => group.id === obj.groupId)?.rawDataReadScriptPath !== null;
+                                        const onClick = hasRawDataFn ? () => setSelectedDataObject({id: obj.id, modality: modality as Modality}) : undefined;
                                         return (
                                         <div 
                                           key={obj.id} 
-                                          onClick={() => setSelectedEntity({id: obj.id, type: objIsTimeSeries ? 'time_series' : 'time_series_aggregation'})}
-                                          className="group relative flex items-center gap-3 p-1 rounded-lg cursor-pointer transition-all duration-200 hover:bg-[#0E4F70]/10 hover:border-[#0E4F70]/30 border border-transparent">
+                                          onClick={onClick}
+                                          className={`group relative flex items-center gap-3 p-1 rounded-lg transition-all duration-200 border border-transparent ${hasRawDataFn ? 'cursor-pointer hover:bg-[#0E4F70]/10 hover:border-[#0E4F70]/30' : 'opacity-50 cursor-default'}`}> 
                                           <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between mb-1">
                                               <div className="flex items-center gap-2">
                                                 <span className="text-xs px-2 py-1 bg-gray-200 rounded-full text-gray-600 font-mono">
-                                                  {objIsTimeSeries ? 'TS' : 'AGG'}
+                                                  {modality}
                                                 </span>
                                                 <span className="text-sm font-medium text-gray-900 truncate">{obj.name}</span>
                                               </div>
                                               <div className="flex items-center gap-2">
-                                                {objIsTimeSeries && (
+                                                {modality === 'time_series' && (
                                                   <>
                                                     <div className="flex items-center gap-1 text-xs px-2 py-1 border border-gray-300 rounded-full text-gray-600">
                                                       <Calendar size={12} />

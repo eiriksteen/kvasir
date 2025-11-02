@@ -1,7 +1,6 @@
 import json
 from uuid import UUID
-from typing import Annotated, List, Optional, Union
-from datetime import datetime
+from typing import Annotated, List, Union
 from fastapi import APIRouter, Depends, HTTPException, Form, UploadFile
 
 from synesis_api.modules.data_objects.service import (
@@ -10,7 +9,8 @@ from synesis_api.modules.data_objects.service import (
     get_user_datasets,
     get_data_objects,
     create_object_group,
-    create_data_objects
+    create_data_objects,
+    update_object_group_raw_data_script_path
 )
 # from synesis_api.modules.data_objects.service import get_time_series_payload_data_by_id
 from synesis_schemas.main_server import (
@@ -22,12 +22,10 @@ from synesis_schemas.main_server import (
     DataObject,
     ObjectsFile,
     DataObjectGroupCreate,
-    TimeSeriesWithRawData
 )
 from synesis_schemas.main_server import User
 from synesis_api.auth.service import get_current_user, user_owns_dataset, user_owns_object_group, user_owns_data_object
-# from synesis_api.client import MainServerClient, get_time_series_data
-from synesis_api.auth.service import oauth2_scheme
+
 
 router = APIRouter()
 
@@ -161,17 +159,16 @@ async def fetch_data_object(
     return data_objects[0]
 
 
-@router.get("/time-series-data/{time_series_id}", response_model=TimeSeriesWithRawData)
-async def get_time_series_data_from_project_server(
-        time_series_id: UUID,
-        start_date: Optional[datetime] = None,
-        end_date: datetime = datetime.now(),
-        user: Annotated[User, Depends(get_current_user)] = None,
-        token: str = Depends(oauth2_scheme)) -> TimeSeriesWithRawData:
+@router.patch("/object-group/{group_id}/raw-data-script-path", response_model=ObjectGroup)
+async def patch_object_group_raw_data_script_path(
+    group_id: UUID,
+    raw_data_read_script_path: str,
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> ObjectGroup:
+    """Update the raw data read script path for an object group"""
 
-    if not await user_owns_data_object(user.id, time_series_id):
+    if not await user_owns_object_group(user.id, group_id):
         raise HTTPException(
-            status_code=403, detail="Not authorized to access this data object")
+            status_code=403, detail="Not authorized to access this object group")
 
-    return HTTPException(
-        status_code=501, detail="Not implemented")
+    return await update_object_group_raw_data_script_path(group_id, raw_data_read_script_path)

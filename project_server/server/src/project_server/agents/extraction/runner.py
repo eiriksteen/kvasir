@@ -3,6 +3,7 @@ from typing import Optional
 
 from project_server.agents.extraction.agent import extraction_agent
 from project_server.agents.extraction.deps import ExtractionDeps
+from project_server.agents.extraction.output import submit_final_extraction_output
 from project_server.worker import broker
 from project_server.agents.runner_base import RunnerBase
 from synesis_schemas.project_server import RunExtractionRequest
@@ -41,8 +42,9 @@ class ExtractionAgentRunner(RunnerBase):
             )
 
             run_result = await self._run_agent(
-                prompt_content=f"Solve this user prompt: {prompt_content}.",
-                deps=deps
+                prompt_content={prompt_content},
+                deps=deps,
+                output_type=submit_final_extraction_output
             )
 
             await self._complete_agent_run("Extraction agent run completed")

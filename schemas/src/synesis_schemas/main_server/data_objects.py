@@ -41,6 +41,7 @@ class ObjectGroupInDB(BaseModel):
     dataset_id: uuid.UUID
     original_id_name: Optional[str] = None
     additional_variables: Optional[Dict[str, Any]] = None
+    raw_data_read_script_path: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -85,6 +86,35 @@ class DatasetFromPipelineInDB(BaseModel):
     pipeline_run_id: Optional[uuid.UUID] = None
 
 
+# Raw data schemas
+
+
+class TimeSeriesRawDataParams(BaseModel):
+    """
+    Parameters for reading raw data from a time series data object. 
+    The start_timestamp and end_timestamp are the start and end timestamps of the data that has been read (not the full time series). 
+    All params must be accepted as inputs to the function that reads the raw data. 
+    The default values in the function should be the most recent 96 values of the time series. 
+    """
+    start_timestamp: datetime
+    end_timestamp: datetime
+
+
+class TimeSeriesRawData(BaseModel):
+    """"
+    Raw data for a time series data object, for display in the UI. 
+    """
+    data: Dict[str, List[Tuple[datetime, Union[float, int]]]]
+    params: TimeSeriesRawDataParams
+
+
+class DataObjectRawData(BaseModel):
+    # TODO: Add more modalities
+    id: uuid.UUID
+    modality: MODALITY_LITERAL
+    data: Union[TimeSeriesRawData]
+
+
 # Schemas for the API
 
 
@@ -94,6 +124,7 @@ class DataObject(DataObjectInDB):
 
 class ObjectGroup(ObjectGroupInDB):
     modality_fields: Union[TimeSeriesGroupInDB]
+    first_data_object: DataObject
 
 
 class DatasetSources(BaseModel):
@@ -113,6 +144,12 @@ class ObjectGroupWithObjects(ObjectGroup):
 
 class GetDatasetsByIDsRequest(BaseModel):
     dataset_ids: List[uuid.UUID]
+
+
+class GetRawDataRequest(BaseModel):
+    project_id: uuid.UUID
+    object_id: uuid.UUID
+    args: Union[TimeSeriesRawDataParams]
 
 
 # Create schemas
@@ -204,12 +241,6 @@ class DatasetCreate(BaseModel):
 
     class Config:
         extra = "allow"
-
-
-# Raw data schemas
-
-class TimeSeriesWithRawData(DataObject):
-    data: Dict[str, List[Tuple[datetime, Union[float, int]]]]
 
 
 # Helpers

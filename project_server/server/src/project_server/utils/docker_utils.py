@@ -123,7 +123,26 @@ async def copy_file_or_directory_to_container(
         container_save_path: Path,
         container_name: str):
     parent_dir = container_save_path.parent
-    await ensure_directory_exists(str(parent_dir), container_name)
+
+    # Create parent directory if it doesn't exist
+    mkdir_cmd = [
+        "docker", "exec", "-i",
+        container_name,
+        "bash", "-c", f"mkdir -p {parent_dir}"
+    ]
+
+    mkdir_process = await asyncio.create_subprocess_exec(
+        *mkdir_cmd,
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+
+    _, mkdir_err = await mkdir_process.communicate()
+
+    if mkdir_process.returncode != 0:
+        raise RuntimeError(
+            f"Failed to create directory in container: {mkdir_err.decode('utf-8')}")
 
     cmd = [
         "docker", "cp", path, f"{container_name}:{container_save_path.as_posix()}"

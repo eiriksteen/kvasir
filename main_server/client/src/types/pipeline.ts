@@ -25,29 +25,22 @@ export interface PipelineImplementationInDB {
   updatedAt: string;
 }
 
-export interface DataSourceInPipelineInDB {
+export interface DataSourceSupportedInPipelineInDB {
   dataSourceId: UUID;
   pipelineId: UUID;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface DatasetInPipelineInDB {
+export interface DatasetSupportedInPipelineInDB {
   datasetId: UUID;
   pipelineId: UUID;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface ModelEntityInPipelineInDB {
+export interface ModelEntitySupportedInPipelineInDB {
   modelEntityId: UUID;
-  pipelineId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AnalysisInPipelineInDB {
-  analysisId: UUID;
   pipelineId: UUID;
   createdAt: string;
   updatedAt: string;
@@ -63,6 +56,8 @@ export interface FunctionInPipelineInDB {
 export interface PipelineRunInDB {
   id: UUID;
   pipelineId: UUID;
+  name?: string | null;
+  description?: string | null;
   status: "running" | "completed" | "failed";
   args: Record<string, unknown>;
   outputVariables: Record<string, unknown>;
@@ -72,43 +67,69 @@ export interface PipelineRunInDB {
   updatedAt: string;
 }
 
-export interface PipelineOutputDatasetInDB {
-  pipelineId: UUID;
+export interface DatasetInPipelineRunInDB {
+  pipelineRunId: UUID;
   datasetId: UUID;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface PipelineOutputModelEntityInDB {
-  pipelineId: UUID;
+export interface DataSourceInPipelineRunInDB {
+  pipelineRunId: UUID;
+  dataSourceId: UUID;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ModelEntityInPipelineRunInDB {
+  pipelineRunId: UUID;
   modelEntityId: UUID;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PipelineRunOutputDatasetInDB {
+  pipelineRunId: UUID;
+  datasetId: UUID;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PipelineRunOutputModelEntityInDB {
+  pipelineRunId: UUID;
+  modelEntityId: UUID;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PipelineRunOutputDataSourceInDB {
+  pipelineRunId: UUID;
+  dataSourceId: UUID;
   createdAt: string;
   updatedAt: string;
 }
 
 // API Models
 
-export interface PipelineInputEntities {
+export interface PipelineRunEntities {
   dataSourceIds: UUID[];
   datasetIds: UUID[];
   modelEntityIds: UUID[];
-  analysisIds: UUID[];
 }
 
-export interface PipelineOutputEntities {
-  datasetIds: UUID[];
-  modelEntityIds: UUID[];
+export interface PipelineRun extends PipelineRunInDB {
+  inputs: PipelineRunEntities;
+  outputs: PipelineRunEntities;
 }
 
 export interface PipelineImplementation extends PipelineImplementationInDB {
   functions: FunctionWithoutEmbedding[];
   implementationScriptPath: string;
-  runs: PipelineRunInDB[];
 }
 
 export interface Pipeline extends PipelineInDB {
-  inputs: PipelineInputEntities;
-  outputs: PipelineOutputEntities;
+  supportedInputs: PipelineRunEntities;
+  runs: PipelineRun[];
   implementation?: PipelineImplementation | null;
   descriptionForAgent: string;
 }
@@ -117,12 +138,10 @@ export interface PipelineRunStatusUpdate {
   status: "running" | "completed" | "failed";
 }
 
-export interface PipelineRunDatasetOutputCreate {
-  datasetId: UUID;
-}
-
-export interface PipelineRunModelEntityOutputCreate {
-  modelEntityId: UUID;
+export interface PipelineRunOutputsCreate {
+  datasetIds: UUID[];
+  modelEntityIds: UUID[];
+  dataSourceIds: UUID[];
 }
 
 // Create Models
@@ -130,10 +149,7 @@ export interface PipelineRunModelEntityOutputCreate {
 export interface PipelineCreate {
   name: string;
   description?: string | null;
-  inputDataSourceIds: UUID[];
-  inputDatasetIds: UUID[];
-  inputModelEntityIds: UUID[];
-  inputAnalysisIds: UUID[];
+  supportedInputs: PipelineRunEntities;
 }
 
 export interface PipelineImplementationCreate {
@@ -150,9 +166,12 @@ export interface PipelineImplementationCreate {
 }
 
 export interface RunPipelineRequest {
-  args: Record<string, unknown>;
   projectId: UUID;
   pipelineId: UUID;
+  args: Record<string, unknown>;
+  inputs: PipelineRunEntities;
+  name?: string | null;
+  description?: string | null;
   conversationId?: UUID | null;
   runId?: UUID | null;
 }

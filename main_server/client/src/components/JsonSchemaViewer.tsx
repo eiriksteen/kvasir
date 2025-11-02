@@ -122,7 +122,7 @@ function SchemaProperty({ propertyName, schema, level, expandedKeys, onToggle }:
 
       {hasNested && isExpanded && (
         <div className="ml-3 mt-0.5 border-l border-gray-200 pl-2 space-y-0.5">
-          {schema.type === 'object' && schema.properties && (
+          {schema.type === 'object' && schema.properties && 
             Object.entries(schema.properties).map(([nestedKey, nestedValue]) => {
               if (isSchemaDefinition(nestedValue)) {
                 return (
@@ -138,19 +138,19 @@ function SchemaProperty({ propertyName, schema, level, expandedKeys, onToggle }:
               }
               return null;
             })
-          )}
-          {schema.type === 'array' && schema.items && isSchemaDefinition(schema.items) && (
+          }
+          {schema.type === 'array' && schema.items && isSchemaDefinition(schema.items) ? (
             <div className="ml-2">
               <div className="text-xs text-gray-500 mb-1 font-mono">items:</div>
               <SchemaProperty
                 propertyName=""
-                schema={schema.items}
+                schema={schema.items as SchemaDefinition}
                 level={level + 1}
                 expandedKeys={expandedKeys}
                 onToggle={onToggle}
               />
             </div>
-          )}
+          ) : null}
         </div>
       )}
     </div>
@@ -182,21 +182,21 @@ export default function JsonSchemaViewer({ schema, className = '', title, icon: 
   return (
     <div className={`flex flex-col ${className}`}>
       {title && (
-        <div className="flex items-center gap-2 mb-2 flex-shrink-0">
+        <div className="flex items-center gap-3 mb-3 flex-shrink-0">
           {Icon && (
             <div 
-              className="p-1.5 rounded-lg" 
+              className="p-2 rounded-lg" 
               style={{ 
                 backgroundColor: hexToRgba(iconColor, 0.2),
               }}
             >
-              <Icon size={16} style={{ color: iconColor }} />
+              <Icon size={18} style={{ color: iconColor }} />
             </div>
           )}
-          <h4 className="text-sm font-semibold text-gray-900">{title}</h4>
+          <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
         </div>
       )}
-      <div className="bg-white rounded p-3 border border-gray-200 overflow-auto flex-1 min-h-0">
+      <div className="overflow-auto flex-1 min-h-0">
         <div className="space-y-0.5">
           {Object.entries(schema).map(([key, value]) => {
             if (isSchemaDefinition(value)) {

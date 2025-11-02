@@ -59,6 +59,7 @@ dependencies = [
     "tsfresh",
     "feature-engine",
     "category-encoders",
+    "pyarrow",
     
     # Time series specific packages
     "darts",

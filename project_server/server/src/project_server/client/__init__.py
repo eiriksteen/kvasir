@@ -123,6 +123,7 @@ from .requests.tables import (
 __all__ = [
     # Client
     "ProjectClient",
+    "FileInput",
 
     # Auth functions
     "post_login",

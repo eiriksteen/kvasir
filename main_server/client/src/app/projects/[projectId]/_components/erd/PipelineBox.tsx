@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Zap, Play, Square } from 'lucide-react';
-import { PipelineRunInDB } from '@/types/pipeline';
+import { PipelineRun } from '@/types/pipeline';
 import { usePipeline } from '@/hooks/usePipelines';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { UUID } from 'crypto';
+import RunPipelineModal from '@/components/RunPipelineModal';
 
 interface PipelineBoxProps {
   pipelineId: UUID;
@@ -18,12 +19,30 @@ export default function PipelineBox({ pipelineId, projectId, openTab }: Pipeline
     addPipelineToContext, 
     removePipelineFromContext 
   } = useAgentContext(projectId);
-  const isRunning = pipelineRuns.some((run: PipelineRunInDB) => run.status === 'running');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const isRunning = pipelineRuns.some((run: PipelineRun) => run.status === 'running');
   
   const isInContext = pipelinesInContext.includes(pipelineId);
 
   const handleStopClick = () => {
     console.log('Stop pipeline clicked:', pipelineId);
+  };
+
+  const handleRunClick = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleRunPipeline = (config: {
+    args: Record<string, unknown>;
+    inputs: {
+      dataSourceIds: UUID[];
+      datasetIds: UUID[];
+      modelEntityIds: UUID[];
+    };
+    name?: string;
+    description?: string;
+  }) => {
+    triggerRunPipeline(config);
   };
 
   const handleMainBoxClick = (event: React.MouseEvent) => {
@@ -70,7 +89,7 @@ export default function PipelineBox({ pipelineId, projectId, openTab }: Pipeline
       </div>
       
       <button
-        onClick={isRunning ? handleStopClick : triggerRunPipeline}
+        onClick={isRunning ? handleStopClick : handleRunClick}
         className="w-12 px-3 py-3 border-l-2 border-[#840B08] flex-shrink-0 cursor-pointer hover:bg-[#840B08]/10 flex items-center justify-center transition-colors"
       >
         {isRunning ? (
@@ -84,6 +103,16 @@ export default function PipelineBox({ pipelineId, projectId, openTab }: Pipeline
           <Play className="w-4 h-4 text-[#840B08] fill-[#840B08]" />
         )}
       </button>
+      
+      {pipeline && (
+        <RunPipelineModal
+          pipeline={pipeline}
+          projectId={projectId}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onRunPipeline={handleRunPipeline}
+        />
+      )}
     </div>
   );
 }

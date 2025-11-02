@@ -33,6 +33,7 @@ export interface ObjectGroupInDB {
   datasetId: UUID;
   originalIdName?: string | null;
   additionalVariables?: Record<string, unknown> | null;
+  rawDataReadScriptPath?: string | null;
   createdAt: string;
   updatedAt: string;
 }
