@@ -3,9 +3,6 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any, Union, Literal, Type, Tuple
 from pydantic import BaseModel
 
-from .data_sources import DataSource
-from .pipeline import Pipeline
-
 
 # DB Schemas
 
@@ -75,17 +72,6 @@ class TimeSeriesGroupInDB(BaseModel):
     updated_at: datetime
 
 
-class DatasetFromDataSourceInDB(BaseModel):
-    data_source_id: uuid.UUID
-    dataset_id: uuid.UUID
-
-
-class DatasetFromPipelineInDB(BaseModel):
-    pipeline_id: uuid.UUID
-    dataset_id: uuid.UUID
-    pipeline_run_id: Optional[uuid.UUID] = None
-
-
 # Raw data schemas
 
 
@@ -127,15 +113,8 @@ class ObjectGroup(ObjectGroupInDB):
     first_data_object: DataObject
 
 
-class DatasetSources(BaseModel):
-    data_sources: List[DataSource]
-    pipelines: List[Pipeline]
-
-
 class Dataset(DatasetInDB):
     object_groups: List[ObjectGroup]
-    sources: DatasetSources
-    description_for_agent: str
 
 
 class ObjectGroupWithObjects(ObjectGroup):
@@ -232,10 +211,6 @@ class DatasetCreate(BaseModel):
     """
     name: str
     description: str
-    # data source ids for datasets coming directly from (files etc)
-    from_data_source_ids: List[uuid.UUID] = []
-    # pipeline ids for datasets coming from in-memory, i.e pipelines applied to sources, but without saving the outputs permanently
-    from_pipeline_ids: List[uuid.UUID] = []
     # TODO: Add more modalities
     groups: List[DataObjectGroupCreate] = []
 

@@ -17,6 +17,7 @@ data_source = Table(
            nullable=False),
     Column("type", String, nullable=False),
     Column("name", String, nullable=False),
+    Column("description", String, nullable=False),
     Column("additional_variables", JSONB, nullable=True),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
@@ -43,23 +44,3 @@ file_data_source = Table(
            nullable=False, default=func.now(), onupdate=func.now()),
     schema="data_sources"
 )
-
-
-data_source_from_pipeline = Table(
-    "data_source_from_pipeline",
-    metadata,
-    Column("data_source_id", UUID(as_uuid=True),
-           ForeignKey("data_sources.data_source.id"),
-           primary_key=True),
-    Column("pipeline_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.pipeline.id"),
-           primary_key=True),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    Column("updated_at", DateTime(timezone=True),
-           nullable=False, default=func.now(), onupdate=func.now()),
-    schema="data_sources"
-)
-
-
-# TODO: Add a way of storing analyses done on a data source

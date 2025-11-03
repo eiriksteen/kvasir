@@ -1,4 +1,4 @@
-import { Run, RunMessageInDB, RunCodeMessageInDB } from "@/types/runs";
+import { RunInDB, RunMessageInDB, RunCodeMessageInDB } from "@/types/runs";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import useSWR, { useSWRConfig } from "swr";
@@ -11,7 +11,7 @@ import useSWRMutation from "swr/mutation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-async function fetchRuns(token: string): Promise<Run[]> {
+async function fetchRuns(token: string): Promise<RunInDB[]> {
   const response = await fetch(`${API_URL}/runs/runs`, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -142,7 +142,7 @@ export const useRuns = () => {
     session ? "runs" : null, 
     () => fetchRuns(session ? session.APIToken.accessToken : ""), 
     {
-      onSuccess: (runs: Run[]) => {
+      onSuccess: (runs: RunInDB[]) => {
         const newRunState = computeRunState(runs);
         if (newRunState === "running" || newRunState === "paused" || newRunState === "awaiting_approval" || newRunState === "rejected") {
           mutateRunState(newRunState, {revalidate: false});
@@ -193,7 +193,7 @@ export const useRuns = () => {
   // This thing will always be running. Do we want to stop it when no runs are active?
   useSWRSubscription(
     session && runs ? ["runStream", runs] : null,
-    (_, {next}: SWRSubscriptionOptions<Run[]>) => {
+    (_, {next}: SWRSubscriptionOptions<RunInDB[]>) => {
       const eventSource = createIncompleteRunsEventSource(session ? session.APIToken.accessToken : "");
 
       eventSource.onmessage = (ev) => {
@@ -205,8 +205,8 @@ export const useRuns = () => {
               return streamedRuns;
             }
 
-            const newRuns = streamedRuns.filter((run: Run) => !currentRuns.find((currentRun: Run) => currentRun.id === run.id));
-            const runsChangedStatus = streamedRuns.filter((run: Run) => run.status !== currentRuns.find((currentRun: Run) => currentRun.id === run.id)?.status);
+            const newRuns = streamedRuns.filter((run: RunInDB) => !currentRuns.find((currentRun: RunInDB) => currentRun.id === run.id));
+            const runsChangedStatus = streamedRuns.filter((run: RunInDB) => run.status !== currentRuns.find((currentRun: RunInDB) => currentRun.id === run.id)?.status);
 
             // Return without changes if all streamedRuns are the same as the current runs and no run has changed status
             if (newRuns.length === 0 && runsChangedStatus.length === 0) {
@@ -214,14 +214,14 @@ export const useRuns = () => {
             }
 
             // Update existing runs with status changes and append new runs
-            let updatedRuns = currentRuns.map(run => runsChangedStatus.find((changedRun: Run) => changedRun.id === run.id) || run);
+            let updatedRuns = currentRuns.map(run => runsChangedStatus.find((changedRun: RunInDB) => changedRun.id === run.id) || run);
             updatedRuns = updatedRuns.concat(newRuns);
 
             // Update run state based on the updated runs
             const newRunState = computeRunState(updatedRuns);
-            if (updatedRuns.every((run: Run) => run.status !== "running")) {
+            if (updatedRuns.every((run: RunInDB) => run.status !== "running")) {
               mutateRunState(newRunState, {revalidate: false});
-              const noRunningRuns = updatedRuns.filter((run: Run) => run.status === "running").length === 0;
+              const noRunningRuns = updatedRuns.filter((run: RunInDB) => run.status === "running").length === 0;
               if (noRunningRuns) {
                 setTimeout(() => {
                   mutateRunState(emptyRunState, {revalidate: false});
@@ -230,7 +230,7 @@ export const useRuns = () => {
             }
 
             // Trigger project refresh if any runs completed
-            const completedRuns = runsChangedStatus.filter((run: Run) => run.status === "completed");
+            const completedRuns = runsChangedStatus.filter((run: RunInDB) => run.status === "completed");
             if (completedRuns.length > 0) {
               mutate("projects");
             }
@@ -258,7 +258,7 @@ export const useRunsInConversation = (conversationId: string) => {
   const { runs, triggerLaunchRun } = useRuns()
 
   const runsInConversation = useMemo(() => {
-    return runs.filter((run: Run) => run.conversationId === conversationId)
+    return runs.filter((run: RunInDB) => run.conversationId === conversationId)
   }, [runs, conversationId])
 
   return { runsInConversation, triggerLaunchRun }
@@ -269,7 +269,7 @@ export const useRun = (runId: UUID) => {
   const { runs, triggerLaunchRun, triggerRejectRun } = useRuns()
 
   const run = useMemo(() => {
-    return runs.find((run: Run) => run.id === runId)
+    return runs.find((run: RunInDB) => run.id === runId)
   }, [runs, runId])
 
   return { run, triggerLaunchRun, triggerRejectRun }

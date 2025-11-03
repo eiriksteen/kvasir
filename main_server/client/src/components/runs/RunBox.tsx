@@ -146,20 +146,23 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
   const theme = getRunTheme(run.type as 'analysis' | 'swe');
   const statusInfo = getStatusInfo(run.status);
   
-  const hasInputs = run.inputs && (
-    run.inputs.dataSourceIds.length > 0 ||
-    run.inputs.datasetIds.length > 0 ||
-    run.inputs.modelEntityIds.length > 0 ||
-    run.inputs.pipelineIds.length > 0 ||
-    run.inputs.analysisIds.length > 0
-  );
+  // Get run inputs/outputs from entity graph
+  const runNode = getEntityGraphNode(run.id);
   
-  const hasOutputs = run.outputs && (
-    run.outputs.dataSourceIds.length > 0 ||
-    run.outputs.datasetIds.length > 0 ||
-    run.outputs.modelEntityIds.length > 0 ||
-    run.outputs.pipelineIds.length > 0 ||
-    run.outputs.analysisIds.length > 0
+  const hasInputs = runNode && (
+    runNode.fromEntities.dataSources.length > 0 ||
+    runNode.fromEntities.datasets.length > 0 ||
+    runNode.fromEntities.modelEntities.length > 0 ||
+    runNode.fromEntities.pipelines.length > 0 ||
+    runNode.fromEntities.analyses.length > 0
+  );
+
+  const hasOutputs = runNode && (
+    runNode.toEntities.dataSources.length > 0 ||
+    runNode.toEntities.datasets.length > 0 ||
+    runNode.toEntities.modelEntities.length > 0 ||
+    runNode.toEntities.pipelines.length > 0 ||
+    runNode.toEntities.analyses.length > 0
   );
 
 

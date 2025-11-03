@@ -7,9 +7,7 @@ from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.analysis.models import (
     analysis,
     analysis_result,
-    dataset_in_analysis,
     notebook_section,
-    data_source_in_analysis,
 )
 # from synesis_api.modules.data_objects.models import aggregation_object
 from synesis_api.modules.analysis.models import plot

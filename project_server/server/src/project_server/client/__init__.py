@@ -21,13 +21,11 @@ from .requests.runs import (
 )
 
 from .requests.pipeline import (
-    get_user_pipelines,
     post_pipeline,
-    post_pipeline_output_model_entity,
-    post_pipeline_output_dataset,
     patch_pipeline_run_status,
     post_pipeline_implementation,
-    get_pipelines_by_ids
+    get_pipelines_by_ids,
+    post_pipeline_run
 )
 
 from .requests.orchestrator import (

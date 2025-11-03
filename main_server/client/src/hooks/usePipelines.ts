@@ -1,6 +1,6 @@
 import useSWR, { mutate } from "swr";
 import { useSession } from "next-auth/react";
-import { Pipeline, PipelineRun } from "@/types/pipeline";
+import { Pipeline, PipelineRunInDB } from "@/types/pipeline";
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
 import { UUID } from "crypto";
 import useSWRSubscription from "swr/subscription";
@@ -30,7 +30,7 @@ async function fetchPipelines(token: string, projectId: UUID): Promise<Pipeline[
   return snakeToCamelKeys(data);
 }
 
-async function fetchPipelineRuns(token: string): Promise<PipelineRun[]> {
+async function fetchPipelineRuns(token: string): Promise<PipelineRunInDB[]> {
 
   const response = await fetch(`${API_URL}/pipeline/pipelines/runs`, {
     headers: {
@@ -75,7 +75,7 @@ async function runPipeline(
     name?: string;
     description?: string;
   }
-): Promise<PipelineRun> {
+): Promise<PipelineRunInDB> {
   const response = await fetch(`${API_URL}/pipeline/run-pipeline`, {
     method: "POST",
     headers: {
@@ -122,7 +122,7 @@ export const usePipelines = (projectId: UUID) => {
       revalidateIfStale: false,
     }
   );
-  const { data: pipelineRuns, mutate: mutatePipelineRuns } = useSWR<PipelineRun[]>(
+  const { data: pipelineRuns, mutate: mutatePipelineRuns } = useSWR<PipelineRunInDB[]>(
     session ? ["pipelineRuns", projectId] : null, () => fetchPipelineRuns(session ? session.APIToken.accessToken : "")
   );
 
@@ -162,7 +162,7 @@ export const usePipelines = (projectId: UUID) => {
 
   useSWRSubscription(
     session && pipelineRuns ? ["pipelineRunsStream", pipelineRuns] : null,
-    (_, {next}: SWRSubscriptionOptions<PipelineRun[]>) => {
+    (_, {next}: SWRSubscriptionOptions<PipelineRunInDB[]>) => {
       const eventSource = createPipelineRunsEventSource(session ? session.APIToken.accessToken : "");
 
       eventSource.onmessage = (ev) => {
@@ -174,8 +174,8 @@ export const usePipelines = (projectId: UUID) => {
               return streamedPipelineRuns;
             }
 
-            const newRuns = streamedPipelineRuns.filter((run: PipelineRun) => !currentRuns.find((currentRun: PipelineRun) => currentRun.id === run.id));
-            const runsChangedStatus = streamedPipelineRuns.filter((run: PipelineRun) => run.status !== currentRuns.find((currentRun: PipelineRun) => currentRun.id === run.id)?.status);
+            const newRuns = streamedPipelineRuns.filter((run: PipelineRunInDB) => !currentRuns.find((currentRun: PipelineRunInDB) => currentRun.id === run.id));
+            const runsChangedStatus = streamedPipelineRuns.filter((run: PipelineRunInDB) => run.status !== currentRuns.find((currentRun: PipelineRunInDB) => currentRun.id === run.id)?.status);
 
             // Return without changes if all streamedRuns are the same as the current runs and no run has changed status
             if (newRuns.length === 0 && runsChangedStatus.length === 0) {
@@ -183,11 +183,11 @@ export const usePipelines = (projectId: UUID) => {
             }
 
             // Update existing runs with status changes and append new runs
-            let updatedRuns = currentRuns.map(run => runsChangedStatus.find((changedRun: PipelineRun) => changedRun.id === run.id) || run);
+            let updatedRuns = currentRuns.map(run => runsChangedStatus.find((changedRun: PipelineRunInDB) => changedRun.id === run.id) || run);
             updatedRuns = updatedRuns.concat(newRuns);
 
             // Trigger project refresh if any runs completed
-            const completedRuns = runsChangedStatus.filter((run: PipelineRun) => run.status === "completed");
+            const completedRuns = runsChangedStatus.filter((run: PipelineRunInDB) => run.status === "completed");
             if (completedRuns.length > 0) {
               
               // When a pipeline completes we get new datasets and potentially new model entities
@@ -248,7 +248,7 @@ export const usePipeline = (pipelineId: UUID, projectId: UUID) => {
   }, [projectId, pipelineId, runPipeline]);
 
   const pipelineRuns_ = useMemo(() => {
-    return pipelineRuns.filter((run: PipelineRun) => run.pipelineId === pipelineId);
+    return pipelineRuns.filter((run: PipelineRunInDB) => run.pipelineId === pipelineId);
   }, [pipelineRuns, pipelineId]);
 
   return {

@@ -4,7 +4,7 @@ from pydantic_ai import RunContext
 from project_server.agents.analysis.prompt import ANALYSIS_AGENT_SYSTEM_PROMPT
 from project_server.utils.agent_utils import (
     get_model,
-    get_injected_entities_description,
+    get_entities_description,
     get_sandbox_environment_description
 )
 from project_server.agents.analysis.deps import AnalysisDeps
@@ -52,11 +52,13 @@ async def analysis_agent_system_prompt(ctx: RunContext[AnalysisDeps]) -> str:
     if not ctx.deps:
         return ANALYSIS_AGENT_SYSTEM_PROMPT
 
-    entities_description = get_injected_entities_description(
+    entities_description = await get_entities_description(
+        ctx.deps.client,
         ctx.deps.data_sources_injected,
         ctx.deps.datasets_injected,
         ctx.deps.model_entities_injected,
-        ctx.deps.analyses_injected
+        ctx.deps.analyses_injected,
+        []  # pipelines
     )
 
     env_description = get_sandbox_environment_description()

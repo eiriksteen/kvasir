@@ -18,7 +18,7 @@ import { useProject } from "./useProject";
 import { useMemo, useRef } from "react";
 // import { useAgentContext } from './useAgentContext';
 import { useRuns } from './useRuns';
-import { Run } from "@/types/runs";
+import { RunInDB } from "@/types/runs";
 import { UUID } from "crypto";
 import { SSE } from 'sse.js';
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
@@ -434,7 +434,7 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
 
   const runningJobs = useMemo(() => {
     if (!runs) return [];
-    return runs.filter((run: Run) => run.status === "running").sort((a: Run, b: Run) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
+    return runs.filter((run: RunInDB) => run.status === "running").sort((a: RunInDB, b: RunInDB) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
   }, [runs]);
 
   // Subscribe to streaming updates for the first running job

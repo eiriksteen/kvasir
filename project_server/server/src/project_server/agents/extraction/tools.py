@@ -1,8 +1,6 @@
 import json
 import uuid
 from pathlib import Path
-from uuid import UUID
-from typing import Optional
 from pydantic_ai import RunContext, ModelRetry, FunctionToolset
 
 
@@ -10,20 +8,23 @@ from project_server.agents.extraction.deps import ExtractionDeps
 from project_server.utils.code_utils import run_python_code_in_container, remove_print_statements_from_code
 from project_server.utils.docker_utils import write_file_to_container
 from project_server.client import ProjectClient
+from project_server.client.requests.pipeline import post_pipeline_run
 from project_server.client.requests.data_objects import patch_object_group_raw_data_script_path
+from project_server.client.requests.entity_graph import create_edges, remove_edges
 from synesis_schemas.main_server import (
     Dataset,
     DataSource,
-    ModelImplementation,
     ModelEntityInDB,
     DatasetCreate,
-    ModelUpdateCreate,
     ModelEntityImplementationCreate,
     DataSourceCreate,
     DataObjectCreate,
     PipelineImplementationCreate,
     PipelineImplementationInDB,
     DataObjectRawData,
+    EntityEdgesCreate,
+    PipelineRunCreate,
+    PipelineRunInDB,
 )
 from project_server.worker import logger
 
@@ -306,13 +307,49 @@ async def submit_pipeline_implementation(
             f"Failed to submit pipeline implementation from code: {str(e)}")
 
 
+async def submit_entity_edges(ctx: RunContext[ExtractionDeps], edges: EntityEdgesCreate) -> str:
+    """Submit edges between entities in the graph."""
+    try:
+        client = ProjectClient(bearer_token=ctx.deps.bearer_token)
+        await create_edges(client, edges)
+        return "Successfully submitted entity edges to the system"
+    except Exception as e:
+        raise ModelRetry(
+            f"Failed to submit entity edges to the system: {str(e)}")
+
+
+async def remove_entity_edges(ctx: RunContext[ExtractionDeps], edges: EntityEdgesCreate) -> str:
+    """Remove edges between entities in the graph."""
+    try:
+        client = ProjectClient(bearer_token=ctx.deps.bearer_token)
+        await remove_edges(client, edges)
+        return "Successfully removed entity edges from the system"
+    except Exception as e:
+        raise ModelRetry(
+            f"Failed to remove entity edges from the system: {str(e)}")
+
+
+async def submit_pipeline_run(ctx: RunContext[ExtractionDeps], pipeline_run: PipelineRunCreate) -> PipelineRunInDB:
+    """Submit a completed run associated with a pipeline. """
+    if pipeline_run.status != "completed":
+        raise ModelRetry(
+            "This tool is only for submitting completed pipeline runs inferrable from the codebase.")
+
+    client = ProjectClient(bearer_token=ctx.deps.bearer_token)
+    result = await post_pipeline_run(client, pipeline_run)
+    return result
+
+
 submission_toolset = FunctionToolset[ExtractionDeps](
     tools=[
         submit_data_source,
         submit_dataset,
-        submit_read_raw_data_object_function,
         submit_pipeline_implementation,
-        submit_model_entity
+        submit_model_entity,
+        submit_entity_edges,
+        remove_entity_edges,
+        submit_pipeline_run,
+        submit_read_raw_data_object_function
     ],
     max_retries=5
 )

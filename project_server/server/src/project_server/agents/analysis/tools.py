@@ -265,12 +265,13 @@ async def generate_analysis_result(
     await post_update_to_redis(analysis_status_message, ctx.deps.run_id)
 
     helper_agent_deps = HelperAgentDeps(
+        bearer_token=ctx.deps.client.bearer_token,
+        client=ctx.deps.client,
         model_entities_injected=ctx.deps.model_entities_injected,
         data_sources_injected=ctx.deps.data_sources_injected,
         datasets_injected=ctx.deps.datasets_injected,
         analysis_id=ctx.deps.analysis_id,
         analysis_result_id=analysis_result_id,
-        bearer_token=ctx.deps.client.bearer_token,
     )
 
     async with analysis_helper_agent.run_stream(

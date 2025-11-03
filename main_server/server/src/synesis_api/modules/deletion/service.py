@@ -6,7 +6,6 @@ from synesis_api.database.service import execute, fetch_all
 from synesis_api.modules.data_sources.models import (
     data_source,
     file_data_source,
-    data_source_from_pipeline,
 )
 from synesis_api.modules.data_sources.service import get_user_data_sources
 from synesis_api.modules.data_objects.models import (
@@ -15,8 +14,6 @@ from synesis_api.modules.data_objects.models import (
     data_object,
     time_series_group,
     time_series,
-    dataset_from_pipeline,
-    dataset_from_data_source,
 )
 from synesis_api.modules.data_objects.service import get_user_datasets
 from synesis_api.modules.model.models import (
@@ -27,17 +24,25 @@ from synesis_api.modules.model.service import get_user_model_entities
 from synesis_api.modules.pipeline.models import (
     pipeline,
     pipeline_implementation,
+    function_in_pipeline,
+    pipeline_run,
+)
+from synesis_api.modules.entity_graph.models import (
+    data_source_from_pipeline,
+    dataset_from_pipeline,
+    dataset_from_data_source,
     data_source_supported_in_pipeline,
     dataset_supported_in_pipeline,
     model_entity_supported_in_pipeline,
-    function_in_pipeline,
-    pipeline_run,
     dataset_in_pipeline_run,
     data_source_in_pipeline_run,
     model_entity_in_pipeline_run,
     pipeline_run_output_dataset,
     pipeline_run_output_model_entity,
     pipeline_run_output_data_source,
+    data_source_in_analysis,
+    dataset_in_analysis,
+    model_entity_in_analysis,
 )
 from synesis_api.modules.pipeline.service import get_user_pipelines
 from synesis_api.modules.runs.models import (
@@ -49,11 +54,6 @@ from synesis_api.modules.runs.models import (
     dataset_from_run,
     model_entity_in_run,
     model_entity_from_run,
-)
-from synesis_api.modules.analysis.models import (
-    data_source_in_analysis,
-    dataset_in_analysis,
-    model_entity_in_analysis,
 )
 from synesis_api.modules.orchestrator.models import (
     data_source_context,

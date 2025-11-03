@@ -31,26 +31,16 @@ export interface Notebook {
   notebookSections: NotebookSection[];
 }
 
-export interface AnalysisInputEntities {
-  datasetIds: UUID[];
-  dataSourceIds: UUID[];
-  modelEntityIds: UUID[];
-  analysisIds: UUID[];
-}
-
 export interface AnalysisSmall {
   id: UUID;
   name: string;
   description?: string | null;
   reportGenerated: boolean;
   createdAt: string;
-  inputs: AnalysisInputEntities;
 }
 
 export interface Analysis extends AnalysisSmall {
   notebook: Notebook;
-  inputs: AnalysisInputEntities;
-  descriptionForAgent: string;
 }
 
 export interface AnalysisStatusMessage {
@@ -102,35 +92,11 @@ export interface AnalysisResultInDB {
   sectionId?: UUID | null;
 }
 
-export interface DatasetInAnalysisInDB {
-  analysisId: UUID;
-  datasetId: UUID;
-}
-
-export interface DataSourceInAnalysisInDB {
-  analysisId: UUID;
-  dataSourceId: UUID;
-}
-
-export interface ModelEntityInAnalysisInDB {
-  analysisId: UUID;
-  modelEntityId: UUID;
-}
-
-export interface AnalysisFromPastAnalysisInDB {
-  analysisId: UUID;
-  pastAnalysisId: UUID;
-}
-
 // Other schemas
 
 export interface AnalysisCreate {
   name: string;
   description?: string | null;
-  inputDataSourceIds: UUID[];
-  inputDatasetIds: UUID[];
-  inputModelEntityIds: UUID[];
-  inputAnalysisIds: UUID[];
 }
 
 export interface AnalysisResultUpdate {

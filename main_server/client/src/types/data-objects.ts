@@ -66,17 +66,6 @@ export interface TimeSeriesGroupInDB {
   updatedAt: string;
 }
 
-export interface DatasetFromDataSourceInDB {
-  dataSourceId: UUID;
-  datasetId: UUID;
-}
-
-export interface DatasetFromPipelineInDB {
-  pipelineId: UUID;
-  datasetId: UUID;
-  pipelineRunId?: UUID | null;
-}
-
 // Schemas for the API
 
 export interface DataObject extends DataObjectInDB {
@@ -87,16 +76,8 @@ export interface ObjectGroup extends ObjectGroupInDB {
   modalityFields: TimeSeriesGroupInDB; // TODO: Add more modalities when implemented
 }
 
-// Derive from object groups in dataset (for ERD viz)
-export interface DatasetSources {
-  dataSourceIds: UUID[];
-  pipelineIds: UUID[];
-}
-
 export interface Dataset extends DatasetInDB {
   objectGroups: ObjectGroup[];
-  sources: DatasetSources;
-  descriptionForAgent: string;
 }
 
 export interface ObjectGroupWithObjects extends ObjectGroup {
@@ -155,10 +136,6 @@ export interface DataObjectGroupCreate {
 export interface DatasetCreate {
   name: string;
   description: string;
-  // data source ids for datasets coming directly from (files etc)
-  dataSourceIds: UUID[];
-  // pipeline ids for datasets coming from in-memory, i.e pipelines applied to sources, but without saving the outputs permanently
-  pipelineIds: UUID[];
   // TODO: Add more modalities
   groups: DataObjectGroupCreate[];
 }

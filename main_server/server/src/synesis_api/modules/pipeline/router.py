@@ -13,7 +13,6 @@ from synesis_api.modules.pipeline.service import (
     get_pipeline_runs,
     create_pipeline_run,
     update_pipeline_run_status,
-    create_pipeline_run_outputs,
     get_user_pipelines
 )
 from synesis_api.client import MainServerClient, post_run_pipeline
@@ -22,12 +21,10 @@ from synesis_schemas.main_server import (
     PipelineImplementationCreate,
     PipelineInDB,
     PipelineRunInDB,
-    PipelineRun,
     PipelineRunStatusUpdate,
-    PipelineRunOutputsCreate,
     PipelineCreate,
     PipelineImplementationInDB,
-    RunPipelineRequest,
+    PipelineRunCreate,
     GetPipelinesByIDsRequest
 )
 from synesis_api.app_secrets import SSE_MIN_SLEEP_TIME
@@ -35,12 +32,12 @@ from synesis_api.app_secrets import SSE_MIN_SLEEP_TIME
 router = APIRouter()
 
 
-@router.get("/pipelines/runs", response_model=List[PipelineRun])
-async def fetch_pipeline_runs(user: User = Depends(get_current_user)) -> List[PipelineRun]:
+@router.get("/pipelines/runs", response_model=List[PipelineRunInDB])
+async def fetch_pipeline_runs(user: User = Depends(get_current_user)) -> List[PipelineRunInDB]:
     return await get_pipeline_runs(user.id)
 
 
-@router.get("/pipelines/{pipeline_id}", response_model=Pipeline)
+@router.get("/pipelines/{pipeline_id}", response_model=PipelineInDB)
 async def fetch_pipeline(
     pipeline_id: UUID,
     user: User = Depends(get_current_user),
@@ -74,22 +71,14 @@ async def post_pipeline_implementation(
     return pipeline
 
 
-@router.post("/run-pipeline", response_model=PipelineRunInDB)
-async def run_pipeline(
-    request: RunPipelineRequest,
-    user: User = Depends(get_current_user),
-    token: str = Depends(oauth2_scheme)
-) -> PipelineRunInDB:
+@router.post("/pipeline-run", response_model=PipelineRunInDB)
+async def create_pipeline_run(request: PipelineRunCreate, user: User = Depends(get_current_user)) -> PipelineRunInDB:
 
     if not await user_owns_pipeline(user.id, request.pipeline_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to run this pipeline")
 
-    pipe_run = await create_pipeline_run(request)
-    request.run_id = pipe_run.id
-    await post_run_pipeline(MainServerClient(token), request)
-
-    return pipe_run
+    return await create_pipeline_run(request)
 
 
 @router.patch("/pipelines/{pipeline_run_id}/status", response_model=PipelineRunInDB)
@@ -109,7 +98,7 @@ async def patch_pipeline_run_status(
 
 @router.get("/stream-pipeline-runs")
 async def stream_pipeline_runs(user: User = Depends(get_current_user),) -> StreamingResponse:
-    adapter = TypeAdapter(List[PipelineRun])
+    adapter = TypeAdapter(List[PipelineRunInDB])
 
     async def stream_incomplete_runs():
         prev_run_ids = []
@@ -129,16 +118,3 @@ async def stream_pipeline_runs(user: User = Depends(get_current_user),) -> Strea
             await asyncio.sleep(SSE_MIN_SLEEP_TIME)
 
     return StreamingResponse(stream_incomplete_runs(), media_type="text/event-stream")
-
-
-@router.post("/pipeline-runs/{pipeline_run_id}/outputs")
-async def post_pipeline_run_outputs(
-    pipeline_run_id: str,
-    request: PipelineRunOutputsCreate,
-    user: User = Depends(get_current_user)
-) -> None:
-    if not await user_owns_pipeline_run(user.id, pipeline_run_id):
-        raise HTTPException(
-            status_code=403, detail="You do not have permission to add outputs to this pipeline run")
-
-    await create_pipeline_run_outputs(pipeline_run_id, request)

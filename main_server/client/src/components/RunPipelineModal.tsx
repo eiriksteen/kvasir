@@ -1,7 +1,8 @@
 import { X, Play, Database, Folder, Brain, Settings } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Pipeline } from '@/types/pipeline';
 import { UUID } from 'crypto';
+import { useProject } from '@/hooks/useProject';
 
 interface RunPipelineModalProps {
   pipeline: Pipeline;
@@ -10,11 +11,6 @@ interface RunPipelineModalProps {
   onClose: () => void;
   onRunPipeline: (config: {
     args: Record<string, unknown>;
-    inputs: {
-      dataSourceIds: UUID[];
-      datasetIds: UUID[];
-      modelEntityIds: UUID[];
-    };
     name?: string;
     description?: string;
   }) => void;
@@ -27,11 +23,18 @@ export default function RunPipelineModal({
   onClose,
   onRunPipeline,
 }: RunPipelineModalProps) {
+  const { getEntityGraphNode } = useProject(projectId);
   const [runName, setRunName] = useState('');
   const [runDescription, setRunDescription] = useState('');
   const [selectedDataSourceIds, setSelectedDataSourceIds] = useState<UUID[]>([]);
   const [selectedDatasetIds, setSelectedDatasetIds] = useState<UUID[]>([]);
   const [selectedModelEntityIds, setSelectedModelEntityIds] = useState<UUID[]>([]);
+
+  // Get pipeline inputs from entity graph
+  const pipelineInputs = useMemo(() => {
+    const graphNode = getEntityGraphNode(pipeline.id);
+    return graphNode?.fromEntities || { dataSources: [], datasets: [], modelEntities: [], analyses: [], pipelines: [], pipelineRuns: [] };
+  }, [pipeline.id, getEntityGraphNode]);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -61,24 +64,21 @@ export default function RunPipelineModal({
   useEffect(() => {
     if (isOpen) {
       // Pre-select all supported inputs by default
-      setSelectedDataSourceIds(pipeline.supportedInputs.dataSourceIds);
-      setSelectedDatasetIds(pipeline.supportedInputs.datasetIds);
-      setSelectedModelEntityIds(pipeline.supportedInputs.modelEntityIds);
+      setSelectedDataSourceIds(pipelineInputs.dataSources);
+      setSelectedDatasetIds(pipelineInputs.datasets);
+      setSelectedModelEntityIds(pipelineInputs.modelEntities);
       setRunName('');
       setRunDescription('');
     }
-  }, [isOpen, pipeline]);
+  }, [isOpen, pipelineInputs]);
 
   if (!isOpen) return null;
 
   const handleRun = () => {
+    // Note: Entity relationships are managed through the entity graph
+    // The selected inputs are just for UI display/validation
     onRunPipeline({
       args: {}, // Placeholder - will be configured later
-      inputs: {
-        dataSourceIds: selectedDataSourceIds,
-        datasetIds: selectedDatasetIds,
-        modelEntityIds: selectedModelEntityIds,
-      },
       name: runName || undefined,
       description: runDescription || undefined,
     });
@@ -104,9 +104,9 @@ export default function RunPipelineModal({
   };
 
   const hasInputs =
-    pipeline.supportedInputs.dataSourceIds.length > 0 ||
-    pipeline.supportedInputs.datasetIds.length > 0 ||
-    pipeline.supportedInputs.modelEntityIds.length > 0;
+    pipelineInputs.dataSources.length > 0 ||
+    pipelineInputs.datasets.length > 0 ||
+    pipelineInputs.modelEntities.length > 0;
 
   const hasSelections =
     selectedDataSourceIds.length > 0 ||
@@ -167,13 +167,13 @@ export default function RunPipelineModal({
               <h4 className="text-sm font-semibold text-gray-900">Select Inputs</h4>
               
               {/* Data Sources */}
-              {pipeline.supportedInputs.dataSourceIds.length > 0 && (
+              {pipelineInputs.dataSources.length > 0 && (
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-gray-600 uppercase">
                     Data Sources
                   </label>
                   <div className="space-y-1">
-                    {pipeline.supportedInputs.dataSourceIds.map((id) => (
+                    {pipelineInputs.dataSources.map((id) => (
                       <label
                         key={id}
                         className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
@@ -193,13 +193,13 @@ export default function RunPipelineModal({
               )}
 
               {/* Datasets */}
-              {pipeline.supportedInputs.datasetIds.length > 0 && (
+              {pipelineInputs.datasets.length > 0 && (
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-gray-600 uppercase">
                     Datasets
                   </label>
                   <div className="space-y-1">
-                    {pipeline.supportedInputs.datasetIds.map((id) => (
+                    {pipelineInputs.datasets.map((id) => (
                       <label
                         key={id}
                         className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
@@ -219,13 +219,13 @@ export default function RunPipelineModal({
               )}
 
               {/* Model Entities */}
-              {pipeline.supportedInputs.modelEntityIds.length > 0 && (
+              {pipelineInputs.modelEntities.length > 0 && (
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-gray-600 uppercase">
                     Model Entities
                   </label>
                   <div className="space-y-1">
-                    {pipeline.supportedInputs.modelEntityIds.map((id) => (
+                    {pipelineInputs.modelEntities.map((id) => (
                       <label
                         key={id}
                         className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"

@@ -3,11 +3,9 @@ from datetime import datetime, timezone
 from typing import List, Optional
 from sqlalchemy import insert, select
 
-from synesis_api.modules.data_sources.description import get_data_source_description
 from synesis_schemas.main_server import (
     DataSourceInDB,
     FileDataSourceInDB,
-    DataSourceFromPipelineInDB,
     DataSource,
     DataSourceCreate,
     UnknownFileCreate,
@@ -15,7 +13,6 @@ from synesis_schemas.main_server import (
 from synesis_api.modules.data_sources.models import (
     file_data_source,
     data_source,
-    data_source_from_pipeline,
 )
 from synesis_api.database.service import execute, fetch_all
 
@@ -67,20 +64,7 @@ async def create_data_source(
                 commit_after=True
             )
 
-    # Handle from_pipelines
-    if data_source_create.from_pipelines:
-        for pipeline_id in data_source_create.from_pipelines:
-            pipeline_link_obj = DataSourceFromPipelineInDB(
-                data_source_id=data_source_id,
-                pipeline_id=pipeline_id,
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc)
-            )
-            await execute(
-                insert(data_source_from_pipeline).values(
-                    pipeline_link_obj.model_dump()),
-                commit_after=True
-            )
+    # from_pipelines edges are now managed by project_graph module
 
     return (await get_user_data_sources(user_id, [data_source_id]))[0]
 
@@ -105,11 +89,7 @@ async def get_user_data_sources(user_id: uuid.UUID, data_source_ids: Optional[Li
     )
     file_source_records = await fetch_all(file_source_query)
 
-    # Get pipeline associations
-    pipeline_query = select(data_source_from_pipeline).where(
-        data_source_from_pipeline.c.data_source_id.in_(source_ids)
-    )
-    pipeline_records = await fetch_all(pipeline_query)
+    # from_pipelines edges are now managed by project_graph module
 
     output_records = []
     for source_id in source_ids:
@@ -123,20 +103,9 @@ async def get_user_data_sources(user_id: uuid.UUID, data_source_ids: Optional[Li
         if file_record:
             type_fields_obj = FileDataSourceInDB(**file_record)
 
-        # Get pipeline IDs for this data source
-        from_pipelines = [
-            record["pipeline_id"]
-            for record in pipeline_records
-            if record["data_source_id"] == source_id
-        ]
-
-        description = get_data_source_description(source_obj, type_fields_obj)
-
         output_records.append(DataSource(
             **source_obj.model_dump(),
-            type_fields=type_fields_obj,
-            description_for_agent=description,
-            from_pipelines=from_pipelines
+            type_fields=type_fields_obj
         ))
 
     return output_records

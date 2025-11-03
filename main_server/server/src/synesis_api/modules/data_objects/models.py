@@ -4,8 +4,6 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Table, UUI
 from sqlalchemy.dialects.postgresql import JSONB
 from synesis_api.database.core import metadata
 
-# TODO: Add fields for data quality (e.g. missing values, outliers, etc.)
-
 
 # Overarching dataset table that dataframes are linked to
 dataset = Table(
@@ -102,30 +100,5 @@ time_series_group = Table(
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
-    schema="data_objects"
-)
-
-
-dataset_from_pipeline = Table(
-    "dataset_from_pipeline",
-    metadata,
-    Column("pipeline_id", UUID, ForeignKey(
-        "pipeline.pipeline.id"), primary_key=True, nullable=False),
-    Column("dataset_id", UUID, ForeignKey(
-        "data_objects.dataset.id"), primary_key=True, nullable=False),
-    # If we have done any runs
-    Column("pipeline_run_id", UUID, ForeignKey(
-        "pipeline.pipeline_run.id"), nullable=True),
-    schema="data_objects"
-)
-
-
-dataset_from_data_source = Table(
-    "dataset_from_data_source",
-    metadata,
-    Column("data_source_id", UUID, ForeignKey(
-        "data_sources.data_source.id"), primary_key=True, nullable=False),
-    Column("dataset_id", UUID, ForeignKey(
-        "data_objects.dataset.id"), primary_key=True, nullable=False),
     schema="data_objects"
 )

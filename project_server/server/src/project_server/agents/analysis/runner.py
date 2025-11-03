@@ -7,18 +7,6 @@ from project_server.agents.analysis.output import submit_final_output
 from project_server.worker import broker
 from project_server.agents.runner_base import RunnerBase
 from synesis_schemas.project_server import RunAnalysisRequest
-from synesis_schemas.main_server import (
-    GetModelEntityByIDsRequest,
-    GetDataSourcesByIDsRequest,
-    GetDatasetsByIDsRequest,
-    GetAnalysesByIDsRequest,
-)
-from project_server.client import (
-    get_model_entities_by_ids,
-    get_data_sources_by_ids,
-    get_datasets_by_ids,
-    get_analyses_by_ids,
-)
 
 
 class AnalysisReportResult(BaseModel):
@@ -51,10 +39,10 @@ class AnalysisAgentRunner(RunnerBase):
         )
 
         self.target_analysis_id = target_analysis_id
-        self.input_model_entity_ids = input_model_entity_ids
-        self.input_data_source_ids = input_data_source_ids
-        self.input_dataset_ids = input_dataset_ids
-        self.input_analysis_ids = input_analysis_ids
+        self.input_model_entity_ids = input_model_entity_ids or []
+        self.input_data_source_ids = input_data_source_ids or []
+        self.input_dataset_ids = input_dataset_ids or []
+        self.input_analysis_ids = input_analysis_ids or []
 
     async def __call__(self, prompt_content: str):
         try:
@@ -77,23 +65,16 @@ class AnalysisAgentRunner(RunnerBase):
             raise e
 
     async def _prepare_deps(self) -> None:
-        self.model_entities = await get_model_entities_by_ids(self.project_client, GetModelEntityByIDsRequest(model_entity_ids=self.input_model_entity_ids))
-        self.data_sources = await get_data_sources_by_ids(self.project_client, GetDataSourcesByIDsRequest(data_source_ids=self.input_data_source_ids))
-        self.datasets = await get_datasets_by_ids(self.project_client, GetDatasetsByIDsRequest(dataset_ids=self.input_dataset_ids))
-        self.analyses = await get_analyses_by_ids(self.project_client, GetAnalysesByIDsRequest(analysis_ids=self.input_analysis_ids))
-
-        deps = AnalysisDeps(
+        self.deps = AnalysisDeps(
             client=self.project_client,
             run_id=self.run_id,
             project_id=self.project_id,
             analysis_id=self.target_analysis_id,
-            model_entities_injected=self.model_entities,
-            data_sources_injected=self.data_sources,
-            datasets_injected=self.datasets,
-            analyses_injected=self.analyses
+            model_entities_injected=self.input_model_entity_ids,
+            data_sources_injected=self.input_data_source_ids,
+            datasets_injected=self.input_dataset_ids,
+            analyses_injected=self.input_analysis_ids
         )
-
-        self.deps = deps
 
 
 @broker.task

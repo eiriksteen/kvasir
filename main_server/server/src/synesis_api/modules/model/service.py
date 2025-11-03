@@ -35,7 +35,6 @@ from synesis_schemas.main_server import (
     PypiModelSourceInDB,
 )
 from synesis_api.utils.rag_utils import embed
-from synesis_api.modules.model.description import get_model_entity_description, get_model_description
 
 
 async def create_model(user_id: uuid.UUID, model_create: ModelImplementationCreate) -> ModelImplementation:
@@ -93,16 +92,11 @@ async def create_model(user_id: uuid.UUID, model_create: ModelImplementationCrea
         **inference_function_obj.model_dump()
     )
 
-    description = get_model_description(
-        model_obj, model_definition_obj, training_function_full, inference_function_full, model_obj.implementation_script_path, model_obj.setup_script_path
-    )
-
     return ModelImplementation(
         **{k: v for k, v in model_obj.model_dump().items() if k != 'embedding'},
         definition=model_definition_obj,
         training_function=training_function_full,
-        inference_function=inference_function_full,
-        description_for_agent=description
+        inference_function=inference_function_full
     )
 
 
@@ -248,17 +242,13 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[ModelImplementation]:
         training_function_obj = ModelFunctionInDB(**training_function_record)
         inference_function_obj = ModelFunctionInDB(**inference_function_record)
 
-        model_description = get_model_description(
-            model_obj, model_definition_obj, training_function_obj, inference_function_obj, model_obj.implementation_script_path, model_obj.setup_script_path)
-
         # Build Model object (excluding embedding)
         output_objs.append(
             ModelImplementation(
                 **model_obj.model_dump(),
                 definition=model_definition_obj,
                 training_function=training_function_obj,
-                inference_function=inference_function_obj,
-                description_for_agent=model_description
+                inference_function=inference_function_obj
             )
         )
 
@@ -411,22 +401,15 @@ async def get_user_model_entities(user_id: uuid.UUID, model_entity_ids: List[uui
                 model_implementation=model_impl_obj
             )
 
-            description = get_model_entity_description(
-                entity_obj, model_entity_impl)
-
             model_entity_full_objs.append(ModelEntity(
                 **entity_obj.model_dump(),
-                implementation=model_entity_impl,
-                description_for_agent=description
+                implementation=model_entity_impl
             ))
         else:
             # Entity without implementation (bare entity)
-            description = f"Model Entity: {entity_obj.name}\n\n{entity_obj.description}\n\n*Note: No implementation selected yet*"
-
             model_entity_full_objs.append(ModelEntity(
                 **entity_obj.model_dump(),
-                implementation=None,
-                description_for_agent=description
+                implementation=None
             ))
 
     return model_entity_full_objs

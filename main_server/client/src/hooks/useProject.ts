@@ -6,6 +6,7 @@ import {
   RemoveEntityFromProject,
   UpdateEntityPosition 
 } from "@/types/project";
+import { GraphNode, PipelineGraphNode } from "@/types/entity-graph";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
@@ -237,15 +238,15 @@ export const useProject = (projectId: UUID) => {
       const updatedProjects = projects.map(p => {
         if (p.id !== project.id) return p;
 
-        // Update the appropriate entity list in the graph
+        // Update the appropriate entity list in projectEntities
         switch (arg.entityType) {
           case "data_source":
             return {
               ...p,
-              graph: {
-                ...p.graph,
-                dataSources: p.graph.dataSources.map(ds => 
-                  ds.id === arg.entityId 
+              projectEntities: {
+                ...p.projectEntities,
+                projectDataSources: p.projectEntities.projectDataSources.map(ds => 
+                  ds.dataSourceId === arg.entityId 
                     ? { ...ds, xPosition: arg.xPosition, yPosition: arg.yPosition }
                     : ds
                 )
@@ -254,10 +255,10 @@ export const useProject = (projectId: UUID) => {
           case "dataset":
             return {
               ...p,
-              graph: {
-                ...p.graph,
-                datasets: p.graph.datasets.map(ds => 
-                  ds.id === arg.entityId 
+              projectEntities: {
+                ...p.projectEntities,
+                projectDatasets: p.projectEntities.projectDatasets.map(ds => 
+                  ds.datasetId === arg.entityId 
                     ? { ...ds, xPosition: arg.xPosition, yPosition: arg.yPosition }
                     : ds
                 )
@@ -266,10 +267,10 @@ export const useProject = (projectId: UUID) => {
           case "analysis":
             return {
               ...p,
-              graph: {
-                ...p.graph,
-                analyses: p.graph.analyses.map(a => 
-                  a.id === arg.entityId 
+              projectEntities: {
+                ...p.projectEntities,
+                projectAnalyses: p.projectEntities.projectAnalyses.map(a => 
+                  a.analysisId === arg.entityId 
                     ? { ...a, xPosition: arg.xPosition, yPosition: arg.yPosition }
                     : a
                 )
@@ -278,10 +279,10 @@ export const useProject = (projectId: UUID) => {
           case "pipeline":
             return {
               ...p,
-              graph: {
-                ...p.graph,
-                pipelines: p.graph.pipelines.map(pl => 
-                  pl.id === arg.entityId 
+              projectEntities: {
+                ...p.projectEntities,
+                projectPipelines: p.projectEntities.projectPipelines.map(pl => 
+                  pl.pipelineId === arg.entityId 
                     ? { ...pl, xPosition: arg.xPosition, yPosition: arg.yPosition }
                     : pl
                 )
@@ -290,10 +291,10 @@ export const useProject = (projectId: UUID) => {
           case "model_entity":
             return {
               ...p,
-              graph: {
-                ...p.graph,
-                modelEntities: p.graph.modelEntities.map(me => 
-                  me.id === arg.entityId 
+              projectEntities: {
+                ...p.projectEntities,
+                projectModelEntities: p.projectEntities.projectModelEntities.map(me => 
+                  me.modelEntityId === arg.entityId 
                     ? { ...me, xPosition: arg.xPosition, yPosition: arg.yPosition }
                     : me
                 )
@@ -353,18 +354,18 @@ export const useProject = (projectId: UUID) => {
   );
 
   const calculateNodePosition = useCallback(() => {
-    if (!project?.graph || project.graph.dataSources.length === 0) {
+    if (!project?.projectEntities || project.projectEntities.projectDataSources.length === 0) {
       return { x: -300, y: 0 };
     }
 
     const baseX = -300;
     const verticalSpacing = 75; 
 
-    const yPositions = project.graph.dataSources.map(ds => ds.yPosition);
+    const yPositions = project.projectEntities.projectDataSources.map(ds => ds.yPosition);
     const highestY = Math.max(...yPositions);
 
     return { x: baseX, y: highestY + verticalSpacing };
-  }, [project?.graph]);
+  }, [project?.projectEntities]);
 
   // Unified function to add any entity to project
   const addEntity = async (
@@ -397,6 +398,29 @@ export const useProject = (projectId: UUID) => {
     mutateProjects();
   };
 
+  // Get GraphNode for a specific entity ID - provides access to inputs/outputs
+  const getEntityGraphNode = useCallback((entityId: UUID): GraphNode | PipelineGraphNode | null => {
+    if (!project?.graph) return null;
+
+    // Search through all entity types in the graph
+    const dataSource = project.graph.dataSources.find(ds => ds.id === entityId);
+    if (dataSource) return dataSource;
+
+    const dataset = project.graph.datasets.find(d => d.id === entityId);
+    if (dataset) return dataset;
+
+    const pipeline = project.graph.pipelines.find(p => p.id === entityId);
+    if (pipeline) return pipeline;
+
+    const analysis = project.graph.analyses.find(a => a.id === entityId);
+    if (analysis) return analysis;
+
+    const modelEntity = project.graph.modelEntities.find(me => me.id === entityId);
+    if (modelEntity) return modelEntity;
+
+    return null;
+  }, [project?.graph]);
+
   return {
     project,
     error: null,
@@ -408,5 +432,6 @@ export const useProject = (projectId: UUID) => {
     removeEntity,
     calculateDatasetPosition: calculateNodePosition,
     mutateProject: mutateProjects,
+    getEntityGraphNode,
   };
 };

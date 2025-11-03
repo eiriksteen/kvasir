@@ -9,16 +9,7 @@ from synesis_api.modules.pipeline.models import (
     pipeline,
     pipeline_implementation,
     function_in_pipeline,
-    data_source_supported_in_pipeline,
-    dataset_supported_in_pipeline,
-    model_entity_supported_in_pipeline,
     pipeline_run,
-    dataset_in_pipeline_run,
-    data_source_in_pipeline_run,
-    model_entity_in_pipeline_run,
-    pipeline_run_output_dataset,
-    pipeline_run_output_model_entity,
-    pipeline_run_output_data_source
 )
 from synesis_api.modules.function.service import get_functions
 from synesis_schemas.main_server import (
@@ -27,24 +18,11 @@ from synesis_schemas.main_server import (
     Pipeline,
     PipelineImplementation,
     PipelineImplementationCreate,
-    PipelineRunEntities,
-    PipelineRun,
-    ModelEntitySupportedInPipelineInDB,
-    DataSourceSupportedInPipelineInDB,
-    DatasetSupportedInPipelineInDB,
     PipelineRunInDB,
-    PipelineRunOutputDatasetInDB,
-    PipelineRunOutputModelEntityInDB,
-    PipelineRunOutputDataSourceInDB,
-    PipelineRunOutputsCreate,
     PipelineCreate,
     FunctionInPipelineInDB,
-    RunPipelineRequest,
-    DatasetInPipelineRunInDB,
-    DataSourceInPipelineRunInDB,
-    ModelEntityInPipelineRunInDB,
+    PipelineRunCreate,
 )
-from synesis_api.modules.pipeline.description import get_pipeline_description
 
 
 async def create_pipeline(user_id: uuid.UUID, pipeline_create: PipelineCreate) -> PipelineInDB:
@@ -56,35 +34,7 @@ async def create_pipeline(user_id: uuid.UUID, pipeline_create: PipelineCreate) -
         updated_at=datetime.now(timezone.utc)
     )
 
-    data_source_supported_in_pipeline_records = [DataSourceSupportedInPipelineInDB(
-        pipeline_id=pipeline_record.id,
-        data_source_id=data_source_id,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    ).model_dump() for data_source_id in pipeline_create.supported_inputs.data_source_ids]
-
-    dataset_supported_in_pipeline_records = [DatasetSupportedInPipelineInDB(
-        pipeline_id=pipeline_record.id,
-        dataset_id=dataset_id,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    ).model_dump() for dataset_id in pipeline_create.supported_inputs.dataset_ids]
-
-    model_entity_supported_in_pipeline_records = [ModelEntitySupportedInPipelineInDB(
-        pipeline_id=pipeline_record.id,
-        model_entity_id=model_entity_id,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    ).model_dump() for model_entity_id in pipeline_create.supported_inputs.model_entity_ids]
-
     await execute(insert(pipeline).values(pipeline_record.model_dump()), commit_after=True)
-
-    if len(data_source_supported_in_pipeline_records) > 0:
-        await execute(insert(data_source_supported_in_pipeline).values(data_source_supported_in_pipeline_records), commit_after=True)
-    if len(dataset_supported_in_pipeline_records) > 0:
-        await execute(insert(dataset_supported_in_pipeline).values(dataset_supported_in_pipeline_records), commit_after=True)
-    if len(model_entity_supported_in_pipeline_records) > 0:
-        await execute(insert(model_entity_supported_in_pipeline).values(model_entity_supported_in_pipeline_records), commit_after=True)
 
     return pipeline_record
 
@@ -146,7 +96,6 @@ async def get_user_pipelines(
     pipeline_runs_query = select(pipeline_run).where(
         pipeline_run.c.pipeline_id.in_(pipeline_ids))
     pipeline_runs = await fetch_all(pipeline_runs_query)
-    pipeline_run_ids = [r["id"] for r in pipeline_runs]
 
     # functions in the pipelines
     functions_in_pipelines_query = select(function_in_pipeline).where(
@@ -156,63 +105,10 @@ async def get_user_pipelines(
     function_records = await get_functions(
         [f["function_id"] for f in functions_in_pipelines])
 
-    # supported inputs (what can be used)
-    supported_data_sources_query = select(data_source_supported_in_pipeline).where(
-        data_source_supported_in_pipeline.c.pipeline_id.in_(pipeline_ids))
-    supported_data_sources = await fetch_all(supported_data_sources_query)
-
-    supported_datasets_query = select(dataset_supported_in_pipeline).where(
-        dataset_supported_in_pipeline.c.pipeline_id.in_(pipeline_ids))
-    supported_datasets = await fetch_all(supported_datasets_query)
-
-    supported_model_entities_query = select(model_entity_supported_in_pipeline).where(
-        model_entity_supported_in_pipeline.c.pipeline_id.in_(pipeline_ids))
-    supported_model_entities = await fetch_all(supported_model_entities_query)
-
-    # run inputs (what was actually used in each run)
-    run_input_datasets_query = select(dataset_in_pipeline_run).where(
-        dataset_in_pipeline_run.c.pipeline_run_id.in_(pipeline_run_ids)) if pipeline_run_ids else []
-    run_input_datasets = await fetch_all(run_input_datasets_query) if pipeline_run_ids else []
-
-    run_input_data_sources_query = select(data_source_in_pipeline_run).where(
-        data_source_in_pipeline_run.c.pipeline_run_id.in_(pipeline_run_ids)) if pipeline_run_ids else []
-    run_input_data_sources = await fetch_all(run_input_data_sources_query) if pipeline_run_ids else []
-
-    run_input_model_entities_query = select(model_entity_in_pipeline_run).where(
-        model_entity_in_pipeline_run.c.pipeline_run_id.in_(pipeline_run_ids)) if pipeline_run_ids else []
-    run_input_model_entities = await fetch_all(run_input_model_entities_query) if pipeline_run_ids else []
-
-    # run outputs (what was produced by each run)
-    run_output_datasets_query = select(pipeline_run_output_dataset).where(
-        pipeline_run_output_dataset.c.pipeline_run_id.in_(pipeline_run_ids)) if pipeline_run_ids else []
-    run_output_datasets = await fetch_all(run_output_datasets_query) if pipeline_run_ids else []
-
-    run_output_model_entities_query = select(pipeline_run_output_model_entity).where(
-        pipeline_run_output_model_entity.c.pipeline_run_id.in_(pipeline_run_ids)) if pipeline_run_ids else []
-    run_output_model_entities = await fetch_all(run_output_model_entities_query) if pipeline_run_ids else []
-
-    run_output_data_sources_query = select(pipeline_run_output_data_source).where(
-        pipeline_run_output_data_source.c.pipeline_run_id.in_(pipeline_run_ids)) if pipeline_run_ids else []
-    run_output_data_sources = await fetch_all(run_output_data_sources_query) if pipeline_run_ids else []
-
     output_objs = []
     for pipe_id in pipeline_ids:
         pipe_obj = PipelineInDB(**next(
             iter([p for p in pipelines if p["id"] == pipe_id])))
-
-        # Build supported inputs
-        supported_data_source_ids = [s["data_source_id"]
-                                     for s in supported_data_sources if s["pipeline_id"] == pipe_id]
-        supported_dataset_ids = [s["dataset_id"]
-                                 for s in supported_datasets if s["pipeline_id"] == pipe_id]
-        supported_model_entity_ids = [s["model_entity_id"]
-                                      for s in supported_model_entities if s["pipeline_id"] == pipe_id]
-
-        supported_inputs = PipelineRunEntities(
-            data_source_ids=supported_data_source_ids,
-            dataset_ids=supported_dataset_ids,
-            model_entity_ids=supported_model_entity_ids,
-        )
 
         pipe_implementation_record = next(iter([
             p for p in pipeline_implementations if p["id"] == pipe_id]), None)
@@ -223,43 +119,8 @@ async def get_user_pipelines(
             runs_records = [
                 r for r in pipeline_runs if r["pipeline_id"] == pipe_id]
 
-            # Build run objects with inputs and outputs
             for run_record in runs_records:
-                run_id = run_record["id"]
-
-                # Build run inputs
-                run_dataset_ids = [
-                    r["dataset_id"] for r in run_input_datasets if r["pipeline_run_id"] == run_id]
-                run_data_source_ids = [
-                    r["data_source_id"] for r in run_input_data_sources if r["pipeline_run_id"] == run_id]
-                run_model_entity_ids = [
-                    r["model_entity_id"] for r in run_input_model_entities if r["pipeline_run_id"] == run_id]
-
-                run_inputs = PipelineRunEntities(
-                    dataset_ids=run_dataset_ids,
-                    data_source_ids=run_data_source_ids,
-                    model_entity_ids=run_model_entity_ids,
-                )
-
-                # Build run outputs
-                run_output_dataset_ids = [
-                    r["dataset_id"] for r in run_output_datasets if r["pipeline_run_id"] == run_id]
-                run_output_data_source_ids = [
-                    r["data_source_id"] for r in run_output_data_sources if r["pipeline_run_id"] == run_id]
-                run_output_model_entity_ids = [
-                    r["model_entity_id"] for r in run_output_model_entities if r["pipeline_run_id"] == run_id]
-
-                run_outputs = PipelineRunEntities(
-                    dataset_ids=run_output_dataset_ids,
-                    data_source_ids=run_output_data_source_ids,
-                    model_entity_ids=run_output_model_entity_ids,
-                )
-
-                runs_objs.append(PipelineRun(
-                    **run_record,
-                    inputs=run_inputs,
-                    outputs=run_outputs,
-                ))
+                runs_objs.append(PipelineRunInDB(**run_record))
 
             function_ids_in_pipeline = [
                 f["function_id"] for f in functions_in_pipelines if f["pipeline_id"] == pipe_id]
@@ -271,63 +132,26 @@ async def get_user_pipelines(
                 functions=functions_records
             )
 
-        pipeline_description = get_pipeline_description(
-            pipeline_in_db=pipe_obj,
-            supported_inputs=supported_inputs,
-            runs=runs_objs,
-            implementation=pipeline_implementation_obj
-        )
-
         output_objs.append(Pipeline(
             **pipe_obj.model_dump(),
-            supported_inputs=supported_inputs,
             runs=runs_objs,
-            implementation=pipeline_implementation_obj,
-            description_for_agent=pipeline_description
+            implementation=pipeline_implementation_obj
         ))
 
     return output_objs
 
 
-async def create_pipeline_run(run_request: RunPipelineRequest) -> PipelineRunInDB:
+async def create_pipeline_run(pipeline_run_create: PipelineRunCreate) -> PipelineRunInDB:
     pipeline_run_obj = PipelineRunInDB(
         id=uuid.uuid4(),
-        **run_request.model_dump(),
-        output_variables={},
+        **pipeline_run_create.model_dump(),
         status="running",
         start_time=datetime.now(timezone.utc),
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc))
     await execute(insert(pipeline_run).values(pipeline_run_obj.model_dump()), commit_after=True)
 
-    # Create input associations
-    dataset_input_records = [DatasetInPipelineRunInDB(
-        pipeline_run_id=pipeline_run_obj.id,
-        dataset_id=dataset_id,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    ).model_dump() for dataset_id in run_request.inputs.dataset_ids]
-
-    data_source_input_records = [DataSourceInPipelineRunInDB(
-        pipeline_run_id=pipeline_run_obj.id,
-        data_source_id=data_source_id,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    ).model_dump() for data_source_id in run_request.inputs.data_source_ids]
-
-    model_entity_input_records = [ModelEntityInPipelineRunInDB(
-        pipeline_run_id=pipeline_run_obj.id,
-        model_entity_id=model_entity_id,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    ).model_dump() for model_entity_id in run_request.inputs.model_entity_ids]
-
-    if len(dataset_input_records) > 0:
-        await execute(insert(dataset_in_pipeline_run).values(dataset_input_records), commit_after=True)
-    if len(data_source_input_records) > 0:
-        await execute(insert(data_source_in_pipeline_run).values(data_source_input_records), commit_after=True)
-    if len(model_entity_input_records) > 0:
-        await execute(insert(model_entity_in_pipeline_run).values(model_entity_input_records), commit_after=True)
+    # Input/output associations are now managed by project_graph module
 
     return pipeline_run_obj
 
@@ -337,7 +161,7 @@ async def get_pipeline_runs(
     only_running: bool = False,
     pipeline_ids: Optional[List[uuid.UUID]] = None,
     run_ids: Optional[List[uuid.UUID]] = None
-) -> List[PipelineRun]:
+) -> List[PipelineRunInDB]:
 
     pipeline_runs_query = select(pipeline_run
                                  ).join(pipeline, pipeline_run.c.pipeline_id == pipeline.c.id
@@ -354,67 +178,13 @@ async def get_pipeline_runs(
             pipeline_run.c.status == "running")
 
     pipeline_runs = await fetch_all(pipeline_runs_query)
-    pipeline_run_ids = [r["id"] for r in pipeline_runs]
 
-    if not pipeline_run_ids:
+    if not pipeline_runs:
         return []
 
-    # Fetch run inputs
-    run_input_datasets = await fetch_all(
-        select(dataset_in_pipeline_run).where(
-            dataset_in_pipeline_run.c.pipeline_run_id.in_(pipeline_run_ids)))
-
-    run_input_data_sources = await fetch_all(
-        select(data_source_in_pipeline_run).where(
-            data_source_in_pipeline_run.c.pipeline_run_id.in_(pipeline_run_ids)))
-
-    run_input_model_entities = await fetch_all(
-        select(model_entity_in_pipeline_run).where(
-            model_entity_in_pipeline_run.c.pipeline_run_id.in_(pipeline_run_ids)))
-
-    # Fetch run outputs
-    run_output_datasets = await fetch_all(
-        select(pipeline_run_output_dataset).where(
-            pipeline_run_output_dataset.c.pipeline_run_id.in_(pipeline_run_ids)))
-
-    run_output_data_sources = await fetch_all(
-        select(pipeline_run_output_data_source).where(
-            pipeline_run_output_data_source.c.pipeline_run_id.in_(pipeline_run_ids)))
-
-    run_output_model_entities = await fetch_all(
-        select(pipeline_run_output_model_entity).where(
-            pipeline_run_output_model_entity.c.pipeline_run_id.in_(pipeline_run_ids)))
-
-    # Build PipelineRun objects
     result = []
     for run in pipeline_runs:
-        run_id = run["id"]
-
-        # Build inputs
-        inputs = PipelineRunEntities(
-            dataset_ids=[r["dataset_id"]
-                         for r in run_input_datasets if r["pipeline_run_id"] == run_id],
-            data_source_ids=[r["data_source_id"]
-                             for r in run_input_data_sources if r["pipeline_run_id"] == run_id],
-            model_entity_ids=[r["model_entity_id"]
-                              for r in run_input_model_entities if r["pipeline_run_id"] == run_id],
-        )
-
-        # Build outputs
-        outputs = PipelineRunEntities(
-            dataset_ids=[r["dataset_id"]
-                         for r in run_output_datasets if r["pipeline_run_id"] == run_id],
-            data_source_ids=[r["data_source_id"]
-                             for r in run_output_data_sources if r["pipeline_run_id"] == run_id],
-            model_entity_ids=[r["model_entity_id"]
-                              for r in run_output_model_entities if r["pipeline_run_id"] == run_id],
-        )
-
-        result.append(PipelineRun(
-            **run,
-            inputs=inputs,
-            outputs=outputs,
-        ))
+        result.append(PipelineRunInDB(**run))
 
     return result
 
@@ -424,37 +194,3 @@ async def update_pipeline_run_status(pipeline_run_id: uuid.UUID, status: Literal
     await execute(pipeline_run.update().where(pipeline_run.c.id == pipeline_run_id).values(status=status), commit_after=True)
     pipeline_run_obj["status"] = status
     return PipelineRunInDB(**pipeline_run_obj)
-
-
-async def create_pipeline_run_outputs(pipeline_run_id: uuid.UUID, request: PipelineRunOutputsCreate) -> None:
-    # Create dataset outputs
-    dataset_output_records = [PipelineRunOutputDatasetInDB(
-        pipeline_run_id=pipeline_run_id,
-        dataset_id=dataset_id,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    ).model_dump() for dataset_id in request.dataset_ids]
-
-    # Create model entity outputs
-    model_entity_output_records = [PipelineRunOutputModelEntityInDB(
-        pipeline_run_id=pipeline_run_id,
-        model_entity_id=model_entity_id,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    ).model_dump() for model_entity_id in request.model_entity_ids]
-
-    # Create data source outputs
-    data_source_output_records = [PipelineRunOutputDataSourceInDB(
-        pipeline_run_id=pipeline_run_id,
-        data_source_id=data_source_id,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    ).model_dump() for data_source_id in request.data_source_ids]
-
-    # Insert all output records
-    if len(dataset_output_records) > 0:
-        await execute(insert(pipeline_run_output_dataset).values(dataset_output_records), commit_after=True)
-    if len(model_entity_output_records) > 0:
-        await execute(insert(pipeline_run_output_model_entity).values(model_entity_output_records), commit_after=True)
-    if len(data_source_output_records) > 0:
-        await execute(insert(pipeline_run_output_data_source).values(data_source_output_records), commit_after=True)

@@ -115,7 +115,6 @@ export interface ModelImplementation extends ModelImplementationWithoutEmbedding
   inferenceFunction: ModelFunctionInDB;
   implementationScriptPath: string;
   setupScriptPath?: string | null;
-  descriptionForAgent: string;
 }
 
 export interface ModelEntityImplementation extends ModelEntityImplementationInDB {
@@ -124,7 +123,6 @@ export interface ModelEntityImplementation extends ModelEntityImplementationInDB
 
 export interface ModelEntity extends ModelEntityInDB {
   implementation?: ModelEntityImplementation | null;
-  descriptionForAgent: string;
 }
 
 export interface GetModelEntityByIDsRequest {

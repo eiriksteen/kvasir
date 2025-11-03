@@ -17,7 +17,6 @@ class AnalysisResult(BaseModel):
     plot_urls: List[str] = []
 
 
-
 class NotebookSection(BaseModel):
     id: UUID
     notebook_id: UUID
@@ -35,26 +34,16 @@ class Notebook(BaseModel):
     notebook_sections: List[NotebookSection] = []
 
 
-class AnalysisInputEntities(BaseModel):
-    dataset_ids: List[UUID] = []
-    data_source_ids: List[UUID] = []
-    model_entity_ids: List[UUID] = []
-    analysis_ids: List[UUID] = []
-
-
 class AnalysisSmall(BaseModel):
     id: UUID
     name: str
     description: str | None = None
     report_generated: bool = False
     created_at: datetime = datetime.now()
-    inputs: AnalysisInputEntities
 
 
 class Analysis(AnalysisSmall):
     notebook: Notebook
-    inputs: AnalysisInputEntities
-    description_for_agent: str
 
 
 class AnalysisStatusMessage(BaseModel):
@@ -112,35 +101,12 @@ class AnalysisResultInDB(BaseModel):
     section_id: UUID | None = None
 
 
-class DatasetInAnalysisInDB(BaseModel):
-    analysis_id: UUID
-    dataset_id: UUID
-
-
-class DataSourceInAnalysisInDB(BaseModel):
-    analysis_id: UUID
-    data_source_id: UUID
-
-
-class ModelEntityInAnalysisInDB(BaseModel):
-    analysis_id: UUID
-    model_entity_id: UUID
-
-
-class AnalysisFromPastAnalysisInDB(BaseModel):
-    analysis_id: UUID
-    past_analysis_id: UUID
-
 # Other schemas
 
 
 class AnalysisCreate(BaseModel):
     name: str
     description: str | None = None
-    input_data_source_ids: List[UUID]
-    input_dataset_ids: List[UUID]
-    input_model_entity_ids: List[UUID]
-    input_analysis_ids: List[UUID]
 
 
 class AnalysisResultUpdate(BaseModel):

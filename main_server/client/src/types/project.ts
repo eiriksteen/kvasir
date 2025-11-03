@@ -1,4 +1,5 @@
 import { UUID } from "crypto";
+import { EntityGraph } from "./entity-graph";
 
 export type EntityType = "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity";
 
@@ -62,79 +63,19 @@ export interface ProjectModelEntityInDB {
   updatedAt: string;
 }
 
-// Graph Types
-
-export type GraphNodeConnections = {
-  fromDataSources: UUID[];
-  fromDatasets: UUID[];
-  fromAnalyses: UUID[];
-  fromPipelines: UUID[];
-  fromModelEntities: UUID[];
-  toDataSources: UUID[];
-  toDatasets: UUID[];
-  toAnalyses: UUID[];
-  toPipelines: UUID[];
-  toModelEntities: UUID[];
-}
-
-export type DataSourceInGraph = {
-  id: UUID;
-  name: string;
-  type: string;
-  briefDescription: string;
-  xPosition: number;
-  yPosition: number;
-  connections: GraphNodeConnections;
-}
-
-export type DatasetInGraph = {
-  id: UUID;
-  name: string;
-  briefDescription: string;
-  xPosition: number;
-  yPosition: number;
-  connections: GraphNodeConnections;
-}
-
-export type PipelineInGraph = {
-  id: UUID;
-  name: string;
-  briefDescription: string;
-  xPosition: number;
-  yPosition: number;
-  connections: GraphNodeConnections;
-}
-
-export type AnalysisInGraph = {
-  id: UUID;
-  name: string;
-  briefDescription: string;
-  xPosition: number;
-  yPosition: number;
-  connections: GraphNodeConnections;
-}
-
-export type ModelEntityInGraph = {
-  id: UUID;
-  name: string;
-  briefDescription: string;
-  xPosition: number;
-  yPosition: number;
-  connections: GraphNodeConnections;
-}
-
-export type ProjectGraph = {
-  dataSources: DataSourceInGraph[];
-  datasets: DatasetInGraph[];
-  pipelines: PipelineInGraph[];
-  analyses: AnalysisInGraph[];
-  modelEntities: ModelEntityInGraph[];
-}
-
 // API Models
 
+export interface ProjectEntities {
+  projectDataSources: ProjectDataSourceInDB[];
+  projectDatasets: ProjectDatasetInDB[];
+  projectPipelines: ProjectPipelineInDB[];
+  projectAnalyses: ProjectAnalysisInDB[];
+  projectModelEntities: ProjectModelEntityInDB[];
+}
+
 export interface Project extends ProjectInDB {
-  graph: ProjectGraph;
+  graph: EntityGraph;
+  projectEntities: ProjectEntities;
 }
 
 // Create Models

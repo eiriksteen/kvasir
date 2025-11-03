@@ -8,18 +8,13 @@ from datetime import datetime
 from sqlalchemy import insert, select, update
 from fastapi import UploadFile, HTTPException
 
-from synesis_api.modules.data_objects.description import get_dataset_description
 from synesis_api.modules.data_objects.models import (
     dataset,
     time_series,
     object_group,
     data_object,
     time_series_group,
-    dataset_from_pipeline,
-    dataset_from_data_source,
 )
-from synesis_api.modules.data_sources.service import get_user_data_sources
-from synesis_api.modules.pipeline.service import get_user_pipelines
 from synesis_schemas.main_server import (
     DatasetCreate,
     DatasetInDB,
@@ -29,7 +24,6 @@ from synesis_schemas.main_server import (
     Dataset,
     DataObject,
     ObjectGroupWithObjects,
-    DatasetSources,
     ObjectGroup,
     get_modality_models,
     ObjectsFile,
@@ -168,30 +162,14 @@ async def create_dataset(
     dataset_obj = DatasetInDB(
         id=uuid.uuid4(),
         user_id=user_id,
-        **dataset_create.model_dump(exclude={"data_source_ids", "pipeline_ids", "groups"}),
+        **dataset_create.model_dump(exclude={"groups"}),
         created_at=datetime.now(),
         updated_at=datetime.now(),
         additional_variables=dataset_create.__pydantic_extra__
     )
     await execute(insert(dataset).values(dataset_obj.model_dump()), commit_after=True)
 
-    # Create dataset relationships
-    if dataset_create.from_data_source_ids:
-        data_source_relationships = [
-            {
-                "data_source_id": ds_id,
-                "dataset_id": dataset_obj.id
-            }
-            for ds_id in dataset_create.from_data_source_ids
-        ]
-        await execute(insert(dataset_from_data_source).values(data_source_relationships), commit_after=True)
-
-    if dataset_create.from_pipeline_ids:
-        pipeline_relationships = [
-            {"pipeline_id": p_id, "dataset_id": dataset_obj.id}
-            for p_id in dataset_create.from_pipeline_ids
-        ]
-        await execute(insert(dataset_from_pipeline).values(pipeline_relationships), commit_after=True)
+    # Dataset source relationships are now managed by project_graph module
 
     for group_create in dataset_create.groups:
         # Match files for this group
@@ -236,17 +214,7 @@ async def get_user_datasets(
 
     group_ids = [group["id"] for group in object_groups_result]
 
-    # Get pipeline IDs from datasets
-    from_pipeline_ids_query = select(dataset_from_pipeline).where(
-        dataset_from_pipeline.c.dataset_id.in_(dataset_ids)
-    )
-    from_pipeline_ids_result = await fetch_all(from_pipeline_ids_query)
-
-    # Get data source IDs from datasets
-    from_data_source_ids_query = select(dataset_from_data_source).where(
-        dataset_from_data_source.c.dataset_id.in_(dataset_ids)
-    )
-    from_data_source_ids_result = await fetch_all(from_data_source_ids_query)
+    # Dataset sources relationships are now managed by project_graph module
 
     # Only query time series groups if we have group_ids
     time_series_groups_result = []
@@ -276,25 +244,6 @@ async def get_user_datasets(
             first_objects = await get_data_objects(object_ids=first_object_ids)
             first_data_objects = {obj.group_id: obj for obj in first_objects}
 
-    # Collect all unique data source and pipeline IDs
-    all_data_source_ids = list(set(
-        rec["data_source_id"] for rec in from_data_source_ids_result
-    ))
-    all_pipeline_ids = list(set(
-        rec["pipeline_id"] for rec in from_pipeline_ids_result
-    ))
-
-    # Fetch all data sources and pipelines once before the loop
-    all_data_sources = {}
-    if all_data_source_ids:
-        fetched_data_sources = await get_user_data_sources(user_id, all_data_source_ids)
-        all_data_sources = {ds.id: ds for ds in fetched_data_sources}
-
-    all_pipelines = {}
-    if all_pipeline_ids:
-        fetched_pipelines = await get_user_pipelines(user_id, all_pipeline_ids)
-        all_pipelines = {p.id: p for p in fetched_pipelines}
-
     # Prepare the final records
     result_records = []
     for dataset_result in datasets_result:
@@ -323,38 +272,9 @@ async def get_user_datasets(
 
         # TODO: Add other object groups here
 
-        # Get dataset sources directly from relationships
-        from_pipeline_ids = [
-            rec["pipeline_id"] for rec in from_pipeline_ids_result if rec["dataset_id"] == dataset_obj.id]
-        from_data_source_ids = [
-            rec["data_source_id"] for rec in from_data_source_ids_result if rec["dataset_id"] == dataset_obj.id]
-
-        # Filter pre-fetched data sources and pipelines for this dataset
-        data_sources_list = [
-            all_data_sources[ds_id] for ds_id in from_data_source_ids if ds_id in all_data_sources
-        ]
-        pipelines_list = [
-            all_pipelines[p_id] for p_id in from_pipeline_ids if p_id in all_pipelines
-        ]
-
-        sources = DatasetSources(
-            data_sources=data_sources_list,
-            pipelines=pipelines_list
-        )
-
-        description = get_dataset_description(
-            dataset_obj,
-            all_object_groups,
-            sources,
-            include_full_data_source_description=True,
-            include_full_pipeline_description=True
-        )
-
         record = Dataset(
             **dataset_obj.model_dump(),
-            object_groups=all_object_groups,
-            sources=sources,
-            description_for_agent=description
+            object_groups=all_object_groups
         )
 
         result_records.append(record)

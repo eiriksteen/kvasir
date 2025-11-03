@@ -4,7 +4,7 @@ from typing import Optional, List, Callable
 
 from project_server.client import ProjectClient
 from project_server.agents.runner_base import StreamedCode
-from synesis_schemas.main_server import ModelEntity, DataSource, Dataset, Analysis, Pipeline, Project
+from synesis_schemas.main_server import Project
 from synesis_schemas.project_server import FileInRun, RenamedFile
 
 
@@ -15,11 +15,11 @@ class SWEAgentDeps:
     client: ProjectClient
     conversation_id: uuid.UUID
     project: Project
-    model_entities_injected: List[ModelEntity] = field(default_factory=list)
-    data_sources_injected: List[DataSource] = field(default_factory=list)
-    datasets_injected: List[Dataset] = field(default_factory=list)
-    analyses_injected: List[Analysis] = field(default_factory=list)
-    pipelines_injected: List[Pipeline] = field(default_factory=list)
+    model_entities_injected: List[uuid.UUID] = field(default_factory=list)
+    data_sources_injected: List[uuid.UUID] = field(default_factory=list)
+    datasets_injected: List[uuid.UUID] = field(default_factory=list)
+    analyses_injected: List[uuid.UUID] = field(default_factory=list)
+    pipelines_injected: List[uuid.UUID] = field(default_factory=list)
     new_files: List[FileInRun] = field(default_factory=list)
     modified_files: List[FileInRun] = field(default_factory=list)
     deleted_files: List[FileInRun] = field(default_factory=list)

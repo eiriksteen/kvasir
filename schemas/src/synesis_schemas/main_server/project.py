@@ -1,10 +1,10 @@
 from datetime import datetime, timezone
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, TYPE_CHECKING
 from uuid import UUID
 from pydantic import model_validator
 from pydantic import BaseModel
 
-from .data_sources import DATA_SOURCE_TYPE_LITERAL
+from .entity_graph import EntityGraph
 
 # DB Schemas
 
@@ -125,72 +125,14 @@ class UpdateProjectViewport(BaseModel):
     zoom: float
 
 
-class GraphNodeConnections(BaseModel):
-    from_data_sources: List[UUID] = []
-    from_datasets: List[UUID] = []
-    from_analyses: List[UUID] = []
-    from_pipelines: List[UUID] = []
-    from_model_entities: List[UUID] = []
-    to_data_sources: List[UUID] = []
-    to_datasets: List[UUID] = []
-    to_analyses: List[UUID] = []
-    to_pipelines: List[UUID] = []
-    to_model_entities: List[UUID] = []
-
-
-class DataSourceInGraph(BaseModel):
-    id: UUID
-    name: str
-    type: DATA_SOURCE_TYPE_LITERAL
-    brief_description: str
-    x_position: float
-    y_position: float
-    connections: GraphNodeConnections
-
-
-class DatasetInGraph(BaseModel):
-    id: UUID
-    name: str
-    brief_description: str
-    x_position: float
-    y_position: float
-    connections: GraphNodeConnections
-
-
-class PipelineInGraph(BaseModel):
-    id: UUID
-    name: str
-    brief_description: str
-    x_position: float
-    y_position: float
-    connections: GraphNodeConnections
-
-
-class AnalysisInGraph(BaseModel):
-    id: UUID
-    name: str
-    x_position: float
-    y_position: float
-    brief_description: str
-    connections: GraphNodeConnections
-
-
-class ModelEntityInGraph(BaseModel):
-    id: UUID
-    name: str
-    x_position: float
-    y_position: float
-    brief_description: str
-    connections: GraphNodeConnections
-
-
-class ProjectGraph(BaseModel):
-    data_sources: List[DataSourceInGraph] = []
-    datasets: List[DatasetInGraph] = []
-    pipelines: List[PipelineInGraph] = []
-    analyses: List[AnalysisInGraph] = []
-    model_entities: List[ModelEntityInGraph] = []
+class ProjectEntities(BaseModel):
+    project_data_sources: List[ProjectDataSourceInDB] = []
+    project_datasets: List[ProjectDatasetInDB] = []
+    project_pipelines: List[ProjectPipelineInDB] = []
+    project_analyses: List[ProjectAnalysisInDB] = []
+    project_model_entities: List[ProjectModelEntityInDB] = []
 
 
 class Project(ProjectInDB):
-    graph: ProjectGraph
+    graph: EntityGraph
+    project_entities: ProjectEntities

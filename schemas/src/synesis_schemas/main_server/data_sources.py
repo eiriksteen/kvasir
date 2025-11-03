@@ -15,6 +15,7 @@ class DataSourceInDB(BaseModel):
     user_id: UUID
     type: DATA_SOURCE_TYPE_LITERAL
     name: str
+    description: str
     additional_variables: Optional[Dict[str, Any]] = None
     created_at: datetime
 
@@ -29,13 +30,6 @@ class FileDataSourceInDB(BaseModel):
     updated_at: datetime
 
 
-class DataSourceFromPipelineInDB(BaseModel):
-    data_source_id: UUID
-    pipeline_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
 # API Models
 
 
@@ -43,8 +37,6 @@ class DataSource(DataSourceInDB):
     # Add more possibilities here
     # Optional until agent has filled it (we want the data source to show up right away so we allow it to be null until then)
     type_fields: Optional[Union[FileDataSourceInDB]] = None
-    description_for_agent: str
-    from_pipelines: List[UUID]
 
 
 class GetDataSourcesByIDsRequest(BaseModel):
@@ -87,9 +79,9 @@ class TabularFileCreate(UnknownFileCreate):
 
 class DataSourceCreate(BaseModel):
     name: str
+    description: str
     type: DATA_SOURCE_TYPE_LITERAL
     type_fields: Union[UnknownFileCreate, TabularFileCreate]
-    from_pipelines: Optional[List[UUID]] = None
     # In addition to general extra info, this can be used to store info about "wildcard" sources that we don't have dedicated tables for
     # We don't need to create fill the tables below
 

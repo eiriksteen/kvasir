@@ -10,7 +10,7 @@ import { ChatMessage } from '@/types/orchestrator';
 import { UUID } from 'crypto';
 import { useRunsInConversation } from '@/hooks/useRuns';
 import RunBox from '@/components/runs/RunBox';
-import { Run } from '@/types/runs';
+import { RunInDB } from '@/types/runs';
 import ChatMessageBox from '@/app/projects/[projectId]/_components/chat/ChatMessageBox';
 import { DataSource } from '@/types/data-sources';
 import { Dataset } from '@/types/data-objects';
@@ -362,7 +362,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
         item: message,
         createdAt: message.createdAt
       })),
-      ...runsInConversation.map((run: Run) => ({
+      ...runsInConversation.map((run: RunInDB) => ({
         type: 'run' as const,
         item: run,
         createdAt: run.startedAt

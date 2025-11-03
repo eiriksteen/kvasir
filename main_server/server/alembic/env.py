@@ -16,8 +16,7 @@ from synesis_api.modules.runs.models import (
     data_source_from_run, dataset_from_run, model_entity_from_run, pipeline_from_run, analysis_from_run
 )
 from synesis_api.modules.data_objects.models import (
-    dataset, data_object, object_group, time_series, time_series_group,
-    dataset_from_pipeline, dataset_from_data_source
+    dataset, data_object, object_group, time_series, time_series_group
 )
 from synesis_api.modules.orchestrator.models import (
     chat_message, chat_pydantic_message, conversation,
@@ -25,11 +24,7 @@ from synesis_api.modules.orchestrator.models import (
     data_source_context, model_entity_context
 )
 from synesis_api.modules.pipeline.models import (
-    pipeline, pipeline_implementation, function_in_pipeline,
-    data_source_supported_in_pipeline, dataset_supported_in_pipeline, model_entity_supported_in_pipeline,
-    pipeline_run,
-    dataset_in_pipeline_run, data_source_in_pipeline_run, model_entity_in_pipeline_run,
-    pipeline_run_output_dataset, pipeline_run_output_model_entity, pipeline_run_output_data_source
+    pipeline, pipeline_implementation, function_in_pipeline, pipeline_run
 )
 from synesis_api.modules.function.models import (
     function, function_definition
@@ -40,7 +35,14 @@ from synesis_api.modules.model.models import (
 )
 from synesis_api.modules.analysis.models import (
     analysis_status_message, analysis, analysis_result,
-    notebook_section, notebook, plot, table,
+    notebook_section, notebook, plot, table
+)
+from synesis_api.modules.entity_graph.models import (
+    data_source_from_pipeline,
+    dataset_from_pipeline, dataset_from_data_source,
+    data_source_supported_in_pipeline, dataset_supported_in_pipeline, model_entity_supported_in_pipeline,
+    dataset_in_pipeline_run, data_source_in_pipeline_run, model_entity_in_pipeline_run,
+    pipeline_run_output_dataset, pipeline_run_output_model_entity, pipeline_run_output_data_source,
     dataset_in_analysis, data_source_in_analysis, model_entity_in_analysis,
     analysis_from_past_analysis
 )
@@ -85,6 +87,7 @@ __all__ = [
     object_group,
     time_series,
     time_series_group,
+    data_source_from_pipeline,
     dataset_from_pipeline,
     dataset_from_data_source,
     analysis,
@@ -146,7 +149,7 @@ target_metadata = metadata
 
 def include_name(name, type_, parent_names):
     if type_ == "schema":
-        return name in ["public", "auth", "data_sources", "runs", "data_objects", "analysis", "orchestrator", "pipeline", "function", "model", "model_sources", "project", "node", "tables", "plots", "notebooks"]
+        return name in ["public", "auth", "data_sources", "runs", "data_objects", "analysis", "orchestrator", "pipeline", "function", "model", "model_sources", "project", "node", "tables", "plots", "notebooks", "entity_graph"]
     else:
         return True
 

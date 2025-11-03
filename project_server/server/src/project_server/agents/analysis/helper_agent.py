@@ -9,10 +9,10 @@ from project_server.utils.code_utils import run_python_function_in_container
 from project_server.agents.analysis.prompt import ANALYSIS_HELPER_SYSTEM_PROMPT
 from project_server.utils.agent_utils import (
     get_model,
-    get_injected_entities_description,
+    get_entities_description,
     get_sandbox_environment_description,
 )
-from synesis_schemas.main_server import Dataset, DataSource, ModelEntity, Analysis
+from project_server.client import ProjectClient
 
 model = get_model()
 
@@ -20,12 +20,13 @@ model = get_model()
 @dataclass
 class HelperAgentDeps:
     bearer_token: str
+    client: ProjectClient
     analysis_id: uuid.UUID
     analysis_result_id: uuid.UUID
-    data_sources_injected: List[DataSource] = field(default_factory=list)
-    datasets_injected: List[Dataset] = field(default_factory=list)
-    analyses_injected: List[Analysis] = field(default_factory=list)
-    model_entities_injected: List[ModelEntity] = field(default_factory=list)
+    data_sources_injected: List[uuid.UUID] = field(default_factory=list)
+    datasets_injected: List[uuid.UUID] = field(default_factory=list)
+    analyses_injected: List[uuid.UUID] = field(default_factory=list)
+    model_entities_injected: List[uuid.UUID] = field(default_factory=list)
 
 
 analysis_helper_agent = Agent(
@@ -41,11 +42,13 @@ analysis_helper_agent = Agent(
 @analysis_helper_agent.system_prompt
 async def analysis_helper_agent_system_prompt(ctx: RunContext[HelperAgentDeps]) -> str:
 
-    entities_description = get_injected_entities_description(
+    entities_description = await get_entities_description(
+        ctx.deps.client,
         ctx.deps.data_sources_injected,
         ctx.deps.datasets_injected,
         ctx.deps.model_entities_injected,
-        ctx.deps.analyses_injected
+        ctx.deps.analyses_injected,
+        []  # pipelines
     )
 
     env_description = get_sandbox_environment_description()

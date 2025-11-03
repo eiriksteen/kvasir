@@ -4,8 +4,6 @@ from datetime import datetime
 from uuid import UUID
 
 
-
-
 SUPPORTED_MODALITIES_TYPE = Literal["time_series", "tabular", "multimodal",
                                     "image", "text", "audio", "video"]
 
@@ -131,7 +129,6 @@ class ModelImplementation(ModelImplementationWithoutEmbedding):
     inference_function: ModelFunctionInDB
     implementation_script_path: str
     setup_script_path: Optional[str] = None
-    description_for_agent: str
 
 
 class ModelEntityImplementation(ModelEntityImplementationInDB):
@@ -140,7 +137,6 @@ class ModelEntityImplementation(ModelEntityImplementationInDB):
 
 class ModelEntity(ModelEntityInDB):
     implementation: Optional[ModelEntityImplementation] = None
-    description_for_agent: str
 
 
 class GetModelEntityByIDsRequest(BaseModel):

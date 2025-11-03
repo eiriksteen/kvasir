@@ -78,19 +78,7 @@ export interface PipelineFromRunInDB {
 }
 
 // API Models
-
-export interface RunEntityIds {
-  dataSourceIds: UUID[];
-  datasetIds: UUID[];
-  modelEntityIds: UUID[];
-  pipelineIds: UUID[];
-  analysisIds: UUID[];
-}
-
-export interface Run extends RunInDB {
-  inputs?: RunEntityIds | null;
-  outputs?: RunEntityIds | null;
-}
+// Run inputs/outputs are accessed through the entity graph via getEntityGraphNode(runId)
 
 export interface StreamedCode {
   code: string;

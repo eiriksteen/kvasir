@@ -5,6 +5,9 @@ from uuid import UUID
 
 from .function import FunctionWithoutEmbedding
 
+
+PIPELINE_RUN_STATUS_LITERAL = Literal["running", "completed", "failed"]
+
 # DB models
 
 
@@ -30,27 +33,6 @@ class PipelineImplementationInDB(BaseModel):
     updated_at: datetime
 
 
-class DataSourceSupportedInPipelineInDB(BaseModel):
-    data_source_id: UUID
-    pipeline_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class DatasetSupportedInPipelineInDB(BaseModel):
-    dataset_id: UUID
-    pipeline_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class ModelEntitySupportedInPipelineInDB(BaseModel):
-    model_entity_id: UUID
-    pipeline_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
 class FunctionInPipelineInDB(BaseModel):
     pipeline_id: UUID
     function_id: UUID
@@ -63,53 +45,11 @@ class PipelineRunInDB(BaseModel):
     pipeline_id: UUID
     name: Optional[str] = None
     description: Optional[str] = None
-    status: Literal["running", "completed", "failed"]
+    status: PIPELINE_RUN_STATUS_LITERAL
     args: dict
     output_variables: dict
     start_time: datetime
     end_time: Optional[datetime] = None
-    created_at: datetime
-    updated_at: datetime
-
-
-class DatasetInPipelineRunInDB(BaseModel):
-    pipeline_run_id: UUID
-    dataset_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class DataSourceInPipelineRunInDB(BaseModel):
-    pipeline_run_id: UUID
-    data_source_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class ModelEntityInPipelineRunInDB(BaseModel):
-    pipeline_run_id: UUID
-    model_entity_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class PipelineRunOutputDatasetInDB(BaseModel):
-    pipeline_run_id: UUID
-    dataset_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class PipelineRunOutputModelEntityInDB(BaseModel):
-    pipeline_run_id: UUID
-    model_entity_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class PipelineRunOutputDataSourceInDB(BaseModel):
-    pipeline_run_id: UUID
-    data_source_id: UUID
     created_at: datetime
     updated_at: datetime
 
@@ -121,32 +61,13 @@ class PipelineImplementation(PipelineImplementationInDB):
     functions: List[FunctionWithoutEmbedding]
 
 
-class PipelineRunEntities(BaseModel):
-    dataset_ids: List[UUID]
-    model_entity_ids: List[UUID]
-    data_source_ids: List[UUID]
-
-
-class PipelineRun(PipelineRunInDB):
-    inputs: PipelineRunEntities
-    outputs: PipelineRunEntities
-
-
 class Pipeline(PipelineInDB):
-    supported_inputs: PipelineRunEntities
-    runs: List[PipelineRun] = []
+    runs: List[PipelineRunInDB] = []
     implementation: Optional[PipelineImplementation] = None
-    description_for_agent: str
 
 
 class PipelineRunStatusUpdate(BaseModel):
-    status: Literal["running", "completed", "failed"]
-
-
-class PipelineRunOutputsCreate(BaseModel):
-    dataset_ids: List[UUID] = []
-    model_entity_ids: List[UUID] = []
-    data_source_ids: List[UUID] = []
+    status: PIPELINE_RUN_STATUS_LITERAL
 
 
 # Create models
@@ -155,7 +76,6 @@ class PipelineRunOutputsCreate(BaseModel):
 class PipelineCreate(BaseModel):
     name: str
     description: Optional[str] = None
-    supported_inputs: PipelineRunEntities
 
 
 class PipelineImplementationCreate(BaseModel):
@@ -181,15 +101,16 @@ class PipelineImplementationCreate(BaseModel):
         return self
 
 
-class RunPipelineRequest(BaseModel):
+class PipelineRunCreate(BaseModel):
+    name: str
     project_id: UUID
     pipeline_id: UUID
     args: dict
-    inputs: PipelineRunEntities
-    name: Optional[str] = None
+    output_variables: dict = {}
     description: Optional[str] = None
     conversation_id: Optional[UUID] = None
     run_id: Optional[UUID] = None
+    status: PIPELINE_RUN_STATUS_LITERAL = "running"
 
 
 class GetPipelinesByIDsRequest(BaseModel):
@@ -197,7 +118,7 @@ class GetPipelinesByIDsRequest(BaseModel):
 
 
 class PipelineRunStatusUpdate(BaseModel):
-    status: Literal["running", "completed", "failed"]
+    status: PIPELINE_RUN_STATUS_LITERAL
 
 
 class PipelineRunOutputVariablesUpdate(BaseModel):

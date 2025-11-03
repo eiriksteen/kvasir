@@ -12,7 +12,7 @@ from synesis_api.modules.orchestrator.agent.tools import (
 )
 from synesis_api.modules.orchestrator.agent.history_processors import (
     keep_only_most_recent_context,
-    keep_only_most_recent_project_graph,
+    keep_only_most_recent_project_desc,
     keep_only_most_recent_run_status
 )
 
@@ -26,7 +26,7 @@ orchestrator_agent = Agent(
     retries=3,
     history_processors=[
         keep_only_most_recent_context,
-        keep_only_most_recent_project_graph,
+        keep_only_most_recent_project_desc,
         keep_only_most_recent_run_status
     ]
     # output_type defined when running

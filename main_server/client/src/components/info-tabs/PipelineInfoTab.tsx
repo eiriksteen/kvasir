@@ -5,12 +5,13 @@ import { useRuns } from '@/hooks/useRuns';
 import { useDatasets } from '@/hooks/useDatasets';
 import { useDataSources } from '@/hooks/useDataSources';
 import { useModelEntities } from '@/hooks/useModelEntities';
+import { useProject } from '@/hooks/useProject';
 import { SquarePlay, FileCode, Database, Folder, Brain, Info, FileText, ArrowDownRight, Trash2 } from 'lucide-react';
 import CodeStream from '@/components/code/CodeStream';
 import { Dataset } from '@/types/data-objects';
 import { DataSource } from '@/types/data-sources';
 import { ModelEntity } from '@/types/model';
-import { Run } from '@/types/runs';
+import { RunInDB } from '@/types/runs';
 import { mutate } from 'swr';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
 import JsonSchemaViewer from '@/components/JsonSchemaViewer';
@@ -37,10 +38,16 @@ export default function PipelineInfoTab({
   const { datasets } = useDatasets(projectId);
   const { dataSources } = useDataSources(projectId);
   const { modelEntities } = useModelEntities(projectId);
+  const { getEntityGraphNode } = useProject(projectId);
   
   const isInProgress = !pipeline?.implementation;
   const [currentView, setCurrentView] = useState<ViewType>(isInProgress ? 'code' : 'overview');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Get pipeline graph node for inputs
+  const pipelineNode = useMemo(() => {
+    return pipeline ? getEntityGraphNode(pipeline.id) : null;
+  }, [pipeline, getEntityGraphNode]);
 
   const handleDelete = async () => {
     try {
@@ -53,11 +60,12 @@ export default function PipelineInfoTab({
   };
 
   // Find the run that has this pipeline in its outputs
-  const pipelineAgentRun: Run | undefined = useMemo(() => {
-    return runs.find(run => 
-      run.outputs?.pipelineIds?.includes(pipelineId)
-    );
-  }, [runs, pipelineId]);
+  const pipelineAgentRun: RunInDB | undefined = useMemo(() => {
+    return runs.find(run => {
+      const runNode = getEntityGraphNode(run.id);
+      return runNode?.toEntities.pipelines.includes(pipelineId);
+    });
+  }, [runs, pipelineId, getEntityGraphNode]);
 
   // When implementation status changes, update the view
   useEffect(() => {
@@ -204,45 +212,6 @@ export default function PipelineInfoTab({
                         <p>Ended: {new Date(run.endTime).toLocaleString()}</p>
                       )}
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {run.inputs.datasetIds.length > 0 && (
-                        <span className="text-xs bg-[#0E4F70]/20 text-[#0E4F70] px-2 py-0.5 rounded">
-                          {run.inputs.datasetIds.length} dataset(s)
-                        </span>
-                      )}
-                      {run.inputs.dataSourceIds.length > 0 && (
-                        <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">
-                          {run.inputs.dataSourceIds.length} data source(s)
-                        </span>
-                      )}
-                      {run.inputs.modelEntityIds.length > 0 && (
-                        <span className="text-xs bg-[#491A32]/20 text-[#491A32] px-2 py-0.5 rounded">
-                          {run.inputs.modelEntityIds.length} model(s)
-                        </span>
-                      )}
-                    </div>
-                    {(run.outputs.datasetIds.length > 0 || run.outputs.dataSourceIds.length > 0 || run.outputs.modelEntityIds.length > 0) && (
-                      <div className="mt-2 pt-2 border-t border-gray-200">
-                        <p className="text-xs text-gray-500 mb-1">Outputs:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {run.outputs.datasetIds.length > 0 && (
-                            <span className="text-xs bg-[#0E4F70]/20 text-[#0E4F70] px-2 py-0.5 rounded">
-                              {run.outputs.datasetIds.length} dataset(s)
-                            </span>
-                          )}
-                          {run.outputs.dataSourceIds.length > 0 && (
-                            <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">
-                              {run.outputs.dataSourceIds.length} data source(s)
-                            </span>
-                          )}
-                          {run.outputs.modelEntityIds.length > 0 && (
-                            <span className="text-xs bg-[#491A32]/20 text-[#491A32] px-2 py-0.5 rounded">
-                              {run.outputs.modelEntityIds.length} model(s)
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -279,49 +248,51 @@ export default function PipelineInfoTab({
                 </div>
               )}
 
-              {/* Input Entities Box - Bottom Left */}
-              <div className="bg-gray-50 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 bg-[#840B08]/20 rounded-lg">
-                    <ArrowDownRight size={16} className="text-[#840B08]" />
+              {/* Input Entities Box */}
+              {pipelineNode && (
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-1.5 bg-[#840B08]/20 rounded-lg">
+                      <ArrowDownRight size={16} className="text-[#840B08]" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-gray-900">Input Entities</h4>
                   </div>
-                  <h4 className="text-sm font-semibold text-gray-900">Supported Inputs</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {pipelineNode.fromEntities.dataSources.map((dataSourceId) => (
+                      <div
+                        key={dataSourceId}
+                        className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-gray-200 text-gray-600"
+                      >
+                        <Database size={10} />
+                        {dataSources?.find((ds: DataSource) => ds.id === dataSourceId)?.name || 'Data Source'}
+                      </div>
+                    ))}
+                    {pipelineNode.fromEntities.datasets.map((datasetId) => (
+                      <div
+                        key={datasetId}
+                        className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
+                      >
+                        <Folder size={10} />
+                        {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
+                      </div>
+                    ))}
+                    {pipelineNode.fromEntities.modelEntities.map((modelEntityId) => (
+                      <div
+                        key={modelEntityId}
+                        className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]"
+                      >
+                        <Brain size={10} />
+                        {modelEntities?.find((me: ModelEntity) => me.id === modelEntityId)?.name || 'Model'}
+                      </div>
+                    ))}
+                    {pipelineNode.fromEntities.dataSources.length === 0 &&
+                     pipelineNode.fromEntities.datasets.length === 0 &&
+                     pipelineNode.fromEntities.modelEntities.length === 0 && (
+                      <p className="text-sm text-gray-400 italic">No input entities</p>
+                    )}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-1">
-                  {pipeline.supportedInputs.dataSourceIds.map((dataSourceId) => (
-                    <div
-                      key={dataSourceId}
-                      className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-gray-200 text-gray-600"
-                    >
-                      <Database size={10} />
-                      {dataSources?.find((ds: DataSource) => ds.id === dataSourceId)?.name || 'Data Source'}
-                    </div>
-                  ))}
-                  {pipeline.supportedInputs.datasetIds.map((datasetId) => (
-                    <div
-                      key={datasetId}
-                      className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
-                    >
-                      <Folder size={10} />
-                      {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
-                    </div>
-                  ))}
-                  {pipeline.supportedInputs.modelEntityIds.map((modelEntityId) => (
-                    <div
-                      key={modelEntityId}
-                      className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]"
-                    >
-                      <Brain size={10} />
-                      {modelEntities?.find((me: ModelEntity) => me.id === modelEntityId)?.name || 'Model'}
-                    </div>
-                  ))}
-                  {pipeline.supportedInputs.dataSourceIds.length === 0 &&
-                   pipeline.supportedInputs.datasetIds.length === 0 &&
-                   pipeline.supportedInputs.modelEntityIds.length === 0 && (
-                    <p className="text-sm text-gray-400 italic">No supported input entities</p>
-                  )}
-                </div>
-              </div>
+              )}
 
             </div>
 

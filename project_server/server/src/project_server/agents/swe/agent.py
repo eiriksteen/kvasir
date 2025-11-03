@@ -8,7 +8,7 @@ from project_server.agents.shared_tools import get_task_guidelines_tool, execute
 from project_server.agents.swe.history_processors import keep_only_most_recent_script
 from project_server.utils.agent_utils import (
     get_model,
-    get_injected_entities_description,
+    get_entities_description,
     get_sandbox_environment_description,
     get_project_description,
     get_working_directory_description
@@ -39,7 +39,8 @@ async def swe_agent_system_prompt(ctx: RunContext[SWEAgentDeps]) -> str:
 
     project_description = get_project_description(ctx.deps.project)
     working_directory_section = await get_working_directory_description(ctx.deps.container_name)
-    entities_description = get_injected_entities_description(
+    entities_description = await get_entities_description(
+        ctx.deps.client,
         ctx.deps.data_sources_injected,
         ctx.deps.datasets_injected,
         ctx.deps.model_entities_injected,

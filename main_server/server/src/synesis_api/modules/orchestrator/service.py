@@ -1,4 +1,6 @@
 import uuid
+import yaml
+from fastapi import HTTPException
 from datetime import datetime, timezone
 from typing import Literal, Optional, List
 from sqlalchemy import select
@@ -30,7 +32,7 @@ from synesis_api.modules.orchestrator.models import (
     data_source_context,
     model_entity_context,
 )
-from synesis_api.modules.orchestrator.agent.history_processors import CONTEXT_PATTERN, PROJECT_GRAPH_PATTERN, RUN_STATUS_PATTERN
+from synesis_api.modules.orchestrator.agent.history_processors import CONTEXT_PATTERN, PROJECT_DESC_PATTERN, RUN_STATUS_PATTERN
 from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.runs.service import get_runs
 from synesis_api.modules.data_objects.service import get_user_datasets
@@ -63,7 +65,6 @@ async def update_conversation_name(conversation_id: uuid.UUID, name: str) -> Non
 
 
 async def get_project_conversations(user_id: uuid.UUID, project_id: uuid.UUID) -> list[ConversationInDB]:
-
     conversations = await fetch_all(
         select(conversation).where(
             conversation.c.user_id == user_id,
@@ -265,12 +266,26 @@ async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
     return context_message
 
 
-async def get_project_graph_message(user_id: uuid.UUID, project_id: uuid.UUID) -> str:
+async def get_project_description_message(user_id: uuid.UUID, project_id: uuid.UUID) -> str:
     projects = await get_projects(user_id, [project_id])
     if not projects:
         raise HTTPException(status_code=404, detail="Project not found")
-    project_graph = projects[0].graph
-    return f"{PROJECT_GRAPH_PATTERN.start}\n\n{project_graph.model_dump_json()}\n\n{PROJECT_GRAPH_PATTERN.end}"
+    project_obj = projects[0]
+
+    project_graph_yaml = yaml.safe_dump(project_obj.graph.model_dump())
+
+    desc = (
+        "**Project Name:**\n\n" +
+        f"{project_obj.name}\n\n" +
+        "**Project Description:**\n\n" +
+        f"{project_obj.description}\n\n" +
+        "**Project Python Package Name:**\n\n" +
+        f"{project_obj.python_package_name}\n\n" +
+        "**Project Graph:**\n\n" +
+        f"{project_graph_yaml}\n\n"
+    )
+
+    return f"{PROJECT_DESC_PATTERN.start}\n\n{desc}\n\n{PROJECT_DESC_PATTERN.end}"
 
 
 async def get_run_status_message(user_id: uuid.UUID, conversation_id: uuid.UUID) -> ModelMessage:
@@ -283,7 +298,8 @@ async def get_run_status_message(user_id: uuid.UUID, conversation_id: uuid.UUID)
 
     runs_status_message = (
         f"{RUN_STATUS_PATTERN.start}\n\n" +
-        "Here are all the runs of the conversations, including their status. Note whether any previous runs are completed or failed.\n\n" +
+        "Here are all the agent runs of the conversations, including their status. Note whether any previous runs are completed or failed.\n\n" +
+        "Note also the difference between agent runs and pipeline runs. Pipeline runs are to run actual pipeline code, agent runs are from dispatching agents. "
         "Runs:\n\n" +
         _get_run_string(runs) +
         f"\n\n{RUN_STATUS_PATTERN.end}"

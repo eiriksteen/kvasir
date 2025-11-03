@@ -32,7 +32,7 @@ from synesis_api.modules.orchestrator.service import (
     get_conversation_by_id,
     update_conversation_name,
     get_run_status_message,
-    get_project_graph_message
+    get_project_description_message
 )
 from synesis_api.modules.orchestrator.agent import orchestrator_agent, orchestrator_toolset
 from synesis_api.auth.service import get_current_user, user_owns_conversation
@@ -63,7 +63,7 @@ async def post_chat(
 
     messages = await get_chat_messages_pydantic(prompt.conversation_id)
     context_message = await get_context_message(user.id, prompt.context)
-    project_graph_message = await get_project_graph_message(user.id, conversation_record.project_id)
+    project_graph_message = await get_project_description_message(user.id, conversation_record.project_id)
     runs_status_message = await get_run_status_message(user.id, prompt.conversation_id)
 
     is_new_conversation = len(messages) == 0

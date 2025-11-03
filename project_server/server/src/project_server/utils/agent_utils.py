@@ -1,4 +1,6 @@
+import yaml
 from typing import List
+from uuid import UUID
 
 from synesis_schemas.main_server import Project
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -21,33 +23,48 @@ from project_server.app_secrets import (
     XAI_API_KEY,
     SANDBOX_PYPROJECT_PATH
 )
-from synesis_schemas.main_server import DataSource, Dataset, ModelEntity, Analysis, Pipeline, ProjectGraph
+from project_server.client import ProjectClient
+from project_server.client.requests.entity_graph import get_entity_details
 
 
-def get_injected_entities_description(
-    data_sources: List[DataSource],
-    datasets: List[Dataset],
-    model_entities: List[ModelEntity],
-    analyses: List[Analysis],
-    pipelines: List[Pipeline]
+async def get_entities_description(
+    client: ProjectClient,
+    data_source_ids: List[UUID],
+    dataset_ids: List[UUID],
+    model_entity_ids: List[UUID],
+    analysis_ids: List[UUID],
+    pipeline_ids: List[UUID]
 ) -> str:
 
-    data_sources_description = "\n\n".join(
-        [data_source.description_for_agent for data_source in data_sources])
-    datasets_description = "\n\n".join(
-        [dataset.description_for_agent for dataset in datasets])
-    analyses_description = "\n\n".join(
-        [analysis.description_for_agent for analysis in analyses])
-    model_entities_description = "\n\n".join(
-        [model_entity.description_for_agent for model_entity in model_entities])
-    pipelines_description = "\n\n".join(
-        [pipeline.description_for_agent for pipeline in pipelines])
+    entity_ids: List[UUID] = data_source_ids + dataset_ids + \
+        model_entity_ids + analysis_ids + pipeline_ids
+    entity_details_response = await get_entity_details(client, entity_ids)
 
-    data_sources_section = f"<data_sources>\n\n{data_sources_description}\n\n</data_sources>\n\n"
-    datasets_section = f"<datasets>\n\n{datasets_description}\n\n</datasets>\n\n"
-    analyses_section = f"<analyses>\n\n{analyses_description}\n\n</analyses>\n\n"
-    model_entities_section = f"<model_entities>\n\n{model_entities_description}\n\n</model_entities>\n\n"
-    pipelines_section = f"<pipelines>\n\n{pipelines_description}\n\n</pipelines>\n\n"
+    # Group descriptions by entity type
+    data_sources_descriptions = []
+    datasets_descriptions = []
+    analyses_descriptions = []
+    model_entities_descriptions = []
+    pipelines_descriptions = []
+
+    for detail in entity_details_response.entity_details:
+        if detail.entity_type == "data_source":
+            data_sources_descriptions.append(detail.description)
+        elif detail.entity_type == "dataset":
+            datasets_descriptions.append(detail.description)
+        elif detail.entity_type == "analysis":
+            analyses_descriptions.append(detail.description)
+        elif detail.entity_type == "model_entity":
+            model_entities_descriptions.append(detail.description)
+        elif detail.entity_type == "pipeline":
+            pipelines_descriptions.append(detail.description)
+
+    # Format sections
+    data_sources_section = f"<data_sources>\n\n{'\n\n'.join(data_sources_descriptions)}\n\n</data_sources>\n\n" if data_sources_descriptions else ""
+    datasets_section = f"<datasets>\n\n{'\n\n'.join(datasets_descriptions)}\n\n</datasets>\n\n" if datasets_descriptions else ""
+    analyses_section = f"<analyses>\n\n{'\n\n'.join(analyses_descriptions)}\n\n</analyses>\n\n" if analyses_descriptions else ""
+    model_entities_section = f"<model_entities>\n\n{'\n\n'.join(model_entities_descriptions)}\n\n</model_entities>\n\n" if model_entities_descriptions else ""
+    pipelines_section = f"<pipelines>\n\n{'\n\n'.join(pipelines_descriptions)}\n\n</pipelines>\n\n" if pipelines_descriptions else ""
 
     return f"The injected entities:\n\n{data_sources_section}{datasets_section}{analyses_section}{model_entities_section}{pipelines_section}"
 
@@ -61,6 +78,7 @@ def get_sandbox_environment_description() -> str:
 
 
 def get_project_description(project: Project) -> str:
+    project_graph_yaml = yaml.safe_dump(project.graph.model_dump())
 
     desc = (
         "**Project Name:**\n\n" +
@@ -70,7 +88,7 @@ def get_project_description(project: Project) -> str:
         "**Project Python Package Name:**\n\n" +
         f"{project.python_package_name}\n\n" +
         "**Project Graph:**\n\n" +
-        f"{project.graph.model_dump_json(indent=2)}\n\n"
+        f"{project_graph_yaml}\n\n"
     )
 
     return desc

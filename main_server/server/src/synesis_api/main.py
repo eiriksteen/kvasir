@@ -14,6 +14,7 @@ from synesis_api.modules.knowledge_bank.router import router as knowledge_bank_r
 from synesis_api.modules.model.router import router as model_router
 from synesis_api.modules.function.router import router as function_router
 from synesis_api.modules.deletion.router import router as deletion_router
+from synesis_api.modules.entity_graph.router import router as entity_graph_router
 
 
 @asynccontextmanager
@@ -104,6 +105,11 @@ app.include_router(plot_router,
 app.include_router(deletion_router,
                    prefix="/deletion",
                    tags=["Deletion"])
+
+
+app.include_router(entity_graph_router,
+                   prefix="/entity-graph",
+                   tags=["Entity Graph"])
 
 
 @app.get("/")

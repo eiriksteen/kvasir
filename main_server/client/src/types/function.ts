@@ -57,7 +57,6 @@ export interface Function extends FunctionWithoutEmbedding {
   definition: FunctionDefinitionInDB;
   implementationScriptPath: string;
   setupScriptPath?: string | null;
-  descriptionForAgent: string;
 }
 
 export interface GetFunctionsRequest {

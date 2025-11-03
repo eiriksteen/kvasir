@@ -5,14 +5,7 @@ from typing import Optional, List
 from project_server.agents.swe.agent import swe_agent
 from project_server.agents.swe.deps import SWEAgentDeps
 from project_server.agents.swe.output import submit_implementation_output
-from project_server.client import (
-    get_model_entities_by_ids,
-    get_data_sources_by_ids,
-    get_datasets_by_ids,
-    get_analyses_by_ids,
-    get_pipelines_by_ids,
-    get_project
-)
+from project_server.client import get_project
 from project_server.agents.runner_base import RunnerBase
 from project_server.worker import broker
 from project_server.utils.docker_utils import (
@@ -22,13 +15,6 @@ from project_server.utils.docker_utils import (
 )
 from project_server.agents.extraction.runner import ExtractionAgentRunner
 from synesis_schemas.project_server import RunSWERequest, ImplementationSummary
-from synesis_schemas.main_server import (
-    GetModelEntityByIDsRequest,
-    GetDataSourcesByIDsRequest,
-    GetDatasetsByIDsRequest,
-    GetAnalysesByIDsRequest,
-    GetPipelinesByIDsRequest
-)
 
 
 class SWEAgentRunner(RunnerBase):
@@ -63,18 +49,13 @@ class SWEAgentRunner(RunnerBase):
         self.container_name = str(project_id)
         self.target_pipeline_id = target_pipeline_id
 
-        self.input_data_source_ids = input_data_source_ids
-        self.input_dataset_ids = input_dataset_ids
-        self.input_analysis_ids = input_analysis_ids
-        self.input_model_entity_ids = input_model_entity_ids
-        self.input_pipeline_ids = input_pipeline_ids
+        self.input_data_source_ids = input_data_source_ids or []
+        self.input_dataset_ids = input_dataset_ids or []
+        self.input_analysis_ids = input_analysis_ids or []
+        self.input_model_entity_ids = input_model_entity_ids or []
+        self.input_pipeline_ids = input_pipeline_ids or []
 
         self.deps = None
-        self.model_entities = None
-        self.data_sources = None
-        self.analyses = None
-        self.datasets = None
-        self.pipelines = None
 
         self.extraction_runner = ExtractionAgentRunner(
             user_id=user_id,
@@ -131,11 +112,6 @@ class SWEAgentRunner(RunnerBase):
 
     async def _prepare_deps(self) -> None:
         self.project = await get_project(self.project_client, self.project_id)
-        self.data_sources = await get_data_sources_by_ids(self.project_client, GetDataSourcesByIDsRequest(data_source_ids=self.input_data_source_ids))
-        self.datasets = await get_datasets_by_ids(self.project_client, GetDatasetsByIDsRequest(dataset_ids=self.input_dataset_ids))
-        self.analyses = await get_analyses_by_ids(self.project_client, GetAnalysesByIDsRequest(analysis_ids=self.input_analysis_ids))
-        self.model_entities = await get_model_entities_by_ids(self.project_client, GetModelEntityByIDsRequest(model_entity_ids=self.input_model_entity_ids))
-        self.pipelines = await get_pipelines_by_ids(self.project_client, GetPipelinesByIDsRequest(pipeline_ids=self.input_pipeline_ids))
 
         self.deps = SWEAgentDeps(
             container_name=self.container_name,
@@ -143,11 +119,11 @@ class SWEAgentRunner(RunnerBase):
             client=self.project_client,
             project=self.project,
             log_code=self._stream_code,
-            data_sources_injected=self.data_sources,
-            datasets_injected=self.datasets,
-            analyses_injected=self.analyses,
-            model_entities_injected=self.model_entities,
-            pipelines_injected=self.pipelines,
+            data_sources_injected=self.input_data_source_ids,
+            datasets_injected=self.input_dataset_ids,
+            analyses_injected=self.input_analysis_ids,
+            model_entities_injected=self.input_model_entity_ids,
+            pipelines_injected=self.input_pipeline_ids,
             conversation_id=self.conversation_id,
         )
 

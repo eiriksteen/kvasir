@@ -1,70 +1,40 @@
 import uuid
-from pydantic import BaseModel, model_validator
 from fastapi import APIRouter, Depends
-from typing import Annotated, Optional
+from typing import Annotated
 
 from project_server.worker import broker
 from project_server.client import (
     ProjectClient,
-    get_model_entities_by_ids,
-    get_pipelines_by_ids,
-    patch_pipeline_run_status
+    patch_pipeline_run_status,
+    post_pipeline_run
 )
 from project_server.agents.swe.runner import SWEAgentRunner
 from project_server.agents.extraction.runner import run_extraction_task
-from synesis_schemas.main_server import (
-    GetModelEntityByIDsRequest,
-    PipelineRunStatusUpdate,
-    GetPipelinesByIDsRequest
-)
-from synesis_schemas.main_server import RunPipelineRequest
-from synesis_schemas.project_server import RunExtractionRequest
 from project_server.auth import TokenData, decode_token
 from project_server.worker import logger
 from project_server.utils.code_utils import run_shell_code_in_container
+from project_server.utils.agent_utils import get_entities_description
+from synesis_schemas.main_server import (
+    PipelineRunStatusUpdate,
+    PipelineRunCreate
+)
+from synesis_schemas.project_server import RunExtractionRequest
 
 
 router = APIRouter()
-
-
-class PipelineRunSettingsOutput(BaseModel):
-    dataset_name: str
-    dataset_description: str
-    bash_script: str
-    python_code_to_append: Optional[str] = None
-
-    @model_validator(mode='after')
-    def validate_at_least_one_code_field(self):
-        if self.bash_script is None and self.python_code_to_append is None:
-            raise ValueError(
-                "At least one of bash_script or python_code_to_append must be provided")
-        return self
 
 
 @broker.task(retry_on_error=False)
 async def run_pipeline_task(
         user_id: uuid.UUID,
         bearer_token: str,
-        run_request: RunPipelineRequest):
+        run_request: PipelineRunCreate):
 
     client = ProjectClient(bearer_token)
 
-    assert run_request.run_id is not None, "Run must be initiated at the main server"
-    run_id = run_request.run_id
-
     try:
-        pipeline_objs = await get_pipelines_by_ids(client, GetPipelinesByIDsRequest(pipeline_ids=[run_request.pipeline_id]))
-
-        if len(pipeline_objs) == 0:
-            raise ValueError(f"Pipeline {run_request.pipeline_id} not found")
-
-        pipeline_obj = pipeline_objs[0]
-        model_entities = await get_model_entities_by_ids(client, GetModelEntityByIDsRequest(model_entity_ids=[me_id for me_id in pipeline_obj.inputs.model_entity_ids]))
-
-        if len(model_entities):
-            model_entity_section = f"The user has provided the following model entities to use: <model_entities>\n{model_entities}\n</model_entities> "
-        else:
-            model_entity_section = ""
+        pipeline_run = await post_pipeline_run(client, run_request)
+        pipeline_desc = await get_entities_description(client, pipeline_ids=[run_request.pipeline_id])
 
         swe_runner = SWEAgentRunner(
             user_id=user_id,
@@ -79,8 +49,7 @@ async def run_pipeline_task(
             "Ideally, you can just create a simple bash script that parses CLI arguments. " +
             "However, depending on the structure of the code, you may need to add some files or make some changes. " +
             "Create the most minimal possible bash script to run this pipeline. " +
-            f"The pipeline to run is <pipeline_description>\n{pipeline_obj.description_for_agent}\n</pipeline_description> " +
-            model_entity_section +
+            f"The pipeline information is {pipeline_desc}" +
             f"The MANDATORY arguments are: <required arguments>\n{run_request.args}\n</arguments> " +
             "Go!"
         )
@@ -89,7 +58,7 @@ async def run_pipeline_task(
         bash_script = swe_output.main_script.content
 
         logger.info(
-            f"THE FULL CODE TO RUN (path: {pipeline_obj.implementation.implementation_script_path})")
+            f"THE FULL CODE TO RUN (path: {bash_script})")
         logger.info("--------------------------------")
         logger.info(bash_script)
         logger.info("--------------------------------")
@@ -99,7 +68,7 @@ async def run_pipeline_task(
         if err:
             raise RuntimeError(err)
 
-        logger.info(f"Pipeline run {run_id} completed")
+        logger.info(f"Pipeline run {pipeline_run.id} completed")
 
         # Trigger extraction agent to look for new entities after pipeline completion
         extraction_prompt = (
@@ -117,22 +86,21 @@ async def run_pipeline_task(
                 project_id=run_request.project_id, prompt_content=extraction_prompt)
         )
 
-        await patch_pipeline_run_status(client, run_id, PipelineRunStatusUpdate(status="completed"))
+        await patch_pipeline_run_status(client, pipeline_run.id, PipelineRunStatusUpdate(status="completed"))
 
     except Exception as e:
-        await patch_pipeline_run_status(client, run_id, PipelineRunStatusUpdate(status="failed"))
-        logger.info(f"Pipeline run {run_id} failed")
+        await patch_pipeline_run_status(client, pipeline_run.id, PipelineRunStatusUpdate(status="failed"))
+        logger.info(f"Pipeline run {pipeline_run.id} failed")
         raise e
 
 
 @router.post("/run-pipeline")
 async def run_pipeline(
-        request: RunPipelineRequest,
+        request: PipelineRunCreate,
         token_data: Annotated[TokenData, Depends(decode_token)] = None):
 
     await run_pipeline_task.kiq(
+        user_id=token_data.user_id,
         bearer_token=token_data.bearer_token,
-        pipeline_id=request.pipeline_id,
-        project_id=request.project_id,
-        run_id=request.run_id
+        run_request=request
     )
