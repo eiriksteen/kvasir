@@ -55,6 +55,7 @@ object_group = Table(
     # Modality indicates the actual data structure: time_series, tabular, etc.
     Column("modality", String, nullable=False),
     Column("raw_data_read_script_path", String, nullable=True),
+    Column("raw_data_read_function_name", String, nullable=True),
     Column("additional_variables", JSONB, nullable=True),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),

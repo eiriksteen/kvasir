@@ -12,7 +12,8 @@ from synesis_schemas.main_server import (
     GetDatasetsByIDsRequest,
     DataObject,
     DataObjectGroupCreate,
-    ObjectsFile
+    ObjectsFile,
+    UpdateObjectGroupRawDataScriptRequest
 )
 
 
@@ -81,10 +82,10 @@ async def get_data_object(client: ProjectClient, object_id: UUID) -> DataObject:
     return DataObject(**response.body)
 
 
-async def patch_object_group_raw_data_script_path(client: ProjectClient, group_id: UUID, raw_data_read_script_path: str) -> ObjectGroup:
+async def patch_object_group_raw_data_script(client: ProjectClient, group_id: UUID, request: UpdateObjectGroupRawDataScriptRequest) -> ObjectGroup:
     response = await client.send_request(
         "patch",
-        f"/data-objects/object-group/{group_id}/raw-data-script-path",
-        params={"raw_data_read_script_path": raw_data_read_script_path}
+        f"/data-objects/object-group/{group_id}/raw-data-script",
+        json=request.model_dump(mode="json")
     )
     return ObjectGroup(**response.body)

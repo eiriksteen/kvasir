@@ -9,7 +9,8 @@ from project_server.app_secrets import (
     SANDBOX_PYPROJECT_PATH,
     SANDBOX_HOST_DIR,
     PROJECT_SERVER_HOST_DIR,
-    SCHEMAS_HOST_DIR
+    SCHEMAS_HOST_DIR,
+    SCRIPTS_INTERNAL_HOST_DIR
 )
 
 from synesis_schemas.main_server import Project
@@ -60,7 +61,8 @@ async def create_project_container_if_not_exists(project: Project, image_name: s
             volumes={str(project_package_dir): {"bind": f"/app/{project.python_package_name}", "mode": "rw"},
                      # Crucial - Read only for external code, we don't want the agent to mess with this
                      str(SCHEMAS_HOST_DIR): {"bind": "/app/schemas", "mode": "ro"},
-                     str(PROJECT_SERVER_HOST_DIR): {"bind": "/app/server", "mode": "ro"}}
+                     str(PROJECT_SERVER_HOST_DIR): {"bind": "/app/server", "mode": "ro"},
+                     str(SCRIPTS_INTERNAL_HOST_DIR): {"bind": "/app/internal", "mode": "rw"}}
         )
         container.start()
         await _install_package_after_start(container_name, project)

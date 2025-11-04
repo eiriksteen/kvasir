@@ -217,7 +217,8 @@ async def find_tool(ctx: RunContext, name_pattern: str, path: str = "/app", file
 
 navigation_toolset = FunctionToolset(
     tools=[
-        grep_tool,
+        # Grep doesnt work so well, keeps reading large data files, todo fix
+        # grep_tool,
         read_file_tool,
         ls_tool,
         find_tool

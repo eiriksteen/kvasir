@@ -18,6 +18,8 @@ interface DatasetInfoTabProps {
 type SelectedDataObject = {
   id: UUID;
   modality: Modality;
+  startTimestamp: string;
+  endTimestamp: string;
 }
 
 
@@ -91,9 +93,9 @@ export default function DatasetInfoTab({
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
           {/* Content Section */}
           <div className="flex-1 min-h-0 flex flex-col">
-            <div className="h-full p-4 space-y-4 flex flex-col">
+            <div className="h-full p-4 flex flex-col">
               {/* Full Width Description */}
-              <div className="p-4 w-full flex items-start justify-between">
+              <div className="w-full flex items-start justify-between pb-4">
                 <div className="flex-1">
                   {dataset.description ? (
                     <p className="text-sm text-gray-700">
@@ -105,7 +107,7 @@ export default function DatasetInfoTab({
                 </div>
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="p-2 text-red-800 hover:bg-red-100 rounded-lg transition-colors ml-4 flex-shrink-0"
+                  className="text-red-800 hover:bg-red-100 rounded-lg transition-colors ml-4 flex-shrink-0"
                   title="Delete dataset"
                 >
                   <Trash2 size={18} />
@@ -113,7 +115,16 @@ export default function DatasetInfoTab({
               </div>
               {selectedDataObject && selectedDataObject.modality === "time_series" ? (
                 <div className="w-full flex-1">
-                  <TimeSeriesChart timeSeriesId={selectedDataObject.id} />
+                  <TimeSeriesChart 
+                    request={{
+                      projectId,
+                      objectId: selectedDataObject.id,
+                      args: {
+                        startTimestamp: selectedDataObject.startTimestamp,
+                        endTimestamp: selectedDataObject.endTimestamp
+                      }
+                    }}
+                  />
                 </div>
               ) : (
                 <div className={`flex gap-4 h-full ${dataset.additionalVariables && Object.keys(dataset.additionalVariables).length > 0 ? 'flex-row' : ''}`}>
@@ -188,7 +199,13 @@ export default function DatasetInfoTab({
                                       {group.objects?.map((obj: DataObject) => {
                                         const modality = objectGroups.find(group => group.id === obj.groupId)?.modality;
                                         const hasRawDataFn = objectGroups.find(group => group.id === obj.groupId)?.rawDataReadScriptPath !== null;
-                                        const onClick = hasRawDataFn ? () => setSelectedDataObject({id: obj.id, modality: modality as Modality}) : undefined;
+                                        const modalityFields = obj.modalityFields as TimeSeriesInDB;
+                                        const onClick = hasRawDataFn ? () => setSelectedDataObject({
+                                          id: obj.id, 
+                                          modality: modality as Modality,
+                                          startTimestamp: modalityFields.startTimestamp,
+                                          endTimestamp: modalityFields.endTimestamp
+                                        }) : undefined;
                                         return (
                                         <div 
                                           key={obj.id} 

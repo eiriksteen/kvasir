@@ -29,7 +29,8 @@ from synesis_schemas.main_server import (
     ObjectsFile,
     DataObjectGroupCreate,
     ObjectGroupInDB,
-    DataObjectCreate
+    DataObjectCreate,
+    UpdateObjectGroupRawDataScriptRequest
 )
 from synesis_api.database.service import execute, fetch_all, insert_df
 
@@ -161,13 +162,15 @@ async def create_dataset(
         dataset_create: DatasetCreate,
         files: List[UploadFile] = []) -> Dataset:
 
+    extra_fields = dataset_create.__pydantic_extra__ or {}
+
     dataset_obj = DatasetInDB(
         id=uuid.uuid4(),
         user_id=user_id,
-        **dataset_create.model_dump(exclude={"groups"}),
+        **dataset_create.model_dump(exclude=list(extra_fields.keys())),
         created_at=datetime.now(),
         updated_at=datetime.now(),
-        additional_variables=dataset_create.__pydantic_extra__
+        additional_variables=extra_fields
     )
     await execute(insert(dataset).values(dataset_obj.model_dump()), commit_after=True)
 
@@ -414,18 +417,19 @@ async def get_data_objects(
 # UPDATE FUNCTIONS
 # =============================================================================
 
-async def update_object_group_raw_data_script_path(
+async def update_object_group_raw_data_script(
     group_id: uuid.UUID,
-    raw_data_read_script_path: str
+    request: UpdateObjectGroupRawDataScriptRequest
 ) -> ObjectGroup:
-    """Update the raw data read script path for an object group"""
+    """Update the raw data read script and function name for an object group"""
 
     # Update the object group
     update_stmt = (
         update(object_group)
         .where(object_group.c.id == group_id)
         .values(
-            raw_data_read_script_path=raw_data_read_script_path,
+            raw_data_read_script_path=request.raw_data_read_script_path,
+            raw_data_read_function_name=request.raw_data_read_function_name,
             updated_at=datetime.now()
         )
     )

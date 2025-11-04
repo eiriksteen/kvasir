@@ -9,7 +9,7 @@ from project_server.utils.code_utils import run_python_code_in_container, remove
 from project_server.utils.docker_utils import write_file_to_container
 from project_server.client import ProjectClient
 from project_server.client.requests.pipeline import post_pipeline_run
-from project_server.client.requests.data_objects import patch_object_group_raw_data_script_path
+from project_server.client.requests.data_objects import patch_object_group_raw_data_script
 from project_server.client.requests.entity_graph import create_edges, remove_edges
 from synesis_schemas.main_server import (
     Dataset,
@@ -25,6 +25,7 @@ from synesis_schemas.main_server import (
     EdgesCreate,
     PipelineRunCreate,
     PipelineRunInDB,
+    UpdateObjectGroupRawDataScriptRequest
 )
 from project_server.worker import logger
 
@@ -185,10 +186,17 @@ async def submit_read_raw_data_object_function(ctx: RunContext[ExtractionDeps], 
 
         # Upload save path to API
         client = ProjectClient(bearer_token=ctx.deps.bearer_token)
-        await patch_object_group_raw_data_script_path(client, object_group_id, str(save_path))
 
-        ctx.deps.object_groups_with_raw_data_fn.append(
-            object_group_id)
+        await patch_object_group_raw_data_script(
+            client,
+            object_group_id,
+            UpdateObjectGroupRawDataScriptRequest(
+                raw_data_read_script_path=str(save_path),
+                raw_data_read_function_name=function_name
+            )
+        )
+
+        ctx.deps.object_groups_with_raw_data_fn.append(object_group_id)
 
         return f"Successfully validated raw data function '{function_name}' for object group {object_group_id}"
 
@@ -395,7 +403,7 @@ schema_toolset = FunctionToolset[ExtractionDeps](
         get_data_source_schema,
         get_dataset_schema,
         get_pipeline_implementation_schema,
-        get_model_entity_schema,
+        get_model_entity_schema
     ],
     max_retries=3
 )

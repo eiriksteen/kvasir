@@ -13,15 +13,24 @@ from synesis_schemas.project_server import ProjectPath
 router = APIRouter()
 
 
-def _create_paths_recursive(project_path: Path) -> ProjectPath:
+def _create_paths_recursive(project_path: Path, exclude_pycache: bool = True, exclude_egg_info: bool = True) -> ProjectPath:
     project_path_obj = ProjectPath(
         path=project_path.name, is_file=project_path.is_file())
 
     if project_path.is_dir():
         items = sorted(project_path.iterdir(),
                        key=lambda x: (x.is_file(), x.name.lower()))
+
         for item in items:
-            project_path_obj.sub_paths.append(_create_paths_recursive(item))
+
+            if exclude_pycache and item.name == '__pycache__':
+                continue
+            if exclude_egg_info and item.name.endswith('.egg-info'):
+                continue
+
+            project_path_obj.sub_paths.append(_create_paths_recursive(
+                item, exclude_pycache, exclude_egg_info)
+            )
 
     return project_path_obj
 
@@ -39,7 +48,7 @@ async def get_codebase_tree_endpoint(
 
     project_path = SANDBOX_DIR / str(project.id)
     root_folder = project_path / project.python_package_name
-    tree = _create_paths_recursive(root_folder)
+    tree = _create_paths_recursive(root_folder, exclude_pycache=True)
 
     # Return a virtual root with the contents of the project folder
     virtual_root = ProjectPath(

@@ -138,7 +138,9 @@ from .data_objects import (
     ModalityModels,
     MODALITY_LITERAL,
     DataObjectRawData,
-    GetRawDataRequest
+    GetRawDataRequest,
+    UpdateObjectGroupRawDataScriptRequest,
+    TimeSeriesRawDataParams
 )
 
 # Data Sources schemas

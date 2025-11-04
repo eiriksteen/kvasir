@@ -2,12 +2,13 @@ import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
-import { Dataset, ObjectGroupWithObjects } from "@/types/data-objects";
-import { snakeToCamelKeys } from "@/lib/utils";
+import { DataObjectRawData, Dataset, GetRawDataRequest, ObjectGroupWithObjects } from "@/types/data-objects";
+import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
 import { UUID } from "crypto";
 import { mutate } from "swr";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const PROJECT_SERVER_URL = process.env.NEXT_PUBLIC_PROJECT_API_URL;
 
 async function fetchDatasets(token: string, projectId: UUID): Promise<Dataset[]> {
   const response = await fetch(`${API_URL}/project/project-datasets/${projectId}`, {
@@ -62,6 +63,26 @@ async function deleteDatasetEndpoint(token: string, datasetId: UUID): Promise<vo
 }
 
 
+async function fetchDataObjectRawData(token: string, request: GetRawDataRequest): Promise<DataObjectRawData> {
+  const response = await fetch(`${PROJECT_SERVER_URL}/data-object/read-raw-data`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(camelToSnakeKeys(request)),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch data object raw data', errorText);
+    throw new Error(`Failed to fetch data object raw data: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
+
 export const useDatasets = (projectId: UUID) => {
   const { data: session } = useSession();
   const { data: datasets, mutate: mutateDatasets, error, isLoading } = useSWR(
@@ -109,5 +130,20 @@ export const useDataset = (datasetId: UUID, projectId: UUID) => {
   return {
     dataset,
     objectGroups,
+  };
+};
+
+
+export const useDataObjectRawData = (request: GetRawDataRequest | null) => {
+  const { data: session } = useSession();
+  const { data: dataObjectRawData, error, isLoading } = useSWR(
+    request && session ? `data-object-raw-data-${request.objectId}` : null,
+    () => fetchDataObjectRawData(session ? session.APIToken.accessToken : "", request!),
+  );
+
+  return { 
+    dataObjectRawData,
+    isLoading,
+    isError: error
   };
 };
