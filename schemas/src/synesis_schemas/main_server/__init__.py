@@ -24,11 +24,10 @@ from .project import (
     ProjectPipelineInDB,
     ProjectModelEntityInDB,
     EntityPositionCreate,
-    UpdateNodePosition,
+    UpdateEntityPosition,
     UpdateProjectViewport,
     ProjectNodes,
-    ENTITY_TYPE_LITERAL,
-    NODE_TYPE_LITERAL
+    ENTITY_TYPE_LITERAL
 )
 
 # Project Graph schemas

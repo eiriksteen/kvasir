@@ -2,7 +2,7 @@ import { UUID } from "crypto";
 import { EntityGraph } from "./entity-graph";
 
 export type EntityType = "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity";
-export type NodeType = "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity" | "pipeline_runs";
+export type NodeType = "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity";
 
 // DB Models
 
@@ -51,8 +51,6 @@ export interface ProjectPipelineInDB {
   pipelineId: UUID;
   xPosition: number;
   yPosition: number;
-  runBoxXPosition: number;
-  runBoxYPosition: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -114,7 +112,7 @@ export interface RemoveEntityFromProject {
 
 export interface UpdateNodePosition {
   projectId: UUID;
-  nodeType: NodeType;
+  entityType: EntityType;
   entityId: UUID;
   xPosition: number;
   yPosition: number;

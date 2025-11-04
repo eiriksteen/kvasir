@@ -12,9 +12,6 @@ from .entity_graph import EntityGraph
 ENTITY_TYPE_LITERAL = Literal["data_source", "dataset",
                               "analysis", "pipeline", "model_entity"]
 
-NODE_TYPE_LITERAL = Literal["data_source", "dataset",
-                            "analysis", "pipeline", "model_entity", "pipeline_runs"]
-
 
 class ProjectInDB(BaseModel):
     id: UUID
@@ -61,8 +58,6 @@ class ProjectPipelineInDB(BaseModel):
     pipeline_id: UUID
     x_position: float
     y_position: float
-    run_box_x_position: float
-    run_box_y_position: float
     created_at: datetime = datetime.now(timezone.utc)
     updated_at: datetime = datetime.now(timezone.utc)
 
@@ -115,9 +110,9 @@ class RemoveEntityFromProject(BaseModel):
     entity_id: UUID
 
 
-class UpdateNodePosition(BaseModel):
+class UpdateEntityPosition(BaseModel):
     project_id: UUID
-    node_type: NODE_TYPE_LITERAL
+    entity_type: ENTITY_TYPE_LITERAL
     entity_id: UUID
     x_position: float
     y_position: float

@@ -6,8 +6,7 @@ import { useDatasets } from '@/hooks/useDatasets';
 import { useDataSources } from '@/hooks/useDataSources';
 import { useModelEntities } from '@/hooks/useModelEntities';
 import { useProject } from '@/hooks/useProject';
-import { SquarePlay, FileCode, Info, FileText, ArrowDownRight, Trash2 } from 'lucide-react';
-import CodeStream from '@/components/code/CodeStream';
+import { SquarePlay, Info, FileText, ArrowDownRight, Trash2 } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { DataSource } from '@/types/data-sources';
 import { ModelEntity } from '@/types/model';
@@ -17,7 +16,7 @@ import ConfirmationPopup from '@/components/ConfirmationPopup';
 import JsonSchemaViewer from '@/components/JsonSchemaViewer';
 import { DataSourceMini, DatasetMini, ModelEntityMini } from '@/components/entity-mini';
 
-export type ViewType = 'overview' | 'code' | 'runs';
+export type ViewType = 'overview' | 'runs';
 
 interface PipelineInfoTabProps {
   pipelineId: UUID;
@@ -45,7 +44,7 @@ export default function PipelineInfoTab({
   
   const isInProgress = !pipeline?.implementation;
   const [currentView, setCurrentView] = useState<ViewType>(
-    initialView || (isInProgress ? 'code' : 'overview')
+    initialView || 'overview'
   );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -71,13 +70,6 @@ export default function PipelineInfoTab({
       return runNode?.toEntities.pipelines.includes(pipelineId);
     });
   }, [runs, pipelineId, getEntityGraphNode]);
-
-  // When implementation status changes, update the view
-  useEffect(() => {
-    if (isInProgress && currentView === 'overview') {
-      setCurrentView('code');
-    }
-  }, [isInProgress, currentView]);
 
   // Update view when initialView changes (e.g., when clicking runs box on already-open tab)
   useEffect(() => {
@@ -150,17 +142,6 @@ export default function PipelineInfoTab({
         >
           <SquarePlay className="w-4 h-4" />
         </button>
-        <button
-          onClick={() => setCurrentView('code')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-            currentView === 'code'
-              ? 'bg-[#840B08] text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          <FileCode className="w-4 h-4" />
-          <span className="text-sm font-medium">Code</span>
-        </button>
         </div>
         <button
           onClick={() => setShowDeleteConfirm(true)}
@@ -173,24 +154,6 @@ export default function PipelineInfoTab({
 
       {/* Content Area */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        {currentView === 'code' && (
-          <div className="h-full">
-            {!pipeline.implementation ? (
-              (pipelineAgentRun ? (
-                <CodeStream runId={pipelineAgentRun.id} />
-              ) : (
-                <div className="flex items-center justify-center h-full text-center">
-                  <p className="text-sm text-gray-500">No active run for this pipeline</p>
-                </div>
-              ))
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                {/* Note: implementationScriptPath is now a string path, not a UUID. Code view not available. */}
-                <p className="text-sm text-gray-500">Code view not available - implementation uses script path instead of script ID</p>
-              </div>
-            )}
-          </div>
-        )}
 
         {currentView === 'runs' && !isInProgress && (
           <div className="h-full overflow-y-auto p-4">

@@ -5,10 +5,22 @@ import { useCodebaseTree } from "@/hooks/useCodebase";
 import { UUID } from "crypto";
 import { ProjectPath } from "@/types/code";
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen } from 'lucide-react';
-import CodeViewer from '@/components/code/CodeViewer';
+import { 
+    SiPython, 
+    SiJavascript, 
+    SiTypescript, 
+    SiReact,
+    SiYaml,
+    SiMarkdown,
+    SiHtml5,
+    SiCss3,
+    SiShell,
+} from 'react-icons/si';
+import { VscJson, VscFile } from 'react-icons/vsc';
 
 interface CodebaseTreeProps {
     projectId: UUID;
+    onFileClick: (filePath: string) => void;
 }
 
 interface FileTreeItemProps {
@@ -21,27 +33,41 @@ interface FileTreeItemProps {
 const getFileIcon = (fileName: string) => {
     const ext = fileName.split('.').pop()?.toLowerCase();
     const iconClass = "flex-shrink-0";
+    const size = 11;
     
-    const colorMap: Record<string, string> = {
-        'py': 'text-blue-600',
-        'js': 'text-yellow-500',
-        'jsx': 'text-blue-500',
-        'ts': 'text-blue-600',
-        'tsx': 'text-blue-500',
-        'json': 'text-yellow-600',
-        'yaml': 'text-purple-500',
-        'yml': 'text-purple-500',
-        'md': 'text-gray-700',
-        'csv': 'text-green-600',
-        'txt': 'text-gray-500',
-        'sh': 'text-green-700',
-        'sql': 'text-orange-600',
-        'html': 'text-orange-500',
-        'css': 'text-blue-400',
-    };
-    
-    const color = colorMap[ext || ''] || 'text-gray-600';
-    return <File size={11} className={`${iconClass} ${color}`} />;
+    switch (ext) {
+        case 'py':
+            return <SiPython size={size} className={`${iconClass} text-[#3776AB]`} />;
+        case 'js':
+            return <SiJavascript size={size} className={`${iconClass} text-[#F7DF1E]`} />;
+        case 'jsx':
+            return <SiReact size={size} className={`${iconClass} text-[#61DAFB]`} />;
+        case 'ts':
+            return <SiTypescript size={size} className={`${iconClass} text-[#3178C6]`} />;
+        case 'tsx':
+            return <SiReact size={size} className={`${iconClass} text-[#3178C6]`} />;
+        case 'json':
+            return <VscJson size={size} className={`${iconClass} text-[#6b7280]`} />;
+        case 'yaml':
+        case 'yml':
+            return <SiYaml size={size} className={`${iconClass} text-[#6b7280]`} />;
+        case 'md':
+        case 'mdx':
+            return <SiMarkdown size={size} className={`${iconClass} text-[#6b7280]`} />;
+        case 'html':
+            return <SiHtml5 size={size} className={`${iconClass} text-[#E34F26]`} />;
+        case 'css':
+            return <SiCss3 size={size} className={`${iconClass} text-[#1572B6]`} />;
+        case 'sh':
+        case 'bash':
+            return <SiShell size={size} className={`${iconClass} text-[#4EAA25]`} />;
+        case 'txt':
+        case 'csv':
+        case 'sql':
+            return <VscFile size={size} className={`${iconClass} text-[#6b7280]`} />;
+        default:
+            return <File size={11} className={`${iconClass} text-[#6b7280]`} />;
+    }
 };
 
 function FileTreeItem({ node, depth, parentPath, onFileClick }: FileTreeItemProps) {
@@ -67,19 +93,19 @@ function FileTreeItem({ node, depth, parentPath, onFileClick }: FileTreeItemProp
                 {isDirectory ? (
                     <>
                         {isExpanded ? (
-                            <ChevronDown size={12} className="flex-shrink-0 text-gray-500" />
+                            <ChevronDown size={12} className="flex-shrink-0 text-[#6b7280]" />
                         ) : (
-                            <ChevronRight size={12} className="flex-shrink-0 text-gray-500" />
+                            <ChevronRight size={12} className="flex-shrink-0 text-[#6b7280]" />
                         )}
                         {isExpanded ? (
-                            <FolderOpen size={11} className="flex-shrink-0 text-gray-600" />
+                            <FolderOpen size={11} className="flex-shrink-0 text-[#6b7280]" />
                         ) : (
-                            <Folder size={11} className="flex-shrink-0 text-gray-600" />
+                            <Folder size={11} className="flex-shrink-0 text-[#6b7280]" />
                         )}
                     </>
                 ) : (
                     <>
-                        <span className="w-3" />
+                        <span className="w-3 flex-shrink-0" />
                         {getFileIcon(node.path)}
                     </>
                 )}
@@ -99,13 +125,8 @@ function FileTreeItem({ node, depth, parentPath, onFileClick }: FileTreeItemProp
     );
 }
 
-export default function CodebaseTree({ projectId }: CodebaseTreeProps) {
+export default function CodebaseTree({ projectId, onFileClick }: CodebaseTreeProps) {
     const { codebaseTree, isLoading } = useCodebaseTree(projectId);
-    const [selectedFile, setSelectedFile] = useState<string | null>(null);
-
-    const handleFileClick = (filePath: string) => {
-        setSelectedFile(filePath);
-    };
 
     if (isLoading) {
         return (
@@ -124,26 +145,16 @@ export default function CodebaseTree({ projectId }: CodebaseTreeProps) {
     }
 
     return (
-        <>
-            <div>
-                {codebaseTree.subPaths.map((subNode, idx) => (
-                    <FileTreeItem
-                        key={`${subNode.path}-${idx}`}
-                        node={subNode}
-                        depth={0}
-                        parentPath=""
-                        onFileClick={handleFileClick}
-                    />
-                ))}
-            </div>
-            
-            {selectedFile && (
-                <CodeViewer
-                    projectId={projectId}
-                    filePath={selectedFile}
-                    onClose={() => setSelectedFile(null)}
+        <div>
+            {codebaseTree.subPaths.map((subNode, idx) => (
+                <FileTreeItem
+                    key={`${subNode.path}-${idx}`}
+                    node={subNode}
+                    depth={0}
+                    parentPath=""
+                    onFileClick={onFileClick}
                 />
-            )}
-        </>
+            ))}
+        </div>
     );
 }

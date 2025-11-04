@@ -88,8 +88,6 @@ project_pipeline = Table(
         "pipeline.pipeline.id"), nullable=False),
     Column("x_position", Float, nullable=False),
     Column("y_position", Float, nullable=False),
-    Column("run_box_x_position", Float, nullable=False),
-    Column("run_box_y_position", Float, nullable=False),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
     Column("updated_at", DateTime(timezone=True), nullable=False,

@@ -1,14 +1,20 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Database, Plus, BarChart3, Zap, Folder, Brain } from 'lucide-react';
+import { UUID } from 'crypto';
+import AddDataSource from '@/app/projects/[projectId]/_components/add-entity-modals/AddDataSource';
+import AddAnalysis from '@/app/projects/[projectId]/_components/add-entity-modals/AddAnalysis';
+import AddDataset from '@/app/projects/[projectId]/_components/add-entity-modals/AddDataset';
+import AddPipeline from '@/app/projects/[projectId]/_components/add-entity-modals/AddPipeline';
+import AddModelEntity from '@/app/projects/[projectId]/_components/add-entity-modals/AddModelEntity';
 
 type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_entity';
 
 interface AddEntityButtonProps {
     type: ItemType;
     size?: number;
-    onAdd: () => void;
+    projectId: UUID;
 }
 
 interface Style {
@@ -25,7 +31,17 @@ interface Style {
 }
 
 
-export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityButtonProps) {
+export default function AddEntityButton({ type, size = 11, projectId }: AddEntityButtonProps) {
+    const [showModal, setShowModal] = useState(false);
+
+    const handleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setShowModal(true);
+    };
+
+    const handleClose = () => {
+        setShowModal(false);
+    };
     const getStyleFromType = (type: 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_entity'): Style => {
         switch (type) {
             case 'dataset':
@@ -100,24 +116,43 @@ export default function AddEntityButton({ type, size = 13, onAdd }: AddEntityBut
         const colors = getStyleFromType(type);
         const badgeClass = "absolute top-[-8px] right-[-8px] rounded-full p-0.5 z-10";
 
+        const renderModal = () => {
+            if (!showModal) return null;
+            
+            switch (type) {
+                case 'data_source':
+                    return <AddDataSource onClose={handleClose} projectId={projectId} />;
+                case 'dataset':
+                    return <AddDataset onClose={handleClose} projectId={projectId} />;
+                case 'analysis':
+                    return <AddAnalysis onClose={handleClose} projectId={projectId} />;
+                case 'pipeline':
+                    return <AddPipeline onClose={handleClose} projectId={projectId} />;
+                case 'model_entity':
+                    return <AddModelEntity onClose={handleClose} projectId={projectId} />;
+                default:
+                    return null;
+            }
+        };
+
         return (
-            <button
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onAdd();
-                }}
-                className={`p-1.5 rounded-md inline-flex items-center justify-center min-w-[16px] min-h-[16px] ${colors.buttonBg} ${colors.border} transition-all duration-200 ${colors.buttonHover} hover:scale-105`}
-                title={`Add ${type.slice(0, -1)}`}
-            >
-            <div className={colors.icon}>
-                <div className="relative overflow-visible">
-                    {colors.symbol}
-                    <div className={badgeClass + " " + colors.plusBg + " border " + colors.plusBorder}>
-                        <Plus size={size * 0.35} className="text-white" />
+            <>
+                <button
+                    onClick={handleClick}
+                    className={`p-1 rounded-md inline-flex items-center justify-center min-w-[14px] min-h-[14px] ${colors.buttonBg} ${colors.border} transition-all duration-200 ${colors.buttonHover} hover:scale-105`}
+                    title={`Add ${type.replace('_', ' ')}`}
+                >
+                    <div className={colors.icon}>
+                        <div className="relative overflow-visible">
+                            {colors.symbol}
+                            <div className={badgeClass + " " + colors.plusBg + " border " + colors.plusBorder}>
+                                <Plus size={size * 0.35} className="text-white" />
+                            </div>
+                        </div>
                     </div>
-                    </div>
-                </div>
-            </button>
+                </button>
+                {renderModal()}
+            </>
         );
     };
 

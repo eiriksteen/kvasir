@@ -79,7 +79,7 @@ export default function EntityItem({ item, type, isInContext, onClick, onOpenTab
     return (
         <div
             onClick={handleClick}
-            className={`group relative flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer transition-all duration-150 ${theme.bg} ${theme.hover}`}
+            className={`group relative flex items-center gap-2 px-3 py-1 text-sm cursor-pointer transition-all duration-150 ${theme.bg} ${theme.hover}`}
         >
             <div className={`flex-shrink-0 ${theme.iconColor}`}>
                 {theme.icon}

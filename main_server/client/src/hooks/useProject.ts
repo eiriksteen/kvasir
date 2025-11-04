@@ -5,7 +5,7 @@ import {
   AddEntityToProject, 
   RemoveEntityFromProject,
   UpdateNodePosition,
-  NodeType
+  EntityType
 } from "@/types/project";
 import { GraphNode, PipelineGraphNode } from "@/types/entity-graph";
 import { useSession } from "next-auth/react";
@@ -219,14 +219,14 @@ export const useProject = (projectId: UUID) => {
   // Update node position
   const { trigger: updatePosition } = useSWRMutation(
     "projects",
-    async (_, { arg }: { arg: { nodeType: NodeType, entityId: UUID, xPosition: number, yPosition: number } }) => {
+    async (_, { arg }: { arg: { projectId: UUID, entityType: EntityType, entityId: UUID, xPosition: number, yPosition: number } }) => {
       if (!project) return projects;
 
       await updateNodePosition(
         session?.APIToken?.accessToken || '',
         {
-          projectId: project.id,
-          nodeType: arg.nodeType,
+          projectId: arg.projectId,
+          entityType: arg.entityType,
           entityId: arg.entityId,
           xPosition: arg.xPosition,
           yPosition: arg.yPosition
@@ -238,7 +238,7 @@ export const useProject = (projectId: UUID) => {
         if (p.id !== project.id) return p;
 
         // Update the appropriate entity list in projectNodes
-        switch (arg.nodeType) {
+        switch (arg.entityType) {
           case "data_source":
             return {
               ...p,
@@ -283,18 +283,6 @@ export const useProject = (projectId: UUID) => {
                 projectPipelines: p.projectNodes.projectPipelines.map(pl => 
                   pl.pipelineId === arg.entityId 
                     ? { ...pl, xPosition: arg.xPosition, yPosition: arg.yPosition }
-                    : pl
-                )
-              }
-            };
-          case "pipeline_runs":
-            return {
-              ...p,
-              projectNodes: {
-                ...p.projectNodes,
-                projectPipelines: p.projectNodes.projectPipelines.map(pl => 
-                  pl.pipelineId === arg.entityId 
-                    ? { ...pl, runBoxXPosition: arg.xPosition, runBoxYPosition: arg.yPosition }
                     : pl
                 )
               }

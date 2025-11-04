@@ -218,7 +218,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const renderCollapsedView = () => (
     <div className="flex flex-col h-full">
       {/* History button at top */}
-      <div className="flex items-center justify-center h-9 border-b border-t border-gray-400 bg-gray-100">
+      <div className="flex items-center justify-center h-7 border-b border-t border-gray-400 bg-gray-100">
         <div className="relative">
           <button
             onClick={() => {
@@ -230,7 +230,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
             className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
             title="Chat History"
           >
-            <History size={18} />
+            <History size={16} />
           </button>
           {showChatHistory && (
             <ChatHistory
@@ -251,7 +251,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
           className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
           title="New Chat"
         >
-          <Plus size={18} />
+          <Plus size={16} />
         </button>
       </div>
 
@@ -273,7 +273,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const renderContextBar = () => (
     <div className="border-b border-gray-400 bg-gray-100">
       {/* Fixed header row - never moves */}
-      <div className="h-9 flex items-center px-3 gap-3">
+      <div className="h-7 flex items-center px-3 gap-3">
         <h3 className="text-xs font-mono text-gray-900 whitespace-nowrap flex-shrink-0">Context</h3>
         <div className="flex items-center gap-2 flex-1">
           {totalContextCount !== 0 && (
@@ -286,6 +286,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                     <Component 
                       name={allContextItems[0].item.name}
                       onRemove={() => allContextItems[0].removeFn(allContextItems[0].item)}
+                      size="sm"
                     />
                   </div>
                 );
@@ -302,7 +303,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
               {totalContextCount > 1 && (
                 <button
                   onClick={() => setShowAllContext(!showAllContext)}
-                  className="p-1 rounded hover:bg-gray-200 transition-colors duration-200 text-gray-600 hover:text-gray-900 flex-shrink-0"
+                  className="rounded hover:bg-gray-200 transition-colors duration-200 text-gray-600 hover:text-gray-900 flex-shrink-0"
                   title={showAllContext ? "Show less" : "Show all"}
                 >
                   {showAllContext ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -324,6 +325,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                   key={`${contextItem.type}-${contextItem.item.id}`}
                   name={contextItem.item.name}
                   onRemove={() => contextItem.removeFn(contextItem.item)}
+                  size="sm"
                 />
               );
             })}
@@ -390,7 +392,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
       {isCollapsed ? renderCollapsedView() : (
         <>
           {/* Header with history button */}
-          <div className="border-b border-t border-gray-400 h-9 flex justify-between items-center relative bg-gray-100 px-3">
+          <div className="border-b border-t border-gray-400 h-7 flex justify-between items-center relative bg-gray-100 px-3">
             <div className="flex-1">
               <h3 className="text-xs font-mono text-gray-900">
                 {conversation?.name || "Chat"}
@@ -402,7 +404,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                 className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
                 title="New Chat"
               >
-                <Plus size={18} />
+                <Plus size={16} />
               </button>
               <div className="relative">
                 <button
@@ -410,7 +412,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                   className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
                   title="Chat History"
                 >
-                  <History size={18} />
+                  <History size={16} />
                 </button>
                 {showChatHistory && (
                   <ChatHistory

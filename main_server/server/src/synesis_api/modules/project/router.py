@@ -10,7 +10,7 @@ from synesis_schemas.main_server import (
     ProjectDetailsUpdate,
     AddEntityToProject,
     RemoveEntityFromProject,
-    UpdateNodePosition,
+    UpdateEntityPosition,
     UpdateProjectViewport,
     Dataset,
     DataSource,
@@ -25,7 +25,7 @@ from synesis_api.modules.project.service import (
     add_entity_to_project,
     remove_entity_from_project,
     delete_project,
-    update_node_position,
+    update_entity_position,
     update_project_viewport,
     get_project_datasets,
     get_project_data_sources,
@@ -155,10 +155,10 @@ async def list_all_projects(user: Annotated[User, Depends(get_current_user)] = N
 
 @router.patch("/update-node-position", response_model=Project)
 async def patch_node_position(
-    position_data: UpdateNodePosition,
+    position_data: UpdateEntityPosition,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> Project:
-    """Update the position of a node (data source, dataset, analysis, pipeline, model_entity, or pipeline_runs) in a project."""
+    """Update the position of a node (data source, dataset, analysis, pipeline, or model_entity) in a project."""
     project = await get_projects(user.id, [position_data.project_id])
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -166,7 +166,7 @@ async def patch_node_position(
     if project.user_id != user.id:
         raise HTTPException(
             status_code=403, detail="Not authorized to modify this project")
-    return await update_node_position(user.id, position_data)
+    return await update_entity_position(user.id, position_data)
 
 
 @router.patch("/update-project-viewport", response_model=Project)

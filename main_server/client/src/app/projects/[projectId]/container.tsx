@@ -15,6 +15,7 @@ import DatasetInfoTab from "@/components/info-tabs/DatasetInfoTab";
 import PipelineInfoTab from "@/components/info-tabs/PipelineInfoTab";
 import ModelInfoTab from "@/components/info-tabs/ModelInfoTab";
 import AnalysisItem from "@/components/info-tabs/analysis/AnalysisItem";
+import CodeInfoTab from "@/components/info-tabs/CodeInfoTab";
 import { UUID } from "crypto";
 import { RefreshCw } from "lucide-react";
 import { useState, useCallback } from "react";
@@ -59,12 +60,15 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
   // Determine tab type based on activeTabId
   const getTabType = () => {
     if (activeTabId === null) return 'project';
+    
+    // Check if it's a code tab
+    
     if (project.graph.dataSources.some(ds => ds.id === activeTabId)) return 'data_source';
     if (project.graph.datasets.some(ds => ds.id === activeTabId)) return 'dataset';
     if (project.graph.analyses.some(a => a.id === activeTabId)) return 'analysis';
     if (project.graph.pipelines.some(p => p.id === activeTabId)) return 'pipeline';
     if (project.graph.modelEntities.some(m => m.id === activeTabId)) return 'model_entity';
-    return 'project';
+    else return 'code';
   };
 
   const tabType = getTabType();
@@ -79,7 +83,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
   } else if (tabType === 'data_source' && activeTabId) {
     mainContent = (
       <FileInfoTab
-        dataSourceId={activeTabId}
+        dataSourceId={activeTabId as UUID}
         projectId={projectId}
         onClose={() => closeTabToProject()}
         onDelete={() => closeTab(activeTabId)}
@@ -88,7 +92,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
   } else if (tabType === 'dataset' && activeTabId) {
     mainContent = (
       <DatasetInfoTab
-        datasetId={activeTabId}
+        datasetId={activeTabId as UUID}
         onClose={() => closeTabToProject()}
         onDelete={() => closeTab(activeTabId)}
         projectId={projectId}
@@ -97,7 +101,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
   } else if (tabType === 'analysis' && activeTabId) {
     mainContent = (
       <AnalysisItem
-        analysisObjectId={activeTabId}
+        analysisObjectId={activeTabId as UUID}
         projectId={projectId}
         onClose={() => closeTabToProject()}
       />
@@ -106,22 +110,33 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     const activeTab = openTabs.find(tab => tab.id === activeTabId);
     mainContent = (
       <PipelineInfoTab
-        pipelineId={activeTabId}
+        pipelineId={activeTabId as UUID}
         onClose={() => closeTabToProject()}
         onDelete={() => closeTab(activeTabId)}
         projectId={projectId}
-        initialView={activeTab?.initialView}
+        initialView={activeTab?.initialView as 'overview' | 'runs' | undefined}
       />
     );
   } else if (tabType === 'model_entity' && activeTabId) {
     mainContent = (
       <ModelInfoTab
-        modelEntityId={activeTabId}
+        modelEntityId={activeTabId as UUID}
         onClose={() => closeTabToProject()}
         onDelete={() => closeTab(activeTabId)}
         projectId={projectId}
       />
     );
+  } else if (tabType === 'code' && activeTabId) {
+    const activeTab = openTabs.find(tab => tab.id === activeTabId);
+    if (activeTab?.filePath) {
+      mainContent = (
+        <CodeInfoTab
+          projectId={projectId}
+          filePath={activeTab.filePath}
+          onClose={() => closeTabToProject()}
+        />
+      );
+    }
   }
 
   // This is ugly, but turns out to be really hard to let the ERD be fixed while the rest is adaptive. 
@@ -152,25 +167,24 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
                 selectTab={selectTab}
               />
             </div>
-            {/* Sync Graph Button - square button positioned directly under project tab, only visible in project view */}
-            {isProjectView && (
-              <div className="absolute top-[84px] left-0 z-20 flex items-center pointer-events-auto">
-                <div className="h-9 w-px" />
-                <button
-                  onClick={handleScanCodebase}
-                  disabled={isScanning}
-                  className="flex items-center justify-center px-3 h-9 bg-white border-r border-b border-gray-100 text-[#000034] hover:bg-gray-100 disabled:opacity-50 transition-colors"
-                  title="Scan codebase to sync project graph"
-                >
-                  <RefreshCw size={14} className={`${isScanning ? 'animate-spin' : ''}`} />
-                </button>
-              </div>
-            )}
             <div className={`flex-1 overflow-auto ${
-              isProjectView ? 'bg-transparent pointer-events-none' : 'bg-gray-950'
+              isProjectView ? 'bg-transparent pointer-events-none' : ''
             }`}>
               {mainContent}
             </div>
+            {/* Sync Graph Button - positioned at bottom left, only visible in project view */}
+            {isProjectView && (
+              <div className="absolute bottom-2 left-2 z-20 pointer-events-auto">
+                <button
+                  onClick={handleScanCodebase}
+                  disabled={isScanning}
+                  className="flex items-center justify-center p-2 bg-white border border-gray-300 rounded-lg text-[#000034] hover:bg-gray-50 disabled:opacity-50 transition-colors shadow-sm"
+                  title="Scan codebase to sync project graph"
+                >
+                  <RefreshCw size={16} className={`${isScanning ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+            )}
           </div>
         </main>
         
