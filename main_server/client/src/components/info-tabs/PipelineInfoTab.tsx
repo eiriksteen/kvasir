@@ -6,7 +6,7 @@ import { useDatasets } from '@/hooks/useDatasets';
 import { useDataSources } from '@/hooks/useDataSources';
 import { useModelEntities } from '@/hooks/useModelEntities';
 import { useProject } from '@/hooks/useProject';
-import { SquarePlay, FileCode, Database, Folder, Brain, Info, FileText, ArrowDownRight, Trash2 } from 'lucide-react';
+import { SquarePlay, FileCode, Info, FileText, ArrowDownRight, Trash2 } from 'lucide-react';
 import CodeStream from '@/components/code/CodeStream';
 import { Dataset } from '@/types/data-objects';
 import { DataSource } from '@/types/data-sources';
@@ -15,6 +15,7 @@ import { RunInDB } from '@/types/runs';
 import { mutate } from 'swr';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
 import JsonSchemaViewer from '@/components/JsonSchemaViewer';
+import { DataSourceMini, DatasetMini, ModelEntityMini } from '@/components/entity-mini';
 
 export type ViewType = 'overview' | 'code' | 'runs';
 
@@ -268,33 +269,36 @@ export default function PipelineInfoTab({
                     <h4 className="text-sm font-semibold text-gray-900">Input Entities</h4>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {pipelineNode.fromEntities.dataSources.map((dataSourceId) => (
-                      <div
-                        key={dataSourceId}
-                        className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-gray-200 text-gray-600"
-                      >
-                        <Database size={10} />
-                        {dataSources?.find((ds: DataSource) => ds.id === dataSourceId)?.name || 'Data Source'}
-                      </div>
-                    ))}
-                    {pipelineNode.fromEntities.datasets.map((datasetId) => (
-                      <div
-                        key={datasetId}
-                        className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
-                      >
-                        <Folder size={10} />
-                        {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
-                      </div>
-                    ))}
-                    {pipelineNode.fromEntities.modelEntities.map((modelEntityId) => (
-                      <div
-                        key={modelEntityId}
-                        className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]"
-                      >
-                        <Brain size={10} />
-                        {modelEntities?.find((me: ModelEntity) => me.id === modelEntityId)?.name || 'Model'}
-                      </div>
-                    ))}
+                    {pipelineNode.fromEntities.dataSources.map((dataSourceId) => {
+                      const dataSource = dataSources?.find((ds: DataSource) => ds.id === dataSourceId);
+                      return (
+                        <DataSourceMini
+                          key={dataSourceId}
+                          name={dataSource?.name || 'Data Source'}
+                          size="sm"
+                        />
+                      );
+                    })}
+                    {pipelineNode.fromEntities.datasets.map((datasetId) => {
+                      const dataset = datasets?.find((ds: Dataset) => ds.id === datasetId);
+                      return (
+                        <DatasetMini
+                          key={datasetId}
+                          name={dataset?.name || 'Dataset'}
+                          size="sm"
+                        />
+                      );
+                    })}
+                    {pipelineNode.fromEntities.modelEntities.map((modelEntityId) => {
+                      const modelEntity = modelEntities?.find((me: ModelEntity) => me.id === modelEntityId);
+                      return (
+                        <ModelEntityMini
+                          key={modelEntityId}
+                          name={modelEntity?.name || 'Model'}
+                          size="sm"
+                        />
+                      );
+                    })}
                     {pipelineNode.fromEntities.dataSources.length === 0 &&
                      pipelineNode.fromEntities.datasets.length === 0 &&
                      pipelineNode.fromEntities.modelEntities.length === 0 && (

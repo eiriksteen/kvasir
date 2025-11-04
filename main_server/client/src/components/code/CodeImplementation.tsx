@@ -1,7 +1,7 @@
 "use client";
 
 import { UUID } from "crypto";
-import { useCode } from "@/hooks/useCodeStream";
+import { useCode } from "@/hooks/useCodebase";
 import CodeDisplay from "@/components/code/CodeDisplay";
 
 interface CodeImplementationProps {

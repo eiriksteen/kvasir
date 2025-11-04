@@ -2,7 +2,8 @@
 
 import React, { useEffect } from 'react';
 import { useState } from 'react';
-import { BarChart3, Zap, Folder, Brain, Database } from 'lucide-react';
+import { BarChart3, Zap, Folder, Brain, Database, Code } from 'lucide-react';
+import Image from 'next/image';
 import { Dataset } from '@/types/data-objects';
 import { DataSource } from '@/types/data-sources';
 import { useAgentContext, useAnalyses, useDatasets, usePipelines, useProject, useDataSources } from '@/hooks';
@@ -21,6 +22,7 @@ import { Pipeline } from '@/types/pipeline';
 import { useModelEntities } from '@/hooks/useModelEntities';
 import { ModelEntity } from '@/types/model';
 import AddModelEntity from '@/app/projects/[projectId]/_components/add-entity-modals/AddModelEntity';
+import CodebaseTree from '@/app/projects/[projectId]/_components/entity-sidebar/CodebaseTree';
 
 
 interface EntitySidebarProps {
@@ -48,6 +50,7 @@ export default function EntitySidebar({ projectId, openTab }: EntitySidebarProps
         pipelines: false,
         models: false
     });
+    const [viewMode, setViewMode] = useState<'code' | 'entities'>('entities');
     const [showEntities, setShowEntities] = useState(true);
     const { data: session } = useSession();
     const { project } = useProject(projectId);
@@ -207,165 +210,207 @@ export default function EntitySidebar({ projectId, openTab }: EntitySidebarProps
 
         return (
             <div className="flex flex-col h-full">
+                {/* View Mode Switcher */}
+                <div className="flex">
+                    <button
+                        onClick={() => setViewMode('entities')}
+                        className={`flex-1 flex items-center justify-center h-9 border-b transition-colors ${
+                            viewMode === 'entities'
+                                ? 'bg-gray-200 border-b-2 border-gray-800'
+                                : 'bg-gray-100 hover:bg-gray-150 border-gray-400'
+                        }`}
+                    >
+                        <Image
+                            src="/kvasirwithbg.png"
+                            alt="Entities"
+                            width={20}
+                            height={20}
+                            className="object-contain"
+                        />
+                    </button>
+                    <button
+                        onClick={() => setViewMode('code')}
+                        className={`flex-1 flex items-center justify-center h-9 border-b transition-colors ${
+                            viewMode === 'code'
+                                ? 'bg-gray-200 border-b-2 border-gray-800'
+                                : 'bg-gray-100 hover:bg-gray-150 border-gray-400'
+                        }`}
+                    >
+                        <Code size={16} className="text-gray-800" />
+                    </button>
+                </div>
+
+                {/* Content Area */}
                 <div className="flex-1 overflow-y-auto">
-                    {/* Data Sources Section */}
-                    <div>
-                        <div className="flex items-center justify-between pl-4 pr-3 h-9 border-b border-t border-gray-400 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors" onClick={() => toggleSection('dataSources')}>
-                            <h3 className='text-xs font-mono uppercase tracking-wider text-gray-900'> DATA SOURCES </h3>
-                            <AddEntityButton type="data_source" size={14} onAdd={() => setShowAddDataSourceToProject(true)} />
+                    {viewMode === 'code' ? (
+                        /* Code View */
+                        <div className="h-full bg-gray-50">
+                            <CodebaseTree projectId={projectId} />
                         </div>
-                        {dataSources && expandedSections.dataSources && (
-                            <div className="bg-gray-50 border-l-2 border-gray-600">
-                                {dataSources.map((dataSource) => (
-                                    <EntityItem
-                                        key={dataSource.id}
-                                        item={dataSource}
-                                        type="data_source"
-                                        isInContext={dataSourcesInContext.some((ds: UUID) => ds === dataSource.id)}
-                                        onClick={() => handleDataSourceToggle(dataSource)}
-                                        onOpenTab={() => openTab(dataSource.id, true)}
-                                    />
-                                ))}
-                                {dataSources.length === 0 && (
-                                    <div className="px-3 py-4 text-center">
-                                        <Database size={16} className="text-gray-400 mx-auto mb-2" />
-                                        <p className="text-xs text-gray-500">No data sources</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="pl-4 h-9 border-b border-gray-400 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors flex items-center" onClick={() => setShowEntities(!showEntities)}>
-                        <h3 className='text-xs font-mono uppercase tracking-wider text-gray-900'> ENTITIES </h3>
-                    </div>
-
-                    {showEntities && (
+                    ) : (
+                        /* Entities View */
                         <>
-                    {/* Datasets Section */}
-                    <div className="border-b border-gray-200">
-                        <EntityOverviewItem
-                            title="Datasets"
-                            count={datasets?.length || 0}
-                            color="blue"
-                            onToggle={() => toggleSection('datasets')}
-                            onAdd={() => setShowAddDatasetToProject(true)}
-                        />
-                        {datasets && expandedSections.datasets && (
-                            <div className="bg-[#0E4F70]/10 border-l-2 border-[#0E4F70]">
-                                {datasets
-                                    .map((dataset) => (
-                                        <EntityItem 
-                                            key={dataset.id}
-                                            item={dataset}
-                                            type="dataset"
-                                            isInContext={datasetsInContext.some((d: UUID) => d === dataset.id)}
-                                            onClick={() => handleDatasetToggle(dataset)}
-                                            onOpenTab={() => openTab(dataset.id, true)}
+                            {/* Data Sources Section */}
+                            <div>
+                                <div className="flex items-center justify-between pl-4 pr-3 h-9 border-b border-t border-gray-400 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors" onClick={() => toggleSection('dataSources')}>
+                                    <h3 className='text-xs font-mono uppercase tracking-wider text-gray-900'> DATA SOURCES </h3>
+                                    <AddEntityButton type="data_source" size={14} onAdd={() => setShowAddDataSourceToProject(true)} />
+                                </div>
+                                {dataSources && expandedSections.dataSources && (
+                                    <div className="bg-gray-50 border-l-2 border-gray-600">
+                                        {dataSources.map((dataSource) => (
+                                            <EntityItem
+                                                key={dataSource.id}
+                                                item={dataSource}
+                                                type="data_source"
+                                                isInContext={dataSourcesInContext.some((ds: UUID) => ds === dataSource.id)}
+                                                onClick={() => handleDataSourceToggle(dataSource)}
+                                                onOpenTab={() => openTab(dataSource.id, true)}
+                                            />
+                                        ))}
+                                        {dataSources.length === 0 && (
+                                            <div className="px-3 py-4 text-center">
+                                                <Database size={16} className="text-gray-400 mx-auto mb-2" />
+                                                <p className="text-xs text-gray-500">No data sources</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Entities Header */}
+                            <div className="pl-4 h-9 border-b border-gray-400 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors flex items-center" onClick={() => setShowEntities(!showEntities)}>
+                                <h3 className='text-xs font-mono uppercase tracking-wider text-gray-900'> ENTITIES </h3>
+                            </div>
+
+                            {showEntities && (
+                                <>
+                                    {/* Datasets Section */}
+                                    <div className="border-b border-gray-200">
+                                        <EntityOverviewItem
+                                            title="Datasets"
+                                            count={datasets?.length || 0}
+                                            color="blue"
+                                            onToggle={() => toggleSection('datasets')}
+                                            onAdd={() => setShowAddDatasetToProject(true)}
                                         />
-                                    ))}
-                                {datasets.length === 0 && (
-                                    <div className="px-3 py-4 text-center">
-                                        <Folder size={16} className="text-[#0E4F70]/40 mx-auto mb-2" />
-                                        <p className="text-xs text-gray-500">No datasets</p>
+                                        {datasets && expandedSections.datasets && (
+                                            <div className="bg-[#0E4F70]/10 border-l-2 border-[#0E4F70]">
+                                                {datasets
+                                                    .map((dataset) => (
+                                                        <EntityItem 
+                                                            key={dataset.id}
+                                                            item={dataset}
+                                                            type="dataset"
+                                                            isInContext={datasetsInContext.some((d: UUID) => d === dataset.id)}
+                                                            onClick={() => handleDatasetToggle(dataset)}
+                                                            onOpenTab={() => openTab(dataset.id, true)}
+                                                        />
+                                                    ))}
+                                                {datasets.length === 0 && (
+                                                    <div className="px-3 py-4 text-center">
+                                                        <Folder size={16} className="text-[#0E4F70]/40 mx-auto mb-2" />
+                                                        <p className="text-xs text-gray-500">No datasets</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
 
-                    {/* Models Section */}
-                    <div className="border-b border-gray-200">
-                        <EntityOverviewItem
-                            title="Models"
-                            count={modelEntities?.length || 0}
-                            color="emerald"
-                            onToggle={() => toggleSection('models')}
-                            onAdd={() => setShowAddModelToProject(true)}
-                        />
-                        {modelEntities && expandedSections.models && (
-                            <div className="bg-[#491A32]/10 border-l-2 border-[#491A32]">
-                                {modelEntities.map((model) => (
-                                    <EntityItem 
-                                        key={model.id} 
-                                        item={model} 
-                                        type="model_entity" 
-                                        isInContext={modelEntitiesInContext.some((m: UUID) => m === model.id)} 
-                                        onClick={() => handleModelToggle(model)}
-                                        onOpenTab={() => openTab(model.id, true)}
-                                    />
-                                ))}
-                                {modelEntities.length === 0 && (
-                                    <div className="px-3 py-4 text-center">
-                                        <Brain size={16} className="text-[#491A32]/40 mx-auto mb-2" />
-                                        <p className="text-xs text-gray-500">No models</p>
+                                    {/* Models Section */}
+                                    <div className="border-b border-gray-200">
+                                        <EntityOverviewItem
+                                            title="Models"
+                                            count={modelEntities?.length || 0}
+                                            color="emerald"
+                                            onToggle={() => toggleSection('models')}
+                                            onAdd={() => setShowAddModelToProject(true)}
+                                        />
+                                        {modelEntities && expandedSections.models && (
+                                            <div className="bg-[#491A32]/10 border-l-2 border-[#491A32]">
+                                                {modelEntities.map((model) => (
+                                                    <EntityItem 
+                                                        key={model.id} 
+                                                        item={model} 
+                                                        type="model_entity" 
+                                                        isInContext={modelEntitiesInContext.some((m: UUID) => m === model.id)} 
+                                                        onClick={() => handleModelToggle(model)}
+                                                        onOpenTab={() => openTab(model.id, true)}
+                                                    />
+                                                ))}
+                                                {modelEntities.length === 0 && (
+                                                    <div className="px-3 py-4 text-center">
+                                                        <Brain size={16} className="text-[#491A32]/40 mx-auto mb-2" />
+                                                        <p className="text-xs text-gray-500">No models</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
 
-                    {/* Analysis Section */}
-                    <div className="border-b border-gray-200">
-                        <EntityOverviewItem
-                            title="Analyses"
-                            count={analysisObjects.length}
-                            color="purple"
-                            onToggle={() => toggleSection('analysis')}
-                            onAdd={() => setShowAddAnalysis(true)}
-                        />
-                        {expandedSections.analysis && (
-                            <div className="bg-[#004806]/10 border-l-2 border-[#004806]">
-                                {analysisObjects.map((analysis) => (
-                                    <EntityItem
-                                        key={analysis.id}
-                                        item={analysis}
-                                        type="analysis"
-                                        isInContext={analysesInContext.some((a: UUID) => a === analysis.id)}
-                                        onClick={() => handleAnalysisToggle(analysis)}
-                                        onOpenTab={() => openTab(analysis.id, true)}
-                                    />
-                                ))}
-                                {analysisObjects.length === 0 && (
-                                    <div className="px-3 py-4 text-center">
-                                        <BarChart3 size={16} className="text-[#004806]/40 mx-auto mb-2" />
-                                        <p className="text-xs text-gray-500">No analysis</p>
+                                    {/* Analysis Section */}
+                                    <div className="border-b border-gray-200">
+                                        <EntityOverviewItem
+                                            title="Analyses"
+                                            count={analysisObjects.length}
+                                            color="purple"
+                                            onToggle={() => toggleSection('analysis')}
+                                            onAdd={() => setShowAddAnalysis(true)}
+                                        />
+                                        {expandedSections.analysis && (
+                                            <div className="bg-[#004806]/10 border-l-2 border-[#004806]">
+                                                {analysisObjects.map((analysis) => (
+                                                    <EntityItem
+                                                        key={analysis.id}
+                                                        item={analysis}
+                                                        type="analysis"
+                                                        isInContext={analysesInContext.some((a: UUID) => a === analysis.id)}
+                                                        onClick={() => handleAnalysisToggle(analysis)}
+                                                        onOpenTab={() => openTab(analysis.id, true)}
+                                                    />
+                                                ))}
+                                                {analysisObjects.length === 0 && (
+                                                    <div className="px-3 py-4 text-center">
+                                                        <BarChart3 size={16} className="text-[#004806]/40 mx-auto mb-2" />
+                                                        <p className="text-xs text-gray-500">No analysis</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
 
-                    {/* Pipeline Section */}
-                    <div className="border-b border-gray-200">
-                        <EntityOverviewItem
-                            title="Pipelines"
-                            count={pipelines?.length || 0}
-                            color="orange"
-                            onToggle={() => toggleSection('pipelines')}
-                            onAdd={() => setShowAddPipeline(true)}
-                        />
-                        {pipelines && expandedSections.pipelines && (
-                            <div className="bg-[#840B08]/10 border-l-2 border-[#840B08]">
-                                {pipelines.map((pipeline) => (
-                                    <EntityItem
-                                        key={pipeline.id}
-                                        item={pipeline}
-                                        type="pipeline"
-                                        isInContext={pipelinesInContext.some((p: UUID) => p === pipeline.id)}
-                                        onClick={() => handlePipelineToggle(pipeline)}
-                                        onOpenTab={() => openTab(pipeline.id, true)}
-                                    />
-                                ))}
-                                {pipelines.length === 0 && (
-                                    <div className="px-3 py-4 text-center">
-                                        <Zap size={16} className="text-[#840B08]/40 mx-auto mb-2" />
-                                        <p className="text-xs text-gray-500">No pipelines</p>
+                                    {/* Pipeline Section */}
+                                    <div className="border-b border-gray-200">
+                                        <EntityOverviewItem
+                                            title="Pipelines"
+                                            count={pipelines?.length || 0}
+                                            color="orange"
+                                            onToggle={() => toggleSection('pipelines')}
+                                            onAdd={() => setShowAddPipeline(true)}
+                                        />
+                                        {pipelines && expandedSections.pipelines && (
+                                            <div className="bg-[#840B08]/10 border-l-2 border-[#840B08]">
+                                                {pipelines.map((pipeline) => (
+                                                    <EntityItem
+                                                        key={pipeline.id}
+                                                        item={pipeline}
+                                                        type="pipeline"
+                                                        isInContext={pipelinesInContext.some((p: UUID) => p === pipeline.id)}
+                                                        onClick={() => handlePipelineToggle(pipeline)}
+                                                        onOpenTab={() => openTab(pipeline.id, true)}
+                                                    />
+                                                ))}
+                                                {pipelines.length === 0 && (
+                                                    <div className="px-3 py-4 text-center">
+                                                        <Zap size={16} className="text-[#840B08]/40 mx-auto mb-2" />
+                                                        <p className="text-xs text-gray-500">No pipelines</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
+                                </>
+                            )}
                         </>
                     )}
                 </div>

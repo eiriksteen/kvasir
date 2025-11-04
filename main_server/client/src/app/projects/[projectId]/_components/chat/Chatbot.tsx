@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Send, Plus, History, Database, X, BarChart, Zap, Brain, Folder, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
+import { Send, Plus, History, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { useProjectChat } from '@/hooks';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { useDataSources, useDatasets, usePipelines, useModelEntities, useAnalyses } from '@/hooks';
@@ -17,6 +17,7 @@ import { Dataset } from '@/types/data-objects';
 import { Pipeline } from '@/types/pipeline';
 import { ModelEntity } from '@/types/model';
 import { AnalysisSmall } from '@/types/analysis';
+import { DataSourceMini, DatasetMini, AnalysisMini, PipelineMini, ModelEntityMini } from '@/components/entity-mini';
 
 export default function Chatbot({ projectId }: { projectId: UUID }) {
   
@@ -195,11 +196,11 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
 
   // Context item configuration
   const contextItemConfigs = [
-    { items: getDataSourcesInContext(), type: 'dataSource', iconName: 'Database', bgColor: 'bg-gray-200', textColor: 'text-gray-600', removeFn: (item: DataSource) => removeDataSourceFromContext(item.id) },
-    { items: getDatasetsInContext(), type: 'dataset', iconName: 'Folder', bgColor: 'bg-[#0E4F70]/20', textColor: 'text-[#0E4F70]', removeFn: (item: Dataset) => removeDatasetFromContext(item.id) },
-    { items: getAnalysesInContext(), type: 'analysis', iconName: 'BarChart', bgColor: 'bg-[#004806]/20', textColor: 'text-[#004806]', removeFn: (item: AnalysisSmall) => removeAnalysisFromContext(item.id) },
-    { items: getPipelinesInContext(), type: 'pipeline', iconName: 'Zap', bgColor: 'bg-[#840B08]/20', textColor: 'text-[#840B08]', removeFn: (item: Pipeline) => removePipelineFromContext(item.id) },
-    { items: getModelEntitiesInContext(), type: 'modelEntity', iconName: 'Brain', bgColor: 'bg-[#491A32]/20', textColor: 'text-[#491A32]', removeFn: (item: ModelEntity) => removeModelEntityFromContext(item.id) }
+    { items: getDataSourcesInContext(), type: 'dataSource', component: DataSourceMini, removeFn: (item: DataSource) => removeDataSourceFromContext(item.id) },
+    { items: getDatasetsInContext(), type: 'dataset', component: DatasetMini, removeFn: (item: Dataset) => removeDatasetFromContext(item.id) },
+    { items: getAnalysesInContext(), type: 'analysis', component: AnalysisMini, removeFn: (item: AnalysisSmall) => removeAnalysisFromContext(item.id) },
+    { items: getPipelinesInContext(), type: 'pipeline', component: PipelineMini, removeFn: (item: Pipeline) => removePipelineFromContext(item.id) },
+    { items: getModelEntitiesInContext(), type: 'modelEntity', component: ModelEntityMini, removeFn: (item: ModelEntity) => removeModelEntityFromContext(item.id) }
   ];
 
   // Helper function to get all context items
@@ -207,20 +208,6 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
     return contextItemConfigs.flatMap(config => 
       config.items.map((item: unknown) => ({ ...config, item }))
     );
-  };
-
-  // Icon mapping for context items
-  const iconMap = {
-    Database: Database,
-    Folder: Folder,
-    BarChart: BarChart,
-    Zap: Zap,
-    Brain: Brain
-  };
-
-  const renderIcon = (iconName: string, size: number) => {
-    const IconComponent = iconMap[iconName as keyof typeof iconMap] || Database;
-    return <IconComponent size={size} />;
   };
 
   const allContextItems = getAllContextItems();
@@ -292,20 +279,17 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
           {totalContextCount !== 0 && (
             <>
               {/* Show context items in header row ONLY when collapsed */}
-              {!showAllContext && allContextItems.length > 0 && (
-                <div
-                  className={`px-2 py-1 text-xs rounded-full flex items-center gap-1 ${allContextItems[0].bgColor} ${allContextItems[0].textColor} flex-shrink-0`}
-                >
-                  {renderIcon(allContextItems[0].iconName, 12)}
-                  <span className="truncate max-w-[150px]">{allContextItems[0].item.name}</span>
-                  <button
-                    onClick={() => allContextItems[0].removeFn(allContextItems[0].item)}
-                    className={`${allContextItems[0].textColor} hover:text-gray-400 flex-shrink-0`}
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              )}
+              {!showAllContext && allContextItems.length > 0 && (() => {
+                const Component = allContextItems[0].component;
+                return (
+                  <div className="flex-shrink-0">
+                    <Component 
+                      name={allContextItems[0].item.name}
+                      onRemove={() => allContextItems[0].removeFn(allContextItems[0].item)}
+                    />
+                  </div>
+                );
+              })()}
 
               {/* Show (X more) indicator when collapsed and there are items that don't fit */}
               {!showAllContext && remainingCount > 0 && (
@@ -333,21 +317,16 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
       {showAllContext && (
         <div className="px-3 pb-3">
           <div className="grid grid-cols-2 gap-2 w-full">
-            {allContextItems.map((contextItem) => (
-              <div
-                key={`${contextItem.type}-${contextItem.item.id}`}
-                className={`px-2 py-1 text-xs rounded-full flex items-center gap-1 ${contextItem.bgColor} ${contextItem.textColor} flex-shrink-0`}
-              >
-                {renderIcon(contextItem.iconName, 12)}
-                <span className="truncate flex-1">{contextItem.item.name}</span>
-                <button
-                  onClick={() => contextItem.removeFn(contextItem.item)}
-                  className={`${contextItem.textColor} hover:text-gray-400 flex-shrink-0`}
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
+            {allContextItems.map((contextItem) => {
+              const Component = contextItem.component;
+              return (
+                <Component
+                  key={`${contextItem.type}-${contextItem.item.id}`}
+                  name={contextItem.item.name}
+                  onRemove={() => contextItem.removeFn(contextItem.item)}
+                />
+              );
+            })}
           </div>
         </div>
       )}

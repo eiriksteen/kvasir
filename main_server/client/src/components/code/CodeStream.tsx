@@ -1,7 +1,7 @@
 "use client";
 
 import { UUID } from "crypto";
-import { useCodeStream } from "@/hooks/useCodeStream";
+import { useCodebaseTree } from "@/hooks/useCodebase";
 import CodeView from "@/components/code/CodeDisplay";
 
 interface CodeStreamProps {
@@ -9,7 +9,7 @@ interface CodeStreamProps {
 }
 
 export default function CodeStream({ runId }: CodeStreamProps) {
-  const { codeMessage } = useCodeStream(runId);
+  const { codeMessage } = useCodebaseTree(runId);
 
   return ( 
     <>
