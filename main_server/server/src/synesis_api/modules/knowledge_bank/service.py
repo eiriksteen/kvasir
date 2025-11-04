@@ -1,5 +1,4 @@
 import uuid
-import sys
 from sqlalchemy import select, or_, and_, func
 from typing import List
 

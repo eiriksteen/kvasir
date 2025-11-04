@@ -72,7 +72,9 @@ async def post_pipeline_implementation(
 
 
 @router.post("/pipeline-run", response_model=PipelineRunInDB)
-async def create_pipeline_run(request: PipelineRunCreate, user: User = Depends(get_current_user)) -> PipelineRunInDB:
+async def post_pipeline_run(
+        request: PipelineRunCreate,
+        user: User = Depends(get_current_user)) -> PipelineRunInDB:
 
     if not await user_owns_pipeline(user.id, request.pipeline_id):
         raise HTTPException(

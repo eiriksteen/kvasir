@@ -62,7 +62,8 @@ async def get_user_analyses(
 
     analysis_object_records = await fetch_all(analysis_object_query)
 
-    # Input associations are now managed by project_graph module
+    if not analysis_object_records:
+        return []
 
     analysis_objects_list = []
     for record in analysis_object_records:

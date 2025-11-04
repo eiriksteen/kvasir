@@ -38,13 +38,11 @@ from synesis_api.modules.analysis.models import (
     notebook_section, notebook, plot, table
 )
 from synesis_api.modules.entity_graph.models import (
-    data_source_from_pipeline,
-    dataset_from_pipeline, dataset_from_data_source,
+    dataset_from_data_source,
     data_source_supported_in_pipeline, dataset_supported_in_pipeline, model_entity_supported_in_pipeline,
     dataset_in_pipeline_run, data_source_in_pipeline_run, model_entity_in_pipeline_run,
     pipeline_run_output_dataset, pipeline_run_output_model_entity, pipeline_run_output_data_source,
     dataset_in_analysis, data_source_in_analysis, model_entity_in_analysis,
-    analysis_from_past_analysis
 )
 from synesis_api.modules.project.models import (
     project, project_dataset, project_analysis, project_pipeline, project_data_source, project_model_entity
@@ -87,8 +85,6 @@ __all__ = [
     object_group,
     time_series,
     time_series_group,
-    data_source_from_pipeline,
-    dataset_from_pipeline,
     dataset_from_data_source,
     analysis,
     analysis_result,
@@ -100,7 +96,6 @@ __all__ = [
     dataset_in_analysis,
     data_source_in_analysis,
     model_entity_in_analysis,
-    analysis_from_past_analysis,
     chat_message,
     chat_pydantic_message,
     conversation,

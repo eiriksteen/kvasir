@@ -23,9 +23,6 @@ def get_data_source_description(data_source: DataSource, from_entities: EdgePoin
     description += f"- Type: {data_source.type}\n"
     description += f"- Created: {data_source.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
 
-    if data_source.additional_variables:
-        description += f"- Additional Variables: {data_source.additional_variables}\n"
-
     if data_source.type_fields:
         type_fields = data_source.type_fields
         description += f"\nFile Information:\n"
@@ -34,7 +31,11 @@ def get_data_source_description(data_source: DataSource, from_entities: EdgePoin
         description += f"- File Type: {type_fields.file_type}\n"
         description += f"- File Size: {type_fields.file_size_bytes:,} bytes\n"
 
-    description += "\n" + _get_edges_info(from_entities, to_entities, entity_map)
+    if data_source.additional_variables:
+        description += f"- Additional Variables: {data_source.additional_variables}\n"
+
+    description += "\n" + \
+        _get_edges_info(from_entities, to_entities, entity_map)
     return description
 
 
@@ -142,7 +143,8 @@ def get_pipeline_description(pipeline: Pipeline, from_entities: EdgePoints, to_e
         if latest_run.end_time:
             description += f"- Latest Run End: {latest_run.end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
 
-    description += "\n" + _get_edges_info(from_entities, to_entities, entity_map)
+    description += "\n" + \
+        _get_edges_info(from_entities, to_entities, entity_map)
     return description
 
 

@@ -4,11 +4,9 @@ from pydantic_ai.settings import ModelSettings
 from synesis_api.modules.orchestrator.agent.prompt import ORCHESTRATOR_SYSTEM_PROMPT
 from synesis_api.utils.pydanticai_utils import get_model
 from synesis_api.modules.orchestrator.agent.tools import (
-    search_existing_models,
-    add_model_entity_to_project,
-    get_task_guidelines_tool,
     submit_run_for_swe_agent,
-    submit_run_for_analysis_agent
+    submit_run_for_analysis_agent,
+    get_entity_details_tool
 )
 from synesis_api.modules.orchestrator.agent.history_processors import (
     keep_only_most_recent_context,
@@ -39,8 +37,6 @@ orchestrator_toolset = FunctionToolset(
     tools=[
         submit_run_for_swe_agent,
         submit_run_for_analysis_agent,
-        search_existing_models,
-        add_model_entity_to_project,
-        get_task_guidelines_tool
+        get_entity_details_tool
     ]
 )

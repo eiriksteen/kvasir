@@ -13,6 +13,7 @@ import { DataSource } from "@/types/data-sources";
 import { ModelEntity } from "@/types/model";
 import { Pipeline } from "@/types/pipeline";
 import { AnalysisSmall } from "@/types/analysis";
+import { useProject } from "@/hooks/useProject";
 
 interface RunBoxProps {
   runId: UUID;
@@ -120,6 +121,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
   const { modelEntities } = useModelEntities(projectId);
   const { pipelines, mutatePipelines } = usePipelines(projectId);
   const { analysisObjects, mutateAnalysisObjects } = useAnalyses(projectId);
+  const { getEntityGraphNode } = useProject(projectId);
   const [isRejecting, setIsRejecting] = useState(false);
   const isPending = run?.status === 'pending';
   const [showMessages, setShowMessages] = useState(isPending);
@@ -250,7 +252,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                 <div className="pt-2">
                   <div className="text-[10px] font-medium text-gray-600 mb-1">Inputs:</div>
                   <div className="flex flex-wrap gap-1">
-                    {run.inputs?.dataSourceIds.map((dataSourceId) => (
+                    {runNode?.fromEntities.dataSources.map((dataSourceId) => (
                       <div
                         key={dataSourceId}
                         className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-gray-200 text-gray-600"
@@ -259,7 +261,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                         {dataSources?.find((ds: DataSource) => ds.id === dataSourceId)?.name || 'Data Source'}
                       </div>
                     ))}
-                    {run.inputs?.datasetIds.map((datasetId) => (
+                    {runNode?.fromEntities.datasets.map((datasetId) => (
                       <div
                         key={datasetId}
                         className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
@@ -268,7 +270,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                         {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
                       </div>
                     ))}
-                    {run.inputs?.modelEntityIds.map((modelEntityId) => (
+                    {runNode?.fromEntities.modelEntities.map((modelEntityId) => (
                       <div
                         key={modelEntityId}
                         className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]"
@@ -277,7 +279,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                         {modelEntities?.find((me: ModelEntity) => me.id === modelEntityId)?.name || 'Model'}
                       </div>
                     ))}
-                    {run.inputs?.pipelineIds.map((pipelineId) => (
+                    {runNode?.fromEntities.pipelines.map((pipelineId) => (
                       <div
                         key={pipelineId}
                         className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#840B08]/20 text-[#840B08]"
@@ -286,7 +288,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                         {pipelines?.find((p: Pipeline) => p.id === pipelineId)?.name || 'Pipeline'}
                       </div>
                     ))}
-                    {run.inputs?.analysisIds.map((analysisId) => (
+                    {runNode?.fromEntities.analyses.map((analysisId) => (
                       <div
                         key={analysisId}
                         className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#004806]/20 text-[#004806]"
@@ -304,7 +306,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                 <div className="pt-2">
                   <div className="text-[10px] font-medium text-gray-600 mb-1">Outputs:</div>
                   <div className="flex flex-wrap gap-1">
-                    {run.outputs?.dataSourceIds.map((dataSourceId) => (
+                    {runNode?.toEntities.dataSources.map((dataSourceId) => (
                       <div
                         key={dataSourceId}
                         className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-gray-200 text-gray-600"
@@ -313,7 +315,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                         {dataSources?.find((ds: DataSource) => ds.id === dataSourceId)?.name || 'Data Source'}
                       </div>
                     ))}
-                    {run.outputs?.datasetIds.map((datasetId) => (
+                    {runNode?.toEntities.datasets.map((datasetId) => (
                       <div
                         key={datasetId}
                         className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
@@ -322,7 +324,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                         {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
                       </div>
                     ))}
-                    {run.outputs?.modelEntityIds.map((modelEntityId) => (
+                    {runNode?.toEntities.modelEntities.map((modelEntityId) => (
                       <div
                         key={modelEntityId}
                         className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]"
@@ -331,7 +333,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                         {modelEntities?.find((me: ModelEntity) => me.id === modelEntityId)?.name || 'Model'}
                       </div>
                     ))}
-                    {run.outputs?.pipelineIds.map((pipelineId) => (
+                    {runNode?.toEntities.pipelines.map((pipelineId) => (
                       <div
                         key={pipelineId}
                         className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#840B08]/20 text-[#840B08]"
@@ -340,7 +342,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                         {pipelines?.find((p: Pipeline) => p.id === pipelineId)?.name || 'Pipeline'}
                       </div>
                     ))}
-                    {run.outputs?.analysisIds.map((analysisId) => (
+                    {runNode?.toEntities.analyses.map((analysisId) => (
                       <div
                         key={analysisId}
                         className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#004806]/20 text-[#004806]"

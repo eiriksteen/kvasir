@@ -3,7 +3,7 @@ from typing import List
 from uuid import UUID
 
 from synesis_schemas.main_server import (
-    EntityEdgesCreate,
+    EdgesCreate,
     EntityDetailsResponse,
     User,
 )
@@ -18,7 +18,7 @@ router = APIRouter()
 
 
 @router.post("/edges")
-async def add_edges(edges: EntityEdgesCreate) -> str:
+async def add_edges(edges: EdgesCreate) -> str:
     """
     Add one or more edges between entities in the entity graph.
     """
@@ -27,7 +27,7 @@ async def add_edges(edges: EntityEdgesCreate) -> str:
 
 
 @router.delete("/edges")
-async def delete_edges(edges: EntityEdgesCreate) -> str:
+async def delete_edges(edges: EdgesCreate) -> str:
     """
     Remove one or more edges between entities in the entity graph.
     """

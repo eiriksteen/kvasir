@@ -24,15 +24,15 @@ from .project import (
     ProjectPipelineInDB,
     ProjectModelEntityInDB,
     EntityPositionCreate,
-    UpdateEntityPosition,
+    UpdateNodePosition,
     UpdateProjectViewport,
-    ProjectEntities
+    ProjectNodes,
+    ENTITY_TYPE_LITERAL,
+    NODE_TYPE_LITERAL
 )
 
 # Project Graph schemas
 from .entity_graph import (
-    DataSourceFromPipelineInDB,
-    DatasetFromPipelineInDB,
     DatasetFromDataSourceInDB,
     DataSourceSupportedInPipelineInDB,
     DatasetSupportedInPipelineInDB,
@@ -46,16 +46,16 @@ from .entity_graph import (
     DataSourceInAnalysisInDB,
     DatasetInAnalysisInDB,
     ModelEntityInAnalysisInDB,
-    AnalysisFromPastAnalysisInDB,
     EdgePoints,
     GraphNode,
     PipelineGraphNode,
     EntityGraph,
-    EntityEdge,
-    EntityEdgesCreate,
+    EdgeDefinition,
+    EdgesCreate,
     EntityGraphUsingNames,
     EntityDetail,
-    EntityDetailsResponse
+    EntityDetailsResponse,
+    get_entity_graph_description
 )
 
 

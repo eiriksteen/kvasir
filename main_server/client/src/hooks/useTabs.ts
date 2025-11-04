@@ -6,6 +6,7 @@ export type TabType = 'project' | 'data_source' | 'dataset' | 'analysis' | 'auto
 export interface Tab {
   id: UUID | null;  // null = project tab
   closable?: boolean;
+  initialView?: 'overview' | 'code' | 'runs';  // For pipeline tabs
 }
 
 interface TabState {
@@ -24,17 +25,27 @@ const getDefaultTabState = (): TabState => ({
 export const useTabs = () => {
   const [tabState, setTabState] = useState<TabState>(getDefaultTabState());
 
-  const openTab = useCallback((id: UUID | null, closable: boolean = true) => {
+  const openTab = useCallback((id: UUID | null, closable: boolean = true, initialView?: 'overview' | 'code' | 'runs') => {
     setTabState(current => {
-      // If tab is already open, just activate it
-      if (current.openTabs.some(t => t.id === id)) {
-        return { ...current, activeTabId: id };
+      // If tab is already open, update its initialView and activate it
+      const existingTabIndex = current.openTabs.findIndex(t => t.id === id);
+      if (existingTabIndex !== -1) {
+        const updatedTabs = [...current.openTabs];
+        updatedTabs[existingTabIndex] = { 
+          ...updatedTabs[existingTabIndex], 
+          initialView 
+        };
+        return { 
+          ...current, 
+          openTabs: updatedTabs,
+          activeTabId: id 
+        };
       }
       
       // Add new tab
       return {
         ...current,
-        openTabs: [...current.openTabs, { id, closable }],
+        openTabs: [...current.openTabs, { id, closable, initialView }],
         activeTabId: id
       };
     });

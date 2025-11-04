@@ -1,23 +1,12 @@
 import uuid
-from typing import Literal, Optional, List, Union
+from typing import Optional, List, Union
 from pydantic import model_validator, BaseModel
 from pydantic_ai import RunContext
-from pydantic_ai.exceptions import ModelRetry
 
-from synesis_schemas.main_server import (
-    QueryRequest,
-    ModelEntityImplementationCreate,
-    ModelEntityInDB,
-    AddEntityToProject,
-    GetGuidelinesRequest,
-    SearchModelsRequest,
-    RunCreate
-)
+from synesis_schemas.main_server import RunCreate
 from synesis_api.modules.orchestrator.agent.deps import OrchestratorAgentDeps
-from synesis_api.modules.knowledge_bank.service import query_models, get_task_guidelines
-from synesis_api.modules.model.service import create_model_entity_implementation
-from synesis_api.modules.project.service import add_entity_to_project
 from synesis_api.modules.runs.service import create_run
+from synesis_api.modules.entity_graph.service import get_entity_details
 
 
 class AnalysisRunSubmission(BaseModel):
@@ -137,42 +126,9 @@ async def submit_run_for_swe_agent(
     return f"Successfully submitted run for SWE agent, the run id is {run.id}"
 
 
-async def search_existing_models(ctx: RunContext[OrchestratorAgentDeps], search_query: QueryRequest) -> str:
-    if not search_query.query:
-        raise ModelRetry("Query cannot be empty!")
-    search_models_request = SearchModelsRequest(queries=[search_query])
-    results = await query_models(ctx.deps.user_id, search_models_request)
-    descriptions = "\n---\n\n".join(
-        [m.description_for_agent for result in results for m in result.models])
-    return descriptions
-
-
-async def add_model_entity_to_project(ctx: RunContext[OrchestratorAgentDeps], model_entity_implementation_create: ModelEntityImplementationCreate) -> ModelEntityInDB:
+async def get_entity_details_tool(ctx: RunContext[OrchestratorAgentDeps], entity_ids: List[uuid.UUID]) -> str:
     """
-    Add an implemented model entity to the project.
-    You must provide the model_implementation_id and model_entity_create.
-    This should not be called before we have searched the models, as we need to know the model_implementation_id.
+    Get the details of the entities with the provided IDs.
     """
-
-    if not model_entity_implementation_create.model_implementation_id:
-        raise ModelRetry("Model implementation ID is required!")
-
-    if not model_entity_implementation_create.model_entity_create:
-        raise ModelRetry("Model entity create is required!")
-
-    try:
-        new_model_entity = await create_model_entity_implementation(ctx.deps.user_id, model_entity_implementation_create)
-    except Exception as e:
-        raise ModelRetry(f"Error creating model entity implementation: {e}")
-
-    await add_entity_to_project(ctx.deps.user_id, AddEntityToProject(
-        project_id=ctx.deps.project_id,
-        entity_type="model_entity",
-        entity_id=new_model_entity.id
-    ))
-
-    return new_model_entity
-
-
-def get_task_guidelines_tool(task: Literal["time_series_forecasting"]) -> str:
-    return get_task_guidelines(GetGuidelinesRequest(task=task))
+    entity_details_response = await get_entity_details(ctx.deps.user_id, entity_ids)
+    return "\n\n".join([detail.description for detail in entity_details_response.entity_details])

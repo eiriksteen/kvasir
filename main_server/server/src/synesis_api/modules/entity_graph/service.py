@@ -18,8 +18,6 @@ from synesis_api.modules.entity_graph._description_utils import (
     get_analysis_description,
 )
 from synesis_api.modules.entity_graph.models import (
-    data_source_from_pipeline,
-    dataset_from_pipeline,
     dataset_from_data_source,
     data_source_supported_in_pipeline,
     dataset_supported_in_pipeline,
@@ -33,7 +31,6 @@ from synesis_api.modules.entity_graph.models import (
     dataset_in_analysis,
     data_source_in_analysis,
     model_entity_in_analysis,
-    analysis_from_past_analysis,
 )
 from synesis_schemas.main_server import (
     EntityGraph,
@@ -45,7 +42,7 @@ from synesis_schemas.main_server import (
     ModelEntity,
     Analysis,
     EdgePoints,
-    EntityEdgesCreate,
+    EdgesCreate,
     PipelineRunInDB,
     EntityGraphUsingNames,
     EntityDetail,
@@ -58,8 +55,6 @@ from synesis_schemas.main_server import (
 # =============================================================================
 
 VALID_EDGES = {
-    ("pipeline", "data_source"): data_source_from_pipeline,
-    ("pipeline", "dataset"): dataset_from_pipeline,
     ("data_source", "dataset"): dataset_from_data_source,
     ("data_source", "pipeline"): data_source_supported_in_pipeline,
     ("data_source", "analysis"): data_source_in_analysis,
@@ -67,28 +62,27 @@ VALID_EDGES = {
     ("dataset", "analysis"): dataset_in_analysis,
     ("model_entity", "pipeline"): model_entity_supported_in_pipeline,
     ("model_entity", "analysis"): model_entity_in_analysis,
-    ("analysis", "analysis"): analysis_from_past_analysis,
 }
 
 PIPELINE_RUN_EDGE_TABLES = {
-    ("dataset", "pipeline"): (dataset_in_pipeline_run, "input"),
-    ("data_source", "pipeline"): (data_source_in_pipeline_run, "input"),
-    ("model_entity", "pipeline"): (model_entity_in_pipeline_run, "input"),
-    ("pipeline", "dataset"): (pipeline_run_output_dataset, "output"),
-    ("pipeline", "model_entity"): (pipeline_run_output_model_entity, "output"),
-    ("pipeline", "data_source"): (pipeline_run_output_data_source, "output"),
+    ("dataset", "pipeline_run"): (dataset_in_pipeline_run, "input"),
+    ("data_source", "pipeline_run"): (data_source_in_pipeline_run, "input"),
+    ("model_entity", "pipeline_run"): (model_entity_in_pipeline_run, "input"),
+    ("pipeline_run", "dataset"): (pipeline_run_output_dataset, "output"),
+    ("pipeline_run", "model_entity"): (pipeline_run_output_model_entity, "output"),
+    ("pipeline_run", "data_source"): (pipeline_run_output_data_source, "output"),
 }
 
 
-async def create_edges(edges: EntityEdgesCreate) -> None:
+async def create_edges(edges: EdgesCreate) -> None:
     timestamp = datetime.now(timezone.utc)
 
     for edge in edges.edges:
-        key = (edge.from_entity_type, edge.to_entity_type)
+        key = (edge.from_node_type, edge.to_node_type)
 
         # Check if this is a pipeline run edge (input to or output from a run)
-        is_pipeline_run_input = edge.to_pipeline_run_id and key in PIPELINE_RUN_EDGE_TABLES
-        is_pipeline_run_output = edge.from_pipeline_run_id and key in PIPELINE_RUN_EDGE_TABLES
+        is_pipeline_run_input = edge.to_node_type == "pipeline_run" and key in PIPELINE_RUN_EDGE_TABLES
+        is_pipeline_run_output = edge.from_node_type == "pipeline_run" and key in PIPELINE_RUN_EDGE_TABLES
 
         if is_pipeline_run_input or is_pipeline_run_output:
             table, _ = PIPELINE_RUN_EDGE_TABLES[key]
@@ -97,7 +91,7 @@ async def create_edges(edges: EntityEdgesCreate) -> None:
         else:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid edge: {edge.from_entity_type} -> {edge.to_entity_type}"
+                detail=f"Invalid edge: {edge.from_node_type} -> {edge.to_node_type}"
             )
 
         value = {"created_at": timestamp, "updated_at": timestamp}
@@ -105,69 +99,61 @@ async def create_edges(edges: EntityEdgesCreate) -> None:
         # Handle pipeline run edges specially
         if is_pipeline_run_input:
             # Entity is an input to a pipeline run
-            value["pipeline_run_id"] = edge.to_pipeline_run_id
-            if edge.from_entity_type == "data_source":
-                value["data_source_id"] = edge.from_entity_id
-            elif edge.from_entity_type == "dataset":
-                value["dataset_id"] = edge.from_entity_id
-            elif edge.from_entity_type == "model_entity":
-                value["model_entity_id"] = edge.from_entity_id
+            value["pipeline_run_id"] = edge.to_node_id
+            if edge.from_node_type == "data_source":
+                value["data_source_id"] = edge.from_node_id
+            elif edge.from_node_type == "dataset":
+                value["dataset_id"] = edge.from_node_id
+            elif edge.from_node_type == "model_entity":
+                value["model_entity_id"] = edge.from_node_id
 
         elif is_pipeline_run_output:
             # Entity is an output from a pipeline run
-            value["pipeline_run_id"] = edge.from_pipeline_run_id
-            if edge.to_entity_type == "data_source":
-                value["data_source_id"] = edge.to_entity_id
-            elif edge.to_entity_type == "dataset":
-                value["dataset_id"] = edge.to_entity_id
-            elif edge.to_entity_type == "model_entity":
-                value["model_entity_id"] = edge.to_entity_id
+            value["pipeline_run_id"] = edge.from_node_id
+            if edge.to_node_type == "data_source":
+                value["data_source_id"] = edge.to_node_id
+            elif edge.to_node_type == "dataset":
+                value["dataset_id"] = edge.to_node_id
+            elif edge.to_node_type == "model_entity":
+                value["model_entity_id"] = edge.to_node_id
 
         else:
             # Regular edges
-            if edge.from_entity_type == "pipeline":
-                value["pipeline_id"] = edge.from_entity_id
-            elif edge.from_entity_type == "data_source":
-                value["data_source_id"] = edge.from_entity_id
-            elif edge.from_entity_type == "dataset":
-                value["dataset_id"] = edge.from_entity_id
-            elif edge.from_entity_type == "model_entity":
-                value["model_entity_id"] = edge.from_entity_id
-            elif edge.from_entity_type == "analysis":
-                value["analysis_id"] = edge.from_entity_id
+            if edge.from_node_type == "pipeline":
+                value["pipeline_id"] = edge.from_node_id
+            elif edge.from_node_type == "data_source":
+                value["data_source_id"] = edge.from_node_id
+            elif edge.from_node_type == "dataset":
+                value["dataset_id"] = edge.from_node_id
+            elif edge.from_node_type == "model_entity":
+                value["model_entity_id"] = edge.from_node_id
+            elif edge.from_node_type == "analysis":
+                value["analysis_id"] = edge.from_node_id
 
-            if edge.to_entity_type == "pipeline":
-                value["pipeline_id"] = edge.to_entity_id
-            elif edge.to_entity_type == "data_source":
-                value["data_source_id"] = edge.to_entity_id
-            elif edge.to_entity_type == "dataset":
-                value["dataset_id"] = edge.to_entity_id
-            elif edge.to_entity_type == "model_entity":
-                value["model_entity_id"] = edge.to_entity_id
-            elif edge.to_entity_type == "analysis":
-                if edge.from_entity_type == "analysis":
-                    value["past_analysis_id"] = edge.to_entity_id
+            if edge.to_node_type == "pipeline":
+                value["pipeline_id"] = edge.to_node_id
+            elif edge.to_node_type == "data_source":
+                value["data_source_id"] = edge.to_node_id
+            elif edge.to_node_type == "dataset":
+                value["dataset_id"] = edge.to_node_id
+            elif edge.to_node_type == "model_entity":
+                value["model_entity_id"] = edge.to_node_id
+            elif edge.to_node_type == "analysis":
+                if edge.from_node_type == "analysis":
+                    value["past_analysis_id"] = edge.to_node_id
                 else:
-                    value["analysis_id"] = edge.to_entity_id
-
-            # Special case: pipeline -> dataset can have a pipeline_run_id for tracking which run created it
-            if edge.from_pipeline_run_id and edge.from_entity_type == "pipeline" and edge.to_entity_type == "dataset":
-                value["pipeline_run_id"] = edge.from_pipeline_run_id
-
-        if table == dataset_from_data_source or table == data_source_in_analysis or table == dataset_in_analysis or table == model_entity_in_analysis or table == analysis_from_past_analysis:
-            value.pop("created_at", None)
-            value.pop("updated_at", None)
+                    value["analysis_id"] = edge.to_node_id
 
         await execute(insert(table).values([value]), commit_after=True)
 
 
-async def remove_edges(edges: EntityEdgesCreate) -> None:
+async def remove_edges(edges: EdgesCreate) -> None:
     for edge in edges.edges:
-        key = (edge.from_entity_type, edge.to_entity_type)
+        key = (edge.from_node_type, edge.to_node_type)
 
         # Check if this is a pipeline run edge
-        is_pipeline_run_input = edge.to_pipeline_run_id and key in PIPELINE_RUN_EDGE_TABLES
-        is_pipeline_run_output = edge.from_pipeline_run_id and key in PIPELINE_RUN_EDGE_TABLES
+        is_pipeline_run_input = edge.to_node_type == "pipeline_run" and key in PIPELINE_RUN_EDGE_TABLES
+        is_pipeline_run_output = edge.from_node_type == "pipeline_run" and key in PIPELINE_RUN_EDGE_TABLES
 
         if is_pipeline_run_input or is_pipeline_run_output:
             table, _ = PIPELINE_RUN_EDGE_TABLES[key]
@@ -176,7 +162,7 @@ async def remove_edges(edges: EntityEdgesCreate) -> None:
         else:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid edge: {edge.from_entity_type} -> {edge.to_entity_type}"
+                detail=f"Invalid edge: {edge.from_node_type} -> {edge.to_node_type}"
             )
 
         conditions = []
@@ -184,57 +170,55 @@ async def remove_edges(edges: EntityEdgesCreate) -> None:
         # Handle pipeline run edges specially
         if is_pipeline_run_input:
             # Entity is an input to a pipeline run
-            conditions.append(table.c.pipeline_run_id ==
-                              edge.to_pipeline_run_id)
-            if edge.from_entity_type == "data_source":
+            conditions.append(table.c.pipeline_run_id == edge.to_node_id)
+            if edge.from_node_type == "data_source":
                 conditions.append(table.c.data_source_id ==
-                                  edge.from_entity_id)
-            elif edge.from_entity_type == "dataset":
-                conditions.append(table.c.dataset_id == edge.from_entity_id)
-            elif edge.from_entity_type == "model_entity":
+                                  edge.from_node_id)
+            elif edge.from_node_type == "dataset":
+                conditions.append(table.c.dataset_id == edge.from_node_id)
+            elif edge.from_node_type == "model_entity":
                 conditions.append(table.c.model_entity_id ==
-                                  edge.from_entity_id)
+                                  edge.from_node_id)
 
         elif is_pipeline_run_output:
             # Entity is an output from a pipeline run
-            conditions.append(table.c.pipeline_run_id ==
-                              edge.from_pipeline_run_id)
-            if edge.to_entity_type == "data_source":
-                conditions.append(table.c.data_source_id == edge.to_entity_id)
-            elif edge.to_entity_type == "dataset":
-                conditions.append(table.c.dataset_id == edge.to_entity_id)
-            elif edge.to_entity_type == "model_entity":
-                conditions.append(table.c.model_entity_id == edge.to_entity_id)
+            conditions.append(table.c.pipeline_run_id == edge.from_node_id)
+            if edge.to_node_type == "data_source":
+                conditions.append(table.c.data_source_id == edge.to_node_id)
+            elif edge.to_node_type == "dataset":
+                conditions.append(table.c.dataset_id == edge.to_node_id)
+            elif edge.to_node_type == "model_entity":
+                conditions.append(table.c.model_entity_id == edge.to_node_id)
 
         else:
             # Regular edges
-            if edge.from_entity_type == "pipeline":
-                conditions.append(table.c.pipeline_id == edge.from_entity_id)
-            elif edge.from_entity_type == "data_source":
+            if edge.from_node_type == "pipeline":
+                conditions.append(table.c.pipeline_id == edge.from_node_id)
+            elif edge.from_node_type == "data_source":
                 conditions.append(table.c.data_source_id ==
-                                  edge.from_entity_id)
-            elif edge.from_entity_type == "dataset":
-                conditions.append(table.c.dataset_id == edge.from_entity_id)
-            elif edge.from_entity_type == "model_entity":
+                                  edge.from_node_id)
+            elif edge.from_node_type == "dataset":
+                conditions.append(table.c.dataset_id == edge.from_node_id)
+            elif edge.from_node_type == "model_entity":
                 conditions.append(table.c.model_entity_id ==
-                                  edge.from_entity_id)
-            elif edge.from_entity_type == "analysis":
-                conditions.append(table.c.analysis_id == edge.from_entity_id)
+                                  edge.from_node_id)
+            elif edge.from_node_type == "analysis":
+                conditions.append(table.c.analysis_id == edge.from_node_id)
 
-            if edge.to_entity_type == "pipeline":
-                conditions.append(table.c.pipeline_id == edge.to_entity_id)
-            elif edge.to_entity_type == "data_source":
-                conditions.append(table.c.data_source_id == edge.to_entity_id)
-            elif edge.to_entity_type == "dataset":
-                conditions.append(table.c.dataset_id == edge.to_entity_id)
-            elif edge.to_entity_type == "model_entity":
-                conditions.append(table.c.model_entity_id == edge.to_entity_id)
-            elif edge.to_entity_type == "analysis":
-                if edge.from_entity_type == "analysis":
+            if edge.to_node_type == "pipeline":
+                conditions.append(table.c.pipeline_id == edge.to_node_id)
+            elif edge.to_node_type == "data_source":
+                conditions.append(table.c.data_source_id == edge.to_node_id)
+            elif edge.to_node_type == "dataset":
+                conditions.append(table.c.dataset_id == edge.to_node_id)
+            elif edge.to_node_type == "model_entity":
+                conditions.append(table.c.model_entity_id == edge.to_node_id)
+            elif edge.to_node_type == "analysis":
+                if edge.from_node_type == "analysis":
                     conditions.append(
-                        table.c.past_analysis_id == edge.to_entity_id)
+                        table.c.past_analysis_id == edge.to_node_id)
                 else:
-                    conditions.append(table.c.analysis_id == edge.to_entity_id)
+                    conditions.append(table.c.analysis_id == edge.to_node_id)
 
         await execute(
             delete(table).where(and_(*conditions)),
@@ -621,7 +605,7 @@ async def _get_pipeline_run_nodes_in_graph(pipeline_runs: List[PipelineRunInDB])
 
     # Fetch input edges for runs
     for (from_type, to_type), (table, direction) in PIPELINE_RUN_EDGE_TABLES.items():
-        if direction == "input" and to_type == "pipeline":
+        if direction == "input" and to_type == "pipeline_run":
             # Inputs to pipeline runs
             records = await fetch_all(
                 select(table).where(table.c.pipeline_run_id.in_(run_ids))
@@ -639,7 +623,7 @@ async def _get_pipeline_run_nodes_in_graph(pipeline_runs: List[PipelineRunInDB])
                     from_entities.model_entities.append(
                         record["model_entity_id"])
 
-        elif direction == "output" and from_type == "pipeline":
+        elif direction == "output" and from_type == "pipeline_run":
             # Outputs from pipeline runs
             records = await fetch_all(
                 select(table).where(table.c.pipeline_run_id.in_(run_ids))

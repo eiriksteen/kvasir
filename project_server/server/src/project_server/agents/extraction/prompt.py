@@ -79,7 +79,7 @@ head = df.head().to_string()
 **Requirements**:
 - Include **every** data file in the codebase (CSV, Parquet, JSON, etc.)
 - Include raw data, training results, model outputs, etc.
-- Exclude code files
+- Exclude code files and model weights
 - Use appropriate libraries (pandas, opencv) or SDKs (boto3, azure-storage-blob, google-cloud-storage)
 
 ---
@@ -156,12 +156,15 @@ For each object group, create a DataFrame where **each row = one data object**:
 **Key Difference**:
 - **Pipeline edges**: Represent **all possible** inputs
 - **Pipeline run edges**: Represent **specific** inputs/outputs for that run
+NB: 
+- All pipeline outputs must go through pipeline runs, the pipeline itself can only have input edges representing the possible inputs to the pipeline
+- You must submit pipeline runs if you can infer from the codebase that a pipeline has been run 
 
 **Example**:
 - Pipeline with multiple models/datasets: edges to all possible models and datasets
 - Pipeline run: edges only to the specific model and dataset used
 
-**Edge Creation**: Use `from_pipeline_run_id` and `to_pipeline_run_id` fields
+**Edge Creation**: Use node_type `pipeline_run` with the pipeline run ID as the node_id
 
 ---
 

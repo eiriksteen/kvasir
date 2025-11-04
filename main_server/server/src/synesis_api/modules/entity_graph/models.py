@@ -6,42 +6,8 @@ from synesis_api.database.core import metadata
 
 
 # =============================================================================
-# Data Source Associations
-# =============================================================================
-
-data_source_from_pipeline = Table(
-    "data_source_from_pipeline",
-    metadata,
-    Column("data_source_id", UUID(as_uuid=True),
-           ForeignKey("data_sources.data_source.id"),
-           primary_key=True),
-    Column("pipeline_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.pipeline.id"),
-           primary_key=True),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    Column("updated_at", DateTime(timezone=True),
-           nullable=False, default=func.now(), onupdate=func.now()),
-    schema="entity_graph"
-)
-
-
-# =============================================================================
 # Dataset Associations
 # =============================================================================
-
-dataset_from_pipeline = Table(
-    "dataset_from_pipeline",
-    metadata,
-    Column("pipeline_id", UUID, ForeignKey(
-        "pipeline.pipeline.id"), primary_key=True, nullable=False),
-    Column("dataset_id", UUID, ForeignKey(
-        "data_objects.dataset.id"), primary_key=True, nullable=False),
-    # If we have done any runs
-    Column("pipeline_run_id", UUID, ForeignKey(
-        "pipeline.pipeline_run.id"), nullable=True),
-    schema="entity_graph"
-)
 
 
 dataset_from_data_source = Table(
@@ -51,6 +17,11 @@ dataset_from_data_source = Table(
         "data_sources.data_source.id"), primary_key=True, nullable=False),
     Column("dataset_id", UUID, ForeignKey(
         "data_objects.dataset.id"), primary_key=True, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
     schema="entity_graph"
 )
 
@@ -222,6 +193,11 @@ dataset_in_analysis = Table(
     Column("dataset_id", UUID(as_uuid=True),
            ForeignKey("data_objects.dataset.id"),
            nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
     schema="entity_graph",
 )
 
@@ -238,6 +214,11 @@ data_source_in_analysis = Table(
     Column("data_source_id", UUID(as_uuid=True),
            ForeignKey("data_sources.data_source.id"),
            nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
     schema="entity_graph",
 )
 
@@ -254,21 +235,10 @@ model_entity_in_analysis = Table(
     Column("model_entity_id", UUID(as_uuid=True),
            ForeignKey("model.model_entity.id"),
            nullable=False),
-    schema="entity_graph",
-)
-
-
-analysis_from_past_analysis = Table(
-    "analysis_from_past_analysis",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           primary_key=True,
-           default=uuid.uuid4),
-    Column("analysis_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis.id"),
-           nullable=False),
-    Column("past_analysis_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis.id"),
-           nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
     schema="entity_graph",
 )

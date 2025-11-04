@@ -22,7 +22,7 @@ from synesis_schemas.main_server import (
     PipelineImplementationCreate,
     PipelineImplementationInDB,
     DataObjectRawData,
-    EntityEdgesCreate,
+    EdgesCreate,
     PipelineRunCreate,
     PipelineRunInDB,
 )
@@ -307,7 +307,7 @@ async def submit_pipeline_implementation(
             f"Failed to submit pipeline implementation from code: {str(e)}")
 
 
-async def submit_entity_edges(ctx: RunContext[ExtractionDeps], edges: EntityEdgesCreate) -> str:
+async def submit_entity_edges(ctx: RunContext[ExtractionDeps], edges: EdgesCreate) -> str:
     """Submit edges between entities in the graph."""
     try:
         client = ProjectClient(bearer_token=ctx.deps.bearer_token)
@@ -318,7 +318,7 @@ async def submit_entity_edges(ctx: RunContext[ExtractionDeps], edges: EntityEdge
             f"Failed to submit entity edges to the system: {str(e)}")
 
 
-async def remove_entity_edges(ctx: RunContext[ExtractionDeps], edges: EntityEdgesCreate) -> str:
+async def remove_entity_edges(ctx: RunContext[ExtractionDeps], edges: EdgesCreate) -> str:
     """Remove edges between entities in the graph."""
     try:
         client = ProjectClient(bearer_token=ctx.deps.bearer_token)
@@ -378,10 +378,9 @@ def get_dataset_schema() -> str:
 
 
 def get_model_entity_schema() -> str:
-    schema_str = json.dumps(
-        ModelEntityImplementationCreate.model_json_schema(), indent=2)
+    schema = ModelEntityImplementationCreate.model_json_schema()
     return (
-        f"{schema_str}\n\n"
+        f"{schema}\n\n"
         "Validation rules: Either model_implementation_id or model_implementation_create must be provided. "
         "Either model_entity_id or model_entity_create must be provided."
     )

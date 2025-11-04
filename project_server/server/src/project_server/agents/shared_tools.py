@@ -44,6 +44,11 @@ async def grep_tool(ctx: RunContext, pattern: str, path: str = "/app", recursive
     Returns:
         Matching lines with file paths and line numbers.
     """
+    # Code files where we show all matches
+    CODE_EXTENSIONS = {'.py', '.js', '.ts', '.jsx', '.tsx',
+                       '.sh', '.bash', '.zsh', '.sql', '.html', '.css'}
+    MAX_LINES_PER_FILE = 10
+
     cmd = f"grep -rn"
     if not recursive:
         cmd = f"grep -n"
@@ -61,20 +66,44 @@ async def grep_tool(ctx: RunContext, pattern: str, path: str = "/app", recursive
     if not out.strip():
         return f"No matches found for pattern '{pattern}' in {path}"
 
-    # Filter out content from non-text files
+    # Truncate data/config files and non-readable files to prevent token overflow
     filtered_lines = []
+    file_match_counts = {}
+
     for line in out.split('\n'):
         if ':' in line:
             # Parse grep output format: file_path:line_number:content
             parts = line.split(':', 2)
             if len(parts) >= 3:
                 file_path = parts[0]
-                if not is_readable_extension(file_path):
-                    # Replace content with placeholder for non-text files
-                    filtered_lines.append(
-                        f"{parts[0]}:{parts[1]}:content too long for display")
+
+                # Check if this is a code file (show all) or needs truncation
+                is_code_file = any(file_path.lower().endswith(ext)
+                                   for ext in CODE_EXTENSIONS)
+
+                # Truncate everything except code files (includes .json, .xml, .yaml, .log, .csv, etc.)
+                if not is_code_file:
+                    if file_path not in file_match_counts:
+                        file_match_counts[file_path] = 0
+                    file_match_counts[file_path] += 1
+
+                    if file_match_counts[file_path] <= MAX_LINES_PER_FILE:
+                        filtered_lines.append(line)
+                    elif file_match_counts[file_path] == MAX_LINES_PER_FILE + 1:
+                        filtered_lines.append(
+                            f"{file_path}:...:... ({file_match_counts[file_path] - MAX_LINES_PER_FILE} more matches truncated)")
                     continue
+
         filtered_lines.append(line)
+
+    # Add summary for truncated files
+    truncated_files = {f: count for f, count in file_match_counts.items()
+                       if count > MAX_LINES_PER_FILE}
+    if truncated_files:
+        filtered_lines.append("\n--- Truncation Summary ---")
+        for file_path, total_matches in truncated_files.items():
+            filtered_lines.append(
+                f"{file_path}: {total_matches} total matches (showing first {MAX_LINES_PER_FILE})")
 
     return '\n'.join(filtered_lines)
 

@@ -103,13 +103,10 @@ class PipelineImplementationCreate(BaseModel):
 
 class PipelineRunCreate(BaseModel):
     name: str
-    project_id: UUID
-    pipeline_id: UUID
     args: dict
+    pipeline_id: UUID
     output_variables: dict = {}
     description: Optional[str] = None
-    conversation_id: Optional[UUID] = None
-    run_id: Optional[UUID] = None
     status: PIPELINE_RUN_STATUS_LITERAL = "running"
 
 

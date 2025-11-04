@@ -11,6 +11,11 @@ interface RunPipelineModalProps {
   onClose: () => void;
   onRunPipeline: (config: {
     args: Record<string, unknown>;
+    inputs: {
+      dataSourceIds: UUID[];
+      datasetIds: UUID[];
+      modelEntityIds: UUID[];
+    };
     name?: string;
     description?: string;
   }) => void;
@@ -76,9 +81,14 @@ export default function RunPipelineModal({
 
   const handleRun = () => {
     // Note: Entity relationships are managed through the entity graph
-    // The selected inputs are just for UI display/validation
+    // The selected inputs are passed to establish connections
     onRunPipeline({
       args: {}, // Placeholder - will be configured later
+      inputs: {
+        dataSourceIds: selectedDataSourceIds,
+        datasetIds: selectedDatasetIds,
+        modelEntityIds: selectedModelEntityIds,
+      },
       name: runName || undefined,
       description: runDescription || undefined,
     });

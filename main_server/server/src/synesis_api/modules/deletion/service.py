@@ -28,8 +28,6 @@ from synesis_api.modules.pipeline.models import (
     pipeline_run,
 )
 from synesis_api.modules.entity_graph.models import (
-    data_source_from_pipeline,
-    dataset_from_pipeline,
     dataset_from_data_source,
     data_source_supported_in_pipeline,
     dataset_supported_in_pipeline,
@@ -71,13 +69,6 @@ async def delete_data_source(user_id: uuid.UUID, data_source_id: uuid.UUID) -> u
     await execute(
         delete(file_data_source).where(
             file_data_source.c.id == data_source_id),
-        commit_after=True
-    )
-
-    await execute(
-        delete(data_source_from_pipeline).where(
-            data_source_from_pipeline.c.data_source_id == data_source_id
-        ),
         commit_after=True
     )
 
@@ -193,13 +184,6 @@ async def delete_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID) -> uuid.UUID
                 object_group.c.id.in_(object_group_ids)),
             commit_after=True
         )
-
-    await execute(
-        delete(dataset_from_pipeline).where(
-            dataset_from_pipeline.c.dataset_id == dataset_id
-        ),
-        commit_after=True
-    )
 
     await execute(
         delete(dataset_from_data_source).where(
@@ -449,20 +433,6 @@ async def delete_pipeline(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> uuid.UU
     await execute(
         delete(model_entity_supported_in_pipeline).where(
             model_entity_supported_in_pipeline.c.pipeline_id == pipeline_id
-        ),
-        commit_after=True
-    )
-
-    await execute(
-        delete(data_source_from_pipeline).where(
-            data_source_from_pipeline.c.pipeline_id == pipeline_id
-        ),
-        commit_after=True
-    )
-
-    await execute(
-        delete(dataset_from_pipeline).where(
-            dataset_from_pipeline.c.pipeline_id == pipeline_id
         ),
         commit_after=True
     )

@@ -91,10 +91,12 @@ async def create_data_objects(
         modality_fields_df = pd.DataFrame(modality_fields_list)
 
         # Convert dict values to JSON strings for JSONB columns
-        for col in modality_fields_df.columns:
-            modality_fields_df[col] = modality_fields_df[col].apply(
-                lambda x: json.dumps(x) if isinstance(x, dict) else x
-            )
+        try:
+            for col in modality_fields_df.columns:
+                modality_fields_df[col] = modality_fields_df[col].apply(
+                    lambda x: json.dumps(x) if isinstance(x, dict) else x)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
         object_ids = [uuid.uuid4() for _ in range(len(parent_df))]
         now = datetime.now()

@@ -359,9 +359,10 @@ async def get_user_model_entities(user_id: uuid.UUID, model_entity_ids: List[uui
     )
     model_entity_records = await fetch_all(model_entity_query)
 
-    if len(model_entity_records) != len(model_entity_ids):
-        raise HTTPException(
-            status_code=404, detail="One or more model entities not found")
+    if not model_entity_records:
+        return []
+
+    model_entity_ids = [e["id"] for e in model_entity_records]
 
     # Fetch implementations (may not exist for all entities)
     model_entity_implementation_query = select(model_entity_implementation).where(

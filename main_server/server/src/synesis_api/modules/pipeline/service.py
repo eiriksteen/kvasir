@@ -85,6 +85,10 @@ async def get_user_pipelines(
         pipeline_query = pipeline_query.where(pipeline.c.id.in_(pipeline_ids))
 
     pipelines = await fetch_all(pipeline_query)
+
+    if not pipelines:
+        return []
+
     pipeline_ids = [p["id"] for p in pipelines]
 
     pipeline_implementation_query = select(pipeline_implementation).where(
@@ -145,7 +149,6 @@ async def create_pipeline_run(pipeline_run_create: PipelineRunCreate) -> Pipelin
     pipeline_run_obj = PipelineRunInDB(
         id=uuid.uuid4(),
         **pipeline_run_create.model_dump(),
-        status="running",
         start_time=datetime.now(timezone.utc),
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc))

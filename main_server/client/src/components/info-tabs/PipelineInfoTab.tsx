@@ -16,20 +16,22 @@ import { mutate } from 'swr';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
 import JsonSchemaViewer from '@/components/JsonSchemaViewer';
 
+export type ViewType = 'overview' | 'code' | 'runs';
+
 interface PipelineInfoTabProps {
   pipelineId: UUID;
   projectId: UUID;
   onClose: () => void;
   onDelete?: () => void;
-}   
-
-type ViewType = 'overview' | 'code' | 'runs';
+  initialView?: ViewType;
+}
 
 export default function PipelineInfoTab({ 
   pipelineId,
   projectId,
   onClose,
-  onDelete
+  onDelete,
+  initialView
 }: PipelineInfoTabProps) {
 
   const { pipeline } = usePipeline(pipelineId, projectId);
@@ -41,7 +43,9 @@ export default function PipelineInfoTab({
   const { getEntityGraphNode } = useProject(projectId);
   
   const isInProgress = !pipeline?.implementation;
-  const [currentView, setCurrentView] = useState<ViewType>(isInProgress ? 'code' : 'overview');
+  const [currentView, setCurrentView] = useState<ViewType>(
+    initialView || (isInProgress ? 'code' : 'overview')
+  );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Get pipeline graph node for inputs
@@ -73,6 +77,13 @@ export default function PipelineInfoTab({
       setCurrentView('code');
     }
   }, [isInProgress, currentView]);
+
+  // Update view when initialView changes (e.g., when clicking runs box on already-open tab)
+  useEffect(() => {
+    if (initialView && !isInProgress) {
+      setCurrentView(initialView);
+    }
+  }, [initialView, isInProgress]);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -126,17 +137,6 @@ export default function PipelineInfoTab({
           </button>
         )}
         <button
-          onClick={() => setCurrentView('code')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-            currentView === 'code'
-              ? 'bg-[#840B08] text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          <FileCode className="w-4 h-4" />
-          <span className="text-sm font-medium">Code</span>
-        </button>
-        <button
           onClick={() => setCurrentView('runs')}
           disabled={isInProgress}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
@@ -148,7 +148,17 @@ export default function PipelineInfoTab({
           }`}
         >
           <SquarePlay className="w-4 h-4" />
-          <span className="text-sm font-medium">Runs</span>
+        </button>
+        <button
+          onClick={() => setCurrentView('code')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+            currentView === 'code'
+              ? 'bg-[#840B08] text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          <FileCode className="w-4 h-4" />
+          <span className="text-sm font-medium">Code</span>
         </button>
         </div>
         <button

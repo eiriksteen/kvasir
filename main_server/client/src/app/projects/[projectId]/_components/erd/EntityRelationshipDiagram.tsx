@@ -26,6 +26,7 @@ import PipelineBox from '@/app/projects/[projectId]/_components/erd/PipelineBox'
 import { UUID } from 'crypto';
 import ModelEntityBox from '@/app/projects/[projectId]/_components/erd/ModelEntityBox';
 import { computeBoxEdgeLocations } from '@/app/projects/[projectId]/_components/erd/computeBoxEdgeLocations';
+import { Square, Play } from 'lucide-react';
 
 const DataSourceNodeWrapper = ({ data }: { data: { dataSourceId: UUID; projectId: UUID; openTab: (id: UUID | null, closable?: boolean) => void } }) => (
   <>
@@ -83,7 +84,7 @@ const AnalysisNodeWrapper = ({ data }: { data: { analysisId: UUID; projectId: UU
   </>
 );
 
-const PipelineNodeWrapper = ({ data }: { data: { pipelineId: UUID; projectId: UUID; openTab: (id: UUID | null, closable?: boolean) => void } }) => (
+const PipelineNodeWrapper = ({ data }: { data: { pipelineId: UUID; projectId: UUID; openTab: (id: UUID | null, closable?: boolean, initialView?: 'overview' | 'code' | 'runs') => void } }) => (
   <>
     <PipelineBox
       pipelineId={data.pipelineId}
@@ -119,12 +120,48 @@ const ModelEntityNodeWrapper = ({ data }: { data: { modelEntityId: UUID; project
   </>
 );
 
+const PipelineRunsNodeWrapper = ({ data }: { data: { pipelineId: UUID; projectId: UUID; pipelineRunsCount: number; openTab: (id: UUID | null, closable?: boolean, initialView?: 'overview' | 'code' | 'runs') => void } }) => {
+  const hasRuns = data.pipelineRunsCount > 0;
+  
+  return (
+    <>
+      <div 
+        onClick={() => data.openTab(data.pipelineId, true, 'runs')}
+        className={`flex flex-col items-center justify-center px-2 py-2 shadow-md border-2 border-dashed rounded-md cursor-pointer transition-colors aspect-square ${
+          hasRuns 
+            ? 'border-[#840B08] bg-[#840B08]/5 hover:bg-[#840B08]/15' 
+            : 'border-[#840B08]/30 bg-gray-50 hover:bg-gray-100'
+        }`}
+      >
+        <div className="relative flex items-center justify-center mb-1">
+          {/* Square container */}
+          <Square className={`w-5 h-5 ${hasRuns ? 'text-[#840B08]' : 'text-gray-400'}`} />
+          {/* Play icon inside */}
+          <Play className={`absolute w-3 h-3 ${hasRuns ? 'text-[#840B08] fill-[#840B08]' : 'text-gray-400 fill-gray-400'}`} />
+        </div>
+        <div className={`text-[10px] font-mono whitespace-nowrap ${hasRuns ? 'text-[#840B08]' : 'text-gray-400'}`}>
+          runs ({data.pipelineRunsCount})
+        </div>
+      </div>
+      <Handle type="target" position={Position.Top} style={{ background: '#840B08', left: 'calc(50% - 8px)' }} id="top-target" />
+      <Handle type="source" position={Position.Top} style={{ background: '#840B08', left: 'calc(50% + 8px)' }} id="top-source" />
+      <Handle type="target" position={Position.Right} style={{ background: '#840B08', top: 'calc(50% - 8px)' }} id="right-target" />
+      <Handle type="source" position={Position.Right} style={{ background: '#840B08', top: 'calc(50% + 8px)' }} id="right-source" />
+      <Handle type="target" position={Position.Bottom} style={{ background: '#840B08', left: 'calc(50% + 8px)' }} id="bottom-target" />
+      <Handle type="source" position={Position.Bottom} style={{ background: '#840B08', left: 'calc(50% - 8px)' }} id="bottom-source" />
+      <Handle type="target" position={Position.Left} style={{ background: '#840B08', top: 'calc(50% + 8px)' }} id="left-target" />
+      <Handle type="source" position={Position.Left} style={{ background: '#840B08', top: 'calc(50% - 8px)' }} id="left-source" />
+    </>
+  );
+};
+
 const nodeTypes = {
   dataset: DatasetNodeWrapper,
   analysis: AnalysisNodeWrapper,
   dataSource: DataSourceNodeWrapper,
   pipeline: PipelineNodeWrapper,
   modelEntity: ModelEntityNodeWrapper,
+  pipelineRuns: PipelineRunsNodeWrapper,
 };
 
 const edgeTypes: EdgeTypes = {
@@ -133,7 +170,7 @@ const edgeTypes: EdgeTypes = {
 
 interface EntityRelationshipDiagramProps {
   projectId: UUID;
-  openTab: (id: UUID | null, closable?: boolean) => void;
+  openTab: (id: UUID | null, closable?: boolean, initialView?: 'overview' | 'code' | 'runs') => void;
 }
 
 function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelationshipDiagramProps) {
@@ -181,7 +218,7 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
 
   // Memoize nodes
   const memoizedNodes = useMemo(() => {
-    if (!project?.graph || !project?.projectEntities) {
+    if (!project?.graph || !project?.projectNodes) {
       return [];
     }
 
@@ -189,7 +226,7 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
 
     // Add data source nodes
     project.graph.dataSources.forEach((ds) => {
-      const position = project.projectEntities.projectDataSources.find(p => p.dataSourceId === ds.id);
+      const position = project.projectNodes.projectDataSources.find(p => p.dataSourceId === ds.id);
       if (position) {
         nodes.push({
           id: ds.id,
@@ -206,7 +243,7 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
 
     // Add dataset nodes
     project.graph.datasets.forEach((d) => {
-      const position = project.projectEntities.projectDatasets.find(p => p.datasetId === d.id);
+      const position = project.projectNodes.projectDatasets.find(p => p.datasetId === d.id);
       if (position) {
         nodes.push({
           id: d.id,
@@ -223,7 +260,7 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
 
     // Add pipeline nodes
     project.graph.pipelines.forEach((p) => {
-      const position = project.projectEntities.projectPipelines.find(pos => pos.pipelineId === p.id);
+      const position = project.projectNodes.projectPipelines.find(pos => pos.pipelineId === p.id);
       if (position) {
         nodes.push({
           id: p.id,
@@ -235,12 +272,25 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
             openTab,
           },
         });
+
+        // Add pipeline runs node (separate visual box)
+        nodes.push({
+          id: `${p.id}-runs`,
+          type: 'pipelineRuns',
+          position: { x: position.runBoxXPosition, y: position.runBoxYPosition },
+          data: {
+            pipelineId: p.id,
+            projectId: projectId,
+            pipelineRunsCount: p.runs.length,
+            openTab,
+          },
+        });
       }
     });
 
     // Add analysis nodes
     project.graph.analyses.forEach((a) => {
-      const position = project.projectEntities.projectAnalyses.find(p => p.analysisId === a.id);
+      const position = project.projectNodes.projectAnalyses.find(p => p.analysisId === a.id);
       if (position) {
         nodes.push({
           id: a.id,
@@ -257,7 +307,7 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
 
     // Add model entity nodes
     project.graph.modelEntities.forEach((me) => {
-      const position = project.projectEntities.projectModelEntities.find(p => p.modelEntityId === me.id);
+      const position = project.projectNodes.projectModelEntities.find(p => p.modelEntityId === me.id);
       if (position) {
         nodes.push({
           id: me.id,
@@ -274,7 +324,7 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
 
     return nodes;
 
-  }, [project?.graph, project?.projectEntities, projectId, openTab]);
+  }, [project?.graph, project?.projectNodes, projectId, openTab]);
 
   // Memoize edges - uses current node positions from state for live updates during dragging
   const memoizedEdges = useMemo(() => {
@@ -348,12 +398,38 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
       return edges;
     };
 
+    // Generate edges from pipeline to its runs node
+    const pipelineToRunsEdges: Edge[] = project.graph.pipelines.map(p => {
+      const pipelinePos = getEntityPosition(p.id);
+      const runsPos = getEntityPosition(`${p.id}-runs`);
+      if (!pipelinePos || !runsPos) return null;
+      
+      const edgeLocation = computeBoxEdgeLocations(pipelinePos, runsPos);
+      return {
+        id: `${p.id}->runs`,
+        source: p.id,
+        target: `${p.id}-runs`,
+        type: 'default',
+        animated: false,
+        style: { stroke: '#840B08', strokeWidth: 2, strokeDasharray: '5,5' },
+        markerEnd: { type: MarkerType.ArrowClosed },
+        sourceHandle: edgeLocation.from,
+        targetHandle: edgeLocation.to,
+      } as Edge;
+    }).filter(e => e !== null) as Edge[];
+
     // Generate all edges from all entity types
     const allEdges: Edge[] = [
+      ...pipelineToRunsEdges,
       ...project.graph.dataSources.flatMap(ds => processEntityOutputs(ds.id, ds.toEntities, 'dataSource')),
       ...project.graph.datasets.flatMap(d => processEntityOutputs(d.id, d.toEntities, 'dataset')),
       ...project.graph.analyses.flatMap(a => processEntityOutputs(a.id, a.toEntities, 'analysis')),
-      ...project.graph.pipelines.flatMap(p => processEntityOutputs(p.id, p.toEntities, 'pipeline')),
+      ...project.graph.pipelines.flatMap(p => [
+        // Pipeline's own edges (static/definition outputs)
+        ...processEntityOutputs(p.id, p.toEntities, 'pipeline'),
+        // Edges from all pipeline runs (shown as coming from the runs node)
+        ...p.runs.flatMap(run => processEntityOutputs(`${p.id}-runs`, run.toEntities, 'pipeline'))
+      ]),
       ...project.graph.modelEntities.flatMap(m => processEntityOutputs(m.id, m.toEntities, 'modelEntity')),
     ];
 
@@ -378,24 +454,36 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
   const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
     if (!project?.graph || !node || !node.id) return;
 
-    // Determine entity type by checking which list contains the node ID
-    let entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity" | null = null;
-
-    if (project.graph.dataSources.some(ds => ds.id === node.id)) {
-      entityType = "data_source";
-    } else if (project.graph.datasets.some(ds => ds.id === node.id)) {
-      entityType = "dataset";
-    } else if (project.graph.analyses.some(a => a.id === node.id)) {
-      entityType = "analysis";
-    } else if (project.graph.pipelines.some(p => p.id === node.id)) {
-      entityType = "pipeline";
-    } else if (project.graph.modelEntities.some(me => me.id === node.id)) {
-      entityType = "model_entity";
+    // Check if this is a pipeline runs node
+    if (String(node.id).endsWith('-runs')) {
+      const pipelineId = String(node.id).replace('-runs', '');
+      updatePosition({
+        nodeType: "pipeline_runs",
+        entityId: pipelineId as UUID,
+        xPosition: node.position.x,
+        yPosition: node.position.y,
+      });
+      return;
     }
 
-    if (entityType) {
+    // Determine node type by checking which list contains the node ID
+    let nodeType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity" | null = null;
+
+    if (project.graph.dataSources.some(ds => ds.id === node.id)) {
+      nodeType = "data_source";
+    } else if (project.graph.datasets.some(ds => ds.id === node.id)) {
+      nodeType = "dataset";
+    } else if (project.graph.analyses.some(a => a.id === node.id)) {
+      nodeType = "analysis";
+    } else if (project.graph.pipelines.some(p => p.id === node.id)) {
+      nodeType = "pipeline";
+    } else if (project.graph.modelEntities.some(me => me.id === node.id)) {
+      nodeType = "model_entity";
+    }
+
+    if (nodeType) {
       updatePosition({
-        entityType,
+        nodeType,
         entityId: node.id as UUID,
         xPosition: node.position.x,
         yPosition: node.position.y,

@@ -96,7 +96,7 @@ class TimeSeriesRawData(BaseModel):
 
 class DataObjectRawData(BaseModel):
     # TODO: Add more modalities
-    id: uuid.UUID
+    original_id: str
     modality: MODALITY_LITERAL
     data: Union[TimeSeriesRawData]
 

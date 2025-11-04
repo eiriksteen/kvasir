@@ -3,12 +3,12 @@ from uuid import UUID
 
 from project_server.client import ProjectClient
 from synesis_schemas.main_server import (
-    EntityEdgesCreate,
+    EdgesCreate,
     EntityDetailsResponse,
 )
 
 
-async def create_edges(client: ProjectClient, edges: EntityEdgesCreate) -> str:
+async def create_edges(client: ProjectClient, edges: EdgesCreate) -> str:
     response = await client.send_request(
         "post",
         "/entity-graph/edges",
@@ -17,7 +17,7 @@ async def create_edges(client: ProjectClient, edges: EntityEdgesCreate) -> str:
     return response.body
 
 
-async def remove_edges(client: ProjectClient, edges: EntityEdgesCreate) -> str:
+async def remove_edges(client: ProjectClient, edges: EdgesCreate) -> str:
     response = await client.send_request(
         "delete",
         "/entity-graph/edges",

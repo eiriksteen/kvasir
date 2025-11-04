@@ -103,12 +103,14 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
       />
     );
   } else if (tabType === 'pipeline' && activeTabId) {
+    const activeTab = openTabs.find(tab => tab.id === activeTabId);
     mainContent = (
       <PipelineInfoTab
         pipelineId={activeTabId}
         onClose={() => closeTabToProject()}
         onDelete={() => closeTab(activeTabId)}
         projectId={projectId}
+        initialView={activeTab?.initialView}
       />
     );
   } else if (tabType === 'model_entity' && activeTabId) {

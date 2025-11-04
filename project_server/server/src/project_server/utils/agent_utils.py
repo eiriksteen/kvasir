@@ -1,8 +1,7 @@
-import yaml
 from typing import List
 from uuid import UUID
 
-from synesis_schemas.main_server import Project
+from synesis_schemas.main_server import Project, get_entity_graph_description
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.models.anthropic import AnthropicModel
@@ -78,7 +77,7 @@ def get_sandbox_environment_description() -> str:
 
 
 def get_project_description(project: Project) -> str:
-    project_graph_yaml = yaml.safe_dump(project.graph.model_dump())
+    project_graph_yaml = get_entity_graph_description(project.graph)
 
     desc = (
         "**Project Name:**\n\n" +

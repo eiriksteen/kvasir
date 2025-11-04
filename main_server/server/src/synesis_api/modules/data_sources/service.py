@@ -37,7 +37,7 @@ async def create_data_source(
     data_source_obj = DataSourceInDB(
         id=data_source_id,
         user_id=user_id,
-        **data_source_create.model_dump(),
+        **data_source_create.model_dump(exclude=list(extra_fields.keys())),
         additional_variables=additional_variables,
         created_at=datetime.now(timezone.utc)
     )
@@ -81,6 +81,10 @@ async def get_user_data_sources(user_id: uuid.UUID, data_source_ids: Optional[Li
         )
 
     source_records = await fetch_all(data_source_query)
+
+    if not source_records:
+        return []
+
     source_ids = [record["id"] for record in source_records]
 
     # Get file data source records
@@ -88,8 +92,6 @@ async def get_user_data_sources(user_id: uuid.UUID, data_source_ids: Optional[Li
         file_data_source.c.id.in_(source_ids)
     )
     file_source_records = await fetch_all(file_source_query)
-
-    # from_pipelines edges are now managed by project_graph module
 
     output_records = []
     for source_id in source_ids:

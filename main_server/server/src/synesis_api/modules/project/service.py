@@ -23,10 +23,10 @@ from synesis_schemas.main_server import (
     ProjectAnalysisInDB,
     ProjectPipelineInDB,
     ProjectModelEntityInDB,
-    ProjectEntities,
+    ProjectNodes,
     EntityPositionCreate,
     EntityGraph,
-    UpdateEntityPosition,
+    UpdateNodePosition,
     UpdateProjectViewport,
 )
 from synesis_api.modules.data_sources.service import get_user_data_sources
@@ -148,7 +148,7 @@ async def get_projects(user_id: UUID, project_ids: Optional[List[UUID]] = None) 
             analyses_in_project
         )
 
-        project_entities = ProjectEntities(
+        project_nodes = ProjectNodes(
             project_data_sources=data_sources_in_project,
             project_datasets=datasets_in_project,
             project_pipelines=pipelines_in_project,
@@ -159,7 +159,7 @@ async def get_projects(user_id: UUID, project_ids: Optional[List[UUID]] = None) 
         project_objects.append(Project(
             **project_row,
             graph=project_graph,
-            project_entities=project_entities
+            project_nodes=project_nodes
         ))
 
     return project_objects
@@ -265,7 +265,9 @@ async def add_entity_to_project(user_id: UUID, entity_data: AddEntityToProject) 
         obj = ProjectPipelineInDB(
             pipeline_id=entity_id, **entity_data.model_dump(),
             x_position=entity_position.x,
-            y_position=entity_position.y)
+            y_position=entity_position.y,
+            run_box_x_position=entity_position.x + 300,
+            run_box_y_position=entity_position.y)
         await execute(insert(project_pipeline).values(obj.model_dump()), commit_after=True)
 
     project_obj = await get_projects(user_id, [entity_data.project_id])
@@ -337,24 +339,50 @@ async def delete_project(user_id: UUID, project_id: UUID) -> bool:
     return result.rowcount > 0
 
 
-async def update_entity_position(user_id: UUID, position_data: UpdateEntityPosition) -> Project | None:
-    """Update the position of an entity (data source, dataset, analysis, pipeline) in a project."""
-    if position_data.entity_type == "data_source":
+async def update_node_position(user_id: UUID, position_data: UpdateNodePosition) -> Project | None:
+    """Update the position of a node (data source, dataset, analysis, pipeline, model_entity, or pipeline_runs) in a project."""
+    if position_data.node_type == "data_source":
         target_table, target_column = project_data_source, project_data_source.c.data_source_id
-    elif position_data.entity_type == "dataset":
+        update_values = {
+            "x_position": position_data.x_position,
+            "y_position": position_data.y_position
+        }
+    elif position_data.node_type == "dataset":
         target_table, target_column = project_dataset, project_dataset.c.dataset_id
-    elif position_data.entity_type == "analysis":
+        update_values = {
+            "x_position": position_data.x_position,
+            "y_position": position_data.y_position
+        }
+    elif position_data.node_type == "analysis":
         target_table, target_column = project_analysis, project_analysis.c.analysis_id
-    elif position_data.entity_type == "pipeline":
+        update_values = {
+            "x_position": position_data.x_position,
+            "y_position": position_data.y_position
+        }
+    elif position_data.node_type == "pipeline":
         target_table, target_column = project_pipeline, project_pipeline.c.pipeline_id
-    elif position_data.entity_type == "model_entity":
+        update_values = {
+            "x_position": position_data.x_position,
+            "y_position": position_data.y_position
+        }
+    elif position_data.node_type == "model_entity":
         target_table, target_column = project_model_entity, project_model_entity.c.model_entity_id
+        update_values = {
+            "x_position": position_data.x_position,
+            "y_position": position_data.y_position
+        }
+    elif position_data.node_type == "pipeline_runs":
+        target_table, target_column = project_pipeline, project_pipeline.c.pipeline_id
+        update_values = {
+            "run_box_x_position": position_data.x_position,
+            "run_box_y_position": position_data.y_position
+        }
 
     await execute(
         update(target_table).where(
             and_(target_table.c.project_id == position_data.project_id,
                  target_column == position_data.entity_id)
-        ).values(x_position=position_data.x_position, y_position=position_data.y_position),
+        ).values(**update_values),
         commit_after=True)
 
     project_obj = await get_projects(user_id, [position_data.project_id])

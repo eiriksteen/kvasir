@@ -78,6 +78,10 @@ class TabularFileCreate(UnknownFileCreate):
 
 
 class DataSourceCreate(BaseModel):
+    """"
+    Create a data source. 
+    The name should reflect the actual source, for example files should be the file name including the extension.
+    """
     name: str
     description: str
     type: DATA_SOURCE_TYPE_LITERAL
