@@ -10,7 +10,7 @@ from synesis_api.modules.data_objects.service import (
     get_data_objects,
     create_object_group,
     create_data_objects,
-    update_object_group_raw_data_script
+    update_object_group_chart_script
 )
 # from synesis_api.modules.data_objects.service import get_time_series_payload_data_by_id
 from synesis_schemas.main_server import (
@@ -22,7 +22,7 @@ from synesis_schemas.main_server import (
     DataObject,
     ObjectsFile,
     DataObjectGroupCreate,
-    UpdateObjectGroupRawDataScriptRequest
+    UpdateObjectGroupChartScriptRequest
 )
 from synesis_schemas.main_server import User
 from synesis_api.auth.service import get_current_user, user_owns_dataset, user_owns_object_group, user_owns_data_object
@@ -160,16 +160,16 @@ async def fetch_data_object(
     return data_objects[0]
 
 
-@router.patch("/object-group/{group_id}/raw-data-script", response_model=ObjectGroup)
-async def patch_object_group_raw_data_script(
+@router.patch("/object-group/{group_id}/chart-script", response_model=ObjectGroup)
+async def patch_object_group_chart_script(
     group_id: UUID,
-    request: UpdateObjectGroupRawDataScriptRequest,
+    request: UpdateObjectGroupChartScriptRequest,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> ObjectGroup:
-    """Update the raw data read script and function name for an object group"""
+    """Update the chart generation script and function name for an object group"""
 
     if not await user_owns_object_group(user.id, group_id):
         raise HTTPException(
             status_code=403, detail="Not authorized to access this object group")
 
-    return await update_object_group_raw_data_script(group_id, request)
+    return await update_object_group_chart_script(group_id, request)

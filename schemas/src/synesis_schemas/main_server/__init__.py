@@ -139,7 +139,7 @@ from .data_objects import (
     MODALITY_LITERAL,
     DataObjectRawData,
     GetRawDataRequest,
-    UpdateObjectGroupRawDataScriptRequest,
+    UpdateObjectGroupChartScriptRequest,
     TimeSeriesRawDataParams
 )
 

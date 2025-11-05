@@ -14,5 +14,4 @@ class ExtractionDeps:
     run_id: uuid.UUID
     bearer_token: str
     created_datasets: List[Dataset] = field(default_factory=list)
-    object_groups_with_raw_data_fn: List[uuid.UUID] = field(
-        default_factory=list)
+    object_groups_with_charts: List[uuid.UUID] = field(default_factory=list)

@@ -116,12 +116,14 @@ For each object group, create a DataFrame where **each row = one data object**:
 4. Compute aggregated statistics for group's `modality_fields`
 5. Prepare `files` variable with all FileInput objects
 
-**Raw Data Functions**:
-- Create functions to read raw data for UI display
-- First parameter: original ID of the data object
-- Additional parameters: filters to limit data (set reasonable defaults)
-- Output: Python dictionary conforming to schema
-- **Delay creation until last** so all entities are created first
+**Chart Visualizations**:
+- Create chart visualizations for object groups to enable interactive data exploration in the UI
+- Submit these for each object group using `create_chart_for_object_group`
+- Provide a clear description of what the chart should show. Examples:
+  - "Show the forecast by coloring the past values in blue, including a vertical bar where the forecast begins, and showing the forecast values in green. Include the lower and upper bounds of the forecast as a shaded area.""
+  - "Show the time series classification through a zoomable chart, where we shade the slices corresponding to each class, and show what class each slice corresponds to."
+- The chart agent will generate the appropriate ECharts configuration
+- **Create charts after all entities and edges are submitted - the whole graph must be updated** since the chart agent won't be able to access the datasets unless they are submitted, alongside the sources they can be read from shown through their edges! 
 
 **Key Distinction**:
 - **Dataset** = in-memory

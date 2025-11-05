@@ -409,7 +409,7 @@ async def get_entity_details(user_id: uuid.UUID, entity_ids: List[uuid.UUID], re
     all_entity_ids: set[uuid.UUID] = set(entity_ids)
 
     if recursive:
-        # Recursively discover all input entity IDs
+        # Recursively discover all input and output entity IDs
         ids_to_process: List[uuid.UUID] = list(entity_ids)
         processed_ids: set[uuid.UUID] = set()
 
@@ -423,19 +423,29 @@ async def get_entity_details(user_id: uuid.UUID, entity_ids: List[uuid.UUID], re
                 to_field: str = f"{to_type}_id"
                 if to_type == "analysis" and from_type == "analysis":
                     to_field = "past_analysis_id"
-
                 from_field: str = f"{from_type}_id"
 
-                records = await fetch_all(
+                # Find inputs (where current_id is the destination)
+                input_records = await fetch_all(
                     select(table).where(
                         getattr(table.c, to_field) == current_id)
                 )
-
-                for record in records:
+                for record in input_records:
                     input_id: uuid.UUID = record[from_field]
                     if input_id not in all_entity_ids:
                         all_entity_ids.add(input_id)
                         ids_to_process.append(input_id)
+
+                # Find outputs (where current_id is the source)
+                output_records = await fetch_all(
+                    select(table).where(
+                        getattr(table.c, from_field) == current_id)
+                )
+                for record in output_records:
+                    output_id: uuid.UUID = record[to_field]
+                    if output_id not in all_entity_ids:
+                        all_entity_ids.add(output_id)
+                        ids_to_process.append(output_id)
 
     all_entity_ids_list: List[uuid.UUID] = list(all_entity_ids)
     data_sources = await get_user_data_sources(user_id, all_entity_ids_list)

@@ -7,9 +7,9 @@ export function convertTimeStamps(bigint64Array: BigInt64Array) {
     return convertedTimeData;
 }
 
-export function formatTimeStamps(value: any, data: Array<any>) {
+export function formatTimeStamps(value: unknown, data: Array<unknown>) {
     if (data.every(item => item instanceof Date)) {
-        value = new Date(value);
+        value = new Date(value as string);
         const firstDate = new Date(data[0]);
         const lastDate = new Date(data[data.length - 1]);
         
@@ -18,13 +18,13 @@ export function formatTimeStamps(value: any, data: Array<any>) {
 
         if (daysDiff > 365) {
             // For ranges > 1 year, show just month and year
-            return value.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+            return (value as Date).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
         } else if (daysDiff > 7) {
             // For ranges > 1 week, show date without time
-            return value.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            return (value as Date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
         } else {
             // For shorter ranges, show date and time
-            return value.toLocaleString(undefined, { 
+            return (value as Date).toLocaleString(undefined, { 
                 month: 'short',
                 day: 'numeric',
                 hour: 'numeric',
@@ -34,9 +34,9 @@ export function formatTimeStamps(value: any, data: Array<any>) {
     }
 }
 
-export function getMinMax(series: any[]) {
-    const rawMin = Math.min(...series.map((s: any) => Math.min(...s.data)));
-    const rawMax = Math.max(...series.map((s: any) => Math.max(...s.data)));
+export function getMinMax(series: Array<{ data: Array<number> }>) {
+    const rawMin = Math.min(...series.map((s) => Math.min(...s.data)));
+    const rawMax = Math.max(...series.map((s) => Math.max(...s.data)));
     const range = rawMax - rawMin;
     
     // Determine significant digits based on range

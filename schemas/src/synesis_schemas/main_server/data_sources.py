@@ -1,7 +1,8 @@
 from uuid import UUID
 from datetime import datetime
 from typing import List, Union, Literal, Optional, Dict, Any, Type
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+from pathlib import Path
 
 
 DATA_SOURCE_TYPE_LITERAL = Literal["file"]
@@ -50,12 +51,20 @@ class UnknownFileCreate(BaseModel):
     """"
     This is for file types not covered by the other file create schemas. 
     It is for any type we haven't added yet. 
+    NB: The file path must be an absolute path!
     """
     name: str
     file_name: str
     file_path: str
     file_type: str
     file_size_bytes: int
+
+    @field_validator('file_path')
+    @classmethod
+    def validate_absolute_path(cls, v):
+        if not Path(v).is_absolute():
+            raise ValueError('file_path must be an absolute path')
+        return v
 
     class Config:
         extra = "allow"

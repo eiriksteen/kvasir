@@ -38,8 +38,7 @@ class ObjectGroupInDB(BaseModel):
     dataset_id: uuid.UUID
     original_id_name: Optional[str] = None
     additional_variables: Optional[Dict[str, Any]] = None
-    raw_data_read_script_path: Optional[str] = None
-    raw_data_read_function_name: Optional[str] = None
+    chart_script_path: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -221,9 +220,8 @@ class DatasetCreate(BaseModel):
 
 # Update schemas
 
-class UpdateObjectGroupRawDataScriptRequest(BaseModel):
-    raw_data_read_script_path: str
-    raw_data_read_function_name: str
+class UpdateObjectGroupChartScriptRequest(BaseModel):
+    chart_script_path: str
 
 # Helpers
 # Used to let the agent know the schemas it's dataframes must abide by

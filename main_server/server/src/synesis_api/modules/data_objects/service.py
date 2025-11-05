@@ -30,7 +30,7 @@ from synesis_schemas.main_server import (
     DataObjectGroupCreate,
     ObjectGroupInDB,
     DataObjectCreate,
-    UpdateObjectGroupRawDataScriptRequest
+    UpdateObjectGroupChartScriptRequest
 )
 from synesis_api.database.service import execute, fetch_all, insert_df
 
@@ -417,19 +417,18 @@ async def get_data_objects(
 # UPDATE FUNCTIONS
 # =============================================================================
 
-async def update_object_group_raw_data_script(
+async def update_object_group_chart_script(
     group_id: uuid.UUID,
-    request: UpdateObjectGroupRawDataScriptRequest
+    request: UpdateObjectGroupChartScriptRequest
 ) -> ObjectGroup:
-    """Update the raw data read script and function name for an object group"""
+    """Update the chart generation script and function name for an object group"""
 
     # Update the object group
     update_stmt = (
         update(object_group)
         .where(object_group.c.id == group_id)
         .values(
-            raw_data_read_script_path=request.raw_data_read_script_path,
-            raw_data_read_function_name=request.raw_data_read_function_name,
+            chart_script_path=request.chart_script_path,
             updated_at=datetime.now()
         )
     )

@@ -2,7 +2,7 @@ import { Layers, ChevronDown, ChevronRight, Database, Calendar, Trash2, Settings
 import { useEffect, useState } from 'react';
 import { useDataset, useDatasets } from "@/hooks/useDatasets";
 import { ObjectGroupWithObjects, DataObject, TimeSeriesInDB, Modality } from "@/types/data-objects";
-import TimeSeriesChart from '@/components/charts/TimeSeriesChart';
+import EChartWrapper from '@/components/charts/EChartWrapper';
 import { UUID } from 'crypto';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
 import JsonViewer from '@/components/JsonViewer';
@@ -18,8 +18,8 @@ interface DatasetInfoTabProps {
 type SelectedDataObject = {
   id: UUID;
   modality: Modality;
-  startTimestamp: string;
-  endTimestamp: string;
+  originalId: string;
+  chartScriptPath: string;
 }
 
 
@@ -113,17 +113,12 @@ export default function DatasetInfoTab({
                   <Trash2 size={18} />
                 </button>
               </div>
-              {selectedDataObject && selectedDataObject.modality === "time_series" ? (
+              {selectedDataObject && selectedDataObject.chartScriptPath ? (
                 <div className="w-full flex-1">
-                  <TimeSeriesChart 
-                    request={{
-                      projectId,
-                      objectId: selectedDataObject.id,
-                      args: {
-                        startTimestamp: selectedDataObject.startTimestamp,
-                        endTimestamp: selectedDataObject.endTimestamp
-                      }
-                    }}
+                  <EChartWrapper 
+                    projectId={projectId}
+                    chartScriptPath={selectedDataObject.chartScriptPath}
+                    originalObjectId={selectedDataObject.originalId}
                   />
                 </div>
               ) : (
@@ -197,20 +192,20 @@ export default function DatasetInfoTab({
                                   <div className="border-t border-gray-300 bg-gray-50">
                                     <div className="p-2 space-y-2">
                                       {group.objects?.map((obj: DataObject) => {
-                                        const modality = objectGroups.find(group => group.id === obj.groupId)?.modality;
-                                        const hasRawDataFn = objectGroups.find(group => group.id === obj.groupId)?.rawDataReadScriptPath !== null;
-                                        const modalityFields = obj.modalityFields as TimeSeriesInDB;
-                                        const onClick = hasRawDataFn ? () => setSelectedDataObject({
+                                        const modality = objectGroups.find(g => g.id === obj.groupId)?.modality;
+                                        const chartScriptPath = objectGroups.find(g => g.id === obj.groupId)?.chartScriptPath;
+                                        const hasChart = chartScriptPath !== null && chartScriptPath !== undefined;
+                                        const onClick = hasChart ? () => setSelectedDataObject({
                                           id: obj.id, 
                                           modality: modality as Modality,
-                                          startTimestamp: modalityFields.startTimestamp,
-                                          endTimestamp: modalityFields.endTimestamp
+                                          originalId: obj.originalId,
+                                          chartScriptPath: chartScriptPath!
                                         }) : undefined;
                                         return (
                                         <div 
                                           key={obj.id} 
                                           onClick={onClick}
-                                          className={`group relative flex items-center gap-3 p-1 rounded-lg transition-all duration-200 border border-transparent ${hasRawDataFn ? 'cursor-pointer hover:bg-[#0E4F70]/10 hover:border-[#0E4F70]/30' : 'opacity-50 cursor-default'}`}> 
+                                          className={`group relative flex items-center gap-3 p-1 rounded-lg transition-all duration-200 border border-transparent ${hasChart ? 'cursor-pointer hover:bg-[#0E4F70]/10 hover:border-[#0E4F70]/30' : 'opacity-50 cursor-default'}`}> 
                                           <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between mb-1">
                                               <div className="flex items-center gap-2">

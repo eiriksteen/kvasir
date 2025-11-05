@@ -1,6 +1,6 @@
 import json
 import uuid
-from pathlib import Path
+from typing import List
 from pydantic_ai import RunContext, ModelRetry, FunctionToolset
 
 
@@ -9,9 +9,14 @@ from project_server.utils.code_utils import run_python_code_in_container, remove
 from project_server.utils.docker_utils import write_file_to_container
 from project_server.client import ProjectClient
 from project_server.client.requests.pipeline import post_pipeline_run
-from project_server.client.requests.data_objects import patch_object_group_raw_data_script
+from project_server.client.requests.data_objects import patch_object_group_chart_script, get_object_group
 from project_server.client.requests.entity_graph import create_edges, remove_edges
+from project_server.agents.chart.agent import chart_agent
+from project_server.agents.chart.deps import ChartDeps
+from project_server.agents.chart.output import ChartAgentOutput
+from project_server.app_secrets import SCRIPTS_INTERNAL_DIR
 from synesis_schemas.main_server import (
+    UpdateObjectGroupChartScriptRequest,
     Dataset,
     DataSource,
     ModelEntityInDB,
@@ -24,8 +29,7 @@ from synesis_schemas.main_server import (
     DataObjectRawData,
     EdgesCreate,
     PipelineRunCreate,
-    PipelineRunInDB,
-    UpdateObjectGroupRawDataScriptRequest
+    PipelineRunInDB
 )
 from project_server.worker import logger
 
@@ -147,61 +151,48 @@ async def submit_dataset(
         raise ModelRetry(f"Failed to submit dataset from code: {str(e)}")
 
 
-async def submit_read_raw_data_object_function(ctx: RunContext[ExtractionDeps], object_group_id: uuid.UUID, python_code: str, function_name: str) -> str:
-    """Submit a function that reads raw data from a data object group. Validates by calling with defaults and checking output against schema."""
-    try:
+async def create_chart_for_object_group(
+    ctx: RunContext[ExtractionDeps],
+    object_group_id: uuid.UUID,
+    chart_description: str,
+    datasets_to_inject: List[uuid.UUID],
+    data_sources_to_inject: List[uuid.UUID],
+) -> ChartAgentOutput:
+    """
+    Create a chart visualization for an object group.
 
-        # fetch random object ID from object group
-        dset = next(
-            dset for dset in ctx.deps.created_datasets for group in dset.object_groups if group.id == object_group_id)
-        group = next(
-            group for group in dset.object_groups if group.id == object_group_id)
+    This will invoke the chart generation agent to create an ECharts configuration
+    that can be used to visualize data from this object group.
 
-        python_code = remove_print_statements_from_code(python_code)
-        validation_code = (
-            f"{python_code}\n"
-            "from synesis_schemas.main_server import DataObjectRawData\n"
-            "import json\n"
-            "\n"
-            f"result = {function_name}('{group.first_data_object.original_id}')\n"
-            "validated = DataObjectRawData(**result)\n"
-            "print(json.dumps(validated.model_dump(), default=str))"
+    Args:
+        object_group_id: The ID of the object group to create a chart for
+        chart_description: Description of what chart to create (e.g., "Line chart showing temperature over time")
+        datasets_to_inject: List of dataset IDs to inject into the chart agent, which it will create its charts from
+        data_sources_to_inject: List of data source IDs to inject into the chart agent, which it will create its charts from
+
+    Returns:
+        The chart agent output containing the script content
+    """
+
+    object_group = await get_object_group(ctx.deps.client, object_group_id)
+    chart_result = await chart_agent.run(
+        chart_description,
+        deps=ChartDeps(
+            container_name=ctx.deps.container_name,
+            client=ctx.deps.client,
+            project_id=ctx.deps.project.id,
+            datasets_injected=datasets_to_inject,
+            data_sources_injected=data_sources_to_inject,
+            object_group=object_group
         )
-        out, err = await run_python_code_in_container(validation_code, ctx.deps.container_name)
-
-        logger.info("@"*100)
-        logger.info("SUBMIT RAW DATA FUNCTION CODE")
-        logger.info(python_code)
-        logger.info("OUT")
-        logger.info(out)
-        logger.info("ERR")
-        logger.info(err)
-
-        if err:
-            raise ValueError(f"Code execution error: {err}")
-
-        # Save the script to /app/internal in the container
-        save_path = Path(f"/app/internal/read_raw_data_{object_group_id}.py")
-        await write_file_to_container(save_path, python_code, ctx.deps.container_name)
-
-        # Upload save path to API
-        client = ProjectClient(bearer_token=ctx.deps.bearer_token)
-
-        await patch_object_group_raw_data_script(
-            client,
-            object_group_id,
-            UpdateObjectGroupRawDataScriptRequest(
-                raw_data_read_script_path=str(save_path),
-                raw_data_read_function_name=function_name
-            )
-        )
-
-        ctx.deps.object_groups_with_raw_data_fn.append(object_group_id)
-
-        return f"Successfully validated raw data function '{function_name}' for object group {object_group_id}"
-
-    except Exception as e:
-        raise ModelRetry(f"Failed to submit raw data function: {str(e)}")
+    )
+    save_path = SCRIPTS_INTERNAL_DIR / f"{object_group_id}.py"
+    await write_file_to_container(save_path, chart_result.output.script_content, ctx.deps.container_name)
+    await patch_object_group_chart_script(
+        ctx.deps.client,
+        object_group_id, UpdateObjectGroupChartScriptRequest(chart_script_path=str(save_path)))
+    ctx.deps.object_groups_with_charts.append(object_group_id)
+    return chart_result.output
 
 
 # TODO: More modalities
@@ -357,9 +348,9 @@ submission_toolset = FunctionToolset[ExtractionDeps](
         submit_entity_edges,
         remove_entity_edges,
         submit_pipeline_run,
-        submit_read_raw_data_object_function
+        create_chart_for_object_group
     ],
-    max_retries=5
+    max_retries=7
 )
 
 

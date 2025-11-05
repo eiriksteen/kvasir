@@ -30,7 +30,7 @@ extraction_agent = Agent[ExtractionDeps, str](
         # schema_toolset
     ],
     model_settings=ModelSettings(temperature=0),
-    retries=3
+    retries=5
 )
 
 

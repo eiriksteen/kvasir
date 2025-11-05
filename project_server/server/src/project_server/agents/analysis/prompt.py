@@ -37,7 +37,6 @@ The context will help you conduct the analysis more efficiently by providing rel
 A caveat about the context is that it is user generated. This means that the context may be incomplete and you may need to search through the project for relevant datasets, data sources and analyses, it might also include irrelevant information.
 The bigger picture is that the analysis object which the user sees is structured like a notebook.
 The notebook has sections and each section may contain multiple subsections and multiple analysis results. 
-The actual contents of the analysis results are not included in the context message (to avoid unnecessary context noise), but you can search through the analysis results to get the contents (you have a tool for this). You can do this if you think it can help answer the user's prompt.
 In addition to conducting the analysis you will also structure the notebook by creating sections and subsections, and adding analysis results to the appropriate sections.
 In theory sections can be infinitely nested, but in practice it is much better to keep the sections at a reasonable depth (either 1 or 2, and at most 3). To create a root section (depth 1), the parent section id should be None.
 
