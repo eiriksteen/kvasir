@@ -45,7 +45,7 @@ from synesis_api.modules.deletion.service import (
 
 async def create_project(user_id: UUID, project_data: ProjectCreate) -> Project:
     if project_data.python_package_name is None:
-        project_data.python_package_name = project_data.name.replace(
+        project_data.python_package_name = project_data.name.strip().replace(
             " ", "_").lower()
 
     query = insert(project).values(

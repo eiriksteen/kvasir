@@ -80,13 +80,14 @@ def get_project_description(project: Project) -> str:
     project_graph_yaml = get_entity_graph_description(project.graph)
 
     desc = (
+        "# Project Description with Entity Graph:\n\n" +
         "**Project Name:**\n\n" +
         f"{project.name}\n\n" +
         "**Project Description:**\n\n" +
         f"{project.description}\n\n" +
         "**Project Python Package Name:**\n\n" +
         f"{project.python_package_name}\n\n" +
-        "**Project Graph:**\n\n" +
+        "**Entity Graph:**\n\n" +
         f"{project_graph_yaml}\n\n"
     )
 

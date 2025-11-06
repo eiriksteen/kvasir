@@ -36,7 +36,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     try {
       await runExtraction({
         projectId,
-        promptContent: "Scan the codebase to update the project graph. Identify and add any new data sources, datasets, pipelines, models, or analyses that exist in the code but are not yet reflected in the project graph. Remove any entities that no longer exist in the codebase. Ensure the graph accurately represents the current state of the project.",
+        promptContent: "Scan the codebase to update the project graph. Add any new entities, remove any no longer relevant, add new edges between entities, or remove any edges that are no longer relevant. Ensure the graph accurately represents the current state of the project.",
       });
     } catch (error) {
       console.error('Failed to run extraction:', error);

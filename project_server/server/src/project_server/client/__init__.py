@@ -99,7 +99,10 @@ from .requests.analysis import (
     get_analysis_result_by_id_request,
     get_analysis_results_by_ids_request,
     get_data_for_analysis_result_request,
-    get_analyses_by_ids
+    get_analyses_by_ids,
+    create_result_image,
+    create_result_chart,
+    create_result_table,
 )
 
 from .requests.plots import (
@@ -116,6 +119,7 @@ from .requests.tables import (
     delete_table,
     update_table
 )
+
 
 # Export all functions and classes
 __all__ = [
@@ -227,5 +231,10 @@ __all__ = [
     "create_table",
     "get_tables_by_analysis_result_id",
     "delete_table",
-    "update_table"
+    "update_table",
+
+    # Analysis result attachments (CREATE only - fetching handled by project server)
+    "create_result_image",
+    "create_result_chart",
+    "create_result_table",
 ]

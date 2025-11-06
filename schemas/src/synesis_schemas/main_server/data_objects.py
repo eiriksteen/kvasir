@@ -49,7 +49,7 @@ class TimeSeriesInDB(BaseModel):
     end_timestamp: datetime
     num_timestamps: int
     sampling_frequency: Literal["m", "h", "d", "w", "y", "irr"]
-    timezone: str
+    timezone: Optional[str] = None
     features_schema: Dict[str, Any]
     created_at: datetime
     updated_at: datetime
@@ -143,8 +143,8 @@ class TimeSeriesCreate(BaseModel):
     end_timestamp: datetime
     num_timestamps: int
     sampling_frequency: Literal["m", "h", "d", "w", "y", "irr"]
-    timezone: str
     features_schema: Dict[str, Any]
+    timezone: Optional[str] = None
 
 
 class TimeSeriesGroupCreate(BaseModel):

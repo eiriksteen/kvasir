@@ -22,7 +22,7 @@ async def file_data_source(
 ) -> RunExtractionRequest:
     """
     Upload a file and run extraction job on it.
-    Copies the file to /app/data_sources/ in the Docker container and triggers extraction.
+    Copies the file to /app/data/ in the Docker container and triggers extraction.
     """
     project_client = ProjectClient(bearer_token=token_data.bearer_token)
     project = await get_project(project_client, project_id)

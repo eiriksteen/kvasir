@@ -55,3 +55,22 @@ from .service_table import (
     update_table,
     delete_table,
 )
+
+from .service_result_image import (
+    create_result_image,
+    get_result_images_by_analysis_result_id,
+    delete_result_image,
+)
+
+from .service_result_chart import (
+    create_result_chart,
+    get_result_chart_by_id,
+    get_result_charts_by_analysis_result_id,
+    delete_result_chart,
+)
+
+from .service_result_table import (
+    create_result_table,
+    get_result_tables_by_analysis_result_id,
+    delete_result_table,
+)

@@ -14,7 +14,7 @@ from project_server.client.requests.entity_graph import create_edges, remove_edg
 from project_server.agents.chart.agent import chart_agent
 from project_server.agents.chart.deps import ChartDeps
 from project_server.agents.chart.output import ChartAgentOutput
-from project_server.app_secrets import SCRIPTS_INTERNAL_DIR
+from project_server.app_secrets import AGENT_OUTPUTS_INTERNAL_DIR
 from synesis_schemas.main_server import (
     UpdateObjectGroupChartScriptRequest,
     Dataset,
@@ -173,8 +173,12 @@ async def create_chart_for_object_group(
     Returns:
         The chart agent output containing the script content
     """
+    try:
+        object_group = await get_object_group(ctx.deps.client, object_group_id)
+    except Exception as e:
+        raise ModelRetry(
+            f"Failed to get object group. The ID must be the DB UUID of the group: {str(e)}")
 
-    object_group = await get_object_group(ctx.deps.client, object_group_id)
     chart_result = await chart_agent.run(
         chart_description,
         deps=ChartDeps(
@@ -186,7 +190,7 @@ async def create_chart_for_object_group(
             object_group=object_group
         )
     )
-    save_path = SCRIPTS_INTERNAL_DIR / f"{object_group_id}.py"
+    save_path = AGENT_OUTPUTS_INTERNAL_DIR / f"{object_group_id}.py"
     await write_file_to_container(save_path, chart_result.output.script_content, ctx.deps.container_name)
     await patch_object_group_chart_script(
         ctx.deps.client,

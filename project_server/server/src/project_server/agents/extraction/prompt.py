@@ -345,4 +345,11 @@ models:
     to_entities:
     - pipelines: [forecasting_pipeline]
 ```
+
+The entity graph must be completely in sync with the codebase. 
+This means all entities in the codebase must be represented, but also that there should be no duplicate entities! 
+Equally important are the edges between the entities, since they track the data lineage!  
+Are there any data flows not accounted for in the graph, or any mistakenly represented data flows? 
+Thoroughly inspect the current graph to understand both what it has or does not have. 
+Remember, all edges must be accounted for before launching the chart agent. 
 """

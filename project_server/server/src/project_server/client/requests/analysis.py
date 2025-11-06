@@ -13,7 +13,13 @@ from synesis_schemas.main_server import (
     NotebookSectionUpdate,
     MoveRequest,
     # AggregationObjectWithRawData,
-    GetAnalysesByIDsRequest
+    GetAnalysesByIDsRequest,
+    ResultImageInDB,
+    ResultImageCreate,
+    ResultChartInDB,
+    ResultChartCreate,
+    ResultTableInDB,
+    ResultTableCreate
 )
 
 
@@ -83,3 +89,33 @@ async def get_analysis_result_by_id_request(client: ProjectClient, analysis_resu
 async def get_analysis_results_by_ids_request(client: ProjectClient, analysis_result_ids: List[uuid.UUID]) -> List[AnalysisResult]:
     response = await client.send_request("post", "/analysis/analysis-results/by-ids", json={"analysis_result_ids": [str(id) for id in analysis_result_ids]})
     return [AnalysisResult(**result) for result in response.body]
+
+
+async def create_result_image(client: ProjectClient, image_create: ResultImageCreate) -> ResultImageInDB:
+    """Create a new result image record in the database."""
+    response = await client.send_request(
+        "post",
+        "/analysis/result-image",
+        json=image_create.model_dump(mode="json")
+    )
+    return ResultImageInDB(**response.body)
+
+
+async def create_result_chart(client: ProjectClient, chart_create: ResultChartCreate) -> ResultChartInDB:
+    """Create a new result chart record in the database."""
+    response = await client.send_request(
+        "post",
+        "/analysis/result-chart",
+        json=chart_create.model_dump(mode="json")
+    )
+    return ResultChartInDB(**response.body)
+
+
+async def create_result_table(client: ProjectClient, table_create: ResultTableCreate) -> ResultTableInDB:
+    """Create a new result table record in the database."""
+    response = await client.send_request(
+        "post",
+        "/analysis/result-table",
+        json=table_create.model_dump(mode="json")
+    )
+    return ResultTableInDB(**response.body)

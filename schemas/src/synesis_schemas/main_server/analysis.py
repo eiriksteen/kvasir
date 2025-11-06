@@ -1,6 +1,6 @@
 from uuid import UUID
 from datetime import datetime, timezone
-from typing import List, Literal
+from typing import List, Literal, Dict, Any
 from pydantic import BaseModel, model_validator
 
 
@@ -9,12 +9,13 @@ class AnalysisResult(BaseModel):
     id: UUID
     analysis: str
     python_code: str | None = None
-    input_variable: str | None = None
-    output_variable: str | None = None
     next_type: Literal['analysis_result', 'notebook_section'] | None = None
     next_id: UUID | None = None
     section_id: UUID | None = None
-    plot_urls: List[str] = []
+    # We do individual get requests for these below
+    image_urls: List[str] = []
+    chart_script_paths: List[str] = []
+    table_paths: List[str] = []
 
 
 class NotebookSection(BaseModel):
@@ -60,6 +61,13 @@ class AnalysisStatusMessage(BaseModel):
         return self
 
 
+class ResultTable(BaseModel):
+    id: UUID
+    analysis_result_id: UUID
+    data: Dict[str, Any]
+    index_column: str
+
+
 class GetAnalysesByIDsRequest(BaseModel):
     analysis_ids: List[UUID]
 
@@ -74,6 +82,24 @@ class AnalysisInDB(BaseModel):
     created_at: datetime = datetime.now()
     user_id: UUID
     notebook_id: UUID
+
+
+class ResultImageInDB(BaseModel):
+    id: UUID
+    analysis_result_id: UUID
+    image_url: str
+
+
+class ResultChartInDB(BaseModel):
+    id: UUID
+    analysis_result_id: UUID
+    chart_script_path: str
+
+
+class ResultTableInDB(BaseModel):
+    id: UUID
+    analysis_result_id: UUID
+    table_path: str
 
 
 class NotebookInDB(BaseModel):
@@ -94,8 +120,6 @@ class AnalysisResultInDB(BaseModel):
     id: UUID
     analysis: str
     python_code: str | None = None
-    input_variable: str | None = None
-    output_variable: str | None = None
     next_type: Literal['analysis_result', 'notebook_section'] | None = None
     next_id: UUID | None = None
     section_id: UUID | None = None
@@ -142,3 +166,21 @@ class MoveRequest(BaseModel):
 
 class AnalysisResultFindRequest(BaseModel):
     analysis_result_ids: List[UUID]
+
+
+# Result attachments
+
+
+class ResultImageCreate(BaseModel):
+    analysis_result_id: UUID
+    image_url: str
+
+
+class ResultChartCreate(BaseModel):
+    analysis_result_id: UUID
+    chart_script_path: str
+
+
+class ResultTableCreate(BaseModel):
+    analysis_result_id: UUID
+    table_path: str

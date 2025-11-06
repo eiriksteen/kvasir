@@ -192,4 +192,14 @@ export const MarkdownComponents = {
         {children}
       </em>
     ),
+    img: ({ src, alt, ...props }: BaseComponentProps & { src?: string; alt?: string }) => {
+      // Don't render if src is empty or null
+      if (!src || src.trim() === '') {
+        return null;
+      }
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={alt || ''} className="max-w-full h-auto rounded my-4" {...props} />
+      );
+    },
   };

@@ -35,7 +35,7 @@ from synesis_api.modules.model.models import (
 )
 from synesis_api.modules.analysis.models import (
     analysis_status_message, analysis, analysis_result,
-    notebook_section, notebook, plot, table
+    notebook_section, notebook, result_image, result_chart, result_table
 )
 from synesis_api.modules.entity_graph.models import (
     dataset_from_data_source,
@@ -91,8 +91,9 @@ __all__ = [
     notebook_section,
     notebook,
     analysis_status_message,
-    plot,
-    table,
+    result_image,
+    result_chart,
+    result_table,
     dataset_in_analysis,
     data_source_in_analysis,
     model_entity_in_analysis,

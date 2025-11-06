@@ -7,6 +7,7 @@ from project_server.agents.analysis.output import submit_final_output
 from project_server.worker import broker
 from project_server.agents.runner_base import RunnerBase
 from synesis_schemas.project_server import RunAnalysisRequest
+from project_server.client import get_project
 
 
 class AnalysisReportResult(BaseModel):
@@ -46,6 +47,7 @@ class AnalysisAgentRunner(RunnerBase):
 
     async def __call__(self, prompt_content: str):
         try:
+            self.project = await get_project(self.project_client, self.project_id)
             await self._setup_project_container()
             await self._create_run_if_not_exists()
             await self._prepare_deps()
@@ -70,6 +72,7 @@ class AnalysisAgentRunner(RunnerBase):
             run_id=self.run_id,
             project_id=self.project_id,
             analysis_id=self.target_analysis_id,
+            container_name=str(self.project_id),
             model_entities_injected=self.input_model_entity_ids,
             data_sources_injected=self.input_data_source_ids,
             datasets_injected=self.input_dataset_ids,

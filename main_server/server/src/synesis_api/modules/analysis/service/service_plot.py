@@ -12,7 +12,7 @@ from sqlalchemy import select, insert, update, delete
 
 
 from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_api.modules.analysis.models import plot
+from synesis_api.modules.analysis.models import result_image
 from synesis_schemas.main_server import BasePlot, PlotCreate, PlotUpdate
 # from synesis_schemas.main_server import AggregationObjectWithRawData
 from synesis_schemas.main_server import BasePlot
@@ -24,7 +24,7 @@ async def create_plot(plot_create: PlotCreate) -> BasePlot:
         **plot_create.model_dump()
     )
     await execute(
-        insert(plot).values(**plot_in_db.model_dump()),
+        insert(result_image).values(**plot_in_db.model_dump()),
         commit_after=True
     )
 
@@ -33,7 +33,7 @@ async def create_plot(plot_create: PlotCreate) -> BasePlot:
 
 async def get_plot_by_id(plot_id: uuid.UUID) -> Optional[BasePlot]:
     result = await fetch_one(
-        select(plot).where(plot.c.id == plot_id)
+        select(result_image).where(result_image.c.id == plot_id)
     )
 
     if result is None:
@@ -44,7 +44,8 @@ async def get_plot_by_id(plot_id: uuid.UUID) -> Optional[BasePlot]:
 
 async def get_plots_by_analysis_result_id(analysis_result_id: uuid.UUID) -> List[BasePlot]:
     results = await fetch_all(
-        select(plot).where(plot.c.analysis_result_id == analysis_result_id)
+        select(result_image).where(
+            result_image.c.analysis_result_id == analysis_result_id)
     )
 
     return [BasePlot(**result) for result in results]
@@ -58,7 +59,7 @@ async def update_plot(plot_id: uuid.UUID, plot_update: PlotUpdate) -> Optional[B
 
     # Update the plot
     await execute(
-        update(plot).where(plot.c.id == plot_id).values(
+        update(result_image).where(result_image.c.id == plot_id).values(
             **plot_update.model_dump()),
         commit_after=True
     )
@@ -75,7 +76,7 @@ async def delete_plot(plot_id: uuid.UUID) -> bool:
 
     # Delete the plot
     await execute(
-        delete(plot).where(plot.c.id == plot_id),
+        delete(result_image).where(result_image.c.id == plot_id),
         commit_after=True
     )
 

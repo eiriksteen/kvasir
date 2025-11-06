@@ -3,15 +3,15 @@ version: '3.8'
 services:
 
   server:
-    &server
     build:
       context: ../..
-      dockerfile: project_server/server/Dockerfile.dev  
+      dockerfile: project_server/server/Dockerfile.dev
+    image: project-server:latest
     container_name: project-server
     networks:
       - project-backend
       - project-frontend
-    command: ["uvicorn", "src.project_server.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-exclude", "/app/sandbox"] 
+    command: ["uvicorn", "src.project_server.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-exclude", "/app/sandbox", "--reload-exclude", "/app/internal"] 
     volumes:
       - type: bind
         source: ../server
@@ -27,11 +27,29 @@ services:
         target: /var/run/docker.sock
         
   taskiq-worker:
-    <<: *server
+    build:
+      context: ../..
+      dockerfile: project_server/server/Dockerfile.dev
+    image: project-server:latest
     container_name: project-taskiq-worker
     command: ["sh", "-c", "cd /app/src && taskiq worker project_server.worker:broker --tasks-pattern '**/runner.py' --tasks-pattern '**/pipeline_router.py' -fsd --reload"]
     networks:
       - project-backend
+    depends_on:
+      - server
+    volumes:
+      - type: bind
+        source: ../server
+        target: /app
+      - type: bind
+        source: ../../schemas
+        target: /app/schemas
+      - type: bind
+        source: ../sandbox/
+        target: /app/sandbox/
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
 
   proxy:
     image: nginx:latest

@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from project_server.auth import TokenData, decode_token
 from project_server.client import ProjectClient, get_project
-from project_server.utils.docker_utils import read_file_from_container
+from project_server.utils.docker_utils import read_file_from_container, create_project_container_if_not_exists
 from project_server.utils.code_utils import run_python_code_in_container
 from synesis_schemas.project_server import EChartsOption
 
@@ -41,14 +41,21 @@ async def get_chart(
 
     client = ProjectClient(bearer_token=token_data.bearer_token)
     # Will raise 403 if user doesn't own it
-    await get_project(client, request.project_id)
+    project = await get_project(client, request.project_id)
+    await create_project_container_if_not_exists(project)
     container_name = str(request.project_id)
+    print("container_name", container_name)
+    print("script_path", request.script_path)
+    print("original_object_id", request.original_object_id)
 
     # Read the chart script from the container
     script_path = Path(request.script_path)
+    print("script_path", script_path)
     try:
         script_content = await read_file_from_container(script_path, container_name)
+        print("script_content", script_content)
     except Exception as e:
+        print("error", e)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to read chart script from container: {str(e)}"
@@ -58,6 +65,7 @@ async def get_chart(
         out, err = await run_python_code_in_container(script_content, container_name)
 
         if err:
+            print("err", err)
             raise HTTPException(
                 status_code=500,
                 detail=f"Chart script execution error: {err}"

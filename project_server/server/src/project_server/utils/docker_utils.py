@@ -10,7 +10,7 @@ from project_server.app_secrets import (
     SANDBOX_HOST_DIR,
     PROJECT_SERVER_HOST_DIR,
     SCHEMAS_HOST_DIR,
-    SCRIPTS_INTERNAL_HOST_DIR
+    AGENT_OUTPUTS_INTERNAL_HOST_DIR
 )
 
 from synesis_schemas.main_server import Project
@@ -62,7 +62,7 @@ async def create_project_container_if_not_exists(project: Project, image_name: s
                      # Crucial - Read only for external code, we don't want the agent to mess with this
                      str(SCHEMAS_HOST_DIR): {"bind": "/app/schemas", "mode": "ro"},
                      str(PROJECT_SERVER_HOST_DIR): {"bind": "/app/server", "mode": "ro"},
-                     str(SCRIPTS_INTERNAL_HOST_DIR): {"bind": "/app/internal", "mode": "rw"}}
+                     str(AGENT_OUTPUTS_INTERNAL_HOST_DIR): {"bind": "/app/internal", "mode": "rw"}}
         )
         container.start()
         await _install_package_after_start(container_name, project)
@@ -365,3 +365,9 @@ async def get_container_working_directory(container_name: str):
     out, err = await process.communicate()
 
     return out.decode("utf-8"), err.decode("utf-8")
+
+
+def get_host_path_from_container_path(container_path: str, project_id: UUID) -> Path:
+    container_path = container_path.replace(
+        "/app", str(SANDBOX_HOST_DIR / str(project_id)))
+    return Path(container_path)

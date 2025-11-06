@@ -77,8 +77,6 @@ analysis_result = Table(
            default=uuid.uuid4),
     Column("analysis", String, nullable=False),
     Column("python_code", String, nullable=True),
-    Column("output_variable", String, nullable=True),
-    Column("input_variable", String, nullable=True),
     Column("section_id", UUID(as_uuid=True), ForeignKey(
         "analysis.notebook_section.id"), nullable=True,),
     # 'analysis_result' or 'notebook_section'
@@ -88,24 +86,36 @@ analysis_result = Table(
 )
 
 
-plot = Table(
-    'plot',
+result_image = Table(
+    'result_image',
     metadata,
     Column('id', UUID, primary_key=True, default=uuid.uuid4),
     Column('analysis_result_id', UUID, ForeignKey(
         'analysis.analysis_result.id'), nullable=False),
-#     Column('plot_config', JSON, nullable=False), # TODO: uncomment this when we change to echarts.
-    Column('plot_url', String, nullable=False),
+    #     Column('plot_config', JSON, nullable=False), # TODO: uncomment this when we change to echarts.
+    Column('image_url', String, nullable=False),
     schema='analysis',
 )
 
 
-table = Table(
-    'table',
+result_chart = Table(
+    'result_chart',
     metadata,
     Column('id', UUID, primary_key=True, default=uuid.uuid4),
     Column('analysis_result_id', UUID, ForeignKey(
         'analysis.analysis_result.id'), nullable=False),
-    Column('table_config', JSON, nullable=False),
+    Column("chart_script_path", String, nullable=True),
+    schema='analysis',
+)
+
+
+result_table = Table(
+    'result_table',
+    metadata,
+    Column('id', UUID, primary_key=True, default=uuid.uuid4),
+    Column('analysis_result_id', UUID, ForeignKey(
+        'analysis.analysis_result.id'), nullable=False),
+    # Stores project server path to the parquet file of the dataframe corresponding to the table
+    Column('table_path', String, nullable=True),
     schema='analysis',
 )

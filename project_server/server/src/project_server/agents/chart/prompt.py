@@ -39,6 +39,7 @@ Common scenarios:
 - Historical data as one series (solid line)
 - Forecast data as another series (dashed line via `lineStyle.type: "dashed"`)
 - Vertical `markLine` at forecast start point
+- Include BOTH past values, and the forecast values, separated by a vertical line and different colors (will require reading across object groups)
 - Optional: confidence intervals using `markArea` with light shading
 - Enable zoom to compare history vs predictions
 

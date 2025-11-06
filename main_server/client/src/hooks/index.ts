@@ -9,3 +9,4 @@ export { usePipelines, usePipeline } from '@/hooks/usePipelines';
 export { useModelEntities, useModelEntity } from '@/hooks/useModelEntities';
 export { useExtraction } from '@/hooks/useExtraction';
 export { useChart } from '@/hooks/useCharts';
+export { useTable } from '@/hooks/useTable';

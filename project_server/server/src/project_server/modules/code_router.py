@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from project_server.auth import TokenData, decode_token
 from project_server.client import ProjectClient, get_project
 from project_server.app_secrets import SANDBOX_DIR
+from project_server.utils.docker_utils import create_project_container_if_not_exists
 from synesis_schemas.project_server import ProjectPath
 
 
@@ -43,8 +44,7 @@ async def get_codebase_tree_endpoint(
 
     client = ProjectClient(bearer_token=token_data.bearer_token)
     project = await get_project(client, project_id)
-    if str(project.user_id) != str(token_data.user_id):
-        raise HTTPException(status_code=403, detail="Forbidden")
+    await create_project_container_if_not_exists(project)
 
     project_path = SANDBOX_DIR / str(project.id)
     root_folder = project_path / project.python_package_name
@@ -65,8 +65,7 @@ async def get_codebase_file_endpoint(
 
     client = ProjectClient(bearer_token=token_data.bearer_token)
     project = await get_project(client, project_id)
-    if str(project.user_id) != str(token_data.user_id):
-        raise HTTPException(status_code=403, detail="Forbidden")
+    await create_project_container_if_not_exists(project)
 
     project_path = SANDBOX_DIR / \
         str(project.id) / project.python_package_name / file_path

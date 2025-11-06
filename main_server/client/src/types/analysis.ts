@@ -6,12 +6,13 @@ export interface AnalysisResult {
   id: UUID;
   analysis: string;
   pythonCode?: string | null;
-  inputVariable?: string | null;
-  outputVariable?: string | null;
   nextType?: "analysis_result" | "notebook_section" | null;
   nextId?: UUID | null;
   sectionId?: UUID | null;
   plotUrls: string[];
+  imageUrls: string[];
+  chartScriptPaths: string[];
+  tablePaths: string[];
 }
 
 export interface NotebookSection {
@@ -85,8 +86,6 @@ export interface AnalysisResultInDB {
   id: UUID;
   analysis: string;
   pythonCode?: string | null;
-  inputVariable?: string | null;
-  outputVariable?: string | null;
   nextType?: "analysis_result" | "notebook_section" | null;
   nextId?: UUID | null;
   sectionId?: UUID | null;
@@ -131,4 +130,9 @@ export interface MoveRequest {
 
 export interface AnalysisResultFindRequest {
   analysisResultIds: UUID[];
+}
+
+export interface ResultTable {
+  data: { [key: string]: unknown[] };
+  indexColumn: string;
 }

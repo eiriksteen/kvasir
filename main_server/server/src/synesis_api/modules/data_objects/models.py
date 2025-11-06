@@ -74,7 +74,7 @@ time_series = Table(
     Column("end_timestamp", DateTime(timezone=True), nullable=False),
     # m, h, d, w, y, or irr (irregular)
     Column("sampling_frequency", String, nullable=False),
-    Column("timezone", String, nullable=False),
+    Column("timezone", String, nullable=True),
     Column("features_schema", JSONB, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),

@@ -27,58 +27,32 @@ dependencies = [
     "transformers",
     "xgboost",
     "lightgbm",
-    "catboost",
-    "tensorflow",
-    "keras",
     
     # Image processing & computer vision
     "pillow",
     "opencv-python",
     "imageio",
     "scikit-image",
-    "albumentations",
     
     # Text processing & NLP
     "nltk",
     "spacy",
-    "gensim",
-    "textblob",
     "regex",
-    "beautifulsoup4",
-    "langdetect",
     "sentence-transformers",
-    "wordcloud",
     
     # Data processing & utilities
     "scipy",
     "statsmodels",
-    "arch",
     "prophet",
-    "tslearn",
-    "pyts",
-    "tsfresh",
-    "feature-engine",
-    "category-encoders",
     "pyarrow",
     
     # Time series specific packages
     "darts",
     "sktime",
     
-    # Development & testing
-    "pytest",
-    "black",
-    "flake8",
-    "pylint",
-    "mypy",
-    
     # System & network
     "requests",
-    "aiohttp",
-    "docker",
-    "redis",
-    "psycopg2-binary",
-    "sqlalchemy",
+    "aiohttp"
 ]
 
 [tool.setuptools]

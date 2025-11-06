@@ -91,7 +91,10 @@ async def create_edges(edges: EdgesCreate) -> None:
         else:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid edge: {edge.from_node_type} -> {edge.to_node_type}"
+                detail=(
+                    f"Invalid edge: {edge.from_node_type} -> {edge.to_node_type}\n\n"
+                    f"Valid edges: {list(VALID_EDGES.keys())}"
+                )
             )
 
         value = {"created_at": timestamp, "updated_at": timestamp}

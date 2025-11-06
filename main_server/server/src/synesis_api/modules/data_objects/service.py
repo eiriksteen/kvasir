@@ -1,9 +1,10 @@
 import io
 import json
 import uuid
+import numpy as np
 import pandas as pd
 import jsonschema
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any
 from datetime import datetime
 from sqlalchemy import insert, select, update
 from fastapi import UploadFile, HTTPException
@@ -73,11 +74,21 @@ async def create_data_objects(
         if len(df) == 0:
             raise HTTPException(status_code=400, detail="DataFrame is empty")
 
+        # Convert numpy arrays to native Python types for all rows
+        df = df.applymap(_convert_numpy_to_native)
+
         first_row = df.iloc[0].to_dict()
+        print("&"*100)
+        print("TRYING TO VALIDATE FIRST ROW")
+        print(first_row)
         try:
             jsonschema.validate(
                 first_row, DataObjectCreate.model_json_schema())
         except jsonschema.ValidationError as e:
+            print("&"*100)
+            print("VALIDATION ERROR")
+            print(e)
+            print("&"*100)
             raise HTTPException(status_code=400, detail=str(e))
 
         # Get parent fields from DataObjectInDB, excluding auto-generated fields
@@ -447,3 +458,29 @@ async def update_object_group_chart_script(
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
+
+
+def _convert_numpy_to_native(obj: Any) -> Any:
+    """
+    Recursively convert all numpy arrays in a data structure to native Python types.
+
+    - numpy arrays with a single element are converted to single values
+    - numpy arrays with multiple elements are converted to lists
+    - Recursively processes dicts and lists
+    """
+    if isinstance(obj, np.ndarray):
+        if obj.size == 1:
+            # Single value - extract it
+            return _convert_numpy_to_native(obj.item())
+        else:
+            # Multiple values - convert to list
+            return [_convert_numpy_to_native(item) for item in obj.tolist()]
+    elif isinstance(obj, dict):
+        return {key: _convert_numpy_to_native(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [_convert_numpy_to_native(item) for item in obj]
+    elif isinstance(obj, (np.integer, np.floating)):
+        # Convert numpy scalar types to Python native types
+        return obj.item()
+    else:
+        return obj

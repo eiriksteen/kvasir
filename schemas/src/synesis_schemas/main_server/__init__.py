@@ -251,4 +251,10 @@ from .analysis import (
     MoveRequest,
     AnalysisResultFindRequest,
     GetAnalysesByIDsRequest,
+    ResultImageInDB,
+    ResultImageCreate,
+    ResultChartInDB,
+    ResultChartCreate,
+    ResultTableInDB,
+    ResultTableCreate,
 )
