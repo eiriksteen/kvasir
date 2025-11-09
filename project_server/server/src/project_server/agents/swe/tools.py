@@ -9,7 +9,6 @@ from project_server.utils.code_utils import (
     filter_content_by_extension,
 )
 from project_server.agents.swe.deps import SWEAgentDeps, RenamedFile
-from project_server.agents.runner_base import StreamedCode
 from project_server.utils.docker_utils import (
     write_file_to_container,
     read_file_from_container,
@@ -84,10 +83,6 @@ async def write_file(ctx: RunContext[SWEAgentDeps], content: str, file_path: str
     ctx.deps.new_files.append(
         FileInRun(path=str(file_path), content=filtered_content))
 
-    if ctx.deps.log_code:
-        await ctx.deps.log_code(StreamedCode(
-            code=content, filename=file_path.name))
-
     content_with_line_numbers = add_line_numbers_to_script(content)
 
     return f"WROTE TO FILE: {file_path}\n\n<begin_file file_path={file_path}>\n\n{content_with_line_numbers}\n\n<end_file>"
@@ -147,10 +142,6 @@ async def replace_file_lines(
     out = f"UPDATED FILE: {file_path}\n\n <begin_file file_path={file_path}>\n\n {updated_content_with_line_numbers}\n\n <end_file>"
     out += "\n\nThe file is not automatically run and validated, you must call the final_result tool to submit the file for validation and feedback.\n"
 
-    if ctx.deps.log_code:
-        await ctx.deps.log_code(StreamedCode(
-            code=updated_content, filename=Path(file_path).name))
-
     return out
 
 
@@ -196,10 +187,6 @@ async def add_file_lines(ctx: RunContext[SWEAgentDeps], file_name: str, new_code
     script_with_line_numbers = add_line_numbers_to_script(updated_content)
     out = f"UPDATED SCRIPT: \n\n <begin_file file_path={file_path}>\n\n {script_with_line_numbers}\n\n <end_file>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
-
-    if ctx.deps.log_code:
-        await ctx.deps.log_code(StreamedCode(
-            code=updated_content, filename=file_path.name))
 
     return out
 
@@ -247,10 +234,6 @@ async def delete_file_lines(ctx: RunContext[SWEAgentDeps], file_path: str, line_
     script_with_line_numbers = add_line_numbers_to_script(updated_content)
     out = f"UPDATED SCRIPT: \n\n <begin_file file_path={file_path}>\n\n {script_with_line_numbers}\n\n <end_file>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
-
-    if ctx.deps.log_code:
-        await ctx.deps.log_code(
-            StreamedCode(code=updated_content, filename=file_path.name))
 
     return out
 

@@ -67,14 +67,6 @@ async def submit_data_source(ctx: RunContext[ExtractionDeps], python_code: str, 
         )
         out, err = await run_python_code_in_container(submission_code, ctx.deps.container_name)
 
-        logger.info("@"*100)
-        logger.info("SUBMIT DATA SOURCE CODE")
-        logger.info(python_code)
-        logger.info("OUT")
-        logger.info(out)
-        logger.info("ERR")
-        logger.info(err)
-
         if err:
             raise ValueError(f"Code execution error: {err}")
 
@@ -131,13 +123,7 @@ async def submit_dataset(
             "asyncio.run(run_submission())"
         )
         out, err = await run_python_code_in_container(submission_code, ctx.deps.container_name)
-        logger.info("@"*100)
-        logger.info("SUBMIT DATASET CODE")
-        logger.info(submission_code)
-        logger.info("OUT")
-        logger.info(out)
-        logger.info("ERR")
-        logger.info(err)
+
         if err:
             raise ValueError(f"Code execution error: {err}")
 
@@ -235,13 +221,7 @@ async def submit_model_entity(ctx: RunContext[ExtractionDeps], python_code: str,
             "asyncio.run(run_submission())"
         )
         out, err = await run_python_code_in_container(submission_code, ctx.deps.container_name)
-        logger.info("@"*100)
-        logger.info("SUBMIT MODEL ENTITY CODE")
-        logger.info(python_code)
-        logger.info("OUT")
-        logger.info(out)
-        logger.info("ERR")
-        logger.info(err)
+
         if err:
             raise ValueError(f"Code execution error: {err}")
 
@@ -294,13 +274,7 @@ async def submit_pipeline_implementation(
             "asyncio.run(run_submission())"
         )
         out, err = await run_python_code_in_container(submission_code, ctx.deps.container_name)
-        logger.info("@"*100)
-        logger.info("SUBMIT PIPELINE IMPLEMENTATION CODE")
-        logger.info(python_code)
-        logger.info("OUT")
-        logger.info(out)
-        logger.info("ERR")
-        logger.info(err)
+
         if err:
             raise ValueError(f"Code execution error: {err}")
 

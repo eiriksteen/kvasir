@@ -10,7 +10,7 @@ from project_server.redis import get_redis
 from project_server.client import ProjectClient, get_project
 from project_server.worker import logger
 from project_server.agents.tool_descriptions import TOOL_DESCRIPTIONS
-from synesis_schemas.main_server import RunMessageCreate, RunMessageCreatePydantic, RunCreate, RunStatusUpdate, StreamedCode, Project
+from synesis_schemas.main_server import RunMessageCreate, RunMessageCreatePydantic, RunCreate, RunStatusUpdate, Project
 from project_server.utils.docker_utils import create_project_container_if_not_exists
 
 
@@ -102,14 +102,6 @@ class RunnerBase(ABC):
                 run_id=log_run_id,
                 content=content
             ))
-
-    async def _stream_code(self, code: StreamedCode):
-        log_run_id = self.parent_run_id if self.log_to_parent_run and self.parent_run_id else self.run_id
-
-        if code.target == "redis" or code.target == "both":
-            await self.redis_stream.xadd(f"{log_run_id}-code", code.model_dump(mode="json"))
-        if code.target == "taskiq" or code.target == "both":
-            logger.info(code.code)
 
     async def _setup_project_container(self):
         if self.project is None:

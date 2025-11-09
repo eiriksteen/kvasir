@@ -3,6 +3,7 @@ import docker
 from uuid import UUID
 from pathlib import Path
 from typing import Optional
+from functools import wraps, partial
 from docker.errors import NotFound, ImageNotFound
 
 from project_server.app_secrets import (
@@ -18,16 +19,38 @@ from synesis_schemas.main_server import Project
 from project_server.utils.code_utils import run_shell_code_in_container
 
 
-async def _install_package_after_start(container_name: str, project: Project) -> None:
-    _, err = await run_shell_code_in_container(
-        "pip install -e .",
-        container_name,
-        cwd=f"/app/{project.python_package_name}"
-    )
+def _create_new_project_container_sync(project: Project, image_name: str) -> docker.models.containers.Container:
+    """Synchronous function to create a new project container."""
+    docker_client = docker.from_env()
+    container_name = str(project.id)
 
-    if err:
+    project_dir = SANDBOX_HOST_DIR / str(project.id)
+    project_package_dir = project_dir / project.python_package_name
+
+    if not project_dir.exists():
+        _create_empty_project_package(project)
+
+    try:
+        docker_client.images.get(image_name)
+    except ImageNotFound as e:
         raise RuntimeError(
-            f"Failed to install package in container: {err}")
+            f"Sandbox image {image_name} not found, the image must be built first") from e
+
+    container = docker_client.containers.create(
+        image=image_name,
+        name=container_name,
+        detach=True,
+        tty=True,
+        stdin_open=True,
+        working_dir=f"/app/{project.python_package_name}",
+        volumes={str(project_package_dir): {"bind": f"/app/{project.python_package_name}", "mode": "rw"},
+                 # Crucial - Read only for external code, we don't want the agent to mess with this
+                 str(SCHEMAS_HOST_DIR): {"bind": "/app/schemas", "mode": "ro"},
+                 str(PROJECT_SERVER_HOST_DIR): {"bind": "/app/server", "mode": "ro"},
+                 str(AGENT_OUTPUTS_INTERNAL_HOST_DIR): {"bind": "/app/internal", "mode": "rw"}}
+    )
+    container.start()
+    return container
 
 
 async def create_project_container_if_not_exists(project: Project, image_name: str = "sandbox") -> None:
@@ -38,35 +61,9 @@ async def create_project_container_if_not_exists(project: Project, image_name: s
         existing_container = docker_client.containers.get(container_name)
         if existing_container.status != "running":
             existing_container.start()
-            await _install_package_after_start(container_name, project)
     except NotFound:
-        project_dir = SANDBOX_HOST_DIR / str(project.id)
-        project_package_dir = project_dir / project.python_package_name
-
-        if not project_dir.exists():
-            _create_empty_project_package(project)
-
-        try:
-            docker_client.images.get(image_name)
-        except ImageNotFound as e:
-            raise RuntimeError(
-                f"Sandbox image {image_name} not found, the image must be built first") from e
-
-        container = docker_client.containers.create(
-            image=image_name,
-            name=container_name,
-            detach=True,
-            tty=True,
-            stdin_open=True,
-            working_dir=f"/app/{project.python_package_name}",
-            volumes={str(project_package_dir): {"bind": f"/app/{project.python_package_name}", "mode": "rw"},
-                     # Crucial - Read only for external code, we don't want the agent to mess with this
-                     str(SCHEMAS_HOST_DIR): {"bind": "/app/schemas", "mode": "ro"},
-                     str(PROJECT_SERVER_HOST_DIR): {"bind": "/app/server", "mode": "ro"},
-                     str(AGENT_OUTPUTS_INTERNAL_HOST_DIR): {"bind": "/app/internal", "mode": "rw"}}
-        )
-        container.start()
-        await _install_package_after_start(container_name, project)
+        # Run blocking Docker operations in a separate thread to avoid blocking the event loop
+        await asyncio.to_thread(_create_new_project_container_sync, project, image_name)
 
 
 def _create_empty_project_package(project: Project) -> None:

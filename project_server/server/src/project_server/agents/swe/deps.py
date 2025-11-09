@@ -1,9 +1,8 @@
 import uuid
 from dataclasses import dataclass, field
-from typing import Optional, List, Callable
+from typing import List
 
 from project_server.client import ProjectClient
-from project_server.agents.runner_base import StreamedCode
 from synesis_schemas.main_server import Project
 from synesis_schemas.project_server import FileInRun, RenamedFile
 
@@ -24,4 +23,3 @@ class SWEAgentDeps:
     modified_files: List[FileInRun] = field(default_factory=list)
     deleted_files: List[FileInRun] = field(default_factory=list)
     renamed_files: List[RenamedFile] = field(default_factory=list)
-    log_code: Optional[Callable[StreamedCode, None]] = None

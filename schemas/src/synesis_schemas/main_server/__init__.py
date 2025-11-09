@@ -172,7 +172,6 @@ from .runs import (
     DatasetInRunInDB,
     ModelEntityInRunInDB,
     PipelineInRunInDB,
-    StreamedCode,
     AnalysisFromRunInDB,
     PipelineFromRunInDB,
     AnalysisInRunInDB

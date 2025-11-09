@@ -57,12 +57,6 @@ async def run_pipeline_task(
         swe_output = await swe_runner(swe_prompt)
         bash_script = swe_output.main_script.content
 
-        logger.info(
-            f"THE FULL CODE TO RUN (path: {bash_script})")
-        logger.info("--------------------------------")
-        logger.info(bash_script)
-        logger.info("--------------------------------")
-
         _, err = await run_shell_code_in_container(bash_script)
 
         if err:

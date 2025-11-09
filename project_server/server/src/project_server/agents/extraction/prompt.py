@@ -143,7 +143,11 @@ For each object group, create a DataFrame where **each row = one data object**:
 **Requirements**:
 - Use provided tools to read notebooks (don't read directly)
 - Extract information useful for agents to understand the analysis
-- Data sources and datasets will have edges into the analyses
+- **Input edges**: Analysis entities must have the data source or dataset they analyze as input
+  - If analyzing a dataset, the dataset must have an edge into the analysis
+  - If analyzing a data source, the data source must have an edge into the analysis
+
+**NB**: Analysis entities can exist independent of the codebase. If no notebook is present in the codebase, this is expected—analyses may be created by agents or users outside the code files.
 
 ---
 
@@ -193,161 +197,6 @@ NB:
 3. Ensure all entities and edges are accounted for before submission
 4. **Critical**: Graph must be one-to-one with codebase—add missing entities and remove duplicates or obsolete entities
 
----
-
-## Example: Forecasting Project
-
-### Folder Structure
-```
-forecasting_project/
-├── data/
-│   ├── raw_time_series.csv
-│   ├── cleaned_time_series.csv
-├── model_weights/
-│   ├── model_weights.pth
-├── results/
-│   ├── run_1/
-│   │   ├── forecast_results.csv
-│   │   ├── model_metrics.json
-│   ├── run_2/
-│   │   ├── forecast_results.csv
-│   │   ├── model_metrics.json
-├── scripts/
-│   ├── run_forecasting_pipeline.py
-├── src/
-│   ├── pipelines/
-│   │   ├── cleaning_pipeline.py
-│   │   ├── forecasting_pipeline.py
-│   ├── models/
-│   │   ├── timemixer.py
-│   │   ├── xgboost_model.py
-```
-
-### Extracted Graph (YAML)
-
-```yaml
-data_sources:
-  - id: raw_data_source
-    name: raw_time_series
-    description: Raw time series data
-    to_entities:
-    - pipelines: [cleaning_pipeline]
-        
-  - id: cleaned_data_source
-    name: cleaned_time_series
-    description: Cleaned time series data
-    from_entities:
-    - pipeline_runs: [cleaning_run_1]
-    to_entities:
-    - datasets: [dataset_1]
-        
-  - id: forecast_results_source_1
-    name: forecast_results_run_1
-    description: Forecast results for run 1
-    from_entities:
-    - pipeline_runs: [forecasting_run_1]
-    to_entities:
-    - datasets: [forecasting_results_run_1]
-        
-  - id: forecast_metrics_source_1
-    name: forecast_metrics_run_1
-    description: Forecast metrics for run 1
-    from_entities:
-    - pipeline_runs: [forecasting_run_1]
-    to_entities:
-    - datasets: [forecasting_results_run_1]
-
-  - id: forecast_results_source_2
-    name: forecast_results_run_2
-    description: Forecast results for run 2
-    from_entities:
-    - pipeline_runs: [forecasting_run_2]
-    to_entities:
-    - datasets: [forecasting_results_run_2]
-        
-  - id: forecast_metrics_source_2
-    name: forecast_metrics_run_2
-    description: Forecast metrics for run 2
-    from_entities:
-    - pipeline_runs: [forecasting_run_2]
-    to_entities:
-    - datasets: [forecasting_results_run_2]
-
-datasets:
-  - id: dataset_1
-    name: cleaned_time_series
-    description: Cleaned time series dataset
-    from_entities:
-    - data_sources: [cleaned_data_source]
-    to_entities:
-    - pipelines: [forecasting_pipeline]
-
-  - id: forecasting_results_run_1
-    name: Forecasting results run 1
-    description: Forecasting results run 1
-    from_entities:
-    - data_sources: [forecast_results_source_1, forecast_metrics_source_1]
-
-  - id: forecasting_results_run_2
-    name: Forecasting results run 2
-    description: Forecasting results run 2
-    from_entities:
-    - data_sources: [forecast_results_source_2, forecast_metrics_source_2]
-
-pipelines:
-  - id: cleaning_pipeline
-    name: Cleaning pipeline
-    description: Cleaning pipeline
-    from_entities:
-    - data_sources: [raw_data_source]
-    runs:
-      - id: cleaning_run_1
-        name: Cleaning run 1
-        description: Cleaning run 1
-        from_entities:
-        - data_sources: [raw_data_source]
-        to_entities:
-        - data_sources: [cleaned_data_source]
-            
-  - id: forecasting_pipeline
-    name: Forecasting pipeline
-    description: Forecasting pipeline
-    from_entities:
-    - datasets: [dataset_1]
-    - model_entities: [timemixer_model, xgboost_model]
-    runs:
-      - id: forecasting_run_1
-        name: Forecasting run 1
-        description: Forecasting run 1
-        from_entities:
-        - datasets: [dataset_1]
-        - model_entities: [timemixer_model]
-        to_entities:
-        - data_sources: [forecast_results_source_1, forecast_metrics_source_1]
-            
-      - id: forecasting_run_2
-        name: Forecasting run 2
-        description: Forecasting run 2
-        from_entities:
-        - datasets: [dataset_1]
-        - model_entities: [xgboost_model]
-        to_entities:
-        - data_sources: [forecast_results_source_2, forecast_metrics_source_2]
-
-models:
-  - id: timemixer_model
-    name: TimeMixer
-    description: TimeMixer forecasting model
-    to_entities:
-    - pipelines: [forecasting_pipeline]
-        
-  - id: xgboost_model
-    name: XGBoost
-    description: XGBoost forecasting model
-    to_entities:
-    - pipelines: [forecasting_pipeline]
-```
-
 Guidelines:
 - The entity graph must be completely in sync with the codebase. This means all entities in the codebase must be represented, but also that there should be no duplicate entities! 
   - I repeat - no duplicates! If we already have the data source, dataset, etc in the graph, do NOT create a new one! 
@@ -359,3 +208,161 @@ Guidelines:
 - You will have a tool to read code files, but not data files. To extract information from data files you must write code. 
 - No redundant tool calls! You can include multiple inputs to read files or do ls to speed up the process
 """
+
+
+# EXAMPLE_EXTRACTION = """
+# ---
+
+# ## Example: Forecasting Project
+
+# ### Folder Structure
+# ```
+# forecasting_project/
+# ├── data/
+# │   ├── raw_time_series.csv
+# │   ├── cleaned_time_series.csv
+# ├── model_weights/
+# │   ├── model_weights.pth
+# ├── results/
+# │   ├── run_1/
+# │   │   ├── forecast_results.csv
+# │   │   ├── model_metrics.json
+# │   ├── run_2/
+# │   │   ├── forecast_results.csv
+# │   │   ├── model_metrics.json
+# ├── scripts/
+# │   ├── run_forecasting_pipeline.py
+# ├── src/
+# │   ├── pipelines/
+# │   │   ├── cleaning_pipeline.py
+# │   │   ├── forecasting_pipeline.py
+# │   ├── models/
+# │   │   ├── timemixer.py
+# │   │   ├── xgboost_model.py
+# ```
+
+# ### Extracted Graph (YAML)
+
+# ```yaml
+# data_sources:
+#   - id: raw_data_source
+#     name: raw_time_series
+#     description: Raw time series data
+#     to_entities:
+#     - pipelines: [cleaning_pipeline]
+
+#   - id: cleaned_data_source
+#     name: cleaned_time_series
+#     description: Cleaned time series data
+#     from_entities:
+#     - pipeline_runs: [cleaning_run_1]
+#     to_entities:
+#     - datasets: [dataset_1]
+
+#   - id: forecast_results_source_1
+#     name: forecast_results_run_1
+#     description: Forecast results for run 1
+#     from_entities:
+#     - pipeline_runs: [forecasting_run_1]
+#     to_entities:
+#     - datasets: [forecasting_results_run_1]
+
+#   - id: forecast_metrics_source_1
+#     name: forecast_metrics_run_1
+#     description: Forecast metrics for run 1
+#     from_entities:
+#     - pipeline_runs: [forecasting_run_1]
+#     to_entities:
+#     - datasets: [forecasting_results_run_1]
+
+#   - id: forecast_results_source_2
+#     name: forecast_results_run_2
+#     description: Forecast results for run 2
+#     from_entities:
+#     - pipeline_runs: [forecasting_run_2]
+#     to_entities:
+#     - datasets: [forecasting_results_run_2]
+
+#   - id: forecast_metrics_source_2
+#     name: forecast_metrics_run_2
+#     description: Forecast metrics for run 2
+#     from_entities:
+#     - pipeline_runs: [forecasting_run_2]
+#     to_entities:
+#     - datasets: [forecasting_results_run_2]
+
+# datasets:
+#   - id: dataset_1
+#     name: cleaned_time_series
+#     description: Cleaned time series dataset
+#     from_entities:
+#     - data_sources: [cleaned_data_source]
+#     to_entities:
+#     - pipelines: [forecasting_pipeline]
+
+#   - id: forecasting_results_run_1
+#     name: Forecasting results run 1
+#     description: Forecasting results run 1
+#     from_entities:
+#     - data_sources: [forecast_results_source_1, forecast_metrics_source_1]
+
+#   - id: forecasting_results_run_2
+#     name: Forecasting results run 2
+#     description: Forecasting results run 2
+#     from_entities:
+#     - data_sources: [forecast_results_source_2, forecast_metrics_source_2]
+
+# pipelines:
+#   - id: cleaning_pipeline
+#     name: Cleaning pipeline
+#     description: Cleaning pipeline
+#     from_entities:
+#     - data_sources: [raw_data_source]
+#     runs:
+#       - id: cleaning_run_1
+#         name: Cleaning run 1
+#         description: Cleaning run 1
+#         from_entities:
+#         - data_sources: [raw_data_source]
+#         to_entities:
+#         - data_sources: [cleaned_data_source]
+
+#   - id: forecasting_pipeline
+#     name: Forecasting pipeline
+#     description: Forecasting pipeline
+#     from_entities:
+#     - datasets: [dataset_1]
+#     - model_entities: [timemixer_model, xgboost_model]
+#     runs:
+#       - id: forecasting_run_1
+#         name: Forecasting run 1
+#         description: Forecasting run 1
+#         from_entities:
+#         - datasets: [dataset_1]
+#         - model_entities: [timemixer_model]
+#         to_entities:
+#         - data_sources: [forecast_results_source_1, forecast_metrics_source_1]
+
+#       - id: forecasting_run_2
+#         name: Forecasting run 2
+#         description: Forecasting run 2
+#         from_entities:
+#         - datasets: [dataset_1]
+#         - model_entities: [xgboost_model]
+#         to_entities:
+#         - data_sources: [forecast_results_source_2, forecast_metrics_source_2]
+
+# models:
+#   - id: timemixer_model
+#     name: TimeMixer
+#     description: TimeMixer forecasting model
+#     to_entities:
+#     - pipelines: [forecasting_pipeline]
+
+#   - id: xgboost_model
+#     name: XGBoost
+#     description: XGBoost forecasting model
+#     to_entities:
+#     - pipelines: [forecasting_pipeline]
+# ```
+# """

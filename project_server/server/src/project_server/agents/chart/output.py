@@ -57,16 +57,8 @@ async def submit_chart(
 
         out, err = await run_python_code_in_container(out_code, ctx.deps.container_name)
 
-        logger.info("="*100)
-        logger.info("SUBMIT CHART FUNCTION CODE")
-        logger.info(out_code)
-        logger.info("OUT")
-        logger.info(out[:2000])
-        logger.info("ERR")
         err_truncated = err[:2000] + \
             ("[THE REST OF THE ERROR WAS TRUNCATED]" if len(err) > 2000 else "")
-        logger.info(err_truncated)
-        logger.info("="*100)
 
         if err:
             raise ModelRetry(f"Code execution error: {err_truncated}")

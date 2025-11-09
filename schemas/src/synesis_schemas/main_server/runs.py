@@ -99,16 +99,6 @@ class Run(RunInDB):
     outputs: Optional[RunEntityIds] = None
 
 
-class StreamedCode(BaseModel):
-    code: str
-    filename: str
-    target: Literal["redis", "taskiq", "both"] = "both"
-    # cant do None because redis
-    output: str = ""
-    error: str = ""
-    created_at: datetime = datetime.now(timezone.utc)
-
-
 # Create Models
 
 

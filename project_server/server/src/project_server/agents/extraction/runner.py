@@ -4,9 +4,11 @@ from typing import Optional
 from project_server.agents.extraction.agent import extraction_agent
 from project_server.agents.extraction.deps import ExtractionDeps
 from project_server.agents.extraction.output import submit_final_extraction_output
-from project_server.worker import broker
+from project_server.utils.docker_utils import create_project_container_if_not_exists
+from project_server.worker import broker, logger
 from project_server.agents.runner_base import RunnerBase
 from synesis_schemas.project_server import RunExtractionRequest
+from synesis_schemas.main_server import Project
 from project_server.client import get_project
 
 
@@ -59,8 +61,12 @@ class ExtractionAgentRunner(RunnerBase):
 async def run_extraction_task(
     user_id: uuid.UUID,
     bearer_token: str,
-    extraction_request: RunExtractionRequest
+    extraction_request: RunExtractionRequest,
+    project: Project
 ):
+
+    logger.info(f"Running extraction task for project {project.id}")
+
     runner = ExtractionAgentRunner(
         user_id=user_id,
         run_id=extraction_request.run_id,

@@ -228,8 +228,6 @@ async def prepare_result_chart(
         save_path = AGENT_OUTPUTS_INTERNAL_DIR / script_filename
         await write_file_to_container(save_path, chart_result.output.script_content, ctx.deps.container_name)
         echart_objs = await create_echarts(ctx.deps.client, [EchartCreate(chart_script_path=str(save_path))])
-        logger.info("ECHART OBJS"*100)
-        logger.info(echart_objs[0].model_dump_json())
         ctx.deps.charts.append(ChartAttached(
             id=echart_objs[0].id,
             chart_description=chart_description))
