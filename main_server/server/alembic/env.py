@@ -35,7 +35,7 @@ from synesis_api.modules.model.models import (
 )
 from synesis_api.modules.analysis.models import (
     analysis_status_message, analysis, analysis_result,
-    notebook_section, notebook, result_image, result_chart, result_table
+    notebook_section, notebook, result_image, result_echart, result_table
 )
 from synesis_api.modules.entity_graph.models import (
     dataset_from_data_source,
@@ -46,6 +46,9 @@ from synesis_api.modules.entity_graph.models import (
 )
 from synesis_api.modules.project.models import (
     project, project_dataset, project_analysis, project_pipeline, project_data_source, project_model_entity
+)
+from synesis_api.modules.visualization.models import (
+    image, echart, table
 )
 from synesis_api.app_secrets import DATABASE_URL
 from synesis_api.database.core import metadata
@@ -92,7 +95,7 @@ __all__ = [
     notebook,
     analysis_status_message,
     result_image,
-    result_chart,
+    result_echart,
     result_table,
     dataset_in_analysis,
     data_source_in_analysis,
@@ -134,6 +137,9 @@ __all__ = [
     project_pipeline,
     project_data_source,
     project_model_entity,
+    image,
+    echart,
+    table,
 ]
 
 # add your model's MetaData object here

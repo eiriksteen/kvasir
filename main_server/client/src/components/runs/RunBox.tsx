@@ -1,7 +1,7 @@
 import { UUID } from "crypto";
 import { useSWRConfig } from "swr"
 import { useRun, useRunMessages } from "@/hooks/useRuns";
-import { BarChart3, Zap, Clock, CheckCircle, XCircle, Loader2, Check, X } from "lucide-react";
+import { BarChart3, Zap, Clock, CheckCircle, XCircle, Loader2, Check, X, Network } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useDatasets } from "@/hooks/useDatasets";
 import { useDataSources } from "@/hooks/useDataSources";
@@ -22,7 +22,7 @@ interface RunBoxProps {
   onRunCompleteOrFail?: () => void;
 }
 
-const getRunTheme = (type: 'analysis' | 'swe') => {
+const getRunTheme = (type: 'analysis' | 'swe' | 'extraction') => {
 
 switch (type) {
     case 'analysis':
@@ -46,6 +46,17 @@ switch (type) {
         statusBg: 'bg-[#840B08]/15',
         statusBorder: 'border-[#840B08]/30',
         hover: 'hover:bg-[#840B08]/20 cursor-pointer',
+    };
+    case 'extraction':
+    return {
+        bg: 'bg-[#083884]/10',
+        border: 'border border-[#083884]/30',
+        icon: <Network size={12} />,
+        iconColor: 'text-[#083884]',
+        textColor: 'text-gray-200',
+        statusBg: 'bg-[#083884]/15',
+        statusBorder: 'border-[#083884]/30',
+        hover: 'hover:bg-[#083884]/20 cursor-pointer',
     };
 }
 };
@@ -117,8 +128,8 @@ function RunMessageList({ runId }: { runId: UUID }) {
 
 export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBoxProps) {
   const { run, triggerLaunchRun, triggerRejectRun } = useRun(runId);
-  const { datasets } = useDatasets(projectId);
-  const { dataSources } = useDataSources(projectId);
+  const { datasets, mutateDatasets } = useDatasets(projectId);
+  const { dataSources, mutateDataSources } = useDataSources(projectId);
   const { modelEntities } = useModelEntities(projectId);
   const { pipelines, mutatePipelines } = usePipelines(projectId);
   const { analysisObjects, mutateAnalysisObjects } = useAnalyses(projectId);
@@ -146,7 +157,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
     return <div>Run not found</div>;
   }
 
-  const theme = getRunTheme(run.type as 'analysis' | 'swe');
+  const theme = getRunTheme(run.type as 'analysis' | 'swe' | 'extraction');
   const statusInfo = getStatusInfo(run.status);
   
   // Get run inputs/outputs from entity graph
@@ -182,6 +193,13 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
         await mutatePipelines();
       }
       else if (run.type === 'analysis') {
+        await mutateAnalysisObjects();
+      }
+      else if (run.type === 'extraction') {
+        // Extraction runs can create/modify multiple entity types
+        await mutateDataSources();
+        await mutateDatasets();
+        await mutatePipelines();
         await mutateAnalysisObjects();
       }
       // // Update ERD

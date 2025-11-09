@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { ChevronDown, ChevronRight, Trash2, EllipsisVertical, Move, FileSearch, Pencil, Save, Loader2, X } from 'lucide-react';
@@ -17,6 +16,7 @@ import DnDComponent from './DnDComponent';
 import { createSmoothTextStream } from '@/lib/utils';
 import EChartWrapper from '@/components/charts/EChartWrapper';
 import TableWrapper from '@/components/tables/TableWrapper';
+import ImageWrapper from '@/components/images/ImageWrapper';
 
 interface AnalysisResultProps {
     projectId: UUID;
@@ -186,10 +186,9 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                         nextType: analysisResult.nextType,
                         nextId: analysisResult.nextId,
                         sectionId: analysisResult.sectionId,
-                        plotUrls: analysisResult.plotUrls,
-                        imageUrls: analysisResult.imageUrls,
-                        chartScriptPaths: analysisResult.chartScriptPaths,
-                        tablePaths: analysisResult.tablePaths,
+                        imageIds: analysisResult.imageIds,
+                        echartIds: analysisResult.echartIds,
+                        tableIds: analysisResult.tableIds,
                     }
                 });
                 setShowEditAnalysis(false);
@@ -209,7 +208,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
     return (
         <div className="w-full">
             {/* DnD Component - positioned above the analysis result, only when not dragging */}
-            {!isDragging && (
+            {!isDragging && analysisResult.sectionId && (
                 <DnDComponent
                     nextType={"analysis_result"}
                     nextId={analysisResult.id}
@@ -303,28 +302,6 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                                         >
                                             <Pencil size={12} />
                                         </button>
-                                        {/* <button
-                                            onClick={() => {
-                                                handlePlot();
-                                                setShowOptions(false);
-                                            }}
-                                            disabled={isLoadingData}
-                                            className="p-1 text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                            title="Create plot"
-                                        >
-                                            <BarChart3 size={12} />
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                handleTable();
-                                                setShowOptions(false);
-                                            }}
-                                            disabled={isLoadingData}
-                                            className="p-1 text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                            title="Create table"
-                                        >
-                                            <Database size={12} />
-                                        </button> */}
                                         <button
                                             onClick={handleDelete}
                                             className="p-1 rounded transition-colors text-red-600 hover:text-red-800"
@@ -372,56 +349,41 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                         )}
 
                         {/* Render charts */}
-                        {currentAnalysisResult.chartScriptPaths && currentAnalysisResult.chartScriptPaths.length > 0 && (
+                        {currentAnalysisResult.echartIds && currentAnalysisResult.echartIds.length > 0 && (
                             <div className="mt-4 space-y-4">
-                                {currentAnalysisResult.chartScriptPaths.map((chartScriptPath: string, index: number) => (
-                                    <div key={index} className="h-96 bg-gray-50 rounded p-3">
-                                        <EChartWrapper
-                                            projectId={projectId}
-                                            chartScriptPath={chartScriptPath}
-                                        />
+                                {currentAnalysisResult.echartIds.map((chartId: UUID) => (
+                                    <div key={chartId} className="w-full h-[450px]">
+                                        <EChartWrapper projectId={projectId} chartId={chartId}/>
                                     </div>
                                 ))}
                             </div>
                         )}
 
                         {/* Render tables */}
-                        {currentAnalysisResult.tablePaths && currentAnalysisResult.tablePaths.length > 0 && (
+                        {currentAnalysisResult.tableIds && currentAnalysisResult.tableIds.length > 0 && (
                             <div className="mt-4 space-y-4">
-                                {currentAnalysisResult.tablePaths.map((tablePath: string, index: number) => (
-                                    <div key={index} className="bg-gray-50 rounded p-3">
-                                        <TableWrapper
-                                            projectId={projectId}
-                                            tablePath={tablePath}
-                                        />
+                                {currentAnalysisResult.tableIds.map((tableId: UUID) => (
+                                    <div key={tableId}>
+                                        <TableWrapper tableId={tableId}/>
                                     </div>
                                 ))}
                             </div>
                         )}
 
                         {/* Render images */}
-                        {currentAnalysisResult.imageUrls && currentAnalysisResult.imageUrls.length > 0 && (
+                        {currentAnalysisResult.imageIds && currentAnalysisResult.imageIds.length > 0 && (
                             <div className="mt-4 space-y-4">
-                                {currentAnalysisResult.imageUrls.map((imageUrl: string, index: number) => (
-                                    imageUrl && (
-                                        <div key={index} className="max-w-2xl mx-auto">
-                                            <Image 
-                                                width={600}
-                                                height={450}
-                                                src={imageUrl}
-                                                alt={`Analysis image ${index + 1}`}
-                                                className="w-full h-auto rounded"
-                                                unoptimized
-                                            />
-                                        </div>
-                                    )
+                                {currentAnalysisResult.imageIds.map((imageId: UUID) => (
+                                    <div key={imageId}>
+                                        <ImageWrapper imageId={imageId} />
+                                    </div>
                                 ))}
                             </div>
                         )}
                     </>
                 )}
             </div>
-            {!isDragging && analysisResult.nextType === null && analysisResult.nextId === null && (
+            {!isDragging && analysisResult.nextType === null && analysisResult.nextId === null && analysisResult.sectionId && (
                 <DnDComponent
                     nextType={null}
                     nextId={null}

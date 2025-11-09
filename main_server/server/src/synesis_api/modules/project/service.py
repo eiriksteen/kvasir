@@ -40,6 +40,7 @@ from synesis_api.modules.deletion.service import (
     delete_dataset as delete_dataset_entity,
     delete_model_entity as delete_model_entity_entity,
     delete_pipeline as delete_pipeline_entity,
+    delete_analysis as delete_analysis_entity,
 )
 
 
@@ -512,3 +513,32 @@ async def delete_pipeline_from_project(user_id: UUID, pipeline_id: UUID) -> UUID
 
     # Delete the entity itself
     return await delete_pipeline_entity(user_id, pipeline_id)
+
+
+async def delete_analysis_from_project(user_id: UUID, analysis_id: UUID) -> UUID:
+    """
+    Delete an analysis entity and remove it from all projects.
+    """
+    # Find all projects containing this analysis
+    project_analysis_records = await fetch_all(
+        select(project_analysis).where(
+            project_analysis.c.analysis_id == analysis_id
+        )
+    )
+    project_ids = list(set([r["project_id"]
+                       for r in project_analysis_records]))
+
+    # Remove from all projects
+    for project_id in project_ids:
+        await execute(
+            delete(project_analysis).where(
+                and_(
+                    project_analysis.c.project_id == project_id,
+                    project_analysis.c.analysis_id == analysis_id
+                )
+            ),
+            commit_after=True
+        )
+
+    # Delete the entity itself
+    return await delete_analysis_entity(user_id, analysis_id)

@@ -33,7 +33,7 @@ export interface ObjectGroupInDB {
   datasetId: UUID;
   originalIdName?: string | null;
   additionalVariables?: Record<string, unknown> | null;
-  chartScriptPath?: string | null;
+  echartId?: UUID | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -94,13 +94,11 @@ class SWEAgentRunner(RunnerBase):
                 )
 
             extraction_prompt = (
-                f"The SWE agent just completed a run. Add any new entities and / or any changes to existing entities. " +
-                f"The SWE agent's output is: <swe_output>\n{run_result.output.model_dump_json()}\n</swe_output>\n\n" +
-                (f"The pipeline ID associated with the implementation is: <pipeline_id>\n{self.target_pipeline_id}\n</pipeline_id>\n\n" if self.target_pipeline_id else "")
+                f"The SWE agent just completed a run to create a pipeline with the ID: {self.target_pipeline_id} " +
+                "Scan the codebase to update the project graph. Add any new entities, remove any no longer relevant, add new edges between entities, or remove any edges that are no longer relevant. Ensure the graph accurately represents the current state of the project."
             )
 
             await self.extraction_runner(prompt_content=extraction_prompt)
-
             await self._complete_agent_run("SWE agent run completed")
 
             return run_result.output

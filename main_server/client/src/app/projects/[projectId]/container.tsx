@@ -10,6 +10,7 @@ import TabView from "@/app/projects/[projectId]/_components/tab-view/TabView";
 import { useProject } from "@/hooks/useProject";
 import { useExtraction } from "@/hooks/useExtraction";
 import { useTabs } from "@/hooks/useTabs";
+import { useRuns } from "@/hooks/useRuns";
 import FileInfoTab from "@/components/info-tabs/FileInfoTab";
 import DatasetInfoTab from "@/components/info-tabs/DatasetInfoTab";
 import PipelineInfoTab from "@/components/info-tabs/PipelineInfoTab";
@@ -18,7 +19,7 @@ import AnalysisItem from "@/components/info-tabs/analysis/AnalysisItem";
 import CodeInfoTab from "@/components/info-tabs/CodeInfoTab";
 import { UUID } from "crypto";
 import { RefreshCw } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 
 interface DashboardProps {
   session: Session;
@@ -29,14 +30,24 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
   const { project } = useProject(projectId);
   const { openTabs, activeTabId, openTab, closeTab, closeTabToProject, selectTab } = useTabs();
   const { runExtraction } = useExtraction();
+  const { runs } = useRuns();
   const [isScanning, setIsScanning] = useState(false);
+
+  // Check if any extraction runs are currently running in this project
+  const hasRunningExtractionRuns = useMemo(() => {
+    return runs.some(run => 
+      run.type === 'extraction' && 
+      run.status === 'running' && 
+      run.projectId === projectId
+    );
+  }, [runs, projectId]);
 
   const handleScanCodebase = useCallback(async () => {
     setIsScanning(true);
     try {
       await runExtraction({
         projectId,
-        promptContent: "Scan the codebase to update the project graph. Add any new entities, remove any no longer relevant, add new edges between entities, or remove any edges that are no longer relevant. Ensure the graph accurately represents the current state of the project.",
+        promptContent: "Scan the codebase to update the project graph. Add any new entities, remove any no longer relevant, add new edges between entities, or remove any edges that are no longer relevant. Ensure the graph accurately represents the current state of the project. ",
       });
     } catch (error) {
       console.error('Failed to run extraction:', error);
@@ -177,11 +188,11 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
               <div className="absolute bottom-2 left-2 z-20 pointer-events-auto">
                 <button
                   onClick={handleScanCodebase}
-                  disabled={isScanning}
+                  disabled={isScanning || hasRunningExtractionRuns}
                   className="flex items-center justify-center p-2 bg-white border border-gray-300 rounded-lg text-[#000034] hover:bg-gray-50 disabled:opacity-50 transition-colors shadow-sm"
                   title="Scan codebase to sync project graph"
                 >
-                  <RefreshCw size={16} className={`${isScanning ? 'animate-spin' : ''}`} />
+                  <RefreshCw size={16} className={`${isScanning || hasRunningExtractionRuns ? 'animate-spin' : ''}`} />
                 </button>
               </div>
             )}

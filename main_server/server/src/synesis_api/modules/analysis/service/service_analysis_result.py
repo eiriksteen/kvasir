@@ -9,18 +9,20 @@ from synesis_api.modules.analysis.models import (
     analysis_result,
     notebook_section,
     result_image,
-    result_chart,
+    result_echart,
     result_table,
 )
 from synesis_schemas.main_server import (
     AnalysisResult,
     AnalysisResultInDB,
-    AnalysisResultUpdate
+    AnalysisResultVisualizationCreate
 )
 from synesis_api.modules.analysis.service.service_utils import (
     get_last_element_in_section,
     get_prev_element,
 )
+from synesis_api.modules.visualization.service import create_images, create_echarts, create_tables
+from synesis_schemas.main_server import ImageCreate, EchartCreate, TableCreate
 
 
 async def create_analysis_result(analysis_result_arg: AnalysisResult) -> AnalysisResultInDB:
@@ -52,13 +54,23 @@ async def create_analysis_result(analysis_result_arg: AnalysisResult) -> Analysi
         commit_after=True
     )
 
-    for image_url in analysis_result_arg.image_urls:
+    if analysis_result_arg.image_ids:
+        result_image_records = [{"id": uuid.uuid4(
+        ), "analysis_result_id": analysis_result_in_db.id, "image_id": image_id} for image_id in analysis_result_arg.image_ids]
         await execute(
-            insert(result_image).values(
-                id=uuid.uuid4(),
-                analysis_result_id=analysis_result_in_db.id,
-                image_url=image_url
-            ),
+            insert(result_image).values(result_image_records), commit_after=True
+        )
+    if analysis_result_arg.echart_ids:
+        result_echart_records = [{"id": uuid.uuid4(), "analysis_result_id": analysis_result_in_db.id,
+                                  "echart_id": echart_id} for echart_id in analysis_result_arg.echart_ids]
+        await execute(
+            insert(result_echart).values(result_echart_records), commit_after=True
+        )
+    if analysis_result_arg.table_ids:
+        result_table_records = [{"id": uuid.uuid4(
+        ), "analysis_result_id": analysis_result_in_db.id, "table_id": table_id} for table_id in analysis_result_arg.table_ids]
+        await execute(
+            insert(result_table).values(result_table_records),
             commit_after=True
         )
 
@@ -129,8 +141,8 @@ async def delete_analysis_result(analysis_result_id: uuid.UUID) -> None:
         commit_after=True
     )
     await execute(
-        delete(result_chart).where(
-            result_chart.c.analysis_result_id == analysis_result_id),
+        delete(result_echart).where(
+            result_echart.c.analysis_result_id == analysis_result_id),
         commit_after=True
     )
     await execute(
@@ -166,16 +178,16 @@ async def get_analysis_result_by_id(analysis_result_id: uuid.UUID) -> AnalysisRe
             result_image.c.analysis_result_id == analysis_result_id
         )
     )
-    result["image_urls"] = [img["image_url"] for img in images]
+    result["image_ids"] = [img["image_id"] for img in images]
 
     # Get chart script paths
     charts = await fetch_all(
-        select(result_chart).where(
-            result_chart.c.analysis_result_id == analysis_result_id
+        select(result_echart).where(
+            result_echart.c.analysis_result_id == analysis_result_id
         )
     )
-    result["chart_script_paths"] = [chart["chart_script_path"]
-                                    for chart in charts]
+    result["echart_ids"] = [chart["echart_id"]
+                            for chart in charts]
 
     # Get table paths
     tables = await fetch_all(
@@ -183,7 +195,7 @@ async def get_analysis_result_by_id(analysis_result_id: uuid.UUID) -> AnalysisRe
             result_table.c.analysis_result_id == analysis_result_id
         )
     )
-    result["table_paths"] = [table["table_path"] for table in tables]
+    result["table_ids"] = [table["table_id"] for table in tables]
 
     return AnalysisResult(**result)
 
@@ -209,16 +221,16 @@ async def get_analysis_results_by_section_id(section_id: uuid.UUID) -> List[Anal
                 result_image.c.analysis_result_id == result.id
             )
         )
-        result.image_urls = [img["image_url"] for img in images]
+        result.image_ids = [img["image_id"] for img in images]
 
         # Get chart script paths
         charts = await fetch_all(
-            select(result_chart).where(
-                result_chart.c.analysis_result_id == result.id
+            select(result_echart).where(
+                result_echart.c.analysis_result_id == result.id
             )
         )
-        result.chart_script_paths = [
-            chart["chart_script_path"] for chart in charts]
+        result.echart_ids = [
+            chart["echart_id"] for chart in charts]
 
         # Get table paths
         tables = await fetch_all(
@@ -226,7 +238,7 @@ async def get_analysis_results_by_section_id(section_id: uuid.UUID) -> List[Anal
                 result_table.c.analysis_result_id == result.id
             )
         )
-        result.table_paths = [table["table_path"] for table in tables]
+        result.table_ids = [table["table_id"] for table in tables]
 
     return analysis_results_list
 
@@ -248,8 +260,8 @@ async def get_analysis_results_by_ids(analysis_result_ids: List[uuid.UUID]) -> L
         )
     )
     charts = await fetch_all(
-        select(result_chart).where(
-            result_chart.c.analysis_result_id.in_(analysis_result_ids)
+        select(result_echart).where(
+            result_echart.c.analysis_result_id.in_(analysis_result_ids)
         )
     )
     tables = await fetch_all(
@@ -260,12 +272,12 @@ async def get_analysis_results_by_ids(analysis_result_ids: List[uuid.UUID]) -> L
 
     # Populate each result's attachments
     for result in analysis_results_list:
-        result.image_urls = [img["image_url"]
-                             for img in images if img["analysis_result_id"] == result.id]
-        result.chart_script_paths = [chart["chart_script_path"]
-                                     for chart in charts if chart["analysis_result_id"] == result.id]
-        result.table_paths = [table["table_path"]
-                              for table in tables if table["analysis_result_id"] == result.id]
+        result.image_ids = [img["image_id"]
+                            for img in images if img["analysis_result_id"] == result.id]
+        result.echart_ids = [chart["echart_id"]
+                             for chart in charts if chart["analysis_result_id"] == result.id]
+        result.table_ids = [table["table_id"]
+                            for table in tables if table["analysis_result_id"] == result.id]
 
     return analysis_results_list
 
@@ -287,8 +299,8 @@ async def update_analysis_result(analysis_result_arg: AnalysisResult) -> Analysi
         commit_after=True
     )
     await execute(
-        delete(result_chart).where(
-            result_chart.c.analysis_result_id == analysis_result_arg.id),
+        delete(result_echart).where(
+            result_echart.c.analysis_result_id == analysis_result_arg.id),
         commit_after=True
     )
     await execute(
@@ -298,48 +310,59 @@ async def update_analysis_result(analysis_result_arg: AnalysisResult) -> Analysi
     )
 
     # Batch insert image URLs
-    if analysis_result_arg.image_urls:
-        image_values = [
-            {
-                "id": uuid.uuid4(),
-                "analysis_result_id": analysis_result_arg.id,
-                "image_url": image_url
-            }
-            for image_url in analysis_result_arg.image_urls
-        ]
+    if analysis_result_arg.image_ids:
+        result_image_records = [
+            {"id": uuid.uuid4(), "analysis_result_id": analysis_result_arg.id, "image_id": image_id} for image_id in analysis_result_arg.image_ids]
+
         await execute(
-            insert(result_image).values(image_values),
+            insert(result_image).values(result_image_records),
             commit_after=True
         )
 
     # Batch insert chart script paths
-    if analysis_result_arg.chart_script_paths:
-        chart_values = [
-            {
-                "id": uuid.uuid4(),
-                "analysis_result_id": analysis_result_arg.id,
-                "chart_script_path": chart_script_path
-            }
-            for chart_script_path in analysis_result_arg.chart_script_paths
-        ]
+    if analysis_result_arg.echart_ids:
+        result_echart_records = [
+            {"id": uuid.uuid4(), "analysis_result_id": analysis_result_arg.id, "echart_id": echart_id} for echart_id in analysis_result_arg.echart_ids]
+
         await execute(
-            insert(result_chart).values(chart_values),
+            insert(result_echart).values(result_echart_records),
             commit_after=True
         )
 
     # Batch insert table paths
-    if analysis_result_arg.table_paths:
-        table_values = [
-            {
-                "id": uuid.uuid4(),
-                "analysis_result_id": analysis_result_arg.id,
-                "table_path": table_path
-            }
-            for table_path in analysis_result_arg.table_paths
-        ]
+    if analysis_result_arg.table_ids:
+        result_table_records = [
+            {"id": uuid.uuid4(), "analysis_result_id": analysis_result_arg.id, "table_id": table_id} for table_id in analysis_result_arg.table_ids]
+
         await execute(
-            insert(result_table).values(table_values),
+            insert(result_table).values(result_table_records),
             commit_after=True
         )
 
     return analysis_result_arg
+
+
+async def create_analysis_result_visualization(analysis_result_visualization_create: AnalysisResultVisualizationCreate) -> None:
+    image_objs = await create_images(analysis_result_visualization_create.image_creates)
+    echart_objs = await create_echarts(analysis_result_visualization_create.echart_creates)
+    table_objs = await create_tables(analysis_result_visualization_create.table_creates)
+
+    result_image_records = [
+        {"id": uuid.uuid4(), "analysis_result_id": analysis_result_visualization_create.analysis_result_id, "image_id": image_obj.id} for image_obj in image_objs]
+    result_echart_records = [
+        {"id": uuid.uuid4(), "analysis_result_id": analysis_result_visualization_create.analysis_result_id, "echart_id": echart_obj.id} for echart_obj in echart_objs]
+    result_table_records = [
+        {"id": uuid.uuid4(), "analysis_result_id": analysis_result_visualization_create.analysis_result_id, "table_id": table_obj.id} for table_obj in table_objs]
+
+    await execute(
+        insert(result_image).values(result_image_records),
+        commit_after=True
+    )
+    await execute(
+        insert(result_echart).values(result_echart_records),
+        commit_after=True
+    )
+    await execute(
+        insert(result_table).values(result_table_records),
+        commit_after=True
+    )

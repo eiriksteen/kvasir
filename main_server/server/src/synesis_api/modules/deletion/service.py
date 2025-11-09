@@ -2,7 +2,7 @@ import uuid
 from sqlalchemy import select, delete, update, and_
 from fastapi import HTTPException
 
-from synesis_api.database.service import execute, fetch_all
+from synesis_api.database.service import execute, fetch_all, fetch_one
 from synesis_api.modules.data_sources.models import (
     data_source,
     file_data_source,
@@ -52,12 +52,20 @@ from synesis_api.modules.runs.models import (
     dataset_from_run,
     model_entity_in_run,
     model_entity_from_run,
+    analysis_in_run,
+    analysis_from_run,
 )
 from synesis_api.modules.orchestrator.models import (
     data_source_context,
     dataset_context,
     model_entity_context,
     pipeline_context,
+    analysis_context,
+)
+from synesis_api.modules.analysis.models import (
+    analysis,
+    notebook,
+    notebook_section,
 )
 
 
@@ -469,3 +477,104 @@ async def delete_pipeline(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> uuid.UU
     )
 
     return pipeline_id
+
+
+async def delete_notebook_section_recursive(section_id: uuid.UUID) -> None:
+    """Recursively delete a notebook section and all its children."""
+    # Import here to avoid circular dependency
+    from synesis_api.modules.analysis.service.service_notebook import delete_notebook_section_recursive as delete_section
+    await delete_section(section_id)
+
+
+async def delete_analysis(user_id: uuid.UUID, analysis_id: uuid.UUID) -> uuid.UUID:
+    """Delete an analysis and all its associated data."""
+    # Verify the analysis exists and user owns it
+    analysis_query = select(analysis).where(
+        and_(
+            analysis.c.id == analysis_id,
+            analysis.c.user_id == user_id
+        )
+    )
+    analysis_result = await fetch_one(analysis_query)
+    if not analysis_result:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    notebook_id = analysis_result["notebook_id"]
+
+    # Get all top-level sections of the notebook
+    sections_to_delete = await fetch_all(
+        select(notebook_section).where(
+            notebook_section.c.notebook_id == notebook_id,
+            notebook_section.c.parent_section_id == None
+        )
+    )
+
+    section_ids = [section["id"] for section in sections_to_delete]
+
+    # Delete all sections recursively
+    for section_id in section_ids:
+        await delete_notebook_section_recursive(section_id)
+
+    # Delete run associations
+    await execute(
+        delete(analysis_in_run).where(
+            analysis_in_run.c.analysis_id == analysis_id
+        ),
+        commit_after=True
+    )
+
+    await execute(
+        delete(analysis_from_run).where(
+            analysis_from_run.c.analysis_id == analysis_id
+        ),
+        commit_after=True
+    )
+
+    # Delete entity graph associations
+    await execute(
+        delete(data_source_in_analysis).where(
+            data_source_in_analysis.c.analysis_id == analysis_id
+        ),
+        commit_after=True
+    )
+
+    await execute(
+        delete(dataset_in_analysis).where(
+            dataset_in_analysis.c.analysis_id == analysis_id
+        ),
+        commit_after=True
+    )
+
+    await execute(
+        delete(model_entity_in_analysis).where(
+            model_entity_in_analysis.c.analysis_id == analysis_id
+        ),
+        commit_after=True
+    )
+
+    # Delete analysis context
+    await execute(
+        delete(analysis_context).where(
+            analysis_context.c.analysis_id == analysis_id
+        ),
+        commit_after=True
+    )
+
+    # Delete the notebook
+    await execute(
+        delete(notebook).where(notebook.c.id == notebook_id),
+        commit_after=True
+    )
+
+    # Delete the analysis itself
+    await execute(
+        delete(analysis).where(
+            and_(
+                analysis.c.id == analysis_id,
+                analysis.c.user_id == user_id
+            )
+        ),
+        commit_after=True
+    )
+
+    return analysis_id

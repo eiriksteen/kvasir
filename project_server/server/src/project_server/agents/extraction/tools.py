@@ -9,14 +9,14 @@ from project_server.utils.code_utils import run_python_code_in_container, remove
 from project_server.utils.docker_utils import write_file_to_container
 from project_server.client import ProjectClient
 from project_server.client.requests.pipeline import post_pipeline_run
-from project_server.client.requests.data_objects import patch_object_group_chart_script, get_object_group
+from project_server.client.requests.data_objects import create_object_group_echart, get_object_group
 from project_server.client.requests.entity_graph import create_edges, remove_edges
 from project_server.agents.chart.agent import chart_agent
 from project_server.agents.chart.deps import ChartDeps
 from project_server.agents.chart.output import ChartAgentOutput
 from project_server.app_secrets import AGENT_OUTPUTS_INTERNAL_DIR
 from synesis_schemas.main_server import (
-    UpdateObjectGroupChartScriptRequest,
+    ObjectGroupEChartCreate,
     Dataset,
     DataSource,
     ModelEntityInDB,
@@ -192,9 +192,10 @@ async def create_chart_for_object_group(
     )
     save_path = AGENT_OUTPUTS_INTERNAL_DIR / f"{object_group_id}.py"
     await write_file_to_container(save_path, chart_result.output.script_content, ctx.deps.container_name)
-    await patch_object_group_chart_script(
+    await create_object_group_echart(
         ctx.deps.client,
-        object_group_id, UpdateObjectGroupChartScriptRequest(chart_script_path=str(save_path)))
+        object_group_id,
+        ObjectGroupEChartCreate(chart_script_path=str(save_path)))
     ctx.deps.object_groups_with_charts.append(object_group_id)
     return chart_result.output
 

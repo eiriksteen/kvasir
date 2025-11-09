@@ -354,9 +354,7 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
       ...project.graph.datasets.flatMap(d => processEntityOutputs(d.id, d.toEntities, 'dataset')),
       ...project.graph.analyses.flatMap(a => processEntityOutputs(a.id, a.toEntities, 'analysis')),
       ...project.graph.pipelines.flatMap(p => [
-        // Pipeline's own edges (static/definition outputs)
         ...processEntityOutputs(p.id, p.toEntities, 'pipeline'),
-        // Edges from all pipeline runs (now shown as coming from the pipeline node itself)
         ...p.runs.flatMap(run => processEntityOutputs(p.id, run.toEntities, 'pipeline'))
       ]),
       ...project.graph.modelEntities.flatMap(m => processEntityOutputs(m.id, m.toEntities, 'modelEntity')),

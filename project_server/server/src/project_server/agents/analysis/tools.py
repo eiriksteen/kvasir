@@ -1,41 +1,39 @@
 import uuid
+from pathlib import Path
 from pydantic import ValidationError
 from pydantic_ai import RunContext
 from typing import List, Optional
 from datetime import datetime
 
-
+from project_server.worker import logger
 from synesis_schemas.main_server import (
     AnalysisResult,
     NotebookSectionCreate,
     MoveRequest,
     NotebookSectionUpdate,
     AnalysisStatusMessage,
-    ResultImageCreate,
-    ResultChartCreate,
-    ResultTableCreate,
+    EchartCreate,
+    TableCreate,
+    ImageCreate,
+    AnalysisResultVisualizationCreate,
 )
 from project_server.agents.analysis.utils import post_update_to_redis
 from project_server.client import (
     create_section_request,
     update_section_request,
     delete_section_request,
-    add_analysis_result_to_section_request,
+    # add_analysis_result_to_section_request,
     move_element_request,
     update_analysis_result_request,
     create_analysis_result_request,
     get_analysis_result_by_id_request,
-    get_analysis_results_by_ids_request,
+    create_analysis_result_visualization_request,
 )
-from project_server.client.requests.analysis import (
-    create_result_image,
-    create_result_chart,
-    create_result_table,
-)
+from project_server.utils.docker_utils import copy_file_from_container
 from project_server.agents.analysis.helper_agent import analysis_helper_agent, HelperAgentDeps
 from project_server.agents.analysis.deps import AnalysisDeps
 from project_server.agents.analysis.output import AnalysisResultMoveRequest, SectionMoveRequest
-from project_server.worker import logger
+from project_server.app_secrets import AGENT_OUTPUTS_INTERNAL_HOST_DIR
 
 
 async def create_notebook_section(ctx: RunContext[AnalysisDeps], section_create: List[NotebookSectionCreate]) -> str:
@@ -207,7 +205,8 @@ async def generate_analysis_result(
 
     async with analysis_helper_agent.run_stream(
         f"You will now create some code and analysis for the user. Generate code and analysis for the following user prompt: {prompt}. \n\n",
-        deps=helper_agent_deps
+        deps=helper_agent_deps,
+        # message_history=ctx.deps.helper_history
     ) as result:
         async for message, last in result.stream_responses(debounce_by=0.01):
             try:
@@ -223,10 +222,9 @@ async def generate_analysis_result(
                     section_id=current_analysis_result.section_id,
                     # I guess we assume only one code run? Even though it can be multiple?
                     python_code=output.code,
-                    image_urls=output.images,
-                    chart_script_paths=[
-                        chart.chart_script_path for chart in output.charts],
-                    table_paths=output.tables,
+                    image_ids=[image.id for image in output.images],
+                    echart_ids=[echart.id for echart in output.charts],
+                    table_ids=[table.id for table in output.tables],
                 )
                 analysis_status_message = AnalysisStatusMessage(
                     id=uuid.uuid4(),
@@ -238,33 +236,16 @@ async def generate_analysis_result(
             except ValidationError:
                 continue
 
+    logger.info("ANALYSIS RESULT"*100)
+    logger.info(analysis_result.model_dump_json())
+
     await update_analysis_result_request(ctx.deps.client, analysis_result)
 
-    # Create database records for images, charts, and tables
-    for image_path in output.images:
-        image_create = ResultImageCreate(
-            analysis_result_id=analysis_result_id,
-            image_url=image_path
-        )
-        await create_result_image(ctx.deps.client, image_create)
-
-    for chart in output.charts:
-        chart_create = ResultChartCreate(
-            analysis_result_id=analysis_result_id,
-            chart_script_path=chart.chart_script_path
-        )
-        await create_result_chart(ctx.deps.client, chart_create)
-
-    for table_path in output.tables:
-        table_create = ResultTableCreate(
-            analysis_result_id=analysis_result_id,
-            table_path=table_path
-        )
-        await create_result_table(ctx.deps.client, table_create)
+    ctx.deps.helper_history += result.new_messages()
 
     return_string = (
         f"Analysis result successfully created. Analysis result id: {analysis_result.id}\n"
-        f"This is the output of the analysis: {result.get_output()}\n"
+        f"This is the output of the analysis: {output}\n"
     )
 
     ctx.deps.results_generated = True

@@ -1,7 +1,10 @@
+from re import U
 from uuid import UUID
 from datetime import datetime, timezone
 from typing import List, Literal, Dict, Any
 from pydantic import BaseModel, model_validator
+
+from synesis_schemas.main_server.visualization import EchartCreate, TableCreate, ImageCreate
 
 
 # API schemas
@@ -13,9 +16,9 @@ class AnalysisResult(BaseModel):
     next_id: UUID | None = None
     section_id: UUID | None = None
     # We do individual get requests for these below
-    image_urls: List[str] = []
-    chart_script_paths: List[str] = []
-    table_paths: List[str] = []
+    image_ids: List[UUID] = []
+    echart_ids: List[UUID] = []
+    table_ids: List[UUID] = []
 
 
 class NotebookSection(BaseModel):
@@ -87,19 +90,19 @@ class AnalysisInDB(BaseModel):
 class ResultImageInDB(BaseModel):
     id: UUID
     analysis_result_id: UUID
-    image_url: str
+    image_id: UUID
 
 
-class ResultChartInDB(BaseModel):
+class ResultEChartInDB(BaseModel):
     id: UUID
     analysis_result_id: UUID
-    chart_script_path: str
+    echart_id: UUID
 
 
 class ResultTableInDB(BaseModel):
     id: UUID
     analysis_result_id: UUID
-    table_path: str
+    table_id: UUID
 
 
 class NotebookInDB(BaseModel):
@@ -168,19 +171,8 @@ class AnalysisResultFindRequest(BaseModel):
     analysis_result_ids: List[UUID]
 
 
-# Result attachments
-
-
-class ResultImageCreate(BaseModel):
+class AnalysisResultVisualizationCreate(BaseModel):
     analysis_result_id: UUID
-    image_url: str
-
-
-class ResultChartCreate(BaseModel):
-    analysis_result_id: UUID
-    chart_script_path: str
-
-
-class ResultTableCreate(BaseModel):
-    analysis_result_id: UUID
-    table_path: str
+    echart_creates: List[EchartCreate]
+    table_creates: List[TableCreate]
+    image_creates: List[ImageCreate]

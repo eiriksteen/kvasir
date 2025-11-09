@@ -1,4 +1,5 @@
 import uuid
+from pydantic_ai.messages import ModelMessage
 from dataclasses import dataclass, field
 from typing import List
 
@@ -19,3 +20,4 @@ class AnalysisDeps:
     data_sources_injected: List[uuid.UUID] = field(default_factory=list)
     datasets_injected: List[uuid.UUID] = field(default_factory=list)
     results_generated: bool = False
+    helper_history: List[ModelMessage] = field(default_factory=list)

@@ -52,6 +52,7 @@ from .requests.data_objects import (
     get_object_group,
     get_object_groups_in_dataset,
     get_datasets_by_ids,
+    create_object_group_echart,
 )
 
 from .requests.project import (
@@ -100,9 +101,7 @@ from .requests.analysis import (
     get_analysis_results_by_ids_request,
     get_data_for_analysis_result_request,
     get_analyses_by_ids,
-    create_result_image,
-    create_result_chart,
-    create_result_table,
+    create_analysis_result_visualization_request,
 )
 
 from .requests.plots import (
@@ -118,6 +117,15 @@ from .requests.tables import (
     get_tables_by_analysis_result_id,
     delete_table,
     update_table
+)
+
+from .requests.visualization import (
+    create_images,
+    create_echarts,
+    create_tables,
+    get_image,
+    get_echart,
+    get_table,
 )
 
 

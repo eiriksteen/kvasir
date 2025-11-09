@@ -1,3 +1,4 @@
+import json
 from pydantic import BaseModel
 from pydantic_ai import RunContext, ModelRetry
 
@@ -32,7 +33,9 @@ async def submit_chart(
         # Build validation code with optional base_code prepended
         validation_parts = []
         if ctx.deps.base_code:
-            validation_parts.append(ctx.deps.base_code)
+            validation_parts.append(
+                remove_print_statements_from_code(ctx.deps.base_code)
+            )
 
         validation_parts.append(python_code)
         validation_parts.extend([
@@ -49,17 +52,16 @@ async def submit_chart(
 
         # Validate inside the sandbox
         # Validate directly with full schema - allows LLM to add any valid extras
-        validation_code = "\n".join(
-            validation_parts + ["EChartsOption(**result)"])
-        out, err = await run_python_code_in_container(validation_code, ctx.deps.container_name)
         out_code = "\n".join(validation_parts +
-                             ["import json", "print(json.dumps(result, default=str))"])
+                             ["EChartsOption(**result)", "import json", "print(json.dumps(result, default=str))"])
+
+        out, err = await run_python_code_in_container(out_code, ctx.deps.container_name)
 
         logger.info("="*100)
         logger.info("SUBMIT CHART FUNCTION CODE")
         logger.info(out_code)
         logger.info("OUT")
-        logger.info(out)
+        logger.info(out[:2000])
         logger.info("ERR")
         err_truncated = err[:2000] + \
             ("[THE REST OF THE ERROR WAS TRUNCATED]" if len(err) > 2000 else "")
@@ -68,6 +70,11 @@ async def submit_chart(
 
         if err:
             raise ModelRetry(f"Code execution error: {err_truncated}")
+
+        try:
+            json.loads(out.strip())
+        except Exception as e:
+            raise ModelRetry(f"Failed to parse chart result: {str(e)}.")
 
         return ChartAgentOutput(script_content=out_code)
 

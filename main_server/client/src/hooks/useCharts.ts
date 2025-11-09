@@ -8,11 +8,11 @@ const PROJECT_SERVER_URL = process.env.NEXT_PUBLIC_PROJECT_API_URL;
 async function fetchChartOption(
   token: string,
   projectId: UUID,
-  scriptPath: string,
+  chartId: UUID,
   originalObjectId?: string
 ): Promise<EChartsOption> {
 
-  const response = await fetch(`${PROJECT_SERVER_URL}/chart/get-chart`, {
+  const response = await fetch(`${PROJECT_SERVER_URL}/chart/get-chart/${chartId}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -20,7 +20,7 @@ async function fetchChartOption(
     },
     body: JSON.stringify({
       project_id: projectId,
-      script_path: scriptPath,
+      chart_id: chartId,
       original_object_id: originalObjectId || null,
     }),
   });
@@ -35,15 +35,14 @@ async function fetchChartOption(
 
 export function useChart(
   projectId: UUID,
-  chartScriptPath: string,
+  chartId: UUID,
   originalObjectId?: string
 ) {
   const { data: session } = useSession();
 
   const { data: chartOption, error, isLoading } = useSWR(
-    session ? ["chart", originalObjectId]
-      : null,
-    () => fetchChartOption(session!.APIToken.accessToken, projectId, chartScriptPath, originalObjectId)
+    session ? ["chart", chartId, originalObjectId] : null,
+    () => fetchChartOption(session!.APIToken.accessToken, projectId, chartId, originalObjectId)
   );
 
   return {

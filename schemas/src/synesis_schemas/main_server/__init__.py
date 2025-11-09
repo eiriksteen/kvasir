@@ -139,7 +139,7 @@ from .data_objects import (
     MODALITY_LITERAL,
     DataObjectRawData,
     GetRawDataRequest,
-    UpdateObjectGroupChartScriptRequest,
+    ObjectGroupEChartCreate,
     TimeSeriesRawDataParams
 )
 
@@ -252,9 +252,16 @@ from .analysis import (
     AnalysisResultFindRequest,
     GetAnalysesByIDsRequest,
     ResultImageInDB,
-    ResultImageCreate,
-    ResultChartInDB,
-    ResultChartCreate,
+    ResultEChartInDB,
     ResultTableInDB,
-    ResultTableCreate,
+    AnalysisResultVisualizationCreate
+)
+
+from .visualization import (
+    ImageInDB,
+    ImageCreate,
+    EchartInDB,
+    EchartCreate,
+    TableInDB,
+    TableCreate
 )

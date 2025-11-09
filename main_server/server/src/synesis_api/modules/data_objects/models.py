@@ -54,7 +54,8 @@ object_group = Table(
     Column("description", String, nullable=False),
     # Modality indicates the actual data structure: time_series, tabular, etc.
     Column("modality", String, nullable=False),
-    Column("chart_script_path", String, nullable=True),
+    Column("echart_id", UUID, ForeignKey(
+        "visualization.echart.id"), nullable=True),
     Column("additional_variables", JSONB, nullable=True),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),

@@ -3,18 +3,13 @@ import { UUID } from "crypto";
 import { useTable } from "@/hooks/useTable";
 
 interface TableWrapperProps {
-  projectId: UUID;
-  tablePath: string;
+  tableId: UUID;
 }
 
 const TableWrapper = ({ 
-  projectId, 
-  tablePath 
+  tableId 
 }: TableWrapperProps) => {
-  const { table, isLoading, isError } = useTable(
-    projectId,
-    tablePath
-  );
+  const { table, isLoading, isError } = useTable(tableId);
 
   if (isLoading) {
     return (
@@ -36,10 +31,6 @@ const TableWrapper = ({
   const columns = Object.keys(table.data).filter(col => col !== table.indexColumn);
   const indexData = table.data[table.indexColumn];
 
-  console.log(table);
-  console.log(indexData);
-  console.log(columns);
-
   return (
     <div className="w-full overflow-x-auto">
       <table className="min-w-full border-collapse border border-gray-300 text-sm">
@@ -59,7 +50,7 @@ const TableWrapper = ({
           {indexData && indexData.map((_, rowIndex) => (
             <tr key={rowIndex} className="hover:bg-gray-50">
               <td className="border border-gray-300 px-3 py-2 font-medium">
-                {indexData[rowIndex]}
+                {indexData[rowIndex] as string}
               </td>
               {columns.map((col) => (
                 <td key={col} className="border border-gray-300 px-3 py-2">

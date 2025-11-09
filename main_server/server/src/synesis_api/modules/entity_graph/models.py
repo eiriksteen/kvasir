@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, ForeignKey, Table, UUID, DateTime, func
+from sqlalchemy import Column, ForeignKey, Table, UUID, DateTime, UniqueConstraint
 
 from synesis_api.database.core import metadata
 
@@ -141,6 +141,9 @@ pipeline_run_output_dataset = Table(
     Column("updated_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
+    # Unique constraint on dataset_id since a dataset can only be output from one pipeline run
+    UniqueConstraint(
+        "dataset_id", name="uq_pipeline_run_output_dataset_dataset_id"),
     schema="entity_graph"
 )
 
@@ -157,6 +160,9 @@ pipeline_run_output_model_entity = Table(
     Column("updated_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
+    # Unique constraint on model_entity_id since a model entity can only be output from one pipeline run
+    UniqueConstraint(
+        "model_entity_id", name="uq_pipeline_run_output_model_entity_model_entity_id"),
     schema="entity_graph"
 )
 
@@ -173,6 +179,9 @@ pipeline_run_output_data_source = Table(
     Column("updated_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
+    # Unique constraint on data_source_id since a data source can only be output from one pipeline run
+    UniqueConstraint("data_source_id",
+                     name="uq_pipeline_run_output_data_source_data_source_id"),
     schema="entity_graph"
 )
 
@@ -184,14 +193,13 @@ pipeline_run_output_data_source = Table(
 dataset_in_analysis = Table(
     "dataset_in_analysis",
     metadata,
-    Column("id", UUID(as_uuid=True),
-           primary_key=True,
-           default=uuid.uuid4),
     Column("analysis_id", UUID(as_uuid=True),
            ForeignKey("analysis.analysis.id"),
+           primary_key=True,
            nullable=False),
     Column("dataset_id", UUID(as_uuid=True),
            ForeignKey("data_objects.dataset.id"),
+           primary_key=True,
            nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
@@ -205,14 +213,13 @@ dataset_in_analysis = Table(
 data_source_in_analysis = Table(
     "data_source_in_analysis",
     metadata,
-    Column("id", UUID(as_uuid=True),
-           primary_key=True,
-           default=uuid.uuid4),
     Column("analysis_id", UUID(as_uuid=True),
            ForeignKey("analysis.analysis.id"),
+           primary_key=True,
            nullable=False),
     Column("data_source_id", UUID(as_uuid=True),
            ForeignKey("data_sources.data_source.id"),
+           primary_key=True,
            nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
@@ -226,14 +233,13 @@ data_source_in_analysis = Table(
 model_entity_in_analysis = Table(
     "model_entity_in_analysis",
     metadata,
-    Column("id", UUID(as_uuid=True),
-           primary_key=True,
-           default=uuid.uuid4),
     Column("analysis_id", UUID(as_uuid=True),
            ForeignKey("analysis.analysis.id"),
+           primary_key=True,
            nullable=False),
     Column("model_entity_id", UUID(as_uuid=True),
            ForeignKey("model.model_entity.id"),
+           primary_key=True,
            nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),

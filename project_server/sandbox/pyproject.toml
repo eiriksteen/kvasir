@@ -45,6 +45,7 @@ dependencies = [
     "statsmodels",
     "prophet",
     "pyarrow",
+    "openpyxl",
     
     # Time series specific packages
     "darts",

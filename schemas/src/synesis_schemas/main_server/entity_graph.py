@@ -80,7 +80,6 @@ class PipelineRunOutputDataSourceInDB(BaseModel):
 
 
 class DataSourceInAnalysisInDB(BaseModel):
-    id: UUID
     analysis_id: UUID
     data_source_id: UUID
     created_at: datetime
@@ -88,7 +87,6 @@ class DataSourceInAnalysisInDB(BaseModel):
 
 
 class DatasetInAnalysisInDB(BaseModel):
-    id: UUID
     analysis_id: UUID
     dataset_id: UUID
     created_at: datetime
@@ -96,7 +94,6 @@ class DatasetInAnalysisInDB(BaseModel):
 
 
 class ModelEntityInAnalysisInDB(BaseModel):
-    id: UUID
     analysis_id: UUID
     model_entity_id: UUID
     created_at: datetime

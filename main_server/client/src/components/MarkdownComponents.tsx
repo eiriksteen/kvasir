@@ -3,10 +3,8 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Copy, Check } from 'lucide-react';
 
-interface BaseComponentProps {
+interface BaseComponentProps extends React.HTMLAttributes<HTMLElement> {
   children?: ReactNode;
-  className?: string;
-  [key: string]: unknown;
 }
 
 interface CodeComponentProps extends BaseComponentProps {
@@ -192,14 +190,15 @@ export const MarkdownComponents = {
         {children}
       </em>
     ),
-    img: ({ src, alt, ...props }: BaseComponentProps & { src?: string; alt?: string }) => {
+    img: ({ src, alt, ...props }: BaseComponentProps & { src?: string | Blob; alt?: string }) => {
       // Don't render if src is empty or null
-      if (!src || src.trim() === '') {
+      if (!src || (typeof src === 'string' && src.trim() === '')) {
         return null;
       }
+      const srcValue = typeof src === 'string' ? src : URL.createObjectURL(src);
       return (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={alt || ''} className="max-w-full h-auto rounded my-4" {...props} />
+        <img src={srcValue} alt={alt || ''} className="max-w-full h-auto rounded my-4" {...props} />
       );
     },
   };

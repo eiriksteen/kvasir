@@ -9,6 +9,7 @@ from synesis_api.modules.project.service import (
     delete_dataset_from_project,
     delete_model_entity_from_project,
     delete_pipeline_from_project,
+    delete_analysis_from_project,
 )
 
 
@@ -53,4 +54,14 @@ async def delete_pipeline_endpoint(
     """Delete a pipeline and remove it from all projects."""
     deleted_id = await delete_pipeline_from_project(user.id, pipeline_id)
     return {"message": "Pipeline deleted successfully", "id": str(deleted_id)}
+
+
+@router.delete("/analysis/{analysis_id}")
+async def delete_analysis_endpoint(
+    analysis_id: UUID,
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> dict:
+    """Delete an analysis and remove it from all projects."""
+    deleted_id = await delete_analysis_from_project(user.id, analysis_id)
+    return {"message": "Analysis deleted successfully", "id": str(deleted_id)}
 

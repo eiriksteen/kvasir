@@ -24,12 +24,12 @@ from synesis_schemas.main_server import (
     User,
     # AggregationObjectWithRawData,
     GetAnalysesByIDsRequest,
+    AnalysisResultVisualizationCreate,
 )
 from synesis_api.auth.service import get_current_user, user_owns_runs
 from synesis_api.modules.analysis.service import (
     create_analysis,
     get_user_analyses,
-    delete_analysis,
     check_user_owns_analysis,
     delete_notebook_section_recursive,
     create_section,
@@ -42,12 +42,11 @@ from synesis_api.modules.analysis.service import (
     delete_analysis_result as delete_analysis_result_service,
     get_analysis_results_by_ids,
     get_analysis_result_by_id,
-    create_analysis_result
+    create_analysis_result,
+    create_analysis_result_visualization
 )
 from synesis_api.redis import get_redis
 from synesis_api.utils.markdown_utils import convert_markdown_to_html
-from synesis_api.client import MainServerClient, get_plots_for_analysis_result_request
-from synesis_api.auth.service import oauth2_scheme
 
 router = APIRouter()
 
@@ -81,20 +80,6 @@ async def get_analyses_by_ids_endpoint(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> List[Analysis]:
     return await get_user_analyses(user_id=user.id, analysis_ids=request.analysis_ids)
-
-
-@router.delete("/analysis-object/{analysis_id}", response_model=uuid.UUID)
-async def delete_analysis_endpoint(
-    analysis_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> uuid.UUID:
-    if not await check_user_owns_analysis(user.id, analysis_id):
-        raise HTTPException(
-            status_code=403,
-            detail="You do not have permission to delete this analysis object"
-        )
-
-    return await delete_analysis(analysis_id, user.id)
 
 
 @router.post("/analysis-object/{analysis_id}/generate-report", response_class=FileResponse)
@@ -280,52 +265,6 @@ async def add_analysis_result_to_section_endpoint(
     return await add_analysis_result_to_section(section_id, analysis_result_id)
 
 
-@router.get("/analysis-object/{analysis_id}/analysis-result/{analysis_result_id}/get-data", response_model=None)
-async def get_data_for_analysis_result(
-    analysis_id: uuid.UUID,
-    analysis_result_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None,
-    token: str = Depends(oauth2_scheme)
-) -> None:
-    return HTTPException(
-        status_code=501, detail="Function not implemented - needs to be fixed")
-    if not await check_user_owns_analysis(user.id, analysis_id):
-        raise HTTPException(
-            status_code=403,
-            detail="You do not have permission to access this analysis object"
-        )
-
-    client = MainServerClient(token)
-    result = await get_aggregation_object_payload_data_by_analysis_result_id(client, analysis_id, analysis_result_id)
-    # TODO: Fix this - get_aggregation_object_by_analysis_result_id function doesn't exist
-    # aggregation_object_in_db = await get_aggregation_object_by_analysis_result_id(analysis_result_id)
-    # aggregation_object_with_raw_data = AggregationObjectWithRawData(
-    #     **aggregation_object_in_db.model_dump(), data=result)
-    # return aggregation_object_with_raw_data
-    raise HTTPException(
-        status_code=501, detail="Function not implemented - needs to be fixed")
-
-
-@router.get("/analysis-object/{analysis_id}/analysis-result/{analysis_result_id}/{plot_url}")
-async def get_plots_for_analysis_result(
-    analysis_id: uuid.UUID,
-    analysis_result_id: uuid.UUID,
-    plot_url: str,
-    user: Annotated[User, Depends(get_current_user)] = None,
-    token: str = Depends(oauth2_scheme)
-) -> Response:
-    if not await check_user_owns_analysis(user.id, analysis_id):
-        raise HTTPException(
-            status_code=403,
-            detail="You do not have permission to access this analysis object"
-        )
-
-    client = MainServerClient(token)
-
-    response = await get_plots_for_analysis_result_request(client, analysis_id, analysis_result_id, plot_url)
-    return response
-
-
 @router.patch("/analysis-object/{analysis_id}/move-element")
 async def move_element(
     analysis_id: uuid.UUID,
@@ -391,3 +330,11 @@ async def get_analysis_results_by_ids_endpoint(
     user: Annotated[User, Depends(get_current_user)] = None,
 ) -> List[AnalysisResult]:
     return await get_analysis_results_by_ids(analysis_result_find_request.analysis_result_ids)
+
+
+@router.post("/analysis-result/visualization", response_model=AnalysisResult)
+async def create_analysis_result_visualization_endpoint(
+    analysis_result_visualization_create: AnalysisResultVisualizationCreate,
+    user: Annotated[User, Depends(get_current_user)] = None,
+) -> AnalysisResult:
+    return await create_analysis_result_visualization(analysis_result_visualization_create)

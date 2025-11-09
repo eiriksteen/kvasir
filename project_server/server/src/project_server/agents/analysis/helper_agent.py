@@ -1,4 +1,5 @@
 import uuid
+from pathlib import Path
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.settings import ModelSettings
@@ -13,13 +14,14 @@ from project_server.utils.agent_utils import (
     get_entities_description,
     get_sandbox_environment_description,
 )
-from project_server.client import ProjectClient
-from project_server.agents.analysis.deps import AnalysisDeps
+from project_server.client import ProjectClient, create_images, create_echarts, create_tables
+from synesis_schemas.main_server import ImageCreate, EchartCreate, TableCreate
 from project_server.agents.chart.agent import chart_agent
 from project_server.agents.chart.deps import ChartDeps
 from project_server.app_secrets import AGENT_OUTPUTS_INTERNAL_DIR
-from pathlib import Path
-from project_server.utils.docker_utils import check_file_exists_in_container, write_file_to_container
+from project_server.utils.docker_utils import check_file_exists_in_container, write_file_to_container, copy_file_from_container
+from project_server.worker import logger
+
 
 model = get_model()
 
@@ -30,8 +32,18 @@ class CodeRun(BaseModel):
 
 
 class ChartAttached(BaseModel):
+    id: uuid.UUID
     chart_description: str
-    chart_script_path: str
+
+
+class TableAttached(BaseModel):
+    id: uuid.UUID
+    table_path: str
+
+
+class ImageAttached(BaseModel):
+    id: uuid.UUID
+    image_path: str
 
 
 @dataclass
@@ -49,8 +61,8 @@ class HelperAgentDeps:
     # Outputs of the tool calls
     code: Optional[str] = None
     charts: List[ChartAttached] = field(default_factory=list)
-    tables: List[str] = field(default_factory=list)
-    images: List[str] = field(default_factory=list)
+    tables: List[TableAttached] = field(default_factory=list)
+    images: List[ImageAttached] = field(default_factory=list)
 
 
 class HelperAgentOutput(BaseModel):
@@ -60,9 +72,9 @@ class HelperAgentOutput(BaseModel):
         description="The code that was executed to generate the analysis.")
     charts: List[ChartAttached] = Field(
         description="The charts that were attached to the analysis.")
-    tables: List[str] = Field(
+    tables: List[TableAttached] = Field(
         description="The tables that were attached to the analysis.")
-    images: List[str] = Field(
+    images: List[ImageAttached] = Field(
         description="The images that were attached to the analysis.")
 
 
@@ -160,8 +172,18 @@ async def prepare_result_image(
             f"Please save your image in one of these formats."
         )
 
-    ctx.deps.images.append(image_path)
-    return f"Successfully prepared image at {image_path}"
+    copied_path = await copy_file_from_container(
+        path,
+        AGENT_OUTPUTS_INTERNAL_DIR,
+        ctx.deps.container_name,
+        copied_filename=f"{path.name}_{ctx.deps.analysis_result_id}{path.suffix.lower()}")
+
+    image_objs = await create_images(ctx.deps.client, [ImageCreate(image_path=copied_path.as_posix())])
+    ctx.deps.images.append(ImageAttached(
+        id=image_objs[0].id,
+        image_path=copied_path.as_posix()
+    ))
+    return f"Successfully prepared image at {copied_path.as_posix()}"
 
 
 @analysis_helper_agent.tool()
@@ -185,7 +207,7 @@ async def prepare_result_chart(
         data_sources_to_use: List of data source IDs to use for the chart
 
     Returns:
-        Success message with the script path
+        Success message
     """
     try:
         # Generate the chart script using the chart agent
@@ -205,8 +227,12 @@ async def prepare_result_chart(
         script_filename = f"analysis_chart_{ctx.deps.analysis_result_id}.py"
         save_path = AGENT_OUTPUTS_INTERNAL_DIR / script_filename
         await write_file_to_container(save_path, chart_result.output.script_content, ctx.deps.container_name)
+        echart_objs = await create_echarts(ctx.deps.client, [EchartCreate(chart_script_path=str(save_path))])
+        logger.info("ECHART OBJS"*100)
+        logger.info(echart_objs[0].model_dump_json())
         ctx.deps.charts.append(ChartAttached(
-            chart_description=chart_description, chart_script_path=str(save_path)))
+            id=echart_objs[0].id,
+            chart_description=chart_description))
 
         return f"Successfully prepared chart script at {save_path}"
 
@@ -249,8 +275,18 @@ async def prepare_result_table(
             f"Please save your table as a parquet file using df.to_parquet('{table_path}')."
         )
 
-    ctx.deps.tables.append(table_path)
-    return f"Successfully prepared table at {table_path}"
+    copied_path = await copy_file_from_container(
+        path,
+        AGENT_OUTPUTS_INTERNAL_DIR,
+        ctx.deps.container_name,
+        copied_filename=f"{path.name}_{ctx.deps.analysis_result_id}.parquet")
+
+    table_objs = await create_tables(ctx.deps.client, [TableCreate(table_path=copied_path.as_posix())])
+    ctx.deps.tables.append(TableAttached(
+        id=table_objs[0].id,
+        table_path=table_objs[0].table_path
+    ))
+    return f"Successfully prepared table at {copied_path.as_posix()}"
 
 
 @analysis_helper_agent.output_validator

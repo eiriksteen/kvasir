@@ -98,7 +98,7 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
     e.preventDefault();
     
     if (files.length === 0) {
-      setUploadError('Please select a file to upload');
+      setUploadError('Please select at least one file to upload');
       return;
     }
 
@@ -112,7 +112,7 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
 
     try {
       await triggerCreateFileDataSource({
-        file: files[0],
+        files: files,
       });
       resetForm();
       await mutateDataSources();
@@ -158,6 +158,7 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
                     ref={fileInputRef}
                     onChange={handleFileChange}
                     className="hidden"
+                    multiple
                   />
 
                   {files.length > 0 ? (
@@ -167,7 +168,7 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
                         {files.length} file{files.length > 1 ? 's' : ''} selected
                       </p>
                       <p className="text-xs text-gray-600 mt-1">
-                        {files[0].name}
+                        {files.length === 1 ? files[0].name : `${files[0].name} and ${files.length - 1} more`}
                       </p>
                       <p className="text-xs text-gray-600 mt-1">
                         Total size: {(files.reduce((acc, file) => acc + file.size, 0) / 1024).toFixed(1)} KB
@@ -183,8 +184,8 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
                   ) : (
                     <div className="flex flex-col items-center text-gray-600">
                       <Upload size={28} className="text-gray-400 mb-3" />
-                      <p className="text-sm font-medium text-gray-700">Drag & drop a file here</p>
-                      <p className="text-xs text-gray-500 mt-1">Or click to browse and select a file</p>
+                      <p className="text-sm font-medium text-gray-700">Drag & drop files here</p>
+                      <p className="text-xs text-gray-500 mt-1">Or click to browse and select files (multiple files supported)</p>
                     </div>
                   )}
                 </div>

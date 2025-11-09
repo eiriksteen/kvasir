@@ -3,6 +3,7 @@ from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolea
 
 from synesis_api.database.core import metadata
 
+
 analysis = Table(
     "analysis",
     metadata,
@@ -21,6 +22,7 @@ analysis = Table(
     schema="analysis",
 )
 
+
 notebook = Table(
     "notebook",
     metadata,
@@ -29,6 +31,7 @@ notebook = Table(
            default=uuid.uuid4),
     schema="analysis",
 )
+
 
 notebook_section = Table(
     "notebook_section",
@@ -49,6 +52,7 @@ notebook_section = Table(
            nullable=True),
     schema="analysis",
 )
+
 
 analysis_status_message = Table(
     "analysis_status_message",
@@ -93,18 +97,20 @@ result_image = Table(
     Column('analysis_result_id', UUID, ForeignKey(
         'analysis.analysis_result.id'), nullable=False),
     #     Column('plot_config', JSON, nullable=False), # TODO: uncomment this when we change to echarts.
-    Column('image_url', String, nullable=False),
+    Column('image_id', UUID, ForeignKey(
+        'visualization.image.id'), nullable=False),
     schema='analysis',
 )
 
 
-result_chart = Table(
-    'result_chart',
+result_echart = Table(
+    'result_echart',
     metadata,
     Column('id', UUID, primary_key=True, default=uuid.uuid4),
     Column('analysis_result_id', UUID, ForeignKey(
         'analysis.analysis_result.id'), nullable=False),
-    Column("chart_script_path", String, nullable=True),
+    Column("echart_id", UUID, ForeignKey(
+        'visualization.echart.id'), nullable=False),
     schema='analysis',
 )
 
@@ -116,6 +122,7 @@ result_table = Table(
     Column('analysis_result_id', UUID, ForeignKey(
         'analysis.analysis_result.id'), nullable=False),
     # Stores project server path to the parquet file of the dataframe corresponding to the table
-    Column('table_path', String, nullable=True),
+    Column('table_id', UUID, ForeignKey(
+        'visualization.table.id'), nullable=False),
     schema='analysis',
 )

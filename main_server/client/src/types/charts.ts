@@ -31,7 +31,7 @@ export interface MarkLineDataItem {
   yAxis?: string | number | null;
   type?: "min" | "max" | "average" | "median" | null;
   lineStyle?: LineStyle | null;
-  label?: Record<string, any> | null;
+  label?: Record<string, unknown> | null;
 }
 
 export interface MarkLine {
@@ -60,8 +60,8 @@ export interface VisualMapContinuous {
   min: number;
   max: number;
   text?: string[] | null;
-  inRange?: Record<string, any> | null;
-  outOfRange?: Record<string, any> | null;
+  inRange?: Record<string, unknown> | null;
+  outOfRange?: Record<string, unknown> | null;
   orient?: "horizontal" | "vertical" | null;
   left?: string | number | null;
   right?: string | number | null;
@@ -74,14 +74,14 @@ export interface VisualMapContinuous {
 
 export interface VisualMapPiecewise {
   type: "piecewise";
-  pieces?: Record<string, any>[] | null;
+  pieces?: Record<string, unknown>[] | null;
   categories?: string[] | null;
   min?: number | null;
   max?: number | null;
   splitNumber?: number | null;
   text?: string[] | null;
-  inRange?: Record<string, any> | null;
-  outOfRange?: Record<string, any> | null;
+  inRange?: Record<string, unknown> | null;
+  outOfRange?: Record<string, unknown> | null;
   orient?: "horizontal" | "vertical" | null;
   left?: string | number | null;
   right?: string | number | null;
@@ -96,7 +96,7 @@ export type VisualMap = VisualMapContinuous | VisualMapPiecewise;
 export interface Series {
   name?: string | null;
   type: "line" | "bar" | "scatter" | "pie" | "candlestick" | "boxplot" | "heatmap";
-  data: (number | number[] | Record<string, any>)[];
+  data: (number | number[] | Record<string, unknown>)[];
   xAxisIndex?: number | null;
   yAxisIndex?: number | null;
   smooth?: boolean | null;
@@ -106,7 +106,7 @@ export interface Series {
   markArea?: MarkArea | null;
   showSymbol?: boolean | null;
   symbolSize?: number | null;
-  areaStyle?: Record<string, any> | null;
+  areaStyle?: Record<string, unknown> | null;
   stack?: string | null;
 }
 
@@ -129,7 +129,7 @@ export interface Grid {
 export interface Tooltip {
   show?: boolean | null;
   trigger?: "item" | "axis" | "none" | null;
-  axisPointer?: Record<string, any> | null;
+  axisPointer?: Record<string, unknown> | null;
 }
 
 export interface DataZoom {

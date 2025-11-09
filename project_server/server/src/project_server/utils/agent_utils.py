@@ -1,6 +1,7 @@
 from typing import List
 from uuid import UUID
 
+from project_server.utils.code_utils import run_shell_code_in_container
 from synesis_schemas.main_server import Project, get_entity_graph_description
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.anthropic import AnthropicProvider
@@ -80,7 +81,7 @@ def get_project_description(project: Project) -> str:
     project_graph_yaml = get_entity_graph_description(project.graph)
 
     desc = (
-        "# Project Description with Entity Graph:\n\n" +
+        "# PROJECT DESCRIPTION WITH ENTITY GRAPH:\n\n" +
         "**Project Name:**\n\n" +
         f"{project.name}\n\n" +
         "**Project Description:**\n\n" +
@@ -106,6 +107,43 @@ async def get_working_directory_description(container_name: str) -> str:
     return f"pwd out: {pwd}\n\nls out:\n{ls}\n\n"
 
 
+async def get_folder_structure_description(
+        container_name: str,
+        path: str = "/app",
+        n_levels: int = 3,
+        max_lines: int = 100) -> str:
+    # Try using tree command first (cleaner output), fall back to find if not available
+    tree_cmd = f"tree -L {n_levels} -a -I '__pycache__|*.egg-info' {path} 2>/dev/null"
+    find_cmd = f"find {path} -maxdepth {n_levels} \\( -name '__pycache__' -o -name '*.egg-info' \\) -prune -o -print 2>/dev/null | sort"
+
+    # Check if tree is available
+    check_tree = "command -v tree >/dev/null 2>&1 && echo 'yes' || echo 'no'"
+    has_tree_out, _ = await run_shell_code_in_container(check_tree, container_name)
+
+    if has_tree_out.strip() == 'yes':
+        cmd = tree_cmd
+    else:
+        cmd = find_cmd
+
+    out, err = await run_shell_code_in_container(cmd, container_name)
+
+    if err:
+        return f"folder structure {n_levels} levels down:\n\nError: {err}"
+
+    if not out.strip():
+        return f"folder structure {n_levels} levels down:\n\n(empty or does not exist)"
+
+    lines = out.split('\n')
+    was_truncated = len(lines) > max_lines
+
+    if was_truncated:
+        lines = lines[:max_lines]
+        result = '\n'.join(lines)
+        return f"folder structure {n_levels} levels down:\n\n{result}\n\n[truncated - output exceeded {max_lines} lines]"
+    else:
+        return f"folder structure {n_levels} levels down:\n\n{out}"
+
+
 def get_model():
 
     model_id_to_provider_name = {
@@ -115,7 +153,8 @@ def get_model():
         "o3": "openai",
         "gemini-2.5-pro": "google",
         "gpt-5": "openai",
-        "grok-code-fast-1": "xai"
+        "grok-code-fast-1": "xai",
+        "grok-4": "xai",
     }
 
     if model_id_to_provider_name[MODEL_TO_USE] == "anthropic":

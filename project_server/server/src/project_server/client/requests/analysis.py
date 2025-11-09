@@ -14,12 +14,7 @@ from synesis_schemas.main_server import (
     MoveRequest,
     # AggregationObjectWithRawData,
     GetAnalysesByIDsRequest,
-    ResultImageInDB,
-    ResultImageCreate,
-    ResultChartInDB,
-    ResultChartCreate,
-    ResultTableInDB,
-    ResultTableCreate
+    AnalysisResultVisualizationCreate
 )
 
 
@@ -91,31 +86,6 @@ async def get_analysis_results_by_ids_request(client: ProjectClient, analysis_re
     return [AnalysisResult(**result) for result in response.body]
 
 
-async def create_result_image(client: ProjectClient, image_create: ResultImageCreate) -> ResultImageInDB:
-    """Create a new result image record in the database."""
-    response = await client.send_request(
-        "post",
-        "/analysis/result-image",
-        json=image_create.model_dump(mode="json")
-    )
-    return ResultImageInDB(**response.body)
-
-
-async def create_result_chart(client: ProjectClient, chart_create: ResultChartCreate) -> ResultChartInDB:
-    """Create a new result chart record in the database."""
-    response = await client.send_request(
-        "post",
-        "/analysis/result-chart",
-        json=chart_create.model_dump(mode="json")
-    )
-    return ResultChartInDB(**response.body)
-
-
-async def create_result_table(client: ProjectClient, table_create: ResultTableCreate) -> ResultTableInDB:
-    """Create a new result table record in the database."""
-    response = await client.send_request(
-        "post",
-        "/analysis/result-table",
-        json=table_create.model_dump(mode="json")
-    )
-    return ResultTableInDB(**response.body)
+async def create_analysis_result_visualization_request(client: ProjectClient, analysis_result_visualization_create: AnalysisResultVisualizationCreate) -> AnalysisResult:
+    response = await client.send_request("post", "/analysis/analysis-result/visualization", json=analysis_result_visualization_create.model_dump(mode="json"))
+    return AnalysisResult(**response.body)

@@ -108,77 +108,90 @@ async def grep_tool(ctx: RunContext, pattern: str, path: str = "/app", recursive
     return '\n'.join(filtered_lines)
 
 
-async def ls_tool(ctx: RunContext, path: str = "/app", show_hidden: bool = False, long_format: bool = False) -> str:
-    """
-    List directory contents.
+async def ls_tool(ctx: RunContext, paths: list[str] = ["/app"]) -> str:
 
-    Args:
-        ctx: The run context.
-        path: The directory path to list (default: /app).
-        show_hidden: Whether to show hidden files (default: False).
-        long_format: Whether to show detailed information (default: False).
-
-    Returns:
-        Directory listing.
-    """
     assert hasattr(ctx.deps, "container_name"), "Container name is required"
-    cmd = "ls"
-    if long_format:
-        cmd += " -l"
-    if show_hidden:
-        cmd += " -a"
 
-    shell_code = f"{cmd} {path} || true"
+    if not paths:
+        raise ModelRetry("No paths provided")
 
-    out, err = await run_shell_code_in_container(
-        shell_code,
-        container_name=ctx.deps.container_name,
-    )
+    results = []
 
-    if err:
-        raise ModelRetry(f"Error running ls: {err}")
+    for directory_path in paths:
+        shell_code = f"ls -I '__pycache__' -I '*.egg-info' {directory_path} || true"
 
-    if not out.strip():
-        return f"Directory {path} is empty or does not exist"
+        out, err = await run_shell_code_in_container(
+            shell_code,
+            container_name=ctx.deps.container_name,
+        )
 
-    return out
+        if err:
+            results.append(f"\n{directory_path}:\nError: {err}")
+            continue
+
+        if not out.strip():
+            results.append(f"\n{directory_path}:\n(empty or does not exist)")
+        else:
+            if len(paths) > 1:
+                results.append(f"\n{directory_path}:\n{out.rstrip()}")
+            else:
+                results.append(out.rstrip())
+
+    separator = "\n" if len(paths) > 1 else ""
+    return separator.join(results).strip()
 
 
-async def read_file_tool(ctx: RunContext, file_path: str) -> str:
+async def read_code_files_tool(ctx: RunContext, file_paths: list[str]) -> str:
     """
-    Read the contents of a text-based file.
+    Read the contents of one or more text-based files.
     Only supports common text file formats: .py, .txt, .md, .json, .yaml, .yml, .toml, .ini, .cfg, .conf, .sh, .bash, .zsh, .csv, .xml, .html, .css, .js, .ts, .jsx, .tsx, .sql, .log
 
     Args:
         ctx: The run context.
-        file_path: The path to the file to read (relative to /app or absolute).
+        file_paths: List of file paths to read (relative to /app or absolute).
 
     Returns:
-        The file contents.
+        The file contents, formatted with clear separators between files.
     """
     assert hasattr(ctx.deps, "container_name"), "Container name is required"
 
-    # Check if file has an allowed extension
-    if not is_readable_extension(file_path):
-        raise ModelRetry(
-            f"File {file_path} does not have an allowed extension. Only text-based files are supported: {', '.join(sorted(READABLE_EXTENSIONS))}")
+    if not file_paths:
+        raise ModelRetry("No file paths provided")
 
-    shell_code = f"cat {file_path} || echo 'Error: File not found or cannot be read'"
+    results = []
 
-    out, err = await run_shell_code_in_container(
-        shell_code,
-        container_name=ctx.deps.container_name,
-    )
+    for file_path in file_paths:
+        # Check if file has an allowed extension
+        if not is_readable_extension(file_path):
+            results.append(
+                f"<begin_file file_path={file_path}>\n"
+                f"ERROR: File does not have an allowed extension. Only text-based files are supported: {', '.join(sorted(READABLE_EXTENSIONS))}\n"
+                f"<end_file>"
+            )
+            continue
 
-    if err:
-        raise ModelRetry(f"Error reading file: {err}")
+        shell_code = f"cat {file_path} || echo 'Error: File not found or cannot be read'"
 
-    if "Error:" in out or not out.strip():
-        raise ModelRetry(f"Could not read file {file_path}: {out.strip()}")
+        out, err = await run_shell_code_in_container(
+            shell_code,
+            container_name=ctx.deps.container_name,
+        )
 
-    out_with_line_numbers = add_line_numbers_to_script(out)
+        if err or "Error:" in out or not out.strip():
+            results.append(
+                f"<begin_file file_path={file_path}>\n"
+                f"ERROR: Could not read file - {err or out.strip()}\n"
+                f"<end_file>"
+            )
+            continue
 
-    return f"READ FILE: {file_path}\n\n<begin_file file_path={file_path}>\n\n{out_with_line_numbers}\n\n<end_file>"
+        out_with_line_numbers = add_line_numbers_to_script(out)
+        results.append(
+            f"<begin_file file_path={file_path}>\n\n{out_with_line_numbers}\n\n<end_file>"
+        )
+
+    separator = "\n\n" + "=" * 80 + "\n\n"
+    return separator.join(results)
 
 
 async def find_tool(ctx: RunContext, name_pattern: str, path: str = "/app", file_type: Optional[str] = None) -> str:
@@ -216,12 +229,13 @@ async def find_tool(ctx: RunContext, name_pattern: str, path: str = "/app", file
 
 
 navigation_toolset = FunctionToolset(
+    # Commented out many since they make the agent slow. We now put in a string of the foler structure, but that is not scalable for large projects.
     tools=[
         # Grep doesnt work so well, keeps reading large data files, todo fix
         # grep_tool,
-        read_file_tool,
-        ls_tool,
-        find_tool
+        read_code_files_tool,
+        # ls_tool,
+        # find_tool
     ],
     max_retries=3
 )

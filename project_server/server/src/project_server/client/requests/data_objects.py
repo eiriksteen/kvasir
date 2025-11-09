@@ -13,7 +13,7 @@ from synesis_schemas.main_server import (
     DataObject,
     DataObjectGroupCreate,
     ObjectsFile,
-    UpdateObjectGroupChartScriptRequest
+    ObjectGroupEChartCreate
 )
 
 
@@ -82,10 +82,10 @@ async def get_data_object(client: ProjectClient, object_id: UUID) -> DataObject:
     return DataObject(**response.body)
 
 
-async def patch_object_group_chart_script(client: ProjectClient, group_id: UUID, request: UpdateObjectGroupChartScriptRequest) -> ObjectGroup:
+async def create_object_group_echart(client: ProjectClient, group_id: UUID, request: ObjectGroupEChartCreate) -> ObjectGroup:
     response = await client.send_request(
-        "patch",
-        f"/data-objects/object-group/{group_id}/chart-script",
+        "post",
+        f"/data-objects/object-group/{group_id}/echart",
         json=request.model_dump(mode="json")
     )
     return ObjectGroup(**response.body)

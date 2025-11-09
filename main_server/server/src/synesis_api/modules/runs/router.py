@@ -43,7 +43,6 @@ router = APIRouter()
 
 @router.get("/runs")
 async def fetch_runs(user: Annotated[User, Depends(get_current_user)] = None) -> List[Run]:
-
     runs = await get_runs(user.id)
     return runs
 

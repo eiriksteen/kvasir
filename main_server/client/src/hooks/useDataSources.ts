@@ -27,9 +27,11 @@ async function fetchProjectDataSources(token: string, projectId: UUID): Promise<
   return snakeToCamelKeys(data);
 }
 
-async function createFileDataSource(token: string, projectId: UUID, file: File): Promise<DataSource> {
+async function createFileDataSource(token: string, projectId: UUID, files: File[]): Promise<DataSource[]> {
   const formData = new FormData();
-  formData.append('file', file);
+  files.forEach(file => {
+    formData.append('files', file);
+  });
   formData.append('project_id', projectId);
 
   const response = await fetch(`${PROJECT_SERVER_URL}/data-source/file`, {
@@ -75,14 +77,14 @@ export const useDataSources = (projectId: UUID) => {
 
   const { trigger: triggerCreateFileDataSource } = useSWRMutation(
     session ? ["data-sources", projectId] : null,
-    async (_, { arg }: { arg: { file: File } }) => {
-      const newDataSource = await createFileDataSource(
+    async (_, { arg }: { arg: { files: File[] } }) => {
+      const newDataSources = await createFileDataSource(
         session ? session.APIToken.accessToken : "", 
         projectId, 
-        arg.file
+        arg.files
       );
       await mutateDataSources();
-      return newDataSource;
+      return newDataSources;
     }
   );
 

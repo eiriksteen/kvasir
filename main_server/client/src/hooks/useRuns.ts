@@ -1,4 +1,4 @@
-import { RunInDB, RunMessageInDB, RunCodeMessageInDB } from "@/types/runs";
+import { RunInDB, RunMessageInDB} from "@/types/runs";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import useSWR, { useSWRConfig } from "swr";
@@ -67,17 +67,7 @@ function createRunMessagesEventSource(token: string, runId: UUID): SSE {
 }
 
 
-function createRunCodeMessagesEventSource(token: string, runId: UUID): SSE {
-  return new SSE(`${API_URL}/runs/stream-code-messages/${runId}`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-  });
-}
-
-export async function launchRun(token: string, runId: UUID): Promise<Run> {
+export async function launchRun(token: string, runId: UUID): Promise<RunInDB> {
   const response = await fetch(`${API_URL}/runs/launch-run/${runId}`, {
     method: "POST",
     headers: {
@@ -97,7 +87,7 @@ export async function launchRun(token: string, runId: UUID): Promise<Run> {
 
 }
 
-async function rejectRun(token: string, runId: UUID): Promise<Run> {
+async function rejectRun(token: string, runId: UUID): Promise<RunInDB> {
   const response = await fetch(`${API_URL}/runs/reject-run/${runId}`, {
     method: "PATCH",
     headers: {
@@ -151,7 +141,6 @@ export const useRuns = () => {
     }
   )
 
-
   const { trigger: triggerLaunchRun } = useSWRMutation(
     session ? "runs" : null,
     (_, { arg }: { arg: {runId: UUID} }) => launchRun(session ? session.APIToken.accessToken : "", arg.runId),
@@ -159,8 +148,8 @@ export const useRuns = () => {
       populateCache: (newRun) => {
         // Replace run with newRun if run with same ID exists, else append newRun
         if (runs) {
-          if (runs.some((run: Run) => run.id === newRun.id)) {
-            return runs.map((run: Run) => run.id === newRun.id ? newRun : run);
+          if (runs.some((run: RunInDB) => run.id === newRun.id)) {
+            return runs.map((run: RunInDB) => run.id === newRun.id ? newRun : run);
           } else {
             return [...runs, newRun];
           }
@@ -178,8 +167,8 @@ export const useRuns = () => {
     {
       populateCache: (newRun) => {
         if (runs) {
-          if (runs.some((run: Run) => run.id === newRun.id)) {
-            return runs.map((run: Run) => run.id === newRun.id ? newRun : run);
+          if (runs.some((run: RunInDB) => run.id === newRun.id)) {
+            return runs.map((run: RunInDB) => run.id === newRun.id ? newRun : run);
           } else {
             return [...runs, newRun];
           }
@@ -283,7 +272,7 @@ export const useRunMessages = (runId: UUID) => {
 
   useSWRSubscription(
     session && run ? ["runMessages", runId, run.status] : null,
-    (_, {next}: SWRSubscriptionOptions<Run>) => {
+    (_, {next}: SWRSubscriptionOptions<RunInDB>) => {
 
       if (!run || !runMessages) {
         return () => {};
@@ -312,40 +301,3 @@ export const useRunMessages = (runId: UUID) => {
   return { runMessages }
 }
 
-const emptyRunCodeMessages: RunCodeMessageInDB[] = [];
-
-export const useRunCodeMessages = (runId: UUID) => {
-  const { data: session } = useSession()
-  const { run } = useRun(runId)
-  const { data: runCodeMessages, mutate: mutateRunCodeMessages } = useSWR(session ? ["runCodeMessages", runId] : null,  {fallbackData: emptyRunCodeMessages})
-
-  useSWRSubscription(
-    session && run ? ["runCodeMessages", runId, run.status] : null,
-    (_, {next}: SWRSubscriptionOptions<Run>) => {
-      if (!run || !runCodeMessages) {
-        return () => {};
-      }
-
-      if (run.status === "running") {
-        const eventSource = createRunCodeMessagesEventSource(session ? session.APIToken.accessToken : "", runId)
-
-        eventSource.onmessage = (ev) => {
-          const streamedMessage: RunCodeMessageInDB = snakeToCamelKeys(JSON.parse(ev.data));
-          next(null, () => {
-            // If the streamedMessage has a filename already in the runCodeMessages, replace it, else add it
-            const updatedRunCodeMessages = runCodeMessages.map((message: RunCodeMessageInDB) => message.filename === streamedMessage.filename ? streamedMessage : message);
-            mutateRunCodeMessages(updatedRunCodeMessages, {revalidate: false});
-            return undefined;
-          })
-        }
-
-        return () => eventSource.close();
-      }
-      else {
-        return () => {};
-      }
-    }
-  )
-
-  return { runCodeMessages }
-}

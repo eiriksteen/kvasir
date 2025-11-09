@@ -5,14 +5,7 @@ from contextlib import asynccontextmanager
 from synesis_api.auth.router import router as auth_router
 from synesis_api.modules.data_sources.router import router as data_sources_router
 from synesis_api.modules.orchestrator.router import router as orchestrator_router
-from synesis_api.modules.analysis.router import (
-    analysis_router,
-    plot_router,
-    table_router,
-    result_image_router,
-    result_chart_router,
-    result_table_router
-)
+from synesis_api.modules.analysis.router import router as analysis_router
 from synesis_api.modules.data_objects.router import router as ontology_router
 from synesis_api.modules.project.router import router as project_router
 from synesis_api.modules.pipeline.router import router as pipeline_router
@@ -22,6 +15,7 @@ from synesis_api.modules.model.router import router as model_router
 from synesis_api.modules.function.router import router as function_router
 from synesis_api.modules.deletion.router import router as deletion_router
 from synesis_api.modules.entity_graph.router import router as entity_graph_router
+from synesis_api.modules.visualization.router import router as visualization_router
 
 
 @asynccontextmanager
@@ -101,25 +95,6 @@ app.include_router(function_router,
                    prefix="/function",
                    tags=["Function"])
 
-app.include_router(table_router,
-                   prefix="/analysis",
-                   tags=["Analysis"])
-
-app.include_router(plot_router,
-                   prefix="/analysis",
-                   tags=["Analysis"])
-
-app.include_router(result_image_router,
-                   prefix="/analysis",
-                   tags=["Analysis"])
-
-app.include_router(result_chart_router,
-                   prefix="/analysis",
-                   tags=["Analysis"])
-
-app.include_router(result_table_router,
-                   prefix="/analysis",
-                   tags=["Analysis"])
 
 app.include_router(deletion_router,
                    prefix="/deletion",
@@ -129,6 +104,11 @@ app.include_router(deletion_router,
 app.include_router(entity_graph_router,
                    prefix="/entity-graph",
                    tags=["Entity Graph"])
+
+
+app.include_router(visualization_router,
+                   prefix="/visualization",
+                   tags=["Visualization"])
 
 
 @app.get("/")

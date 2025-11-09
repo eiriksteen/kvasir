@@ -1,6 +1,6 @@
 import uuid
-from datetime import datetime, timezone
 from typing import Literal, Optional, List, Union
+from datetime import datetime, timezone
 from sqlalchemy import select, insert
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelMessage
 
@@ -11,26 +11,29 @@ from synesis_api.modules.pipeline.service import create_pipeline
 from synesis_api.modules.project.service import add_entity_to_project
 from synesis_schemas.main_server import (
     RunInDB,
-    RunPydanticMessageInDB,
-    RunMessageInDB,
     DataSourceInRunInDB,
-    Run,
     RunCreate,
-    RunMessageCreate,
-    RunMessageCreatePydantic,
     DatasetInRunInDB,
     ModelEntityInRunInDB,
     PipelineInRunInDB,
-    RunEntityIds,
-    RunStatusUpdate,
     AnalysisFromRunInDB,
     PipelineFromRunInDB,
     PipelineCreate,
     AddEntityToProject,
     AnalysisCreate,
-    AnalysisInRunInDB
+    AnalysisInRunInDB,
+    EdgesCreate,
+    EdgeDefinition,
+    Run,
+    RunEntityIds,
+    RunStatusUpdate,
+    RunMessageCreate,
+    RunMessageCreatePydantic,
+    RunMessageInDB,
+    RunPydanticMessageInDB,
 )
 from synesis_schemas.project_server import RunAnalysisRequest, RunSWERequest
+from synesis_api.modules.entity_graph.service import create_edges
 from synesis_api.modules.runs.models import (
     run,
     run_pydantic_message,
@@ -39,12 +42,12 @@ from synesis_api.modules.runs.models import (
     dataset_in_run,
     model_entity_in_run,
     pipeline_in_run,
-    data_source_from_run,
-    dataset_from_run,
-    model_entity_from_run,
     pipeline_from_run,
     analysis_from_run,
     analysis_in_run,
+    data_source_from_run,
+    dataset_from_run,
+    model_entity_from_run,
 )
 
 
@@ -173,10 +176,10 @@ async def launch_run(user_id: uuid.UUID, client: MainServerClient, run_id: uuid.
             pipeline_create = PipelineCreate(
                 name=run_record.run_name,
                 description=run_record.plan_and_deliverable_description_for_agent,
-                input_data_source_ids=data_source_ids,
-                input_dataset_ids=dataset_ids,
-                input_model_entity_ids=model_entity_ids,
-                input_analysis_ids=analysis_ids
+                # input_data_source_ids=data_source_ids,
+                # input_dataset_ids=dataset_ids,
+                # input_model_entity_ids=model_entity_ids,
+                # input_analysis_ids=analysis_ids
             )
             target_entity_id = (await create_pipeline(pipeline_create=pipeline_create, user_id=user_id)).id
             await add_entity_to_project(user_id, AddEntityToProject(
@@ -207,11 +210,8 @@ async def launch_run(user_id: uuid.UUID, client: MainServerClient, run_id: uuid.
             analysis_create = AnalysisCreate(
                 name=run_record.run_name,
                 description=run_record.plan_and_deliverable_description_for_user,
-                input_dataset_ids=dataset_ids,
-                input_data_source_ids=data_source_ids,
-                input_model_entity_ids=model_entity_ids,
-                input_analysis_ids=analysis_ids
             )
+
             target_entity_id = (await create_analysis(analysis_create=analysis_create, user_id=user_id)).id
             await add_entity_to_project(user_id, AddEntityToProject(
                 project_id=run_record.project_id,
@@ -224,6 +224,34 @@ async def launch_run(user_id: uuid.UUID, client: MainServerClient, run_id: uuid.
                 created_at=datetime.now(timezone.utc)
             )
             await execute(insert(analysis_from_run).values(analysis_from_run_record.model_dump()), commit_after=True)
+
+            edges_create = EdgesCreate(
+                edges=[
+                    EdgeDefinition(
+                        from_node_type="data_source",
+                        from_node_id=data_source_id,
+                        to_node_type="analysis",
+                        to_node_id=target_entity_id
+                    ) for data_source_id in data_source_ids
+                ] + [
+                    EdgeDefinition(
+                        from_node_type="dataset",
+                        from_node_id=dataset_id,
+                        to_node_type="analysis",
+                        to_node_id=target_entity_id
+                    ) for dataset_id in dataset_ids
+                ] + [
+                    EdgeDefinition(
+                        from_node_type="model_entity",
+                        from_node_id=model_entity_id,
+                        to_node_type="analysis",
+                        to_node_id=target_entity_id
+                    ) for model_entity_id in model_entity_ids
+                ]
+            )
+            if edges_create.edges:
+                await create_edges(edges_create)
+
         await post_run_analysis(client, RunAnalysisRequest(
             run_id=run_id,
             prompt_content=run_record.plan_and_deliverable_description_for_agent,

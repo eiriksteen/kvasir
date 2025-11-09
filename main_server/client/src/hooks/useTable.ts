@@ -1,26 +1,22 @@
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { UUID } from "crypto";
-import { ResultTable } from "@/types/analysis";
+import { ResultTable } from "@/types/visualization";
+import { snakeToCamelKeys } from "@/lib/utils";
 
 const PROJECT_SERVER_URL = process.env.NEXT_PUBLIC_PROJECT_API_URL;
 
 async function fetchTable(
   token: string,
-  projectId: UUID,
-  tablePath: string
+  tableId: UUID
 ): Promise<ResultTable> {
 
-  const response = await fetch(`${PROJECT_SERVER_URL}/table/get-table`, {
+  const response = await fetch(`${PROJECT_SERVER_URL}/table/get-table/${tableId}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      project_id: projectId,
-      table_path: tablePath,
-    }),
   });
 
   if (!response.ok) {
@@ -28,18 +24,16 @@ async function fetchTable(
     throw new Error(`Failed to fetch table: ${response.status} ${errorText}`);
   }
 
-  return await response.json();
+  const data = await response.json();
+  return snakeToCamelKeys(data);
 }
 
-export function useTable(
-  projectId: UUID,
-  tablePath: string
-) {
+export function useTable(tableId: UUID) {
   const { data: session } = useSession();
 
   const { data: table, error, isLoading } = useSWR(
-    session ? ["table", projectId, tablePath] : null,
-    () => fetchTable(session!.APIToken.accessToken, projectId, tablePath)
+    session ? ["table", tableId] : null,
+    () => fetchTable(session!.APIToken.accessToken, tableId)
   );
 
   return {

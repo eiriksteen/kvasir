@@ -38,7 +38,7 @@ class ObjectGroupInDB(BaseModel):
     dataset_id: uuid.UUID
     original_id_name: Optional[str] = None
     additional_variables: Optional[Dict[str, Any]] = None
-    chart_script_path: Optional[str] = None
+    echart_id: Optional[uuid.UUID] = None
     created_at: datetime
     updated_at: datetime
 
@@ -220,7 +220,7 @@ class DatasetCreate(BaseModel):
 
 # Update schemas
 
-class UpdateObjectGroupChartScriptRequest(BaseModel):
+class ObjectGroupEChartCreate(BaseModel):
     chart_script_path: str
 
 # Helpers

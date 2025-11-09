@@ -1,7 +1,8 @@
 import asyncio
 import docker
-from pathlib import Path
 from uuid import UUID
+from pathlib import Path
+from typing import Optional
 from docker.errors import NotFound, ImageNotFound
 
 from project_server.app_secrets import (
@@ -157,24 +158,28 @@ async def copy_file_or_directory_to_container(
         stderr=asyncio.subprocess.PIPE
     )
 
-    out, err = await process.communicate()
+    _, err = await process.communicate()
 
     if process.returncode != 0:
         raise RuntimeError(
             f"Failed to copy file or directory to container: {err.decode('utf-8')}")
 
-    return out.decode("utf-8")
+    # Return path inside container where the file or directory was copied to
+    return container_save_path.as_posix()
 
 
 async def copy_file_from_container(
         file_path: Path,
+        target_dir: Path,
         container_name: str,
-        target_dir: str = "/tmp"):
+        copied_filename: Optional[str] = None
+):
     """
-    Copy a file or directory from the container.
+    Copy a file or directory from the container. 
+    Returns the path of the copied file or directory.
     """
     cmd = [
-        "docker", "cp", f"{container_name}:{file_path}", target_dir
+        "docker", "cp", f"{container_name}:{file_path}", f"{target_dir}/{copied_filename}" if copied_filename else target_dir
     ]
 
     process = await asyncio.create_subprocess_exec(
@@ -184,13 +189,13 @@ async def copy_file_from_container(
         stderr=asyncio.subprocess.PIPE
     )
 
-    out, err = await process.communicate()
+    _, err = await process.communicate()
 
     if process.returncode != 0:
         raise RuntimeError(
             f"Failed to copy file from container: {err.decode('utf-8')}")
 
-    return out.decode("utf-8")
+    return target_dir / (copied_filename or file_path.name)
 
 
 async def write_file_to_container(
@@ -225,9 +230,7 @@ async def write_file_to_container(
     return out.decode("utf-8")
 
 
-async def read_file_from_container(
-        path: Path,
-        container_name: str):
+async def read_file_from_container(path: Path, container_name: str):
     """
     Read a file from the container.
     """
@@ -272,7 +275,7 @@ async def check_file_exists_in_container(
         stderr=asyncio.subprocess.PIPE
     )
 
-    out, err = await process.communicate()
+    out, _ = await process.communicate()
 
     return out.decode("utf-8").strip() == "exists"
 
@@ -326,8 +329,7 @@ async def rename_in_container(
     return out.decode("utf-8"), err.decode("utf-8")
 
 
-async def list_container_working_directory_contents(
-        container_name: str):
+async def list_container_working_directory_contents(container_name: str):
     """
     List the contents of the working directory of the container.
     """

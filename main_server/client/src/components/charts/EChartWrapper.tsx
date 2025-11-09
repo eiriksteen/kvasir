@@ -5,18 +5,18 @@ import { useChart } from "@/hooks";
 
 interface EChartWrapperProps {
   projectId: UUID;
-  chartScriptPath: string;
+  chartId: UUID;
   originalObjectId?: string;
 }
 
 const EChartWrapper = ({ 
   projectId, 
-  chartScriptPath, 
+  chartId, 
   originalObjectId 
 }: EChartWrapperProps) => {
   const { chartOption, isLoading, isError } = useChart(
     projectId,
-    chartScriptPath,
+    chartId,
     originalObjectId
   );
 
@@ -41,6 +41,7 @@ const EChartWrapper = ({
       <ReactECharts
         option={chartOption}
         style={{ height: "100%", width: "100%" }}
+        opts={{ renderer: 'canvas' }}
       />
     </div>
   );

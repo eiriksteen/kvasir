@@ -29,7 +29,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 // routes for analysis object
 
 export async function deleteAnalysisObjectEndpoint(token: string, analysisObjectId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}`, {
+  const response = await fetch(`${API_URL}/deletion/analysis/${analysisObjectId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -456,7 +456,6 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
         // Parse and convert snake_case keys to camelCase
         const rawMessage = JSON.parse(event.data);
         const newMessage = snakeToCamelKeys(rawMessage) as AnalysisStatusMessage;
-        console.log("newMessage (converted to camelCase)", newMessage);
 
         // If the message contains a new section we haven't seen, refetch the analysis object
         if (newMessage.section && !seenSectionsRef.current.has(newMessage.section.id)) {

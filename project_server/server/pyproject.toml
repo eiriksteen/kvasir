@@ -45,7 +45,8 @@ dependencies = [
     "pydantic-ai",
     "beautifulsoup4",
     "seaborn",
-    "pyarrow"
+    "pyarrow",
+    "openpyxl"
 ]
 
 [tool.setuptools]

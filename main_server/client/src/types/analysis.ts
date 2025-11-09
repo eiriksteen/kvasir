@@ -9,10 +9,9 @@ export interface AnalysisResult {
   nextType?: "analysis_result" | "notebook_section" | null;
   nextId?: UUID | null;
   sectionId?: UUID | null;
-  plotUrls: string[];
-  imageUrls: string[];
-  chartScriptPaths: string[];
-  tablePaths: string[];
+  imageIds: UUID[];
+  echartIds: UUID[];
+  tableIds: UUID[];
 }
 
 export interface NotebookSection {
@@ -130,9 +129,4 @@ export interface MoveRequest {
 
 export interface AnalysisResultFindRequest {
   analysisResultIds: UUID[];
-}
-
-export interface ResultTable {
-  data: { [key: string]: unknown[] };
-  indexColumn: string;
 }

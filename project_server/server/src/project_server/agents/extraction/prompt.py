@@ -81,6 +81,7 @@ head = df.head().to_string()
 - Include raw data, training results, model outputs, etc.
 - Exclude code files and model weights
 - Use appropriate libraries (pandas, opencv) or SDKs (boto3, azure-storage-blob, google-cloud-storage)
+- Any filepath must be absolute!
 
 ---
 
@@ -142,6 +143,7 @@ For each object group, create a DataFrame where **each row = one data object**:
 **Requirements**:
 - Use provided tools to read notebooks (don't read directly)
 - Extract information useful for agents to understand the analysis
+- Data sources and datasets will have edges into the analyses
 
 ---
 
@@ -346,10 +348,14 @@ models:
     - pipelines: [forecasting_pipeline]
 ```
 
-The entity graph must be completely in sync with the codebase. 
-This means all entities in the codebase must be represented, but also that there should be no duplicate entities! 
-Equally important are the edges between the entities, since they track the data lineage!  
-Are there any data flows not accounted for in the graph, or any mistakenly represented data flows? 
-Thoroughly inspect the current graph to understand both what it has or does not have. 
-Remember, all edges must be accounted for before launching the chart agent. 
+Guidelines:
+- The entity graph must be completely in sync with the codebase. This means all entities in the codebase must be represented, but also that there should be no duplicate entities! 
+  - I repeat - no duplicates! If we already have the data source, dataset, etc in the graph, do NOT create a new one! 
+  - Add edges between existing entities if possible, do not create a duplicate entity just to add an edge! 
+- Equally important are the edges between the entities, since they track the data lineage! Are there any data flows not accounted for in the graph, or any mistakenly represented data flows? 
+- Remember, all edges must be accounted for before launching the chart agent. 
+- Use pathlib to manage paths, and always use absolute paths
+- Avoid excessive exploration - Do the extraction and submit the results as quickly as possible. If you have enough information to submit, do it. 
+- You will have a tool to read code files, but not data files. To extract information from data files you must write code. 
+- No redundant tool calls! You can include multiple inputs to read files or do ls to speed up the process
 """

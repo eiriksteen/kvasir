@@ -118,13 +118,7 @@ async def get_user_pipelines(
             p for p in pipeline_implementations if p["id"] == pipe_id]), None)
 
         pipeline_implementation_obj = None
-        runs_objs = []
         if pipe_implementation_record:
-            runs_records = [
-                r for r in pipeline_runs if r["pipeline_id"] == pipe_id]
-
-            for run_record in runs_records:
-                runs_objs.append(PipelineRunInDB(**run_record))
 
             function_ids_in_pipeline = [
                 f["function_id"] for f in functions_in_pipelines if f["pipeline_id"] == pipe_id]
@@ -135,6 +129,13 @@ async def get_user_pipelines(
                 **pipe_implementation_record,
                 functions=functions_records
             )
+
+        runs_objs = []
+        runs_records = [
+            r for r in pipeline_runs if r["pipeline_id"] == pipe_id]
+
+        for run_record in runs_records:
+            runs_objs.append(PipelineRunInDB(**run_record))
 
         output_objs.append(Pipeline(
             **pipe_obj.model_dump(),

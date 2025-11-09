@@ -19,7 +19,7 @@ type SelectedDataObject = {
   id: UUID;
   modality: Modality;
   originalId: string;
-  chartScriptPath: string;
+  chartId: UUID;
 }
 
 
@@ -113,11 +113,11 @@ export default function DatasetInfoTab({
                   <Trash2 size={18} />
                 </button>
               </div>
-              {selectedDataObject && selectedDataObject.chartScriptPath ? (
+              {selectedDataObject && selectedDataObject.chartId ? (
                 <div className="w-full flex-1">
                   <EChartWrapper 
                     projectId={projectId}
-                    chartScriptPath={selectedDataObject.chartScriptPath}
+                    chartId={selectedDataObject.chartId}
                     originalObjectId={selectedDataObject.originalId}
                   />
                 </div>
@@ -193,13 +193,13 @@ export default function DatasetInfoTab({
                                     <div className="p-2 space-y-2">
                                       {group.objects?.map((obj: DataObject) => {
                                         const modality = objectGroups.find(g => g.id === obj.groupId)?.modality;
-                                        const chartScriptPath = objectGroups.find(g => g.id === obj.groupId)?.chartScriptPath;
-                                        const hasChart = chartScriptPath !== null && chartScriptPath !== undefined;
+                                        const chartId = objectGroups.find(g => g.id === obj.groupId)?.echartId;
+                                        const hasChart = chartId !== null && chartId !== undefined;
                                         const onClick = hasChart ? () => setSelectedDataObject({
                                           id: obj.id, 
                                           modality: modality as Modality,
                                           originalId: obj.originalId,
-                                          chartScriptPath: chartScriptPath!
+                                          chartId: chartId!
                                         }) : undefined;
                                         return (
                                         <div 

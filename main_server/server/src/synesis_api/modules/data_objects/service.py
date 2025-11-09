@@ -16,6 +16,8 @@ from synesis_api.modules.data_objects.models import (
     data_object,
     time_series_group,
 )
+from synesis_api.modules.visualization.service import create_echarts
+from synesis_schemas.main_server import EchartCreate
 from synesis_schemas.main_server import (
     DatasetCreate,
     DatasetInDB,
@@ -31,7 +33,7 @@ from synesis_schemas.main_server import (
     DataObjectGroupCreate,
     ObjectGroupInDB,
     DataObjectCreate,
-    UpdateObjectGroupChartScriptRequest
+    ObjectGroupEChartCreate
 )
 from synesis_api.database.service import execute, fetch_all, insert_df
 
@@ -70,25 +72,16 @@ async def create_data_objects(
         content = await file.read()
         df = pd.read_parquet(io.BytesIO(content))
 
-        # Validate first row since all rows have the same schema
         if len(df) == 0:
             raise HTTPException(status_code=400, detail="DataFrame is empty")
 
-        # Convert numpy arrays to native Python types for all rows
         df = df.applymap(_convert_numpy_to_native)
 
         first_row = df.iloc[0].to_dict()
-        print("&"*100)
-        print("TRYING TO VALIDATE FIRST ROW")
-        print(first_row)
         try:
             jsonschema.validate(
                 first_row, DataObjectCreate.model_json_schema())
         except jsonschema.ValidationError as e:
-            print("&"*100)
-            print("VALIDATION ERROR")
-            print(e)
-            print("&"*100)
             raise HTTPException(status_code=400, detail=str(e))
 
         # Get parent fields from DataObjectInDB, excluding auto-generated fields
@@ -428,18 +421,21 @@ async def get_data_objects(
 # UPDATE FUNCTIONS
 # =============================================================================
 
-async def update_object_group_chart_script(
+async def create_object_group_echart(
     group_id: uuid.UUID,
-    request: UpdateObjectGroupChartScriptRequest
+    request: ObjectGroupEChartCreate
 ) -> ObjectGroup:
-    """Update the chart generation script and function name for an object group"""
+
+    echart_obj = (await create_echarts(
+        [EchartCreate(chart_script_path=request.chart_script_path)]
+    ))[0]
 
     # Update the object group
     update_stmt = (
         update(object_group)
         .where(object_group.c.id == group_id)
         .values(
-            chart_script_path=request.chart_script_path,
+            echart_id=echart_obj.id,
             updated_at=datetime.now()
         )
     )

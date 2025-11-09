@@ -97,6 +97,7 @@ async def submit_run_for_swe_agent(
     The pipeline_entity_id is the id of the pipeline entity to associate the run with. 
     For example, if there is an empty pipeline entity with the name "Training Pipeline" and the user requests that training pipeline, this is the natural entity. 
     However, if there is no pre-existing entity to naturally associate with, this should be "null" and you must include the pipeline_create object instead. 
+    In pipeline_create, do not name it according to the run name like "Pipeline Creation", but use the direct name of the pipeline like "Training Pipeline" or "Inference Pipeline". 
     """
 
     if isinstance(result, SWERunSubmissionWithEntityId):

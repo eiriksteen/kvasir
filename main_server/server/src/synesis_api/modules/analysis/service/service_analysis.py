@@ -1,15 +1,10 @@
 import uuid
-from sqlalchemy import select, insert, delete
+from sqlalchemy import select, insert
 from typing import List, Optional, Union
 
 
 from synesis_api.database.service import execute, fetch_one, fetch_all
-from synesis_api.modules.analysis.models import (
-    analysis,
-    notebook_section,
-    notebook,
-)
-from synesis_api.modules.orchestrator.models import analysis_context
+from synesis_api.modules.analysis.models import analysis
 from synesis_schemas.main_server import (
     Analysis,
     AnalysisCreate,
@@ -19,7 +14,6 @@ from synesis_schemas.main_server import (
 from synesis_api.modules.analysis.service.service_notebook import (
     create_notebook,
     get_notebook_by_id,
-    delete_notebook_section_recursive,
 )
 
 
@@ -77,38 +71,3 @@ async def get_user_analyses(
     return analysis_objects_list
 
 
-async def delete_analysis(analysis_id: uuid.UUID, user_id: uuid.UUID) -> uuid.UUID:
-    analysis_obj = (await get_user_analyses(user_id, [analysis_id]))[0]
-
-    sections_to_delete = await fetch_all(
-        select(notebook_section).where(
-            notebook_section.c.notebook_id == analysis_obj.notebook.id,
-            notebook_section.c.parent_section_id == None
-        )
-    )
-
-    section_ids = [section["id"] for section in sections_to_delete]
-
-    for section_id in section_ids:
-        await delete_notebook_section_recursive(section_id)
-
-    # await remove_entity_from_project(analysis_object.project_id, RemoveEntityFromProject(entity_type="analysis", entity_id=analysis_object_id))
-
-    await execute(
-        delete(analysis_context).where(
-            analysis_context.c.analysis_id == analysis_id),
-        commit_after=True
-    )
-
-    await execute(
-        delete(notebook).where(notebook.c.id == analysis_obj.notebook.id),
-        commit_after=True
-    )
-
-    await execute(
-        delete(analysis).where(
-            analysis.c.id == analysis_obj.id),
-        commit_after=True
-    )
-
-    return analysis_id
