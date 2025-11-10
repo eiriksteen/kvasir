@@ -7,11 +7,11 @@ import { useAgentContext } from '@/hooks/useAgentContext';
 interface DataSourceBoxProps {
   dataSourceId: UUID;
   projectId: UUID;
-  openTab: (id: UUID | null, closable?: boolean) => void;
+  openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void;
 }
 
 export default function DataSourceBox({ dataSourceId, projectId, openTab }: DataSourceBoxProps) {
-  const { dataSource } = useDataSource(dataSourceId);
+  const { dataSource } = useDataSource(projectId, dataSourceId);
   const { 
     dataSourcesInContext, 
     addDataSourceToContext, 
@@ -40,7 +40,7 @@ export default function DataSourceBox({ dataSourceId, projectId, openTab }: Data
   
   return (
   <div
-    className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[220px] cursor-pointer hover:bg-[#6b7280]/10 hover:border-[#6b7280] ${
+    className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[240px] cursor-pointer hover:bg-[#6b7280]/10 hover:border-[#6b7280] ${
       isInContext 
         ? 'border-[#6b7280] bg-[#6b7280]/20 ring-4 ring-[#6b7280]/50 shadow-lg' 
         : 'border-gray-600'
@@ -55,7 +55,7 @@ export default function DataSourceBox({ dataSourceId, projectId, openTab }: Data
         <div className="text-gray-600 font-mono text-xs">Data Source</div>
       </div>
       <div>
-        <div className="text-xs font-mono text-gray-800 truncate">{dataSource.name}</div>
+        <div className="text-xs font-mono text-gray-800 break-words">{dataSource.type==="file" ? dataSource.typeFields?.fileName : dataSource.name}</div>
       </div>
     </div>
 

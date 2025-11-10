@@ -1,4 +1,5 @@
 import uuid
+from fastapi import HTTPException
 from datetime import datetime, timezone
 from typing import Literal, Optional, List
 from sqlalchemy import select
@@ -17,7 +18,8 @@ from synesis_schemas.main_server import (
     ChatMessageInDB,
     ChatPydanticMessageInDB,
     ConversationCreate,
-    Run
+    Run,
+    get_entity_graph_description
 )
 from synesis_api.modules.orchestrator.models import (
     chat_message,
@@ -30,15 +32,11 @@ from synesis_api.modules.orchestrator.models import (
     data_source_context,
     model_entity_context,
 )
-from synesis_api.modules.orchestrator.agent.history_processors import CONTEXT_PATTERN, PROJECT_GRAPH_PATTERN, RUN_STATUS_PATTERN
+from synesis_api.modules.orchestrator.agent.history_processors import CONTEXT_PATTERN, PROJECT_DESC_PATTERN, RUN_STATUS_PATTERN
 from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.runs.service import get_runs
-from synesis_api.modules.data_objects.service import get_user_datasets
-from synesis_api.modules.analysis.service import get_user_analyses
-from synesis_api.modules.data_sources.service import get_user_data_sources
-from synesis_api.modules.pipeline.service import get_user_pipelines
-from synesis_api.modules.model.service import get_user_model_entities
-from synesis_api.modules.project.service import get_project_graph
+from synesis_api.modules.project.service import get_projects
+from synesis_api.modules.entity_graph.service import get_entity_details
 
 
 async def create_conversation(
@@ -63,7 +61,6 @@ async def update_conversation_name(conversation_id: uuid.UUID, name: str) -> Non
 
 
 async def get_project_conversations(user_id: uuid.UUID, project_id: uuid.UUID) -> list[ConversationInDB]:
-
     conversations = await fetch_all(
         select(conversation).where(
             conversation.c.user_id == user_id,
@@ -235,39 +232,35 @@ async def create_context(context_data: Context) -> Context:
 
 
 async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
-    datasets = []
-    data_sources = []
-    pipelines = []
-    analyses = []
-    model_entities = []
-
-    if len(context.dataset_ids) > 0:
-        datasets = await get_user_datasets(user_id, context.dataset_ids, max_features=20)
-    if len(context.data_source_ids) > 0:
-        data_sources = await get_user_data_sources(user_id, context.data_source_ids)
-    if len(context.pipeline_ids) > 0:
-        pipelines = await get_user_pipelines(user_id, context.pipeline_ids)
-    if len(context.analysis_ids) > 0:
-        analyses = await get_user_analyses(user_id, context.analysis_ids)
-    if len(context.model_entity_ids) > 0:
-        model_entities = await get_user_model_entities(user_id, context.model_entity_ids)
-
-    context_message = f"""
-        {CONTEXT_PATTERN.start}\n\n
-        Data sources in context: {data_sources}\n\n
-        Datasets in context: {datasets}\n\n
-        Pipelines in context: {pipelines}\n\n
-        Analyses in context: {analyses}\n\n
-        Model entities in context: {model_entities}\n\n
-        {CONTEXT_PATTERN.end}
-        """
-
-    return context_message
+    entitiy_details = await get_entity_details(user_id, context.data_source_ids + context.dataset_ids + context.pipeline_ids + context.analysis_ids + context.model_entity_ids)
+    entitiy_details_message = "\n\n".join(
+        [detail.description for detail in entitiy_details.entity_details])
+    return f"{CONTEXT_PATTERN.start}\n\n{entitiy_details_message}\n\n{CONTEXT_PATTERN.end}"
 
 
-async def get_project_graph_message(user_id: uuid.UUID, project_id: uuid.UUID) -> str:
-    project_graph = await get_project_graph(user_id, project_id)
-    return f"{PROJECT_GRAPH_PATTERN.start}\n\n{project_graph.model_dump_json()}\n\n{PROJECT_GRAPH_PATTERN.end}"
+async def get_project_description_message(user_id: uuid.UUID, project_id: uuid.UUID) -> str:
+    projects = await get_projects(user_id, [project_id])
+    if not projects:
+        raise HTTPException(status_code=404, detail="Project not found")
+    project_obj = projects[0]
+
+    project_graph_visualization = get_entity_graph_description(
+        project_obj.graph)
+
+    print(project_graph_visualization)
+
+    desc = (
+        "**Project Name:**\n\n" +
+        f"{project_obj.name}\n\n" +
+        "**Project Description:**\n\n" +
+        f"{project_obj.description}\n\n" +
+        "**Project Python Package Name:**\n\n" +
+        f"{project_obj.python_package_name}\n\n" +
+        "**Project Graph:**\n\n" +
+        f"{project_graph_visualization}\n\n"
+    )
+
+    return f"{PROJECT_DESC_PATTERN.start}\n\n{desc}\n\n{PROJECT_DESC_PATTERN.end}"
 
 
 async def get_run_status_message(user_id: uuid.UUID, conversation_id: uuid.UUID) -> ModelMessage:
@@ -280,7 +273,8 @@ async def get_run_status_message(user_id: uuid.UUID, conversation_id: uuid.UUID)
 
     runs_status_message = (
         f"{RUN_STATUS_PATTERN.start}\n\n" +
-        "Here are all the runs of the conversations, including their status. Note whether any previous runs are completed or failed.\n\n" +
+        "Here are all the agent runs of the conversations, including their status. Note whether any previous runs are completed or failed.\n\n" +
+        "Note also the difference between agent runs and pipeline runs. Pipeline runs are to run actual pipeline code, agent runs are from dispatching agents. "
         "Runs:\n\n" +
         _get_run_string(runs) +
         f"\n\n{RUN_STATUS_PATTERN.end}"

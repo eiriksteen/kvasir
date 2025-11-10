@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { useAnalyses } from '@/hooks/useAnalysis';
-import { AnalysisObjectCreate } from '@/types/analysis';
+import { AnalysisCreate } from '@/types/analysis';
 import { UUID } from 'crypto';
 
 interface AddAnalysisProps {
@@ -32,11 +32,15 @@ export default function AddAnalysis({ projectId, onClose }: AddAnalysisProps) {
   }, [onClose]);
 
   const handleSubmit = async () => {
-    const AnalysisObjectCreate: AnalysisObjectCreate = {
+    const analysisCreate: AnalysisCreate = {
       name,
-      description
+      description: description || null,
+      inputDataSourceIds: [],
+      inputDatasetIds: [],
+      inputModelEntityIds: [],
+      inputAnalysisIds: []
     };
-    await createAnalysis(AnalysisObjectCreate);
+    await createAnalysis(analysisCreate);
     setName('');
     setDescription('');
     onClose();

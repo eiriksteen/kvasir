@@ -1,72 +1,39 @@
 import uuid
+from pathlib import Path
 from pydantic import ValidationError
 from pydantic_ai import RunContext
-from typing import List, Literal, Optional
+from typing import List, Optional
 from datetime import datetime
 
-
+from project_server.worker import logger
 from synesis_schemas.main_server import (
     AnalysisResult,
     NotebookSectionCreate,
     MoveRequest,
     NotebookSectionUpdate,
-    AnalysisResultFindRequest,
-    PlotCreate,
-    PREDEFINED_COLORS,
-    PlotConfig,
-    TableCreate,
-    TableConfig,
-    TableColumn,
-    NotebookSection,
-    AggregationObjectCreate,
     AnalysisStatusMessage,
+    EchartCreate,
+    TableCreate,
+    ImageCreate,
+    AnalysisResultVisualizationCreate,
 )
 from project_server.agents.analysis.utils import post_update_to_redis
 from project_server.client import (
     create_section_request,
     update_section_request,
     delete_section_request,
-    add_analysis_result_to_section_request,
+    # add_analysis_result_to_section_request,
     move_element_request,
     update_analysis_result_request,
     create_analysis_result_request,
     get_analysis_result_by_id_request,
-    get_analysis_results_by_ids_request,
-    create_aggregation_object_request,
+    create_analysis_result_visualization_request,
 )
-from project_server.client.requests.plots import create_plot
-from project_server.client.requests.tables import create_table
+from project_server.utils.docker_utils import copy_file_from_container
 from project_server.agents.analysis.helper_agent import analysis_helper_agent, HelperAgentDeps
 from project_server.agents.analysis.deps import AnalysisDeps
-from project_server.agents.analysis.output import AnalysisResultModelResponse, AggregationObjectCreateResponse, AnalysisResultMoveRequest, SectionMoveRequest
-from project_server.app_secrets import ANALYSIS_DIR
-from project_server.worker import logger
-
-
-def search_knowledge_bank(prompt: str) -> List[str]:
-    """
-    Gets the most relevant analysis steps for a given prompt. This tool can be used to get ideas for analysis steps when the user prompt is vague or open ended.
-
-    Args:
-        prompt (str): The prompt to get the relevant analysis steps for.
-
-    Returns:
-        List[str]: The relevant analysis steps for the given prompt.
-    """
-    # TODO: use the knowledge bank to get relevant analysis steps from the prompt
-    return ["Regression analysis",
-            "Correlation analysis",
-            "ANOVA analysis",
-            "Clustering analysis",
-            "Checking for missing values",
-            "Checking quantiles",
-            "Checking for outliers",
-            "Checking for normality",
-            "Checking for homoscedasticity",
-            "Checking for multicollinearity",
-            "Checking for autocorrelation",
-            ]
-
+from project_server.agents.analysis.output import AnalysisResultMoveRequest, SectionMoveRequest
+from project_server.app_secrets import AGENT_OUTPUTS_INTERNAL_HOST_DIR
 
 
 async def create_notebook_section(ctx: RunContext[AnalysisDeps], section_create: List[NotebookSectionCreate]) -> str:
@@ -177,32 +144,6 @@ async def move_sections(ctx: RunContext[AnalysisDeps], section_move_requests: Li
         return f"Error moving section: {e}"
 
 
-# async def create_empty_analysis_result(ctx: RunContext[AnalysisDeps], section_id: uuid.UUID) -> str:
-#     """
-#     Create an empty analysis result.
-
-#     Args:
-#         ctx (RunContext[AnalysisDeps]): The context of the analysis.
-#         section_id (uuid.UUID): The ID of the section the analysis result should be added to.
-#     """
-#     analysis_result = AnalysisResult(
-#         id=uuid.uuid4(),
-#         analysis='',
-#         python_code='',
-#         output_variable='',
-#         input_variable='',
-#         dataset_ids=[],
-#         next_type=None,
-#         next_id=None,
-#         section_id=section_id
-#     )
-#     try:
-#         analysis_result_in_db = await create_analysis_result_request(ctx.deps.client, analysis_result)
-#         return f"Empty analysis result successfully created. Analysis result id: {analysis_result_in_db.id}"
-#     except Exception as e:
-#         return f"Error creating empty analysis result: {e}"
-
-
 async def generate_analysis_result(
     ctx: RunContext[AnalysisDeps],
     prompt: str,
@@ -234,9 +175,6 @@ async def generate_analysis_result(
             id=uuid.uuid4(),
             analysis='',
             python_code='',
-            output_variable='',
-            input_variable='',
-            dataset_ids=[],
             next_type=None,
             next_id=None,
             section_id=section_id
@@ -246,18 +184,6 @@ async def generate_analysis_result(
     else:
         current_analysis_result = await get_analysis_result_by_id_request(ctx.deps.client, analysis_result_id)
 
-    # analysis_result = AnalysisResult(
-    #     id=analysis_result_id,
-    #     analysis='',
-    #     python_code='',
-    #     output_variable='',
-    #     input_variable='',
-    #     dataset_ids=dataset_ids,
-    #     data_source_ids=data_source_ids,
-    #     next_type=current_analysis_result.next_type,
-    #     next_id=current_analysis_result.next_id,
-    #     section_id=current_analysis_result.section_id,
-    # )
     analysis_status_message = AnalysisStatusMessage(
         id=uuid.uuid4(),
         run_id=ctx.deps.run_id,
@@ -267,37 +193,38 @@ async def generate_analysis_result(
     await post_update_to_redis(analysis_status_message, ctx.deps.run_id)
 
     helper_agent_deps = HelperAgentDeps(
+        client=ctx.deps.client,
+        container_name=ctx.deps.container_name,
         model_entities_injected=ctx.deps.model_entities_injected,
         data_sources_injected=ctx.deps.data_sources_injected,
         datasets_injected=ctx.deps.datasets_injected,
         analysis_id=ctx.deps.analysis_id,
         analysis_result_id=analysis_result_id,
-        bearer_token=ctx.deps.client.bearer_token,
+        project_id=ctx.deps.project_id,
     )
-
-    plot_path = ANALYSIS_DIR / \
-        str(ctx.deps.analysis_id) / str(analysis_result_id) / "plots"
-    plot_path.mkdir(parents=True, exist_ok=True)
 
     async with analysis_helper_agent.run_stream(
         f"You will now create some code and analysis for the user. Generate code and analysis for the following user prompt: {prompt}. \n\n",
-        output_type=AnalysisResultModelResponse,
-        deps=helper_agent_deps
+        deps=helper_agent_deps,
+        # message_history=ctx.deps.helper_history
     ) as result:
-        async for message, last in result.stream_structured(debounce_by=0.01):
+        async for message, last in result.stream_responses(debounce_by=0.01):
             try:
-                output = await result.validate_structured_output(
+                output = await result.validate_response_output(
                     message,
                     allow_partial=not last
                 )
                 analysis_result = AnalysisResult(
                     id=analysis_result_id,
                     **output.model_dump(),
-                    dataset_ids=dataset_ids,
-                    data_source_ids=data_source_ids,
                     next_type=current_analysis_result.next_type,
                     next_id=current_analysis_result.next_id,
                     section_id=current_analysis_result.section_id,
+                    # I guess we assume only one code run? Even though it can be multiple?
+                    python_code=output.code,
+                    image_ids=[image.id for image in output.images],
+                    echart_ids=[echart.id for echart in output.charts],
+                    table_ids=[table.id for table in output.tables],
                 )
                 analysis_status_message = AnalysisStatusMessage(
                     id=uuid.uuid4(),
@@ -309,104 +236,17 @@ async def generate_analysis_result(
             except ValidationError:
                 continue
 
-    aggregation_object_result = await analysis_helper_agent.run(
-        "Give a name and a description of the analysis result you just created.",
-        message_history=result.new_messages(),
-        output_type=AggregationObjectCreateResponse
-    )
-
-    aggregation_object_create = AggregationObjectCreate(
-        name=aggregation_object_result.output.name,
-        description=aggregation_object_result.output.description,
-        analysis_result_id=analysis_result_id
-    )
-
-    await create_aggregation_object_request(ctx.deps.client, aggregation_object_create)
-
-    plot_files = []
-    plot_dir = ANALYSIS_DIR / \
-        str(ctx.deps.analysis_id) / str(analysis_result_id) / "plots"
-    if plot_dir.exists():
-        plot_files = [str(p.name) for p in plot_dir.glob("*.png")]
-
-    analysis_result.plot_urls = plot_files
+    logger.info("ANALYSIS RESULT"*100)
+    logger.info(analysis_result.model_dump_json())
 
     await update_analysis_result_request(ctx.deps.client, analysis_result)
-    return_string = f"""
-        Analysis result successfully created. Analysis result id: {analysis_result.id}
-        This is the outcome of the analysis: {analysis_result.analysis}
-        This is the python code that was used to generate the analysis result: {analysis_result.python_code}
-    """
+
+    ctx.deps.helper_history += result.new_messages()
+
+    return_string = (
+        f"Analysis result successfully created. Analysis result id: {analysis_result.id}\n"
+        f"This is the output of the analysis: {output}\n"
+    )
 
     ctx.deps.results_generated = True
     return return_string
-
-
-async def plot_analysis_result(ctx: RunContext[AnalysisDeps], analysis_result_id: uuid.UUID, title: str, x_axis_column: str, y_axis_columns: List[str], y_axis_column_types: List[Literal["line", "bar", "scatter"]]) -> str:
-    """
-    Plots an analysis result.
-
-    Args:
-        ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        analysis_result_id (uuid.UUID): The ID of the analysis result to plot.
-        title (str): The title of the plot.
-        x_axis_column (str): The column to use for the x-axis.
-        y_axis_columns (List[str]): The columns to use for the y-axis.
-        y_axis_column_types (List[Literal["line", "bar", "scatter"]]): The types of the y-axis columns.
-    """
-    if len(y_axis_columns) != len(y_axis_column_types):
-        return "The number of y-axis columns and y-axis column types must be the same"
-    colors = PREDEFINED_COLORS
-    x_axis_column = {
-        "name": x_axis_column,
-        "line_type": "line",
-        "color": colors[0],
-        "enabled": True,
-        "y_axis_index": 0
-    }
-
-    y_axis_columns_list = []
-    for i, y_axis_column in enumerate(y_axis_columns):
-        y_axis_columns_list.append({
-            "name": y_axis_column,
-            "line_type": y_axis_column_types[i],
-            "color": colors[i + 1],
-            "enabled": True,
-            "y_axis_index": 0
-        })
-    plot_config = {
-        "title": title,
-        "x_axis_column": x_axis_column,
-        "y_axis_columns": y_axis_columns_list
-    }
-    plot_config = PlotConfig(**plot_config)
-    plot_create = PlotCreate(
-        analysis_result_id=analysis_result_id,
-        plot_config=plot_config
-    )
-    await create_plot(ctx.deps.client, plot_create)
-    return "Analysis result successfully plotted"
-
-
-async def create_table_for_analysis_result(ctx: RunContext[AnalysisDeps], analysis_result_id: uuid.UUID, columns_to_include: List[str], title: str) -> str:
-    """
-    Creates a table for an analysis result.
-
-    Args: 
-        ctx (RunContext[AnalysisDeps]): The context of the analysis.
-        analysis_result_id (uuid.UUID): The ID of the analysis result to create a table for.
-        columns_to_include (List[str]): The columns to include in the table.
-        title (str): The title of the table.
-    """
-    table_config = TableConfig(
-        columns=[TableColumn(name=column) for column in columns_to_include],
-        title=title,
-        showRowNumbers=True,
-        maxRows=5
-    )
-    table_create = TableCreate(
-        analysis_result_id=analysis_result_id,
-        table_config=table_config
-    )
-    await create_table(ctx.deps.client, table_create)
-    return "Successfully created a table of the analysis result"

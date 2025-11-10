@@ -8,49 +8,48 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 # Import all models to ensure they register with metadata
 from synesis_api.auth.models import users, user_api_keys
 from synesis_api.modules.data_sources.models import (
-    data_source, tabular_file_data_source,
-    key_value_file_data_source, data_source_analysis
+    data_source, file_data_source
 )
 from synesis_api.modules.runs.models import (
     run, run_message, run_pydantic_message,
-    data_source_in_run, dataset_in_run, model_entity_in_run, pipeline_in_run,
-    data_source_from_run, dataset_from_run, model_entity_from_run, pipeline_from_run
+    data_source_in_run, dataset_in_run, model_entity_in_run, pipeline_in_run, analysis_in_run,
+    data_source_from_run, dataset_from_run, model_entity_from_run, pipeline_from_run, analysis_from_run
 )
 from synesis_api.modules.data_objects.models import (
-    dataset, data_object, object_group,
-    feature, feature_in_group, time_series, time_series_aggregation,
-    time_series_aggregation_input, variable_group, aggregation_object
+    dataset, data_object, object_group, time_series, time_series_group
 )
 from synesis_api.modules.orchestrator.models import (
     chat_message, chat_pydantic_message, conversation,
     chat_context, dataset_context, pipeline_context, analysis_context,
-    data_source_context
+    data_source_context, model_entity_context
 )
 from synesis_api.modules.pipeline.models import (
-    pipeline, pipeline_implementation, model_entity_in_pipeline, function_in_pipeline,
-    pipeline_output_dataset, pipeline_output_model_entity, data_source_in_pipeline, dataset_in_pipeline,
-    model_entity_in_pipeline, pipeline_run,
-    analysis_in_pipeline
+    pipeline, pipeline_implementation, function_in_pipeline, pipeline_run
 )
 from synesis_api.modules.function.models import (
-    function, function_input_object_group_definition, function_output_object_group_definition,
-    function_definition
+    function, function_definition
 )
 from synesis_api.modules.model.models import (
     model_definition, model_implementation, model_entity, model_entity_implementation, model_function,
-    model_function_input_object_group_definition, model_function_output_object_group_definition,
     model_source, pypi_model_source
 )
 from synesis_api.modules.analysis.models import (
     analysis_status_message, analysis, analysis_result,
-    notebook_section, notebook, plot, table,
+    notebook_section, notebook, result_image, result_echart, result_table
+)
+from synesis_api.modules.entity_graph.models import (
+    dataset_from_data_source,
+    data_source_supported_in_pipeline, dataset_supported_in_pipeline, model_entity_supported_in_pipeline,
+    dataset_in_pipeline_run, data_source_in_pipeline_run, model_entity_in_pipeline_run,
+    pipeline_run_output_dataset, pipeline_run_output_model_entity, pipeline_run_output_data_source,
     dataset_in_analysis, data_source_in_analysis, model_entity_in_analysis,
-    analysis_from_past_analysis
 )
 from synesis_api.modules.project.models import (
     project, project_dataset, project_analysis, project_pipeline, project_data_source, project_model_entity
 )
-from synesis_api.modules.code.models import script
+from synesis_api.modules.visualization.models import (
+    image, echart, table
+)
 from synesis_api.app_secrets import DATABASE_URL
 from synesis_api.database.core import metadata
 
@@ -69,38 +68,38 @@ if config.config_file_name is not None:
 __all__ = [
     users,
     user_api_keys,
-    variable_group,
-    aggregation_object,
     data_source,
-    tabular_file_data_source,
-    model_entity_in_pipeline,
-    analysis_in_pipeline,
+    file_data_source,
     run,
     run_message,
     run_pydantic_message,
     dataset_in_run,
     model_entity_in_run,
     pipeline_in_run,
+    analysis_in_run,
     data_source_from_run,
     dataset_from_run,
     model_entity_from_run,
     pipeline_from_run,
+    analysis_from_run,
     data_source_in_run,
-    data_source_analysis,
-    key_value_file_data_source,
     dataset,
     data_object,
     object_group,
-    feature,
-    feature_in_group,
     time_series,
-    time_series_aggregation,
-    time_series_aggregation_input,
+    time_series_group,
+    dataset_from_data_source,
     analysis,
     analysis_result,
     notebook_section,
     notebook,
     analysis_status_message,
+    result_image,
+    result_echart,
+    result_table,
+    dataset_in_analysis,
+    data_source_in_analysis,
+    model_entity_in_analysis,
     chat_message,
     chat_pydantic_message,
     conversation,
@@ -109,18 +108,27 @@ __all__ = [
     pipeline_context,
     analysis_context,
     data_source_context,
+    model_entity_context,
     pipeline,
     pipeline_implementation,
     function_in_pipeline,
-    data_source_in_pipeline,
-    dataset_in_pipeline,
-    model_entity_in_pipeline,
+    data_source_supported_in_pipeline,
+    dataset_supported_in_pipeline,
+    model_entity_supported_in_pipeline,
     pipeline_run,
-    pipeline_output_dataset,
-    pipeline_output_model_entity,
+    dataset_in_pipeline_run,
+    data_source_in_pipeline_run,
+    model_entity_in_pipeline_run,
+    pipeline_run_output_dataset,
+    pipeline_run_output_model_entity,
+    pipeline_run_output_data_source,
+    function,
+    function_definition,
+    model_definition,
     model_implementation,
     model_entity,
     model_entity_implementation,
+    model_function,
     model_source,
     pypi_model_source,
     project,
@@ -129,28 +137,9 @@ __all__ = [
     project_pipeline,
     project_data_source,
     project_model_entity,
-    pipeline_output_dataset,
-    pipeline_output_model_entity,
-    model_function,
-    model_function_input_object_group_definition,
-    model_function_output_object_group_definition,
-    model_definition,
+    image,
+    echart,
     table,
-    plot,
-    script,
-    dataset_in_analysis,
-    data_source_in_analysis,
-    model_entity_in_analysis,
-    function,
-    function_input_object_group_definition,
-    function_output_object_group_definition,
-    function_definition,
-    model_definition,
-    model_implementation,
-    model_entity,
-    model_entity_implementation,
-    model_source,
-    analysis_from_past_analysis,
 ]
 
 # add your model's MetaData object here
@@ -162,7 +151,7 @@ target_metadata = metadata
 
 def include_name(name, type_, parent_names):
     if type_ == "schema":
-        return name in ["public", "auth", "data_sources", "runs", "data_objects", "analysis", "orchestrator", "pipeline", "function", "model", "model_sources", "project", "node", "tables", "plots", "notebooks"]
+        return name in ["public", "auth", "data_sources", "runs", "data_objects", "analysis", "orchestrator", "pipeline", "function", "model", "model_sources", "project", "node", "tables", "plots", "notebooks", "entity_graph"]
     else:
         return True
 

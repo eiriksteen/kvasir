@@ -1,16 +1,18 @@
 import { useCallback, useState } from 'react';
 import { UUID } from 'crypto';
 
-export type TabType = 'project' | 'data_source' | 'dataset' | 'analysis' | 'automation' | 'pipeline' | 'model_entity';
+export type TabType = 'project' | 'data_source' | 'dataset' | 'analysis' | 'automation' | 'pipeline' | 'model_entity' | 'code';
 
 export interface Tab {
-  id: UUID | null;  // null = project tab
+  id: UUID | null | string;  // null = project tab, string = code file path
   closable?: boolean;
+  initialView?: 'overview' | 'code' | 'runs';  // For pipeline tabs
+  filePath?: string;  // For code tabs
 }
 
 interface TabState {
   openTabs: Tab[];
-  activeTabId: UUID | null;
+  activeTabId: UUID | null | string;
 }
 
 // Default tab state
@@ -24,23 +26,34 @@ const getDefaultTabState = (): TabState => ({
 export const useTabs = () => {
   const [tabState, setTabState] = useState<TabState>(getDefaultTabState());
 
-  const openTab = useCallback((id: UUID | null, closable: boolean = true) => {
+  const openTab = useCallback((id: UUID | null | string, closable: boolean = true, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => {
     setTabState(current => {
-      // If tab is already open, just activate it
-      if (current.openTabs.some(t => t.id === id)) {
-        return { ...current, activeTabId: id };
+      // If tab is already open, update its initialView and activate it
+      const existingTabIndex = current.openTabs.findIndex(t => t.id === id);
+      if (existingTabIndex !== -1) {
+        const updatedTabs = [...current.openTabs];
+        updatedTabs[existingTabIndex] = { 
+          ...updatedTabs[existingTabIndex], 
+          initialView,
+          filePath
+        };
+        return { 
+          ...current, 
+          openTabs: updatedTabs,
+          activeTabId: id 
+        };
       }
       
       // Add new tab
       return {
         ...current,
-        openTabs: [...current.openTabs, { id, closable }],
+        openTabs: [...current.openTabs, { id, closable, initialView, filePath }],
         activeTabId: id
       };
     });
   }, []);
 
-  const closeTab = useCallback((id: UUID | null) => {
+  const closeTab = useCallback((id: UUID | null | string) => {
     setTabState(current => {
       const filtered = current.openTabs.filter(tab => tab.id !== id);
       let newActiveTabId = current.activeTabId;
@@ -67,7 +80,7 @@ export const useTabs = () => {
     });
   }, []);
 
-  const selectTab = useCallback((id: UUID | null) => {
+  const selectTab = useCallback((id: UUID | null | string) => {
     setTabState(current => ({ ...current, activeTabId: id }));
   }, []);
 

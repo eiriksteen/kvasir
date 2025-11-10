@@ -7,7 +7,7 @@ import { useAgentContext } from '@/hooks/useAgentContext';
 interface DatasetProps {
   datasetId: UUID;
   projectId: UUID;
-  openTab: (id: UUID | null, closable?: boolean) => void;
+  openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void;
 }
 
 export default function DatasetBox({ datasetId, projectId, openTab }: DatasetProps) {
@@ -40,7 +40,7 @@ export default function DatasetBox({ datasetId, projectId, openTab }: DatasetPro
   
   return (
   <div
-    className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[220px] cursor-pointer hover:bg-[#0E4F70]/10 hover:border-[#0E4F70] ${
+    className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[240px] cursor-pointer hover:bg-[#0E4F70]/10 hover:border-[#0E4F70] ${
       isInContext 
         ? 'border-[#0E4F70] bg-[#0E4F70]/10 ring-2 ring-[#0E4F70]/30' 
         : 'border-[#0E4F70]'
@@ -55,7 +55,7 @@ export default function DatasetBox({ datasetId, projectId, openTab }: DatasetPro
         <div className="text-[#0E4F70] font-mono text-xs">Dataset</div>
       </div>
       <div>
-        <div className="text-xs font-mono text-gray-800 truncate">{dataset.name}</div>
+        <div className="text-xs font-mono text-gray-800 break-words">{dataset.name}</div>
       </div>
     </div>
   </div>

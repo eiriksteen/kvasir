@@ -9,6 +9,7 @@ class TableColumn(BaseModel):
     unit: str | None = None
     number_of_significant_digits: int | None = None
 
+
 class TableConfig(BaseModel):
     title: str
     subtitle: str | None = None
@@ -25,11 +26,11 @@ class BaseTable(BaseModel):
     table_config: TableConfig
 
 
-
 # CRUD Schemas
 class TableCreate(BaseModel):
     analysis_result_id: uuid.UUID
     table_config: TableConfig
+
 
 class TableUpdate(BaseModel):
     id: uuid.UUID

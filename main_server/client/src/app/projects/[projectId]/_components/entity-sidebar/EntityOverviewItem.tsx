@@ -2,6 +2,7 @@
 
 import React from 'react';
 import AddEntityButton from '@/app/projects/[projectId]/_components/entity-sidebar/AddEntityButton';
+import { UUID } from 'crypto';
 
 type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_entity';
 
@@ -10,10 +11,10 @@ interface EntityOverviewItemProps {
     count: number;
     color: 'blue' | 'purple' | 'orange' | 'emerald';
     onToggle: () => void;
-    onAdd: () => void;
+    projectId: UUID;
 }
 
-export default function EntityOverviewItem({ title, count, color, onToggle, onAdd }: EntityOverviewItemProps) {
+export default function EntityOverviewItem({ title, count, color, onToggle, projectId }: EntityOverviewItemProps) {
     const getColorClasses = (color: 'blue' | 'purple' | 'orange' | 'emerald') => {
         switch (color) {
             case 'blue':
@@ -71,7 +72,7 @@ export default function EntityOverviewItem({ title, count, color, onToggle, onAd
 
     return (
         <div 
-            className={`flex items-center justify-between px-3 py-2 cursor-pointer transition-colors ${colors.hover}`}
+            className={`flex items-center justify-between px-3 py-1 cursor-pointer transition-colors ${colors.hover}`}
             onClick={onToggle}
         >
             <div className="flex items-center gap-3">
@@ -83,8 +84,8 @@ export default function EntityOverviewItem({ title, count, color, onToggle, onAd
                 </span>
             </div>
 
-            <div className={colors.icon}>
-                <AddEntityButton type={itemType} onAdd={onAdd} />
+            <div className={colors.icon} onClick={(e) => e.stopPropagation()}>
+                <AddEntityButton type={itemType} projectId={projectId} size={11} />
             </div>
         </div>
     );

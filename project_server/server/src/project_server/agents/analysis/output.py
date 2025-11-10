@@ -1,24 +1,10 @@
 import uuid
 from pydantic import BaseModel, Field
 from pydantic_ai import RunContext, ModelRetry
-from typing import Literal, List
+from typing import Literal
 
 
 from project_server.agents.analysis.deps import AnalysisDeps
-
-
-class AnalysisResultModelResponse(BaseModel):
-    analysis: str = Field(
-        description="This should be a short explanation and interpretation of the result of the analysis. This should be in github flavored markdown format.")
-    python_code: str = Field(
-        description="The python code that was used to generate the analysis result. This code should be executable and should be able to run in a python container.")
-    output_variable: str = Field(
-        description="The variable that is most relevant to the analysis. This variable is likely the last variable in the code.")
-
-
-class AggregationObjectCreateResponse(BaseModel):
-    name: str
-    description: str
 
 
 class AnalysisResultMoveRequest(BaseModel):

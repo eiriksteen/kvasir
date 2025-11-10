@@ -1,58 +1,82 @@
 import { useEffect, useState, useMemo } from 'react';
 import { UUID } from 'crypto';
-import { usePipeline } from '@/hooks/usePipelines';
+import { usePipeline, usePipelines } from '@/hooks/usePipelines';
 import { useRuns } from '@/hooks/useRuns';
 import { useDatasets } from '@/hooks/useDatasets';
-import { useProjectDataSources } from '@/hooks/useDataSources';
+import { useDataSources } from '@/hooks/useDataSources';
 import { useModelEntities } from '@/hooks/useModelEntities';
-import { useAnalyses } from '@/hooks/useAnalysis';
-import { SquarePlay, FileCode, Database, Folder, Brain, BarChart3, Info, Code2, FileText, ArrowDownRight, ArrowUpRight } from 'lucide-react';
-import CodeStream from '@/components/code/CodeStream';
-import CodeImplementation from '@/components/code/CodeImplementation';
+import { useProject } from '@/hooks/useProject';
+import { SquarePlay, Info, FileText, ArrowDownRight, Trash2 } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { DataSource } from '@/types/data-sources';
 import { ModelEntity } from '@/types/model';
-import { AnalysisObjectSmall } from '@/types/analysis';
-import { Run } from '@/types/runs';
+import { RunInDB } from '@/types/runs';
 import { mutate } from 'swr';
+import ConfirmationPopup from '@/components/ConfirmationPopup';
+import JsonSchemaViewer from '@/components/JsonSchemaViewer';
+import { DataSourceMini, DatasetMini, ModelEntityMini } from '@/components/entity-mini';
+
+export type ViewType = 'overview' | 'runs';
 
 interface PipelineInfoTabProps {
   pipelineId: UUID;
   projectId: UUID;
   onClose: () => void;
-}   
-
-type ViewType = 'overview' | 'code' | 'runs';
+  onDelete?: () => void;
+  initialView?: ViewType;
+}
 
 export default function PipelineInfoTab({ 
   pipelineId,
   projectId,
-  onClose
+  onClose,
+  onDelete,
+  initialView
 }: PipelineInfoTabProps) {
 
   const { pipeline } = usePipeline(pipelineId, projectId);
+  const { deletePipeline } = usePipelines(projectId);
   const { runs } = useRuns();
   const { datasets } = useDatasets(projectId);
-  const { dataSources } = useProjectDataSources(projectId);
+  const { dataSources } = useDataSources(projectId);
   const { modelEntities } = useModelEntities(projectId);
-  const { analysisObjects } = useAnalyses(projectId);
+  const { getEntityGraphNode } = useProject(projectId);
   
   const isInProgress = !pipeline?.implementation;
-  const [currentView, setCurrentView] = useState<ViewType>(isInProgress ? 'code' : 'overview');
+  const [currentView, setCurrentView] = useState<ViewType>(
+    initialView || 'overview'
+  );
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Get pipeline graph node for inputs
+  const pipelineNode = useMemo(() => {
+    return pipeline ? getEntityGraphNode(pipeline.id) : null;
+  }, [pipeline, getEntityGraphNode]);
+
+  const handleDelete = async () => {
+    try {
+      await deletePipeline({ pipelineId });
+      onDelete?.();
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete pipeline:', error);
+    }
+  };
 
   // Find the run that has this pipeline in its outputs
-  const pipelineAgentRun: Run | undefined = useMemo(() => {
-    return runs.find(run => 
-      run.outputs?.pipelineIds?.includes(pipelineId)
-    );
-  }, [runs, pipelineId]);
+  const pipelineAgentRun: RunInDB | undefined = useMemo(() => {
+    return runs.find(run => {
+      const runNode = getEntityGraphNode(run.id);
+      return runNode?.toEntities.pipelines.includes(pipelineId);
+    });
+  }, [runs, pipelineId, getEntityGraphNode]);
 
-  // When implementation status changes, update the view
+  // Update view when initialView changes (e.g., when clicking runs box on already-open tab)
   useEffect(() => {
-    if (isInProgress && currentView === 'overview') {
-      setCurrentView('code');
+    if (initialView && !isInProgress) {
+      setCurrentView(initialView);
     }
-  }, [isInProgress, currentView]);
+  }, [initialView, isInProgress]);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -91,7 +115,8 @@ export default function PipelineInfoTab({
   return (
     <div className="w-full h-full bg-white overflow-hidden flex flex-col">
       {/* Top Buttons */}
-      <div className="flex gap-2 px-4 py-4">
+      <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex gap-2">
         {!isInProgress && (
           <button
             onClick={() => setCurrentView('overview')}
@@ -105,17 +130,6 @@ export default function PipelineInfoTab({
           </button>
         )}
         <button
-          onClick={() => setCurrentView('code')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-            currentView === 'code'
-              ? 'bg-[#840B08] text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          <FileCode className="w-4 h-4" />
-          <span className="text-sm font-medium">Code</span>
-        </button>
-        <button
           onClick={() => setCurrentView('runs')}
           disabled={isInProgress}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
@@ -127,48 +141,51 @@ export default function PipelineInfoTab({
           }`}
         >
           <SquarePlay className="w-4 h-4" />
-          <span className="text-sm font-medium">Runs</span>
+        </button>
+        </div>
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          className="p-2 text-red-800 hover:bg-red-100 rounded-lg transition-colors"
+          title="Delete pipeline"
+        >
+          <Trash2 size={18} />
         </button>
       </div>
 
       {/* Content Area */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        {currentView === 'code' && (
-          <div className="h-full">
-            {!pipeline.implementation ? (
-              (pipelineAgentRun ? (
-                <CodeStream runId={pipelineAgentRun.id} />
-              ) : (
-                <div className="flex items-center justify-center h-full text-center">
-                  <p className="text-sm text-gray-500">No active run for this pipeline</p>
-                </div>
-              ))
-            ) : (
-              <CodeImplementation scriptId={pipeline.implementation.implementationScript.id} />
-            )}
-          </div>
-        )}
 
         {currentView === 'runs' && !isInProgress && (
           <div className="h-full overflow-y-auto p-4">
-            {!pipeline.implementation?.runs || pipeline.implementation.runs.length === 0 ? (
+            {!pipeline.runs || pipeline.runs.length === 0 ? (
               <div className="flex items-center justify-center h-full text-center">
                 <p className="text-sm text-gray-500">No runs yet</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {pipeline.implementation.runs.map((run) => (
+                {pipeline.runs.map((run) => (
                   <div key={run.id} className="bg-white border border-gray-200 rounded-lg p-3">
-                    <p className="text-sm text-gray-700 mb-2 font-medium">Run {run.id.slice(0, 8)}</p>
-                    <p className="text-xs text-gray-600">
-                      Status: <span className={`font-mono px-2 py-1 rounded ${
+                    <div className="flex justify-between items-start mb-2">
+                      <p className="text-sm text-gray-700 font-medium">
+                        {run.name || `Run ${run.id.slice(0, 8)}`}
+                      </p>
+                      <span className={`text-xs font-mono px-2 py-1 rounded ${
                         run.status === 'completed' 
                           ? 'bg-green-100 text-green-800' 
                           : run.status === 'failed' 
                           ? 'bg-red-100 text-red-800' 
                           : 'bg-yellow-100 text-yellow-800'
                       }`}>{run.status}</span>
-                    </p>
+                    </div>
+                    {run.description && (
+                      <p className="text-xs text-gray-600 mb-2">{run.description}</p>
+                    )}
+                    <div className="text-xs text-gray-500">
+                      <p>Started: {new Date(run.startTime).toLocaleString()}</p>
+                      {run.endTime && (
+                        <p>Ended: {new Date(run.endTime).toLocaleString()}</p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -193,132 +210,79 @@ export default function PipelineInfoTab({
 
             {/* Four Separate Boxes - Perfect 2x2 Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{gridTemplateRows: 'auto auto'}}>
-              {/* Arguments Box - Top Left */}
-              {pipeline.implementation?.args && Object.keys(pipeline.implementation.args).length > 0 && (
-                <div className={`bg-gray-50 rounded-xl p-4 ${!pipeline.implementation?.outputVariablesSchema || Object.keys(pipeline.implementation.outputVariablesSchema).length === 0 ? 'lg:col-span-2' : ''}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="p-1.5 bg-[#840B08]/20 rounded-lg">
-                      <Code2 size={16} className="text-[#840B08]" />
-                    </div>
-                    <h4 className="text-sm font-semibold text-gray-900">Arguments</h4>
-                  </div>
-                  <div className="bg-white rounded p-3 border border-gray-200">
-                    <pre className="text-xs text-gray-600 whitespace-pre-wrap">
-                      {JSON.stringify(pipeline.implementation.args, null, 2)}
-                    </pre>
-                  </div>
-                </div>
-              )}
-
-              {/* Output Variables Schema Box - Top Right */}
+              {/* Output Variables Schema Box */}
               {pipeline.implementation?.outputVariablesSchema && Object.keys(pipeline.implementation.outputVariablesSchema).length > 0 && (
-                <div className={`bg-gray-50 rounded-xl p-4 ${!pipeline.implementation?.args || Object.keys(pipeline.implementation.args).length === 0 ? 'lg:col-span-2' : ''}`}>
+                <div className="bg-gray-50 rounded-xl p-4 lg:col-span-2 flex flex-col min-h-0">
+                  <JsonSchemaViewer
+                    schema={pipeline.implementation.outputVariablesSchema}
+                    title="Output Variables Schema"
+                    icon={FileText}
+                    className="flex-1 min-h-0"
+                  />
+                </div>
+              )}
+
+              {/* Input Entities Box */}
+              {pipelineNode && (
+                <div className="bg-gray-50 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="p-1.5 bg-[#840B08]/20 rounded-lg">
-                      <FileText size={16} className="text-[#840B08]" />
+                      <ArrowDownRight size={16} className="text-[#840B08]" />
                     </div>
-                    <h4 className="text-sm font-semibold text-gray-900">Output Variables Schema</h4>
+                    <h4 className="text-sm font-semibold text-gray-900">Input Entities</h4>
                   </div>
-                  <div className="bg-white rounded p-3 border border-gray-200">
-                    <pre className="text-xs text-gray-600 whitespace-pre-wrap">
-                      {JSON.stringify(pipeline.implementation.outputVariablesSchema, null, 2)}
-                    </pre>
+                  <div className="flex flex-wrap gap-1">
+                    {pipelineNode.fromEntities.dataSources.map((dataSourceId) => {
+                      const dataSource = dataSources?.find((ds: DataSource) => ds.id === dataSourceId);
+                      return (
+                        <DataSourceMini
+                          key={dataSourceId}
+                          name={dataSource?.name || 'Data Source'}
+                          size="sm"
+                        />
+                      );
+                    })}
+                    {pipelineNode.fromEntities.datasets.map((datasetId) => {
+                      const dataset = datasets?.find((ds: Dataset) => ds.id === datasetId);
+                      return (
+                        <DatasetMini
+                          key={datasetId}
+                          name={dataset?.name || 'Dataset'}
+                          size="sm"
+                        />
+                      );
+                    })}
+                    {pipelineNode.fromEntities.modelEntities.map((modelEntityId) => {
+                      const modelEntity = modelEntities?.find((me: ModelEntity) => me.id === modelEntityId);
+                      return (
+                        <ModelEntityMini
+                          key={modelEntityId}
+                          name={modelEntity?.name || 'Model'}
+                          size="sm"
+                        />
+                      );
+                    })}
+                    {pipelineNode.fromEntities.dataSources.length === 0 &&
+                     pipelineNode.fromEntities.datasets.length === 0 &&
+                     pipelineNode.fromEntities.modelEntities.length === 0 && (
+                      <p className="text-sm text-gray-400 italic">No input entities</p>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Input Entities Box - Bottom Left */}
-              <div className="bg-gray-50 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 bg-[#840B08]/20 rounded-lg">
-                    <ArrowDownRight size={16} className="text-[#840B08]" />
-                  </div>
-                  <h4 className="text-sm font-semibold text-gray-900">Input Entities</h4>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {pipeline.inputs.dataSourceIds.map((dataSourceId) => (
-                    <div
-                      key={dataSourceId}
-                      className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-gray-200 text-gray-600"
-                    >
-                      <Database size={10} />
-                      {dataSources?.find((ds: DataSource) => ds.id === dataSourceId)?.name || 'Data Source'}
-                    </div>
-                  ))}
-                  {pipeline.inputs.datasetIds.map((datasetId) => (
-                    <div
-                      key={datasetId}
-                      className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
-                    >
-                      <Folder size={10} />
-                      {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
-                    </div>
-                  ))}
-                  {pipeline.inputs.modelEntityIds.map((modelEntityId) => (
-                    <div
-                      key={modelEntityId}
-                      className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]"
-                    >
-                      <Brain size={10} />
-                      {modelEntities?.find((me: ModelEntity) => me.id === modelEntityId)?.name || 'Model'}
-                    </div>
-                  ))}
-                  {pipeline.inputs.analysisIds.map((analysisId) => (
-                    <div
-                      key={analysisId}
-                      className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#004806]/20 text-[#004806]"
-                    >
-                      <BarChart3 size={10} />
-                      {analysisObjects?.find((a: AnalysisObjectSmall) => a.id === analysisId)?.name || 'Analysis'}
-                    </div>
-                  ))}
-                  {pipeline.inputs.dataSourceIds.length === 0 &&
-                   pipeline.inputs.datasetIds.length === 0 &&
-                   pipeline.inputs.modelEntityIds.length === 0 &&
-                   pipeline.inputs.analysisIds.length === 0 && (
-                    <p className="text-sm text-gray-400 italic">No input entities</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Output Entities Box - Bottom Right */}
-              <div className="bg-gray-50 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 bg-[#840B08]/20 rounded-lg">
-                    <ArrowUpRight size={16} className="text-[#840B08]" />
-                  </div>
-                  <h4 className="text-sm font-semibold text-gray-900">Output Entities</h4>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {pipeline.outputs.datasetIds.map((datasetId) => (
-                    <div
-                      key={datasetId}
-                      className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
-                    >
-                      <Folder size={10} />
-                      {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
-                    </div>
-                  ))}
-                  {pipeline.outputs.modelEntityIds.map((modelEntityId) => (
-                    <div
-                      key={modelEntityId}
-                      className="px-1.5 py-0.5 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]"
-                    >
-                      <Brain size={10} />
-                      {modelEntities?.find((me: ModelEntity) => me.id === modelEntityId)?.name || 'Model'}
-                    </div>
-                  ))}
-                  {pipeline.outputs.datasetIds.length === 0 &&
-                   pipeline.outputs.modelEntityIds.length === 0 && (
-                    <p className="text-sm text-gray-400 italic">No output entities</p>
-                  )}
-                </div>
-              </div>
             </div>
 
           </div>
         )}
       </div>
+      
+      <ConfirmationPopup
+        message={`Are you sure you want to delete "${pipeline.name}"? This will permanently delete the pipeline and all its runs. This action cannot be undone.`}
+        isOpen={showDeleteConfirm}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

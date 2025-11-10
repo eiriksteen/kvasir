@@ -4,9 +4,6 @@ from datetime import datetime
 from uuid import UUID
 
 
-from .code import ScriptCreate, ScriptInDB
-
-
 SUPPORTED_MODALITIES_TYPE = Literal["time_series", "tabular", "multimodal",
                                     "image", "text", "audio", "video"]
 
@@ -44,8 +41,8 @@ class ModelImplementationInDB(BaseModel):
     user_id: UUID
     source_id: UUID
     embedding: List[float]
-    implementation_script_id: UUID
-    setup_script_id: Optional[UUID] = None
+    implementation_script_path: str
+    setup_script_path: Optional[str] = None
     model_class_docstring: str
     default_config: dict
     config_schema: dict
@@ -78,27 +75,6 @@ class ModelFunctionInDB(BaseModel):
     args_schema: dict
     default_args: dict
     output_variables_schema: dict
-    created_at: datetime
-    updated_at: datetime
-
-
-class ModelFunctionInputObjectGroupDefinitionInDB(BaseModel):
-    id: UUID
-    name: str
-    required: bool
-    function_id: UUID
-    structure_id: str
-    description: str
-    created_at: datetime
-    updated_at: datetime
-
-
-class ModelFunctionOutputObjectGroupDefinitionInDB(BaseModel):
-    id: UUID
-    function_id: UUID
-    name: Optional[str] = None
-    structure_id: str
-    description: str
     created_at: datetime
     updated_at: datetime
 
@@ -147,18 +123,12 @@ class ModelImplementationWithoutEmbedding(BaseModel):
     updated_at: datetime
 
 
-class ModelFunction(ModelFunctionInDB):
-    input_object_groups: List[ModelFunctionInputObjectGroupDefinitionInDB]
-    output_object_groups: List[ModelFunctionOutputObjectGroupDefinitionInDB]
-
-
 class ModelImplementation(ModelImplementationWithoutEmbedding):
     definition: ModelDefinitionInDB
-    training_function: ModelFunction
-    inference_function: ModelFunction
-    implementation_script: ScriptInDB
-    setup_script: Optional[ScriptInDB] = None
-    description_for_agent: str
+    training_function: ModelFunctionInDB
+    inference_function: ModelFunctionInDB
+    implementation_script_path: str
+    setup_script_path: Optional[str] = None
 
 
 class ModelEntityImplementation(ModelEntityImplementationInDB):
@@ -167,7 +137,6 @@ class ModelEntityImplementation(ModelEntityImplementationInDB):
 
 class ModelEntity(ModelEntityInDB):
     implementation: Optional[ModelEntityImplementation] = None
-    description_for_agent: str
 
 
 class GetModelEntityByIDsRequest(BaseModel):
@@ -181,26 +150,11 @@ class ModelSource(ModelSourceInDB):
 # Create models
 
 
-class ModelFunctionInputObjectGroupDefinitionCreate(BaseModel):
-    structure_id: str
-    name: str
-    description: str
-    required: bool
-
-
-class ModelFunctionOutputObjectGroupDefinitionCreate(BaseModel):
-    structure_id: str
-    name: Optional[str] = None
-    description: str
-
-
 class ModelFunctionCreate(BaseModel):
     docstring: str
     args_schema: dict
     default_args: dict
     output_variables_schema: dict
-    input_object_groups: List[ModelFunctionInputObjectGroupDefinitionCreate]
-    output_object_groups: List[ModelFunctionOutputObjectGroupDefinitionCreate]
 
 
 class PypiModelSourceCreate(BaseModel):
@@ -229,8 +183,8 @@ class ModelImplementationCreate(BaseModel):
     inference_function: ModelFunctionCreate
     default_config: dict
     config_schema: dict
-    implementation_script_create: ScriptCreate
-    setup_script_create: Optional[ScriptCreate] = None
+    implementation_script_path: str
+    setup_script_path: Optional[str] = None
 
 
 class ModelEntityCreate(BaseModel):
@@ -276,17 +230,12 @@ class ModelFunctionUpdateCreate(BaseModel):
     args_schema: Optional[dict] = None
     output_variables_schema: Optional[dict] = None
     default_args: Optional[dict] = None
-    input_object_groups_to_add: Optional[List[ModelFunctionInputObjectGroupDefinitionCreate]] = None
-    output_object_group_definitions_to_add: Optional[
-        List[ModelFunctionOutputObjectGroupDefinitionCreate]] = None
-    input_object_groups_to_remove: Optional[List[UUID]] = None
-    output_object_group_definitions_to_remove: Optional[List[UUID]] = None
 
 
 class ModelUpdateCreate(BaseModel):
     definition_id: UUID
     updates_made_description: str
-    new_implementation_create: ScriptCreate
+    new_implementation_script_path: str
     updated_description: Optional[str] = None
     updated_python_class_name: Optional[str] = None
     updated_model_class_docstring: Optional[str] = None
@@ -295,7 +244,7 @@ class ModelUpdateCreate(BaseModel):
     updated_inference_function: Optional[ModelFunctionUpdateCreate] = None
     updated_config_schema: Optional[dict] = None
     model_entities_to_update: Optional[List[UUID]] = None
-    new_setup_create: Optional[ScriptCreate] = None
+    new_setup_script_path: Optional[str] = None
 
 
 # Update models

@@ -4,7 +4,9 @@ from datetime import datetime
 from uuid import UUID
 
 from .function import FunctionWithoutEmbedding
-from .code import ScriptCreate, ScriptInDB
+
+
+PIPELINE_RUN_STATUS_LITERAL = Literal["running", "completed", "failed"]
 
 # DB models
 
@@ -23,38 +25,10 @@ class PipelineImplementationInDB(BaseModel):
     python_function_name: str
     docstring: str
     description: str
-    args: dict
     args_schema: dict
+    default_args: dict
     output_variables_schema: dict
-    implementation_script_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class DataSourceInPipelineInDB(BaseModel):
-    data_source_id: UUID
-    pipeline_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class DatasetInPipelineInDB(BaseModel):
-    dataset_id: UUID
-    pipeline_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class ModelEntityInPipelineInDB(BaseModel):
-    model_entity_id: UUID
-    pipeline_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class AnalysisInPipelineInDB(BaseModel):
-    analysis_id: UUID
-    pipeline_id: UUID
+    implementation_script_path: str
     created_at: datetime
     updated_at: datetime
 
@@ -69,23 +43,13 @@ class FunctionInPipelineInDB(BaseModel):
 class PipelineRunInDB(BaseModel):
     id: UUID
     pipeline_id: UUID
-    status: Literal["running", "completed", "failed"]
+    name: Optional[str] = None
+    description: Optional[str] = None
+    status: PIPELINE_RUN_STATUS_LITERAL
+    args: dict
+    output_variables: dict
     start_time: datetime
     end_time: Optional[datetime] = None
-    created_at: datetime
-    updated_at: datetime
-
-
-class PipelineOutputDatasetInDB(BaseModel):
-    pipeline_id: UUID
-    dataset_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-class PipelineOutputModelEntityInDB(BaseModel):
-    pipeline_id: UUID
-    model_entity_id: UUID
     created_at: datetime
     updated_at: datetime
 
@@ -93,40 +57,17 @@ class PipelineOutputModelEntityInDB(BaseModel):
 # API models
 
 
-class PipelineInputEntities(BaseModel):
-    data_source_ids: List[UUID] = []
-    dataset_ids: List[UUID] = []
-    model_entity_ids: List[UUID] = []
-    analysis_ids: List[UUID] = []
-
-
-class PipelineOutputEntities(BaseModel):
-    dataset_ids: List[UUID]
-    model_entity_ids: List[UUID]
-
-
 class PipelineImplementation(PipelineImplementationInDB):
     functions: List[FunctionWithoutEmbedding]
-    implementation_script: ScriptInDB
-    runs: List[PipelineRunInDB] = []
 
 
 class Pipeline(PipelineInDB):
-    inputs: PipelineInputEntities
-    outputs: PipelineOutputEntities
+    runs: List[PipelineRunInDB] = []
     implementation: Optional[PipelineImplementation] = None
 
 
 class PipelineRunStatusUpdate(BaseModel):
-    status: Literal["running", "completed", "failed"]
-
-
-class PipelineRunDatasetOutputCreate(BaseModel):
-    dataset_id: UUID
-
-
-class PipelineRunModelEntityOutputCreate(BaseModel):
-    model_entity_id: UUID
+    status: PIPELINE_RUN_STATUS_LITERAL
 
 
 # Create models
@@ -135,10 +76,6 @@ class PipelineRunModelEntityOutputCreate(BaseModel):
 class PipelineCreate(BaseModel):
     name: str
     description: Optional[str] = None
-    input_data_source_ids: List[UUID]
-    input_dataset_ids: List[UUID]
-    input_model_entity_ids: List[UUID]
-    input_analysis_ids: List[UUID] = []
 
 
 class PipelineImplementationCreate(BaseModel):
@@ -146,10 +83,10 @@ class PipelineImplementationCreate(BaseModel):
     docstring: str
     description: str
     args_schema: dict
-    args: dict
+    default_args: dict
     output_variables_schema: dict
     function_ids: List[UUID]
-    implementation_script_create: ScriptCreate
+    implementation_script_path: str
     pipeline_id: Optional[UUID] = None
     pipeline_create: Optional[PipelineCreate] = None
 
@@ -162,3 +99,26 @@ class PipelineImplementationCreate(BaseModel):
             raise ValueError(
                 'Only one of pipeline_id or pipeline_create should be provided, not both')
         return self
+
+
+class PipelineRunCreate(BaseModel):
+    name: str
+    args: dict
+    pipeline_id: UUID
+    output_variables: dict = {}
+    description: Optional[str] = None
+    status: PIPELINE_RUN_STATUS_LITERAL = "running"
+
+
+class GetPipelinesByIDsRequest(BaseModel):
+    pipeline_ids: List[UUID]
+
+
+class PipelineRunStatusUpdate(BaseModel):
+    status: PIPELINE_RUN_STATUS_LITERAL
+
+
+class PipelineRunOutputVariablesUpdate(BaseModel):
+    pipeline_run_id: UUID
+    # Default, add the key, if key exists, update the value
+    new_output_variables: dict

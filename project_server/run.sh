@@ -29,6 +29,17 @@ if [ $# -eq 2 ] && [ "$2" != "build" ]; then
     exit 1
 fi
 
+# Check if sandbox image exists, build if it doesn't
+if [ -z "$(docker images -q sandbox:latest)" ]; then
+    echo "Sandbox image not found, building it..."
+    docker build -f sandbox/Dockerfile -t sandbox:latest ..
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to build sandbox image"
+        exit 1
+    fi
+    echo "Sandbox image built successfully."
+fi
+
 # Run the appropriate docker-compose command
 if [ "$1" = "dev" ]; then
     if [ "$2" = "build" ]; then

@@ -1,17 +1,78 @@
-from fastapi import APIRouter, Depends
+import uuid
 from typing import Annotated
+from pathlib import Path
+from fastapi import APIRouter, Depends, HTTPException, Response
+
 
 from project_server.auth import TokenData, decode_token
-from project_server.entity_manager import script_manager
+from project_server.client import ProjectClient, get_project
+from project_server.app_secrets import SANDBOX_DIR
+from project_server.utils.docker_utils import create_project_container_if_not_exists
+from synesis_schemas.project_server import ProjectPath
 
 
 router = APIRouter()
 
 
-@router.get("/script")
-async def get_script_endpoint(
-        file_path: str,
-        token_data: Annotated[TokenData, Depends(decode_token)] = None) -> str:
-    # TODO: Auth
+def _create_paths_recursive(project_path: Path, exclude_pycache: bool = True, exclude_egg_info: bool = True) -> ProjectPath:
+    project_path_obj = ProjectPath(
+        path=project_path.name, is_file=project_path.is_file())
 
-    return script_manager.get_script(file_path)
+    if project_path.is_dir():
+        items = sorted(project_path.iterdir(),
+                       key=lambda x: (x.is_file(), x.name.lower()))
+
+        for item in items:
+
+            if exclude_pycache and item.name == '__pycache__':
+                continue
+            if exclude_egg_info and item.name.endswith('.egg-info'):
+                continue
+
+            project_path_obj.sub_paths.append(_create_paths_recursive(
+                item, exclude_pycache, exclude_egg_info)
+            )
+
+    return project_path_obj
+
+
+@router.get("/codebase-tree")
+async def get_codebase_tree_endpoint(
+    project_id: uuid.UUID,
+    token_data: Annotated[TokenData, Depends(decode_token)] = None
+) -> ProjectPath:
+
+    client = ProjectClient(bearer_token=token_data.bearer_token)
+    project = await get_project(client, project_id)
+    await create_project_container_if_not_exists(project)
+
+    project_path = SANDBOX_DIR / str(project.id)
+    root_folder = project_path / project.python_package_name
+    tree = _create_paths_recursive(root_folder, exclude_pycache=True)
+
+    # Return a virtual root with the contents of the project folder
+    virtual_root = ProjectPath(
+        path="", is_file=False, sub_paths=tree.sub_paths)
+    return virtual_root
+
+
+@router.get("/codebase-file")
+async def get_codebase_file_endpoint(
+    project_id: uuid.UUID,
+    file_path: str,
+    token_data: Annotated[TokenData, Depends(decode_token)] = None
+):
+
+    client = ProjectClient(bearer_token=token_data.bearer_token)
+    project = await get_project(client, project_id)
+    await create_project_container_if_not_exists(project)
+
+    project_path = SANDBOX_DIR / \
+        str(project.id) / project.python_package_name / file_path
+    if not project_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    with open(project_path, "r") as file:
+        content = file.read()
+
+    return Response(content=content, media_type="text/plain")

@@ -1,161 +1,108 @@
-from typing import Literal, Optional
-from pydantic_ai import RunContext, ModelRetry
+from pathlib import Path
+from pydantic_ai import RunContext, ModelRetry, FunctionToolset
 
 from project_server.utils.code_utils import (
     add_line_numbers_to_script,
     replace_lines_in_script,
     add_lines_to_script_at_line,
     delete_lines_from_script,
+    filter_content_by_extension,
 )
-from project_server.agents.swe.deps import SWEAgentDeps
+from project_server.agents.swe.deps import SWEAgentDeps, RenamedFile
 from project_server.agents.runner_base import StreamedCode
-from project_server.client import post_search_functions
-from project_server.agents.swe.utils import save_script_with_version_handling
-from project_server.entity_manager.script_manager import script_manager
-from project_server.app_secrets import (
-    MODELS_MODULE,
-    MODELS_MODULE_TMP,
-    FUNCTIONS_MODULE,
-    FUNCTIONS_MODULE_TMP,
-    PIPELINES_MODULE,
-    PIPELINES_MODULE_TMP,
-    DATA_INTEGRATION_MODULE,
-    DATA_INTEGRATION_MODULE_TMP
+from project_server.utils.docker_utils import (
+    write_file_to_container,
+    read_file_from_container,
+    remove_from_container,
+    rename_in_container,
+    check_file_exists_in_container
 )
-from synesis_schemas.main_server import QueryRequest, SearchFunctionsRequest, script_type_literal
+from synesis_schemas.project_server import FileInRun
 
 
-swe_script_type_literal = Literal["function",
-                                  "model",
-                                  "pipeline",
-                                  "data_integration"]
+def _update_modified_files_state(
+        ctx: RunContext[SWEAgentDeps],
+        file_path: str,
+        new_content: str,
+        old_content: str) -> None:
+
+    is_in_new = any(f.path == file_path for f in ctx.deps.new_files)
+
+    # Filter content for non-readable files
+    filtered_new_content = filter_content_by_extension(file_path, new_content)
+    filtered_old_content = filter_content_by_extension(file_path, old_content)
+
+    if is_in_new:
+        new_version = FileInRun(path=file_path, content=filtered_new_content)
+        ctx.deps.new_files = [
+            f for f in ctx.deps.new_files if f.path != file_path] + [new_version]
+    else:
+        old_version = next(
+            (f for f in ctx.deps.modified_files if f.path == str(file_path)), None)
+        # Only put old content on the very first modification
+        if old_version:
+            # Preserve the original old_content if it exists, otherwise use content
+            original_content = old_version.old_content
+            new_version = FileInRun(
+                path=str(file_path), content=filtered_new_content, old_content=original_content)
+        else:
+            new_version = FileInRun(
+                path=str(file_path), content=filtered_new_content, old_content=filtered_old_content)
+
+        ctx.deps.modified_files = [
+            f for f in ctx.deps.modified_files if f.path != str(file_path)] + [new_version]
 
 
-def _check_imports_tmp(script) -> tuple[bool, Optional[str]]:
-
-    if MODELS_MODULE in script and not MODELS_MODULE_TMP in script:
-        return False, f"Found imports from {MODELS_MODULE} but not from {MODELS_MODULE_TMP}. We must use the temporary modules!"
-    if FUNCTIONS_MODULE in script and not FUNCTIONS_MODULE_TMP in script:
-        return False, f"Found imports from {FUNCTIONS_MODULE} but not from {FUNCTIONS_MODULE_TMP}. We must use the temporary modules"
-    if PIPELINES_MODULE in script and not PIPELINES_MODULE_TMP in script:
-        return False, f"Found imports from {PIPELINES_MODULE} but not from {PIPELINES_MODULE_TMP}. We must use the temporary modules"
-    if DATA_INTEGRATION_MODULE in script and not DATA_INTEGRATION_MODULE_TMP in script:
-        return False, f"Found imports from {DATA_INTEGRATION_MODULE} but not from {DATA_INTEGRATION_MODULE_TMP}. We must use the temporary modules"
-    return True, None
-
-
-async def write_script(ctx: RunContext[SWEAgentDeps], script: str, file_name: str, script_type: script_type_literal) -> str:
+async def write_file(ctx: RunContext[SWEAgentDeps], content: str, file_path: str) -> str:
     """
     Write a new script to a file. 
+    This is only for creating new files. To modify existing files, use add_file_lines, replace_file_lines, or delete_file_lines instead.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback. 
 
     Args:
         ctx: The context.
-        script: The script to write.
-        file_name: The name of the new file to write the script to.
-        script_type: The script type, one of function, model, pipeline, or data_integration.
+        content: The content to write to the file.
+        file_path: The path to the file to write the content to (including the file name). Will be run from the cwd. Accepts absolute or relative paths. 
 
     Returns:
         str: The script with line numbers.
     """
 
-    if not file_name.endswith(".py"):
+    file_path = Path(file_path)
+
+    if await check_file_exists_in_container(file_path, ctx.deps.container_name):
         raise ModelRetry(
-            f"File name must end with .py. Got: {file_name}")
+            f"File {file_path} already exists. To modify an existing file, use add_file_lines, replace_file_lines, or delete_file_lines instead. write_file is only for creating new files.")
 
-    is_valid, error_message = _check_imports_tmp(script)
-    if not is_valid:
-        raise ModelRetry(error_message)
-
-    file_storage = save_script_with_version_handling(
-        ctx, file_name, script, script_type)
-
-    script_with_line_numbers = add_line_numbers_to_script(script)
-    out = f"NEW SCRIPT: \n\n <begin_script file_name={file_storage.filename}>\n\n {script_with_line_numbers}\n\n <end_script>"
-    out += f"You can now import it in your code from the module path: {file_storage.module_path}"
-    out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
-    out += f"\n\n The current scripts are: {list(ctx.deps.current_scripts.keys())}"
-
-    if ctx.deps.log_code:
-        await ctx.deps.log_code(StreamedCode(
-            code=script, filename=file_storage.filename))
-
-    return out
-
-
-async def load_function_script_from_search(ctx: RunContext[SWEAgentDeps], module_path: str) -> str:
-    """
-    Loads a function script for use. 
-    This should only be called after searching for pre-existing functions that you want to use. 
-
-    Args:
-        ctx: The context.
-        module_path: The module path of the function to load.
-
-    Returns:
-        str: The loaded script.
-
-    Raises:
-        ModelRetry: If the function with the given module path is not found.
-    """
-
-    fn_to_load = next(iter(
-        fn for fn in ctx.deps.functions_injected if fn.implementation_script.module_path == module_path), None)
-
-    if fn_to_load is None:
-        raise ModelRetry(
-            f"Function with module path {module_path} not found. The loadable functions are: {list(fn.implementation_script.module_path for fn in ctx.deps.functions_injected)}")
-
-    with open(fn_to_load.implementation_script.path, "r") as f:
-        script = f.read()
-
-    storage = script_manager.save_script(
-        fn_to_load.implementation_script.filename, script, "function", add_uuid=False, temporary=True)
-
-    ctx.deps.current_scripts[storage.filename] = script
-    ctx.deps.functions_loaded.append(fn_to_load)
-
-    script_with_line_numbers = add_line_numbers_to_script(script)
-    out = (
-        f"LOADED FUNCTION SCRIPT: \n\n <begin_script file_name={storage.filename}>\n\n {script_with_line_numbers}\n\n <end_script>"
-        f"You can now import it in your code from the module path: {storage.module_path}"
-        f"The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
-        f"The current scripts are: {list(ctx.deps.current_scripts.keys())}"
+    await write_file_to_container(
+        file_path,
+        content,
+        ctx.deps.container_name
     )
 
+    filtered_content = filter_content_by_extension(file_path, content)
+    ctx.deps.new_files.append(
+        FileInRun(path=str(file_path), content=filtered_content))
+
     if ctx.deps.log_code:
         await ctx.deps.log_code(StreamedCode(
-            code=script, filename=storage.filename))
+            code=content, filename=file_path.name))
 
-    return out
+    content_with_line_numbers = add_line_numbers_to_script(content)
 
-
-def read_script(ctx: RunContext[SWEAgentDeps], file_name: str) -> str:
-    """
-    Read a script from the current scripts.
-    """
-    if file_name not in ctx.deps.current_scripts:
-        raise ModelRetry(
-            f"Script {file_name} does not exist. The available scripts are: {ctx.deps.current_scripts.keys()}. To create a new script, call the write_script tool.")
-
-    script = ctx.deps.current_scripts[file_name]
-    script_with_line_numbers = add_line_numbers_to_script(script)
-    out = f"READ SCRIPT: \n\n <begin_script file_name={file_name}>\n\n {script_with_line_numbers}\n\n <end_script>"
-
-    return out
+    return f"WROTE TO FILE: {file_path}\n\n<begin_file file_path={file_path}>\n\n{content_with_line_numbers}\n\n<end_file>"
 
 
-async def replace_script_lines(
+async def replace_file_lines(
     ctx: RunContext[SWEAgentDeps],
-    file_name: str,
-    script_type: script_type_literal,
+    file_path: str,
     line_number_start: int,
     line_number_end: int,
     new_code: str
 ) -> str:
     """
-    Replace lines in the current script with new code.
-    The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
+    Replace lines in the current file with new code.
+    The file is not automatically run and validated, you must call the final_result tool to submit the file for validation and feedback.
 
     Args:
         ctx: The context.
@@ -167,44 +114,47 @@ async def replace_script_lines(
     Returns:
         str: The updated script.
     """
-    if file_name not in ctx.deps.current_scripts:
+    file_path = Path(file_path)
+
+    if not await check_file_exists_in_container(file_path, ctx.deps.container_name):
         raise ModelRetry(
-            f"Script {file_name} does not exist. The available scripts are: {list(ctx.deps.current_scripts.keys())}. To create a new script, call the write_script tool.")
+            f"File {file_path} does not exist. To create a new file, call the write_file tool.")
 
-    script = ctx.deps.current_scripts[file_name]
+    old_content = await read_file_from_container(
+        file_path,
+        ctx.deps.container_name
+    )
 
-    is_valid, error_message = _check_imports_tmp(script)
-    if not is_valid:
-        raise ModelRetry(error_message)
-
-    updated_script = replace_lines_in_script(
-        script,
+    updated_content = replace_lines_in_script(
+        old_content,
         line_number_start,
         line_number_end,
         new_code,
         script_has_line_numbers=False
     )
 
-    storage = save_script_with_version_handling(
-        ctx,
-        file_name,
-        updated_script,
-        script_type
+    await write_file_to_container(
+        file_path,
+        updated_content,
+        ctx.deps.container_name
     )
 
-    script_with_line_numbers = add_line_numbers_to_script(updated_script)
-    out = f"UPDATED SCRIPT: \n\n <begin_script file_name={storage.filename}>\n\n {script_with_line_numbers}\n\n <end_script>"
-    out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.\n"
-    out += "Note that the version number may have increased in case of updates. "
+    _update_modified_files_state(
+        ctx, str(file_path), updated_content, old_content)
+
+    updated_content_with_line_numbers = add_line_numbers_to_script(
+        updated_content)
+    out = f"UPDATED FILE: {file_path}\n\n <begin_file file_path={file_path}>\n\n {updated_content_with_line_numbers}\n\n <end_file>"
+    out += "\n\nThe file is not automatically run and validated, you must call the final_result tool to submit the file for validation and feedback.\n"
 
     if ctx.deps.log_code:
         await ctx.deps.log_code(StreamedCode(
-            code=updated_script, filename=storage.filename))
+            code=updated_content, filename=Path(file_path).name))
 
     return out
 
 
-async def add_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, script_type: script_type_literal, new_code: str, start_line: int) -> str:
+async def add_file_lines(ctx: RunContext[SWEAgentDeps], file_name: str, new_code: str, start_line: int) -> str:
     """
     Add lines to the current script at the given line number.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -213,47 +163,48 @@ async def add_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, script
         ctx: The context.
         new_code: The new code to add. Remember indents if adding lines inside functions or classes!
         start_line: The line number to add the lines at. This line number is inclusive.
-        script_type: The script type, one of function, model, pipeline, or data_integration.
 
     Returns:
         str: The updated script.
     """
-    if file_name not in ctx.deps.current_scripts:
+    file_path = Path(file_name)
+    if not await check_file_exists_in_container(file_path, ctx.deps.container_name):
         raise ModelRetry(
-            f"Script {file_name} does not exist. The available scripts are: {list(ctx.deps.current_scripts.keys())}. To create a new script, call the write_script tool.")
+            f"Script {file_name} does not exist. To create a new script, call the write_file tool.")
 
-    script = ctx.deps.current_scripts[file_name]
+    old_content = await read_file_from_container(
+        file_path,
+        ctx.deps.container_name
+    )
 
-    is_valid, error_message = _check_imports_tmp(script)
-    if not is_valid:
-        raise ModelRetry(error_message)
-
-    updated_script = add_lines_to_script_at_line(
-        script,
+    updated_content = add_lines_to_script_at_line(
+        old_content,
         new_code,
         start_line,
         script_has_line_numbers=False
     )
 
-    storage = save_script_with_version_handling(
-        ctx,
-        file_name,
-        updated_script,
-        script_type
+    await write_file_to_container(
+        file_path,
+        updated_content,
+        ctx.deps.container_name
     )
 
-    script_with_line_numbers = add_line_numbers_to_script(updated_script)
-    out = f"UPDATED SCRIPT: \n\n <begin_script file_name={storage.filename}>\n\n {script_with_line_numbers}\n\n <end_script>"
+    _update_modified_files_state(
+        ctx, str(file_path), updated_content, old_content)
+
+    script_with_line_numbers = add_line_numbers_to_script(updated_content)
+    out = f"UPDATED SCRIPT: \n\n <begin_file file_path={file_path}>\n\n {script_with_line_numbers}\n\n <end_file>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
 
     if ctx.deps.log_code:
         await ctx.deps.log_code(StreamedCode(
-            code=updated_script, filename=storage.filename))
+            code=updated_content, filename=file_path.name))
 
     return out
 
 
-async def delete_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, script_type: script_type_literal, line_number_start: int, line_number_end: int) -> str:
+async def delete_file_lines(ctx: RunContext[SWEAgentDeps], file_path: str, line_number_start: int, line_number_end: int) -> str:
     """
     Delete lines from the current script at the given line numbers.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -262,55 +213,160 @@ async def delete_script_lines(ctx: RunContext[SWEAgentDeps], file_name: str, scr
         ctx: The context.
         line_number_start: The start line number of the code to delete. This line number is inclusive.
         line_number_end: The end line number of the code to delete. This line number is inclusive.
-        script_type: The script type, one of function, model, pipeline, or data_integration.
 
     Returns:    
         str: The updated script.
     """
-    if file_name not in ctx.deps.current_scripts:
+    file_path = Path(file_path)
+
+    if not await check_file_exists_in_container(file_path, ctx.deps.container_name):
         raise ModelRetry(
-            f"Script {file_name} does not exist. The available scripts are: {list(ctx.deps.current_scripts.keys())}. To create a new script, call the write_script tool.")
+            f"File {file_path} does not exist. To create a new file, call the write_file tool.")
 
-    script = ctx.deps.current_scripts[file_name]
+    old_content = await read_file_from_container(
+        file_path,
+        ctx.deps.container_name
+    )
 
-    is_valid, error_message = _check_imports_tmp(script)
-    if not is_valid:
-        raise ModelRetry(error_message)
-
-    updated_script = delete_lines_from_script(
-        script,
+    updated_content = delete_lines_from_script(
+        old_content,
         line_number_start,
         line_number_end,
         script_has_line_numbers=False
     )
 
-    storage = save_script_with_version_handling(
-        ctx,
-        file_name,
-        updated_script,
-        script_type
+    await write_file_to_container(
+        file_path,
+        updated_content,
+        ctx.deps.container_name
     )
 
-    script_with_line_numbers = add_line_numbers_to_script(updated_script)
-    out = f"UPDATED SCRIPT: \n\n <begin_script file_name={storage.filename}>\n\n {script_with_line_numbers}\n\n <end_script>"
+    _update_modified_files_state(
+        ctx, str(file_path), updated_content, old_content)
+
+    script_with_line_numbers = add_line_numbers_to_script(updated_content)
+    out = f"UPDATED SCRIPT: \n\n <begin_file file_path={file_path}>\n\n {script_with_line_numbers}\n\n <end_file>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
 
     if ctx.deps.log_code:
         await ctx.deps.log_code(
-            StreamedCode(code=updated_script, filename=storage.filename))
+            StreamedCode(code=updated_content, filename=file_path.name))
 
     return out
 
 
-async def search_existing_functions(ctx: RunContext[SWEAgentDeps], query: QueryRequest) -> str:
-    results = await post_search_functions(ctx.deps.client, SearchFunctionsRequest(queries=[query]))
+async def rename_file(ctx: RunContext[SWEAgentDeps], old_path: str, new_path: str) -> str:
+    """
+    Rename or move a file to a new location.
+    This can be used to rename files or move them to different directories.
 
-    functions_injected = [f for result in results for f in result.functions]
-    ctx.deps.functions_injected.extend(functions_injected)
-    function_descriptions = "\n---\n\n".join(
-        [f.description_for_agent for result in results for f in result.functions])
+    Args:
+        ctx: The context.
+        old_path: The current path of the file to rename/move.
+        new_path: The new path for the file.
 
-    function_descriptions = function_descriptions.replace(
-        FUNCTIONS_MODULE, FUNCTIONS_MODULE_TMP)
+    Returns:
+        str: Confirmation message.
+    """
+    old_file_path = Path(old_path)
+    new_file_path = Path(new_path)
 
-    return function_descriptions
+    if not await check_file_exists_in_container(old_file_path, ctx.deps.container_name):
+        raise ModelRetry(f"File {old_path} does not exist.")
+
+    if await check_file_exists_in_container(new_file_path, ctx.deps.container_name):
+        raise ModelRetry(
+            f"File {new_path} already exists. Cannot rename to an existing file.")
+
+    # Read the content before renaming for revert purposes
+    file_content = await read_file_from_container(old_file_path, ctx.deps.container_name)
+    content = filter_content_by_extension(old_file_path, file_content)
+
+    _, err = await rename_in_container(old_file_path, new_file_path, ctx.deps.container_name)
+
+    if err:
+        raise ModelRetry(f"Error renaming file: {err}")
+
+    # Track the rename operation - handle chained renames (A→B→C should store A→C)
+    existing_rename = next(
+        (rf for rf in ctx.deps.renamed_files if rf.new_path == str(old_file_path)),
+        None
+    )
+
+    if existing_rename:
+        # Update the existing rename to point to the new final path
+        existing_rename.new_path = str(new_file_path)
+    else:
+        # First rename for this file
+        ctx.deps.renamed_files.append(RenamedFile(
+            old_path=str(old_file_path),
+            new_path=str(new_file_path),
+            content=content
+        ))
+
+    # Update tracked files if the renamed file was in new_files or modified_files
+    for i, f in enumerate(ctx.deps.new_files):
+        if f.path == str(old_file_path):
+            ctx.deps.new_files[i] = FileInRun(
+                path=str(new_file_path), content=f.content)
+
+    for i, f in enumerate(ctx.deps.modified_files):
+        if f.path == str(old_file_path):
+            ctx.deps.modified_files[i] = FileInRun(
+                path=str(new_file_path),
+                content=f.content,
+                old_content=f.old_content
+            )
+
+    return f"Successfully renamed {old_path} to {new_path}"
+
+
+async def delete_file(ctx: RunContext[SWEAgentDeps], file_path: str) -> str:
+    """
+    Delete a file from the project.
+    This permanently removes the file. Use with caution.
+
+    Args:
+        ctx: The context.
+        file_path: The path of the file to delete.
+
+    Returns:
+        str: Confirmation message.
+    """
+    path = Path(file_path)
+
+    if not await check_file_exists_in_container(path, ctx.deps.container_name):
+        raise ModelRetry(f"File {file_path} does not exist.")
+
+    # Read the content before deleting for revert purposes
+    # Only store full content for text-based files with allowed extensions
+    file_content = await read_file_from_container(path, ctx.deps.container_name)
+    content = filter_content_by_extension(path, file_content)
+
+    _, err = await remove_from_container(path, ctx.deps.container_name)
+
+    if err:
+        raise ModelRetry(f"Error deleting file: {err}")
+
+    # Track the deletion
+    ctx.deps.deleted_files.append(FileInRun(path=str(path), content=content))
+
+    # Remove from new_files or modified_files if it was there
+    ctx.deps.new_files = [f for f in ctx.deps.new_files if f.path != str(path)]
+    ctx.deps.modified_files = [
+        f for f in ctx.deps.modified_files if f.path != str(path)]
+
+    return f"Successfully deleted {file_path}"
+
+
+file_editing_toolset = FunctionToolset(
+    tools=[
+        write_file,
+        replace_file_lines,
+        add_file_lines,
+        delete_file_lines,
+        rename_file,
+        delete_file
+    ],
+    max_retries=3
+)

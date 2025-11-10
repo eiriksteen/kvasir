@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { ChevronDown, ChevronRight, Trash2, EllipsisVertical, Move, FileSearch, Pencil, Save, Loader2, X } from 'lucide-react';
@@ -11,12 +10,13 @@ import ConfirmationPopup from '@/components/ConfirmationPopup';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { UUID } from 'crypto';
-import { AggregationObjectWithRawData } from '@/types/data-objects';
+
 
 import DnDComponent from './DnDComponent';
-import { useTables } from '@/hooks/useTables';
-import TableConfigurationPopup from '@/components/info-tabs/analysis/TableConfigurationPopup';
 import { createSmoothTextStream } from '@/lib/utils';
+import EChartWrapper from '@/components/charts/EChartWrapper';
+import TableWrapper from '@/components/tables/TableWrapper';
+import ImageWrapper from '@/components/images/ImageWrapper';
 
 interface AnalysisResultProps {
     projectId: UUID;
@@ -27,15 +27,13 @@ interface AnalysisResultProps {
 export default function AnalysisResult({ projectId, analysisResult, analysisObjectId }: AnalysisResultProps) {
     const [showCode, setShowCode] = useState(false);
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-    const [showTableConfiguration, setShowTableConfiguration] = useState(false);
     const [showEditAnalysis, setShowEditAnalysis] = useState(false);
     const [editAnalysis, setEditAnalysis] = useState(analysisResult.analysis);
     const [isUpdating, setIsUpdating] = useState(false);
-    const { analysisStatusMessages, getAnalysisResultData, analysisResultData, deleteAnalysisResult, updateAnalysisResult, getAnalysisResultPlots, analysisResultPlots } = useAnalysis(projectId, analysisObjectId);
+    const { analysisStatusMessages, deleteAnalysisResult, updateAnalysisResult } = useAnalysis(projectId, analysisObjectId);
     const [showOptions, setShowOptions] = useState(false);
     const optionsRef = useRef<HTMLDivElement>(null);
     const analysisTextareaRef = useRef<HTMLTextAreaElement>(null);
-    const { tables } = useTables(analysisResult.id);
     const [smoothStreamedText, setSmoothStreamedText] = useState(analysisResult.analysis);
     const streamCancelRef = useRef<{ cancel: () => void } | null>(null);
     
@@ -65,17 +63,6 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
         }
     }, [showEditAnalysis]);
 
-    // Fetch analysis result plots on mount (converted to blob URLs for authenticated access)
-    useEffect(() => {
-        if (!analysisResultPlots[analysisResult.id] && analysisResult.plotUrls && analysisResult.plotUrls.length > 0) {
-            getAnalysisResultPlots({ 
-                analysisObjectId, 
-                analysisResultId: analysisResult.id,
-                plotUrls: analysisResult.plotUrls
-            });
-        }
-    }, [analysisResult.id, analysisObjectId, analysisResult.plotUrls, analysisResultPlots, getAnalysisResultPlots]);
-
     // Filter streaming messages for this specific analysis result
     const streamingMessages = useMemo(() => {
         if (!analysisStatusMessages) return [];
@@ -98,7 +85,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
             return latestStreamingMessage.analysisResult.analysis;
         }
         return analysisResult.analysis;
-    }, [latestStreamingMessage, analysisResult, analysisResult.analysis]);
+    }, [latestStreamingMessage, analysisResult]);
 
     // Get the most up-to-date analysis result data (either from streaming or static)
     const currentAnalysisResult = useMemo(() => {
@@ -196,12 +183,12 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                         id: analysisResult.id,
                         analysis: editAnalysis.trim(),
                         pythonCode: analysisResult.pythonCode,
-                        outputVariable: analysisResult.outputVariable,
-                        inputVariable: analysisResult.inputVariable,
                         nextType: analysisResult.nextType,
                         nextId: analysisResult.nextId,
                         sectionId: analysisResult.sectionId,
-                        plotUrls: analysisResult.plotUrls,
+                        imageIds: analysisResult.imageIds,
+                        echartIds: analysisResult.echartIds,
+                        tableIds: analysisResult.tableIds,
                     }
                 });
                 setShowEditAnalysis(false);
@@ -218,30 +205,10 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
         setShowEditAnalysis(false);
     };
 
-    // Get available columns from the analysis result data
-    const availableColumns = useMemo(() => {
-        const data = analysisResultData[analysisResult.id] as AggregationObjectWithRawData;
-        if (data && data.data.outputData && data.data.outputData.data) {
-            // Extract column names from the data array
-            return data.data.outputData.data.map(col => col.name);
-        }
-        return [];
-    }, [analysisResultData, analysisResult.id]);
-
-    // Fetch data for tables when needed
-    useEffect(() => {
-        if (analysisResultData[analysisResult.id] === undefined && tables && tables.length > 0) {
-            getAnalysisResultData({ 
-                analysisObjectId, 
-                analysisResultId: analysisResult.id 
-            });
-        }
-    }, [analysisResult.id, tables, analysisObjectId, analysisResultData, getAnalysisResultData]);
-
     return (
         <div className="w-full">
             {/* DnD Component - positioned above the analysis result, only when not dragging */}
-            {!isDragging && (
+            {!isDragging && analysisResult.sectionId && (
                 <DnDComponent
                     nextType={"analysis_result"}
                     nextId={analysisResult.id}
@@ -335,28 +302,6 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                                         >
                                             <Pencil size={12} />
                                         </button>
-                                        {/* <button
-                                            onClick={() => {
-                                                handlePlot();
-                                                setShowOptions(false);
-                                            }}
-                                            disabled={isLoadingData}
-                                            className="p-1 text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                            title="Create plot"
-                                        >
-                                            <BarChart3 size={12} />
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                handleTable();
-                                                setShowOptions(false);
-                                            }}
-                                            disabled={isLoadingData}
-                                            className="p-1 text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                            title="Create table"
-                                        >
-                                            <Database size={12} />
-                                        </button> */}
                                         <button
                                             onClick={handleDelete}
                                             className="p-1 rounded transition-colors text-red-600 hover:text-red-800"
@@ -403,52 +348,34 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                             </div>
                         )}
 
-                        {/* {plots && plots.map((plot: BasePlot) => (
-                            <div className="mt-4" key={plot.id}>
-                                <div className="mb-3">
-                                    <div className="h-96 bg-gray-50 rounded p-3">
-                                        <EChartWrapper
-                                            plot={plot}
-                                            aggregationData={analysisResultData[analysisResult.id] as AggregationObjectWithRawData}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        ))} */}
-
-                        {/* {tables && tables.map((table: BaseTable) => (
-                            <div className="mt-4" key={table.id}>
-                                <TablesItem
-                                    table={table}
-                                    aggregationData={analysisResultData[analysisResult.id] as AggregationObjectWithRawData}
-                                    analysisResultId={analysisResult.id}
-                                    onDelete={(tableId) => deleteTable({ tableId })}
-                                    onUpdate={(tableId, tableUpdate) => updateTable({ tableId, tableUpdate })}
-                                />
-                            </div>
-                        ))} */}
-
-                        {/* Render plots from analysis storage */}
-                        {analysisResultPlots[analysisResult.id] && analysisResultPlots[analysisResult.id].length > 0 && (
+                        {/* Render charts */}
+                        {currentAnalysisResult.echartIds && currentAnalysisResult.echartIds.length > 0 && (
                             <div className="mt-4 space-y-4">
-                                {analysisResultPlots[analysisResult.id].map((plotBlobUrl: string, index: number) => (
-                                    <div key={index} className="max-w-2xl mx-auto">
-                                        {plotBlobUrl ? (
-                                            console.log(plotBlobUrl),
-                                            <div>
-                                                <Image 
-                                                    width={600}
-                                                    height={450}
-                                                    src={plotBlobUrl} 
-                                                    alt={`Analysis plot ${index + 1}`}
-                                                    className="w-full h-auto rounded"
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div className="w-full h-auto rounded bg-gray-50 p-3">
-                                                <Loader2 size={16} className="animate-spin" />
-                                            </div>
-                                        )}
+                                {currentAnalysisResult.echartIds.map((chartId: UUID) => (
+                                    <div key={chartId} className="w-full h-[450px]">
+                                        <EChartWrapper projectId={projectId} chartId={chartId}/>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Render tables */}
+                        {currentAnalysisResult.tableIds && currentAnalysisResult.tableIds.length > 0 && (
+                            <div className="mt-4 space-y-4">
+                                {currentAnalysisResult.tableIds.map((tableId: UUID) => (
+                                    <div key={tableId}>
+                                        <TableWrapper tableId={tableId}/>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Render images */}
+                        {currentAnalysisResult.imageIds && currentAnalysisResult.imageIds.length > 0 && (
+                            <div className="mt-4 space-y-4">
+                                {currentAnalysisResult.imageIds.map((imageId: UUID) => (
+                                    <div key={imageId}>
+                                        <ImageWrapper imageId={imageId} />
                                     </div>
                                 ))}
                             </div>
@@ -456,7 +383,7 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                     </>
                 )}
             </div>
-            {!isDragging && analysisResult.nextType === null && analysisResult.nextId === null && (
+            {!isDragging && analysisResult.nextType === null && analysisResult.nextId === null && analysisResult.sectionId && (
                 <DnDComponent
                     nextType={null}
                     nextId={null}
@@ -468,20 +395,6 @@ export default function AnalysisResult({ projectId, analysisResult, analysisObje
                 message="Are you sure you want to delete this analysis result? This action cannot be undone."
                 onConfirm={handleConfirmDelete}
                 onCancel={() => setShowDeleteConfirmation(false)}
-            />
-
-            {/* <PlotConfigurationPopup
-                isOpen={showPlotConfiguration}
-                onClose={() => setShowPlotConfiguration(false)}
-                availableColumns={availableColumns}
-                analysisResultId={analysisResult.id}
-            /> */}
-
-            <TableConfigurationPopup
-                isOpen={showTableConfiguration}
-                onClose={() => setShowTableConfiguration(false)}
-                availableColumns={availableColumns}
-                analysisResultId={analysisResult.id}
             />
         </div>
     );

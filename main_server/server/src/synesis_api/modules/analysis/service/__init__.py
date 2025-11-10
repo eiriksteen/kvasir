@@ -1,7 +1,6 @@
 from .service_analysis import (
     create_analysis,
     get_user_analyses,
-    delete_analysis,
 )
 
 from .service_analysis_result import (
@@ -13,6 +12,7 @@ from .service_analysis_result import (
     get_analysis_results_by_section_id,
     get_analysis_results_by_ids,
     update_analysis_result,
+    create_analysis_result_visualization,
 )
 
 from .service_notebook import (
@@ -38,20 +38,4 @@ from .service_utils import (
     section_to_markdown,
     analysis_result_to_markdown,
     deep_exclude,
-)
-
-from .service_plot import (
-    create_plot,
-    get_plot_by_id,
-    get_plots_by_analysis_result_id,
-    update_plot,
-    delete_plot,
-)
-
-from .service_table import (
-    create_table,
-    get_table_by_id,
-    get_tables_by_analysis_result_id,
-    update_table,
-    delete_table,
 )

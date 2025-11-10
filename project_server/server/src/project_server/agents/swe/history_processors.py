@@ -12,7 +12,7 @@ def get_last_script_message_index(messages: list[ModelMessage]) -> dict[str, int
     Returns -1 if no script modification is found.
     """
 
-    last_idx_per_script = {}
+    last_idx_per_file_path = {}
 
     for i in range(len(messages) - 1, -1, -1):
         message = messages[i]
@@ -20,13 +20,13 @@ def get_last_script_message_index(messages: list[ModelMessage]) -> dict[str, int
         if isinstance(message, ModelRequest):
             for part in message.parts:
                 if isinstance(part, ToolReturnPart):
-                    if "<begin_script>" in part.content:
-                        script_name = part.content.split(
-                            "file_name=")[1].split(">")[0]
-                        if not script_name in last_idx_per_script:
-                            last_idx_per_script[script_name] = i
+                    if "<begin_file>" in part.content:
+                        file_path = part.content.split(
+                            "file_path=")[1].split(">")[0]
+                        if not file_path in last_idx_per_file_path:
+                            last_idx_per_file_path[file_path] = i
 
-    return last_idx_per_script
+    return last_idx_per_file_path
 
 
 async def keep_only_most_recent_script(
@@ -35,9 +35,9 @@ async def keep_only_most_recent_script(
     """
     Keep only the most recent script in the history.
     """
-    last_idx_per_script = get_last_script_message_index(messages)
+    last_idx_per_file_path = get_last_script_message_index(messages)
 
-    if not last_idx_per_script:
+    if not last_idx_per_file_path:
         # No script modifications found, return messages as is
         return messages
 
@@ -52,10 +52,10 @@ async def keep_only_most_recent_script(
         if isinstance(message, ModelRequest):
             for idx, part in enumerate(message.parts):
                 if isinstance(part, ToolReturnPart):
-                    if "<begin_script>" in part.content:
-                        script_name = part.content.split(
-                            "file_name=")[1].split(">")[0]
-                        if original_index < last_idx_per_script[script_name]:
+                    if "<begin_file>" in part.content:
+                        file_path = part.content.split(
+                            "file_path=")[1].split(">")[0]
+                        if original_index < last_idx_per_file_path[file_path]:
                             # This is an older script, omit it
                             part.content = "Successfully updated the script. The script is not automatically run and validated, you must call the result submission tool to submit the script for validation and feedback."
                             updated_message.parts[idx] = part

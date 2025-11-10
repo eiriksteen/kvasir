@@ -10,18 +10,18 @@ from synesis_api.modules.orchestrator.agent.deps import OrchestratorAgentDeps
 @dataclass
 class Pattern:
     start: Literal["<context>",
-                   "<project_graph>",
+                   "<project_desc>",
                    "<run_status>"]
     end: Literal["</context>",
-                 "</project_graph>",
+                 "</project_desc>",
                  "</run_status>"]
 
 
 CONTEXT_PATTERN = Pattern(
     start="<context>", end="</context>")
 
-PROJECT_GRAPH_PATTERN = Pattern(
-    start="<project_graph>", end="</project_graph>")
+PROJECT_DESC_PATTERN = Pattern(
+    start="<project_desc>", end="</project_desc>")
 
 RUN_STATUS_PATTERN = Pattern(
     start="<run_status>", end="</run_status>")
@@ -107,15 +107,15 @@ def keep_only_most_recent_context(
     return keep_only_most_recent_by_pattern(ctx, messages, CONTEXT_PATTERN, "[Previous context omitted]")
 
 
-def keep_only_most_recent_project_graph(
+def keep_only_most_recent_project_desc(
     ctx: RunContext[OrchestratorAgentDeps],
     messages: list[ModelMessage]
 ) -> list[ModelMessage]:
     """
-    Keep only the most recent project graph in the history.
+    Keep only the most recent project description in the history.
     """
     # assert False, "Messages: \n\n" + "\n\n".join([str(m) for m in messages])
-    return keep_only_most_recent_by_pattern(ctx, messages, PROJECT_GRAPH_PATTERN, "[Previous project graph omitted]")
+    return keep_only_most_recent_by_pattern(ctx, messages, PROJECT_DESC_PATTERN, "[Previous project description omitted]")
 
 
 def keep_only_most_recent_run_status(

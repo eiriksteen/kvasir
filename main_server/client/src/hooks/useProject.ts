@@ -4,16 +4,16 @@ import {
   ProjectDetailsUpdate, 
   AddEntityToProject, 
   RemoveEntityFromProject,
-  UpdateEntityPosition 
+  UpdateNodePosition,
+  EntityType
 } from "@/types/project";
+import { GraphNode, PipelineGraphNode } from "@/types/entity-graph";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { useCallback, useMemo } from "react";
 import { UUID } from "crypto";
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
-
-type EntityType = "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -112,8 +112,8 @@ async function removeEntityFromProject(token: string, entityData: RemoveEntityFr
   return snakeToCamelKeys(data);
 }
 
-async function updateEntityPosition(token: string, positionData: UpdateEntityPosition): Promise<Project> {
-  const response = await fetch(`${API_URL}/project/update-entity-position`, {
+async function updateNodePosition(token: string, positionData: UpdateNodePosition): Promise<Project> {
+  const response = await fetch(`${API_URL}/project/update-node-position`, {
     method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -124,7 +124,7 @@ async function updateEntityPosition(token: string, positionData: UpdateEntityPos
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to update entity position: ${response.status} ${errorText}`);
+    throw new Error(`Failed to update node position: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
@@ -216,16 +216,16 @@ export const useProject = (projectId: UUID) => {
   // Store selected project
   const project = useMemo(() => projects.find(project => project.id === projectId), [projects, projectId]);
 
-  // Update entity position
+  // Update node position
   const { trigger: updatePosition } = useSWRMutation(
     "projects",
-    async (_, { arg }: { arg: { entityType: EntityType, entityId: UUID, xPosition: number, yPosition: number } }) => {
+    async (_, { arg }: { arg: { projectId: UUID, entityType: EntityType, entityId: UUID, xPosition: number, yPosition: number } }) => {
       if (!project) return projects;
 
-      await updateEntityPosition(
+      await updateNodePosition(
         session?.APIToken?.accessToken || '',
         {
-          projectId: project.id,
+          projectId: arg.projectId,
           entityType: arg.entityType,
           entityId: arg.entityId,
           xPosition: arg.xPosition,
@@ -237,52 +237,67 @@ export const useProject = (projectId: UUID) => {
       const updatedProjects = projects.map(p => {
         if (p.id !== project.id) return p;
 
-        // Update the appropriate entity list
+        // Update the appropriate entity list in projectNodes
         switch (arg.entityType) {
           case "data_source":
             return {
               ...p,
-              dataSources: p.dataSources.map(ds => 
-                ds.dataSourceId === arg.entityId 
-                  ? { ...ds, xPosition: arg.xPosition, yPosition: arg.yPosition }
-                  : ds
-              )
+              projectNodes: {
+                ...p.projectNodes,
+                projectDataSources: p.projectNodes.projectDataSources.map(ds => 
+                  ds.dataSourceId === arg.entityId 
+                    ? { ...ds, xPosition: arg.xPosition, yPosition: arg.yPosition }
+                    : ds
+                )
+              }
             };
           case "dataset":
             return {
               ...p,
-              datasets: p.datasets.map(ds => 
-                ds.datasetId === arg.entityId 
-                  ? { ...ds, xPosition: arg.xPosition, yPosition: arg.yPosition }
-                  : ds
-              )
+              projectNodes: {
+                ...p.projectNodes,
+                projectDatasets: p.projectNodes.projectDatasets.map(ds => 
+                  ds.datasetId === arg.entityId 
+                    ? { ...ds, xPosition: arg.xPosition, yPosition: arg.yPosition }
+                    : ds
+                )
+              }
             };
           case "analysis":
             return {
               ...p,
-              analyses: p.analyses.map(a => 
-                a.analysisId === arg.entityId 
-                  ? { ...a, xPosition: arg.xPosition, yPosition: arg.yPosition }
-                  : a
-              )
+              projectNodes: {
+                ...p.projectNodes,
+                projectAnalyses: p.projectNodes.projectAnalyses.map(a => 
+                  a.analysisId === arg.entityId 
+                    ? { ...a, xPosition: arg.xPosition, yPosition: arg.yPosition }
+                    : a
+                )
+              }
             };
           case "pipeline":
             return {
               ...p,
-              pipelines: p.pipelines.map(pl => 
-                pl.pipelineId === arg.entityId 
-                  ? { ...pl, xPosition: arg.xPosition, yPosition: arg.yPosition }
-                  : pl
-              )
+              projectNodes: {
+                ...p.projectNodes,
+                projectPipelines: p.projectNodes.projectPipelines.map(pl => 
+                  pl.pipelineId === arg.entityId 
+                    ? { ...pl, xPosition: arg.xPosition, yPosition: arg.yPosition }
+                    : pl
+                )
+              }
             };
           case "model_entity":
             return {
               ...p,
-              modelEntities: p.modelEntities.map(me => 
-                me.modelEntityId === arg.entityId 
-                  ? { ...me, xPosition: arg.xPosition, yPosition: arg.yPosition }
-                  : me
-              )
+              projectNodes: {
+                ...p.projectNodes,
+                projectModelEntities: p.projectNodes.projectModelEntities.map(me => 
+                  me.modelEntityId === arg.entityId 
+                    ? { ...me, xPosition: arg.xPosition, yPosition: arg.yPosition }
+                    : me
+                )
+              }
             };
           default:
             return p;
@@ -338,18 +353,18 @@ export const useProject = (projectId: UUID) => {
   );
 
   const calculateNodePosition = useCallback(() => {
-    if (!project || project.dataSources.length === 0) {
+    if (!project?.projectNodes || project.projectNodes.projectDataSources.length === 0) {
       return { x: -300, y: 0 };
     }
 
     const baseX = -300;
     const verticalSpacing = 75; 
 
-    const yPositions = project.dataSources.map(ds => ds.yPosition);
+    const yPositions = project.projectNodes.projectDataSources.map(ds => ds.yPosition);
     const highestY = Math.max(...yPositions);
 
     return { x: baseX, y: highestY + verticalSpacing };
-  }, [project]);
+  }, [project?.projectNodes]);
 
   // Unified function to add any entity to project
   const addEntity = async (
@@ -382,6 +397,29 @@ export const useProject = (projectId: UUID) => {
     mutateProjects();
   };
 
+  // Get GraphNode for a specific entity ID - provides access to inputs/outputs
+  const getEntityGraphNode = useCallback((entityId: UUID): GraphNode | PipelineGraphNode | null => {
+    if (!project?.graph) return null;
+
+    // Search through all entity types in the graph
+    const dataSource = project.graph.dataSources.find(ds => ds.id === entityId);
+    if (dataSource) return dataSource;
+
+    const dataset = project.graph.datasets.find(d => d.id === entityId);
+    if (dataset) return dataset;
+
+    const pipeline = project.graph.pipelines.find(p => p.id === entityId);
+    if (pipeline) return pipeline;
+
+    const analysis = project.graph.analyses.find(a => a.id === entityId);
+    if (analysis) return analysis;
+
+    const modelEntity = project.graph.modelEntities.find(me => me.id === entityId);
+    if (modelEntity) return modelEntity;
+
+    return null;
+  }, [project?.graph]);
+
   return {
     project,
     error: null,
@@ -393,5 +431,6 @@ export const useProject = (projectId: UUID) => {
     removeEntity,
     calculateDatasetPosition: calculateNodePosition,
     mutateProject: mutateProjects,
+    getEntityGraphNode,
   };
 };

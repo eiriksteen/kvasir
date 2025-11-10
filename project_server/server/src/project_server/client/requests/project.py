@@ -7,7 +7,7 @@ from synesis_schemas.main_server import (
     Project,
     ProjectDetailsUpdate,
     AddEntityToProject,
-    RemoveEntityFromProject,
+    RemoveEntityFromProject
 )
 
 

@@ -1,22 +1,23 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Send, Plus, History, Database, X, BarChart, Zap, Brain, Folder, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
+import { Send, Plus, History, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { useProjectChat } from '@/hooks';
 import { useAgentContext } from '@/hooks/useAgentContext';
-import { useProjectDataSources, useDatasets, usePipelines, useModelEntities, useAnalyses } from '@/hooks';
+import { useDataSources, useDatasets, usePipelines, useModelEntities, useAnalyses } from '@/hooks';
 import { ChatHistory } from '@/app/projects/[projectId]/_components/chat/ChatHistory';
 import { ChatMessage } from '@/types/orchestrator';
 import { UUID } from 'crypto';
 import { useRunsInConversation } from '@/hooks/useRuns';
 import RunBox from '@/components/runs/RunBox';
-import { Run } from '@/types/runs';
+import { RunInDB } from '@/types/runs';
 import ChatMessageBox from '@/app/projects/[projectId]/_components/chat/ChatMessageBox';
 import { DataSource } from '@/types/data-sources';
 import { Dataset } from '@/types/data-objects';
 import { Pipeline } from '@/types/pipeline';
 import { ModelEntity } from '@/types/model';
-import { AnalysisObjectSmall } from '@/types/analysis';
+import { AnalysisSmall } from '@/types/analysis';
+import { DataSourceMini, DatasetMini, AnalysisMini, PipelineMini, ModelEntityMini } from '@/components/entity-mini';
 
 export default function Chatbot({ projectId }: { projectId: UUID }) {
   
@@ -42,7 +43,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   } = useAgentContext(projectId);
 
   // Get the actual objects to display names
-  const { dataSources } = useProjectDataSources(projectId);
+  const { dataSources } = useDataSources(projectId);
   const { datasets } = useDatasets(projectId);
   const { pipelines } = usePipelines(projectId);
   const { modelEntities } = useModelEntities(projectId);
@@ -189,17 +190,17 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const getAnalysesInContext = () => {
     if (!analysisObjects) return [];
     return analysesInContext
-      .map((id: UUID) => analysisObjects.find((a: AnalysisObjectSmall) => a.id === id))
-      .filter((a: AnalysisObjectSmall | undefined): a is AnalysisObjectSmall => a !== undefined);
+      .map((id: UUID) => analysisObjects.find((a: AnalysisSmall) => a.id === id))
+      .filter((a: AnalysisSmall | undefined): a is AnalysisSmall => a !== undefined);
   };
 
   // Context item configuration
   const contextItemConfigs = [
-    { items: getDataSourcesInContext(), type: 'dataSource', iconName: 'Database', bgColor: 'bg-gray-200', textColor: 'text-gray-600', removeFn: (item: DataSource) => removeDataSourceFromContext(item.id) },
-    { items: getDatasetsInContext(), type: 'dataset', iconName: 'Folder', bgColor: 'bg-[#0E4F70]/20', textColor: 'text-[#0E4F70]', removeFn: (item: Dataset) => removeDatasetFromContext(item.id) },
-    { items: getAnalysesInContext(), type: 'analysis', iconName: 'BarChart', bgColor: 'bg-[#004806]/20', textColor: 'text-[#004806]', removeFn: (item: AnalysisObjectSmall) => removeAnalysisFromContext(item.id) },
-    { items: getPipelinesInContext(), type: 'pipeline', iconName: 'Zap', bgColor: 'bg-[#840B08]/20', textColor: 'text-[#840B08]', removeFn: (item: Pipeline) => removePipelineFromContext(item.id) },
-    { items: getModelEntitiesInContext(), type: 'modelEntity', iconName: 'Brain', bgColor: 'bg-[#491A32]/20', textColor: 'text-[#491A32]', removeFn: (item: ModelEntity) => removeModelEntityFromContext(item.id) }
+    { items: getDataSourcesInContext(), type: 'dataSource', component: DataSourceMini, removeFn: (item: DataSource) => removeDataSourceFromContext(item.id) },
+    { items: getDatasetsInContext(), type: 'dataset', component: DatasetMini, removeFn: (item: Dataset) => removeDatasetFromContext(item.id) },
+    { items: getAnalysesInContext(), type: 'analysis', component: AnalysisMini, removeFn: (item: AnalysisSmall) => removeAnalysisFromContext(item.id) },
+    { items: getPipelinesInContext(), type: 'pipeline', component: PipelineMini, removeFn: (item: Pipeline) => removePipelineFromContext(item.id) },
+    { items: getModelEntitiesInContext(), type: 'modelEntity', component: ModelEntityMini, removeFn: (item: ModelEntity) => removeModelEntityFromContext(item.id) }
   ];
 
   // Helper function to get all context items
@@ -207,20 +208,6 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
     return contextItemConfigs.flatMap(config => 
       config.items.map((item: unknown) => ({ ...config, item }))
     );
-  };
-
-  // Icon mapping for context items
-  const iconMap = {
-    Database: Database,
-    Folder: Folder,
-    BarChart: BarChart,
-    Zap: Zap,
-    Brain: Brain
-  };
-
-  const renderIcon = (iconName: string, size: number) => {
-    const IconComponent = iconMap[iconName as keyof typeof iconMap] || Database;
-    return <IconComponent size={size} />;
   };
 
   const allContextItems = getAllContextItems();
@@ -231,7 +218,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const renderCollapsedView = () => (
     <div className="flex flex-col h-full">
       {/* History button at top */}
-      <div className="flex items-center justify-center h-9 border-b border-t border-gray-400 bg-gray-100">
+      <div className="flex items-center justify-center h-7 border-b border-t border-gray-400 bg-gray-100">
         <div className="relative">
           <button
             onClick={() => {
@@ -243,7 +230,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
             className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
             title="Chat History"
           >
-            <History size={18} />
+            <History size={16} />
           </button>
           {showChatHistory && (
             <ChatHistory
@@ -264,7 +251,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
           className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
           title="New Chat"
         >
-          <Plus size={18} />
+          <Plus size={16} />
         </button>
       </div>
 
@@ -286,26 +273,24 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const renderContextBar = () => (
     <div className="border-b border-gray-400 bg-gray-100">
       {/* Fixed header row - never moves */}
-      <div className="h-9 flex items-center px-3 gap-3">
+      <div className="h-7 flex items-center px-3 gap-3">
         <h3 className="text-xs font-mono text-gray-900 whitespace-nowrap flex-shrink-0">Context</h3>
         <div className="flex items-center gap-2 flex-1">
           {totalContextCount !== 0 && (
             <>
               {/* Show context items in header row ONLY when collapsed */}
-              {!showAllContext && allContextItems.length > 0 && (
-                <div
-                  className={`px-2 py-1 text-xs rounded-full flex items-center gap-1 ${allContextItems[0].bgColor} ${allContextItems[0].textColor} flex-shrink-0`}
-                >
-                  {renderIcon(allContextItems[0].iconName, 12)}
-                  <span className="truncate max-w-[150px]">{allContextItems[0].item.name}</span>
-                  <button
-                    onClick={() => allContextItems[0].removeFn(allContextItems[0].item)}
-                    className={`${allContextItems[0].textColor} hover:text-gray-400 flex-shrink-0`}
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              )}
+              {!showAllContext && allContextItems.length > 0 && (() => {
+                const Component = allContextItems[0].component;
+                return (
+                  <div className="flex-shrink-0">
+                    <Component 
+                      name={allContextItems[0].item.name}
+                      onRemove={() => allContextItems[0].removeFn(allContextItems[0].item)}
+                      size="sm"
+                    />
+                  </div>
+                );
+              })()}
 
               {/* Show (X more) indicator when collapsed and there are items that don't fit */}
               {!showAllContext && remainingCount > 0 && (
@@ -318,7 +303,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
               {totalContextCount > 1 && (
                 <button
                   onClick={() => setShowAllContext(!showAllContext)}
-                  className="p-1 rounded hover:bg-gray-200 transition-colors duration-200 text-gray-600 hover:text-gray-900 flex-shrink-0"
+                  className="rounded hover:bg-gray-200 transition-colors duration-200 text-gray-600 hover:text-gray-900 flex-shrink-0"
                   title={showAllContext ? "Show less" : "Show all"}
                 >
                   {showAllContext ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -333,21 +318,17 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
       {showAllContext && (
         <div className="px-3 pb-3">
           <div className="grid grid-cols-2 gap-2 w-full">
-            {allContextItems.map((contextItem) => (
-              <div
-                key={`${contextItem.type}-${contextItem.item.id}`}
-                className={`px-2 py-1 text-xs rounded-full flex items-center gap-1 ${contextItem.bgColor} ${contextItem.textColor} flex-shrink-0`}
-              >
-                {renderIcon(contextItem.iconName, 12)}
-                <span className="truncate flex-1">{contextItem.item.name}</span>
-                <button
-                  onClick={() => contextItem.removeFn(contextItem.item)}
-                  className={`${contextItem.textColor} hover:text-gray-400 flex-shrink-0`}
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
+            {allContextItems.map((contextItem) => {
+              const Component = contextItem.component;
+              return (
+                <Component
+                  key={`${contextItem.type}-${contextItem.item.id}`}
+                  name={contextItem.item.name}
+                  onRemove={() => contextItem.removeFn(contextItem.item)}
+                  size="sm"
+                />
+              );
+            })}
           </div>
         </div>
       )}
@@ -362,7 +343,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
         item: message,
         createdAt: message.createdAt
       })),
-      ...runsInConversation.map((run: Run) => ({
+      ...runsInConversation.map((run: RunInDB) => ({
         type: 'run' as const,
         item: run,
         createdAt: run.startedAt
@@ -411,7 +392,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
       {isCollapsed ? renderCollapsedView() : (
         <>
           {/* Header with history button */}
-          <div className="border-b border-t border-gray-400 h-9 flex justify-between items-center relative bg-gray-100 px-3">
+          <div className="border-b border-t border-gray-400 h-7 flex justify-between items-center relative bg-gray-100 px-3">
             <div className="flex-1">
               <h3 className="text-xs font-mono text-gray-900">
                 {conversation?.name || "Chat"}
@@ -423,7 +404,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                 className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
                 title="New Chat"
               >
-                <Plus size={18} />
+                <Plus size={16} />
               </button>
               <div className="relative">
                 <button
@@ -431,7 +412,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
                   className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
                   title="Chat History"
                 >
-                  <History size={18} />
+                  <History size={16} />
                 </button>
                 {showChatHistory && (
                   <ChatHistory

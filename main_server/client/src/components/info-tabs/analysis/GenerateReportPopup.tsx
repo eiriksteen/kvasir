@@ -2,25 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import { X, FileText, Code, Download } from 'lucide-react';
-import { AnalysisObjectSmall } from '@/types/analysis';
+import { AnalysisSmall } from '@/types/analysis';
+import { UUID } from 'crypto';
 import { useAnalysis } from '@/hooks/useAnalysis';
 
 interface GenerateReportPopupProps {
   isOpen: boolean;
   onClose: () => void;
-  analysis: AnalysisObjectSmall;
+  analysis: AnalysisSmall;
+  projectId: UUID;
 }
 
 export default function GenerateReportPopup({
   isOpen,
   onClose,
   analysis,
+  projectId,
 }: GenerateReportPopupProps) {
   const [filename, setFilename] = useState(analysis.name);
   const [includeCode, setIncludeCode] = useState(true);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
-  const { generateReport } = useAnalysis(analysis.projectId, analysis.id);
+  const { generateReport } = useAnalysis(projectId, analysis.id);
 
   // Reset form when popup opens
   useEffect(() => {

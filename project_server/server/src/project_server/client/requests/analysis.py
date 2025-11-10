@@ -12,8 +12,9 @@ from synesis_schemas.main_server import (
     NotebookSectionCreate,
     NotebookSectionUpdate,
     MoveRequest,
-    AggregationObjectWithRawData,
-    GetAnalysesByIDsRequest
+    # AggregationObjectWithRawData,
+    GetAnalysesByIDsRequest,
+    AnalysisResultVisualizationCreate
 )
 
 
@@ -51,9 +52,10 @@ async def add_analysis_result_to_section_request(client: ProjectClient, analysis
     return NotebookSection(**response.body)
 
 
-async def get_data_for_analysis_result_request(client: ProjectClient, analysis_id: uuid.UUID, analysis_result_id: uuid.UUID) -> AggregationObjectWithRawData:
+async def get_data_for_analysis_result_request(client: ProjectClient, analysis_id: uuid.UUID, analysis_result_id: uuid.UUID) -> None:
+    raise NotImplementedError("Function not implemented - needs to be fixed")
     response = await client.send_request("post", f"/analysis/analysis-object/{analysis_id}/analysis-result/{analysis_result_id}/get-data")
-    return AggregationObjectWithRawData(**response.body)
+    return None
 
 
 async def move_element_request(client: ProjectClient, analysis_id: uuid.UUID, move_request: MoveRequest) -> None:
@@ -82,3 +84,8 @@ async def get_analysis_result_by_id_request(client: ProjectClient, analysis_resu
 async def get_analysis_results_by_ids_request(client: ProjectClient, analysis_result_ids: List[uuid.UUID]) -> List[AnalysisResult]:
     response = await client.send_request("post", "/analysis/analysis-results/by-ids", json={"analysis_result_ids": [str(id) for id in analysis_result_ids]})
     return [AnalysisResult(**result) for result in response.body]
+
+
+async def create_analysis_result_visualization_request(client: ProjectClient, analysis_result_visualization_create: AnalysisResultVisualizationCreate) -> AnalysisResult:
+    response = await client.send_request("post", "/analysis/analysis-result/visualization", json=analysis_result_visualization_create.model_dump(mode="json"))
+    return AnalysisResult(**response.body)

@@ -5,26 +5,10 @@ import { DataSource } from '@/types/data-sources';
 import { useMemo } from "react";
 import { UUID } from "crypto";
 import { snakeToCamelKeys } from "@/lib/utils";
+import { mutate } from "swr";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-async function fetchDataSources(token: string): Promise<DataSource[]> {
-  const response = await fetch(`${API_URL}/data-sources/data-sources`, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to fetch data sources', errorText);
-    throw new Error(`Failed to fetch data sources: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
+const PROJECT_SERVER_URL = process.env.NEXT_PUBLIC_PROJECT_API_URL;
 
 async function fetchProjectDataSources(token: string, projectId: UUID): Promise<DataSource[]> {
   const response = await fetch(`${API_URL}/project/project-data-sources/${projectId}`, {
@@ -43,35 +27,14 @@ async function fetchProjectDataSources(token: string, projectId: UUID): Promise<
   return snakeToCamelKeys(data);
 }
 
-
-async function createTabularFileDataSource(token: string, file: File): Promise<DataSource> {
+async function createFileDataSource(token: string, projectId: UUID, files: File[]): Promise<DataSource[]> {
   const formData = new FormData();
-  formData.append('file', file);
-
-  const response = await fetch(`${API_URL}/data-sources/tabular-file-data-source`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    },
-    body: formData
+  files.forEach(file => {
+    formData.append('files', file);
   });
+  formData.append('project_id', projectId);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Failed to create tabular file data source', errorText);
-      throw new Error(`Failed to create tabular file data source: ${response.status} ${errorText}`);
-    }
-
-    const data = await response.json();
-    return snakeToCamelKeys(data);
-}
-
-
-async function createKeyValueFileDataSource(token: string, file: File): Promise<DataSource> {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const response = await fetch(`${API_URL}/data-sources/key-value-file-data-source`, {
+  const response = await fetch(`${PROJECT_SERVER_URL}/data-source/file`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -81,68 +44,72 @@ async function createKeyValueFileDataSource(token: string, file: File): Promise<
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Failed to create key value file data source', errorText);
-    throw new Error(`Failed to create key value file data source: ${response.status} ${errorText}`);
+    console.error('Failed to create file data source', errorText);
+    throw new Error(`Failed to create file data source: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
   return snakeToCamelKeys(data);
 }
 
+async function deleteDataSourceEndpoint(token: string, dataSourceId: UUID): Promise<void> {
+  const response = await fetch(`${API_URL}/deletion/data-source/${dataSourceId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
 
-export const useDataSources = () => {
-  const { data: session } = useSession();
-  const { data: dataSources, mutate: mutateDataSources, error, isLoading } = useSWR(session ? "data-sources" : null, () => fetchDataSources(session ? session.APIToken.accessToken : ""));
-
-  const { trigger: triggerCreateTabularFileDataSource } = useSWRMutation(
-    session ? "data-sources" : null,
-    async (_, { arg }: { arg: { file: File } }) => {
-      const newDataSource = await createTabularFileDataSource(session ? session.APIToken.accessToken : "", arg.file);
-      return [...(dataSources || []), newDataSource];
-    }
-  );
-
-  const { trigger: triggerCreateKeyValueFileDataSource } = useSWRMutation(
-    session ? "data-sources" : null,
-    async (_, { arg }: { arg: { file: File } }) => {
-      const newDataSource = await createKeyValueFileDataSource(session ? session.APIToken.accessToken : "", arg.file);
-      return [...(dataSources || []), newDataSource];
-    }
-  );
-
-  return { dataSources, mutateDataSources, error, isLoading, triggerCreateTabularFileDataSource, triggerCreateKeyValueFileDataSource   };
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to delete data source', errorText);
+    throw new Error(`Failed to delete data source: ${response.status} ${errorText}`);
+  }
 }
 
-
-export const useProjectDataSources = (projectId: UUID) => {
+export const useDataSources = (projectId: UUID) => {
   const { data: session } = useSession();
-  const { data: dataSources, mutate: mutateDataSources, error, isLoading } = useSWR(session ? ["data-sources", projectId] : null, () => fetchProjectDataSources(session ? session.APIToken.accessToken : "", projectId));
+  const { data: dataSources, mutate: mutateDataSources, error, isLoading } = useSWR(
+    session ? ["data-sources", projectId] : null, 
+    () => fetchProjectDataSources(session ? session.APIToken.accessToken : "", projectId)
+  );
 
-    const { trigger: triggerCreateTabularFileDataSource } = useSWRMutation(
-    session ? "data-sources" : null,
-    async (_, { arg }: { arg: { file: File } }) => {
-      const newDataSource = await createTabularFileDataSource(session ? session.APIToken.accessToken : "", arg.file);
-      return [...(dataSources || []), newDataSource];
+  const { trigger: triggerCreateFileDataSource } = useSWRMutation(
+    session ? ["data-sources", projectId] : null,
+    async (_, { arg }: { arg: { files: File[] } }) => {
+      const newDataSources = await createFileDataSource(
+        session ? session.APIToken.accessToken : "", 
+        projectId, 
+        arg.files
+      );
+      await mutateDataSources();
+      return newDataSources;
     }
   );
 
-  const { trigger: triggerCreateKeyValueFileDataSource } = useSWRMutation(
-    session ? "data-sources" : null,
-    async (_, { arg }: { arg: { file: File } }) => {
-      const newDataSource = await createKeyValueFileDataSource(session ? session.APIToken.accessToken : "", arg.file);
-      return [...(dataSources || []), newDataSource];
+  const { trigger: deleteDataSource } = useSWRMutation(
+    session ? ["data-sources", projectId] : null,
+    async (_, { arg }: { arg: { dataSourceId: UUID } }) => {
+      await deleteDataSourceEndpoint(session ? session.APIToken.accessToken : "", arg.dataSourceId);
+      await mutateDataSources();
+      await mutate(["projects"]);
     }
   );
 
-  return { dataSources, mutateDataSources, error, isLoading, triggerCreateTabularFileDataSource, triggerCreateKeyValueFileDataSource };
+  return { 
+    dataSources, 
+    mutateDataSources, 
+    error, 
+    isLoading, 
+    triggerCreateFileDataSource,
+    deleteDataSource
+  };
 }
 
-
-export const useDataSource = (dataSourceId: UUID) => {
-
-  const { dataSources } = useDataSources();
+export const useDataSource = (projectId: UUID, dataSourceId: UUID) => {
+  const { dataSources } = useDataSources(projectId);
   const dataSource = useMemo(() => dataSources?.find(ds => ds.id === dataSourceId), [dataSources, dataSourceId]);
 
   return { dataSource };
 }
-

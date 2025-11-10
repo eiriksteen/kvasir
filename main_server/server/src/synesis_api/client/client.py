@@ -7,7 +7,6 @@ from synesis_api.app_secrets import PROJECT_SERVER_URL
 
 @dataclass
 class FileInput:
-    field_name: str
     filename: str
     file_data: bytes
     content_type: str
@@ -46,7 +45,7 @@ class MainServerClient:
                 form_data = aiohttp.FormData()
                 if files:
                     for file in files:
-                        form_data.add_field(file.field_name, file.file_data,
+                        form_data.add_field("files", file.file_data,
                                             filename=file.filename, content_type=file.content_type)
                 if data:
                     for key, value in data.items():
@@ -75,7 +74,7 @@ class MainServerClient:
                 else:
                     # For other content types (like images), read as bytes
                     body = await response.read()
-                
+
                 return MainServerClientResponse(
                     status=response.status,
                     headers=dict(response.headers),

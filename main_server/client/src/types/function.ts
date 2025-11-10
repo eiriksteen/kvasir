@@ -1,5 +1,4 @@
 import { UUID } from "crypto";
-import { ScriptInDB } from "./code";
 
 export type FunctionType = "inference" | "training" | "computation" | "tool";
 
@@ -17,24 +16,20 @@ export interface FunctionDefinitionInDB {
   updatedAt: string;
 }
 
-export interface FunctionInputObjectGroupDefinitionInDB {
+export interface FunctionInDB {
   id: UUID;
-  functionId: UUID;
-  structureId: string;
-  name: string;
-  required: boolean;
+  version: number;
+  pythonFunctionName: string;
+  definitionId: UUID;
+  defaultArgs: Record<string, unknown>;
+  argsSchema: Record<string, unknown>;
+  outputVariablesSchema: Record<string, unknown>;
+  newestUpdateDescription: string;
+  implementationScriptPath: string;
+  setupScriptPath?: string | null;
+  docstring: string;
   description: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface FunctionOutputObjectGroupDefinitionInDB {
-  id: UUID;
-  functionId: UUID;
-  name: string;
-  structureId: string;
-  outputEntityIdName: string;
-  description: string;
+  embedding: number[];
   createdAt: string;
   updatedAt: string;
 }
@@ -50,8 +45,8 @@ export interface FunctionWithoutEmbedding {
   outputVariablesSchema: Record<string, unknown>;
   newestUpdateDescription: string;
   pythonFunctionName: string;
-  implementationScriptId: UUID;
-  setupScriptId?: UUID | null;
+  implementationScriptPath: string;
+  setupScriptPath?: string | null;
   docstring: string;
   description: string;
   createdAt: string;
@@ -60,9 +55,42 @@ export interface FunctionWithoutEmbedding {
 
 export interface Function extends FunctionWithoutEmbedding {
   definition: FunctionDefinitionInDB;
-  inputObjectGroups: FunctionInputObjectGroupDefinitionInDB[];
-  outputObjectGroups: FunctionOutputObjectGroupDefinitionInDB[];
-  implementationScript: ScriptInDB;
-  setupScript?: ScriptInDB | null;
-  descriptionForAgent: string;
+  implementationScriptPath: string;
+  setupScriptPath?: string | null;
+}
+
+export interface GetFunctionsRequest {
+  functionIds: UUID[];
+}
+
+// Create Models
+
+export interface FunctionCreate {
+  name: string;
+  pythonFunctionName: string;
+  docstring: string;
+  description: string;
+  argsSchema: Record<string, unknown>;
+  defaultArgs: Record<string, unknown>;
+  outputVariablesSchema: Record<string, unknown>;
+  type: FunctionType;
+  argsDataclassName: string;
+  inputDataclassName: string;
+  outputDataclassName: string;
+  outputVariablesDataclassName: string;
+  implementationScriptPath: string;
+  setupScriptPath?: string | null;
+}
+
+export interface FunctionUpdateCreate {
+  definitionId: UUID;
+  updatesMadeDescription: string;
+  newImplementationScriptPath: string;
+  newSetupScriptPath?: string | null;
+  updatedPythonFunctionName?: string | null;
+  updatedDescription?: string | null;
+  updatedDocstring?: string | null;
+  updatedDefaultArgs?: Record<string, unknown> | null;
+  updatedArgsSchema?: Record<string, unknown> | null;
+  updatedOutputVariablesSchema?: Record<string, unknown> | null;
 }

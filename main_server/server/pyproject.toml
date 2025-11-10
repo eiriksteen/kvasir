@@ -19,14 +19,9 @@ classifiers = [
 ]
 dependencies = [
     "numpy",
-    "torch",
     "argparse",
     "matplotlib",
     "seaborn",
-    "scikit-learn",
-    "tqdm",
-    "transformers",
-    "datasets",
     "pandas",
     "scipy",
     "openai",
@@ -60,7 +55,8 @@ dependencies = [
     "jsonschema",
     "weasyprint",
     "pyecharts",
-    "snapshot-selenium"
+    "snapshot-selenium",
+    "pyarrow"
 ]
 
 [tool.setuptools]

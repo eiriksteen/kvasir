@@ -3,10 +3,8 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Copy, Check } from 'lucide-react';
 
-interface BaseComponentProps {
+interface BaseComponentProps extends React.HTMLAttributes<HTMLElement> {
   children?: ReactNode;
-  className?: string;
-  [key: string]: unknown;
 }
 
 interface CodeComponentProps extends BaseComponentProps {
@@ -95,33 +93,33 @@ export const MarkdownComponents = {
     ),
     table: ({ children, ...props }: BaseComponentProps) => (
       <div className="overflow-x-auto w-[90%] mx-auto my-4">
-        <table className="w-full border-collapse bg-[#1a1625] rounded-lg overflow-hidden border border-purple-700/30 shadow-lg" {...props}>
+        <table className="w-full border-collapse bg-white rounded-lg overflow-hidden border border-gray-300 shadow-sm" {...props}>
           {children}
         </table>
       </div>
     ),
     thead: ({ children, ...props }: BaseComponentProps) => (
-      <thead className="text-sm bg-purple-900/40 border-b border-purple-700/50" {...props}>
+      <thead className="text-sm bg-gray-50 border-b border-gray-300" {...props}>
         {children}
       </thead>
     ),
     tbody: ({ children, ...props }: BaseComponentProps) => (
-      <tbody className="text-sm divide-y divide-purple-700/30" {...props}>
+      <tbody className="text-sm divide-y divide-gray-200" {...props}>
         {children}
       </tbody>
     ),
     tr: ({ children, ...props }: BaseComponentProps) => (
-      <tr className="hover:bg-purple-800/20 transition-colors duration-200" {...props}>
+      <tr className="hover:bg-gray-50 transition-colors duration-200" {...props}>
         {children}
       </tr>
     ),
     th: ({ children, ...props }: BaseComponentProps) => (
-      <th className="px-4 py-3 text-left text-sm font-semibold text-purple-200 border-r border-purple-700/30 last:border-r-0" {...props}>
+      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 border-r border-gray-300 last:border-r-0" {...props}>
         {children}
       </th>
     ),
     td: ({ children, ...props }: BaseComponentProps) => (
-      <td className="px-4 py-3 text-sm text-gray-300 border-r border-purple-700/30 last:border-r-0" {...props}>
+      <td className="px-4 py-3 text-sm text-gray-700 border-r border-gray-300 last:border-r-0" {...props}>
         {children}
       </td>
     ),
@@ -192,4 +190,15 @@ export const MarkdownComponents = {
         {children}
       </em>
     ),
+    img: ({ src, alt, ...props }: BaseComponentProps & { src?: string | Blob; alt?: string }) => {
+      // Don't render if src is empty or null
+      if (!src || (typeof src === 'string' && src.trim() === '')) {
+        return null;
+      }
+      const srcValue = typeof src === 'string' ? src : URL.createObjectURL(src);
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={srcValue} alt={alt || ''} className="max-w-full h-auto rounded my-4" {...props} />
+      );
+    },
   };

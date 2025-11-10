@@ -1,7 +1,6 @@
 data
 __pycache__
 .DS_Store
-*result*
 !*analysis_result*
 !*analysisresult*
 *egg*
@@ -25,3 +24,5 @@ analysis_storage
 .ssh
 *weights
 analysis_storage
+project_server/sandbox/*-*-*-*-*/
+project_server/server/internal/*

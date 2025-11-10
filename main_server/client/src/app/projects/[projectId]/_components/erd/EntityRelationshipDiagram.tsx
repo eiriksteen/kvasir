@@ -17,13 +17,6 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useProject } from '@/hooks/useProject';
-import { 
-  ProjectDataSourceInDB, 
-  ProjectDatasetInDB, 
-  ProjectAnalysisInDB, 
-  ProjectPipelineInDB, 
-  ProjectModelEntityInDB 
-} from '@/types/project';
 import { ReactFlowProvider } from '@xyflow/react';
 import DatasetBox from '@/app/projects/[projectId]/_components/erd/DatasetBox';
 import AnalysisBox from '@/app/projects/[projectId]/_components/erd/AnalysisBox';
@@ -32,10 +25,9 @@ import DataSourceBox from '@/app/projects/[projectId]/_components/erd/DataSource
 import PipelineBox from '@/app/projects/[projectId]/_components/erd/PipelineBox';
 import { UUID } from 'crypto';
 import ModelEntityBox from '@/app/projects/[projectId]/_components/erd/ModelEntityBox';
-import { useProjectGraph } from '@/hooks/useProjectGraph';
 import { computeBoxEdgeLocations } from '@/app/projects/[projectId]/_components/erd/computeBoxEdgeLocations';
 
-const DataSourceNodeWrapper = ({ data }: { data: { dataSourceId: UUID; projectId: UUID; openTab: (id: UUID | null, closable?: boolean) => void } }) => (
+const DataSourceNodeWrapper = ({ data }: { data: { dataSourceId: UUID; projectId: UUID; openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void } }) => (
   <>
     <DataSourceBox
       dataSourceId={data.dataSourceId}
@@ -54,7 +46,7 @@ const DataSourceNodeWrapper = ({ data }: { data: { dataSourceId: UUID; projectId
 );
 
 // Wrapper component to adapt ReactFlow node props to Dataset component props
-const DatasetNodeWrapper = ({ data }: { data: { datasetId: UUID; projectId: UUID; openTab: (id: UUID | null, closable?: boolean) => void } }) => (
+const DatasetNodeWrapper = ({ data }: { data: { datasetId: UUID; projectId: UUID; openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void } }) => (
   <>
     <DatasetBox
       datasetId={data.datasetId}
@@ -73,7 +65,7 @@ const DatasetNodeWrapper = ({ data }: { data: { datasetId: UUID; projectId: UUID
 );
 
 // Wrapper component to adapt ReactFlow node props to Analysis component props
-const AnalysisNodeWrapper = ({ data }: { data: { analysisId: UUID; projectId: UUID; openTab: (id: UUID | null, closable?: boolean) => void } }) => (
+const AnalysisNodeWrapper = ({ data }: { data: { analysisId: UUID; projectId: UUID; openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void } }) => (
   <>
   <AnalysisBox
     analysisId={data.analysisId}
@@ -91,7 +83,7 @@ const AnalysisNodeWrapper = ({ data }: { data: { analysisId: UUID; projectId: UU
   </>
 );
 
-const PipelineNodeWrapper = ({ data }: { data: { pipelineId: UUID; projectId: UUID; openTab: (id: UUID | null, closable?: boolean) => void } }) => (
+const PipelineNodeWrapper = ({ data }: { data: { pipelineId: UUID; projectId: UUID; openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void } }) => (
   <>
     <PipelineBox
       pipelineId={data.pipelineId}
@@ -109,7 +101,7 @@ const PipelineNodeWrapper = ({ data }: { data: { pipelineId: UUID; projectId: UU
   </>
 );
 
-const ModelEntityNodeWrapper = ({ data }: { data: { modelEntityId: UUID; projectId: UUID; openTab: (id: UUID | null, closable?: boolean) => void } }) => (
+const ModelEntityNodeWrapper = ({ data }: { data: { modelEntityId: UUID; projectId: UUID; openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void } }) => (
   <>
     <ModelEntityBox
       modelEntityId={data.modelEntityId}
@@ -141,7 +133,7 @@ const edgeTypes: EdgeTypes = {
 
 interface EntityRelationshipDiagramProps {
   projectId: UUID;
-  openTab: (id: UUID | null, closable?: boolean) => void;
+  openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void;
 }
 
 function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelationshipDiagramProps) {
@@ -164,7 +156,6 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
   }, []);
 
   const { project, updatePosition, updateProjectViewPort } = useProject(projectId);
-  const { projectGraph } = useProjectGraph(projectId);
   
   
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -190,89 +181,104 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
 
   // Memoize nodes
   const memoizedNodes = useMemo(() => {
-    if (!project) {
+    if (!project?.graph || !project?.projectNodes) {
       return [];
     }
 
     const nodes: Node[] = [];
 
     // Add data source nodes
-    project.dataSources.forEach((projectDataSource: ProjectDataSourceInDB) => {
-      nodes.push({
-        id: projectDataSource.dataSourceId,
-        type: 'dataSource',
-        position: { x: projectDataSource.xPosition, y: projectDataSource.yPosition },
-        data: {
-          dataSourceId: projectDataSource.dataSourceId,
-          projectId: projectId,
-          openTab,
-        },
-      });
+    project.graph.dataSources.forEach((ds) => {
+      const position = project.projectNodes.projectDataSources.find(p => p.dataSourceId === ds.id);
+      if (position) {
+        nodes.push({
+          id: ds.id,
+          type: 'dataSource',
+          position: { x: position.xPosition, y: position.yPosition },
+          data: {
+            dataSourceId: ds.id,
+            projectId: projectId,
+            openTab,
+          },
+        });
+      }
     });
 
     // Add dataset nodes
-    project.datasets.forEach((projectDataset: ProjectDatasetInDB) => {
-      nodes.push({
-        id: projectDataset.datasetId,
-        type: 'dataset',
-        position: { x: projectDataset.xPosition, y: projectDataset.yPosition },
-        data: {
-          datasetId: projectDataset.datasetId,
-          projectId: projectId,
-          openTab,
-        },
-      });
+    project.graph.datasets.forEach((d) => {
+      const position = project.projectNodes.projectDatasets.find(p => p.datasetId === d.id);
+      if (position) {
+        nodes.push({
+          id: d.id,
+          type: 'dataset',
+          position: { x: position.xPosition, y: position.yPosition },
+          data: {
+            datasetId: d.id,
+            projectId: projectId,
+            openTab,
+          },
+        });
+      }
     });
 
     // Add pipeline nodes
-    project.pipelines.forEach((projectPipeline: ProjectPipelineInDB) => {
-      nodes.push({
-        id: projectPipeline.pipelineId,
-        type: 'pipeline',
-        position: { x: projectPipeline.xPosition, y: projectPipeline.yPosition },
-        data: {
-          pipelineId: projectPipeline.pipelineId,
-          projectId: projectId,
-          openTab,
-        },
-      });
+    project.graph.pipelines.forEach((p) => {
+      const position = project.projectNodes.projectPipelines.find(pos => pos.pipelineId === p.id);
+      if (position) {
+        nodes.push({
+          id: p.id,
+          type: 'pipeline',
+          position: { x: position.xPosition, y: position.yPosition },
+          data: {
+            pipelineId: p.id,
+            projectId: projectId,
+            openTab,
+          },
+        });
+      }
     });
 
     // Add analysis nodes
-    project.analyses.forEach((projectAnalysis: ProjectAnalysisInDB) => {
-      nodes.push({
-        id: projectAnalysis.analysisId,
-        type: 'analysis',
-        position: { x: projectAnalysis.xPosition, y: projectAnalysis.yPosition },
-        data: {
-          analysisId: projectAnalysis.analysisId,
-          projectId: projectId,
-          openTab,
-        },
-      });
+    project.graph.analyses.forEach((a) => {
+      const position = project.projectNodes.projectAnalyses.find(p => p.analysisId === a.id);
+      if (position) {
+        nodes.push({
+          id: a.id,
+          type: 'analysis',
+          position: { x: position.xPosition, y: position.yPosition },
+          data: {
+            analysisId: a.id,
+            projectId: projectId,
+            openTab,
+          },
+        });
+      }
     });
 
     // Add model entity nodes
-    project.modelEntities.forEach((projectModelEntity: ProjectModelEntityInDB) => {
-      nodes.push({
-        id: projectModelEntity.modelEntityId,
-        type: 'modelEntity',
-        position: { x: projectModelEntity.xPosition, y: projectModelEntity.yPosition },
-        data: {
-          modelEntityId: projectModelEntity.modelEntityId,
-          projectId: projectId,
-          openTab,
-        },
-      });
+    project.graph.modelEntities.forEach((me) => {
+      const position = project.projectNodes.projectModelEntities.find(p => p.modelEntityId === me.id);
+      if (position) {
+        nodes.push({
+          id: me.id,
+          type: 'modelEntity',
+          position: { x: position.xPosition, y: position.yPosition },
+          data: {
+            modelEntityId: me.id,
+            projectId: projectId,
+            openTab,
+          },
+        });
+      }
     });
 
     return nodes;
 
-  }, [project, projectId, openTab]);
+  }, [project?.graph, project?.projectNodes, projectId, openTab]);
 
   // Memoize edges - uses current node positions from state for live updates during dragging
   const memoizedEdges = useMemo(() => {
-    if (!projectGraph || nodes.length === 0) {
+    if (!project?.graph || nodes.length === 0) {
       return [];
     }
 
@@ -309,32 +315,27 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
       } as Edge;
     };
 
-    // Helper to process all connections for an entity
-    const processEntityConnections = (
+    // Helper to process all output connections for an entity
+    const processEntityOutputs = (
       entityId: UUID,
-      connections: {
-        fromDataSources?: UUID[];
-        fromDatasets?: UUID[];
-        fromAnalyses?: UUID[];
-        fromPipelines?: UUID[];
-        fromModelEntities?: UUID[];
-        toDataSources?: UUID[];
-        toDatasets?: UUID[];
-        toAnalyses?: UUID[];
-        toPipelines?: UUID[];
-        toModelEntities?: UUID[];
+      outputs: {
+        dataSources: UUID[];
+        datasets: UUID[];
+        analyses: UUID[];
+        pipelines: UUID[];
+        modelEntities: UUID[];
       },
       entityType: 'dataSource' | 'dataset' | 'analysis' | 'pipeline' | 'modelEntity'
     ): Edge[] => {
       const edges: Edge[] = [];
 
-      // Process all outgoing connections (to* fields)
+      // Process all outgoing connections (outputs)
       const outgoingConnections = [
-        { targets: connections.toDataSources || [], type: entityType },
-        { targets: connections.toDatasets || [], type: entityType },
-        { targets: connections.toAnalyses || [], type: entityType },
-        { targets: connections.toPipelines || [], type: entityType },
-        { targets: connections.toModelEntities || [], type: entityType },
+        { targets: outputs.dataSources, type: entityType },
+        { targets: outputs.datasets, type: entityType },
+        { targets: outputs.analyses, type: entityType },
+        { targets: outputs.pipelines, type: entityType },
+        { targets: outputs.modelEntities, type: entityType },
       ];
 
       outgoingConnections.forEach(({ targets, type }) => {
@@ -349,15 +350,18 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
 
     // Generate all edges from all entity types
     const allEdges: Edge[] = [
-      ...projectGraph.dataSources.flatMap(ds => processEntityConnections(ds.id, ds.connections, 'dataSource')),
-      ...projectGraph.datasets.flatMap(d => processEntityConnections(d.id, d.connections, 'dataset')),
-      ...projectGraph.analyses.flatMap(a => processEntityConnections(a.id, a.connections, 'analysis')),
-      ...projectGraph.pipelines.flatMap(p => processEntityConnections(p.id, p.connections, 'pipeline')),
-      ...projectGraph.modelEntities.flatMap(m => processEntityConnections(m.id, m.connections, 'modelEntity')),
+      ...project.graph.dataSources.flatMap(ds => processEntityOutputs(ds.id, ds.toEntities, 'dataSource')),
+      ...project.graph.datasets.flatMap(d => processEntityOutputs(d.id, d.toEntities, 'dataset')),
+      ...project.graph.analyses.flatMap(a => processEntityOutputs(a.id, a.toEntities, 'analysis')),
+      ...project.graph.pipelines.flatMap(p => [
+        ...processEntityOutputs(p.id, p.toEntities, 'pipeline'),
+        ...p.runs.flatMap(run => processEntityOutputs(p.id, run.toEntities, 'pipeline'))
+      ]),
+      ...project.graph.modelEntities.flatMap(m => processEntityOutputs(m.id, m.toEntities, 'modelEntity')),
     ];
 
     return allEdges;
-  }, [projectGraph, getEdgeColor, nodes]);
+  }, [project?.graph, getEdgeColor, nodes]);
 
   // Sync nodes: only update if the set of node IDs has changed
   useEffect(() => {
@@ -375,32 +379,33 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
   }, [memoizedEdges, setEdges]);
 
   const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
-    if (!project || !node || !node.id) return;
+    if (!project?.graph || !node || !node.id) return;
 
     // Determine entity type by checking which list contains the node ID
     let entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity" | null = null;
 
-    if (project.dataSources.some(ds => ds.dataSourceId === node.id)) {
+    if (project.graph.dataSources.some(ds => ds.id === node.id)) {
       entityType = "data_source";
-    } else if (project.datasets.some(ds => ds.datasetId === node.id)) {
+    } else if (project.graph.datasets.some(ds => ds.id === node.id)) {
       entityType = "dataset";
-    } else if (project.analyses.some(a => a.analysisId === node.id)) {
+    } else if (project.graph.analyses.some(a => a.id === node.id)) {
       entityType = "analysis";
-    } else if (project.pipelines.some(p => p.pipelineId === node.id)) {
+    } else if (project.graph.pipelines.some(p => p.id === node.id)) {
       entityType = "pipeline";
-    } else if (project.modelEntities.some(me => me.modelEntityId === node.id)) {
+    } else if (project.graph.modelEntities.some(me => me.id === node.id)) {
       entityType = "model_entity";
     }
 
     if (entityType) {
       updatePosition({
+        projectId: project.id,
         entityType,
         entityId: node.id as UUID,
         xPosition: node.position.x,
         yPosition: node.position.y,
       });
     }
-  }, [project, updatePosition]);
+  }, [project?.graph, project?.id, updatePosition]);
 
   return (
     <div className="w-full h-full bg-white">

@@ -1,5 +1,8 @@
 from typing import List
+from uuid import UUID
 
+from project_server.utils.code_utils import run_shell_code_in_container
+from synesis_schemas.main_server import Project, get_entity_graph_description
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.models.anthropic import AnthropicModel
@@ -10,39 +13,60 @@ from pydantic_ai.providers.grok import GrokProvider
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 
-from project_server.app_secrets import MODEL_TO_USE, ANTHROPIC_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY, SUPPORTED_MODELS, XAI_API_KEY,  MODELS_MODULE, MODELS_MODULE_TMP, SANDBOX_PYPROJECT_PATH
-from synesis_schemas.main_server import DataSource, Dataset, ModelEntity, Analysis
-from synesis_data_interface.structures.overview import get_data_structure_description
-from synesis_data_interface.sources.overview import get_data_source_description
+from project_server.utils.docker_utils import get_container_working_directory, list_container_working_directory_contents
+from project_server.app_secrets import (
+    MODEL_TO_USE,
+    ANTHROPIC_API_KEY,
+    GOOGLE_API_KEY,
+    OPENAI_API_KEY,
+    SUPPORTED_MODELS,
+    XAI_API_KEY,
+    SANDBOX_PYPROJECT_PATH
+)
+from project_server.client import ProjectClient
+from project_server.client.requests.entity_graph import get_entity_details
 
 
-def get_injected_entities_description(
-    data_sources: List[DataSource],
-    datasets: List[Dataset],
-    model_entities: List[ModelEntity],
-    analyses: List[Analysis],
-    tmp: bool = True
+async def get_entities_description(
+    client: ProjectClient,
+    data_source_ids: List[UUID],
+    dataset_ids: List[UUID],
+    model_entity_ids: List[UUID],
+    analysis_ids: List[UUID],
+    pipeline_ids: List[UUID]
 ) -> str:
 
-    data_sources_description = "\n\n".join(
-        [data_source.description_for_agent for data_source in data_sources])
-    datasets_description = "\n\n".join(
-        [dataset.description_for_agent for dataset in datasets])
-    analyses_description = "\n\n".join(
-        [analysis.description_for_agent for analysis in analyses])
-    model_entities_description = "\n\n".join(
-        [model_entity.description_for_agent for model_entity in model_entities])
+    entity_ids: List[UUID] = data_source_ids + dataset_ids + \
+        model_entity_ids + analysis_ids + pipeline_ids
+    entity_details_response = await get_entity_details(client, entity_ids)
 
-    data_sources_section = f"<data_sources>\n\n{data_sources_description}\n\n</data_sources>\n\n"
-    datasets_section = f"<datasets>\n\n{datasets_description}\n\n</datasets>\n\n"
-    analyses_section = f"<analyses>\n\n{analyses_description}\n\n</analyses>\n\n"
-    model_entities_section = f"<model_entities>\n\n{model_entities_description}\n\n</model_entities>\n\n"
+    # Group descriptions by entity type
+    data_sources_descriptions = []
+    datasets_descriptions = []
+    analyses_descriptions = []
+    model_entities_descriptions = []
+    pipelines_descriptions = []
 
-    if tmp:
-        model_entities_section = model_entities_section.replace(
-            MODELS_MODULE, MODELS_MODULE_TMP)
+    for detail in entity_details_response.entity_details:
+        if detail.entity_type == "data_source":
+            data_sources_descriptions.append(detail.description)
+        elif detail.entity_type == "dataset":
+            datasets_descriptions.append(detail.description)
+        elif detail.entity_type == "analysis":
+            analyses_descriptions.append(detail.description)
+        elif detail.entity_type == "model_entity":
+            model_entities_descriptions.append(detail.description)
+        elif detail.entity_type == "pipeline":
+            pipelines_descriptions.append(detail.description)
 
-    return f"The injected entities:\n\n{data_sources_section}{datasets_section}{analyses_section}{model_entities_section}"
+    # Format sections
+    data_sources_section = f"<data_sources>\n\n{'\n\n'.join(data_sources_descriptions)}\n\n</data_sources>\n\n" if data_sources_descriptions else ""
+    datasets_section = f"<datasets>\n\n{'\n\n'.join(datasets_descriptions)}\n\n</datasets>\n\n" if datasets_descriptions else ""
+    analyses_section = f"<analyses>\n\n{'\n\n'.join(analyses_descriptions)}\n\n</analyses>\n\n" if analyses_descriptions else ""
+    model_entities_section = f"<model_entities>\n\n{'\n\n'.join(model_entities_descriptions)}\n\n</model_entities>\n\n" if model_entities_descriptions else ""
+    pipelines_section = f"<pipelines>\n\n{'\n\n'.join(pipelines_descriptions)}\n\n</pipelines>\n\n" if pipelines_descriptions else ""
+
+    return f"The injected entities:\n\n{data_sources_section}{datasets_section}{analyses_section}{model_entities_section}{pipelines_section}"
 
 
 def get_sandbox_environment_description() -> str:
@@ -53,26 +77,71 @@ def get_sandbox_environment_description() -> str:
     return env_section
 
 
-def get_structure_descriptions_from_datasets(datasets: List[Dataset]) -> str:
-    structure_descriptions = {}
-    for dataset in datasets:
-        for structure in dataset.object_groups:
-            structure_type = structure.structure_type
-            structure_descriptions[structure_type] = get_data_structure_description(
-                structure_type)
+def get_project_description(project: Project) -> str:
+    project_graph_yaml = get_entity_graph_description(project.graph)
 
-    descriptions_joined = "\n\n".join(structure_descriptions.values())
-    return f"The definitions of the structures found in the injected datasets are:\n\n<data_structure_definitions>\n\n{descriptions_joined}\n\n</data_structure_definitions>\n\n"
+    desc = (
+        "# PROJECT DESCRIPTION WITH ENTITY GRAPH:\n\n" +
+        "**Project Name:**\n\n" +
+        f"{project.name}\n\n" +
+        "**Project Description:**\n\n" +
+        f"{project.description}\n\n" +
+        "**Project Python Package Name:**\n\n" +
+        f"{project.python_package_name}\n\n" +
+        "**Entity Graph:**\n\n" +
+        f"{project_graph_yaml}\n\n"
+    )
+
+    return desc
 
 
-def get_data_source_type_descriptions_from_data_sources(data_sources: List[DataSource]) -> str:
-    data_source_descriptions = {}
-    for data_source in data_sources:
-        data_source_descriptions[data_source.type] = get_data_source_description(
-            data_source.type)
+async def get_working_directory_description(container_name: str) -> str:
+    pwd, err = await get_container_working_directory(container_name)
+    if err:
+        raise RuntimeError(f"Failed to get working directory: {err}")
 
-    descriptions_joined = "\n\n".join(data_source_descriptions.values())
-    return f"The definitions of the data source types found in the injected data sources are:\n\n<data_source_definitions>\n\n{descriptions_joined}\n\n</data_source_definitions>\n\n"
+    ls, err = await list_container_working_directory_contents(container_name)
+    if err:
+        raise RuntimeError(f"Failed to list working directory contents: {err}")
+
+    return f"pwd out: {pwd}\n\nls out:\n{ls}\n\n"
+
+
+async def get_folder_structure_description(
+        container_name: str,
+        path: str = "/app",
+        n_levels: int = 3,
+        max_lines: int = 100) -> str:
+    # Try using tree command first (cleaner output), fall back to find if not available
+    tree_cmd = f"tree -L {n_levels} -a -I '__pycache__|*.egg-info' {path} 2>/dev/null"
+    find_cmd = f"find {path} -maxdepth {n_levels} \\( -name '__pycache__' -o -name '*.egg-info' \\) -prune -o -print 2>/dev/null | sort"
+
+    # Check if tree is available
+    check_tree = "command -v tree >/dev/null 2>&1 && echo 'yes' || echo 'no'"
+    has_tree_out, _ = await run_shell_code_in_container(check_tree, container_name)
+
+    if has_tree_out.strip() == 'yes':
+        cmd = tree_cmd
+    else:
+        cmd = find_cmd
+
+    out, err = await run_shell_code_in_container(cmd, container_name)
+
+    if err:
+        return f"folder structure {n_levels} levels down:\n\nError: {err}"
+
+    if not out.strip():
+        return f"folder structure {n_levels} levels down:\n\n(empty or does not exist)"
+
+    lines = out.split('\n')
+    was_truncated = len(lines) > max_lines
+
+    if was_truncated:
+        lines = lines[:max_lines]
+        result = '\n'.join(lines)
+        return f"folder structure {n_levels} levels down:\n\n{result}\n\n[truncated - output exceeded {max_lines} lines]"
+    else:
+        return f"folder structure {n_levels} levels down:\n\n{out}"
 
 
 def get_model():
@@ -84,7 +153,8 @@ def get_model():
         "o3": "openai",
         "gemini-2.5-pro": "google",
         "gpt-5": "openai",
-        "grok-code-fast-1": "xai"
+        "grok-code-fast-1": "xai",
+        "grok-4": "xai",
     }
 
     if model_id_to_provider_name[MODEL_TO_USE] == "anthropic":
@@ -107,7 +177,6 @@ def get_model():
 
 
 def pydantic_ai_bytes_to_messages(message_list: List[bytes]) -> list[ModelMessage]:
-
     messages: list[ModelMessage] = []
     for message in message_list:
         messages.extend(

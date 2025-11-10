@@ -7,7 +7,7 @@ import { useAgentContext } from '@/hooks/useAgentContext';
 interface AnalysisBoxProps {
   analysisId: UUID;
   projectId: UUID;
-  openTab: (id: UUID | null, closable?: boolean) => void;
+  openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void;
 }
 
 export default function AnalysisBox({ analysisId, projectId, openTab }: AnalysisBoxProps) {
@@ -40,7 +40,7 @@ export default function AnalysisBox({ analysisId, projectId, openTab }: Analysis
   
   return (
     <div
-      className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[220px] cursor-pointer hover:bg-[#004806]/10 hover:border-[#004806] ${
+      className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[240px] cursor-pointer hover:bg-[#004806]/10 hover:border-[#004806] ${
         isInContext 
           ? 'border-[#004806] bg-[#004806]/10 ring-2 ring-[#004806]/30' 
           : 'border-[#004806]'
@@ -55,7 +55,7 @@ export default function AnalysisBox({ analysisId, projectId, openTab }: Analysis
           <div className="text-[#004806] font-mono text-xs">Analysis</div>
         </div>
         <div>
-          <div className="text-xs font-mono text-gray-800 truncate">{currentAnalysisObject.name}</div>
+          <div className="text-xs font-mono text-gray-800 break-words">{currentAnalysisObject.name}</div>
         </div>
       </div>
     </div>

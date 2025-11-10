@@ -1,154 +1,165 @@
 import { UUID } from "crypto";
 
-// DB Schemas needed by API types
+export type Modality = "time_series" | "tabular";
 
-export interface FeatureInDB {
+// DB Schemas
+
+export interface DatasetInDB {
+  id: UUID;
+  userId: UUID;
   name: string;
   description: string;
-  type: "numerical" | "categorical";
-  subtype: "continuous" | "discrete";
-  scale: "ratio" | "interval" | "ordinal" | "nominal";
+  additionalVariables?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
-  unit?: string | null;
-}
-
-export interface ObjectGroupInDB {
-  id: UUID;
-  datasetId: UUID;
-  name: string;
-  description: string;
-  structureType: string;
-  savePath: string;
-  createdAt: string;
-  updatedAt: string;
-  originalIdName?: string | null;
-}
-
-export interface TimeSeriesObjectGroupInDB {
-  id: UUID;
-  timeSeriesDfSchema: string;
-  timeSeriesDfHead: string;
-  entityMetadataDfSchema: string;
-  entityMetadataDfHead: string;
-  featureInformationDfSchema: string;
-  featureInformationDfHead: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface TimeSeriesAggregationObjectGroupInDB {
-  id: UUID;
-  timeSeriesAggregationOutputsDfSchema: string;
-  timeSeriesAggregationOutputsDfHead: string;
-  timeSeriesAggregationInputsDfSchema: string;
-  timeSeriesAggregationInputsDfHead: string;
-  entityMetadataDfSchema: string;
-  entityMetadataDfHead: string;
-  featureInformationDfSchema: string;
-  featureInformationDfHead: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface VariableGroupInDB {
-  id: UUID;
-  datasetId: UUID;
-  name: string;
-  description: string;
-  savePath: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface TimeSeriesInDB {
-  id: UUID;
-  numTimestamps: number;
-  startTimestamp: string;
-  endTimestamp: string;
-  samplingFrequency: "m" | "h" | "d" | "w" | "y" | "irr";
-  timezone: string;
-}
-
-export interface TimeSeriesAggregationInDB {
-  id: UUID;
-  isMultiSeriesComputation: boolean;
 }
 
 export interface DataObjectInDB {
   id: UUID;
   name: string;
-  structureType: string;
-  groupId?: UUID | null;
-  originalId?: string | null;
+  groupId: UUID;
+  originalId: string;
   description?: string | null;
   additionalVariables?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
 }
 
-// API Schemas
+export interface ObjectGroupInDB {
+  id: UUID;
+  name: string;
+  description: string;
+  modality: Modality;
+  datasetId: UUID;
+  originalIdName?: string | null;
+  additionalVariables?: Record<string, unknown> | null;
+  echartId?: UUID | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
-export interface FeatureWithSource extends FeatureInDB {
-  source: "data" | "metadata";
+export interface TimeSeriesInDB {
+  id: UUID; // Foreign key to data_object.id
+  startTimestamp: string;
+  endTimestamp: string;
+  numTimestamps: number;
+  samplingFrequency: "m" | "h" | "d" | "w" | "y" | "irr";
+  timezone: string;
+  featuresSchema: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TimeSeriesGroupInDB {
+  id: UUID;
+  totalTimestamps: number;
+  numberOfSeries: number;
+  // None if varying between series
+  samplingFrequency?: "m" | "h" | "d" | "w" | "y" | "irr" | null;
+  // None if varying between series
+  timezone?: string | null;
+  // None if varying between series
+  featuresSchema?: Record<string, unknown> | null;
+  earliestTimestamp: string;
+  latestTimestamp: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Schemas for the API
+
+export interface DataObject extends DataObjectInDB {
+  modalityFields: TimeSeriesInDB; // TODO: Add more modalities when implemented
 }
 
 export interface ObjectGroup extends ObjectGroupInDB {
-  structureFields: TimeSeriesObjectGroupInDB | TimeSeriesAggregationObjectGroupInDB;
-  features: FeatureWithSource[];
+  modalityFields: TimeSeriesGroupInDB; // TODO: Add more modalities when implemented
 }
 
-export interface DataObject extends DataObjectInDB {
-  structureFields: TimeSeriesInDB | TimeSeriesAggregationInDB;
-}
-
-export interface DatasetSources {
-  dataSourceIds: UUID[];
-  datasetIds: UUID[];
-  pipelineIds: UUID[];
-}
-
-export interface Dataset {
-  id: UUID;
-  userId: UUID;
-  name: string;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
+export interface Dataset extends DatasetInDB {
   objectGroups: ObjectGroup[];
-  variableGroups: VariableGroupInDB[];
-  sources: DatasetSources;
 }
-
-export interface Column {
-  name: string;
-  valueType: string;
-  values: Array<number | string | boolean | Date | null>;
-}
-
-export type RawDataStructure = {
-    data: Column[];
-}
-
-export interface AggregationObject {
-    id: UUID;
-    datasetId: UUID;
-    name: string;
-    description: string;
-    createdAt: string;
-    updatedAt: string;
-    analysisResultId: UUID | null;
-}
-
-export type AggregationOutput = {
-    outputData: RawDataStructure;
-}
-
-export type AggregationObjectWithRawData = AggregationObject & {
-    data: AggregationOutput;
-}
-
 
 export interface ObjectGroupWithObjects extends ObjectGroup {
   objects: DataObject[];
+}
+
+export interface GetDatasetsByIDsRequest {
+  datasetIds: UUID[];
+}
+
+// Create schemas
+
+export interface TimeSeriesCreate {
+  originalId: string;
+  startTimestamp: string;
+  endTimestamp: string;
+  numTimestamps: number;
+  samplingFrequency: "m" | "h" | "d" | "w" | "y" | "irr";
+  timezone: string;
+  featuresSchema: Record<string, unknown>;
+}
+
+export interface TimeSeriesGroupCreate {
+  totalTimestamps: number;
+  numberOfSeries: number;
+  // None if varying between series
+  samplingFrequency?: "m" | "h" | "d" | "w" | "y" | "irr" | null;
+  // None if varying between series
+  timezone?: string | null;
+  // None if varying between series
+  featuresSchema?: Record<string, unknown> | null;
+  earliestTimestamp: string;
+  latestTimestamp: string;
+}
+
+export interface DataObjectCreate {
+  originalId: string;
+  description?: string | null;
+  modalityFields: TimeSeriesCreate; // TODO: Add more modalities when implemented
+}
+
+export interface ObjectsFile {
+  filename: string;
+  modality: Modality;
+}
+
+export interface DataObjectGroupCreate {
+  name: string;
+  originalIdName: string;
+  description: string;
+  modality: string;
+  modalityFields: TimeSeriesGroupCreate; // TODO: Add more modalities when implemented
+  objectsFiles: ObjectsFile[]; // Objects that belong to this group
+}
+
+export interface DatasetCreate {
+  name: string;
+  description: string;
+  // TODO: Add more modalities
+  groups: DataObjectGroupCreate[];
+}
+
+// Raw data schemas
+
+export interface TimeSeriesRawDataParams {
+  startTimestamp: string;
+  endTimestamp: string;
+}
+
+export interface TimeSeriesRawData {
+  data: Record<string, Array<[string, number | string]>>; // Dict[str, List[Tuple[datetime, Union[float, int]]]]
+  params: TimeSeriesRawDataParams;
+}
+
+export interface DataObjectRawData{
+  originalId: string;
+  modality: Modality;
+  data: TimeSeriesRawData; // TODO: Add more modalities when implemented
+}
+
+export interface GetRawDataRequest {
+  projectId: UUID;
+  objectId: UUID;
+  args: TimeSeriesRawDataParams;
 }

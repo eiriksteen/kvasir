@@ -1,14 +1,10 @@
 import re
-import ast
-import sys
 import asyncio
-import tempfile
+from typing import Tuple, Optional
 from pathlib import Path
-from typing import Tuple, Optional, List
-from pylint import lint
-from io import StringIO
 
 from project_server.worker import logger
+from project_server.app_secrets import READABLE_EXTENSIONS
 
 
 def parse_code(python_code: str) -> str:
@@ -21,10 +17,10 @@ def parse_code(python_code: str) -> str:
 
 async def run_python_code_in_container(
         python_code: str,
-        container_name: str = "project-sandbox",
+        container_name: str,
         cwd: str | None = None) -> Tuple[str, str]:
     """
-    Helper function that runs Python code inside a Docker container named `project-sandbox` (by default).
+    Helper function that runs Python code inside a Docker container.
     This is an async version that uses asyncio.create_subprocess_exec for non-blocking execution.
     """
     python_code_parsed = parse_code(python_code)
@@ -52,7 +48,7 @@ async def run_python_function_in_container(
         base_script: str,
         function_name: str,
         input_variables: list[str],
-        container_name: str = "project-sandbox",
+        container_name: str,
         source_module: Optional[str] = None,
         print_output: bool = False,
         async_function: bool = False
@@ -89,10 +85,10 @@ async def run_python_function_in_container(
 
 async def run_shell_code_in_container(
         shell_code: str,
-        container_name: str = "project-sandbox",
+        container_name: str,
         cwd: str | None = None) -> Tuple[str, str]:
     """
-    Helper function that actually runs Shell code inside a Docker container named `project-sandbox` (by default).
+    Helper function that actually runs Shell code inside a Docker container.
     This is an async version that uses asyncio.create_subprocess_exec for non-blocking execution.
     """
     cmd = [
@@ -149,8 +145,8 @@ def replace_lines_in_script(
 
     Args:
         script: The script to modify
-        line_number_start: The starting line number (0-indexed)
-        line_number_end: The ending line number (0-indexed, inclusive)
+        line_number_start: The starting line number (1-indexed, inclusive)
+        line_number_end: The ending line number (1-indexed, inclusive)
         new_code: The new code to insert
         script_has_line_numbers: Whether the script has line numbers
 
@@ -235,89 +231,12 @@ def remove_print_statements_from_code(code: str) -> str:
     return '\n'.join(cleaned_lines)
 
 
-def get_type_annotation(node) -> str:
-    if isinstance(node, ast.Name):
-        return node.id
-    elif isinstance(node, ast.Subscript):
-        return f"{get_type_annotation(node.value)}[{get_type_annotation(node.slice)}]"
-    elif isinstance(node, ast.Constant):
-        return str(node.value)
-    elif isinstance(node, ast.Attribute):
-        return f"{get_type_annotation(node.value)}.{node.attr}"
-    elif isinstance(node, (ast.Tuple, ast.List)):
-        elements = [get_type_annotation(el) for el in node.elts]
-        return f"Tuple[{', '.join(elements)}]" if isinstance(node, ast.Tuple) else f"List[{', '.join(elements)}]"
-    return "Any"
+def is_readable_extension(file_path: str | Path) -> bool:
+    file_path_str = str(file_path).lower()
+    return any(file_path_str.endswith(ext) for ext in READABLE_EXTENSIONS)
 
 
-def is_dataclass(node: ast.ClassDef) -> bool:
-    for decorator in node.decorator_list:
-        if isinstance(decorator, ast.Name) and decorator.id == "dataclass":
-            return True
-        elif isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Name) and decorator.func.id == "dataclass":
-            return True
-    return False
-
-
-def extract_method_info(node: ast.FunctionDef) -> Tuple[str, List[Tuple[str, str]], str]:
-    params = []
-    for arg in node.args.args:
-        param_name = arg.arg
-        param_type = get_type_annotation(
-            arg.annotation) if arg.annotation else "Any"
-        params.append((param_name, param_type))
-
-    return_type = get_type_annotation(node.returns) if node.returns else "None"
-    return node.name, params, return_type
-
-
-def extract_class_definitions(code: str) -> List[dict]:
-    tree = ast.parse(code)
-    class_info_list = []
-
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef) and not is_dataclass(node):
-            class_info = {
-                "name": node.name,
-                "init": None,
-                "methods": []
-            }
-
-            for item in node.body:
-                if isinstance(item, ast.FunctionDef):
-                    method_name, params, return_type = extract_method_info(
-                        item)
-                    method_info = {
-                        "name": method_name,
-                        "parameters": params,
-                        "return_type": return_type
-                    }
-
-                    if method_name == "__init__":
-                        class_info["init"] = method_info
-                    else:
-                        class_info["methods"].append(method_info)
-
-            class_info_list.append(class_info)
-
-    output = []
-    for cls in class_info_list:
-        output.append(f"Class: {cls['name']}")
-
-        if cls['init']:
-            init = cls['init']
-            params = ", ".join(f"{name}: {type_}" for name,
-                               type_ in init['parameters'])
-            output.append(f"  __init__({params}) -> {init['return_type']}")
-
-        if cls['methods']:
-            output.append("  Methods:")
-            for method in cls['methods']:
-                params = ", ".join(
-                    f"{name}: {type_}" for name, type_ in method['parameters'])
-                output.append(
-                    f"    {method['name']}({params}) -> {method['return_type']}")
-
-        output.append("")  # Empty line between classes
-
-    return "\n".join(output)
+def filter_content_by_extension(file_path: str | Path, content: str, placeholder: str = "content too long for display") -> str:
+    if is_readable_extension(file_path):
+        return content
+    return placeholder

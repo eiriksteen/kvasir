@@ -8,13 +8,18 @@ import UserHeader from "@/components/headers/UserHeader";
 import EntityRelationshipDiagram from "@/app/projects/[projectId]/_components/erd/EntityRelationshipDiagram";
 import TabView from "@/app/projects/[projectId]/_components/tab-view/TabView";
 import { useProject } from "@/hooks/useProject";
+import { useExtraction } from "@/hooks/useExtraction";
 import { useTabs } from "@/hooks/useTabs";
+import { useRuns } from "@/hooks/useRuns";
 import FileInfoTab from "@/components/info-tabs/FileInfoTab";
 import DatasetInfoTab from "@/components/info-tabs/DatasetInfoTab";
 import PipelineInfoTab from "@/components/info-tabs/PipelineInfoTab";
 import ModelInfoTab from "@/components/info-tabs/ModelInfoTab";
 import AnalysisItem from "@/components/info-tabs/analysis/AnalysisItem";
+import CodeInfoTab from "@/components/info-tabs/CodeInfoTab";
 import { UUID } from "crypto";
+import { RefreshCw } from "lucide-react";
+import { useState, useCallback, useMemo } from "react";
 
 interface DashboardProps {
   session: Session;
@@ -24,6 +29,32 @@ interface DashboardProps {
 function DashboardContent({ projectId }: { projectId: UUID }) {
   const { project } = useProject(projectId);
   const { openTabs, activeTabId, openTab, closeTab, closeTabToProject, selectTab } = useTabs();
+  const { runExtraction } = useExtraction();
+  const { runs } = useRuns();
+  const [isScanning, setIsScanning] = useState(false);
+
+  // Check if any extraction runs are currently running in this project
+  const hasRunningExtractionRuns = useMemo(() => {
+    return runs.some(run => 
+      run.type === 'extraction' && 
+      run.status === 'running' && 
+      run.projectId === projectId
+    );
+  }, [runs, projectId]);
+
+  const handleScanCodebase = useCallback(async () => {
+    setIsScanning(true);
+    try {
+      await runExtraction({
+        projectId,
+        promptContent: "Scan the codebase to update the project graph. Add any new entities, remove any no longer relevant, add new edges between entities, or remove any edges that are no longer relevant. Ensure the graph accurately represents the current state of the project. ",
+      });
+    } catch (error) {
+      console.error('Failed to run extraction:', error);
+    } finally {
+      setIsScanning(false);
+    }
+  }, [projectId, runExtraction]);
   
   // If no project is selected, show loading or return null
   if (!project) {
@@ -40,12 +71,15 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
   // Determine tab type based on activeTabId
   const getTabType = () => {
     if (activeTabId === null) return 'project';
-    if (project.dataSources.some(ds => ds.dataSourceId === activeTabId)) return 'data_source';
-    if (project.datasets.some(ds => ds.datasetId === activeTabId)) return 'dataset';
-    if (project.analyses.some(a => a.analysisId === activeTabId)) return 'analysis';
-    if (project.pipelines.some(p => p.pipelineId === activeTabId)) return 'pipeline';
-    if (project.modelEntities.some(m => m.modelEntityId === activeTabId)) return 'model_entity';
-    return 'project';
+    
+    // Check if it's a code tab
+    
+    if (project.graph.dataSources.some(ds => ds.id === activeTabId)) return 'data_source';
+    if (project.graph.datasets.some(ds => ds.id === activeTabId)) return 'dataset';
+    if (project.graph.analyses.some(a => a.id === activeTabId)) return 'analysis';
+    if (project.graph.pipelines.some(p => p.id === activeTabId)) return 'pipeline';
+    if (project.graph.modelEntities.some(m => m.id === activeTabId)) return 'model_entity';
+    else return 'code';
   };
 
   const tabType = getTabType();
@@ -60,42 +94,60 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
   } else if (tabType === 'data_source' && activeTabId) {
     mainContent = (
       <FileInfoTab
-        dataSourceId={activeTabId}
+        dataSourceId={activeTabId as UUID}
+        projectId={projectId}
         onClose={() => closeTabToProject()}
+        onDelete={() => closeTab(activeTabId)}
       />
     );
   } else if (tabType === 'dataset' && activeTabId) {
     mainContent = (
       <DatasetInfoTab
-        datasetId={activeTabId}
+        datasetId={activeTabId as UUID}
         onClose={() => closeTabToProject()}
+        onDelete={() => closeTab(activeTabId)}
         projectId={projectId}
       />
     );
   } else if (tabType === 'analysis' && activeTabId) {
     mainContent = (
       <AnalysisItem
-        analysisObjectId={activeTabId}
+        analysisObjectId={activeTabId as UUID}
         projectId={projectId}
         onClose={() => closeTabToProject()}
       />
     );
   } else if (tabType === 'pipeline' && activeTabId) {
+    const activeTab = openTabs.find(tab => tab.id === activeTabId);
     mainContent = (
       <PipelineInfoTab
-        pipelineId={activeTabId}
+        pipelineId={activeTabId as UUID}
         onClose={() => closeTabToProject()}
+        onDelete={() => closeTab(activeTabId)}
         projectId={projectId}
+        initialView={activeTab?.initialView as 'overview' | 'runs' | undefined}
       />
     );
   } else if (tabType === 'model_entity' && activeTabId) {
     mainContent = (
       <ModelInfoTab
-        modelEntityId={activeTabId}
+        modelEntityId={activeTabId as UUID}
         onClose={() => closeTabToProject()}
+        onDelete={() => closeTab(activeTabId)}
         projectId={projectId}
       />
     );
+  } else if (tabType === 'code' && activeTabId) {
+    const activeTab = openTabs.find(tab => tab.id === activeTabId);
+    if (activeTab?.filePath) {
+      mainContent = (
+        <CodeInfoTab
+          projectId={projectId}
+          filePath={activeTab.filePath}
+          onClose={() => closeTabToProject()}
+        />
+      );
+    }
   }
 
   // This is ugly, but turns out to be really hard to let the ERD be fixed while the rest is adaptive. 
@@ -127,10 +179,23 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
               />
             </div>
             <div className={`flex-1 overflow-auto ${
-              isProjectView ? 'bg-transparent pointer-events-none' : 'bg-gray-950'
+              isProjectView ? 'bg-transparent pointer-events-none' : ''
             }`}>
               {mainContent}
             </div>
+            {/* Sync Graph Button - positioned at bottom left, only visible in project view */}
+            {isProjectView && (
+              <div className="absolute bottom-2 left-2 z-20 pointer-events-auto">
+                <button
+                  onClick={handleScanCodebase}
+                  disabled={isScanning || hasRunningExtractionRuns}
+                  className="flex items-center justify-center p-2 bg-white border border-gray-300 rounded-lg text-[#000034] hover:bg-gray-50 disabled:opacity-50 transition-colors shadow-sm"
+                  title="Scan codebase to sync project graph"
+                >
+                  <RefreshCw size={16} className={`${isScanning || hasRunningExtractionRuns ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+            )}
           </div>
         </main>
         

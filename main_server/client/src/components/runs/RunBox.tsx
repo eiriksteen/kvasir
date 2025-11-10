@@ -1,10 +1,10 @@
 import { UUID } from "crypto";
 import { useSWRConfig } from "swr"
 import { useRun, useRunMessages } from "@/hooks/useRuns";
-import { BarChart3, Zap, Clock, CheckCircle, XCircle, Loader2, Folder, Brain, Check, X, Database } from "lucide-react";
+import { BarChart3, Zap, Clock, CheckCircle, XCircle, Loader2, Check, X, Network } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useDatasets } from "@/hooks/useDatasets";
-import { useProjectDataSources } from "@/hooks/useDataSources";
+import { useDataSources } from "@/hooks/useDataSources";
 import { useModelEntities } from "@/hooks/useModelEntities";
 import { usePipelines } from "@/hooks/usePipelines";
 import { useAnalyses } from "@/hooks/useAnalysis";
@@ -12,7 +12,9 @@ import { Dataset } from "@/types/data-objects";
 import { DataSource } from "@/types/data-sources";
 import { ModelEntity } from "@/types/model";
 import { Pipeline } from "@/types/pipeline";
-import { AnalysisObjectSmall } from "@/types/analysis";
+import { AnalysisSmall } from "@/types/analysis";
+import { useProject } from "@/hooks/useProject";
+import { DataSourceMini, DatasetMini, AnalysisMini, PipelineMini, ModelEntityMini } from "@/components/entity-mini";
 
 interface RunBoxProps {
   runId: UUID;
@@ -20,7 +22,7 @@ interface RunBoxProps {
   onRunCompleteOrFail?: () => void;
 }
 
-const getRunTheme = (type: 'analysis' | 'swe') => {
+const getRunTheme = (type: 'analysis' | 'swe' | 'extraction') => {
 
 switch (type) {
     case 'analysis':
@@ -44,6 +46,17 @@ switch (type) {
         statusBg: 'bg-[#840B08]/15',
         statusBorder: 'border-[#840B08]/30',
         hover: 'hover:bg-[#840B08]/20 cursor-pointer',
+    };
+    case 'extraction':
+    return {
+        bg: 'bg-[#083884]/10',
+        border: 'border border-[#083884]/30',
+        icon: <Network size={12} />,
+        iconColor: 'text-[#083884]',
+        textColor: 'text-gray-200',
+        statusBg: 'bg-[#083884]/15',
+        statusBorder: 'border-[#083884]/30',
+        hover: 'hover:bg-[#083884]/20 cursor-pointer',
     };
 }
 };
@@ -115,11 +128,12 @@ function RunMessageList({ runId }: { runId: UUID }) {
 
 export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBoxProps) {
   const { run, triggerLaunchRun, triggerRejectRun } = useRun(runId);
-  const { datasets } = useDatasets(projectId);
-  const { dataSources } = useProjectDataSources(projectId);
+  const { datasets, mutateDatasets } = useDatasets(projectId);
+  const { dataSources, mutateDataSources } = useDataSources(projectId);
   const { modelEntities } = useModelEntities(projectId);
   const { pipelines, mutatePipelines } = usePipelines(projectId);
   const { analysisObjects, mutateAnalysisObjects } = useAnalyses(projectId);
+  const { getEntityGraphNode } = useProject(projectId);
   const [isRejecting, setIsRejecting] = useState(false);
   const isPending = run?.status === 'pending';
   const [showMessages, setShowMessages] = useState(isPending);
@@ -143,23 +157,26 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
     return <div>Run not found</div>;
   }
 
-  const theme = getRunTheme(run.type as 'analysis' | 'swe');
+  const theme = getRunTheme(run.type as 'analysis' | 'swe' | 'extraction');
   const statusInfo = getStatusInfo(run.status);
   
-  const hasInputs = run.inputs && (
-    run.inputs.dataSourceIds.length > 0 ||
-    run.inputs.datasetIds.length > 0 ||
-    run.inputs.modelEntityIds.length > 0 ||
-    run.inputs.pipelineIds.length > 0 ||
-    run.inputs.analysisIds.length > 0
-  );
+  // Get run inputs/outputs from entity graph
+  const runNode = getEntityGraphNode(run.id);
   
-  const hasOutputs = run.outputs && (
-    run.outputs.dataSourceIds.length > 0 ||
-    run.outputs.datasetIds.length > 0 ||
-    run.outputs.modelEntityIds.length > 0 ||
-    run.outputs.pipelineIds.length > 0 ||
-    run.outputs.analysisIds.length > 0
+  const hasInputs = runNode && (
+    runNode.fromEntities.dataSources.length > 0 ||
+    runNode.fromEntities.datasets.length > 0 ||
+    runNode.fromEntities.modelEntities.length > 0 ||
+    runNode.fromEntities.pipelines.length > 0 ||
+    runNode.fromEntities.analyses.length > 0
+  );
+
+  const hasOutputs = runNode && (
+    runNode.toEntities.dataSources.length > 0 ||
+    runNode.toEntities.datasets.length > 0 ||
+    runNode.toEntities.modelEntities.length > 0 ||
+    runNode.toEntities.pipelines.length > 0 ||
+    runNode.toEntities.analyses.length > 0
   );
 
 
@@ -178,9 +195,15 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
       else if (run.type === 'analysis') {
         await mutateAnalysisObjects();
       }
+      else if (run.type === 'extraction') {
+        // Extraction runs can create/modify multiple entity types
+        await mutateDataSources();
+        await mutateDatasets();
+        await mutatePipelines();
+        await mutateAnalysisObjects();
+      }
       // // Update ERD
       await mutate("projects");
-      await mutate(["project-graph", projectId]);
 
     }
   };
@@ -248,51 +271,51 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                 <div className="pt-2">
                   <div className="text-[10px] font-medium text-gray-600 mb-1">Inputs:</div>
                   <div className="flex flex-wrap gap-1">
-                    {run.inputs?.dataSourceIds.map((dataSourceId) => (
-                      <div
-                        key={dataSourceId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-gray-200 text-gray-600"
-                      >
-                        <Database size={12} />
-                        {dataSources?.find((ds: DataSource) => ds.id === dataSourceId)?.name || 'Data Source'}
-                      </div>
-                    ))}
-                    {run.inputs?.datasetIds.map((datasetId) => (
-                      <div
-                        key={datasetId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
-                      >
-                        <Folder size={12} />
-                        {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
-                      </div>
-                    ))}
-                    {run.inputs?.modelEntityIds.map((modelEntityId) => (
-                      <div
-                        key={modelEntityId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]"
-                      >
-                        <Brain size={12} />
-                        {modelEntities?.find((me: ModelEntity) => me.id === modelEntityId)?.name || 'Model'}
-                      </div>
-                    ))}
-                    {run.inputs?.pipelineIds.map((pipelineId) => (
-                      <div
-                        key={pipelineId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#840B08]/20 text-[#840B08]"
-                      >
-                        <Zap size={12} />
-                        {pipelines?.find((p: Pipeline) => p.id === pipelineId)?.name || 'Pipeline'}
-                      </div>
-                    ))}
-                    {run.inputs?.analysisIds.map((analysisId) => (
-                      <div
-                        key={analysisId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#004806]/20 text-[#004806]"
-                      >
-                        <BarChart3 size={12} />
-                        {analysisObjects?.find((a: AnalysisObjectSmall) => a.id === analysisId)?.name || 'Analysis'}
-                      </div>
-                    ))}
+                    {runNode?.fromEntities.dataSources.map((dataSourceId) => {
+                      const dataSource = dataSources?.find((ds: DataSource) => ds.id === dataSourceId);
+                      return (
+                        <DataSourceMini
+                          key={dataSourceId}
+                          name={dataSource?.name || 'Data Source'}
+                        />
+                      );
+                    })}
+                    {runNode?.fromEntities.datasets.map((datasetId) => {
+                      const dataset = datasets?.find((ds: Dataset) => ds.id === datasetId);
+                      return (
+                        <DatasetMini
+                          key={datasetId}
+                          name={dataset?.name || 'Dataset'}
+                        />
+                      );
+                    })}
+                    {runNode?.fromEntities.modelEntities.map((modelEntityId) => {
+                      const modelEntity = modelEntities?.find((me: ModelEntity) => me.id === modelEntityId);
+                      return (
+                        <ModelEntityMini
+                          key={modelEntityId}
+                          name={modelEntity?.name || 'Model'}
+                        />
+                      );
+                    })}
+                    {runNode?.fromEntities.pipelines.map((pipelineId) => {
+                      const pipeline = pipelines?.find((p: Pipeline) => p.id === pipelineId);
+                      return (
+                        <PipelineMini
+                          key={pipelineId}
+                          name={pipeline?.name || 'Pipeline'}
+                        />
+                      );
+                    })}
+                    {runNode?.fromEntities.analyses.map((analysisId) => {
+                      const analysis = analysisObjects?.find((a: AnalysisSmall) => a.id === analysisId);
+                      return (
+                        <AnalysisMini
+                          key={analysisId}
+                          name={analysis?.name || 'Analysis'}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -302,51 +325,51 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                 <div className="pt-2">
                   <div className="text-[10px] font-medium text-gray-600 mb-1">Outputs:</div>
                   <div className="flex flex-wrap gap-1">
-                    {run.outputs?.dataSourceIds.map((dataSourceId) => (
-                      <div
-                        key={dataSourceId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-gray-200 text-gray-600"
-                      >
-                        <Database size={12} />
-                        {dataSources?.find((ds: DataSource) => ds.id === dataSourceId)?.name || 'Data Source'}
-                      </div>
-                    ))}
-                    {run.outputs?.datasetIds.map((datasetId) => (
-                      <div
-                        key={datasetId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#0E4F70]/20 text-[#0E4F70]"
-                      >
-                        <Folder size={12} />
-                        {datasets?.find((ds: Dataset) => ds.id === datasetId)?.name || 'Dataset'}
-                      </div>
-                    ))}
-                    {run.outputs?.modelEntityIds.map((modelEntityId) => (
-                      <div
-                        key={modelEntityId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#491A32]/20 text-[#491A32]"
-                      >
-                        <Brain size={12} />
-                        {modelEntities?.find((me: ModelEntity) => me.id === modelEntityId)?.name || 'Model'}
-                      </div>
-                    ))}
-                    {run.outputs?.pipelineIds.map((pipelineId) => (
-                      <div
-                        key={pipelineId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#840B08]/20 text-[#840B08]"
-                      >
-                        <Zap size={12} />
-                        {pipelines?.find((p: Pipeline) => p.id === pipelineId)?.name || 'Pipeline'}
-                      </div>
-                    ))}
-                    {run.outputs?.analysisIds.map((analysisId) => (
-                      <div
-                        key={analysisId}
-                        className="px-2 py-1 text-xs rounded-full flex items-center gap-1 bg-[#004806]/20 text-[#004806]"
-                      >
-                        <BarChart3 size={12} />
-                        {analysisObjects?.find((a: AnalysisObjectSmall) => a.id === analysisId)?.name || 'Analysis'}
-                      </div>
-                    ))}
+                    {runNode?.toEntities.dataSources.map((dataSourceId) => {
+                      const dataSource = dataSources?.find((ds: DataSource) => ds.id === dataSourceId);
+                      return (
+                        <DataSourceMini
+                          key={dataSourceId}
+                          name={dataSource?.name || 'Data Source'}
+                        />
+                      );
+                    })}
+                    {runNode?.toEntities.datasets.map((datasetId) => {
+                      const dataset = datasets?.find((ds: Dataset) => ds.id === datasetId);
+                      return (
+                        <DatasetMini
+                          key={datasetId}
+                          name={dataset?.name || 'Dataset'}
+                        />
+                      );
+                    })}
+                    {runNode?.toEntities.modelEntities.map((modelEntityId) => {
+                      const modelEntity = modelEntities?.find((me: ModelEntity) => me.id === modelEntityId);
+                      return (
+                        <ModelEntityMini
+                          key={modelEntityId}
+                          name={modelEntity?.name || 'Model'}
+                        />
+                      );
+                    })}
+                    {runNode?.toEntities.pipelines.map((pipelineId) => {
+                      const pipeline = pipelines?.find((p: Pipeline) => p.id === pipelineId);
+                      return (
+                        <PipelineMini
+                          key={pipelineId}
+                          name={pipeline?.name || 'Pipeline'}
+                        />
+                      );
+                    })}
+                    {runNode?.toEntities.analyses.map((analysisId) => {
+                      const analysis = analysisObjects?.find((a: AnalysisSmall) => a.id === analysisId);
+                      return (
+                        <AnalysisMini
+                          key={analysisId}
+                          name={analysis?.name || 'Analysis'}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
             )}

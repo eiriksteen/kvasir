@@ -12,6 +12,7 @@ project = Table(
     Column("user_id", UUID(as_uuid=True), ForeignKey(
         "auth.users.id"), nullable=False),
     Column("name", String, nullable=False),
+    Column("python_package_name", String, nullable=False),
     Column("description", String, nullable=False),
     Column("view_port_x", Float, nullable=False, default=0.0),
     Column("view_port_y", Float, nullable=False, default=0.0),

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, FileText, Plus, Trash2, ArrowRight, Info, Calendar } from 'lucide-react';
 import { useAnalysis } from '@/hooks/useAnalysis';
-import { NotebookSection, AnalysisObjectSmall } from '@/types/analysis';
+import { NotebookSection, AnalysisSmall } from '@/types/analysis';
 import SectionItemCreate from '@/components/info-tabs/analysis/SectionItemCreate';
 import { buildOrderedSectionsList, findParentSections } from '@/lib/utils';
 import { UUID } from 'crypto';
@@ -125,8 +125,6 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   onScrollToSection,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  // console.log('analysisObjectId', analysisObjectId);
-  // console.log('projectId', projectId);
   const { currentAnalysisObject: analysis, deleteAnalysisObject } = useAnalysis(projectId, analysisObjectId);
   const [showCreateRootSection, setShowCreateRootSection] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -459,7 +457,8 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
         <GenerateReportPopup
           isOpen={showGenerateReportPopup}
           onClose={() => setShowGenerateReportPopup(false)}
-          analysis={analysis as AnalysisObjectSmall}
+          analysis={analysis as AnalysisSmall}
+          projectId={projectId}
         />
       )}
     </div>

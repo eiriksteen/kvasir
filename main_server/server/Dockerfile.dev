@@ -4,8 +4,6 @@ WORKDIR /app
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-COPY data_interface /app/data_interface
-
 COPY schemas /app/schemas
 
 # Copy the api project files
@@ -13,7 +11,6 @@ COPY main_server/server /app
 
 # Install synesis data structures package from source and the main package
 RUN pip install --upgrade pip && \
-    pip install -e /app/data_interface && \
     pip install -e /app/schemas && \
     pip install -e .
 

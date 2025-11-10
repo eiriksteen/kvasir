@@ -7,7 +7,7 @@ import { useAgentContext } from '@/hooks/useAgentContext';
 interface ModelEntityBoxProps {
   modelEntityId: UUID;
   projectId: UUID;
-  openTab: (id: UUID | null, closable?: boolean) => void;
+  openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void;
 }
 
 export default function ModelEntityBox({ modelEntityId, projectId, openTab }: ModelEntityBoxProps) {
@@ -40,7 +40,7 @@ export default function ModelEntityBox({ modelEntityId, projectId, openTab }: Mo
 
   return (
   <div
-    className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[220px] cursor-pointer hover:bg-[#491A32]/10 hover:border-[#491A32] ${
+    className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[240px] cursor-pointer hover:bg-[#491A32]/10 hover:border-[#491A32] ${
       isInContext 
         ? 'border-[#491A32] bg-[#491A32]/10 ring-2 ring-[#491A32]/30' 
         : 'border-[#491A32]'
@@ -55,7 +55,7 @@ export default function ModelEntityBox({ modelEntityId, projectId, openTab }: Mo
         <div className="text-[#491A32] font-mono text-xs">Model</div>
       </div>
       <div>
-        <div className="text-xs font-mono text-gray-800 truncate">{modelEntity.name}</div>
+        <div className="text-xs font-mono text-gray-800 break-words">{modelEntity.name}</div>
       </div>
       </div>
     </div>

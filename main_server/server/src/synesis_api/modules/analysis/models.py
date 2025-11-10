@@ -1,10 +1,8 @@
 import uuid
-from sqlalchemy import Column, String, ForeignKey, Table, UUID, Float, JSON
-from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean
-
+from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean, JSON
 
 from synesis_api.database.core import metadata
-from synesis_api.database.core import metadata
+
 
 analysis = Table(
     "analysis",
@@ -24,6 +22,7 @@ analysis = Table(
     schema="analysis",
 )
 
+
 notebook = Table(
     "notebook",
     metadata,
@@ -32,6 +31,7 @@ notebook = Table(
            default=uuid.uuid4),
     schema="analysis",
 )
+
 
 notebook_section = Table(
     "notebook_section",
@@ -52,6 +52,7 @@ notebook_section = Table(
            nullable=True),
     schema="analysis",
 )
+
 
 analysis_status_message = Table(
     "analysis_status_message",
@@ -80,8 +81,6 @@ analysis_result = Table(
            default=uuid.uuid4),
     Column("analysis", String, nullable=False),
     Column("python_code", String, nullable=True),
-    Column("output_variable", String, nullable=True),
-    Column("input_variable", String, nullable=True),
     Column("section_id", UUID(as_uuid=True), ForeignKey(
         "analysis.notebook_section.id"), nullable=True,),
     # 'analysis_result' or 'notebook_section'
@@ -91,88 +90,39 @@ analysis_result = Table(
 )
 
 
-dataset_in_analysis = Table(
-    "dataset_in_analysis",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           primary_key=True,
-           default=uuid.uuid4),
-    Column("analysis_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis.id"),
-           nullable=False),
-    Column("dataset_id", UUID(as_uuid=True),
-           ForeignKey("data_objects.dataset.id"),
-           nullable=False),
-    schema="analysis",
-)
-
-
-data_source_in_analysis = Table(
-    "data_source_in_analysis",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           primary_key=True,
-           default=uuid.uuid4),
-    Column("analysis_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis.id"),
-           nullable=False),
-    Column("data_source_id", UUID(as_uuid=True),
-           ForeignKey("data_sources.data_source.id"),
-           nullable=False),
-    schema="analysis",
-)
-
-
-model_entity_in_analysis = Table(
-    "model_entity_in_analysis",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           primary_key=True,
-           default=uuid.uuid4),
-    Column("analysis_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis.id"),
-           nullable=False),
-    Column("model_entity_id", UUID(as_uuid=True),
-           ForeignKey("model.model_entity.id"),
-           nullable=False),
-    schema="analysis",
-)
-
-
-analysis_from_past_analysis = Table(
-    "analysis_from_past_analysis",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           primary_key=True,
-           default=uuid.uuid4),
-    Column("analysis_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis.id"),
-           nullable=False),
-    Column("past_analysis_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis.id"),
-           nullable=False),
-    schema="analysis",
-)
-
-
-plot = Table(
-    'plot',
+result_image = Table(
+    'result_image',
     metadata,
     Column('id', UUID, primary_key=True, default=uuid.uuid4),
     Column('analysis_result_id', UUID, ForeignKey(
         'analysis.analysis_result.id'), nullable=False),
-#     Column('plot_config', JSON, nullable=False), # TODO: uncomment this when we change to echarts.
-    Column('plot_url', String, nullable=False),
+    #     Column('plot_config', JSON, nullable=False), # TODO: uncomment this when we change to echarts.
+    Column('image_id', UUID, ForeignKey(
+        'visualization.image.id'), nullable=False),
     schema='analysis',
 )
 
 
-table = Table(
-    'table',
+result_echart = Table(
+    'result_echart',
     metadata,
     Column('id', UUID, primary_key=True, default=uuid.uuid4),
     Column('analysis_result_id', UUID, ForeignKey(
         'analysis.analysis_result.id'), nullable=False),
-    Column('table_config', JSON, nullable=False),
+    Column("echart_id", UUID, ForeignKey(
+        'visualization.echart.id'), nullable=False),
+    schema='analysis',
+)
+
+
+result_table = Table(
+    'result_table',
+    metadata,
+    Column('id', UUID, primary_key=True, default=uuid.uuid4),
+    Column('analysis_result_id', UUID, ForeignKey(
+        'analysis.analysis_result.id'), nullable=False),
+    # Stores project server path to the parquet file of the dataframe corresponding to the table
+    Column('table_id', UUID, ForeignKey(
+        'visualization.table.id'), nullable=False),
     schema='analysis',
 )

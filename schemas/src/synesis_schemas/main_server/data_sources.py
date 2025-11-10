@@ -1,53 +1,32 @@
 from uuid import UUID
 from datetime import datetime
-from typing import List, Union, Literal, Optional, Dict, Any
-from pydantic import BaseModel
+from typing import List, Union, Literal, Optional, Dict, Any, Type
+from pydantic import BaseModel, field_validator
+from pathlib import Path
 
 
-DATA_SOURCE_TYPE_LITERAL = Literal["tabular_file", "key_value_file"]
+DATA_SOURCE_TYPE_LITERAL = Literal["file"]
 
 
 # DB Models
+
 
 class DataSourceInDB(BaseModel):
     id: UUID
     user_id: UUID
     type: DATA_SOURCE_TYPE_LITERAL
     name: str
+    description: str
+    additional_variables: Optional[Dict[str, Any]] = None
     created_at: datetime
 
 
-class TabularFileDataSourceInDB(BaseModel):
+class FileDataSourceInDB(BaseModel):
     id: UUID
     file_name: str
     file_path: str
     file_type: str
     file_size_bytes: int
-    num_rows: int
-    num_columns: int
-    json_schema: Dict[str, Any]
-    created_at: datetime
-    updated_at: datetime
-    content_preview: str
-
-
-class KeyValueFileDataSourceInDB(BaseModel):
-    id: UUID
-    file_name: str
-    file_path: str
-    file_type: str
-    file_size_bytes: int
-    created_at: datetime
-    updated_at: datetime
-
-
-class DataSourceAnalysisInDB(BaseModel):
-    id: UUID
-    data_source_id: UUID
-    content_description: str
-    quality_description: str
-    eda_summary: str
-    cautions: str
     created_at: datetime
     updated_at: datetime
 
@@ -55,14 +34,10 @@ class DataSourceAnalysisInDB(BaseModel):
 # API Models
 
 
-# We include data source in db for the cases where the analysis agent hasn't yet finished the analysis to create the full data source object
-# DataSource = Union[DataSourceInDB, TabularFileDataSource]
-
 class DataSource(DataSourceInDB):
-    # Add more possibilities here, and todo make non-optional
-    type_fields: Union[TabularFileDataSourceInDB, KeyValueFileDataSourceInDB]
-    analysis: Optional[DataSourceAnalysisInDB] = None
-    description_for_agent: str
+    # Add more possibilities here
+    # Optional until agent has filled it (we want the data source to show up right away so we allow it to be null until then)
+    type_fields: Optional[Union[FileDataSourceInDB]] = None
 
 
 class GetDataSourcesByIDsRequest(BaseModel):
@@ -72,29 +47,85 @@ class GetDataSourcesByIDsRequest(BaseModel):
 # Create models
 
 
-class TabularFileDataSourceCreate(BaseModel):
+class UnknownFileCreate(BaseModel):
+    """"
+    This is for file types not covered by the other file create schemas. 
+    It is for any type we haven't added yet. 
+    NB: The file path must be an absolute path!
+    """
     name: str
     file_name: str
     file_path: str
     file_type: str
     file_size_bytes: int
-    json_schema: Dict[str, Any]
+
+    @field_validator('file_path')
+    @classmethod
+    def validate_absolute_path(cls, v):
+        if not Path(v).is_absolute():
+            raise ValueError('file_path must be an absolute path')
+        return v
+
+    class Config:
+        extra = "allow"
+
+
+class TabularFileCreate(UnknownFileCreate):
+    """"
+    This is for tabular files, including csv, parquet, excel, etc. 
+    """
+    json_schema: str
+    pandas_df_info: str
+    pandas_df_head: str
     num_rows: int
     num_columns: int
-    content_preview: str
+    missing_fraction_per_column: str
+    iqr_anomalies_fraction_per_column: str
+
+    class Config:
+        extra = "allow"
 
 
-class KeyValueFileDataSourceCreate(BaseModel):
+class DataSourceCreate(BaseModel):
+    """"
+    Create a data source. 
+    The name should reflect the actual source, for example files should be the file name including the extension.
+    """
     name: str
-    file_name: str
-    file_path: str
-    file_type: str
-    file_size_bytes: int
+    description: str
+    type: DATA_SOURCE_TYPE_LITERAL
+    type_fields: Union[UnknownFileCreate, TabularFileCreate]
+    # In addition to general extra info, this can be used to store info about "wildcard" sources that we don't have dedicated tables for
+    # We don't need to create fill the tables below
+
+    class Config:
+        extra = "allow"
 
 
-class DataSourceAnalysisCreate(BaseModel):
-    data_source_id: UUID
-    content_description: str
-    quality_description: str
-    eda_summary: str
-    cautions: str
+# Helpers
+# Used to let the agent know the schemas it's data sources must abide by
+
+
+class DataSourcesInDBInfo(BaseModel):
+    in_db_model: Type[BaseModel]
+    create_model: Type[BaseModel]
+    in_db_table_name: str
+
+
+def get_data_sources_in_db_info(type: DATA_SOURCE_TYPE_LITERAL, subtype: Optional[Literal["tabular"]] = None) -> DataSourcesInDBInfo:
+    if type == "file":
+        if subtype == "tabular":
+            return DataSourcesInDBInfo(
+                in_db_model=FileDataSourceInDB,
+                # We specify some extra fields to add to additional_variables
+                create_model=TabularFileCreate,
+                in_db_table_name="file_data_source"
+            )
+        else:
+            return DataSourcesInDBInfo(
+                in_db_model=FileDataSourceInDB,
+                create_model=UnknownFileCreate,
+                in_db_table_name="file_data_source"
+            )
+    else:
+        raise ValueError(f"Invalid data source type: {type}")

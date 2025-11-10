@@ -1,13 +1,15 @@
-import { Brain, FileCode, Info, Settings, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Brain, FileCode, Info, Settings, ArrowLeft, ArrowRight, Trash2, FileText } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { UUID } from 'crypto';
-import { useModelEntity } from '@/hooks/useModelEntities';
-import CodeImplementation from '@/components/code/CodeImplementation';
+import { useModelEntity, useModelEntities } from '@/hooks/useModelEntities';
+import ConfirmationPopup from '@/components/ConfirmationPopup';
+import JsonSchemaViewer from '@/components/JsonSchemaViewer';
 
 interface ModelInfoTabProps {
   modelEntityId: UUID;
   projectId: UUID;
   onClose: () => void;
+  onDelete?: () => void;
 }
 
 type ViewType = 'overview' | 'code';
@@ -15,11 +17,24 @@ type ViewType = 'overview' | 'code';
 export default function ModelInfoTab({
   modelEntityId,
   projectId,
-  onClose
+  onClose,
+  onDelete
 }: ModelInfoTabProps) {
 
   const { modelEntity } = useModelEntity(projectId, modelEntityId);
+  const { deleteModelEntity } = useModelEntities(projectId);
   const [currentView, setCurrentView] = useState<ViewType>('overview');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      await deleteModelEntity({ modelEntityId });
+      onDelete?.();
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete model entity:', error);
+    }
+  };
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -50,7 +65,8 @@ export default function ModelInfoTab({
   return (
     <div className="w-full h-full bg-white overflow-hidden flex flex-col">
       {/* Top Buttons */}
-      <div className="flex gap-2 px-4 py-4">
+      <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex gap-2">
         <button
           onClick={() => setCurrentView('overview')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
@@ -74,13 +90,24 @@ export default function ModelInfoTab({
             <span className="text-sm font-medium">Code</span>
           </button>
         )}
+        </div>
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          className="p-2 text-red-800 hover:bg-red-100 rounded-lg transition-colors"
+          title="Delete model entity"
+        >
+          <Trash2 size={18} />
+        </button>
       </div>
 
       {/* Content Area */}
       <div className="flex-1 min-h-0 overflow-hidden">
         {currentView === 'code' && modelEntity?.implementation ? (
           <div className="h-full">
-            <CodeImplementation scriptId={modelEntity.implementation.modelImplementation.implementationScript?.id || undefined} />
+            {/* Note: implementationScriptPath is now a string path, not a UUID. Code view not available. */}
+            <div className="flex items-center justify-center h-full">
+              <p className="text-gray-500 text-sm">Code view not available - implementation uses script path instead of script ID</p>
+            </div>
           </div>
         ) : (
           <div className="h-full overflow-y-auto pl-4 pr-4 pb-4 space-y-4">
@@ -106,6 +133,19 @@ export default function ModelInfoTab({
               </div>
             ) : (
               <>
+                {/* Config Schema */}
+                {modelEntity.implementation?.modelImplementation?.configSchema && Object.keys(modelEntity.implementation.modelImplementation.configSchema).length > 0 && (
+                  <div className="bg-gray-50 rounded-xl p-4 flex flex-col min-h-0">
+                    <JsonSchemaViewer
+                      schema={modelEntity.implementation.modelImplementation.configSchema}
+                      title="Configuration Schema"
+                      icon={FileText}
+                      iconColor="#491A32"
+                      className="flex-1 min-h-0"
+                    />
+                  </div>
+                )}
+
                 {/* Configuration */}
                 <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                   <div className="flex items-center gap-3">
@@ -140,21 +180,7 @@ export default function ModelInfoTab({
                       <h3 className="text-sm font-semibold text-gray-900">Inputs</h3>
                     </div>
                     <div className="overflow-y-auto pr-2 space-y-3">
-                      {modelEntity.implementation?.modelImplementation?.inferenceFunction?.inputObjectGroups?.length > 0 ? (
-                        modelEntity.implementation.modelImplementation.inferenceFunction.inputObjectGroups.map((input) => (
-                          <div key={input.id} className="border-l-2 border-[#491A32]/30 pl-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-gray-900">{input.name}</span>
-                            </div>
-                            <p className="text-xs text-gray-600 font-mono mb-1">{input.structureId}</p>
-                            {input.description && (
-                              <p className="text-xs text-gray-600">{input.description}</p>
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-gray-400 italic">No inputs defined</p>
-                      )}
+                      <p className="text-sm text-gray-400 italic">Inputs/outputs information not available</p>
                     </div>
                   </div>
 
@@ -166,21 +192,7 @@ export default function ModelInfoTab({
                       <h3 className="text-sm font-semibold text-gray-900">Outputs</h3>
                     </div>
                     <div className="overflow-y-auto pr-2 space-y-3">
-                      {modelEntity.implementation?.modelImplementation?.inferenceFunction?.outputObjectGroups?.length > 0 ? (
-                        modelEntity.implementation.modelImplementation.inferenceFunction.outputObjectGroups.map((output) => (
-                          <div key={output.id} className="border-l-2 border-[#491A32]/30 pl-3">
-                            {output.name && (
-                              <span className="text-sm font-semibold text-gray-900">{output.name}</span>
-                            )}
-                            <p className="text-xs text-gray-600 font-mono mb-1">{output.structureId}</p>
-                            {output.description && (
-                              <p className="text-xs text-gray-600">{output.description}</p>
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-gray-400 italic">No outputs defined</p>
-                      )}
+                      <p className="text-sm text-gray-400 italic">Inputs/outputs information not available</p>
                     </div>
                   </div>
                 </div>
@@ -190,6 +202,13 @@ export default function ModelInfoTab({
           </div>
         )}
       </div>
+      
+      <ConfirmationPopup
+        message={`Are you sure you want to delete "${modelEntity.name}"? This will permanently delete the model entity and all its implementations. This action cannot be undone.`}
+        isOpen={showDeleteConfirm}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Database, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useProjects, useProject } from '@/hooks';
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
@@ -133,13 +133,13 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 								</div>
 							)}
 						</div>
-						<Link 
+						{/* <Link 
 							href="/data-sources"
 							className="p-2 rounded-lg hover:bg-[#000034] transition-colors duration-200 text-[#000034] hover:text-gray-200"
 							title="Manage Data Sources"
 						>
 							<Database size={18} />
-						</Link>
+						</Link> */}
 					</div>
 				</div>
 			</div>

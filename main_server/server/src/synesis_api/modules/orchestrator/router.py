@@ -15,11 +15,11 @@ from synesis_schemas.main_server import (
     ConversationInDB,
     ConversationCreate,
     User,
-    Implementation,
     ImplementationApprovalResponse,
     # ContextCreate,
     # ContextInDB,
 )
+from synesis_schemas.project_server import ImplementationSummary
 from synesis_api.modules.orchestrator.service import (
     create_conversation,
     get_chat_messages_pydantic,
@@ -32,7 +32,7 @@ from synesis_api.modules.orchestrator.service import (
     get_conversation_by_id,
     update_conversation_name,
     get_run_status_message,
-    get_project_graph_message
+    get_project_description_message
 )
 from synesis_api.modules.orchestrator.agent import orchestrator_agent, orchestrator_toolset
 from synesis_api.auth.service import get_current_user, user_owns_conversation
@@ -63,7 +63,7 @@ async def post_chat(
 
     messages = await get_chat_messages_pydantic(prompt.conversation_id)
     context_message = await get_context_message(user.id, prompt.context)
-    project_graph_message = await get_project_graph_message(user.id, conversation_record.project_id)
+    project_graph_message = await get_project_description_message(user.id, conversation_record.project_id)
     runs_status_message = await get_run_status_message(user.id, prompt.conversation_id)
 
     is_new_conversation = len(messages) == 0
@@ -278,19 +278,22 @@ async def create_chat_message_pydantic_endpoint(
 
 @router.post("/swe-result-approval-request", response_model=ImplementationApprovalResponse)
 async def submit_swe_result_approval_request(
-        swe_result: Implementation,
+        implementation_summary: ImplementationSummary,
         user: Annotated[User, Depends(get_current_user)] = None) -> ImplementationApprovalResponse:
 
-    if not await user_owns_conversation(user.id, swe_result.conversation_id):
+    if not await user_owns_conversation(user.id, implementation_summary.conversation_id):
         raise HTTPException(
             status_code=403, detail="You do not have access to this conversation")
 
+    messages = await get_chat_messages_pydantic(implementation_summary.conversation_id)
+
     approval_response = await orchestrator_agent.run(
         "The software engineer agent has submitted a solution.\n" +
-        f"Its result is:\n\n{swe_result.model_dump_json()}\n\n " +
+        f"Its result is:\n\n{implementation_summary.model_dump_json()}\n\n " +
         "Decide whether to accept it, or reject it with feedback on what to fix before the solution is approved. " +
         "Just reject or approve the implementation with feedback. Do not worry about adding the entity to the project, it will be done automatically after approval.",
-        output_type=ImplementationApprovalResponse
+        output_type=ImplementationApprovalResponse,
+        message_history=messages
     )
 
     return approval_response.output

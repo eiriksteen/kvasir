@@ -1,7 +1,10 @@
+from re import U
 from uuid import UUID
 from datetime import datetime, timezone
-from typing import List, Literal
+from typing import List, Literal, Dict, Any
 from pydantic import BaseModel, model_validator
+
+from synesis_schemas.main_server.visualization import EchartCreate, TableCreate, ImageCreate
 
 
 # API schemas
@@ -9,13 +12,13 @@ class AnalysisResult(BaseModel):
     id: UUID
     analysis: str
     python_code: str | None = None
-    input_variable: str | None = None
-    output_variable: str | None = None
     next_type: Literal['analysis_result', 'notebook_section'] | None = None
     next_id: UUID | None = None
     section_id: UUID | None = None
-    plot_urls: List[str] = []
-
+    # We do individual get requests for these below
+    image_ids: List[UUID] = []
+    echart_ids: List[UUID] = []
+    table_ids: List[UUID] = []
 
 
 class NotebookSection(BaseModel):
@@ -35,26 +38,16 @@ class Notebook(BaseModel):
     notebook_sections: List[NotebookSection] = []
 
 
-class AnalysisInputEntities(BaseModel):
-    dataset_ids: List[UUID] = []
-    data_source_ids: List[UUID] = []
-    model_entity_ids: List[UUID] = []
-    analysis_ids: List[UUID] = []
-
-
 class AnalysisSmall(BaseModel):
     id: UUID
     name: str
     description: str | None = None
     report_generated: bool = False
     created_at: datetime = datetime.now()
-    inputs: AnalysisInputEntities
 
 
 class Analysis(AnalysisSmall):
     notebook: Notebook
-    inputs: AnalysisInputEntities
-    description_for_agent: str
 
 
 class AnalysisStatusMessage(BaseModel):
@@ -71,6 +64,13 @@ class AnalysisStatusMessage(BaseModel):
         return self
 
 
+class ResultTable(BaseModel):
+    id: UUID
+    analysis_result_id: UUID
+    data: Dict[str, Any]
+    index_column: str
+
+
 class GetAnalysesByIDsRequest(BaseModel):
     analysis_ids: List[UUID]
 
@@ -85,6 +85,24 @@ class AnalysisInDB(BaseModel):
     created_at: datetime = datetime.now()
     user_id: UUID
     notebook_id: UUID
+
+
+class ResultImageInDB(BaseModel):
+    id: UUID
+    analysis_result_id: UUID
+    image_id: UUID
+
+
+class ResultEChartInDB(BaseModel):
+    id: UUID
+    analysis_result_id: UUID
+    echart_id: UUID
+
+
+class ResultTableInDB(BaseModel):
+    id: UUID
+    analysis_result_id: UUID
+    table_id: UUID
 
 
 class NotebookInDB(BaseModel):
@@ -105,31 +123,10 @@ class AnalysisResultInDB(BaseModel):
     id: UUID
     analysis: str
     python_code: str | None = None
-    input_variable: str | None = None
-    output_variable: str | None = None
     next_type: Literal['analysis_result', 'notebook_section'] | None = None
     next_id: UUID | None = None
     section_id: UUID | None = None
 
-
-class DatasetInAnalysisInDB(BaseModel):
-    analysis_id: UUID
-    dataset_id: UUID
-
-
-class DataSourceInAnalysisInDB(BaseModel):
-    analysis_id: UUID
-    data_source_id: UUID
-
-
-class ModelEntityInAnalysisInDB(BaseModel):
-    analysis_id: UUID
-    model_entity_id: UUID
-
-
-class AnalysisFromPastAnalysisInDB(BaseModel):
-    analysis_id: UUID
-    past_analysis_id: UUID
 
 # Other schemas
 
@@ -137,10 +134,6 @@ class AnalysisFromPastAnalysisInDB(BaseModel):
 class AnalysisCreate(BaseModel):
     name: str
     description: str | None = None
-    input_data_source_ids: List[UUID]
-    input_dataset_ids: List[UUID]
-    input_model_entity_ids: List[UUID]
-    input_analysis_ids: List[UUID]
 
 
 class AnalysisResultUpdate(BaseModel):
@@ -176,3 +169,10 @@ class MoveRequest(BaseModel):
 
 class AnalysisResultFindRequest(BaseModel):
     analysis_result_ids: List[UUID]
+
+
+class AnalysisResultVisualizationCreate(BaseModel):
+    analysis_result_id: UUID
+    echart_creates: List[EchartCreate]
+    table_creates: List[TableCreate]
+    image_creates: List[ImageCreate]

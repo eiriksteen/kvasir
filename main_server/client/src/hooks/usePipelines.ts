@@ -1,7 +1,7 @@
 import useSWR, { mutate } from "swr";
 import { useSession } from "next-auth/react";
 import { Pipeline, PipelineRunInDB } from "@/types/pipeline";
-import { snakeToCamelKeys } from "@/lib/utils";
+import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
 import { UUID } from "crypto";
 import useSWRSubscription from "swr/subscription";
 import useSWRMutation from "swr/mutation";
@@ -61,14 +61,28 @@ function createPipelineRunsEventSource(token: string): SSE {
 }
 
 
-async function runPipeline(token: string, pipelineId: UUID, projectId: UUID): Promise<PipelineRunInDB> {
+async function runPipeline(
+  token: string,
+  request: {
+    pipelineId: UUID;
+    projectId: UUID;
+    args: Record<string, unknown>;
+    inputs: {
+      dataSourceIds: UUID[];
+      datasetIds: UUID[];
+      modelEntityIds: UUID[];
+    };
+    name?: string;
+    description?: string;
+  }
+): Promise<PipelineRunInDB> {
   const response = await fetch(`${API_URL}/pipeline/run-pipeline`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ pipeline_id: pipelineId, project_id: projectId }),
+    body: JSON.stringify(camelToSnakeKeys(request)),
   });
 
   if (!response.ok) {
@@ -79,6 +93,22 @@ async function runPipeline(token: string, pipelineId: UUID, projectId: UUID): Pr
 
   const data = await response.json();
   return snakeToCamelKeys(data);
+}
+
+async function deletePipelineEndpoint(token: string, pipelineId: UUID): Promise<void> {
+  const response = await fetch(`${API_URL}/deletion/pipeline/${pipelineId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to delete pipeline', errorText);
+    throw new Error(`Failed to delete pipeline: ${response.status} ${errorText}`);
+  }
 }
 
 export const usePipelines = (projectId: UUID) => {
@@ -98,7 +128,18 @@ export const usePipelines = (projectId: UUID) => {
 
   const { trigger: triggerRunPipeline } = useSWRMutation(
     session ? ["pipelineRuns", projectId] : null,
-     (_, { arg }: { arg: {projectId: UUID, pipelineId: UUID} }) => runPipeline(session ? session.APIToken.accessToken : "", arg.pipelineId, arg.projectId),
+     (_, { arg }: { arg: {
+       pipelineId: UUID;
+       projectId: UUID;
+       args: Record<string, unknown>;
+       inputs: {
+         dataSourceIds: UUID[];
+         datasetIds: UUID[];
+         modelEntityIds: UUID[];
+       };
+       name?: string;
+       description?: string;
+     } }) => runPipeline(session ? session.APIToken.accessToken : "", arg),
     {
       populateCache: (newPipelineRun) => {
         if (pipelineRuns) {
@@ -107,6 +148,15 @@ export const usePipelines = (projectId: UUID) => {
         return [newPipelineRun];
       },
       revalidate: false
+    }
+  );
+
+  const { trigger: deletePipeline } = useSWRMutation(
+    session ? ["pipelines", projectId] : null,
+    async (_, { arg }: { arg: { pipelineId: UUID } }) => {
+      await deletePipelineEndpoint(session ? session.APIToken.accessToken : "", arg.pipelineId);
+      await mutatePipelines();
+      await mutate(["projects"]);
     }
   );
 
@@ -144,7 +194,6 @@ export const usePipelines = (projectId: UUID) => {
               await mutate(["datasets", projectId]);
               await mutate(["model-entities", projectId])
               await mutate("projects");
-              await mutate(["project-graph", projectId]);
             }
 
             return updatedRuns;
@@ -169,6 +218,7 @@ export const usePipelines = (projectId: UUID) => {
     mutatePipelines,
     isLoading,
     isError: error,
+    deletePipeline,
   };
 }; 
 
@@ -180,8 +230,21 @@ export const usePipeline = (pipelineId: UUID, projectId: UUID) => {
     return pipelines?.find((pipeline: Pipeline) => pipeline.id === pipelineId);
   }, [pipelines, pipelineId]);
 
-  const triggerRunPipeline = useCallback(() => {
-    runPipeline({pipelineId: pipelineId, projectId: projectId});
+  const triggerRunPipeline = useCallback((config: {
+    args: Record<string, unknown>;
+    inputs: {
+      dataSourceIds: UUID[];
+      datasetIds: UUID[];
+      modelEntityIds: UUID[];
+    };
+    name?: string;
+    description?: string;
+  }) => {
+    runPipeline({
+      pipelineId: pipelineId,
+      projectId: projectId,
+      ...config
+    });
   }, [projectId, pipelineId, runPipeline]);
 
   const pipelineRuns_ = useMemo(() => {

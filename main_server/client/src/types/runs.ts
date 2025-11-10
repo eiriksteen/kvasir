@@ -1,11 +1,13 @@
 import { UUID } from "crypto";
 
+export type RunType = "swe" | "analysis" | "extraction";
+
 // DB Models
 
 export interface RunInDB {
   id: UUID;
   userId: UUID;
-  type: "swe" | "analysis";
+  type: RunType;
   status: "pending" | "running" | "completed" | "failed" | "rejected";
   runName: string;
   projectId?: UUID | null;
@@ -26,27 +28,102 @@ export interface RunMessageInDB {
   createdAt: string;
 }
 
-export interface RunCodeMessageInDB {
+export interface RunPydanticMessageInDB {
   id: UUID;
-  code: string;
-  filename: string;
-  output: string | null;
-  error: string | null;
+  runId: UUID;
+  messageList: Uint8Array; // bytes in Python
   createdAt: string;
 }
 
-
-// API Models
-
-export interface RunEntityIds {
-  dataSourceIds: UUID[];
-  datasetIds: UUID[];
-  modelEntityIds: UUID[];
-  pipelineIds: UUID[];
-  analysisIds: UUID[];
+export interface DataSourceInRunInDB {
+  runId: UUID;
+  dataSourceId: UUID;
+  createdAt: string;
 }
 
-export interface Run extends RunInDB {
-  inputs?: RunEntityIds | null;
-  outputs?: RunEntityIds | null;
+export interface DatasetInRunInDB {
+  runId: UUID;
+  datasetId: UUID;
+  createdAt: string;
+}
+
+export interface ModelEntityInRunInDB {
+  runId: UUID;
+  modelEntityId: UUID;
+  createdAt: string;
+}
+
+export interface PipelineInRunInDB {
+  runId: UUID;
+  pipelineId: UUID;
+  createdAt: string;
+}
+
+export interface AnalysisInRunInDB {
+  runId: UUID;
+  analysisId: UUID;
+  createdAt: string;
+}
+
+export interface AnalysisFromRunInDB {
+  runId: UUID;
+  analysisId: UUID;
+  createdAt: string;
+}
+
+export interface PipelineFromRunInDB {
+  runId: UUID;
+  pipelineId: UUID;
+  createdAt: string;
+}
+
+// API Models
+// Run inputs/outputs are accessed through the entity graph via getEntityGraphNode(runId)
+
+export interface StreamedCode {
+  code: string;
+  filename: string;
+  target: "redis" | "taskiq" | "both";
+  output: string;
+  error: string;
+  createdAt: string;
+}
+
+// Create Models
+
+export interface RunCreate {
+  type: RunType;
+  initialStatus: "pending" | "running" | "completed" | "failed";
+  runName: string;
+  planAndDeliverableDescriptionForUser: string;
+  planAndDeliverableDescriptionForAgent: string;
+  questionsForUser?: string | null;
+  configurationDefaultsDescription?: string | null;
+  targetEntityId?: UUID | null;
+  projectId?: UUID | null;
+  conversationId?: UUID | null;
+  dataSourcesInRun: UUID[];
+  datasetsInRun: UUID[];
+  modelEntitiesInRun: UUID[];
+  pipelinesInRun: UUID[];
+  analysesInRun: UUID[];
+}
+
+export interface RunMessageCreate {
+  type: "tool_call" | "result" | "error";
+  content: string;
+  runId: UUID;
+}
+
+export interface RunMessageCreatePydantic {
+  content: Uint8Array; // bytes in Python
+  runId: UUID;
+}
+
+// Update Models
+
+export interface RunStatusUpdate {
+  runId: UUID;
+  status: "running" | "completed" | "failed" | "rejected";
+  summary?: string | null;
 }

@@ -4,14 +4,14 @@ import React from 'react';
 import { Brain, BarChart3, Zap, Folder, Database } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { Pipeline } from '@/types/pipeline';
-import { AnalysisObjectSmall } from '@/types/analysis';
+import { AnalysisSmall } from '@/types/analysis';
 import { ModelEntity } from '@/types/model';
 import { DataSource } from '@/types/data-sources';
 
 type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'model_entity' | 'data_source';
 
 interface EntityItemProps {
-    item: Dataset | AnalysisObjectSmall | Pipeline | ModelEntity | DataSource;
+    item: Dataset | AnalysisSmall | Pipeline | ModelEntity | DataSource;
     type: ItemType;
     isInContext: boolean;
     onClick: () => void;
@@ -79,7 +79,7 @@ export default function EntityItem({ item, type, isInContext, onClick, onOpenTab
     return (
         <div
             onClick={handleClick}
-            className={`group relative flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer transition-all duration-150 ${theme.bg} ${theme.hover}`}
+            className={`group relative flex items-center gap-2 px-3 py-1 text-sm cursor-pointer transition-all duration-150 ${theme.bg} ${theme.hover}`}
         >
             <div className={`flex-shrink-0 ${theme.iconColor}`}>
                 {theme.icon}
