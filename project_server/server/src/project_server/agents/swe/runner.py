@@ -3,8 +3,10 @@ from pathlib import Path
 from typing import Optional, List
 
 from project_server.agents.swe.agent import swe_agent
+# from project_server.utils.agent_utils import get_folder_structure_description
 from project_server.agents.swe.deps import SWEAgentDeps
 from project_server.agents.swe.output import submit_implementation_output
+from project_server.agents.extraction.runner import ExtractionAgentRunner
 from project_server.client import get_project
 from project_server.agents.runner_base import RunnerBase
 from project_server.worker import broker
@@ -13,7 +15,8 @@ from project_server.utils.docker_utils import (
     remove_from_container,
     rename_in_container
 )
-from project_server.agents.extraction.runner import ExtractionAgentRunner
+# from project_server.agents.extraction.runner import ExtractionAgentRunner
+# from project_server.agents.extraction.tools import extraction_toolset
 from synesis_schemas.project_server import RunSWERequest, ImplementationSummary
 
 
@@ -70,36 +73,41 @@ class SWEAgentRunner(RunnerBase):
             await self._prepare_deps()
             await self._setup_project_container()
             await self._create_run_if_not_exists()
-            # await self._setup_container()
-
-            swe_prompt = (
-                f"Your instruction is:\n\n'{prompt_content}'\n\n" +
-                "Go!"
-            )
 
             run_result = await self._run_agent(
-                swe_prompt,
-                output_type=[
-                    # TODO: Add setup, will need to spin up extra container in this case
-                    # submit_setup_output,
-                    submit_implementation_output
-                ],
+                prompt_content,
+                output_type=submit_implementation_output,
                 deps=self.deps
             )
 
-            if self.log:
-                await self._log_message(
-                    content=f"Implementation result: {run_result.output.model_dump_json()}",
-                    type="result"
-                )
-
-            extraction_prompt = (
-                f"The SWE agent just completed a run to create a pipeline with the ID: {self.target_pipeline_id} " +
-                "Scan the codebase to update the project graph. Add any new entities, remove any no longer relevant, add new edges between entities, or remove any edges that are no longer relevant. Ensure the graph accurately represents the current state of the project."
+            await self._log_message(
+                content=f"Implementation completed, now extracting entities",
+                type="result"
             )
 
-            await self.extraction_runner(prompt_content=extraction_prompt)
-            await self._complete_agent_run("SWE agent run completed")
+            extraction_prompt = (
+                f"The SWE agent just completed a run to create a pipeline with the ID: {self.target_pipeline_id}\n" +
+                "This must be the entity_id for the pipeline entity! We don'w want a new pipeline entity, we want to add an implementation to this one!\n" +
+                "Add the output pipeline implementation (include the ID in the description), data source(s),  dataset(s) of the pipeline, if there are any.\n" +
+                "Do add datasets aggregating the related output data sources if any.\n" +
+                "Add also any missing edges showing the data flows.\n" +
+                "This includes edges to existing entities, for example the input data to the pipeline!\n" +
+                f"Here is a summary of all the code created::\n\n<begin_code_summary>\n{run_result.output}\n</begin_code_summary>\n" +
+                "All information necesary to create the entities should be in the code summary and visible through any new data files that have appeared.\n" +
+                "As speed is crucial, submit the entities directly! No need for exploration as we have it all in the code summary."
+            )
+
+            async def complete_run():
+                await self._complete_agent_run("SWE agent run completed")
+
+            extraction_runner = ExtractionAgentRunner(
+                user_id=self.user_id,
+                bearer_token=self.bearer_token,
+                project_id=self.project_id,
+                initial_submission_callback=complete_run
+            )
+
+            await extraction_runner(prompt_content=extraction_prompt)
 
             return run_result.output
 
@@ -116,7 +124,6 @@ class SWEAgentRunner(RunnerBase):
             bearer_token=self.bearer_token,
             client=self.project_client,
             project=self.project,
-            log_code=self._stream_code,
             data_sources_injected=self.input_data_source_ids,
             datasets_injected=self.input_dataset_ids,
             analyses_injected=self.input_analysis_ids,

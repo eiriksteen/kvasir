@@ -5,11 +5,13 @@ from uuid import UUID
 from synesis_api.modules.data_sources.service import (
     create_data_source,
     get_user_data_sources,
+    add_data_source_details,
 )
 from synesis_schemas.main_server import (
     DataSource,
     GetDataSourcesByIDsRequest,
-    DataSourceCreate
+    DataSourceCreate,
+    DataSourceDetailsCreate,
 )
 from synesis_schemas.main_server import User
 from synesis_api.auth.service import get_current_user
@@ -54,3 +56,12 @@ async def create_data_source_endpoint(
 ) -> DataSource:
     """Create a data source with conditional type-specific fields"""
     return await create_data_source(user.id, data_source_create)
+
+
+@router.post("/data-source-details", response_model=DataSource)
+async def add_data_source_details_endpoint(
+    details_create: DataSourceDetailsCreate,
+    user: Annotated[User, Depends(get_current_user)] = None
+) -> DataSource:
+    """Add details to an existing data source"""
+    return await add_data_source_details(user.id, details_create)

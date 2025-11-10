@@ -55,7 +55,7 @@ export default function DataSourceBox({ dataSourceId, projectId, openTab }: Data
         <div className="text-gray-600 font-mono text-xs">Data Source</div>
       </div>
       <div>
-        <div className="text-xs font-mono text-gray-800 break-words">{dataSource.type==="file" ? dataSource.typeFields?.fileName : dataSource.name}</div>
+        <div className="text-xs font-mono text-gray-800 break-words">{dataSource.name}</div>
       </div>
     </div>
 

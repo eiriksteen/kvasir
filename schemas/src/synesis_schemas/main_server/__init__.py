@@ -54,7 +54,11 @@ from .entity_graph import (
     EntityGraphUsingNames,
     EntityDetail,
     EntityDetailsResponse,
-    get_entity_graph_description
+    get_entity_graph_description,
+    VALID_EDGE_TYPES,
+    PIPELINE_RUN_EDGE_TYPES,
+    EdgeDefinitionUsingNames,
+    EdgesCreateUsingNames
 )
 
 
@@ -137,7 +141,6 @@ from .data_objects import (
     get_modality_models,
     ModalityModels,
     MODALITY_LITERAL,
-    DataObjectRawData,
     GetRawDataRequest,
     ObjectGroupEChartCreate,
     TimeSeriesRawDataParams
@@ -154,6 +157,7 @@ from .data_sources import (
     DATA_SOURCE_TYPE_LITERAL,
     DataSourceCreate,
     DataSourcesInDBInfo,
+    DataSourceDetailsCreate,
     get_data_sources_in_db_info,
 )
 
@@ -172,7 +176,6 @@ from .runs import (
     DatasetInRunInDB,
     ModelEntityInRunInDB,
     PipelineInRunInDB,
-    StreamedCode,
     AnalysisFromRunInDB,
     PipelineFromRunInDB,
     AnalysisInRunInDB

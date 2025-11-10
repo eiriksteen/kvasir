@@ -1,323 +1,346 @@
-import json
 import uuid
-from typing import List
+import asyncio
+from typing import List, Literal, Optional, Dict
+from pydantic import BaseModel, model_validator
 from pydantic_ai import RunContext, ModelRetry, FunctionToolset
 
-
-from project_server.agents.extraction.deps import ExtractionDeps
-from project_server.utils.code_utils import run_python_code_in_container, remove_print_statements_from_code
-from project_server.utils.docker_utils import write_file_to_container
-from project_server.client import ProjectClient
-from project_server.client.requests.pipeline import post_pipeline_run
-from project_server.client.requests.data_objects import create_object_group_echart, get_object_group
-from project_server.client.requests.entity_graph import create_edges, remove_edges
-from project_server.agents.chart.agent import chart_agent
-from project_server.agents.chart.deps import ChartDeps
-from project_server.agents.chart.output import ChartAgentOutput
-from project_server.app_secrets import AGENT_OUTPUTS_INTERNAL_DIR
-from synesis_schemas.main_server import (
-    ObjectGroupEChartCreate,
-    Dataset,
-    DataSource,
-    ModelEntityInDB,
-    DatasetCreate,
-    ModelEntityImplementationCreate,
-    DataSourceCreate,
-    DataObjectCreate,
-    PipelineImplementationCreate,
-    PipelineImplementationInDB,
-    DataObjectRawData,
-    EdgesCreate,
-    PipelineRunCreate,
-    PipelineRunInDB
-)
 from project_server.worker import logger
+from project_server.agents.extraction.deps import ExtractionDeps
+from project_server.agents.extraction.helper_agent import (
+    data_source_agent,
+    dataset_agent,
+    pipeline_agent,
+    model_entity_agent,
+    HelperDeps
+)
+from project_server.client import ProjectClient
+from project_server.agents.shared_tools import read_code_files_tool
+from project_server.client.requests.entity_graph import create_edges, remove_edges
+from project_server.client.requests.data_sources import post_data_source
+from project_server.client.requests.data_objects import post_dataset
+from project_server.client.requests.pipeline import post_pipeline, post_pipeline_run
+from project_server.client.requests.model import post_model_entity
+from project_server.client.requests.project import post_add_entity
+from synesis_schemas.main_server import (
+    EdgesCreateUsingNames,
+    EdgesCreate,
+    EdgeDefinition,
+    DataSourceCreate,
+    DatasetCreate,
+    PipelineCreate,
+    PipelineRunCreate,
+    ModelEntityCreate,
+    AddEntityToProject,
+    Project,
+    DATA_SOURCE_TYPE_LITERAL
+)
 
 
 # data sources
 
-async def submit_data_source(ctx: RunContext[ExtractionDeps], python_code: str, variable_name: str) -> DataSource:
-    """Submit a data source with type-specific fields to the system."""
-    try:
-        python_code = remove_print_statements_from_code(python_code)
-        submission_code = (
-            f"{python_code}\n"
-            "import asyncio\n"
-            "from project_server.client import ProjectClient\n"
-            "from project_server.client.requests.data_sources import post_data_source\n"
-            "from project_server.client.requests.project import post_add_entity\n"
-            "from synesis_schemas.main_server import DataSourceCreate, AddEntityToProject\n"
-            "from uuid import UUID\n"
-            "import json\n"
-            "\n"
-            "async def run_submission():\n"
-            f"    client = ProjectClient(bearer_token='{ctx.deps.bearer_token}')\n"
-            f"    request = DataSourceCreate(**{variable_name})\n"
-            f"    result = await post_data_source(client, request)\n"
-            f"    # Add data source to project\n"
-            f"    add_entity_request = AddEntityToProject(\n"
-            f"        project_id=UUID('{ctx.deps.project.id}'),\n"
-            f"        entity_type='data_source',\n"
-            f"        entity_id=result.id\n"
-            f"    )\n"
-            f"    await post_add_entity(client, add_entity_request)\n"
-            "    print(json.dumps(result.model_dump(), default=str))\n"
-            "\n"
-            "asyncio.run(run_submission())"
-        )
-        out, err = await run_python_code_in_container(submission_code, ctx.deps.container_name)
 
-        logger.info("@"*100)
-        logger.info("SUBMIT DATA SOURCE CODE")
-        logger.info(python_code)
-        logger.info("OUT")
-        logger.info(out)
-        logger.info("ERR")
-        logger.info(err)
+class EntityToCreate(BaseModel):
+    name: str
+    type: Literal["data_source", "dataset", "analysis",
+                  "pipeline", "model_entity"]
+    description: str
+    data_file_paths: List[str] = []
+    code_file_paths: List[str] = []
+    entity_id: Optional[uuid.UUID] = None
+    data_source_type: Optional[DATA_SOURCE_TYPE_LITERAL] = None
 
-        if err:
-            raise ValueError(f"Code execution error: {err}")
-
-        result_data = json.loads(out.strip())
-        return DataSource(**result_data)
-    except Exception as e:
-        raise ModelRetry(
-            f"Failed to submit data source from code: {str(e)}")
+    @model_validator(mode='after')
+    def validate_data_source_type(self) -> 'EntityToCreate':
+        if self.type == "data_source" and self.data_source_type is None:
+            raise ValueError(
+                "data_source_type must be specified when type is 'data_source'"
+            )
+        return self
 
 
-# datasets
+class PipelineRunToCreate(BaseModel):
+    name: str
+    description: str
+    pipeline_name: str
 
 
-async def submit_dataset(
+ENTITY_TYPE_TO_AGENT = {
+    "data_source": data_source_agent,
+    "dataset": dataset_agent,
+    # "analysis": analysis_agent,
+    "pipeline": pipeline_agent,
+    "model_entity": model_entity_agent
+}
+
+
+def _find_entity_id_in_project_graph(
+    project: Project,
+    entity_name: str,
+    entity_type: str
+) -> Optional[uuid.UUID]:
+    entity_list = []
+
+    if entity_type == "data_source":
+        entity_list = project.graph.data_sources
+    elif entity_type == "dataset":
+        entity_list = project.graph.datasets
+    elif entity_type == "pipeline":
+        entity_list = project.graph.pipelines
+    elif entity_type == "analysis":
+        entity_list = project.graph.analyses
+    elif entity_type == "model_entity":
+        entity_list = project.graph.model_entities
+    elif entity_type == "pipeline_run":
+        for pipeline in project.graph.pipelines:
+            for run in pipeline.runs:
+                if run.name == entity_name:
+                    return run.id
+        return None
+
+    for entity in entity_list:
+        if entity.name == entity_name:
+            return entity.id
+
+    return None
+
+
+async def submit_entities_to_create(
     ctx: RunContext[ExtractionDeps],
-    python_code: str,
-    variable_name: str
-) -> Dataset:
-    """"Submit a dataset including upload files with object metadata. All files must be parquet!
+    entities: List[EntityToCreate],
+    pipeline_runs: List[PipelineRunToCreate],
+    edges: List[EdgesCreateUsingNames]
+) -> str:
+    """Submit entities, pipeline runs, and edges to create."""
 
-    args:
-    - python_code: Python code to submit the dataset
-    - variable_name: Name of the variable containing the dataset create dictionary
-    - raw_data_read_python_code: Python code to read the raw data from the dataset
-    """
-    try:
-        python_code = remove_print_statements_from_code(python_code)
-        submission_code = (
-            f"{python_code}\n"
-            "import asyncio\n"
-            "from project_server.client import ProjectClient\n"
-            "from project_server.client.requests.data_objects import post_dataset\n"
-            "from project_server.client.requests.project import post_add_entity\n"
-            "from synesis_schemas.main_server import DatasetCreate, AddEntityToProject\n"
-            "from uuid import UUID\n"
-            "import json\n"
-            "\n"
-            "async def run_submission():\n"
-            f"    client = ProjectClient(bearer_token='{ctx.deps.bearer_token}')\n"
-            f"    dataset_create_obj = DatasetCreate(**{variable_name})\n"
-            "    # The agent should have prepared 'files' list with FileInput objects\n"
-            "    if 'files' not in locals() and 'files' not in globals():\n"
-            "        raise ValueError('files variable not found. The agent must create FileInput objects for dataframes in all groups.')\n"
-            f"    result = await post_dataset(client, files, dataset_create_obj)\n"
-            f"    # Add dataset to project\n"
-            f"    add_entity_request = AddEntityToProject(\n"
-            f"        project_id=UUID('{ctx.deps.project.id}'),\n"
-            f"        entity_type='dataset',\n"
-            f"        entity_id=result.id\n"
-            f"    )\n"
-            f"    await post_add_entity(client, add_entity_request)\n"
-            "    print(json.dumps(result.model_dump(), default=str))\n"
-            "\n"
-            "asyncio.run(run_submission())"
+    logger.info(f"Submitting entities to create: {entities}")
+    logger.info(f"Submitting pipeline runs to create: {pipeline_runs}")
+
+    # Map entity names to IDs for edge creation
+    name_to_id_map: Dict[str, uuid.UUID] = {}
+
+    # Phase 1: Create empty base entities immediately for those without entity_id
+    for entity in entities:
+        if entity.entity_id is None:
+            # Create new empty entity
+            if entity.type == "data_source":
+                # Create data source with details = None
+                # data_source_type is guaranteed to be set by validator
+                data_source_create = DataSourceCreate(
+                    name=entity.name,
+                    description=entity.description,
+                    type=entity.data_source_type,
+                    type_fields=None
+                )
+                result = await post_data_source(ctx.deps.client, data_source_create)
+                name_to_id_map[entity.name] = result.id
+                # Add to project
+                await post_add_entity(ctx.deps.client, AddEntityToProject(
+                    project_id=ctx.deps.project.id,
+                    entity_type="data_source",
+                    entity_id=result.id
+                ))
+                # Update entity_id for specialized agent
+                entity.entity_id = result.id
+
+                logger.info(
+                    f"CTX DEPS LOG MESSAGE IS SET: {ctx.deps.log_message is not None}")
+                if ctx.deps.log_message:
+                    logger.info(f"CREATED DATA SOURCE")
+                    await ctx.deps.log_message(f"CREATED DATA SOURCE", "result")
+
+            elif entity.type == "dataset":
+                # Create dataset with empty object groups
+                dataset_create = DatasetCreate(
+                    name=entity.name,
+                    description=entity.description,
+                    groups=[]
+                )
+                result = await post_dataset(ctx.deps.client, [], dataset_create)
+                name_to_id_map[entity.name] = result.id
+                # Add to project
+                await post_add_entity(ctx.deps.client, AddEntityToProject(
+                    project_id=ctx.deps.project.id,
+                    entity_type="dataset",
+                    entity_id=result.id
+                ))
+                # Update entity_id for specialized agent
+                entity.entity_id = result.id
+
+                if ctx.deps.log_message:
+                    await ctx.deps.log_message(f"CREATED DATASET", "result")
+
+            elif entity.type == "pipeline":
+                # Create base pipeline entity
+                pipeline_create = PipelineCreate(
+                    name=entity.name,
+                    description=entity.description
+                )
+                result = await post_pipeline(ctx.deps.client, pipeline_create)
+                name_to_id_map[entity.name] = result.id
+                # Add to project
+                await post_add_entity(ctx.deps.client, AddEntityToProject(
+                    project_id=ctx.deps.project.id,
+                    entity_type="pipeline",
+                    entity_id=result.id
+                ))
+                # Update entity_id for specialized agent
+                entity.entity_id = result.id
+
+                if ctx.deps.log_message:
+                    await ctx.deps.log_message(f"CREATED PIPELINE", "result")
+
+            elif entity.type == "model_entity":
+                # Create base model entity
+                model_entity_create = ModelEntityCreate(
+                    name=entity.name,
+                    description=entity.description
+                )
+                result = await post_model_entity(ctx.deps.client, model_entity_create)
+                name_to_id_map[entity.name] = result.id
+                # Add to project
+                await post_add_entity(ctx.deps.client, AddEntityToProject(
+                    project_id=ctx.deps.project.id,
+                    entity_type="model_entity",
+                    entity_id=result.id
+                ))
+                # Update entity_id for specialized agent
+                entity.entity_id = result.id
+
+                if ctx.deps.log_message:
+                    await ctx.deps.log_message(f"CREATED MODEL ENTITY", "result")
+        else:
+            # Entity already exists, just add to map for edge creation
+            name_to_id_map[entity.name] = entity.entity_id
+            logger.info(
+                f"Using existing entity: {entity.name} with ID: {entity.entity_id}")
+
+    # Phase 1b: Create pipeline runs
+    for pipeline_run in pipeline_runs:
+        # Resolve pipeline name to ID from the name_to_id_map
+        pipeline_id = name_to_id_map.get(pipeline_run.pipeline_name)
+        if pipeline_id is None:
+            logger.error(
+                f"Pipeline run '{pipeline_run.name}' references pipeline '{pipeline_run.pipeline_name}' "
+                f"which was not found in created entities. Available names: {list(name_to_id_map.keys())}"
+            )
+            continue
+
+        pipeline_run_create = PipelineRunCreate(
+            name=pipeline_run.name,
+            description=pipeline_run.description,
+            pipeline_id=pipeline_id,
+            args={},
+            output_variables={},
+            status="completed"
         )
-        out, err = await run_python_code_in_container(submission_code, ctx.deps.container_name)
-        logger.info("@"*100)
-        logger.info("SUBMIT DATASET CODE")
-        logger.info(submission_code)
-        logger.info("OUT")
-        logger.info(out)
-        logger.info("ERR")
-        logger.info(err)
-        if err:
-            raise ValueError(f"Code execution error: {err}")
+        result = await post_pipeline_run(ctx.deps.client, pipeline_run_create)
+        name_to_id_map[pipeline_run.name] = result.id
 
-        result_data = json.loads(out.strip())
-        out_obj = Dataset(**result_data)
-        ctx.deps.created_datasets.append(out_obj)
+    # Phase 2: Create edges
+    logger.info(f"name_to_id_map contents: {name_to_id_map}")
+    if edges:
+        # Convert EdgesCreateUsingNames to EdgesCreate
+        edge_definitions = []
+        for edge in edges:
+            for edge_def in edge.edges:
+                # Try to get ID from newly created entities first
+                from_id = name_to_id_map.get(edge_def.from_node_name)
+                to_id = name_to_id_map.get(edge_def.to_node_name)
 
-        return out_obj
+                # Fallback to looking up existing entities in the project graph
+                if from_id is None:
+                    from_id = _find_entity_id_in_project_graph(
+                        ctx.deps.project,
+                        edge_def.from_node_name,
+                        edge_def.from_node_type
+                    )
+                    if from_id:
+                        logger.info(
+                            f"Found existing entity '{edge_def.from_node_name}' in project graph with ID: {from_id}")
 
-    except Exception as e:
-        raise ModelRetry(f"Failed to submit dataset from code: {str(e)}")
+                if to_id is None:
+                    to_id = _find_entity_id_in_project_graph(
+                        ctx.deps.project,
+                        edge_def.to_node_name,
+                        edge_def.to_node_type
+                    )
+                    if to_id:
+                        logger.info(
+                            f"Found existing entity '{edge_def.to_node_name}' in project graph with ID: {to_id}")
 
+                if from_id is None or to_id is None:
+                    logger.warning(
+                        f"Could not find ID mapping for edge: {edge_def.from_node_name} -> {edge_def.to_node_name}")
+                    logger.warning(
+                        f"Available names in map: {list(name_to_id_map.keys())}")
+                    logger.warning(f"from_id={from_id}, to_id={to_id}")
+                    continue
 
-async def create_chart_for_object_group(
-    ctx: RunContext[ExtractionDeps],
-    object_group_id: uuid.UUID,
-    chart_description: str,
-    datasets_to_inject: List[uuid.UUID],
-    data_sources_to_inject: List[uuid.UUID],
-) -> ChartAgentOutput:
-    """
-    Create a chart visualization for an object group.
+                edge_definitions.append(EdgeDefinition(
+                    from_node_type=edge_def.from_node_type,
+                    from_node_id=from_id,
+                    to_node_type=edge_def.to_node_type,
+                    to_node_id=to_id
+                ))
 
-    This will invoke the chart generation agent to create an ECharts configuration
-    that can be used to visualize data from this object group.
+        if edge_definitions:
+            edges_create = EdgesCreate(edges=edge_definitions)
+            await create_edges(ctx.deps.client, edges_create)
+            logger.info(f"Created {len(edge_definitions)} edges")
 
-    Args:
-        object_group_id: The ID of the object group to create a chart for
-        chart_description: Description of what chart to create (e.g., "Line chart showing temperature over time")
-        datasets_to_inject: List of dataset IDs to inject into the chart agent, which it will create its charts from
-        data_sources_to_inject: List of data source IDs to inject into the chart agent, which it will create its charts from
+    if ctx.deps.initial_submission_callback:
+        await ctx.deps.initial_submission_callback()
 
-    Returns:
-        The chart agent output containing the script content
-    """
-    try:
-        object_group = await get_object_group(ctx.deps.client, object_group_id)
-    except Exception as e:
-        raise ModelRetry(
-            f"Failed to get object group. The ID must be the DB UUID of the group: {str(e)}")
+    # Phase 3: Call specialized agents to fill in details
+    coroutines = []
+    for entity in entities:
+        assert entity.type in ENTITY_TYPE_TO_AGENT, f"No agent defined for entity type: {entity.type}"
 
-    chart_result = await chart_agent.run(
-        chart_description,
-        deps=ChartDeps(
-            container_name=ctx.deps.container_name,
-            client=ctx.deps.client,
-            project_id=ctx.deps.project.id,
-            datasets_injected=datasets_to_inject,
-            data_sources_injected=data_sources_to_inject,
-            object_group=object_group
+        code_file_contents = []
+        for code_file_path in entity.code_file_paths:
+            code_file_content = await read_code_files_tool(ctx, [code_file_path])
+            code_file_contents.append(code_file_content)
+
+        code_file_contents_str = "\n\n".join(code_file_contents)
+        data_file_paths_str = "\n\n".join(entity.data_file_paths)
+
+        prompt = (
+            f"The entity description is: {entity.description}. " +
+            f"The code file contents are: {code_file_contents_str}. " +
+            f"The data file paths are: {data_file_paths_str}. " +
+            (f"The target entity ID is: {entity.entity_id}." if entity.entity_id else "")
         )
-    )
-    save_path = AGENT_OUTPUTS_INTERNAL_DIR / f"{object_group_id}.py"
-    await write_file_to_container(save_path, chart_result.output.script_content, ctx.deps.container_name)
-    await create_object_group_echart(
-        ctx.deps.client,
-        object_group_id,
-        ObjectGroupEChartCreate(chart_script_path=str(save_path)))
-    ctx.deps.object_groups_with_charts.append(object_group_id)
-    return chart_result.output
 
-
-# TODO: More modalities
-
-
-async def submit_model_entity(ctx: RunContext[ExtractionDeps], python_code: str, variable_name: str) -> ModelEntityInDB:
-    """
-    A model entity refers to an instantiated model that is configured and often including weights.
-    """
-    try:
-        python_code = remove_print_statements_from_code(python_code)
-        submission_code = (
-            f"{python_code}\n"
-            "import asyncio\n"
-            "from project_server.client import ProjectClient\n"
-            "from project_server.client.requests.model import post_model_entity_implementation\n"
-            "from project_server.client.requests.project import post_add_entity\n"
-            "from synesis_schemas.main_server import ModelEntityImplementationCreate, AddEntityToProject\n"
-            "from uuid import UUID\n"
-            "import json\n"
-            "\n"
-            "async def run_submission():\n"
-            f"    client = ProjectClient(bearer_token='{ctx.deps.bearer_token}')\n"
-            f"    model_entity_impl_data = ModelEntityImplementationCreate(**{variable_name})\n"
-            f"    result = await post_model_entity_implementation(client, model_entity_impl_data)\n"
-            f"    # Add model entity to project\n"
-            f"    add_entity_request = AddEntityToProject(\n"
-            f"        project_id=UUID('{ctx.deps.project.id}'),\n"
-            f"        entity_type='model_entity',\n"
-            f"        entity_id=result.id\n"
-            f"    )\n"
-            f"    await post_add_entity(client, add_entity_request)\n"
-            "    print(json.dumps(result.model_dump(), default=str))\n"
-            "\n"
-            "asyncio.run(run_submission())"
+        agent = ENTITY_TYPE_TO_AGENT[entity.type]
+        routine = agent.run(
+            prompt,
+            deps=HelperDeps(
+                client=ctx.deps.client,
+                bearer_token=ctx.deps.bearer_token,
+                project=ctx.deps.project,
+                container_name=ctx.deps.container_name
+            )
         )
-        out, err = await run_python_code_in_container(submission_code, ctx.deps.container_name)
-        logger.info("@"*100)
-        logger.info("SUBMIT MODEL ENTITY CODE")
-        logger.info(python_code)
-        logger.info("OUT")
-        logger.info(out)
-        logger.info("ERR")
-        logger.info(err)
-        if err:
-            raise ValueError(f"Code execution error: {err}")
+        coroutines.append(routine)
 
-        result_data = json.loads(out.strip())
-        return ModelEntityInDB(**result_data)
-    except Exception as e:
-        raise ModelRetry(f"Failed to submit model entity from code: {str(e)}")
+    if coroutines:
 
-
-# pipelines
-
-
-async def submit_pipeline_implementation(
-    ctx: RunContext[ExtractionDeps],
-    python_code: str,
-    variable_name: str
-) -> PipelineImplementationInDB:
-    """
-    Create a new pipeline implementation that defines the execution logic for a pipeline.
-
-    Note: If the user wants to associate this implementation with a specific existing pipeline,
-    remember to include the pipeline_id in the PipelineImplementationCreate data. Otherwise,
-    you can include pipeline_create to create a new pipeline along with the implementation.
-    """
-    try:
-        python_code = remove_print_statements_from_code(python_code)
-        submission_code = (
-            f"{python_code}\n"
-            "import asyncio\n"
-            "from project_server.client import ProjectClient\n"
-            "from project_server.client.requests.pipeline import post_pipeline_implementation\n"
-            "from project_server.client.requests.project import post_add_entity\n"
-            "from synesis_schemas.main_server import PipelineImplementationCreate, AddEntityToProject\n"
-            "from uuid import UUID\n"
-            "import json\n"
-            "\n"
-            "async def run_submission():\n"
-            f"    client = ProjectClient(bearer_token='{ctx.deps.bearer_token}')\n"
-            f"    pipeline_impl_data = PipelineImplementationCreate(**{variable_name})\n"
-            f"    result = await post_pipeline_implementation(client, pipeline_impl_data)\n"
-            f"    # Add pipeline to project\n"
-            f"    add_entity_request = AddEntityToProject(\n"
-            f"        project_id=UUID('{ctx.deps.project.id}'),\n"
-            f"        entity_type='pipeline',\n"
-            f"        entity_id=result.id\n"
-            f"    )\n"
-            f"    await post_add_entity(client, add_entity_request)\n"
-            "    print(json.dumps(result.model_dump(), default=str))\n"
-            "\n"
-            "asyncio.run(run_submission())"
-        )
-        out, err = await run_python_code_in_container(submission_code, ctx.deps.container_name)
-        logger.info("@"*100)
-        logger.info("SUBMIT PIPELINE IMPLEMENTATION CODE")
-        logger.info(python_code)
-        logger.info("OUT")
-        logger.info(out)
-        logger.info("ERR")
-        logger.info(err)
-        if err:
-            raise ValueError(f"Code execution error: {err}")
-
-        result_data = json.loads(out.strip())
-        return PipelineImplementationInDB(**result_data)
-    except Exception as e:
-        raise ModelRetry(
-            f"Failed to submit pipeline implementation from code: {str(e)}")
+        results = await asyncio.gather(*coroutines)
+        results_str = "\n\n".join([result.output for result in results])
+        return results_str
+    else:
+        logger.info("No specialized agents to run (no entities provided)")
+        return "All entities and pipeline runs created successfully"
 
 
 async def submit_entity_edges(ctx: RunContext[ExtractionDeps], edges: EdgesCreate) -> str:
     """Submit edges between entities in the graph."""
     try:
-        client = ProjectClient(bearer_token=ctx.deps.bearer_token)
-        await create_edges(client, edges)
+        logger.info(f"Submitting entity edges: {edges}")
+        await create_edges(ctx.deps.client, edges)
         return "Successfully submitted entity edges to the system"
     except Exception as e:
+        logger.error(f"Failed to submit entity edges to the system: {str(e)}")
         raise ModelRetry(
             f"Failed to submit entity edges to the system: {str(e)}")
 
@@ -325,81 +348,24 @@ async def submit_entity_edges(ctx: RunContext[ExtractionDeps], edges: EdgesCreat
 async def remove_entity_edges(ctx: RunContext[ExtractionDeps], edges: EdgesCreate) -> str:
     """Remove edges between entities in the graph."""
     try:
-        client = ProjectClient(bearer_token=ctx.deps.bearer_token)
-        await remove_edges(client, edges)
+        logger.info(f"Removing entity edges: {edges}")
+        await remove_edges(ctx.deps.client, edges)
         return "Successfully removed entity edges from the system"
     except Exception as e:
+        logger.error(
+            f"Failed to remove entity edges from the system: {str(e)}")
         raise ModelRetry(
             f"Failed to remove entity edges from the system: {str(e)}")
-
-
-async def submit_pipeline_run(ctx: RunContext[ExtractionDeps], pipeline_run: PipelineRunCreate) -> PipelineRunInDB:
-    """Submit a completed run associated with a pipeline. """
-    if pipeline_run.status != "completed":
-        raise ModelRetry(
-            "This tool is only for submitting completed pipeline runs inferrable from the codebase.")
-
-    client = ProjectClient(bearer_token=ctx.deps.bearer_token)
-    result = await post_pipeline_run(client, pipeline_run)
-    return result
-
-
-submission_toolset = FunctionToolset[ExtractionDeps](
-    tools=[
-        submit_data_source,
-        submit_dataset,
-        submit_pipeline_implementation,
-        submit_model_entity,
-        submit_entity_edges,
-        remove_entity_edges,
-        submit_pipeline_run,
-        create_chart_for_object_group
-    ],
-    max_retries=7
-)
 
 
 # TODO: Add analyses
 
 
-def get_data_source_schema() -> str:
-    return json.dumps(DataSourceCreate.model_json_schema(), indent=2)
-
-
-def get_dataset_schema() -> str:
-    schema = DatasetCreate.model_json_schema()
-    data_objects_schema = DataObjectCreate.model_json_schema()
-    raw_data_schema = DataObjectRawData.model_json_schema()
-
-    return (
-        f"{schema}\n\n" +
-        "Note: Requires file uploads - the agent must create FileInput objects for dataframes in all groups.\n" +
-        f"The dataframes must abide by the following data object create schema:\n\n{json.dumps(data_objects_schema, indent=2)}\n\n" +
-        "FileInput objects should have: filename (str), file_data (bytes), content_type (str).\n" +
-        "All files must be parquet!\n\n" +
-        f"The raw data schema is:\n\n{json.dumps(raw_data_schema, indent=2)}\n\n"
-    )
-
-
-def get_model_entity_schema() -> str:
-    schema = ModelEntityImplementationCreate.model_json_schema()
-    return (
-        f"{schema}\n\n"
-        "Validation rules: Either model_implementation_id or model_implementation_create must be provided. "
-        "Either model_entity_id or model_entity_create must be provided."
-    )
-
-
-def get_pipeline_implementation_schema() -> str:
-    return json.dumps(PipelineImplementationCreate.model_json_schema(), indent=2)
-
-
-schema_toolset = FunctionToolset[ExtractionDeps](
+extraction_toolset = FunctionToolset(
     tools=[
-        get_data_source_schema,
-        get_dataset_schema,
-        get_pipeline_implementation_schema,
-        get_model_entity_schema
+        submit_entities_to_create,
+        submit_entity_edges,
+        remove_entity_edges
     ],
     max_retries=3
 )

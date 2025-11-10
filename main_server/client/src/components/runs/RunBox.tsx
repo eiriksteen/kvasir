@@ -102,8 +102,8 @@ switch (status) {
     }
 };
 
-function RunMessageList({ runId }: { runId: UUID }) {
-  const { runMessages } = useRunMessages(runId);
+function RunMessageList({ runId, projectId }: { runId: UUID, projectId: UUID }) {
+  const { runMessages } = useRunMessages(projectId, runId);
 
   return (
     <>
@@ -120,14 +120,13 @@ function RunMessageList({ runId }: { runId: UUID }) {
           ))}
         </div>
       )}
-
     </>
   );
 }
   
 
 export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBoxProps) {
-  const { run, triggerLaunchRun, triggerRejectRun } = useRun(runId);
+  const { run, triggerLaunchRun, triggerRejectRun } = useRun(projectId, runId);
   const { datasets, mutateDatasets } = useDatasets(projectId);
   const { dataSources, mutateDataSources } = useDataSources(projectId);
   const { modelEntities } = useModelEntities(projectId);
@@ -398,7 +397,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
           </div>
 
           {/* Messages */}
-          <RunMessageList runId={runId} />
+          <RunMessageList runId={runId} projectId={projectId} />
         </>
       )}
     </div>

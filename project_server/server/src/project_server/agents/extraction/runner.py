@@ -1,9 +1,8 @@
 import uuid
-from typing import Optional
+from typing import Optional, Callable
 
 from project_server.agents.extraction.agent import extraction_agent
 from project_server.agents.extraction.deps import ExtractionDeps
-from project_server.agents.extraction.output import submit_final_extraction_output
 from project_server.worker import broker
 from project_server.agents.runner_base import RunnerBase
 from synesis_schemas.project_server import RunExtractionRequest
@@ -17,6 +16,7 @@ class ExtractionAgentRunner(RunnerBase):
         bearer_token: str,
         project_id: uuid.UUID,
         run_id: Optional[uuid.UUID] = None,
+        initial_submission_callback: Optional[Callable[[], None]] = None
     ):
         super().__init__(
             agent=extraction_agent,
@@ -26,6 +26,7 @@ class ExtractionAgentRunner(RunnerBase):
             project_id=project_id,
             run_id=run_id
         )
+        self.initial_submission_callback = initial_submission_callback
 
     async def __call__(self, prompt_content: str):
         try:
@@ -38,15 +39,12 @@ class ExtractionAgentRunner(RunnerBase):
                 run_id=self.run_id,
                 project=self.project,
                 bearer_token=self.bearer_token,
-                container_name=str(self.project_id)
+                container_name=str(self.project_id),
+                initial_submission_callback=self.initial_submission_callback,
+                log_message=self._log_message
             )
 
-            run_result = await self._run_agent(
-                prompt_content={prompt_content},
-                deps=deps,
-                output_type=submit_final_extraction_output
-            )
-
+            run_result = await self._run_agent(prompt_content=prompt_content, deps=deps)
             await self._complete_agent_run("Extraction agent run completed")
             return run_result.output
 
@@ -61,6 +59,7 @@ async def run_extraction_task(
     bearer_token: str,
     extraction_request: RunExtractionRequest
 ):
+
     runner = ExtractionAgentRunner(
         user_id=user_id,
         run_id=extraction_request.run_id,

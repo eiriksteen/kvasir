@@ -140,26 +140,3 @@ export interface DatasetCreate {
   groups: DataObjectGroupCreate[];
 }
 
-// Raw data schemas
-
-export interface TimeSeriesRawDataParams {
-  startTimestamp: string;
-  endTimestamp: string;
-}
-
-export interface TimeSeriesRawData {
-  data: Record<string, Array<[string, number | string]>>; // Dict[str, List[Tuple[datetime, Union[float, int]]]]
-  params: TimeSeriesRawDataParams;
-}
-
-export interface DataObjectRawData{
-  originalId: string;
-  modality: Modality;
-  data: TimeSeriesRawData; // TODO: Add more modalities when implemented
-}
-
-export interface GetRawDataRequest {
-  projectId: UUID;
-  objectId: UUID;
-  args: TimeSeriesRawDataParams;
-}

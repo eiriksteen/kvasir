@@ -11,8 +11,12 @@ import useSWRMutation from "swr/mutation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-async function fetchRuns(token: string): Promise<RunInDB[]> {
-  const response = await fetch(`${API_URL}/runs/runs`, {
+async function fetchRuns(token: string, projectId?: UUID): Promise<RunInDB[]> {
+  const url = projectId 
+    ? `${API_URL}/runs/runs?project_id=${projectId}`
+    : `${API_URL}/runs/runs`;
+    
+  const response = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -46,8 +50,12 @@ async function fetchRunMessages(token: string, runId: UUID): Promise<RunMessageI
   return snakeToCamelKeys(data);
 }
 
-function createIncompleteRunsEventSource(token: string): SSE {
-  return new SSE(`${API_URL}/runs/stream-incomplete-runs`, {
+function createIncompleteRunsEventSource(token: string, projectId?: UUID): SSE {
+  const url = projectId
+    ? `${API_URL}/runs/stream-incomplete-runs?project_id=${projectId}`
+    : `${API_URL}/runs/stream-incomplete-runs`;
+    
+  return new SSE(url, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -56,8 +64,8 @@ function createIncompleteRunsEventSource(token: string): SSE {
   });
 }
 
-function createRunMessagesEventSource(token: string, runId: UUID): SSE {
-  return new SSE(`${API_URL}/runs/stream-messages/${runId}`, {
+function createProjectRunMessagesEventSource(token: string, projectId: UUID): SSE {
+  return new SSE(`${API_URL}/runs/stream-messages?project_id=${projectId}`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -123,14 +131,14 @@ const computeRunState = (jobs: {id: string, status: string}[]): runState => {
 
 const emptyRunState: runState = ""
 
-export const useRuns = () => {
+export const useRuns = (projectId: UUID) => {
   const { data: session } = useSession()
-  const { data: runState, mutate: mutateRunState } = useSWR(["runState"], {fallbackData: emptyRunState})
+  const { data: runState, mutate: mutateRunState } = useSWR([projectId, "runState"], {fallbackData: emptyRunState})
   const { mutate } = useSWRConfig()
 
   const { data: runs, mutate: mutateRuns } = useSWR(
-    session ? "runs" : null, 
-    () => fetchRuns(session ? session.APIToken.accessToken : ""), 
+    session && projectId ? ["runs", projectId] : null, 
+    () => fetchRuns(session ? session.APIToken.accessToken : "", projectId), 
     {
       onSuccess: (runs: RunInDB[]) => {
         const newRunState = computeRunState(runs);
@@ -142,7 +150,7 @@ export const useRuns = () => {
   )
 
   const { trigger: triggerLaunchRun } = useSWRMutation(
-    session ? "runs" : null,
+    session && projectId ? ["runs", projectId] : null,
     (_, { arg }: { arg: {runId: UUID} }) => launchRun(session ? session.APIToken.accessToken : "", arg.runId),
     {
       populateCache: (newRun) => {
@@ -162,7 +170,7 @@ export const useRuns = () => {
 
 
   const { trigger: triggerRejectRun } = useSWRMutation(
-    session ? "runs" : null,
+    session && projectId ? ["runs", projectId] : null,
     (_, { arg }: { arg: {runId: UUID} }) => rejectRun(session ? session.APIToken.accessToken : "", arg.runId),
     {
       populateCache: (newRun) => {
@@ -181,9 +189,9 @@ export const useRuns = () => {
 
   // This thing will always be running. Do we want to stop it when no runs are active?
   useSWRSubscription(
-    session && runs ? ["runStream", runs] : null,
+    session && runs && projectId ? ["runStream", projectId, runs] : null,
     (_, {next}: SWRSubscriptionOptions<RunInDB[]>) => {
-      const eventSource = createIncompleteRunsEventSource(session ? session.APIToken.accessToken : "");
+      const eventSource = createIncompleteRunsEventSource(session ? session.APIToken.accessToken : "", projectId);
 
       eventSource.onmessage = (ev) => {
         const streamedRuns = snakeToCamelKeys(JSON.parse(ev.data));
@@ -243,8 +251,8 @@ export const useRuns = () => {
 };
 
 
-export const useRunsInConversation = (conversationId: string) => {
-  const { runs, triggerLaunchRun } = useRuns()
+export const useRunsInConversation = (projectId: UUID, conversationId: string) => {
+  const { runs, triggerLaunchRun } = useRuns(projectId)
 
   const runsInConversation = useMemo(() => {
     return runs.filter((run: RunInDB) => run.conversationId === conversationId)
@@ -254,8 +262,8 @@ export const useRunsInConversation = (conversationId: string) => {
 }
 
 
-export const useRun = (runId: UUID) => {
-  const { runs, triggerLaunchRun, triggerRejectRun } = useRuns()
+export const useRun = (projectId: UUID, runId: UUID) => {
+  const { runs, triggerLaunchRun, triggerRejectRun } = useRuns(projectId)
 
   const run = useMemo(() => {
     return runs.find((run: RunInDB) => run.id === runId)
@@ -265,29 +273,79 @@ export const useRun = (runId: UUID) => {
 }
 
 
-export const useRunMessages = (runId: UUID) => {
+export const useProjectRunMessages = (projectId: UUID) => {
   const { data: session } = useSession()
-  const { run } = useRun(runId)
-  const { data: runMessages, mutate: mutateRunMessages } = useSWR(session ? ["runMessages", runId] : null, () => fetchRunMessages(session ? session.APIToken.accessToken : "", runId))
+  const { runs } = useRuns(projectId)
+  const { mutate } = useSWRConfig()
+
+  const { data: projectRunMessages, mutate: mutateProjectRunMessages } = useSWR<Record<string, RunMessageInDB[]>>(
+    session && projectId ? ["projectRunMessages", projectId] : null, 
+    async () => {
+      // Fetch messages for all runs in the project
+      const messagesPromises = runs.map(async (run) => {
+        const messages = await fetchRunMessages(session!.APIToken.accessToken, run.id);
+        return { runId: run.id, messages };
+      });
+      const messagesResults = await Promise.all(messagesPromises);
+      
+      // Convert to record of runId -> messages[]
+      const messagesRecord: Record<string, RunMessageInDB[]> = {};
+      messagesResults.forEach(({ runId, messages }) => {
+        messagesRecord[runId] = messages;
+      });
+      return messagesRecord;
+    }
+  )
+
+  const hasRunningRuns = useMemo(() => {
+    return runs.some(run => run.status === "running");
+  }, [runs])
 
   useSWRSubscription(
-    session && run ? ["runMessages", runId, run.status] : null,
-    (_, {next}: SWRSubscriptionOptions<RunInDB>) => {
+    session && runs.length > 0 && projectId ? ["projectRunMessagesStream", projectId, hasRunningRuns] : null,
+    (_, {next}: SWRSubscriptionOptions<Record<string, RunMessageInDB[]>>) => {
 
-      if (!run || !runMessages) {
+      if (!projectRunMessages) {
         return () => {};
       }
-
-      if (run.status === "running") {
-
-        const eventSource = createRunMessagesEventSource(session ? session.APIToken.accessToken : "", runId)
+      
+      if (hasRunningRuns) {
+        const eventSource = createProjectRunMessagesEventSource(session!.APIToken.accessToken, projectId)
 
         eventSource.onmessage = (ev) => {
           const streamedMessage: RunMessageInDB = snakeToCamelKeys(JSON.parse(ev.data));
           next(null, () => {
-            mutateRunMessages([...(runMessages || []), streamedMessage], {revalidate: false});
+            mutateProjectRunMessages((current) => {
+              if (!current) return { [streamedMessage.runId]: [streamedMessage] };
+              
+              return {
+                ...current,
+                [streamedMessage.runId]: [...(current[streamedMessage.runId] || []), streamedMessage]
+              };
+            }, {revalidate: false});
             return undefined;
           })
+
+          if (streamedMessage.type === "result") {
+            if (streamedMessage.content.includes("CREATED")) {
+              mutate(["projects"]);
+              if (streamedMessage.content.includes("CREATED DATA SOURCE")) {
+                mutate(["data-sources", projectId]);
+                mutate("projects");
+              }
+              if (streamedMessage.content.includes("CREATED DATASET")) {
+                mutate(["datasets", projectId]);
+                mutate("projects");
+              }
+              if (streamedMessage.content.includes("CREATED PIPELINE")) {
+                mutate(["pipelines", projectId]);
+                mutate("projects");
+              }
+              if (streamedMessage.content.includes("CREATED MODEL ENTITY")) {
+                mutate(["model-entities", projectId]);
+              } 
+            }
+          }
         }
 
         return () => eventSource.close();
@@ -297,6 +355,17 @@ export const useRunMessages = (runId: UUID) => {
       }
     }
   )
+
+  return { projectRunMessages: projectRunMessages || {} }
+}
+
+
+export const useRunMessages = (projectId: UUID, runId: UUID) => {
+  const { projectRunMessages } = useProjectRunMessages(projectId)
+
+  const runMessages = useMemo(() => {
+    return projectRunMessages[runId] || []
+  }, [projectRunMessages, runId])
 
   return { runMessages }
 }

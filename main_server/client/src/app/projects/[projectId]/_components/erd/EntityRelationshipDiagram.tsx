@@ -157,7 +157,6 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
 
   const { project, updatePosition, updateProjectViewPort } = useProject(projectId);
   
-  
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { setViewport } = useReactFlow();

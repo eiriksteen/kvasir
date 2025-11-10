@@ -1,29 +1,12 @@
-from typing import Literal, Optional
+import uuid
+from typing import Literal, Optional, List
 from pydantic_ai import ModelRetry, RunContext, FunctionToolset
 
 from project_server.utils.code_utils import add_line_numbers_to_script, run_python_code_in_container, run_shell_code_in_container, is_readable_extension
 from synesis_schemas.main_server import GetGuidelinesRequest
 from project_server.client.requests.knowledge_bank import get_task_guidelines
 from project_server.app_secrets import READABLE_EXTENSIONS
-
-
-async def execute_python_code(ctx: RunContext, python_code: str):
-    """
-    Execute a python code block.
-
-    Args:
-        python_code: The python code to execute.
-        explanation: Explanation of what you are doing and why - very concisely.
-    """
-
-    assert hasattr(ctx.deps, "container_name"), "Container name is required"
-
-    out, err = await run_python_code_in_container(python_code, container_name=ctx.deps.container_name)
-
-    if err:
-        raise ModelRetry(f"Error executing code: {err}")
-
-    return out
+from project_server.client.requests.entity_graph import get_entity_details
 
 
 async def get_task_guidelines_tool(ctx: RunContext, task: Literal["time_series_forecasting"]) -> str:
@@ -228,12 +211,22 @@ async def find_tool(ctx: RunContext, name_pattern: str, path: str = "/app", file
     return out
 
 
+async def get_entity_details_tool(ctx: RunContext, entity_ids: List[uuid.UUID]) -> str:
+    """
+    Get the details of the entities with the provided IDs.
+    """
+    assert hasattr(ctx.deps, "client"), "Client is required"
+    entity_details_response = await get_entity_details(ctx.deps.client, entity_ids)
+    return "\n\n".join([detail.description for detail in entity_details_response.entity_details])
+
+
 navigation_toolset = FunctionToolset(
     # Commented out many since they make the agent slow. We now put in a string of the foler structure, but that is not scalable for large projects.
     tools=[
         # Grep doesnt work so well, keeps reading large data files, todo fix
         # grep_tool,
         read_code_files_tool,
+        get_entity_details_tool
         # ls_tool,
         # find_tool
     ],

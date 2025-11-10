@@ -76,9 +76,9 @@ async def run_python_function_in_container(
 
     out, err = await run_python_code_in_container(raw_code, container_name)
 
-    logger.info(f"Raw code:\n\n{raw_code}")
-    logger.info(f"Out:\n\n{out}")
-    logger.info(f"Err:\n\n{err}")
+    # logger.info(f"Raw code:\n\n{raw_code}")
+    # logger.info(f"Out:\n\n{out}")
+    # logger.info(f"Err:\n\n{err}")
 
     return out, err
 

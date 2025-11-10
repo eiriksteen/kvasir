@@ -94,13 +94,6 @@ class TimeSeriesRawData(BaseModel):
     params: TimeSeriesRawDataParams
 
 
-class DataObjectRawData(BaseModel):
-    # TODO: Add more modalities
-    original_id: str
-    modality: MODALITY_LITERAL
-    data: Union[TimeSeriesRawData]
-
-
 # Schemas for the API
 
 
@@ -132,6 +125,11 @@ class GetRawDataRequest(BaseModel):
 
 
 # Create schemas
+
+
+class DatasetBaseCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
 
 
 class TimeSeriesCreate(BaseModel):
@@ -222,6 +220,7 @@ class DatasetCreate(BaseModel):
 
 class ObjectGroupEChartCreate(BaseModel):
     chart_script_path: str
+
 
 # Helpers
 # Used to let the agent know the schemas it's dataframes must abide by

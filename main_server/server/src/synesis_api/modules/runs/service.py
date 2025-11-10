@@ -193,6 +193,34 @@ async def launch_run(user_id: uuid.UUID, client: MainServerClient, run_id: uuid.
                 created_at=datetime.now(timezone.utc)
             )
             await execute(insert(pipeline_from_run).values(pipeline_from_run_record.model_dump()), commit_after=True)
+
+            edges_create = EdgesCreate(
+                edges=[
+                    EdgeDefinition(
+                        from_node_type="data_source",
+                        from_node_id=data_source_id,
+                        to_node_type="pipeline",
+                        to_node_id=target_entity_id
+                    ) for data_source_id in data_source_ids
+                ] + [
+                    EdgeDefinition(
+                        from_node_type="dataset",
+                        from_node_id=dataset_id,
+                        to_node_type="pipeline",
+                        to_node_id=target_entity_id
+                    ) for dataset_id in dataset_ids
+                ] + [
+                    EdgeDefinition(
+                        from_node_type="model_entity",
+                        from_node_id=model_entity_id,
+                        to_node_type="pipeline",
+                        to_node_id=target_entity_id
+                    ) for model_entity_id in model_entity_ids
+                ]
+            )
+            if edges_create.edges:
+                await create_edges(edges_create)
+
         await post_run_swe(client, RunSWERequest(
             run_id=run_id,
             project_id=run_record.project_id,
@@ -286,6 +314,7 @@ async def get_runs(
                                              "rejected"]]] = None,
         run_ids: Optional[List[uuid.UUID]] = None,
         conversation_id: Optional[uuid.UUID] = None,
+        project_id: Optional[uuid.UUID] = None,
 ) -> List[Run]:
 
     runs_query = select(run).where(run.c.user_id == user_id)
@@ -296,6 +325,8 @@ async def get_runs(
         runs_query = runs_query.where(run.c.id.in_(run_ids))
     if conversation_id:
         runs_query = runs_query.where(run.c.conversation_id == conversation_id)
+    if project_id:
+        runs_query = runs_query.where(run.c.project_id == project_id)
 
     runs = await fetch_all(runs_query)
 

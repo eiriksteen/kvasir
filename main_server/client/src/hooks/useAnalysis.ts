@@ -401,9 +401,7 @@ export const useAnalyses = (projectId: UUID) => {
 export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
   const { data: session } = useSession();
   const {data: currentAnalysisObject, mutate: mutateCurrentAnalysisObject} = useSWR(["analysisObject", analysisObjectId], () => fetchAnalysisObject(session?.APIToken.accessToken || "", analysisObjectId));
-
   const { analysisObjects, mutateAnalysisObjects } = useAnalyses(projectId);
-
   const { data: analysisResultData, mutate: mutateAnalysisResultData } = useSWR(["analysisResultData"], null, {fallbackData: {} as Record<UUID, unknown>});
 
   const { trigger: deleteAnalysisObject } = useSWRMutation(
@@ -430,7 +428,7 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
 
   const { data: analysisStatusMessages, mutate: mutateAnalysisStatusMessages } = useSWR(["analysisStatusMessages", analysisObjectId], null, {fallbackData: [] as AnalysisStatusMessage[]});
 
-  const { runs } = useRuns();
+  const { runs } = useRuns(projectId);
 
   const runningJobs = useMemo(() => {
     if (!runs) return [];

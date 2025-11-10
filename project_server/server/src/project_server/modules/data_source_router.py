@@ -1,11 +1,11 @@
 import tempfile
 from pathlib import Path
 from typing import Annotated
-from fastapi import APIRouter, UploadFile, Form, File, Depends
+from fastapi import APIRouter, UploadFile, Form, File, Depends, BackgroundTasks
 from uuid import UUID
 
 from project_server.auth import TokenData, decode_token
-from project_server.utils.docker_utils import create_project_container_if_not_exists, copy_file_or_directory_to_container
+from project_server.utils.docker_utils import create_project_container_if_not_exists, copy_file_or_directory_to_container, install_package_after_start
 from project_server.agents.extraction.runner import run_extraction_task
 from project_server.client import ProjectClient, get_project
 from synesis_schemas.project_server import RunExtractionRequest
@@ -16,6 +16,7 @@ router = APIRouter()
 
 @router.post("/file")
 async def file_data_source(
+    background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
     project_id: UUID = Form(...),
     token_data: Annotated[TokenData, Depends(decode_token)] = None
@@ -58,11 +59,14 @@ async def file_data_source(
         )
     )
 
-    # Queue the extraction task for this file
     await run_extraction_task.kiq(
         user_id=token_data.user_id,
         extraction_request=extraction_request,
         bearer_token=token_data.bearer_token
     )
+
+    # Install package in background
+    background_tasks.add_task(
+        install_package_after_start, container_name, project)
 
     return extraction_request

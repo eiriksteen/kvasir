@@ -49,7 +49,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const { modelEntities } = useModelEntities(projectId);
   const { analysisObjects } = useAnalyses(projectId);
 
-  const { runsInConversation } = useRunsInConversation(conversation?.id || "");
+  const { runsInConversation } = useRunsInConversation(projectId, conversation?.id || "");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);

@@ -236,9 +236,6 @@ async def generate_analysis_result(
             except ValidationError:
                 continue
 
-    logger.info("ANALYSIS RESULT"*100)
-    logger.info(analysis_result.model_dump_json())
-
     await update_analysis_result_request(ctx.deps.client, analysis_result)
 
     ctx.deps.helper_history += result.new_messages()
