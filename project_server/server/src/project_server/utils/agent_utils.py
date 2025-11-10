@@ -111,7 +111,7 @@ async def get_working_directory_description(container_name: str) -> str:
 async def get_folder_structure_description(
         container_name: str,
         path: str = "/app",
-        n_levels: int = 3,
+        n_levels: int = 5,
         max_lines: int = 100) -> str:
     find_cmd = f"find {path} -maxdepth {n_levels} \\( -name '__pycache__' -o -name '*.egg-info' \\) -prune -o -print 2>/dev/null | sort"
 

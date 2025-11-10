@@ -240,6 +240,33 @@ class EdgesCreate(BaseModel):
     edges: List[EdgeDefinition]
 
 
+class EdgeDefinitionUsingNames(BaseModel):
+    from_node_type: NODE_TYPE_LITERAL
+    from_node_name: str
+    to_node_type: NODE_TYPE_LITERAL
+    to_node_name: str
+
+    @model_validator(mode='after')
+    def validate_edge_type(self) -> 'EdgeDefinitionUsingNames':
+        """Validate that this edge uses a valid node type combination."""
+        all_valid_edges = VALID_EDGE_TYPES + PIPELINE_RUN_EDGE_TYPES
+        edge_type = (self.from_node_type, self.to_node_type)
+
+        if edge_type not in all_valid_edges:
+            valid_edges_str = "\n".join(
+                [f"  - {from_type} -> {to_type}" for from_type, to_type in all_valid_edges])
+            raise ValueError(
+                f"Invalid edge type: {self.from_node_type} -> {self.to_node_type}\n\n"
+                f"Valid edge types:\n{valid_edges_str}"
+            )
+
+        return self
+
+
+class EdgesCreateUsingNames(BaseModel):
+    edges: List[EdgeDefinitionUsingNames]
+
+
 def get_entity_graph_description(entity_graph: EntityGraph, exclude_ids: bool = True) -> str:
     graph_dict = entity_graph.model_dump(mode="json")
 

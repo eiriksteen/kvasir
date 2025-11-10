@@ -36,7 +36,7 @@ export default function PipelineInfoTab({
 
   const { pipeline } = usePipeline(pipelineId, projectId);
   const { deletePipeline } = usePipelines(projectId);
-  const { runs } = useRuns();
+  const { runs } = useRuns(projectId);
   const { datasets } = useDatasets(projectId);
   const { dataSources } = useDataSources(projectId);
   const { modelEntities } = useModelEntities(projectId);

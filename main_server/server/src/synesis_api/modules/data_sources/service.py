@@ -1,13 +1,15 @@
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
+from fastapi import HTTPException
 
 from synesis_schemas.main_server import (
     DataSourceInDB,
     FileDataSourceInDB,
     DataSource,
     DataSourceCreate,
+    DataSourceDetailsCreate,
     UnknownFileCreate,
 )
 from synesis_api.modules.data_sources.models import (
@@ -23,14 +25,17 @@ async def create_data_source(
 
     # Get the fields defined in DataSourceCreate (excluding type_fields and from_pipelines)
     extra_fields = data_source_create.model_extra or {}
-    extra_type_fields = data_source_create.type_fields.model_extra or {}
-    # We also add all fields present in type fields and not present in unknown file create into the additional variables
-    file_type_fields = {k: v for k, v in data_source_create.type_fields.model_dump().items()
-                        if k not in UnknownFileCreate.model_fields}
 
-    additional_variables = {**extra_fields,
-                            **extra_type_fields,
-                            **file_type_fields}
+    # Handle additional variables - only if type_fields is provided
+    additional_variables = {**extra_fields}
+    if data_source_create.type_fields:
+        extra_type_fields = data_source_create.type_fields.model_extra or {}
+        # We also add all fields present in type fields and not present in unknown file create into the additional variables
+        file_type_fields = {k: v for k, v in data_source_create.type_fields.model_dump().items()
+                            if k not in UnknownFileCreate.model_fields}
+        additional_variables = {**extra_fields,
+                                **extra_type_fields,
+                                **file_type_fields}
 
     # Create the base data source
     data_source_id = uuid.uuid4()
@@ -67,6 +72,56 @@ async def create_data_source(
     # from_pipelines edges are now managed by project_graph module
 
     return (await get_user_data_sources(user_id, [data_source_id]))[0]
+
+
+async def add_data_source_details(
+        user_id: uuid.UUID,
+        details_create: DataSourceDetailsCreate) -> DataSource:
+    # First verify the data source exists and belongs to the user
+    existing = await get_user_data_sources(user_id, [details_create.data_source_id])
+    if not existing:
+        raise HTTPException(status_code=404, detail="Data source not found")
+
+    data_source_obj = existing[0]
+
+    # Check if details already exist
+    if data_source_obj.type_fields is not None:
+        raise HTTPException(
+            status_code=400, detail="Data source details already exist")
+
+    # Extract additional variables from type_fields
+    extra_type_fields = details_create.type_fields.model_extra or {}
+    file_type_fields = {k: v for k, v in details_create.type_fields.model_dump().items()
+                        if k not in UnknownFileCreate.model_fields}
+
+    new_additional_variables = {
+        **(data_source_obj.additional_variables or {}),
+        **extra_type_fields,
+        **file_type_fields
+    }
+
+    # Update the base data source with additional variables
+    await execute(
+        update(data_source)
+        .where(data_source.c.id == details_create.data_source_id)
+        .values(additional_variables=new_additional_variables),
+        commit_after=True
+    )
+
+    # Insert type-specific fields
+    if data_source_obj.type == "file":
+        file_data_source_obj = FileDataSourceInDB(
+            id=details_create.data_source_id,
+            **details_create.type_fields.model_dump(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
+        )
+        await execute(
+            insert(file_data_source).values(file_data_source_obj.model_dump()),
+            commit_after=True
+        )
+
+    return (await get_user_data_sources(user_id, [details_create.data_source_id]))[0]
 
 
 async def get_user_data_sources(user_id: uuid.UUID, data_source_ids: Optional[List[uuid.UUID]] = None) -> List[DataSource]:

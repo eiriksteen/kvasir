@@ -45,6 +45,7 @@ async def extraction_agent_system_prompt(ctx: RunContext[ExtractionDeps]) -> str
         f"{EXTRACTION_AGENT_SYSTEM_PROMPT}\n\n" +
         f"{working_directory_section}\n\n" +
         f"{folder_structure_section}\n\n" +
+        "THE FOLLOWING IS THE PROJECT DESCRIPTION AND THE CURRENT ENTITY GRAPH. PAY CLOSE ATTENTION TO THE EXISTING STRUCTURE BEFORE MAKING CHANGES.\n\n" +
         f"{project_description}\n\n"
     )
 

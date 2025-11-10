@@ -4,13 +4,11 @@ from typing import List
 from pydantic import BaseModel
 from dataclasses import dataclass
 from pydantic_ai import Agent, RunContext, ModelRetry
-from pydantic_ai.models import ModelSettings
 
 from project_server.utils.agent_utils import get_model
 from project_server.client import ProjectClient
 from synesis_schemas.main_server import (
     DataSourceCreate,
-    DataSource,
     Project,
     Dataset,
     ObjectGroupEChartCreate,
@@ -18,9 +16,7 @@ from synesis_schemas.main_server import (
     DataObjectCreate,
     PipelineImplementationCreate,
     PipelineRunCreate,
-    PipelineImplementationInDB,
     ModelEntityImplementationCreate,
-    ModelEntityInDB,
     AddEntityToProject
 )
 from project_server.utils.code_utils import run_python_code_in_container, remove_print_statements_from_code
@@ -34,7 +30,6 @@ from project_server.client.requests.data_objects import create_object_group_echa
 from project_server.client.requests.pipeline import post_pipeline_implementation, post_pipeline_run
 from project_server.client.requests.model import post_model_entity_implementation
 from project_server.worker import logger
-from project_server.client import FileInput
 
 
 @dataclass
@@ -53,6 +48,21 @@ Output metadata about the source as a Python dictionary, abiding by the followin
 {json.dumps(DataSourceCreate.model_json_schema())}
 
 The output data to submit must be named 'data_source_dict'!
+
+IMPORTANT: If a target entity ID is provided in the prompt, you MUST include 'data_source_id' in the dictionary with that UUID value.
+When 'data_source_id' is present, you should ONLY submit the type_fields (details) for that existing data source.
+Otherwise, create a new data source with full metadata (without data_source_id field).
+
+No hallucinations! Use code to extract the data source metadata, don't make it up. 
+If you need to extract schema from a file, you can use:
+
+```python
+from io import StringIO
+buffer = StringIO()
+df.info(buf=buffer)
+schema = buffer.getvalue()
+head = df.head().to_string()
+```
 """
 
 
@@ -67,23 +77,30 @@ async def submit_data_source(ctx: RunContext[HelperDeps], python_code: str) -> s
             f"{python_code}\n"
             "import asyncio\n"
             "from project_server.client import ProjectClient\n"
-            "from project_server.client.requests.data_sources import post_data_source\n"
+            "from project_server.client.requests.data_sources import post_data_source, post_data_source_details\n"
             "from project_server.client.requests.project import post_add_entity\n"
-            "from synesis_schemas.main_server import DataSourceCreate, AddEntityToProject\n"
+            "from synesis_schemas.main_server import DataSourceCreate, DataSourceDetailsCreate, AddEntityToProject\n"
             "from uuid import UUID\n"
             "import json\n"
             "\n"
             "async def run_submission():\n"
             f"    client = ProjectClient(bearer_token='{ctx.deps.bearer_token}')\n"
-            f"    request = DataSourceCreate(**data_source_dict)\n"
-            f"    result = await post_data_source(client, request)\n"
-            f"    # Add data source to project\n"
-            f"    add_entity_request = AddEntityToProject(\n"
-            f"        project_id=UUID('{ctx.deps.project.id}'),\n"
-            f"        entity_type='data_source',\n"
-            f"        entity_id=result.id\n"
-            f"    )\n"
-            f"    await post_add_entity(client, add_entity_request)\n"
+            "    # Check if this is updating an existing data source or creating a new one\n"
+            "    if 'data_source_id' in data_source_dict:\n"
+            "        # Update existing data source with details\n"
+            "        details_request = DataSourceDetailsCreate(**data_source_dict)\n"
+            "        result = await post_data_source_details(client, details_request)\n"
+            "    else:\n"
+            "        # Create new data source\n"
+            "        request = DataSourceCreate(**data_source_dict)\n"
+            "        result = await post_data_source(client, request)\n"
+            "        # Add data source to project\n"
+            "        add_entity_request = AddEntityToProject(\n"
+            f"            project_id=UUID('{ctx.deps.project.id}'),\n"
+            "            entity_type='data_source',\n"
+            "            entity_id=result.id\n"
+            "        )\n"
+            "        await post_add_entity(client, add_entity_request)\n"
             "    print(json.dumps(result.model_dump(), default=str))\n"
             "\n"
             "asyncio.run(run_submission())"
@@ -135,6 +152,12 @@ Chart Descriptions:
 - You must provide a chart description for each object group in the dataset, matched by the name field
 - Example: ChartDescription(group_name="forecast_series", description="Line chart showing past values in blue, forecast values in green, ground-truth values in orange, and the forecast start point in a vertical line.")
 
+IMPORTANT: If a target entity ID is provided in the prompt, you MUST include 'dataset_id' in the dictionary with that UUID value.
+When 'dataset_id' is present, you should add object groups to that existing dataset (not create a new dataset).
+Otherwise, create a new dataset with full metadata (without dataset_id field). 
+
+No hallucinations! Use code to extract the dataset metadata, don't make it up. 
+
 The schema the dataset_dict must abide by is:
 {json.dumps(DatasetCreate.model_json_schema())}
 
@@ -168,26 +191,44 @@ async def submit_dataset(
             f"{python_code}\n"
             "import asyncio\n"
             "from project_server.client import ProjectClient\n"
-            "from project_server.client.requests.data_objects import post_dataset\n"
+            "from project_server.client.requests.data_objects import post_dataset, post_object_group, get_dataset\n"
             "from project_server.client.requests.project import post_add_entity\n"
-            "from synesis_schemas.main_server import DatasetCreate, AddEntityToProject\n"
+            "from synesis_schemas.main_server import DatasetCreate, DataObjectGroupCreate, AddEntityToProject\n"
             "from uuid import UUID\n"
             "import json\n"
             "\n"
             "async def run_submission():\n"
             f"    client = ProjectClient(bearer_token='{ctx.deps.bearer_token}')\n"
-            f"    dataset_create_obj = DatasetCreate(**dataset_dict)\n"
             "    # The agent should have prepared 'files' list with FileInput objects\n"
             "    if 'files' not in locals() and 'files' not in globals():\n"
             "        raise ValueError('files variable not found. The agent must create FileInput objects for dataframes in all groups.')\n"
-            f"    result = await post_dataset(client, files, dataset_create_obj)\n"
-            f"    # Add dataset to project\n"
-            f"    add_entity_request = AddEntityToProject(\n"
-            f"        project_id=UUID('{ctx.deps.project.id}'),\n"
-            f"        entity_type='dataset',\n"
-            f"        entity_id=result.id\n"
-            f"    )\n"
-            f"    await post_add_entity(client, add_entity_request)\n"
+            "    \n"
+            "    # Check if this is adding to an existing dataset or creating a new one\n"
+            "    if 'dataset_id' in dataset_dict:\n"
+            "        # Add object groups to existing dataset\n"
+            "        dataset_id = UUID(dataset_dict['dataset_id'])\n"
+            "        groups_data = dataset_dict.get('groups', [])\n"
+            "        \n"
+            "        # Add each object group\n"
+            "        for group_dict in groups_data:\n"
+            "            group_create = DataObjectGroupCreate(**group_dict)\n"
+            "            # Filter files for this group based on the group's objects_files\n"
+            "            group_files = [f for f in files if any(of['filename'] == f.filename for of in group_dict.get('objects_files', []))]\n"
+            "            await post_object_group(client, dataset_id, group_create, group_files)\n"
+            "        \n"
+            "        # Get updated dataset\n"
+            "        result = await get_dataset(client, dataset_id)\n"
+            "    else:\n"
+            "        # Create new dataset\n"
+            "        dataset_create_obj = DatasetCreate(**dataset_dict)\n"
+            "        result = await post_dataset(client, files, dataset_create_obj)\n"
+            "        # Add dataset to project\n"
+            "        add_entity_request = AddEntityToProject(\n"
+            f"            project_id=UUID('{ctx.deps.project.id}'),\n"
+            "            entity_type='dataset',\n"
+            "            entity_id=result.id\n"
+            "        )\n"
+            "        await post_add_entity(client, add_entity_request)\n"
             "    print(json.dumps(result.model_dump(), default=str))\n"
             "\n"
             "asyncio.run(run_submission())"
@@ -251,8 +292,10 @@ dataset_agent = Agent[HelperDeps, str](
 
 pipeline_system_prompt = """
 Submit metadata about a data processing or machine learning pipeline. 
-This can be associated with a current pipeline, in which case you should submit the implementation and possible runs. 
-If this is a brand new pipeline entity, you must include the pipeline_create object as well.
+
+IMPORTANT: If a target entity ID is provided in the prompt, you MUST set pipeline_id to that UUID in the PipelineImplementationCreate object.
+When pipeline_id is set, you are adding an implementation to an existing pipeline (do not include pipeline_create).
+Otherwise, if this is a brand new pipeline entity, you must include the pipeline_create object (and leave pipeline_id as None).
 """
 
 
@@ -297,19 +340,22 @@ pipeline_agent = Agent[HelperDeps, str](
 
 model_entity_system_prompt = """
 Submit metadata about a model, which can be a machine learning model, a rule-based model, an optimization model, etc. 
-This can be associated with a current model entity, in which case you should submit the implementation and possible runs. 
-If this is a brand new model entity, you must include the model_entity_create object as well.
+
+IMPORTANT: If a target entity ID is provided in the prompt, you MUST set model_entity_id to that UUID in the ModelEntityImplementationCreate object.
+When model_entity_id is set, you are adding an implementation to an existing model entity (do not include model_entity_create).
+Otherwise, if this is a brand new model entity, you must include the model_entity_create object (and leave model_entity_id as None).
 """
 
 
 async def submit_model_entity_implementation(ctx: RunContext[HelperDeps], model_entity_implementation_create: ModelEntityImplementationCreate) -> str:
     try:
         model_entity_obj = await post_model_entity_implementation(ctx.deps.client, model_entity_implementation_create)
-        await post_add_entity(ctx.deps.client, AddEntityToProject(
-            project_id=ctx.deps.project.id,
-            entity_type="model_entity",
-            entity_id=model_entity_obj.id
-        ))
+        if model_entity_implementation_create.model_entity_create:
+            await post_add_entity(ctx.deps.client, AddEntityToProject(
+                project_id=ctx.deps.project.id,
+                entity_type="model_entity",
+                entity_id=model_entity_obj.id
+            ))
         return model_entity_obj.model_dump_json(indent=4)
     except Exception as e:
         raise ModelRetry(f"Failed to submit model entity: {str(e)}")

@@ -57,6 +57,8 @@ from .entity_graph import (
     get_entity_graph_description,
     VALID_EDGE_TYPES,
     PIPELINE_RUN_EDGE_TYPES,
+    EdgeDefinitionUsingNames,
+    EdgesCreateUsingNames
 )
 
 
@@ -155,6 +157,7 @@ from .data_sources import (
     DATA_SOURCE_TYPE_LITERAL,
     DataSourceCreate,
     DataSourcesInDBInfo,
+    DataSourceDetailsCreate,
     get_data_sources_in_db_info,
 )
 

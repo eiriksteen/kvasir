@@ -5,6 +5,7 @@ from project_server.client import ProjectClient
 from synesis_schemas.main_server import (
     DataSource,
     DataSourceCreate,
+    DataSourceDetailsCreate,
     GetDataSourcesByIDsRequest
 )
 
@@ -26,4 +27,9 @@ async def get_data_sources_by_ids(client: ProjectClient, request: GetDataSources
 
 async def post_data_source(client: ProjectClient, request: DataSourceCreate) -> DataSource:
     response = await client.send_request("post", "/data-sources/data-source", json=request.model_dump(mode="json"))
+    return DataSource(**response.body)
+
+
+async def post_data_source_details(client: ProjectClient, request: DataSourceDetailsCreate) -> DataSource:
+    response = await client.send_request("post", "/data-sources/data-source-details", json=request.model_dump(mode="json"))
     return DataSource(**response.body)

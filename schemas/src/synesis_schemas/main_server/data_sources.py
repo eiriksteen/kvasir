@@ -94,9 +94,17 @@ class DataSourceCreate(BaseModel):
     name: str
     description: str
     type: DATA_SOURCE_TYPE_LITERAL
-    type_fields: Union[UnknownFileCreate, TabularFileCreate]
+    type_fields: Optional[Union[UnknownFileCreate, TabularFileCreate]] = None
     # In addition to general extra info, this can be used to store info about "wildcard" sources that we don't have dedicated tables for
     # We don't need to create fill the tables below
+
+    class Config:
+        extra = "allow"
+
+
+class DataSourceDetailsCreate(BaseModel):
+    data_source_id: UUID
+    type_fields: Union[UnknownFileCreate, TabularFileCreate]
 
     class Config:
         extra = "allow"

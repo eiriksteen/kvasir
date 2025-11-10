@@ -20,6 +20,7 @@ import CodeInfoTab from "@/components/info-tabs/CodeInfoTab";
 import { UUID } from "crypto";
 import { RefreshCw } from "lucide-react";
 import { useState, useCallback, useMemo } from "react";
+import { useProjectRunMessages } from "@/hooks/useRuns";
 
 interface DashboardProps {
   session: Session;
@@ -30,17 +31,20 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
   const { project } = useProject(projectId);
   const { openTabs, activeTabId, openTab, closeTab, closeTabToProject, selectTab } = useTabs();
   const { runExtraction } = useExtraction();
-  const { runs } = useRuns();
+  const { runs } = useRuns(projectId);
   const [isScanning, setIsScanning] = useState(false);
+
+
+  // We have this to ensure we listen to the run messages for UI updates (inside the hook we mutate when new entities are created)
+  useProjectRunMessages(projectId);
 
   // Check if any extraction runs are currently running in this project
   const hasRunningExtractionRuns = useMemo(() => {
     return runs.some(run => 
       run.type === 'extraction' && 
-      run.status === 'running' && 
-      run.projectId === projectId
+      run.status === 'running'
     );
-  }, [runs, projectId]);
+  }, [runs]);
 
   const handleScanCodebase = useCallback(async () => {
     setIsScanning(true);

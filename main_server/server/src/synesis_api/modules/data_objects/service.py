@@ -426,9 +426,7 @@ async def create_object_group_echart(
     request: ObjectGroupEChartCreate
 ) -> ObjectGroup:
 
-    echart_obj = (await create_echarts(
-        [EchartCreate(chart_script_path=request.chart_script_path)]
-    ))[0]
+    echart_obj = (await create_echarts([EchartCreate(chart_script_path=request.chart_script_path)]))[0]
 
     # Update the object group
     update_stmt = (

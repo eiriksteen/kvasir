@@ -51,8 +51,8 @@ async def post_dataset(
 @router.post("/object-group/{dataset_id}", response_model=ObjectGroup)
 async def post_object_group(
     dataset_id: UUID,
-    group_create: DataObjectGroupCreate,
     files: list[UploadFile] = [],
+    metadata: str = Form(...),
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> ObjectGroup:
     """Create an object group in a dataset"""
@@ -61,7 +61,13 @@ async def post_object_group(
         raise HTTPException(
             status_code=403, detail="Not authorized to access this dataset")
 
-    return await create_object_group(user.id, dataset_id, group_create, files)
+    try:
+        group_create = DataObjectGroupCreate(**json.loads(metadata))
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid metadata: {e}")
+
+    return await create_object_group(dataset_id, group_create, files)
 
 
 @router.post("/objects/{group_id}")

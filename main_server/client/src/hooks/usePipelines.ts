@@ -116,11 +116,6 @@ export const usePipelines = (projectId: UUID) => {
   const { data: pipelines, mutate: mutatePipelines, error, isLoading } = useSWR<Pipeline[]>(
     session ? ["pipelines", projectId] : null, 
     () => fetchPipelines(session ? session.APIToken.accessToken : "", projectId),
-    {
-      // revalidateOnFocus: false,
-      //revalidateOnReconnect: false,
-      revalidateIfStale: false,
-    }
   );
   const { data: pipelineRuns, mutate: mutatePipelineRuns } = useSWR<PipelineRunInDB[]>(
     session ? ["pipelineRuns", projectId] : null, () => fetchPipelineRuns(session ? session.APIToken.accessToken : "")

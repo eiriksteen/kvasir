@@ -127,6 +127,11 @@ class GetRawDataRequest(BaseModel):
 # Create schemas
 
 
+class DatasetBaseCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
 class TimeSeriesCreate(BaseModel):
     """
     Metadata for one time series object. Each DataFrame row represents one series.
@@ -215,6 +220,7 @@ class DatasetCreate(BaseModel):
 
 class ObjectGroupEChartCreate(BaseModel):
     chart_script_path: str
+
 
 # Helpers
 # Used to let the agent know the schemas it's dataframes must abide by

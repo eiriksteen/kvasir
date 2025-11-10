@@ -33,7 +33,7 @@ async def post_object_group(client: ProjectClient, dataset_id: UUID, group_creat
         "post",
         f"/data-objects/object-group/{dataset_id}",
         files=files,
-        data={"group_create": json.dumps(group_create.model_dump(mode="json"))}
+        data={"metadata": json.dumps(group_create.model_dump(mode="json"))}
     )
     return ObjectGroup(**response.body)
 
