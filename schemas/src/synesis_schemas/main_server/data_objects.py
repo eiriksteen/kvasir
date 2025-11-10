@@ -94,13 +94,6 @@ class TimeSeriesRawData(BaseModel):
     params: TimeSeriesRawDataParams
 
 
-class DataObjectRawData(BaseModel):
-    # TODO: Add more modalities
-    original_id: str
-    modality: MODALITY_LITERAL
-    data: Union[TimeSeriesRawData]
-
-
 # Schemas for the API
 
 

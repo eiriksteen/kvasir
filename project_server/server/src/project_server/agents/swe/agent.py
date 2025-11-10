@@ -4,7 +4,7 @@ from pydantic_ai.models import ModelSettings
 from project_server.agents.swe.prompt import SWE_AGENT_BASE_SYSTEM_PROMPT
 from project_server.agents.swe.deps import SWEAgentDeps
 from project_server.agents.swe.tools import file_editing_toolset
-from project_server.agents.shared_tools import get_task_guidelines_tool, execute_python_code, navigation_toolset
+from project_server.agents.shared_tools import get_task_guidelines_tool, navigation_toolset
 from project_server.agents.swe.history_processors import keep_only_most_recent_script
 from project_server.utils.agent_utils import (
     get_model,
@@ -24,7 +24,7 @@ swe_agent = Agent[SWEAgentDeps, str](
     model,
     deps_type=SWEAgentDeps,
     system_prompt=SWE_AGENT_BASE_SYSTEM_PROMPT,
-    tools=[get_task_guidelines_tool, execute_python_code],
+    # tools=[get_task_guidelines_tool],
     toolsets=[navigation_toolset, file_editing_toolset],
     retries=3,
     history_processors=[keep_only_most_recent_script],

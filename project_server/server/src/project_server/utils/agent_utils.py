@@ -1,3 +1,4 @@
+import json
 from typing import List
 from uuid import UUID
 
@@ -112,20 +113,9 @@ async def get_folder_structure_description(
         path: str = "/app",
         n_levels: int = 3,
         max_lines: int = 100) -> str:
-    # Try using tree command first (cleaner output), fall back to find if not available
-    tree_cmd = f"tree -L {n_levels} -a -I '__pycache__|*.egg-info' {path} 2>/dev/null"
     find_cmd = f"find {path} -maxdepth {n_levels} \\( -name '__pycache__' -o -name '*.egg-info' \\) -prune -o -print 2>/dev/null | sort"
 
-    # Check if tree is available
-    check_tree = "command -v tree >/dev/null 2>&1 && echo 'yes' || echo 'no'"
-    has_tree_out, _ = await run_shell_code_in_container(check_tree, container_name)
-
-    if has_tree_out.strip() == 'yes':
-        cmd = tree_cmd
-    else:
-        cmd = find_cmd
-
-    out, err = await run_shell_code_in_container(cmd, container_name)
+    out, err = await run_shell_code_in_container(find_cmd, container_name)
 
     if err:
         return f"folder structure {n_levels} levels down:\n\nError: {err}"
@@ -133,15 +123,28 @@ async def get_folder_structure_description(
     if not out.strip():
         return f"folder structure {n_levels} levels down:\n\n(empty or does not exist)"
 
-    lines = out.split('\n')
-    was_truncated = len(lines) > max_lines
+    all_paths = [line for line in out.split('\n') if line.strip()]
+
+    leaf_paths = []
+    for current_path in all_paths:
+        is_parent = False
+        for other_path in all_paths:
+            if other_path != current_path and other_path.startswith(current_path + '/'):
+                is_parent = True
+                break
+
+        if not is_parent:
+            leaf_paths.append(current_path)
+
+    was_truncated = len(leaf_paths) > max_lines
 
     if was_truncated:
-        lines = lines[:max_lines]
-        result = '\n'.join(lines)
+        result_lines = leaf_paths[:max_lines]
+        result = '\n'.join(result_lines)
         return f"folder structure {n_levels} levels down:\n\n{result}\n\n[truncated - output exceeded {max_lines} lines]"
     else:
-        return f"folder structure {n_levels} levels down:\n\n{out}"
+        result = '\n'.join(leaf_paths)
+        return f"folder structure {n_levels} levels down:\n\n{result}"
 
 
 def get_model():

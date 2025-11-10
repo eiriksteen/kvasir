@@ -1,6 +1,7 @@
 import uuid
 from abc import ABC, abstractmethod
-from typing import Literal, Optional
+from typing import Literal, Optional, List
+from pydantic_ai import FunctionToolset
 from pydantic_ai.messages import FunctionToolCallEvent
 from pydantic_ai.agent import Agent, AgentRunResult, OutputSpec
 from pydantic_ai.tools import AgentDepsT
@@ -52,7 +53,8 @@ class RunnerBase(ABC):
         self,
         prompt_content: str,
         deps: Optional[AgentDepsT] = None,
-        output_type: Optional[OutputSpec] = None
+        output_type: Optional[OutputSpec] = None,
+        toolsets: Optional[List[FunctionToolset]] = None
     ) -> AgentRunResult:
 
         assert self.agent is not None, "Agent is not set"
@@ -61,6 +63,7 @@ class RunnerBase(ABC):
                 prompt_content,
                 deps=deps,
                 output_type=output_type,
+                toolsets=toolsets,
                 message_history=self.message_history) as agent_run:
             async for node in agent_run:
                 if Agent.is_call_tools_node(node):

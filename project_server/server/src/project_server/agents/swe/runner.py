@@ -3,8 +3,10 @@ from pathlib import Path
 from typing import Optional, List
 
 from project_server.agents.swe.agent import swe_agent
+# from project_server.utils.agent_utils import get_folder_structure_description
 from project_server.agents.swe.deps import SWEAgentDeps
 from project_server.agents.swe.output import submit_implementation_output
+from project_server.agents.extraction.runner import ExtractionAgentRunner
 from project_server.client import get_project
 from project_server.agents.runner_base import RunnerBase
 from project_server.worker import broker
@@ -13,7 +15,8 @@ from project_server.utils.docker_utils import (
     remove_from_container,
     rename_in_container
 )
-from project_server.agents.extraction.runner import ExtractionAgentRunner
+# from project_server.agents.extraction.runner import ExtractionAgentRunner
+# from project_server.agents.extraction.tools import extraction_toolset
 from synesis_schemas.project_server import RunSWERequest, ImplementationSummary
 
 
@@ -93,13 +96,35 @@ class SWEAgentRunner(RunnerBase):
                     type="result"
                 )
 
+            # await self._run_agent(
+            #     "Now submit any new entities that you have created. " +
+            #     "This should include the pipeline implementation, runs, output data sources and datasets. " +
+            #     "Each output file will constitue a data source. The datasets should compose together related files or pipeline outputs. " +
+            #     "After submitting the entities, create edges between them showing the data flows. " +
+            #     f"The current folder structure is: {await get_folder_structure_description(self.container_name, f'/app/{self.project.python_package_name}')}",
+            #     toolsets=[extraction_toolset],
+            #     deps=self.deps
+            # )
+
+            await self._complete_agent_run("SWE agent run completed")
+
             extraction_prompt = (
                 f"The SWE agent just completed a run to create a pipeline with the ID: {self.target_pipeline_id} " +
-                "Scan the codebase to update the project graph. Add any new entities, remove any no longer relevant, add new edges between entities, or remove any edges that are no longer relevant. Ensure the graph accurately represents the current state of the project."
+                "Add the output pipeline implementation (include the ID in the description), data source(s),  dataset(s) of the pipeline, if there are any. " +
+                "Add also any missing edges showing the data flows. " +
+                f"Here is a summary of all the code created::\n\n<begin_code_summary>\n{run_result.output}\n</begin_code_summary> " +
+                "All information necesary to create the entities should be in the code summary and visible through any new data files that have appeared. " +
+                "As speed is crucial, submit the entities directly! No need for exploration as we have it all in the code summary."
             )
 
-            await self.extraction_runner(prompt_content=extraction_prompt)
-            await self._complete_agent_run("SWE agent run completed")
+            extraction_runner = ExtractionAgentRunner(
+                user_id=self.user_id,
+                bearer_token=self.bearer_token,
+                project_id=self.project_id,
+                run_id=self.run_id
+            )
+
+            await extraction_runner(prompt_content=extraction_prompt)
 
             return run_result.output
 
@@ -116,7 +141,6 @@ class SWEAgentRunner(RunnerBase):
             bearer_token=self.bearer_token,
             client=self.project_client,
             project=self.project,
-            log_code=self._stream_code,
             data_sources_injected=self.input_data_source_ids,
             datasets_injected=self.input_dataset_ids,
             analyses_injected=self.input_analysis_ids,

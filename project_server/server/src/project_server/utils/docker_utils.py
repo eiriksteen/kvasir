@@ -66,6 +66,18 @@ async def create_project_container_if_not_exists(project: Project, image_name: s
         await asyncio.to_thread(_create_new_project_container_sync, project, image_name)
 
 
+async def install_package_after_start(container_name: str, project: Project) -> None:
+    _, err = await run_shell_code_in_container(
+        "pip install -e .",
+        container_name,
+        cwd=f"/app/{project.python_package_name}"
+    )
+
+    if err:
+        raise RuntimeError(
+            f"Failed to install package in container: {err}")
+
+
 def _create_empty_project_package(project: Project) -> None:
     """Create directory structure, pyproject.toml, and Dockerfile for first-time project setup"""
     project_dir = SANDBOX_DIR / str(project.id)

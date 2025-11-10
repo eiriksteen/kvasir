@@ -1,8 +1,8 @@
 import yaml
 from uuid import UUID
-from typing import List, Literal, Any
+from typing import List, Literal, Any, Tuple
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # =============================================================================
@@ -191,12 +191,49 @@ class EntityDetailsResponse(BaseModel):
 # Create Models
 # =============================================================================
 
+# Valid edge types for entity graph
+VALID_EDGE_TYPES: List[Tuple[str, str]] = [
+    ("data_source", "dataset"),
+    ("data_source", "pipeline"),
+    ("data_source", "analysis"),
+    ("dataset", "pipeline"),
+    ("dataset", "analysis"),
+    ("model_entity", "pipeline"),
+    ("model_entity", "analysis"),
+]
+
+# Valid edge types involving pipeline runs
+PIPELINE_RUN_EDGE_TYPES: List[Tuple[str, str]] = [
+    ("dataset", "pipeline_run"),
+    ("data_source", "pipeline_run"),
+    ("model_entity", "pipeline_run"),
+    ("pipeline_run", "dataset"),
+    ("pipeline_run", "model_entity"),
+    ("pipeline_run", "data_source"),
+]
+
 
 class EdgeDefinition(BaseModel):
     from_node_type: NODE_TYPE_LITERAL
     from_node_id: UUID
     to_node_type: NODE_TYPE_LITERAL
     to_node_id: UUID
+
+    @model_validator(mode='after')
+    def validate_edge_type(self) -> 'EdgeDefinition':
+        """Validate that this edge uses a valid node type combination."""
+        all_valid_edges = VALID_EDGE_TYPES + PIPELINE_RUN_EDGE_TYPES
+        edge_type = (self.from_node_type, self.to_node_type)
+
+        if edge_type not in all_valid_edges:
+            valid_edges_str = "\n".join(
+                [f"  - {from_type} -> {to_type}" for from_type, to_type in all_valid_edges])
+            raise ValueError(
+                f"Invalid edge type: {self.from_node_type} -> {self.to_node_type}\n\n"
+                f"Valid edge types:\n{valid_edges_str}"
+            )
+
+        return self
 
 
 class EdgesCreate(BaseModel):

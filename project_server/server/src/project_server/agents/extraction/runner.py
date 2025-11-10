@@ -3,12 +3,9 @@ from typing import Optional
 
 from project_server.agents.extraction.agent import extraction_agent
 from project_server.agents.extraction.deps import ExtractionDeps
-from project_server.agents.extraction.output import submit_final_extraction_output
-from project_server.utils.docker_utils import create_project_container_if_not_exists
-from project_server.worker import broker, logger
+from project_server.worker import broker
 from project_server.agents.runner_base import RunnerBase
 from synesis_schemas.project_server import RunExtractionRequest
-from synesis_schemas.main_server import Project
 from project_server.client import get_project
 
 
@@ -43,12 +40,7 @@ class ExtractionAgentRunner(RunnerBase):
                 container_name=str(self.project_id)
             )
 
-            run_result = await self._run_agent(
-                prompt_content={prompt_content},
-                deps=deps,
-                output_type=submit_final_extraction_output
-            )
-
+            run_result = await self._run_agent(prompt_content=prompt_content, deps=deps)
             await self._complete_agent_run("Extraction agent run completed")
             return run_result.output
 
@@ -61,11 +53,8 @@ class ExtractionAgentRunner(RunnerBase):
 async def run_extraction_task(
     user_id: uuid.UUID,
     bearer_token: str,
-    extraction_request: RunExtractionRequest,
-    project: Project
+    extraction_request: RunExtractionRequest
 ):
-
-    logger.info(f"Running extraction task for project {project.id}")
 
     runner = ExtractionAgentRunner(
         user_id=user_id,

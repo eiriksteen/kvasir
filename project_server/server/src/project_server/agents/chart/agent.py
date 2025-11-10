@@ -74,6 +74,6 @@ async def chart_agent_system_prompt(ctx: RunContext[ChartDeps]) -> str:
         f"{base_code_context}\n\n"
     )
 
-    logger.info(f"Chart agent system prompt:\n\n{full_prompt}")
+    # logger.info(f"Chart agent system prompt:\n\n{full_prompt}")
 
     return full_prompt

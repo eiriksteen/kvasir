@@ -54,7 +54,9 @@ from .entity_graph import (
     EntityGraphUsingNames,
     EntityDetail,
     EntityDetailsResponse,
-    get_entity_graph_description
+    get_entity_graph_description,
+    VALID_EDGE_TYPES,
+    PIPELINE_RUN_EDGE_TYPES,
 )
 
 
@@ -137,7 +139,6 @@ from .data_objects import (
     get_modality_models,
     ModalityModels,
     MODALITY_LITERAL,
-    DataObjectRawData,
     GetRawDataRequest,
     ObjectGroupEChartCreate,
     TimeSeriesRawDataParams

@@ -7,25 +7,6 @@ from project_server.client.requests.knowledge_bank import get_task_guidelines
 from project_server.app_secrets import READABLE_EXTENSIONS
 
 
-async def execute_python_code(ctx: RunContext, python_code: str):
-    """
-    Execute a python code block.
-
-    Args:
-        python_code: The python code to execute.
-        explanation: Explanation of what you are doing and why - very concisely.
-    """
-
-    assert hasattr(ctx.deps, "container_name"), "Container name is required"
-
-    out, err = await run_python_code_in_container(python_code, container_name=ctx.deps.container_name)
-
-    if err:
-        raise ModelRetry(f"Error executing code: {err}")
-
-    return out
-
-
 async def get_task_guidelines_tool(ctx: RunContext, task: Literal["time_series_forecasting"]) -> str:
     assert hasattr(ctx.deps, "client"), "Client is required"
     return await get_task_guidelines(ctx.deps.client, GetGuidelinesRequest(task=task))
