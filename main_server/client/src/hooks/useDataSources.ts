@@ -68,16 +68,38 @@ async function deleteDataSourceEndpoint(token: string, dataSourceId: UUID): Prom
   }
 }
 
-export const useDataSources = (projectId: UUID) => {
+async function fetchAllUserDataSources(token: string): Promise<DataSource[]> {
+  const response = await fetch(`${API_URL}/data-source/data-sources`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch user data sources', errorText);
+    throw new Error(`Failed to fetch data sources: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
+
+export const useDataSources = (projectId?: UUID) => {
   const { data: session } = useSession();
   const { data: dataSources, mutate: mutateDataSources, error, isLoading } = useSWR(
-    session ? ["data-sources", projectId] : null, 
-    () => fetchProjectDataSources(session ? session.APIToken.accessToken : "", projectId)
+    session ? (projectId ? ["data-sources", projectId] : ["data-sources", "all"]) : null, 
+    () => projectId 
+      ? fetchProjectDataSources(session ? session.APIToken.accessToken : "", projectId)
+      : fetchAllUserDataSources(session ? session.APIToken.accessToken : "")
   );
 
   const { trigger: triggerCreateFileDataSource } = useSWRMutation(
-    session ? ["data-sources", projectId] : null,
+    session && projectId ? ["data-sources", projectId] : null,
     async (_, { arg }: { arg: { files: File[] } }) => {
+      if (!projectId) {
+        throw new Error("Cannot create data source without a project context");
+      }
       const newDataSources = await createFileDataSource(
         session ? session.APIToken.accessToken : "", 
         projectId, 
@@ -89,7 +111,7 @@ export const useDataSources = (projectId: UUID) => {
   );
 
   const { trigger: deleteDataSource } = useSWRMutation(
-    session ? ["data-sources", projectId] : null,
+    session ? (projectId ? ["data-sources", projectId] : ["data-sources", "all"]) : null,
     async (_, { arg }: { arg: { dataSourceId: UUID } }) => {
       await deleteDataSourceEndpoint(session ? session.APIToken.accessToken : "", arg.dataSourceId);
       await mutateDataSources();

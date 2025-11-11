@@ -34,11 +34,7 @@ export default function AddAnalysis({ projectId, onClose }: AddAnalysisProps) {
   const handleSubmit = async () => {
     const analysisCreate: AnalysisCreate = {
       name,
-      description: description || null,
-      inputDataSourceIds: [],
-      inputDatasetIds: [],
-      inputModelEntityIds: [],
-      inputAnalysisIds: []
+      description: description || null
     };
     await createAnalysis(analysisCreate);
     setName('');

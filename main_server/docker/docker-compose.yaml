@@ -3,7 +3,7 @@ version: '3.8'
 services:
   db:
     image: pgvector/pgvector:0.8.0-pg17-bookworm
-    container_name: synesis-db
+    container_name: main-db
     environment:
       POSTGRES_DB: synesis
       POSTGRES_USER: postgres
@@ -11,55 +11,43 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - backend
+      - main-backend
 
-  redis:
-    image: redis:latest
-    container_name: synesis-redis
-    networks:
-      - backend
-
-  backend:
-    &backend
+  server:
+    &server
     build:
       context: ../..
-      dockerfile: main_server/api/Dockerfile.prod  
-    container_name: synesis-backend
+      dockerfile: main_server/server/Dockerfile.prod
+    container_name: main-server
     networks:
-      - backend
-      - frontend
+      - main-backend
+      - main-frontend
     depends_on:
       - db
-      - redis
+    volumes:
+      - ${HOME}/.ssh/es256-private.pem:/app/.ssh/es256-private.pem
+      - ${HOME}/.ssh/es256-public.pem:/app/.ssh/es256-public.pem
 
-  taskiq-worker:
-    <<: *backend
-    container_name: synesis-taskiq-worker
-    working_dir: /app/src
-    command: taskiq worker synesis_api.worker:broker -tp='**/runner.py' -fsd
-    networks:
-      - backend
-
-  frontend:
+  client:
     build:
       context: ../..
       dockerfile: main_server/client/Dockerfile.prod
-    container_name: synesis-client
+    container_name: main-client
     networks:
-      - frontend
+      - main-frontend
     depends_on:
-      - backend
+      - server
 
   proxy:
     image: nginx:latest
-    container_name: synesis-proxy
+    container_name: main-proxy
     ports:
       - "80:80"
     networks:
-      - frontend
+      - main-frontend
     depends_on:
-      - backend
-      - frontend
+      - server
+      - client
     volumes:
       - type: bind
         source: ../proxy/nginx.conf
@@ -70,7 +58,7 @@ volumes:
   postgres_data:
 
 networks:
-  backend:
+  main-backend:
     driver: bridge
-  frontend:
+  main-frontend:
     driver: bridge

@@ -10,7 +10,7 @@ import { Project } from '@/types/project';
 import { UUID } from 'crypto';
 
 interface UserHeaderProps {
-	projectId: UUID;
+	projectId?: UUID;
 } 
 
 export default function UserHeader({ projectId }: UserHeaderProps) {

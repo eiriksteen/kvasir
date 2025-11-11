@@ -247,7 +247,14 @@ export const useRuns = (projectId: UUID) => {
     }
   )
 
-  return { runs: runs || [], runState, triggerLaunchRun, triggerRejectRun };
+  // final duplicate removal. should be dealt with in the event stream, but sometimes it doesn't work
+  // todo: remove?
+  const uniqueRuns = useMemo(() => {
+    if (!runs) return [];
+    return Array.from(new Map(runs.map(run => [run.id, run])).values());
+  }, [runs]);
+
+  return { runs: uniqueRuns, runState, triggerLaunchRun, triggerRejectRun };
 };
 
 

@@ -207,7 +207,7 @@ export const useProjects = () => {
   return { projects, mutateProjects, error, isLoading, triggerUpdateProject, triggerCreateNewProject };
 }
 
-export const useProject = (projectId: UUID) => {
+export const useProject = (projectId?: UUID) => {
   const { data: session } = useSession();
 
   // TODO: Should not need to mutate all projects when just one changes

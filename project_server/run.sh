@@ -1,31 +1,51 @@
 #!/bin/bash
 
 # Check if at least one argument is provided
-if [ $# -lt 1 ] || [ $# -gt 2 ]; then
-    echo "Usage: $0 <dev|prod> [build]"
-    echo "  dev  - Run development environment"
-    echo "  prod - Run production environment"
-    echo "  build - Optional: Rebuild Docker images before starting"
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <dev|prod> [build] [-d]"
+    echo "  dev    - Run development environment"
+    echo "  prod   - Run production environment"
+    echo "  build  - Optional: Rebuild Docker images before starting"
+    echo "  -d     - Optional: Run in detached mode"
     exit 1
 fi
 
-# Check if the first argument is valid
-if [ "$1" != "dev" ] && [ "$1" != "prod" ]; then
-    echo "Error: Invalid argument '$1'"
-    echo "Usage: $0 <dev|prod> [build]"
-    echo "  dev  - Run development environment"
-    echo "  prod - Run production environment"
-    echo "  build - Optional: Rebuild Docker images before starting"
-    exit 1
-fi
+# Parse arguments
+ENV=""
+BUILD_FLAG=""
+DETACHED_FLAG=""
 
-# Check if second argument is "build" (if provided)
-if [ $# -eq 2 ] && [ "$2" != "build" ]; then
-    echo "Error: Invalid second argument '$2'"
-    echo "Usage: $0 <dev|prod> [build]"
-    echo "  dev  - Run development environment"
-    echo "  prod - Run production environment"
-    echo "  build - Optional: Rebuild Docker images before starting"
+for arg in "$@"; do
+    case "$arg" in
+        dev|prod)
+            if [ -n "$ENV" ]; then
+                echo "Error: Multiple environment arguments provided"
+                exit 1
+            fi
+            ENV="$arg"
+            ;;
+        build)
+            BUILD_FLAG="--build"
+            ;;
+        -d)
+            DETACHED_FLAG="-d"
+            ;;
+        *)
+            echo "Error: Invalid argument '$arg'"
+            echo "Usage: $0 <dev|prod> [build] [-d]"
+            echo "  dev    - Run development environment"
+            echo "  prod   - Run production environment"
+            echo "  build  - Optional: Rebuild Docker images before starting"
+            echo "  -d     - Optional: Run in detached mode"
+            exit 1
+            ;;
+    esac
+done
+
+# Check if environment is specified
+if [ -z "$ENV" ]; then
+    echo "Error: Environment (dev or prod) must be specified"
+    echo "Usage: $0 <dev|prod> [build] [-d]"
     exit 1
 fi
 
@@ -41,20 +61,18 @@ if [ -z "$(docker images -q sandbox:latest)" ]; then
 fi
 
 # Run the appropriate docker-compose command
-if [ "$1" = "dev" ]; then
-    if [ "$2" = "build" ]; then
+if [ "$ENV" = "dev" ]; then
+    if [ -n "$BUILD_FLAG" ]; then
         echo "Building and starting development environment..."
-        docker compose -f docker/docker-compose-dev.yaml -p project up --build
     else
         echo "Starting development environment..."
-        docker compose -f docker/docker-compose-dev.yaml -p project up
     fi
-elif [ "$1" = "prod" ]; then
-    if [ "$2" = "build" ]; then
+    docker compose -f docker/docker-compose-dev.yaml -p project up $BUILD_FLAG $DETACHED_FLAG
+elif [ "$ENV" = "prod" ]; then
+    if [ -n "$BUILD_FLAG" ]; then
         echo "Building and starting production environment..."
-        docker compose -f docker/docker-compose.yaml -p project up --build
     else
         echo "Starting production environment..."
-        docker compose -f docker/docker-compose.yaml -p project up
     fi
+    docker compose -f docker/docker-compose.yaml -p project up $BUILD_FLAG $DETACHED_FLAG
 fi

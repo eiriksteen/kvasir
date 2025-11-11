@@ -7,7 +7,6 @@ import { UUID } from 'crypto';
 import { useDataSources } from '@/hooks/useDataSources';
 import { useProjectChat } from '@/hooks/useProjectChat';
 import { DataSource } from '@/types/data-sources';
-import SourceTypeIcon from "@/app/data-sources/_components/SourceTypeIcon";
 
 function DataSourceListItem({ dataSource, isFirst, isInContext }: { dataSource: DataSource; isFirst: boolean; isInContext: boolean }) {
   return (
@@ -16,7 +15,6 @@ function DataSourceListItem({ dataSource, isFirst, isInContext }: { dataSource: 
         ? 'bg-gray-100 border-b border-gray-300'
         : 'bg-gray-50 border-b border-gray-200 hover:bg-gray-100'
     }`}>
-      {SourceTypeIcon(dataSource.type, 16)}
       <div className="flex items-center gap-3 min-w-0">
         <h3 className="text-sm font-medium text-gray-900 truncate">
           {dataSource.name}

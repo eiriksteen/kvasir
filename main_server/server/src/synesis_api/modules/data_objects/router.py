@@ -57,6 +57,10 @@ async def post_object_group(
 ) -> ObjectGroup:
     """Create an object group in a dataset"""
 
+    if len(files) == 0:
+        raise HTTPException(
+            status_code=400, detail="No files provided")
+
     if not await user_owns_dataset(user.id, dataset_id):
         raise HTTPException(
             status_code=403, detail="Not authorized to access this dataset")
@@ -78,6 +82,10 @@ async def post_objects(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> List[DataObject]:
     """Create objects in a group (using DataFrame insertion)"""
+
+    if len(files) == 0:
+        raise HTTPException(
+            status_code=400, detail="No files provided")
 
     if not await user_owns_object_group(user.id, group_id):
         raise HTTPException(
