@@ -55,6 +55,16 @@ When creating entities, specify their input connections. Outputs appear automati
 **Key Guidelines:**
 - Use analyses as pipeline inputs when the pipeline needs data insights (feature engineering, cleaning, training)
 - Separate training/inference pipelines when fit and predict stages are distinct (e.g., train once, continuous inference)
+- We typically want:
+    - A dataset representing the input data for modeling, derived from raw data sources and potentially cleaning pipelines
+        - Only include cleaning if the initial EDA necessitates it. If the data is clean, move to modeling immediately. 
+    - A training pipeline that includes splitting the dataset into train, validation, and test sets
+    - A good default is 70% train, 15% validation, 15% test
+    - We want a single dataset representing the training, validation, and test results, including all predictions so we can review the performance
+    - We usually want an analysis connected to the training dataset to review the performance
+    - Finally, we can set up an inference pipeline that trains on all the data, and makes predictions for unlabeled data. The final predictions should be represented as a dataset. 
+        - For time series forecasting, this will mean future values, for classification, this can be any unlabeled data integrated into the project, etc
+    - We can create an analysis to explore in depth what predictions are present on the test data 
 - Combine them when they happen simultaneously (e.g., continual learning)
 - Analyses can chain: use prior analysis (like EDA) as input to focused follow-up analyses
 

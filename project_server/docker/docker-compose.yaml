@@ -5,7 +5,7 @@ services:
   server:
     build:
       context: ../..
-      dockerfile: project_server/server/Dockerfile.dev
+      dockerfile: project_server/server/Dockerfile.prod
     image: project-server:latest
     container_name: project-server
     networks:
@@ -26,12 +26,12 @@ services:
         source: /var/run/docker.sock
         target: /var/run/docker.sock
     environment:
-      DOCKER_API_VERSION: 1.41
+      DOCKER_API_VERSION: 1.44
         
   taskiq-worker:
     build:
       context: ../..
-      dockerfile: project_server/server/Dockerfile.dev
+      dockerfile: project_server/server/Dockerfile.prod
     image: project-server:latest
     container_name: project-taskiq-worker
     command: ["sh", "-c", "cd /app/src && taskiq worker project_server.worker:broker --tasks-pattern '**/runner.py' --tasks-pattern '**/pipeline_router.py' -fsd --reload"]
@@ -53,7 +53,7 @@ services:
         source: /var/run/docker.sock
         target: /var/run/docker.sock
     environment:
-      DOCKER_API_VERSION: 1.41
+      DOCKER_API_VERSION: 1.44
 
   proxy:
     image: nginx:latest

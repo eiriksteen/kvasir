@@ -26,7 +26,7 @@ services:
         source: /var/run/docker.sock
         target: /var/run/docker.sock
     environment:
-      DOCKER_API_VERSION: 1.41
+      DOCKER_API_VERSION: 1.44
         
   taskiq-worker:
     build:
@@ -53,7 +53,7 @@ services:
         source: /var/run/docker.sock
         target: /var/run/docker.sock
     environment:
-      DOCKER_API_VERSION: 1.41
+      DOCKER_API_VERSION: 1.44
 
   proxy:
     image: nginx:latest

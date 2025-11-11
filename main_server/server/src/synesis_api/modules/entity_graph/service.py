@@ -258,11 +258,6 @@ async def get_nodes_in_graph(
                 if to_type == "analysis" and from_type == "analysis":
                     to_field = "past_analysis_id"
 
-                print(table)
-                print(from_field)
-                print(to_field)
-                print(entity_ids)
-
                 records = await fetch_all(
                     select(table).where(
                         getattr(table.c, from_field).in_(entity_ids))
