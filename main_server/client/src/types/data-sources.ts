@@ -1,6 +1,7 @@
 import { UUID } from "crypto";
 
 export type DataSourceType = "file";
+export type SupportedSource = "tabular_file" | "key_value_file";
 
 // DB Models
 

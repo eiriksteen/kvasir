@@ -1,3 +1,14 @@
 FROM node:20-alpine
 
-# TODO: Add Dockerfile.prod
+WORKDIR /app
+
+COPY main_server/client/package.json main_server/client/package-lock.json ./
+RUN npm install
+
+COPY main_server/client .
+
+RUN npm run build
+
+EXPOSE 3000
+
+CMD ["npm", "start"]

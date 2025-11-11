@@ -111,3 +111,5 @@ export interface UserChatMessageCreate {
 export interface ConversationCreate {
   projectId: UUID;
 }
+
+export type Prompt = UserChatMessageCreate;

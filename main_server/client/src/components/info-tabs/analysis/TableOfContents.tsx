@@ -14,7 +14,6 @@ interface TableOfContentsProps {
   analysisObjectId: UUID;
   projectId: UUID;
   onScrollToSection?: (sectionId: string) => void;
-  closeTab: (id: UUID | null) => void;
 }
 
 interface TocItemProps {

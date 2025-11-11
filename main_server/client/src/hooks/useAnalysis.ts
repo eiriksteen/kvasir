@@ -277,31 +277,6 @@ export async function moveNotebookSections(token: string, analysisObjectId: stri
   return snakeToCamelKeys(data);
 }
 
-export async function getAnalysisResultDataEndpoint(token: string, analysisObjectId: string, analysisResultId: string): Promise<unknown> {
-  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/analysis-result/${analysisResultId}/get-data`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to get analysis result data: ${response.status} ${errorText}`);
-  }
-
-  // const arraybuffer = await response.arrayBuffer();
-  let aggregationObjectWithRawData = await response.json();
-  aggregationObjectWithRawData = snakeToCamelKeys(aggregationObjectWithRawData);
-  for (const column of aggregationObjectWithRawData.data.outputData.data) {
-    if (column.valueType === 'datetime') {
-      column.values = column.values.map((timestamp: bigint) => new Date(Number(timestamp) / 1000000));
-    }
-  }
-  
-  return aggregationObjectWithRawData;
-}
-
 export async function moveElementEndpoint(token: string, analysisObjectId: string, moveRequest: MoveRequest): Promise<void> {
   const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/move-element`, {
     method: 'PATCH',
@@ -402,7 +377,6 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
   const { data: session } = useSession();
   const {data: currentAnalysisObject, mutate: mutateCurrentAnalysisObject} = useSWR(["analysisObject", analysisObjectId], () => fetchAnalysisObject(session?.APIToken.accessToken || "", analysisObjectId));
   const { analysisObjects, mutateAnalysisObjects } = useAnalyses(projectId);
-  const { data: analysisResultData, mutate: mutateAnalysisResultData } = useSWR(["analysisResultData"], null, {fallbackData: {} as Record<UUID, unknown>});
 
   const { trigger: deleteAnalysisObject } = useSWRMutation(
     "analysisObject",
@@ -602,19 +576,6 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
       }
     }
   );
-
-  const { trigger: getAnalysisResultData } = useSWRMutation(
-    "analysisObject",
-    async (_, { arg }: { arg: { analysisObjectId: UUID, analysisResultId: UUID } }) => {
-      const data = await getAnalysisResultDataEndpoint(session ? session.APIToken.accessToken : "", arg.analysisObjectId, arg.analysisResultId);
-      return {analysisResultId: arg.analysisResultId, data: data};
-    },
-    {
-      populateCache: (data) => {
-        mutateAnalysisResultData((current: Record<UUID, unknown> = {}) => ({...current, [data.analysisResultId]: data.data}));
-      }
-    }
-  );
   
   const { trigger: moveElement } = useSWRMutation(
     "analysisObject",
@@ -677,8 +638,7 @@ export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
     changeAnalysisResultSection,
     reorderSections,
     moveSections,
-    getAnalysisResultData,
-    analysisResultData,
+
     moveElement,
     deleteAnalysisResult,
     getAnalysisResultPlots,

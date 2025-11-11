@@ -1,7 +1,5 @@
 import { NotebookSection, AnalysisResult } from '@/types/analysis';
 import { UUID } from 'crypto';
-import { AggregationObjectWithRawData } from '@/types/data-objects';
-import * as XLSX from 'xlsx';
 
 export const getStatusColor = (status: string) => {
 	switch(status) {
@@ -100,8 +98,8 @@ export const buildOrderedList = (
 		const section = sectionsMap.get(currentId);
 		if (section) {
 		  orderedList.push(section);
-		  currentId = section.nextId;
-		  currentType = section.nextType;
+		  currentId = section.nextId ?? null;
+		  currentType = section.nextType ?? null;
 		} else {
 		  break;
 		}
@@ -109,8 +107,8 @@ export const buildOrderedList = (
 		const result = resultsMap.get(currentId);
 		if (result) {
 		  orderedList.push(result);
-		  currentId = result.nextId;
-		  currentType = result.nextType;
+		  currentId = result.nextId ?? null;
+		  currentType = result.nextType ?? null;
 		} else {
 		  break;
 		}
@@ -158,41 +156,6 @@ export const buildOrderedList = (
 	return parentIds;
   };
   
-  // Function to convert AggregationObjectWithRawData to Excel file
-  export const downloadAggregationDataAsExcel = (
-	aggregationData: AggregationObjectWithRawData,
-	filename: string
-  ) => {
-	const columns = aggregationData.data.outputData.data;
-	
-	// Find the maximum number of rows across all columns
-	const maxRows = Math.max(...columns.map(column => column.values.length));
-	
-	// Create worksheet data
-	const worksheetData = [];
-	
-	for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
-	  const excelRow: any = {};
-	  
-	  columns.forEach(column => {
-		const value = column.values[rowIndex];
-		excelRow[column.name] = value !== null && value !== undefined ? value : '';
-	  });
-	  
-	  worksheetData.push(excelRow);
-	}
-	
-	// Create workbook and worksheet
-	const workbook = XLSX.utils.book_new();
-	const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-	
-	// Add worksheet to workbook
-	XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
-	
-	// Generate and download file
-	XLSX.writeFile(workbook, `${filename}.xlsx`);
-  };
-
   // Smooth text streaming utility
   // Streams text character by character or word by word for a smoother UX
   export const createSmoothTextStream = (

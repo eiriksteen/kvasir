@@ -48,6 +48,7 @@ const CodeBlock = ({ inline, className, children, ...props }: CodeComponentProps
         </button>
         
         <SyntaxHighlighter
+          // @ts-expect-error - oneLight style type incompatibility with react-syntax-highlighter types
           style={oneLight}
           language={language}
           PreTag="span"

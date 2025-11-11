@@ -159,7 +159,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
         <DnDComponent
           nextType={"notebook_section"}
           nextId={section.id}
-          sectionId={section.parentSectionId}
+          sectionId={section.parentSectionId ?? null}
         />
       )}
       
@@ -388,7 +388,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
         <DnDComponent
           nextType={null}
           nextId={null}
-          sectionId={section.parentSectionId}
+          sectionId={section.parentSectionId ?? null}
         />
       )}
 

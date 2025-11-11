@@ -96,6 +96,7 @@ export const useProjectChat = (projectId: UUID) => {
 
       // Create the context with the context data from hooks
       const context: Context = {
+        id: uuidv4() as UUID,
         dataSourceIds: dataSourcesInContext || [],
         datasetIds: datasetsInContext || [],
         pipelineIds: pipelinesInContext || [],
@@ -169,6 +170,7 @@ export const useProjectChat = (projectId: UUID) => {
   const continueConversation = useCallback(async (conversationId: UUID) => {
 
       const context: Context = {
+        id: uuidv4() as UUID,
         dataSourceIds: dataSourcesInContext || [],
         datasetIds: datasetsInContext || [],
         pipelineIds: pipelinesInContext || [],
