@@ -2,3 +2,5 @@
 *.egg-info
 projects_dir
 sandbox/exp
+secrets
+__pycache__
