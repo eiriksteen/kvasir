@@ -80,7 +80,6 @@ class HelperAgentOutput(BaseModel):
 
 analysis_helper_agent = Agent(
     model,
-    system_prompt=ANALYSIS_HELPER_SYSTEM_PROMPT,
     name="Analysis Helper Agent",
     model_settings=ModelSettings(temperature=0.1),
     retries=3,
@@ -118,6 +117,7 @@ async def run_python_code(ctx: RunContext[HelperAgentDeps], python_code: str) ->
     Returns:
         The output of the python code (truncated if too long).
     """
+    logger.info(f"Running python code in helper agent")
     out, err = await run_python_code_in_container(python_code, ctx.deps.container_name)
 
     if err:
@@ -135,23 +135,26 @@ async def run_python_code(ctx: RunContext[HelperAgentDeps], python_code: str) ->
 
 
 @analysis_helper_agent.tool()
-async def prepare_result_image(
+async def attach_image_to_result(
     ctx: RunContext[HelperAgentDeps],
     image_path: str
 ) -> str:
     """
-    Prepare an image file to be attached to the analysis result.
+    Attach an image file to the analysis result. If your code creates an image file, you must call this tool to attach it to the analysis result.
+    you must call this tool separately for EACH image file you create! I.e. if you create multiple images in one code cell, call this tool multiple times.
+    If you do not call this tool, the user will not see the image.
 
-    The image must already exist in the project container at the specified path.
     Supported formats: png, jpg, jpeg, gif, svg, webp
+    All paths must start with "/workspace/plots/".
 
     Args:
         ctx: The analysis context
-        image_path: Path to the image file in the container (e.g., "/workspace/plots/chart.png")
+        image_path: Path to the image file in the container "/workspace/plots/chart.png"
 
     Returns:
         Success message
     """
+    logger.info(f"Preparing result image: {image_path}")
     # Validate path
     path = Path(image_path)
 
@@ -176,7 +179,7 @@ async def prepare_result_image(
         path,
         AGENT_OUTPUTS_INTERNAL_DIR,
         ctx.deps.container_name,
-        copied_filename=f"{path.name}_{ctx.deps.analysis_result_id}{path.suffix.lower()}")
+        copied_filename=f"{path.stem}_{ctx.deps.analysis_result_id}{path.suffix.lower()}")
 
     image_objs = await create_images(ctx.deps.client, [ImageCreate(image_path=copied_path.as_posix())])
     ctx.deps.images.append(ImageAttached(
@@ -277,7 +280,7 @@ async def prepare_result_table(
         path,
         AGENT_OUTPUTS_INTERNAL_DIR,
         ctx.deps.container_name,
-        copied_filename=f"{path.name}_{ctx.deps.analysis_result_id}.parquet")
+        copied_filename=f"{path.stem}_{ctx.deps.analysis_result_id}.parquet")
 
     table_objs = await create_tables(ctx.deps.client, [TableCreate(table_path=copied_path.as_posix())])
     ctx.deps.tables.append(TableAttached(
@@ -293,9 +296,12 @@ async def submit_analysis_output(ctx: RunContext[HelperAgentDeps], analysis: str
     Submit the analysis output.
     Args:
         ctx: The context of the agent.
-        analysis: This should be a short explanation and interpretation of the result of the analysis. This should be in github flavored markdown format..
+        analysis: This should be a short explanation and interpretation of the result of the analysis. This should be in github flavored markdown format.
     Returns:
         The analysis output.
+
+    Note: No code in the interpretation! The user can see the code in the python_code field if they want to. Write analysis results directly, not "I did X and Y".
+    The only thing you should write in the analysis field is interpretation of the analysis results. Do not write about the code you used to generate the analysis results. Do not write about your rules or how you used the tools.
     """
 
     return HelperAgentOutput(

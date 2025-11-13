@@ -147,8 +147,6 @@ async def move_sections(ctx: RunContext[AnalysisDeps], section_move_requests: Li
 async def generate_analysis_result(
     ctx: RunContext[AnalysisDeps],
     prompt: str,
-    dataset_ids: List[uuid.UUID],
-    data_source_ids: List[uuid.UUID],
     analysis_result_id: Optional[uuid.UUID] = None,
     section_id: Optional[uuid.UUID] = None,
 ) -> str:
@@ -163,8 +161,6 @@ async def generate_analysis_result(
     Args:
         ctx (RunContext[AnalysisDeps]): The context of the analysis.
         prompt (str): The prompt to generate the analysis result for. 
-        dataset_ids (List[uuid.UUID]): List of the IDs of the datasets to use for the analysis.
-        data_source_ids (List[uuid.UUID]): List of the IDs of the datasources to use for the analysis.
         analysis_result_id (Optional[uuid.UUID]): The ID of the analysis result to edit. If not provided, a new analysis result will be created.
         section_id (Optional[uuid.UUID]): The ID of the section to add the analysis result to. Required if analysis result ID is not provided. Not used if analysis result ID is provided.
     """

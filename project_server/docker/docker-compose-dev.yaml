@@ -11,7 +11,7 @@ services:
     networks:
       - project-backend
       - project-frontend
-    command: ["uvicorn", "src.project_server.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-exclude", "/app/sandbox", "--reload-exclude", "/app/internal"] 
+    command: ["uvicorn", "src.project_server.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-exclude", "sandbox/**", "--reload-exclude", "internal/**"] 
     volumes:
       - type: bind
         source: ../server
