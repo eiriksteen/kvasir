@@ -1,0 +1,4 @@
+.kaggle
+*.egg-info
+projects_dir
+sandbox/exp

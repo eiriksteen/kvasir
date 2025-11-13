@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: kvasir-research-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - kvasir-backend
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  experiments: &base-service
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kvasir-research:latest
+    container_name: kvasir-research-experiments
+    command: ["tail", "-f", "/dev/null"]
+    networks:
+      - kvasir-backend
+    depends_on:
+      - redis
+    volumes: &shared-volumes
+      - type: bind
+        source: ./src
+        target: /app/src
+      - type: bind
+        source: ./scripts
+        target: /app/scripts
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+      - type: bind
+        source: ./projects_dir
+        target: /app/projects_dir
+      - type: bind
+        source: ./sandbox
+        target: /app/sandbox
+    # Shouldn't need but docker desktop is trash and doesnt let me update so have it for now
+    environment:
+      - DOCKER_API_VERSION=1.41
+  taskiq-worker:
+    <<: *base-service
+    container_name: kvasir-research-taskiq-worker
+    command: ["sh", "-c", "cd /app && taskiq worker kvasir_research.worker:broker --tasks-pattern 'scripts/*.py' -fsd"]
+
+volumes:
+  redis_data:
+
+networks:
+  kvasir-backend:
+    driver: bridge
+
