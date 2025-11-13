@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean, JSON
+from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean, JSON, func
 
 from synesis_api.database.core import metadata
 
@@ -15,7 +15,7 @@ analysis = Table(
            nullable=False),
     Column("name", String, nullable=False),
     Column("description", String, nullable=True),
-    Column("created_at", DateTime, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, default=func.now()),
     Column("report_generated", Boolean, nullable=False,
            default=False),  # TODO: delete?
     Column("notebook_id", UUID(as_uuid=True), nullable=False),

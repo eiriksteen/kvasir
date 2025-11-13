@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Literal, Optional, TYPE_CHECKING
 from uuid import UUID
-from pydantic import model_validator
+from pydantic import model_validator, Field
 from pydantic import BaseModel
 
 from .entity_graph import EntityGraph
@@ -22,8 +22,8 @@ class ProjectInDB(BaseModel):
     view_port_x: float = 0.0
     view_port_y: float = 0.0
     view_port_zoom: float = 1.0
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ProjectDataSourceInDB(BaseModel):
@@ -31,8 +31,8 @@ class ProjectDataSourceInDB(BaseModel):
     data_source_id: UUID
     x_position: float
     y_position: float
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ProjectDatasetInDB(BaseModel):
@@ -40,8 +40,8 @@ class ProjectDatasetInDB(BaseModel):
     dataset_id: UUID
     x_position: float
     y_position: float
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ProjectAnalysisInDB(BaseModel):
@@ -49,8 +49,8 @@ class ProjectAnalysisInDB(BaseModel):
     analysis_id: UUID
     x_position: float
     y_position: float
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ProjectPipelineInDB(BaseModel):
@@ -58,8 +58,8 @@ class ProjectPipelineInDB(BaseModel):
     pipeline_id: UUID
     x_position: float
     y_position: float
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ProjectModelEntityInDB(BaseModel):
@@ -67,8 +67,8 @@ class ProjectModelEntityInDB(BaseModel):
     model_entity_id: UUID
     x_position: float
     y_position: float
-    created_at: datetime = datetime.now(timezone.utc)
-    updated_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 #

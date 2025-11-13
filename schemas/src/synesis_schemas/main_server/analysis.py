@@ -2,7 +2,7 @@ from re import U
 from uuid import UUID
 from datetime import datetime, timezone
 from typing import List, Literal, Dict, Any
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from synesis_schemas.main_server.visualization import EchartCreate, TableCreate, ImageCreate
 
@@ -43,7 +43,7 @@ class AnalysisSmall(BaseModel):
     name: str
     description: str | None = None
     report_generated: bool = False
-    created_at: datetime = datetime.now()
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class Analysis(AnalysisSmall):
@@ -55,7 +55,7 @@ class AnalysisStatusMessage(BaseModel):
     run_id: UUID
     section: NotebookSection | None = None
     analysis_result: AnalysisResult | None = None
-    created_at: datetime = datetime.now()
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @model_validator(mode='after')
     def check_section_or_analysis_result(self) -> 'AnalysisStatusMessage':
@@ -82,7 +82,7 @@ class AnalysisInDB(BaseModel):
     name: str
     description: str | None = None
     report_generated: bool = False
-    created_at: datetime = datetime.now()
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     user_id: UUID
     notebook_id: UUID
 

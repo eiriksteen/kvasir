@@ -1,7 +1,7 @@
 import uuid
 from typing import Literal, List, Optional, Union
 from datetime import datetime, timezone
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # DB Models
@@ -31,14 +31,14 @@ class RunMessageInDB(BaseModel):
     content: str
     run_id: uuid.UUID
     type:  Literal["tool_call", "result", "error"]
-    created_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class RunPydanticMessageInDB(BaseModel):
     id: uuid.UUID
     run_id: uuid.UUID
     message_list: bytes
-    created_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class DataSourceInRunInDB(BaseModel):
