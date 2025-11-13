@@ -50,6 +50,7 @@ from synesis_api.modules.project.models import (
 from synesis_api.modules.visualization.models import (
     image, echart, table
 )
+from synesis_api.modules.waitlist.models import waitlist
 from synesis_api.app_secrets import DATABASE_URL
 from synesis_api.database.core import metadata
 
@@ -140,6 +141,7 @@ __all__ = [
     image,
     echart,
     table,
+    waitlist,
 ]
 
 # add your model's MetaData object here

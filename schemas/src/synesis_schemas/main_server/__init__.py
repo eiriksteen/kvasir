@@ -268,3 +268,8 @@ from .visualization import (
     TableInDB,
     TableCreate
 )
+
+from .waitlist import (
+    WaitlistInDB,
+    WaitlistCreate
+)

@@ -5,7 +5,9 @@ export default function PublicHeader() {
 
 	const navItems = [
 		{ name: 'Product', path: '/products' },
-		{ name: 'Contact', path: '/contact' },
+		{ name: 'Waitlist', path: '/waitlist' },
+		{ name: 'About', path: '/about' },
+		// { name: 'Contact', path: '/contact' },
 	];
 
 	return (

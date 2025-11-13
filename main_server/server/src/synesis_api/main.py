@@ -16,6 +16,7 @@ from synesis_api.modules.function.router import router as function_router
 from synesis_api.modules.deletion.router import router as deletion_router
 from synesis_api.modules.entity_graph.router import router as entity_graph_router
 from synesis_api.modules.visualization.router import router as visualization_router
+from synesis_api.modules.waitlist.router import router as waitlist_router
 
 
 @asynccontextmanager
@@ -109,6 +110,11 @@ app.include_router(entity_graph_router,
 app.include_router(visualization_router,
                    prefix="/visualization",
                    tags=["Visualization"])
+
+
+app.include_router(waitlist_router,
+                   prefix="/waitlist",
+                   tags=["Waitlist"])
 
 
 @app.get("/")

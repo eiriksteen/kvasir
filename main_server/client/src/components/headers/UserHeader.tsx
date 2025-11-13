@@ -99,7 +99,10 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 									<div className="p-2">
 										{/* Projects List */}
 										<div className="max-h-48 overflow-y-auto">
-											{projects?.slice().reverse().map((project) => (
+											{projects
+												?.slice()
+												.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+												.map((project) => (
 												<button
 													key={project.id}
 													onClick={() => handleProjectSelect(project)}
