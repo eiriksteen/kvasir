@@ -69,6 +69,15 @@ async def refresh_token(request: Request) -> UserWithToken:
 
     return user_with_token
 
+@router.post("/signout")
+async def signout(response: Response) -> dict:
+    response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        secure=not DEV,
+        samesite="strict"
+    )
+    return {"message": "Successfully signed out"}
 
 @router.post("/register", response_model=User)
 async def register(user_create: UserCreate) -> User:

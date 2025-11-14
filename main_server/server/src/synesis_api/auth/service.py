@@ -170,6 +170,8 @@ async def create_user(user_create: UserCreate) -> UserInDB:
     user = UserInDB(id=user_id,
                     email=user_create.email,
                     name=user_create.name,
+                    affiliation=user_create.affiliation,
+                    role=user_create.role,
                     hashed_password=hashed_password,
                     created_at=datetime.now(timezone.utc),
                     updated_at=datetime.now(timezone.utc))

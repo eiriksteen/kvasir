@@ -6,6 +6,8 @@ from pydantic import EmailStr, BaseModel
 class UserBase(BaseModel):
     email: EmailStr
     name: str
+    affiliation: str = "Unknown"
+    role: str = "Unknown"
     disabled: bool = False
 
 

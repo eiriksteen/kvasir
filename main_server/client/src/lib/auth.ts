@@ -1,7 +1,8 @@
 import CredentialsProvider from "next-auth/providers/credentials"
 import { AuthOptions } from "next-auth"
 import { User as UserType } from "@/types/next-auth"
-import { snakeToCamelKeys } from "@/lib/utils";
+import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
+import { UserCreate, User } from "@/types/auth";
 
 export const authOptions: AuthOptions = {
 
@@ -95,5 +96,38 @@ export const authOptions: AuthOptions = {
       return session;
     },
   },
+  events: {
+    async signOut() {
+      try {
+        await fetch(process.env.NEXT_PUBLIC_API_URL_INTERNAL + "/auth/signout", {
+          method: "POST",
+          credentials: "include",
+        });
+      } catch (error) {
+        console.error("Error signing out from backend:", error);
+      }
+    },
+  },
+}
+
+// Registration function
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+export async function registerUser(userData: UserCreate): Promise<User> {
+  const response = await fetch(`${API_URL}/auth/register`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(camelToSnakeKeys(userData))
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: 'Failed to register' }));
+    throw new Error(errorData.detail || `Failed to register: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
 }
 

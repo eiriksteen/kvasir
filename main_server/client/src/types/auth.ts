@@ -1,10 +1,26 @@
 import { UUID } from "crypto";
 
+// Role options
+export const USER_ROLES = [
+  "student",
+  "non-technical",
+  "researcher",
+  "data-scientist",
+  "data-engineer",
+  "ml-engineer",
+  "ml-ops",
+  "other"
+] as const;
+
+export type UserRole = typeof USER_ROLES[number];
+
 // Base schemas
 
 export interface UserBase {
   email: string;
   name: string;
+  affiliation: string;
+  role: string;
   disabled: boolean;
 }
 

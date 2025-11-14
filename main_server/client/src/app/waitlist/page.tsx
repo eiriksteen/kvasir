@@ -2,6 +2,7 @@
 
 import PublicHeader from "@/components/headers/PublicHeader";
 import { useWaitlist } from "@/hooks/waitlist";
+import { USER_ROLES } from "@/types/auth";
 import { useState } from "react";
 
 export default function WaitlistPage() {
@@ -125,14 +126,11 @@ export default function WaitlistPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#000034] focus:border-transparent outline-none transition-colors font-[family-name:var(--font-geist-sans)]"
                 >
                   <option value="">Select your role</option>
-                  <option value="student">Student</option>
-                  <option value="non-technical">Non-technical</option>
-                  <option value="researcher">Researcher</option>
-                  <option value="data-scientist">Data scientist</option>
-                  <option value="data-engineer">Data engineer</option>
-                  <option value="ml-engineer">ML engineer</option>
-                  <option value="ml-ops">ML ops</option>
-                  <option value="other">Other</option>
+                  {USER_ROLES.map((role) => (
+                    <option key={role} value={role}>
+                      {role.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                    </option>
+                  ))}
                 </select>
               </div>
 

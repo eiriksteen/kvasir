@@ -3,8 +3,8 @@
 import { SessionProvider } from "next-auth/react";
 import { Session } from 'next-auth';
 import ProjectMenu from "@/app/projects/_components/ProjectMenu";
-// import UserHeader from "@/components/headers/UserHeader";
-import PublicHeader from "@/components/headers/PublicHeader";
+import UserHeader from "@/components/headers/UserHeader";
+// import PublicHeader from "@/components/headers/PublicHeader";
 
 interface SelectProjectContainerProps {
   session: Session;
@@ -13,7 +13,7 @@ interface SelectProjectContainerProps {
 function SelectProjectContent() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <PublicHeader />
+      <UserHeader />
       <div className="flex-1 flex items-center justify-center">
         <ProjectMenu/>
       </div>

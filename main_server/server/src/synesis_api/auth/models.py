@@ -9,6 +9,8 @@ users = Table(
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     Column("email", String, nullable=False, unique=True),
     Column("name", String, nullable=False),
+    Column("affiliation", String, nullable=False, default="Unknown"),
+    Column("role", String, nullable=False, default="Unknown"),
     Column("disabled", Boolean, nullable=False, default=False),
     Column("hashed_password", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
