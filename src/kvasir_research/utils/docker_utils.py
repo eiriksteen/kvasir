@@ -135,7 +135,8 @@ async def ensure_directory_exists(directory_path: str, container_name: str):
 async def copy_file_or_directory_to_container(
         path: Path,
         container_save_path: Path,
-        container_name: str):
+        container_name: str,
+        zip: bool = False):
     parent_dir = container_save_path.parent
 
     # Create parent directory if it doesn't exist
@@ -158,22 +159,78 @@ async def copy_file_or_directory_to_container(
         raise RuntimeError(
             f"Failed to create directory in container: {mkdir_err.decode('utf-8')}")
 
-    cmd = [
-        "docker", "cp", path, f"{container_name}:{container_save_path.as_posix()}"
-    ]
+    if zip:
+        # Use tar for efficient transfer via piping
+        host_path = Path(path).resolve()
+        parent_path = host_path.parent
+        item_name = host_path.name
 
-    process = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
+        # Create tar on host side
+        tar_create_process = await asyncio.create_subprocess_exec(
+            "tar", "-cf", "-", "-C", str(parent_path), item_name,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
 
-    _, err = await process.communicate()
+        # Extract tar in container
+        tar_extract_process = await asyncio.create_subprocess_exec(
+            "docker", "exec", "-i", container_name,
+            "tar", "-xf", "-", "-C", str(parent_dir),
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
 
-    if process.returncode != 0:
-        raise RuntimeError(
-            f"Failed to copy file or directory to container: {err.decode('utf-8')}")
+        # Pipe data from tar creation to tar extraction
+        async def pipe_data():
+            if tar_create_process.stdout and tar_extract_process.stdin:
+                try:
+                    while True:
+                        # 64KB chunks
+                        chunk = await tar_create_process.stdout.read(65536)
+                        if not chunk:
+                            break
+                        tar_extract_process.stdin.write(chunk)
+                        await tar_extract_process.stdin.drain()
+                finally:
+                    tar_extract_process.stdin.close()
+                    await tar_extract_process.stdin.wait_closed()
+
+        await asyncio.gather(
+            pipe_data(),
+            tar_create_process.wait(),
+            tar_extract_process.wait()
+        )
+
+        # Get stderr from both processes
+        create_err = await tar_create_process.stderr.read() if tar_create_process.stderr else b""
+        extract_err = await tar_extract_process.stderr.read() if tar_extract_process.stderr else b""
+
+        if tar_create_process.returncode != 0:
+            raise RuntimeError(
+                f"Failed to create tar archive: {create_err.decode('utf-8')}")
+
+        if tar_extract_process.returncode != 0:
+            raise RuntimeError(
+                f"Failed to extract tar archive in container: {extract_err.decode('utf-8')}")
+    else:
+        # Use standard docker cp
+        cmd = [
+            "docker", "cp", path, f"{container_name}:{container_save_path.as_posix()}"
+        ]
+
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+
+        _, err = await process.communicate()
+
+        if process.returncode != 0:
+            raise RuntimeError(
+                f"Failed to copy file or directory to container: {err.decode('utf-8')}")
 
     # Return path inside container where the file or directory was copied to
     return container_save_path.as_posix()

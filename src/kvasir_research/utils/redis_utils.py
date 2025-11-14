@@ -1,7 +1,9 @@
 import redis.asyncio as redis
 import json
-import pickle
 from typing import List, Literal, Dict, Any
+from uuid import UUID
+from pathlib import Path
+from dataclasses import is_dataclass, asdict
 from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
 
 from kvasir_research.secrets import REDIS_URL
@@ -81,15 +83,46 @@ async def clear_results_queue(run_id: str):
 
 
 # Dependency management functions
+def _serialize_deps_value(value: Any) -> Any:
+    """Convert special types to JSON-serializable format"""
+    if isinstance(value, UUID):
+        return str(value)
+    elif isinstance(value, Path):
+        return str(value)
+    elif isinstance(value, dict):
+        return {k: _serialize_deps_value(v) for k, v in value.items()}
+    elif isinstance(value, (list, tuple)):
+        return [_serialize_deps_value(v) for v in value]
+    else:
+        return value
+
+
 async def save_deps(run_id: str, deps: Any):
+    """Save deps by converting dataclass to dictionary then JSON"""
     key = f"{run_id}-deps"
-    await _redis_client.set(key, pickle.dumps(deps))
+    
+    if is_dataclass(deps):
+        deps_dict = asdict(deps)
+    elif isinstance(deps, dict):
+        deps_dict = deps
+    else:
+        raise ValueError(f"deps must be a dataclass or dict, got {type(deps)}")
+    
+    # Serialize special types
+    serialized_dict = _serialize_deps_value(deps_dict)
+    
+    await _redis_client.set(key, json.dumps(serialized_dict).encode('utf-8'))
 
 
-async def get_saved_deps(run_id: str) -> Any | None:
+async def get_saved_deps(run_id: str) -> Dict[str, Any] | None:
+    """Get saved deps as dictionary (caller must reconstruct dataclass)"""
     key = f"{run_id}-deps"
     deps_bytes = await _redis_client.get(key)
-    return pickle.loads(deps_bytes) if deps_bytes else None
+    
+    if not deps_bytes:
+        return None
+    
+    return json.loads(deps_bytes.decode('utf-8'))
 
 
 async def delete_deps(run_id: str):

@@ -20,11 +20,92 @@ from kvasir_research.utils.code_utils import (
     replace_lines_in_script,
     add_lines_to_script_at_line,
     delete_lines_from_script,
-    run_python_code_in_container,
-    run_shell_code_in_container
+    run_shell_code_in_container_streaming
 )
-from kvasir_research.utils.agent_utils import get_working_directory_description, get_folder_structure_description, get_injected_analyses
-from kvasir_research.osa.shared_tools import read_files_tool
+from kvasir_research.utils.file_utils import get_working_directory_description, get_folder_structure_description
+from kvasir_research.utils.agent_utils import get_injected_analyses, get_dockerfile_for_env_description
+from kvasir_research.osa.shared_tools import read_files_tool, ls_tool
+
+
+# Static guidelines, later we can adapt this based on user codebases
+CODING_GUIDELINES = """
+## Coding Guidelines
+
+### 1. Project Structure
+We maintain an organized data science codebase with clear separation of concerns:
+
+```
+├── data/              # Raw and processed datasets
+├── analysis/          # Exploratory notebooks and ad-hoc analysis
+├── scripts/           # Executable entry points
+├── runs/              # All experiment runs and outputs
+└── src/               # Reusable modules and packages
+    └── <package_name>/
+        ├── models/
+        ├── data_processing/
+        ├── evaluation/
+        ├── utils/
+        └── __init__.py
+```
+
+### 2. File Organization
+
+**Module vs Script Separation:**
+- `src/`: Only reusable code (classes, functions, utilities)
+- `scripts/`: Executable entry points that import from src/
+- Keep src/ free of executable scripts
+
+**Deliverables:**
+- Create a main Python or Bash script that produces the required output
+- Script must be directly runnable with no syntax errors
+- Output an execution_command (shell command) to run your script
+
+### 3. Run Management
+
+**All run artifacts must be contained in runs/ directories:**
+- Path structure: `runs/[method_name]/[run_id]/`
+- Use readable, descriptive run IDs (enumerate if needed)
+- Include the configuration yaml file in each run directory
+- NO config files or results outside of runs/ folders! Delete them if you mistakenly put them there. 
+
+**Output Guidelines:**
+- Save outputs to files within the run directory
+- Print key metrics to stdout by default (for orchestrator visibility)
+- The orchestrator should not need to read files for critical metrics
+- Save plots and visualizations to the run directory!
+
+### 4. Configuration
+
+**All scripts must accept configuration via YAML:**
+- Script should take yaml path as a command-line argument
+- Example: `python scripts/train_model.py --config runs/experiment_01/config.yaml`
+- Store the config file alongside run results
+
+### 5. Code Quality
+
+**Naming Conventions:**
+- Be specific and descriptive (avoid generic names like `process_data`, `run_model`)
+- Use clear, intent-revealing names for files, functions, and variables
+- Example: `train_transformer_model.py` not `model.py`
+
+**Type Safety & Documentation:**
+- Use Python dataclasses for structured inputs/outputs
+- Apply type hints to all function parameters, returns, and class attributes
+- Write concise docstrings covering inputs, outputs, and behavior
+
+**Device Selection:**
+- Priority: CUDA (if available) → MPS (if available) → CPU
+
+**Progress Tracking:**
+- Use TQDM, and print metrics and other logging quantities to the terminal during the run
+
+### 6. Integration
+
+- Ensure your code integrates with the overall project structure
+- Use specific, organized naming (no generic names like `execution_command.sh`)
+- Maintain a clean folder hierarchy
+- When in doubt about structure, follow the established pattern
+"""
 
 
 SWE_SYSTEM_PROMPT = f"""
@@ -40,21 +121,22 @@ Typical problems include:
 You will work within a Python package. 
 You may be provided some past analyses you can use to inform your work. 
 Pay close attention to the deliverable description. 
+You are working within a package, and we have done pip install -e ., so import from the package (do not use src, use the package name directly)
+NB: The final execution command output must be directly runnable in bash. No syntax errors. Do not write "execution_command: " then your command, just write the command
 
-Create / modify relevant modules and create a main Python or Bash script that will be executed to produce the output (must be directly runnable, no syntax errors). 
-Often you will create an output you save to a file. The orchestrator may want you to print relevant quantities as well to avoid reading files. 
-We separate modules and scripts in our projects: create only classes, functions, and reusable code inside src/. Executable scripts should be placed outside src/ (e.g., in scripts/ or another appropriate location based on the project structure).
-When submitting results, provide an execution_command that will be executed via shell to run your main script with any necessary configuration parameters. 
-Unless otherwise specified, put all results for a run in a results/[method_name]/[some_run_id_you_compute_or_choose] directory. 
-Your code must fit into the overall module! No general names like "execution_command.sh", be specific and organised, maintain a nice folder structure. 
+{CODING_GUIDELINES}
 
-Organize inputs and outputs as Python dataclasses with clear, descriptive field names.
-Use concise but covering docstrings for all functions and classes, including descriptions of inputs, outputs, and behavior. 
-Use type hints consistently throughout the code for all function parameters, return values, and class attributes. 
-Choose names that clearly convey purpose and intent. 
-The specific fields and structure will depend on the user prompt, and if no instruction is given, you must decide based on the task requirements. 
+Use insights from any provided analyses to inform your work! It must be based on strong data understanding!
 
-Device selection should be cuda if available, then mps if available, then cpu.
+## Communicating with the Orchestrator
+
+If you need help from the orchestrator, use `submit_message_to_orchestrator`. This pauses your run and sends a message to the orchestrator, which will respond and resume your run with the answer. Use this when you need to:
+- Request an analysis to answer questions about the data (e.g., "Please analyze the distribution of missing values in column X")
+- Request access to write to a read-only path if absolutely necessary
+- Report critical issues that require orchestrator intervention
+- Ask for clarification on ambiguous requirements
+
+The orchestrator will handle your request (e.g., launch an analysis agent) and resume your run with a response. Be specific about what you need.
 """
 
 
@@ -68,7 +150,95 @@ class SWEDeps:
     data_paths: List[str]
     injected_analyses: List[str]
     read_only_paths: List[str]
+    time_limit: int  # Time limit in seconds
     modified_files: Dict[str, str] = field(default_factory=dict)
+
+
+async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_command: str) -> str:
+    """
+    Submit the execution command that runs your main script (which you should have created outside src/) and produces the output. 
+    The execution_command should be a shell command (e.g., "python scripts/train_model.py --epochs 100" or "bash run_pipeline.sh").
+    Remember to use any relevant evaluation code, if specified. 
+    """
+    logger.info(
+        f"SWE Agent [{ctx.deps.run_id}] submit_results called: execution_command={execution_command}")
+
+    # If no execution command provided (e.g., only module modifications), skip execution
+    if not execution_command or execution_command.strip() == "":
+        result = _modified_files_to_string(
+            ctx.deps.modified_files, ctx.deps.run_id, "", "")
+        logger.info(
+            f"SWE Agent [{ctx.deps.run_id}] submit_results completed (no execution): modified_files={list(ctx.deps.modified_files.keys())}")
+        return result
+
+    # Execute the command via shell with streaming and timeout
+    stdout_lines = []
+    stderr_lines = []
+    return_code = None
+    timeout_message = None
+
+    async for stream_type, content in run_shell_code_in_container_streaming(
+        execution_command,
+        ctx.deps.container_name,
+        timeout=ctx.deps.time_limit
+    ):
+        if stream_type == "returncode":
+            return_code = content
+        elif stream_type == "stdout":
+            stdout_lines.append(content)
+            logger.info(f"[{ctx.deps.run_id}] stdout: {content}")
+        elif stream_type == "stderr":
+            stderr_lines.append(content)
+            logger.info(f"[{ctx.deps.run_id}] stderr: {content}")
+        elif stream_type == "timeout":
+            timeout_message = content
+            logger.warning(f"[{ctx.deps.run_id}] Timeout: {content}")
+
+    # Handle timeout
+    if timeout_message:
+        partial_out = "\n".join(stdout_lines)
+        if partial_out:
+            partial_out += "\n\n"
+
+        error_msg = (
+            f"{partial_out}"
+            f"ERROR: Time limit exceeded ({ctx.deps.time_limit}s)\n"
+            f"The execution was terminated because it exceeded the allocated time limit.\n"
+            f"Consider optimizing the code, reducing the problem size, or using more efficient algorithms."
+        )
+        result = _modified_files_to_string(
+            ctx.deps.modified_files, ctx.deps.run_id, execution_command, error_msg)
+        logger.info(
+            f"SWE Agent [{ctx.deps.run_id}] submit_results time limit exceeded: {ctx.deps.time_limit}s")
+        return result
+
+    # Combine output
+    out = "\n".join(stdout_lines)
+    err = "\n".join(stderr_lines) if return_code != 0 else None
+
+    if err:
+        logger.info(
+            f"SWE Agent [{ctx.deps.run_id}] submit_results error: execution_command={execution_command}, error={err}")
+        raise ModelRetry(f"Error running command '{execution_command}': {err}")
+
+    result = _modified_files_to_string(
+        ctx.deps.modified_files, ctx.deps.run_id, execution_command, out)
+
+    logger.info(
+        f"SWE Agent [{ctx.deps.run_id}] submit_results completed: output_length={len(out)} chars, modified_files={list(ctx.deps.modified_files.keys())}")
+
+    return result
+
+
+async def submit_message_to_orchestrator(ctx: RunContext[SWEDeps], message: str) -> str:
+    """
+    Submit a message to the orchestrator for help, to request an analysis, request access to write a file, or notify it of any critical issues. 
+    """
+    logger.info(
+        f"SWE Agent [{ctx.deps.run_id}] submit_message_to_orchestrator called: message={message}")
+    result = _modified_files_to_string(
+        ctx.deps.modified_files, ctx.deps.run_id, "", message)
+    return result
 
 
 model = get_model()
@@ -77,8 +247,12 @@ model = get_model()
 swe_agent = Agent[SWEDeps, str](
     model,
     deps_type=SWEDeps,
-    tools=[read_files_tool],
-    retries=3,
+    tools=[read_files_tool, ls_tool],
+    output_type=[
+        submit_implementation_results,
+        submit_message_to_orchestrator
+    ],
+    retries=5,
     history_processors=[keep_only_most_recent_script],
     model_settings=ModelSettings(temperature=0)
 )
@@ -89,6 +263,7 @@ async def swe_system_prompt(ctx: RunContext[SWEDeps]) -> str:
     current_wd = await get_working_directory_description(ctx.deps.container_name)
     folder_structure = await get_folder_structure_description(ctx.deps.container_name)
     analyses_str = await get_injected_analyses(ctx.deps.injected_analyses)
+    dockerfile_str = get_dockerfile_for_env_description()
 
     full_system_prompt = (
         f"{SWE_SYSTEM_PROMPT}\n\n" +
@@ -96,6 +271,7 @@ async def swe_system_prompt(ctx: RunContext[SWEDeps]) -> str:
         f"Folder structure: {folder_structure}\n\n" +
         f"Data paths to use: {ctx.deps.data_paths}\n\n" +
         f"Read only paths: {ctx.deps.read_only_paths}\n\n" +
+        f"You environment is described by the following Dockerfile:\n\n<dockerfile>\n{dockerfile_str}\n</dockerfile>\n\n" +
         f"Here are results from previous analyses:\n\n<analyses>\n{analyses_str}\n</analyses>"
     )
 
@@ -366,38 +542,6 @@ async def delete_file(ctx: RunContext[SWEDeps], file_path: str) -> str:
 
     return f"Successfully deleted {file_path}"
 
-
-@swe_agent.output_validator
-async def submit_results(ctx: RunContext[SWEDeps], execution_command: str) -> str:
-    """
-    Submit the execution command that runs your main script (which you should have created outside src/) and produces the output. 
-    The execution_command should be a shell command (e.g., "python scripts/train_model.py --epochs 100" or "bash run_pipeline.sh").
-    Remember to use any relevant evaluation code, if specified. 
-    """
-    logger.info(
-        f"SWE Agent [{ctx.deps.run_id}] submit_results called: execution_command={execution_command}")
-
-    # If no execution command provided (e.g., only module modifications), skip execution
-    if not execution_command or execution_command.strip() == "":
-        result = _modified_files_to_string(
-            ctx.deps.modified_files, ctx.deps.run_id, "", "")
-        logger.info(
-            f"SWE Agent [{ctx.deps.run_id}] submit_results completed (no execution): modified_files={list(ctx.deps.modified_files.keys())}")
-        return result
-
-    # Execute the command via shell
-    out, err = await run_shell_code_in_container(execution_command, ctx.deps.container_name)
-
-    if err:
-        raise ModelRetry(f"Error running command '{execution_command}': {err}")
-
-    result = _modified_files_to_string(
-        ctx.deps.modified_files, ctx.deps.run_id, execution_command, out)
-
-    logger.info(
-        f"SWE Agent [{ctx.deps.run_id}] submit_results completed: output_length={len(out)} chars, modified_files={list(ctx.deps.modified_files.keys())}")
-
-    return result
 
 ##
 

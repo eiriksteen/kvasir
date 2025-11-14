@@ -1,12 +1,12 @@
 from uuid import UUID
 from pathlib import Path
 from typing import Dict, Tuple, OrderedDict, Literal, List
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.models import ModelSettings
 
 from kvasir_research.worker import logger
-from kvasir_research.utils.agent_utils import get_model
+from kvasir_research.utils.agent_utils import get_model, get_dockerfile_for_env_description
 from kvasir_research.history_processors import keep_only_most_recent_notebook
 from kvasir_research.utils.code_utils import run_python_code_in_container, remove_print_statements_from_code
 from kvasir_research.utils.redis_utils import save_analysis
@@ -46,6 +46,7 @@ class AnalysisDeps:
     project_id: UUID
     data_paths: List[str]
     injected_analyses: List[str]
+    time_limit: int  # Time limit in seconds
     # Key: name, value: (type, content), content is code, markdown, or output
     notebook: OrderedDict[str,
                           Tuple[Literal["code", "markdown", "output"], str]]
@@ -57,7 +58,7 @@ model = get_model()
 analysis_agent = Agent[AnalysisDeps, str](
     model,
     deps_type=AnalysisDeps,
-    retries=3,
+    retries=5,
     history_processors=[keep_only_most_recent_notebook],
     model_settings=ModelSettings(temperature=0)
 )
@@ -66,15 +67,14 @@ analysis_agent = Agent[AnalysisDeps, str](
 @analysis_agent.system_prompt
 async def analysis_system_prompt(ctx: RunContext[AnalysisDeps]) -> str:
     analyses_str = await get_injected_analyses(ctx.deps.injected_analyses)
+    dockerfile_str = get_dockerfile_for_env_description()
 
     full_system_prompt = (
         f"{ANALYSIS_SYSTEM_PROMPT}\n\n" +
         f"Data paths: {ctx.deps.data_paths}\n\n" +
+        f"You environment is described by the following Dockerfile:\n\n<dockerfile>\n{dockerfile_str}\n</dockerfile>\n\n" +
         f"Here are results from previous analyses:\n\n<analyses>\n{analyses_str}\n</analyses>"
     )
-
-    logger.info(
-        f"Analysis Agent [{ctx.deps.run_id}] system prompt:\n\n{full_system_prompt}")
 
     return full_system_prompt
 
@@ -88,7 +88,12 @@ async def create_or_replace_cell(ctx: RunContext[AnalysisDeps], content: str, na
         past_code = _extract_code_from_previous_cells(ctx.deps.notebook, name)
         past_code_no_prints = remove_print_statements_from_code(past_code)
         full_code = f"{past_code_no_prints}\n\n{content}"
-        out, err = await run_python_code_in_container(full_code, ctx.deps.container_name, truncate_output=True)
+        out, err = await run_python_code_in_container(
+            full_code,
+            ctx.deps.container_name,
+            truncate_output=True,
+            timeout=ctx.deps.time_limit
+        )
 
         logger.info(
             f"Analysis Agent [{ctx.deps.run_id}] executed code cell: {name}, output_length={len(out)} chars")

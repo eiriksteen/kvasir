@@ -23,6 +23,7 @@ RUN pip install --no-cache-dir \
     pmdarima \
     sktime \
     torch \
+    torchvision \
     transformers \
     datasets \
     nltk \
@@ -31,7 +32,10 @@ RUN pip install --no-cache-dir \
     sentencepiece \
     tokenizers \
     pillow \
+    scikit-image \
     opencv-python-headless \
+    requests \
+    tqdm \
     jupyter \
     ipython \
     pyarrow \

@@ -2,12 +2,14 @@ from uuid import UUID
 from typing import List
 from pathlib import Path
 from pydantic import BaseModel
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models import ModelSettings
+from pydantic_ai.exceptions import ModelRetry
 
-from kvasir_research.utils.agent_utils import get_model, get_working_directory_description, get_folder_structure_description
-from kvasir_research.osa.shared_tools import read_files_tool, get_guidelines_tool
+from kvasir_research.utils.agent_utils import get_model
+from kvasir_research.utils.file_utils import get_working_directory_description, get_folder_structure_description
+from kvasir_research.osa.shared_tools import read_files_tool, get_guidelines_tool, ls_tool
 
 
 ORCHESTRATOR_SYSTEM_PROMPT = """
@@ -18,7 +20,22 @@ You manage two agent types to execute your wishes:
 - **Analysis Agent**: Conducts analysis and derives insights - launch just for analysis (no modules or scripts)
 - **SWE Agent**: Builds pipelines and code (e.g., experiment branches) - launch just for coding modules and scripts (no analysis)
 
+Be specific when invoking the agents. They will implement exactly what you ask. 
+Omitting important details may cause poorly informed assumptions. 
+They are implementation machines, use them as such. 
+Use your expert data science knowledge to guide them and review their code. 
+
 After each run, you see: analysis results and executed code (analysis agent), or implemented code and execution results (SWE agent)
+
+## Handling SWE Agent Messages
+
+SWE agents may pause and send you messages requesting help. They can request:
+- An analysis to answer data-related questions
+- Access to write to a read-only path
+- Clarification on requirements
+- Help with critical issues
+
+When you receive a message from a SWE agent, respond by resuming the agent's run with your answer. If the request requires launching an analysis, do so and then resume the SWE agent with the analysis results.
 
 ## Submitting Results
 
@@ -42,6 +59,11 @@ Use `submit_results` to return your response with optional runs to launch or res
 **Parallelism** 
 We want to parallelize when we can, for example when we want multiple orthogonal features or approaches (independent models, pipelines, etc).
 To make this work, specify read only paths in case multiple SWEs rely on the same files (for example the same data processing pipeline). 
+
+**Time Limits**
+The SWE or analysis agents may submit long-running tasks, and you must use the time_limit field (in seconds) to set a time limit for the task. 
+For example, we don't want an arima run to go on forever due to a needlessly extensive hyperparameter search. 
+However, if we are training a large deep model, assigning more time is reasonable. Use your judgement. 
 
 ## Machine Learning Experimentation
 
@@ -68,7 +90,7 @@ Select **n** initial approaches (n provided as parameter), each forming a separa
   - Base strategy on data domain and EDA insights
   - Start simple (e.g., basic lags for time series)
 
-- **Hyperparameters**: Use project-informed defaults and typical reasonable values
+- **Hyperparameters**: Use project-informed defaults and typical reasonable values. Don't start extensive hyperparameter search runs unless you have a good reason! The first run should never be a large hyperparameter search. 
 
 #### Execution Flow
 - Each branch explores a distinct hypothesis/approach
@@ -86,7 +108,9 @@ Select **n** initial approaches (n provided as parameter), each forming a separa
 
 **Completion**: Submit best results when satisfied, or when max iterations/time limit reached 
 
-NB: It is extremely important to avoid data leakage. We are writing SOTA research-level code that must pass peer review, reported performance must be robust and reproducible. Performance suspiciously good? -> Reflect, investigate, fix. 
+**Leakage**: 
+It is extremely important to avoid data leakage. We are writing SOTA research-level code that must pass peer review, reported performance must be robust and reproducible. 
+Performance suspiciously good? -> Investigate why, and rerun with leakage removed if needed!
 
 #### Analysis / Modeling 
 There is a key interplay between analysis and modeling. 
@@ -96,7 +120,7 @@ Iterate on the analysis in case of unanswered questions or intriguing aspects me
 However, only launch analyses if needed, as we should focus on what matters! Redundant or non-useful analysis should be omitted. 
 Whenever launching an analysis, make sure you have a clear question or goal in mind that the analysis should answer. 
 
-Remember to call for guidelines if they are available for the task. 
+Remember to call for guidelines if they are available for the task. If they are not available, use your knowledge. 
 """
 
 
@@ -107,18 +131,22 @@ class OrchestratorDeps:
     project_id: UUID
     package_name: str
     project_path: Path
+    launched_analysis_run_ids: List[str] = field(default_factory=list)
+    launched_swe_run_ids: List[str] = field(default_factory=list)
 
 
 class AnalysisRunToLaunch(BaseModel):
     deliverable_description: str
     data_paths: List[str]
     analyses_to_inject: List[str]
+    time_limit: int
     run_id: str
 
 
 class AnalysisRunToResume(BaseModel):
     message: str
     run_id: str
+    time_limit: int
 
 
 class SWERunToLaunch(BaseModel):
@@ -126,12 +154,14 @@ class SWERunToLaunch(BaseModel):
     read_only_paths: List[str]
     data_paths: List[str]
     analyses_to_inject: List[str]
+    time_limit: int
     run_id: str
 
 
 class SWERunToResume(BaseModel):
     run_id: str
     message: str
+    time_limit: int
 
 
 class OrchestratorOutput(BaseModel):
@@ -151,7 +181,8 @@ orchestrator_agent = Agent[OrchestratorDeps](
     deps_type=OrchestratorDeps,
     tools=[
         read_files_tool,
-        get_guidelines_tool
+        get_guidelines_tool,
+        ls_tool
     ],
     retries=3,
     model_settings=ModelSettings(temperature=0),
@@ -171,3 +202,27 @@ async def orchestrator_system_prompt(ctx: RunContext[OrchestratorDeps]) -> str:
     )
 
     return full_system_prompt
+
+
+@orchestrator_agent.output_validator
+async def submit_results(ctx: RunContext[OrchestratorDeps], output: OrchestratorOutput) -> OrchestratorOutput:
+    # Validate that resumed runs are in the correct launched run lists
+    for analysis_run_to_resume in output.analysis_runs_to_resume:
+        if analysis_run_to_resume.run_id not in ctx.deps.launched_analysis_run_ids:
+            # Check if it's trying to resume a SWE run as an analysis run
+            if analysis_run_to_resume.run_id in ctx.deps.launched_swe_run_ids:
+                raise ModelRetry(
+                    f"Analysis run {analysis_run_to_resume.run_id} is a SWE run, not an analysis run. Cannot resume SWE runs as analysis runs.")
+            raise ModelRetry(
+                f"Analysis run {analysis_run_to_resume.run_id} not in launched analysis run IDs list. Full IDs must be used, choose between {ctx.deps.launched_analysis_run_ids}")
+
+    for swe_run_to_resume in output.swe_runs_to_resume:
+        if swe_run_to_resume.run_id not in ctx.deps.launched_swe_run_ids:
+            # Check if it's trying to resume an analysis run as a SWE run
+            if swe_run_to_resume.run_id in ctx.deps.launched_analysis_run_ids:
+                raise ModelRetry(
+                    f"SWE run {swe_run_to_resume.run_id} is an analysis run, not a SWE run. Cannot resume analysis runs as SWE runs.")
+            raise ModelRetry(
+                f"SWE run {swe_run_to_resume.run_id} not in launched SWE run IDs list. Full IDs must be used, choose between {ctx.deps.launched_swe_run_ids}")
+
+    return output

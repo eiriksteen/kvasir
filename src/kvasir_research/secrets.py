@@ -24,7 +24,6 @@ SANDBOX_HOST_DIR = Path(
     "/Users/eiriksteen/Personal/project/kvasir-research/sandbox")
 SANDBOX_PYPROJECT_PATH = Path("/app/sandbox/pyproject.toml")
 
-
 READABLE_EXTENSIONS = {
     ".py", ".txt", ".md", ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf",
     ".sh", ".bash", ".zsh", ".xml", ".html", ".css", ".js", ".ts", ".jsx", ".tsx",

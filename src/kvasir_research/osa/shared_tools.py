@@ -67,6 +67,38 @@ async def read_files_tool(ctx: RunContext, file_paths: list[str]) -> str:
     return separator.join(results)
 
 
+async def ls_tool(ctx: RunContext, paths: list[str] = ["/app"]) -> str:
+    assert hasattr(ctx.deps, "container_name"), "Container name is required"
+
+    if not paths:
+        raise ModelRetry("No paths provided")
+
+    results = []
+
+    for directory_path in paths:
+        shell_code = f"ls -I '__pycache__' -I '*.egg-info' {directory_path} || true"
+
+        out, err = await run_shell_code_in_container(
+            shell_code,
+            container_name=ctx.deps.container_name,
+        )
+
+        if err:
+            results.append(f"\n{directory_path}:\nError: {err}")
+            continue
+
+        if not out.strip():
+            results.append(f"\n{directory_path}:\n(empty or does not exist)")
+        else:
+            if len(paths) > 1:
+                results.append(f"\n{directory_path}:\n{out.rstrip()}")
+            else:
+                results.append(out.rstrip())
+
+    separator = "\n" if len(paths) > 1 else ""
+    return separator.join(results).strip()
+
+
 async def get_guidelines_tool(task: SUPPORTED_TASKS_LITERAL) -> str:
     """
     Get guidelines for a machine learning task.
