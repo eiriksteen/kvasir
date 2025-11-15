@@ -14,5 +14,6 @@ logging.basicConfig(
 
 logger = logging.getLogger("taskiq")
 
-result_backend = RedisAsyncResultBackend(redis_url=REDIS_URL)
-broker = RedisStreamBroker(url=REDIS_URL).with_result_backend(result_backend)
+kvasir_v1_result_backend = RedisAsyncResultBackend(redis_url=REDIS_URL)
+kvasir_v1_broker = RedisStreamBroker(
+    url=REDIS_URL).with_result_backend(kvasir_v1_result_backend)

@@ -3,7 +3,6 @@ from uuid import uuid4, UUID
 from typing import List, Literal
 from collections import OrderedDict
 
-from kvasir_research.worker import logger
 # from kvasir_research.agents.abstract_callbacks import set_callbacks
 from kvasir_research.secrets import PROJECTS_DIR
 from kvasir_research.agents.kvasir_v1.agent import KvasirV1
@@ -11,6 +10,7 @@ from kvasir_research.agents.kvasir_v1.callbacks import KvasirV1Callbacks
 from kvasir_research.agents.kvasir_v1.orchestrator import OrchestratorDeps, OrchestratorOutput
 from kvasir_research.agents.kvasir_v1.swe import SWEDeps
 from kvasir_research.agents.kvasir_v1.analysis import AnalysisDeps
+from kvasir_research.agents.kvasir_v1.broker import logger
 from kvasir_research.utils.redis_utils import (
     get_message_history as redis_get_message_history,
     save_message_history as redis_save_message_history,

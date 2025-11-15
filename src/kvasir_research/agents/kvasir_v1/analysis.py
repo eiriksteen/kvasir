@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.models import ModelSettings
 
-from kvasir_research.worker import logger
 from kvasir_research.utils.agent_utils import get_model, get_pyproject_for_env_description
 from kvasir_research.history_processors import keep_only_most_recent_notebook
 from kvasir_research.utils.code_utils import remove_print_statements_from_code
@@ -15,6 +14,7 @@ from kvasir_research.agents.kvasir_v1.knowledge_bank import SUPPORTED_TASKS_LITE
 from kvasir_research.sandbox.abstract import AbstractSandbox
 from kvasir_research.sandbox.local import LocalSandbox
 from kvasir_research.sandbox.modal import ModalSandbox
+from kvasir_research.agents.kvasir_v1.callbacks import KvasirV1Callbacks
 
 
 ANALYSIS_SYSTEM_PROMPT = """
@@ -56,6 +56,7 @@ class AnalysisDeps:
     guidelines: List[SUPPORTED_TASKS_LITERAL] = field(default_factory=list)
     sandbox: AbstractSandbox = field(init=False)
     sandbox_type: Literal["local", "modal"] = "local"
+    callbacks: KvasirV1Callbacks = field(default_factory=KvasirV1Callbacks)
 
     def __post_init__(self):
         if self.sandbox_type == "local":
@@ -102,8 +103,8 @@ async def analysis_system_prompt(ctx: RunContext[AnalysisDeps]) -> str:
 
 @analysis_agent.tool
 async def create_or_replace_cell(ctx: RunContext[AnalysisDeps], content: str, name: str, cell_type: Literal["code", "markdown"]) -> str:
-    logger.info(
-        f"Analysis Agent [{ctx.deps.run_id}] create_or_replace_cell called: name={name}, cell_type={cell_type}, content_length={len(content)} chars")
+    await ctx.deps.callbacks.log(ctx.deps.run_id,
+                                 f"Analysis Agent [{ctx.deps.run_id}] create_or_replace_cell called: name={name}, cell_type={cell_type}, content_length={len(content)} chars")
 
     if cell_type == "code":
         past_code = _extract_code_from_previous_cells(ctx.deps.notebook, name)
@@ -115,12 +116,12 @@ async def create_or_replace_cell(ctx: RunContext[AnalysisDeps], content: str, na
             timeout=ctx.deps.time_limit
         )
 
-        logger.info(
-            f"Analysis Agent [{ctx.deps.run_id}] executed code cell: {name}, output_length={len(out)} chars")
+        await ctx.deps.callbacks.log(ctx.deps.run_id,
+                                     f"Analysis Agent [{ctx.deps.run_id}] executed code cell: {name}, output_length={len(out)} chars")
 
         if err:
-            logger.error(
-                f"Analysis Agent [{ctx.deps.run_id}] error executing code cell: {name}, error={err}")
+            await ctx.deps.callbacks.log(ctx.deps.run_id,
+                                         f"Analysis Agent [{ctx.deps.run_id}] error executing code cell: {name}, error={err}")
             raise ModelRetry(f"Error executing code cell: {err}")
 
         ctx.deps.notebook[name] = (cell_type, content)
@@ -129,32 +130,32 @@ async def create_or_replace_cell(ctx: RunContext[AnalysisDeps], content: str, na
         ctx.deps.notebook[name] = (cell_type, content)
 
     result = _notebook_to_string(ctx.deps.notebook, ctx.deps.run_id)
-    logger.info(
-        f"Analysis Agent [{ctx.deps.run_id}] create_or_replace_cell completed: name={name}, total_cells={len(ctx.deps.notebook)}")
+    await ctx.deps.callbacks.log(ctx.deps.run_id,
+                                 f"Analysis Agent [{ctx.deps.run_id}] create_or_replace_cell completed: name={name}, total_cells={len(ctx.deps.notebook)}")
 
     return result
 
 
 @analysis_agent.tool
 async def delete_cell(ctx: RunContext[AnalysisDeps], cell_name: str) -> str:
-    logger.info(
-        f"Analysis Agent [{ctx.deps.run_id}] delete_cell called: cell_name={cell_name}")
+    await ctx.deps.callbacks.log(ctx.deps.run_id,
+                                 f"Analysis Agent [{ctx.deps.run_id}] delete_cell called: cell_name={cell_name}")
 
     del ctx.deps.notebook[cell_name]
 
     result = _notebook_to_string(ctx.deps.notebook, ctx.deps.run_id)
-    logger.info(
-        f"Analysis Agent [{ctx.deps.run_id}] delete_cell completed: cell_name={cell_name}, remaining_cells={len(ctx.deps.notebook)}")
+    await ctx.deps.callbacks.log(ctx.deps.run_id,
+                                 f"Analysis Agent [{ctx.deps.run_id}] delete_cell completed: cell_name={cell_name}, remaining_cells={len(ctx.deps.notebook)}")
 
     return result
 
 
 @analysis_agent.output_validator
 async def submit_results(ctx: RunContext[AnalysisDeps], summary: str) -> str:
-    logger.info(
-        f"Analysis Agent [{ctx.deps.run_id}] submit_results called: summary={summary}")
-    logger.info(
-        f"Analysis Agent [{ctx.deps.run_id}] submit_results called: notebook_cells={len(ctx.deps.notebook)}")
+    await ctx.deps.callbacks.log(ctx.deps.run_id,
+                                 f"Analysis Agent [{ctx.deps.run_id}] submit_results called: summary={summary}")
+    await ctx.deps.callbacks.log(ctx.deps.run_id,
+                                 f"Analysis Agent [{ctx.deps.run_id}] submit_results called: notebook_cells={len(ctx.deps.notebook)}")
 
     # if no code cells, model retry
     if not any(cell_type == "code" for cell_type, _ in ctx.deps.notebook.values()):
@@ -168,8 +169,8 @@ async def submit_results(ctx: RunContext[AnalysisDeps], summary: str) -> str:
     # Save analysis to Redis
     await save_analysis(ctx.deps.run_id, result)
 
-    logger.info(
-        f"Analysis Agent [{ctx.deps.run_id}] submit_results completed: notebook_cells={len(ctx.deps.notebook)}, saved to Redis")
+    await ctx.deps.callbacks.log(ctx.deps.run_id,
+                                 f"Analysis Agent [{ctx.deps.run_id}] submit_results completed: notebook_cells={len(ctx.deps.notebook)}, saved to Redis")
 
     return result
 

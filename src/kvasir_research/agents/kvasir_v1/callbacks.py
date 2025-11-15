@@ -8,7 +8,7 @@ from kvasir_research.agents.abstract_callbacks import AbstractCallbacks
 from kvasir_research.agents.kvasir_v1.orchestrator import OrchestratorDeps
 from kvasir_research.agents.kvasir_v1.swe import SWEDeps
 from kvasir_research.agents.kvasir_v1.analysis import AnalysisDeps
-from kvasir_research.worker import broker
+from kvasir_research.agents.kvasir_v1.broker import kvasir_v1_broker
 
 
 class KvasirV1Callbacks(AbstractCallbacks):
@@ -19,7 +19,8 @@ class KvasirV1Callbacks(AbstractCallbacks):
         def startup(state: TaskiqState) -> None:
             state.callbacks = cls()
 
-        broker.add_event_handler(TaskiqEvents.WORKER_STARTUP, startup)
+        kvasir_v1_broker.add_event_handler(
+            TaskiqEvents.WORKER_STARTUP, startup)
 
     @abstractmethod
     async def check_orchestrator_run_exists(self, run_id: UUID) -> bool:

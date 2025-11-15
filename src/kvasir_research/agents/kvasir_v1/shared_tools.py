@@ -3,7 +3,6 @@ from pydantic_ai import RunContext, ModelRetry
 from kvasir_research.utils.code_utils import is_readable_extension, add_line_numbers_to_script
 from kvasir_research.secrets import READABLE_EXTENSIONS
 from kvasir_research.agents.kvasir_v1.knowledge_bank import SUPPORTED_TASKS_LITERAL, get_guidelines
-from kvasir_research.worker import logger
 
 
 async def read_files_tool(ctx: RunContext, file_paths: list[str]) -> str:
@@ -98,8 +97,6 @@ async def get_guidelines_tool(task: SUPPORTED_TASKS_LITERAL) -> str:
     Get guidelines for a machine learning task.
     """
     try:
-        logger.info(f"Getting guidelines for task: {task}")
         return get_guidelines(task)
     except Exception as e:
-        logger.error(f"Error getting guidelines: {e}")
         raise ModelRetry(f"Error getting guidelines: {e}")

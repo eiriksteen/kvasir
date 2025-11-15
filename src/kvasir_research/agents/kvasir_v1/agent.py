@@ -11,7 +11,7 @@ from kvasir_research.agents.kvasir_v1.swe import swe_agent, SWEDeps
 from kvasir_research.agents.kvasir_v1.analysis import analysis_agent, AnalysisDeps
 from kvasir_research.agents.kvasir_v1.knowledge_bank import SUPPORTED_TASKS_LITERAL
 from kvasir_research.agents.kvasir_v1.callbacks import KvasirV1Callbacks
-from kvasir_research.worker import broker
+from kvasir_research.agents.kvasir_v1.broker import kvasir_v1_broker
 
 
 @dataclass
@@ -48,7 +48,7 @@ class SWERun:
     sandbox_type: Literal["local", "modal"] = "local"
 
 
-@broker.task
+@kvasir_v1_broker.task
 async def _run_swe(swe_run: SWERun, context: Annotated[Context, TaskiqDepends()]) -> str:
     callbacks: KvasirV1Callbacks = context.state.callbacks
 
@@ -108,7 +108,7 @@ async def _run_swe(swe_run: SWERun, context: Annotated[Context, TaskiqDepends()]
         raise
 
 
-@broker.task
+@kvasir_v1_broker.task
 async def _run_analysis(analysis_run: AnalysisRun, context: Annotated[Context, TaskiqDepends()]) -> str:
     callbacks: KvasirV1Callbacks = context.state.callbacks
 
