@@ -16,6 +16,7 @@ declare module "next-auth/jwt" {
       tokenExpiresAt: string;
     },
     error: string | undefined;
+    needsProfileCompletion?: boolean;
   } 
 }
 
@@ -27,6 +28,7 @@ declare module "next-auth" {
       tokenExpiresAt: string;
     },
     error: string | undefined;
+    needsProfileCompletion?: boolean;
   }
 }
 

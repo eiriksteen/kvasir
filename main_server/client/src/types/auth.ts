@@ -22,6 +22,7 @@ export interface UserBase {
   affiliation: string;
   role: string;
   disabled: boolean;
+  googleId?: string | null;
 }
 
 export interface UserCreate extends UserBase {

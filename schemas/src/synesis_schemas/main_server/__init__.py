@@ -2,6 +2,7 @@
 from .auth import (
     UserBase,
     UserCreate,
+    GoogleUserLogin,
     User,
     UserInDB,
     UserWithToken,
@@ -9,6 +10,7 @@ from .auth import (
     UserAPIKey,
     JWKSEntry,
     JWKSData,
+    UserProfileUpdate,
 )
 
 # Project schemas

@@ -4,7 +4,7 @@ import base64
 from typing import Annotated
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
-from sqlalchemy import insert, select, or_, and_
+from sqlalchemy import insert, select, or_, and_, update
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.asymmetric.types import (
     PublicKeyTypes,
 )
 
-from synesis_schemas.main_server import User, UserInDB, TokenData, UserCreate, JWKSEntry, JWKSData
+from synesis_schemas.main_server import User, UserInDB, TokenData, UserCreate, GoogleUserLogin, JWKSEntry, JWKSData
 from synesis_api.auth.models import users
 from synesis_api.modules.orchestrator.models import conversation
 from synesis_api.modules.runs.models import run
@@ -177,6 +177,62 @@ async def create_user(user_create: UserCreate) -> UserInDB:
                     updated_at=datetime.now(timezone.utc))
     await execute(insert(users).values(user.model_dump()), commit_after=True)
     return user
+
+
+async def google_login(google_user: GoogleUserLogin) -> UserInDB:
+    # First, check if user exists by google_id
+    user_record = await fetch_one(select(users).where(users.c.google_id == google_user.google_id))
+    
+    if user_record:
+        return UserInDB(**user_record)
+    
+    # Check if user exists by email
+    user_by_email = await get_user_by_email(google_user.email)
+    
+    if user_by_email:
+        # Link Google account to existing user
+        await execute(
+            update(users)
+            .where(users.c.email == google_user.email)
+            .values(google_id=google_user.google_id, updated_at=datetime.now(timezone.utc)),
+            commit_after=True
+        )
+        updated_user = await get_user_by_email(google_user.email)
+        if updated_user is None:
+            raise HTTPException(status_code=500, detail="Failed to update user")
+        return updated_user
+    
+    # Create new user with Google account
+    user_id = uuid.uuid4()
+    new_user = UserInDB(
+        id=user_id,
+        email=google_user.email,
+        name=google_user.name,
+        affiliation="Unknown",
+        role="Unknown",
+        google_id=google_user.google_id,
+        hashed_password=None,
+        disabled=False,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
+    )
+    await execute(insert(users).values(new_user.model_dump()), commit_after=True)
+    return new_user
+
+
+async def update_user_profile(user_id: uuid.UUID, affiliation: str, role: str) -> User:
+    await execute(
+        update(users)
+        .where(users.c.id == user_id)
+        .values(affiliation=affiliation, role=role, updated_at=datetime.now(timezone.utc)),
+        commit_after=True
+    )
+    
+    updated_user = await get_user_by_id(user_id)
+    if updated_user is None:
+        raise HTTPException(status_code=500, detail="Failed to update user profile")
+    
+    return User(**updated_user.model_dump())
 
 
 async def user_owns_runs(user_id: uuid.UUID, run_ids: list[uuid.UUID]) -> bool:

@@ -1,4 +1,5 @@
 import CredentialsProvider from "next-auth/providers/credentials"
+import GoogleProvider from "next-auth/providers/google"
 import { AuthOptions } from "next-auth"
 import { User as UserType } from "@/types/next-auth"
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
@@ -7,6 +8,10 @@ import { UserCreate, User } from "@/types/auth";
 export const authOptions: AuthOptions = {
 
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -44,8 +49,52 @@ export const authOptions: AuthOptions = {
   session: {strategy: "jwt"},
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account, profile }) {
 
+      // Handle Google OAuth sign-in
+      if (account?.provider === "google" && profile?.email) {
+        try {
+          const response = await fetch(process.env.NEXT_PUBLIC_API_URL_INTERNAL + "/auth/google-login", {
+            method: "POST",
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: profile.email,
+              name: profile.name,
+              google_id: profile.sub,
+            }),
+            credentials: "include",
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to authenticate with Google");
+          }
+
+          const userData = snakeToCamelKeys(await response.json());
+          token.APIToken = {
+            accessToken: userData.accessToken,
+            tokenExpiresAt: userData.tokenExpiresAt,
+          };
+          
+          // Check if user needs to complete their profile
+          if (userData.affiliation === "Unknown" || userData.role === "Unknown") {
+            token.needsProfileCompletion = true;
+          } else {
+            token.needsProfileCompletion = false;
+          }
+          
+          return token;
+        } catch (error) {
+          console.error("Error authenticating with Google:", error);
+          return {
+            ...token,
+            error: "GoogleAuthError",
+          };
+        }
+      }
+
+      // Handle credentials sign-in
       if (user as UserType) {
         token.APIToken = {
           accessToken: (user as UserType).accessToken,
@@ -93,6 +142,7 @@ export const authOptions: AuthOptions = {
       }
       session.APIToken = token.APIToken;
       session.error = token.error;
+      session.needsProfileCompletion = token.needsProfileCompletion;
       return session;
     },
   },

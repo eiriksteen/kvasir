@@ -12,6 +12,7 @@ export async function getSession() : Promise<Session | null> {
         return null;
     }
     else if (session?.error) {
+        console.error("Error getting session:", session.error);
         throw new Error(session.error);
     }
 
