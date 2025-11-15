@@ -11,6 +11,7 @@ from .auth import (
     JWKSEntry,
     JWKSData,
     UserProfileUpdate,
+    RegistrationStatus,
 )
 
 # Project schemas

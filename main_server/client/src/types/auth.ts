@@ -72,3 +72,8 @@ export interface JWKSData {
   keys: JWKSEntry[];
 }
 
+export interface UserProfileUpdate {
+  affiliation: string;
+  role: string;
+}
+

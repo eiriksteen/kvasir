@@ -4,7 +4,7 @@ import base64
 from typing import Annotated
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
-from sqlalchemy import insert, select, or_, and_, update
+from sqlalchemy import insert, select, or_, and_, update, func
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.asymmetric.types import (
     PublicKeyTypes,
 )
 
-from synesis_schemas.main_server import User, UserInDB, TokenData, UserCreate, GoogleUserLogin, JWKSEntry, JWKSData
+from synesis_schemas.main_server import User, UserInDB, TokenData, UserCreate, GoogleUserLogin, JWKSEntry, JWKSData, RegistrationStatus
 from synesis_api.auth.models import users
 from synesis_api.modules.orchestrator.models import conversation
 from synesis_api.modules.runs.models import run
@@ -23,7 +23,7 @@ from synesis_api.modules.data_sources.models import data_source
 from synesis_api.modules.project.models import project
 from synesis_api.modules.model.models import model_entity_implementation, model_source
 from synesis_api.modules.pipeline.models import pipeline_run, pipeline
-from synesis_api.app_secrets import PRIVATE_KEY_FILE_PATH, PUBLIC_KEY_FILE_PATH
+from synesis_api.app_secrets import PRIVATE_KEY_FILE_PATH, PUBLIC_KEY_FILE_PATH, MAX_USERS
 from synesis_api.database.service import fetch_one, execute, fetch_all
 
 
@@ -87,6 +87,26 @@ async def get_user_by_id(user_id: uuid.UUID) -> UserInDB | None:
     if user:
         return UserInDB(**user)
     return None
+
+
+async def get_user_count() -> int:
+    """Get the total number of users in the database"""
+    result = await fetch_one(select(func.count()).select_from(users))
+    return result['count_1'] if result else 0
+
+
+async def get_registration_status() -> RegistrationStatus:
+    """Check if registration is open based on user count"""
+    user_count = await get_user_count()
+    is_open = user_count < MAX_USERS
+    
+    if not is_open:
+        return RegistrationStatus(
+            is_open=False,
+            message="Registration is currently full. Please sign up on the waitlist."
+        )
+    
+    return RegistrationStatus(is_open=True)
 
 
 async def authenticate_user(email: str, password: str) -> User:

@@ -69,3 +69,8 @@ class JWKSData(BaseModel):
 class UserProfileUpdate(BaseModel):
     affiliation: str
     role: str
+
+
+class RegistrationStatus(BaseModel):
+    is_open: bool
+    message: str | None = None

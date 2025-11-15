@@ -7,11 +7,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
+import { useError } from "@/components/ErrorProvider";
 
 export default function RegisterForm() {
   const router = useRouter();
   const { data: session } = useSession();
+  const { showError: showGlobalError } = useError();
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isRegistrationOpen, setIsRegistrationOpen] = useState(true);
+  const [registrationMessage, setRegistrationMessage] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -74,13 +78,44 @@ export default function RegisterForm() {
     });
 
     if (result?.error) {
-      console.error(result.error);
-      setErrorMessage('Google sign-up failed: ' + result.error);
+      console.error("Google sign-up error:", result.error);
+      
+      // Extract the actual error message
+      let message = result.error;
+      if (result.error.includes("GoogleAuthError:")) {
+        message = result.error.split("GoogleAuthError:")[1]?.trim() || result.error;
+      }
+      
+      // If registration is full, show error and redirect to waitlist
+      if (message.toLowerCase().includes("full") || message.toLowerCase().includes("registration")) {
+        showGlobalError('Registration is currently full. Redirecting to waitlist...');
+        router.push('/waitlist');
+      } else {
+        setErrorMessage(message);
+      }
     } else if (result?.ok) {
       // Session will be loaded, then effect will handle redirect
       router.refresh();
     }
   };
+
+  // Check registration status on mount
+  useEffect(() => {
+    const checkRegistrationStatus = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/registration-status`);
+        if (response.ok) {
+          const data = await response.json();
+          setIsRegistrationOpen(data.is_open || data.isOpen);
+          setRegistrationMessage(data.message || "");
+        }
+      } catch (error) {
+        console.error("Failed to check registration status:", error);
+      }
+    };
+
+    checkRegistrationStatus();
+  }, []);
 
   // Handle redirect based on session state
   useEffect(() => {
@@ -114,6 +149,17 @@ export default function RegisterForm() {
           <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
             {/* Registration Form */}
             <div className="border border-gray-200 rounded-lg p-8 bg-white">
+              {!isRegistrationOpen && registrationMessage && (
+                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800">
+                  <p className="font-medium">{registrationMessage}</p>
+                  <p className="mt-2">
+                    <Link href="/waitlist" className="text-[#000034] hover:underline font-medium">
+                      Join the waitlist
+                    </Link>
+                  </p>
+                </div>
+              )}
+
               {successMessage && (
                 <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md text-green-800">
                   {successMessage}
@@ -238,10 +284,10 @@ export default function RegisterForm() {
 
                 <button
                   type="submit"
-                  disabled={isRegistering}
+                  disabled={isRegistering || !isRegistrationOpen}
                   className="w-full py-3 px-6 border border-transparent text-base font-medium rounded-md text-white bg-[#000034] hover:bg-[#000044] disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 font-[family-name:var(--font-geist-sans)]"
                 >
-                  {isRegistering ? "Creating Account..." : "Create Account"}
+                  {!isRegistrationOpen ? "Registration Full" : isRegistering ? "Creating Account..." : "Create Account"}
                 </button>
               </form>
 
@@ -254,7 +300,11 @@ export default function RegisterForm() {
                 </div>
               </div>
 
-              <button onClick={handleGoogleSignUp} type="button" className="gsi-material-button">
+              <button 
+                onClick={handleGoogleSignUp} 
+                type="button" 
+                disabled={!isRegistrationOpen}
+                className="gsi-material-button">
                 <div className="gsi-material-button-state"></div>
                 <div className="gsi-material-button-content-wrapper">
                   <div className="gsi-material-button-icon">

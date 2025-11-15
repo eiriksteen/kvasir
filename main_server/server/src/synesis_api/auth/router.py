@@ -11,10 +11,12 @@ from synesis_api.auth.service import (
     get_refresh_token_from_cookie,
     decode_token,
     get_user_by_id,
+    get_user_by_email,
     get_jwks,
-    update_user_profile
+    update_user_profile,
+    get_registration_status
 )
-from synesis_schemas.main_server import User, UserCreate, UserWithToken, GoogleUserLogin, JWKSData, UserProfileUpdate
+from synesis_schemas.main_server import User, UserCreate, UserWithToken, GoogleUserLogin, JWKSData, UserProfileUpdate, RegistrationStatus
 from synesis_api.app_secrets import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS, DEV
 from datetime import timedelta
 
@@ -83,12 +85,24 @@ async def signout(response: Response) -> dict:
 
 @router.post("/register", response_model=User)
 async def register(user_create: UserCreate) -> User:
+    # Check if registration is open
+    reg_status = await get_registration_status()
+    if not reg_status.is_open:
+        raise HTTPException(status_code=403, detail=reg_status.message)
+    
     user = await create_user(user_create)
     return user
 
 
 @router.post("/google-login", response_model=UserWithToken)
 async def google_login_endpoint(google_user: GoogleUserLogin, response: Response) -> UserWithToken:
+    # Check if registration is open (only for new users)
+    existing_user = await get_user_by_email(google_user.email)
+    if not existing_user:
+        reg_status = await get_registration_status()
+        if not reg_status.is_open:
+            raise HTTPException(status_code=403, detail=reg_status.message)
+    
     user = await google_login(google_user)
     
     access_token, access_token_expires_at = create_token(
@@ -131,6 +145,11 @@ async def update_profile(
 ) -> User:
     updated_user = await update_user_profile(user.id, profile_data.affiliation, profile_data.role)
     return updated_user
+
+
+@router.get("/registration-status", response_model=RegistrationStatus)
+async def registration_status() -> RegistrationStatus:
+    return await get_registration_status()
 
 
 @router.get("/.well-known/jwks.json")

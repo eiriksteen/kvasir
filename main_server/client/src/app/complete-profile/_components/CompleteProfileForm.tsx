@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import PublicHeader from "@/components/headers/PublicHeader";
 import { USER_ROLES } from "@/types/auth";
-import { camelToSnakeKeys } from "@/lib/utils";
+import { updateUserProfile } from "@/lib/auth";
 
 export default function CompleteProfileForm() {
   const router = useRouter();
@@ -28,29 +28,11 @@ export default function CompleteProfileForm() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/update-profile`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.APIToken?.accessToken}`,
-          },
-          body: JSON.stringify(camelToSnakeKeys(formData)),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({
-          detail: "Failed to update profile",
-        }));
-        throw new Error(errorData.detail || `Failed to update profile: ${response.status}`);
-      }
-
-      // Update the session to clear the needsProfileCompletion flag
+      await updateUserProfile(session?.APIToken?.accessToken || "", formData);
+      
+      // Refresh the session to update needsProfileCompletion flag
       await update();
 
-      // Redirect to projects
       router.push("/projects");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to update profile");
