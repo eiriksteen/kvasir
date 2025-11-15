@@ -27,6 +27,7 @@ dependencies = [
     "pyarrow",
     "fastparquet",
     "openpyxl",
+    "h5py",
     "sqlalchemy",
     "requests"
 ]

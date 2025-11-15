@@ -39,6 +39,12 @@ services:
       - type: bind
         source: ./sandbox
         target: /app/sandbox
+      - type: bind
+        source: ./exp
+        target: /app/exp
+      - type: bind
+        source: ${HOME}/.modal.toml
+        target:  /root/.modal.toml
     # Shouldn't need but docker desktop is trash and doesnt let me update so have it for now
     environment:
       - DOCKER_API_VERSION=1.41

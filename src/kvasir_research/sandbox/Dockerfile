@@ -40,7 +40,8 @@ RUN pip install --no-cache-dir \
     ipython \
     pyarrow \
     fastparquet \
-    openpyxl
+    openpyxl \
+    h5py
 
 CMD ["/bin/bash"]
 

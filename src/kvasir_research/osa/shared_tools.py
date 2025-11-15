@@ -1,6 +1,6 @@
 from pydantic_ai import RunContext, ModelRetry
 
-from kvasir_research.utils.code_utils import is_readable_extension, add_line_numbers_to_script, run_shell_code_in_container
+from kvasir_research.utils.code_utils import is_readable_extension, add_line_numbers_to_script
 from kvasir_research.secrets import READABLE_EXTENSIONS
 from kvasir_research.osa.knowledge_bank import SUPPORTED_TASKS_LITERAL, get_guidelines
 from kvasir_research.worker import logger
@@ -18,7 +18,7 @@ async def read_files_tool(ctx: RunContext, file_paths: list[str]) -> str:
     Returns:
         The file contents, formatted with clear separators between files.
     """
-    assert hasattr(ctx.deps, "container_name"), "Container name is required"
+    assert hasattr(ctx.deps, "sandbox"), "Sandbox is required"
 
     if not file_paths:
         raise ModelRetry("No file paths provided")
@@ -37,10 +37,7 @@ async def read_files_tool(ctx: RunContext, file_paths: list[str]) -> str:
 
         # Read file and check total line count
         shell_code = f"head -n 5000 {file_path} && wc -l < {file_path} || echo 'Error: File not found or cannot be read'"
-        out, err = await run_shell_code_in_container(
-            shell_code,
-            container_name=ctx.deps.container_name,
-        )
+        out, err = await ctx.deps.sandbox.run_shell_code(shell_code)
 
         if err or "Error:" in out or not out.strip():
             results.append(
@@ -68,7 +65,7 @@ async def read_files_tool(ctx: RunContext, file_paths: list[str]) -> str:
 
 
 async def ls_tool(ctx: RunContext, paths: list[str] = ["/app"]) -> str:
-    assert hasattr(ctx.deps, "container_name"), "Container name is required"
+    assert hasattr(ctx.deps, "sandbox"), "Sandbox is required"
 
     if not paths:
         raise ModelRetry("No paths provided")
@@ -78,10 +75,7 @@ async def ls_tool(ctx: RunContext, paths: list[str] = ["/app"]) -> str:
     for directory_path in paths:
         shell_code = f"ls -I '__pycache__' -I '*.egg-info' {directory_path} || true"
 
-        out, err = await run_shell_code_in_container(
-            shell_code,
-            container_name=ctx.deps.container_name,
-        )
+        out, err = await ctx.deps.sandbox.run_shell_code(shell_code)
 
         if err:
             results.append(f"\n{directory_path}:\nError: {err}")

@@ -1,6 +1,7 @@
 .kaggle
 *.egg-info
-projects_dir
+projects_dir*
 sandbox/exp
 secrets
 __pycache__
+exp/

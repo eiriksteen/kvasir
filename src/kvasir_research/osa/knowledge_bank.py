@@ -58,7 +58,11 @@ For models that predict the whole output window in one go, this is not a problem
 We should train the model on all the data using the best hyperparameters found during training and evaluation, then save the model to make it ready for inference. 
 """
 
-TIME_SERIES_CLASSIFICATION_GUIDELINES = "Currently no guidelines"
+TIME_SERIES_CLASSIFICATION_GUIDELINES = """
+- Logistic regression is a fair baseline
+- Rocket is a great choice
+- Neural nets can also make a lot of sense
+"""
 
 TIME_SERIES_ANOMALY_DETECTION_GUIDELINES = "Currently no guidelines"
 

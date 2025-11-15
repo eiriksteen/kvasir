@@ -8,8 +8,8 @@ from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.providers.grok import GrokProvider
 
 
-from kvasir_research.secrets import ANTHROPIC_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY, XAI_API_KEY, MODEL_TO_USE, SANDBOX_DOCKERFILE_PATH
-from kvasir_research.utils.redis_utils import get_analysis
+from kvasir_research.secrets import ANTHROPIC_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY, XAI_API_KEY, MODEL_TO_USE, SANDBOX_PYPROJECT_PATH
+from kvasir_research.utils.redis_utils import get_analysis, get_swe_result
 from kvasir_research.worker import logger
 
 
@@ -57,8 +57,20 @@ async def get_injected_analyses(analysis_ids: List[str]) -> str:
     return "\n\n".join(analyses_content) if analyses_content else "(no previous analyses)"
 
 
-def get_dockerfile_for_env_description() -> str:
-    with open(SANDBOX_DOCKERFILE_PATH, "r") as f:
+async def get_injected_swe_runs(swe_run_ids: List[str]) -> str:
+    swe_runs_content = []
+    for swe_run_id in swe_run_ids:
+        swe_result = await get_swe_result(swe_run_id)
+        if swe_result:
+            swe_runs_content.append(swe_result)
+        else:
+            logger.warning(f"SWE run {swe_run_id} not found in Redis")
+
+    return "\n\n".join(swe_runs_content) if swe_runs_content else "(no previous SWE runs)"
+
+
+def get_pyproject_for_env_description() -> str:
+    with open(SANDBOX_PYPROJECT_PATH, "r") as f:
         dockerfile_content = f.read()
 
     return dockerfile_content

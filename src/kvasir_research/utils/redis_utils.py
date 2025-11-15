@@ -3,7 +3,8 @@ import json
 from typing import List, Literal, Dict, Any
 from uuid import UUID
 from pathlib import Path
-from dataclasses import is_dataclass, asdict
+from collections import OrderedDict
+from dataclasses import is_dataclass, asdict, fields
 from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
 
 from kvasir_research.secrets import REDIS_URL
@@ -84,7 +85,6 @@ async def clear_results_queue(run_id: str):
 
 # Dependency management functions
 def _serialize_deps_value(value: Any) -> Any:
-    """Convert special types to JSON-serializable format"""
     if isinstance(value, UUID):
         return str(value)
     elif isinstance(value, Path):
@@ -97,31 +97,51 @@ def _serialize_deps_value(value: Any) -> Any:
         return value
 
 
+def _dataclass_to_dict_excluding_fields(obj: Any, exclude_fields: set[str]) -> Dict[str, Any]:
+    if not is_dataclass(obj):
+        raise ValueError(f"Expected dataclass, got {type(obj)}")
+
+    result = {}
+    for field_info in fields(obj):
+        if field_info.name in exclude_fields:
+            continue
+
+        value = getattr(obj, field_info.name)
+        if isinstance(value, (dict, OrderedDict)):
+            result[field_info.name] = dict(value)
+        elif isinstance(value, (list, tuple)):
+            result[field_info.name] = list(value) if isinstance(
+                value, list) else tuple(value)
+        else:
+            result[field_info.name] = value
+
+    return result
+
+
 async def save_deps(run_id: str, deps: Any):
-    """Save deps by converting dataclass to dictionary then JSON"""
     key = f"{run_id}-deps"
-    
+
     if is_dataclass(deps):
-        deps_dict = asdict(deps)
+        deps_dict = _dataclass_to_dict_excluding_fields(
+            deps, exclude_fields={"sandbox"})
     elif isinstance(deps, dict):
-        deps_dict = deps
+        deps_dict = dict(deps)
+        deps_dict.pop("sandbox", None)
     else:
         raise ValueError(f"deps must be a dataclass or dict, got {type(deps)}")
-    
-    # Serialize special types
+
     serialized_dict = _serialize_deps_value(deps_dict)
-    
+
     await _redis_client.set(key, json.dumps(serialized_dict).encode('utf-8'))
 
 
 async def get_saved_deps(run_id: str) -> Dict[str, Any] | None:
-    """Get saved deps as dictionary (caller must reconstruct dataclass)"""
     key = f"{run_id}-deps"
     deps_bytes = await _redis_client.get(key)
-    
+
     if not deps_bytes:
         return None
-    
+
     return json.loads(deps_bytes.decode('utf-8'))
 
 
@@ -139,3 +159,14 @@ async def get_analysis(run_id: str) -> str | None:
     key = f"{run_id}-analysis"
     analysis = await _redis_client.get(key)
     return analysis.decode('utf-8') if analysis else None
+
+
+async def save_swe_result(run_id: str, swe_result: str):
+    key = f"{run_id}-swe-result"
+    await _redis_client.set(key, swe_result.encode('utf-8'))
+
+
+async def get_swe_result(run_id: str) -> str | None:
+    key = f"{run_id}-swe-result"
+    swe_result = await _redis_client.get(key)
+    return swe_result.decode('utf-8') if swe_result else None

@@ -1,52 +1,49 @@
 from uuid import UUID
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Literal
 from dataclasses import dataclass, field
 from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.models import ModelSettings
 
 from kvasir_research.worker import logger
-from kvasir_research.utils.agent_utils import get_model
+from kvasir_research.utils.agent_utils import get_model, get_injected_analyses, get_injected_swe_runs, get_pyproject_for_env_description
 from kvasir_research.history_processors import keep_only_most_recent_script
-from kvasir_research.utils.docker_utils import (
-    check_file_exists_in_container,
-    write_file_to_container,
-    read_file_from_container,
-    remove_from_container,
-    is_subpath
-)
 from kvasir_research.utils.code_utils import (
     add_line_numbers_to_script,
     replace_lines_in_script,
     add_lines_to_script_at_line,
-    delete_lines_from_script,
-    run_shell_code_in_container_streaming
+    delete_lines_from_script
 )
-from kvasir_research.utils.file_utils import get_working_directory_description, get_folder_structure_description
-from kvasir_research.utils.agent_utils import get_injected_analyses, get_dockerfile_for_env_description
+from kvasir_research.osa.knowledge_bank import SUPPORTED_TASKS_LITERAL, get_guidelines
 from kvasir_research.osa.shared_tools import read_files_tool, ls_tool
+from kvasir_research.sandbox.abstract import AbstractSandbox
+from kvasir_research.sandbox.local import LocalSandbox
+from kvasir_research.sandbox.modal import ModalSandbox
 
 
 # Static guidelines, later we can adapt this based on user codebases
-CODING_GUIDELINES = """
+CODING_GUIDELINES = f"""
 ## Coding Guidelines
 
 ### 1. Project Structure
 We maintain an organized data science codebase with clear separation of concerns:
 
 ```
-├── data/              # Raw and processed datasets
-├── analysis/          # Exploratory notebooks and ad-hoc analysis
-├── scripts/           # Executable entry points
-├── runs/              # All experiment runs and outputs
-└── src/               # Reusable modules and packages
-    └── <package_name>/
-        ├── models/
-        ├── data_processing/
-        ├── evaluation/
-        ├── utils/
-        └── __init__.py
+|---/[package_name] # Only work within this directory
+    ├── data/              # Raw and processed datasets
+    ├── analysis/          # Exploratory notebooks and ad-hoc analysis
+    ├── scripts/           # Executable entry points
+    ├── runs/              # All experiment runs and outputs
+    └── src/               # Reusable modules and packages
+        └── <package_name>/
+            ├── models/
+            ├── data_processing/
+            ├── evaluation/
+            ├── utils/
+            └── __init__.py
 ```
+
+All your modifications must happen in /app/[package_name].
 
 ### 2. File Organization
 
@@ -132,7 +129,7 @@ Use insights from any provided analyses to inform your work! It must be based on
 
 If you need help from the orchestrator, use `submit_message_to_orchestrator`. This pauses your run and sends a message to the orchestrator, which will respond and resume your run with the answer. Use this when you need to:
 - Request an analysis to answer questions about the data (e.g., "Please analyze the distribution of missing values in column X")
-- Request access to write to a read-only path if absolutely necessary
+- Request access to write to a read-only path if absolutely necessary. Note that you have access to everything except the read-only paths by default. 
 - Report critical issues that require orchestrator intervention
 - Ask for clarification on ambiguous requirements
 
@@ -143,15 +140,27 @@ The orchestrator will handle your request (e.g., launch an analysis agent) and r
 @dataclass
 class SWEDeps:
     run_id: str
-    container_name: str
     orchestrator_id: UUID
     project_path: Path
     project_id: UUID
+    package_name: str
     data_paths: List[str]
     injected_analyses: List[str]
+    injected_swe_runs: List[str]
     read_only_paths: List[str]
-    time_limit: int  # Time limit in seconds
+    time_limit: int
+    guidelines: List[SUPPORTED_TASKS_LITERAL] = field(default_factory=list)
     modified_files: Dict[str, str] = field(default_factory=dict)
+    sandbox: AbstractSandbox = field(init=False)
+    sandbox_type: Literal["local", "modal"] = "local"
+
+    def __post_init__(self):
+        if self.sandbox_type == "local":
+            self.sandbox = LocalSandbox(self.project_id, self.package_name)
+        elif self.sandbox_type == "modal":
+            self.sandbox = ModalSandbox(self.project_id, self.package_name)
+        else:
+            raise ValueError(f"Invalid sandbox type: {self.sandbox_type}")
 
 
 async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_command: str) -> str:
@@ -177,9 +186,8 @@ async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_comm
     return_code = None
     timeout_message = None
 
-    async for stream_type, content in run_shell_code_in_container_streaming(
+    async for stream_type, content in ctx.deps.sandbox.run_shell_code_streaming(
         execution_command,
-        ctx.deps.container_name,
         timeout=ctx.deps.time_limit
     ):
         if stream_type == "returncode":
@@ -260,19 +268,36 @@ swe_agent = Agent[SWEDeps, str](
 
 @swe_agent.system_prompt
 async def swe_system_prompt(ctx: RunContext[SWEDeps]) -> str:
-    current_wd = await get_working_directory_description(ctx.deps.container_name)
-    folder_structure = await get_folder_structure_description(ctx.deps.container_name)
+    ls, ls_err = await ctx.deps.sandbox.list_directory_contents()
+
+    if ls_err:
+        raise RuntimeError(
+            f"Failed to list working directory contents: {ls_err}")
+
+    current_wd = f"ls out:\n{ls}\n\n"
+    folder_structure = await ctx.deps.sandbox.get_folder_structure()
+
     analyses_str = await get_injected_analyses(ctx.deps.injected_analyses)
-    dockerfile_str = get_dockerfile_for_env_description()
+    swe_runs_str = await get_injected_swe_runs(ctx.deps.injected_swe_runs)
+    pyproject_str = get_pyproject_for_env_description()
+
+    guidelines_str = ""
+    if ctx.deps.guidelines:
+        guidelines_content = "\n\n".join(
+            [get_guidelines(task) for task in ctx.deps.guidelines])
+        guidelines_str = f"\n\n## Task-Specific Guidelines\n\n{guidelines_content}"
 
     full_system_prompt = (
         f"{SWE_SYSTEM_PROMPT}\n\n" +
+        f"Package name: {ctx.deps.package_name}\n\n" +
         f"Current working directory: {current_wd}\n\n" +
         f"Folder structure: {folder_structure}\n\n" +
         f"Data paths to use: {ctx.deps.data_paths}\n\n" +
         f"Read only paths: {ctx.deps.read_only_paths}\n\n" +
-        f"You environment is described by the following Dockerfile:\n\n<dockerfile>\n{dockerfile_str}\n</dockerfile>\n\n" +
-        f"Here are results from previous analyses:\n\n<analyses>\n{analyses_str}\n</analyses>"
+        f"You environment is described by the following pyproject.toml:\n\n<pyproject>\n{pyproject_str}\n</pyproject>\n\n" +
+        f"Here are results from previous analyses:\n\n<analyses>\n{analyses_str}\n</analyses>\n\n" +
+        f"Here are results from previous SWE runs:\n\n<swe_runs>\n{swe_runs_str}\n</swe_runs>" +
+        guidelines_str
     )
 
     return full_system_prompt
@@ -297,19 +322,15 @@ async def write_script(ctx: RunContext[SWEDeps], content: str, file_path: str) -
         f"SWE Agent [{ctx.deps.run_id}] write_script called: file_path={file_path}, content_length={len(content)} chars")
 
     file_path = Path(file_path)
-    if not _validate_path_permissions(file_path, ctx.deps.read_only_paths):
+    if not _validate_path_permissions(ctx, file_path):
         raise ModelRetry(
             f"File {file_path} is not writable. It is in a read-only path. Read-only paths: {', '.join(ctx.deps.read_only_paths)}")
 
-    if await check_file_exists_in_container(file_path, ctx.deps.container_name):
+    if await ctx.deps.sandbox.check_file_exists(str(file_path)):
         raise ModelRetry(
             f"File {file_path} already exists. To modify an existing file, use add_script_lines, replace_script_lines, or delete_script_lines instead. write_script is only for creating new files.")
 
-    await write_file_to_container(
-        file_path,
-        content,
-        ctx.deps.container_name
-    )
+    await ctx.deps.sandbox.write_file(str(file_path), content)
 
     # Track the modified file
     ctx.deps.modified_files[str(file_path)] = content
@@ -348,18 +369,15 @@ async def replace_script_lines(
         f"SWE Agent [{ctx.deps.run_id}] replace_script_lines called: file_path={file_path}, lines={line_number_start}-{line_number_end}, new_code_length={len(new_code)} chars")
 
     file_path = Path(file_path)
-    if not _validate_path_permissions(file_path, ctx.deps.read_only_paths):
+    if not _validate_path_permissions(ctx, file_path):
         raise ModelRetry(
             f"File {file_path} is not writable. It is in a read-only path. Read-only paths: {', '.join(ctx.deps.read_only_paths)}")
 
-    if not await check_file_exists_in_container(file_path, ctx.deps.container_name):
+    if not await ctx.deps.sandbox.check_file_exists(str(file_path)):
         raise ModelRetry(
             f"File {file_path} does not exist. To create a new file, call the write_file tool.")
 
-    old_content = await read_file_from_container(
-        file_path,
-        ctx.deps.container_name
-    )
+    old_content = await ctx.deps.sandbox.read_file(str(file_path))
 
     updated_content = replace_lines_in_script(
         old_content,
@@ -369,11 +387,7 @@ async def replace_script_lines(
         script_has_line_numbers=False
     )
 
-    await write_file_to_container(
-        file_path,
-        updated_content,
-        ctx.deps.container_name
-    )
+    await ctx.deps.sandbox.write_file(str(file_path), updated_content)
 
     # Track the modified file
     ctx.deps.modified_files[str(file_path)] = updated_content
@@ -407,18 +421,15 @@ async def add_script_lines(ctx: RunContext[SWEDeps], file_name: str, new_code: s
         f"SWE Agent [{ctx.deps.run_id}] add_script_lines called: file_name={file_name}, start_line={start_line}, new_code_length={len(new_code)} chars")
 
     file_path = Path(file_name)
-    if not _validate_path_permissions(file_path, ctx.deps.read_only_paths):
+    if not _validate_path_permissions(ctx, file_path):
         raise ModelRetry(
             f"File {file_path} is not writable. It is in a read-only path. Read-only paths: {', '.join(ctx.deps.read_only_paths)}")
 
-    if not await check_file_exists_in_container(file_path, ctx.deps.container_name):
+    if not await ctx.deps.sandbox.check_file_exists(str(file_path)):
         raise ModelRetry(
             f"Script {file_name} does not exist. To create a new script, call the write_file tool.")
 
-    old_content = await read_file_from_container(
-        file_path,
-        ctx.deps.container_name
-    )
+    old_content = await ctx.deps.sandbox.read_file(str(file_path))
 
     updated_content = add_lines_to_script_at_line(
         old_content,
@@ -427,11 +438,7 @@ async def add_script_lines(ctx: RunContext[SWEDeps], file_name: str, new_code: s
         script_has_line_numbers=False
     )
 
-    await write_file_to_container(
-        file_path,
-        updated_content,
-        ctx.deps.container_name
-    )
+    await ctx.deps.sandbox.write_file(str(file_path), updated_content)
 
     # Track the modified file
     ctx.deps.modified_files[str(file_path)] = updated_content
@@ -465,18 +472,15 @@ async def delete_script_lines(ctx: RunContext[SWEDeps], file_path: str, line_num
 
     file_path = Path(file_path)
 
-    if not _validate_path_permissions(file_path, ctx.deps.read_only_paths):
+    if not _validate_path_permissions(ctx, file_path):
         raise ModelRetry(
             f"File {file_path} is not writable. It is in a read-only path. Read-only paths: {', '.join(ctx.deps.read_only_paths)}")
 
-    if not await check_file_exists_in_container(file_path, ctx.deps.container_name):
+    if not await ctx.deps.sandbox.check_file_exists(str(file_path)):
         raise ModelRetry(
             f"File {file_path} does not exist. To create a new file, call the write_file tool.")
 
-    old_content = await read_file_from_container(
-        file_path,
-        ctx.deps.container_name
-    )
+    old_content = await ctx.deps.sandbox.read_file(str(file_path))
 
     updated_content = delete_lines_from_script(
         old_content,
@@ -485,11 +489,7 @@ async def delete_script_lines(ctx: RunContext[SWEDeps], file_path: str, line_num
         script_has_line_numbers=False
     )
 
-    await write_file_to_container(
-        file_path,
-        updated_content,
-        ctx.deps.container_name
-    )
+    await ctx.deps.sandbox.write_file(str(file_path), updated_content)
 
     # Track the modified file
     ctx.deps.modified_files[str(file_path)] = updated_content
@@ -521,17 +521,14 @@ async def delete_file(ctx: RunContext[SWEDeps], file_path: str) -> str:
         f"SWE Agent [{ctx.deps.run_id}] delete_file called: file_path={file_path}")
 
     path = Path(file_path)
-    if not _validate_path_permissions(path, ctx.deps.read_only_paths):
+    if not _validate_path_permissions(ctx, path):
         raise ModelRetry(
             f"File {path} is not writable. It is in a read-only path. Read-only paths: {', '.join(ctx.deps.read_only_paths)}")
 
-    if not await check_file_exists_in_container(path, ctx.deps.container_name):
+    if not await ctx.deps.sandbox.check_file_exists(str(path)):
         raise ModelRetry(f"File {file_path} does not exist.")
 
-    _, err = await remove_from_container(path, ctx.deps.container_name)
-
-    if err:
-        raise ModelRetry(f"Error deleting file: {err}")
+    await ctx.deps.sandbox.delete_file(str(path))
 
     # Remove from modified_files tracking if it was there
     if str(file_path) in ctx.deps.modified_files:
@@ -581,12 +578,12 @@ def _modified_files_to_string(modified_files: Dict[str, str], run_id: str, execu
     return "\n".join(result)
 
 
-def _validate_path_permissions(path: str | Path, read_only_paths: List[str | Path]) -> bool:
+def _validate_path_permissions(ctx: RunContext[SWEDeps], path: str | Path) -> bool:
     path = Path(path).resolve()
 
     # Check if path is in any read-only path
-    for read_only_path in read_only_paths:
-        if is_subpath(path, Path(read_only_path).resolve()):
+    for read_only_path in ctx.deps.read_only_paths:
+        if ctx.deps.sandbox.is_subpath(path, Path(read_only_path).resolve()):
             return False
 
     return True

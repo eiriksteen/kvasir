@@ -19,10 +19,15 @@ XAI_API_KEY = "xai-KzbcnESSJAR33iPBF0I4vFvhGwAWPu1aPfPLBTeMPvvUZnXX9eKls9da40weJ
 AWS_ACCESS_KEY_ID = "AKIATHVQKXLHEUZCZIYH"
 
 
-SANDBOX_DIR = Path("/app/sandbox")
-SANDBOX_HOST_DIR = Path(
-    "/Users/eiriksteen/Personal/project/kvasir-research/sandbox")
-SANDBOX_PYPROJECT_PATH = Path("/app/sandbox/pyproject.toml")
+CODEBASE_HOST_DIR = Path(
+    "/Users/eiriksteen/Personal/project/kvasir-research/exp")
+CODEBASE_DIR = Path("/app/exp")
+
+SANDBOX_PYPROJECT_HOST_PATH = Path(
+    "/Users/eiriksteen/Personal/project/kvasir-research/src/kvasir_research/sandbox/pyproject.toml")
+SANDBOX_PYPROJECT_PATH = Path(
+    "/app/src/kvasir_research/sandbox/pyproject.toml")
+
 
 READABLE_EXTENSIONS = {
     ".py", ".txt", ".md", ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf",
@@ -39,7 +44,6 @@ PROJECTS_HOST_DIR = Path(
 
 
 MODAL_APP_NAME = "kvasir-research"
-MODAL_VOLUME_NAME = "kvasir-research-volume"
-MODAL_PROJECTS_DIR = "/projects"
+MODAL_PROJECTS_DIR = Path("/projects")
 
-SANDBOX_DOCKERFILE_PATH = Path("/app/sandbox/Dockerfile")
+SANDBOX_DOCKERFILE_PATH = Path("/app/src/kvasir_research/sandbox/Dockerfile")

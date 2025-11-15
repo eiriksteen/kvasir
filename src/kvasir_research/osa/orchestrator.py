@@ -1,5 +1,5 @@
 from uuid import UUID
-from typing import List
+from typing import List, Literal
 from pathlib import Path
 from pydantic import BaseModel
 from dataclasses import dataclass, field
@@ -7,9 +7,13 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.models import ModelSettings
 from pydantic_ai.exceptions import ModelRetry
 
-from kvasir_research.utils.agent_utils import get_model
-from kvasir_research.utils.file_utils import get_working_directory_description, get_folder_structure_description
+from kvasir_research.utils.agent_utils import get_model, get_pyproject_for_env_description
 from kvasir_research.osa.shared_tools import read_files_tool, get_guidelines_tool, ls_tool
+from kvasir_research.osa.knowledge_bank import SUPPORTED_TASKS_LITERAL
+from kvasir_research.sandbox.abstract import AbstractSandbox
+from kvasir_research.sandbox.local import LocalSandbox
+from kvasir_research.sandbox.modal import ModalSandbox
+from kvasir_research.worker import logger
 
 
 ORCHESTRATOR_SYSTEM_PROMPT = """
@@ -26,16 +30,6 @@ They are implementation machines, use them as such.
 Use your expert data science knowledge to guide them and review their code. 
 
 After each run, you see: analysis results and executed code (analysis agent), or implemented code and execution results (SWE agent)
-
-## Handling SWE Agent Messages
-
-SWE agents may pause and send you messages requesting help. They can request:
-- An analysis to answer data-related questions
-- Access to write to a read-only path
-- Clarification on requirements
-- Help with critical issues
-
-When you receive a message from a SWE agent, respond by resuming the agent's run with your answer. If the request requires launching an analysis, do so and then resume the SWE agent with the analysis results.
 
 ## Submitting Results
 
@@ -56,8 +50,11 @@ Use `submit_results` to return your response with optional runs to launch or res
 
 **Injecting Analyses**: Inject analysis results using `analyses_to_inject` parameter with IDs you defined (e.g., inject `eda` into data cleaning and modeling SWE agents, since they may need to use the insights from the analysis)
 
+**Injecting SWE Runs**: Inject SWE run results using `swe_runs_to_inject` parameter with IDs you defined (e.g., inject a data processing pipeline SWE run into modeling SWE agents, so they can use the specific functions and code from that pipeline)
+
 **Parallelism** 
-We want to parallelize when we can, for example when we want multiple orthogonal features or approaches (independent models, pipelines, etc).
+We want to parallelize when we can, for example when we want multiple orthogonal features or approaches (independent models, pipelines, etc). 
+Launch two SWEs to create evaluation and data preprocessing pipelines at the same time. 
 To make this work, specify read only paths in case multiple SWEs rely on the same files (for example the same data processing pipeline). 
 
 **Time Limits**
@@ -106,7 +103,7 @@ Select **n** initial approaches (n provided as parameter), each forming a separa
   - Consider: iterate within branch vs. create new branch for significant changes
 - **Stop**: Terminate branch if approach isn't working, another approach dominates, or diminishing returns reached (simply don't resume the branch in this case)
 
-**Completion**: Submit best results when satisfied, or when max iterations/time limit reached 
+**Completion**: Submit best results when satisfied, or when max iterations/time limit reached. Set the "completed" field to True when you are done. 
 
 **Leakage**: 
 It is extremely important to avoid data leakage. We are writing SOTA research-level code that must pass peer review, reported performance must be robust and reproducible. 
@@ -120,25 +117,48 @@ Iterate on the analysis in case of unanswered questions or intriguing aspects me
 However, only launch analyses if needed, as we should focus on what matters! Redundant or non-useful analysis should be omitted. 
 Whenever launching an analysis, make sure you have a clear question or goal in mind that the analysis should answer. 
 
-Remember to call for guidelines if they are available for the task. If they are not available, use your knowledge. 
+## Handling SWE Agent Messages
+
+SWE agents may pause and send you messages requesting help. They can request:
+- An analysis to answer data-related questions
+- Access to write to a read-only path
+- Clarification on requirements
+- Help with critical issues
+
+When you receive a message from a SWE agent, respond by resuming the agent's run with your answer. If the request requires launching an analysis, do so and then resume the SWE agent with the analysis results.
+
+Remember to call for guidelines if they are available for the task. If they are not available, use your knowledge.
+
+**Injecting Guidelines**: You can inject task-specific guidelines to help analysis and SWE agents. Use the `guidelines` field when launching or resuming runs with a list of task types (e.g., `["time_series_forecasting"]`, `["image_classification"]`) to provide domain-specific guidance. The system will automatically look up and inject the relevant guidelines for those task types. 
 """
 
 
 @dataclass
 class OrchestratorDeps:
     run_id: UUID
-    container_name: str
     project_id: UUID
     package_name: str
     project_path: Path
     launched_analysis_run_ids: List[str] = field(default_factory=list)
     launched_swe_run_ids: List[str] = field(default_factory=list)
+    guidelines: List[SUPPORTED_TASKS_LITERAL] = field(default_factory=list)
+    sandbox: AbstractSandbox = field(init=False)
+    sandbox_type: Literal["local", "modal"] = "local"
+
+    def __post_init__(self):
+        if self.sandbox_type == "local":
+            self.sandbox = LocalSandbox(self.project_id, self.package_name)
+        elif self.sandbox_type == "modal":
+            self.sandbox = ModalSandbox(self.project_id, self.package_name)
+        else:
+            raise ValueError(f"Invalid sandbox type: {self.sandbox_type}")
 
 
 class AnalysisRunToLaunch(BaseModel):
     deliverable_description: str
     data_paths: List[str]
-    analyses_to_inject: List[str]
+    analyses_to_inject: List[str] = []
+    guidelines: List[SUPPORTED_TASKS_LITERAL] = []
     time_limit: int
     run_id: str
 
@@ -146,6 +166,7 @@ class AnalysisRunToLaunch(BaseModel):
 class AnalysisRunToResume(BaseModel):
     message: str
     run_id: str
+    guidelines: List[SUPPORTED_TASKS_LITERAL] = []
     time_limit: int
 
 
@@ -153,7 +174,9 @@ class SWERunToLaunch(BaseModel):
     deliverable_description: str
     read_only_paths: List[str]
     data_paths: List[str]
-    analyses_to_inject: List[str]
+    analyses_to_inject: List[str] = []
+    swe_runs_to_inject: List[str] = []
+    guidelines: List[SUPPORTED_TASKS_LITERAL] = []
     time_limit: int
     run_id: str
 
@@ -161,6 +184,7 @@ class SWERunToLaunch(BaseModel):
 class SWERunToResume(BaseModel):
     run_id: str
     message: str
+    guidelines: List[SUPPORTED_TASKS_LITERAL] = []
     time_limit: int
 
 
@@ -192,13 +216,21 @@ orchestrator_agent = Agent[OrchestratorDeps](
 
 @orchestrator_agent.system_prompt
 async def orchestrator_system_prompt(ctx: RunContext[OrchestratorDeps]) -> str:
-    current_wd = await get_working_directory_description(ctx.deps.container_name)
-    folder_structure = await get_folder_structure_description(ctx.deps.container_name)
+    ls, ls_err = await ctx.deps.sandbox.list_directory_contents()
+
+    if ls_err:
+        raise RuntimeError(
+            f"Failed to list working directory contents: {ls_err}")
+
+    current_wd = f"ls out:\n{ls}\n\n"
+    folder_structure = await ctx.deps.sandbox.get_folder_structure()
+    pyproject_str = get_pyproject_for_env_description()
 
     full_system_prompt = (
         f"{ORCHESTRATOR_SYSTEM_PROMPT}\n\n" +
         f"Current working directory: {current_wd}\n\n" +
-        f"Folder structure: {folder_structure}\n\n"
+        f"Folder structure: {folder_structure}\n\n" +
+        f"You environment is described by the following pyproject.toml:\n\n<pyproject>\n{pyproject_str}\n</pyproject>\n\n"
     )
 
     return full_system_prompt
