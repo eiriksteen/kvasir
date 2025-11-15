@@ -1,19 +1,18 @@
 from uuid import UUID
 from typing import List, Literal
-from pathlib import Path
 from pydantic import BaseModel
 from dataclasses import dataclass, field
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models import ModelSettings
 from pydantic_ai.exceptions import ModelRetry
 
+from kvasir_research.agents.abstract_agent import AbstractAgentOutput
 from kvasir_research.utils.agent_utils import get_model, get_pyproject_for_env_description
-from kvasir_research.osa.shared_tools import read_files_tool, get_guidelines_tool, ls_tool
-from kvasir_research.osa.knowledge_bank import SUPPORTED_TASKS_LITERAL
+from kvasir_research.agents.kvasir_v1.shared_tools import read_files_tool, get_guidelines_tool, ls_tool
+from kvasir_research.agents.kvasir_v1.knowledge_bank import SUPPORTED_TASKS_LITERAL
 from kvasir_research.sandbox.abstract import AbstractSandbox
 from kvasir_research.sandbox.local import LocalSandbox
 from kvasir_research.sandbox.modal import ModalSandbox
-from kvasir_research.worker import logger
 
 
 ORCHESTRATOR_SYSTEM_PROMPT = """
@@ -138,10 +137,8 @@ class OrchestratorDeps:
     run_id: UUID
     project_id: UUID
     package_name: str
-    project_path: Path
     launched_analysis_run_ids: List[str] = field(default_factory=list)
     launched_swe_run_ids: List[str] = field(default_factory=list)
-    guidelines: List[SUPPORTED_TASKS_LITERAL] = field(default_factory=list)
     sandbox: AbstractSandbox = field(init=False)
     sandbox_type: Literal["local", "modal"] = "local"
 
@@ -188,8 +185,7 @@ class SWERunToResume(BaseModel):
     time_limit: int
 
 
-class OrchestratorOutput(BaseModel):
-    response: str
+class OrchestratorOutput(AbstractAgentOutput):
     analysis_runs_to_launch: List[AnalysisRunToLaunch] = []
     analysis_runs_to_resume: List[AnalysisRunToResume] = []
     swe_runs_to_launch: List[SWERunToLaunch] = []

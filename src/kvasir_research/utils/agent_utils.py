@@ -10,7 +10,7 @@ from pydantic_ai.providers.grok import GrokProvider
 
 from kvasir_research.secrets import ANTHROPIC_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY, XAI_API_KEY, MODEL_TO_USE, SANDBOX_PYPROJECT_PATH
 from kvasir_research.utils.redis_utils import get_analysis, get_swe_result
-from kvasir_research.worker import logger
+# from kvasir_research.worker import logger
 
 
 def get_model():
@@ -51,8 +51,6 @@ async def get_injected_analyses(analysis_ids: List[str]) -> str:
         analysis = await get_analysis(analysis_id)
         if analysis:
             analyses_content.append(analysis)
-        else:
-            logger.warning(f"Analysis {analysis_id} not found in Redis")
 
     return "\n\n".join(analyses_content) if analyses_content else "(no previous analyses)"
 
@@ -63,8 +61,6 @@ async def get_injected_swe_runs(swe_run_ids: List[str]) -> str:
         swe_result = await get_swe_result(swe_run_id)
         if swe_result:
             swe_runs_content.append(swe_result)
-        else:
-            logger.warning(f"SWE run {swe_run_id} not found in Redis")
 
     return "\n\n".join(swe_runs_content) if swe_runs_content else "(no previous SWE runs)"
 

@@ -1,6 +1,7 @@
 import modal
 import shlex
 import asyncio
+import shutil
 from pathlib import Path
 from typing import AsyncGenerator, Tuple, Optional
 from uuid import UUID
@@ -73,10 +74,10 @@ class ModalSandbox(AbstractSandbox):
             await asyncio.to_thread(_upload_directory)
         except FileExistsError:
             pass
+        finally:
+            shutil.rmtree(local_project_package_dir)
 
-        _, err = await self.run_shell_code(
-            "pip install -e ."
-        )
+        _, err = await self.run_shell_code("pip install -e .")
 
         if err:
             raise RuntimeError(

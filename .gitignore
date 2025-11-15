@@ -5,3 +5,5 @@ sandbox/exp
 secrets
 __pycache__
 exp/
+.DS_Store
+.vscode/

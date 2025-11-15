@@ -11,7 +11,7 @@ from kvasir_research.history_processors import keep_only_most_recent_notebook
 from kvasir_research.utils.code_utils import remove_print_statements_from_code
 from kvasir_research.utils.redis_utils import save_analysis
 from kvasir_research.utils.agent_utils import get_injected_analyses
-from kvasir_research.osa.knowledge_bank import SUPPORTED_TASKS_LITERAL, get_guidelines
+from kvasir_research.agents.kvasir_v1.knowledge_bank import SUPPORTED_TASKS_LITERAL, get_guidelines
 from kvasir_research.sandbox.abstract import AbstractSandbox
 from kvasir_research.sandbox.local import LocalSandbox
 from kvasir_research.sandbox.modal import ModalSandbox
@@ -45,7 +45,6 @@ Everything you do should have a purpose and clear goal, you should be ready to j
 class AnalysisDeps:
     run_id: str
     orchestrator_id: UUID
-    project_path: Path
     project_id: UUID
     package_name: str
     data_paths: List[str]

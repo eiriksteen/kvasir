@@ -1,5 +1,6 @@
 import logging
 from taskiq_redis import RedisAsyncResultBackend, RedisStreamBroker
+
 from kvasir_research.secrets import REDIS_URL
 
 

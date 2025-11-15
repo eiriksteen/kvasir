@@ -37,9 +37,6 @@ services:
         source: ./projects_dir
         target: /app/projects_dir
       - type: bind
-        source: ./sandbox
-        target: /app/sandbox
-      - type: bind
         source: ./exp
         target: /app/exp
       - type: bind

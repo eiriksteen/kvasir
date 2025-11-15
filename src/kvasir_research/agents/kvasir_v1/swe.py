@@ -14,8 +14,8 @@ from kvasir_research.utils.code_utils import (
     add_lines_to_script_at_line,
     delete_lines_from_script
 )
-from kvasir_research.osa.knowledge_bank import SUPPORTED_TASKS_LITERAL, get_guidelines
-from kvasir_research.osa.shared_tools import read_files_tool, ls_tool
+from kvasir_research.agents.kvasir_v1.knowledge_bank import SUPPORTED_TASKS_LITERAL, get_guidelines
+from kvasir_research.agents.kvasir_v1.shared_tools import read_files_tool, ls_tool
 from kvasir_research.sandbox.abstract import AbstractSandbox
 from kvasir_research.sandbox.local import LocalSandbox
 from kvasir_research.sandbox.modal import ModalSandbox
@@ -141,7 +141,6 @@ The orchestrator will handle your request (e.g., launch an analysis agent) and r
 class SWEDeps:
     run_id: str
     orchestrator_id: UUID
-    project_path: Path
     project_id: UUID
     package_name: str
     data_paths: List[str]
