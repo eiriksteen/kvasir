@@ -1,4 +1,5 @@
 from typing import List
+from uuid import UUID
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.models.anthropic import AnthropicModel
@@ -45,7 +46,7 @@ def get_model():
     return model
 
 
-async def get_injected_analyses(analysis_ids: List[str]) -> str:
+async def get_injected_analyses(analysis_ids: List[UUID]) -> str:
     analyses_content = []
     for analysis_id in analysis_ids:
         analysis = await get_analysis(analysis_id)
@@ -55,7 +56,7 @@ async def get_injected_analyses(analysis_ids: List[str]) -> str:
     return "\n\n".join(analyses_content) if analyses_content else "(no previous analyses)"
 
 
-async def get_injected_swe_runs(swe_run_ids: List[str]) -> str:
+async def get_injected_swe_runs(swe_run_ids: List[UUID]) -> str:
     swe_runs_content = []
     for swe_run_id in swe_run_ids:
         swe_result = await get_swe_result(swe_run_id)

@@ -1,16 +1,13 @@
 import asyncio
 from uuid import uuid4, UUID
-from typing import List, Literal
-from collections import OrderedDict
+from typing import List, Literal, Dict
 
 # from kvasir_research.agents.abstract_callbacks import set_callbacks
 from kvasir_research.secrets import PROJECTS_DIR
-from kvasir_research.agents.kvasir_v1.agent import KvasirV1
-from kvasir_research.agents.kvasir_v1.callbacks import KvasirV1Callbacks
-from kvasir_research.agents.kvasir_v1.orchestrator import OrchestratorDeps, OrchestratorOutput
-from kvasir_research.agents.kvasir_v1.swe import SWEDeps
-from kvasir_research.agents.kvasir_v1.analysis import AnalysisDeps
-from kvasir_research.agents.kvasir_v1.broker import logger
+from kvasir_research.agents.v1.kvasir.agent import KvasirV1
+from kvasir_research.agents.v1.kvasir.callbacks import KvasirV1Callbacks
+from kvasir_research.agents.v1.kvasir.orchestrator import OrchestratorOutput
+from kvasir_research.agents.v1.broker import logger
 from kvasir_research.utils.redis_utils import (
     get_message_history as redis_get_message_history,
     save_message_history as redis_save_message_history,
@@ -50,29 +47,23 @@ class RedisCallbacks(KvasirV1Callbacks):
     async def add_result_to_queue(self, run_id: UUID, result: str) -> None:
         await redis_add_result_to_queue(str(run_id), result)
 
-    async def save_orchestrator_deps(self, run_id: UUID, deps: OrchestratorDeps) -> None:
+    async def save_orchestrator_deps(self, run_id: UUID, deps: Dict) -> None:
         await redis_save_deps(str(run_id), deps)
 
-    async def load_orchestrator_deps(self, run_id: UUID) -> OrchestratorDeps:
+    async def load_orchestrator_deps(self, run_id: UUID) -> Dict:
         deps_dict = await redis_get_saved_deps(str(run_id))
         if deps_dict is None:
             raise RuntimeError("Orchestrator deps not found")
-        deps_dict["run_id"] = UUID(deps_dict["run_id"])
-        deps_dict["project_id"] = UUID(deps_dict["project_id"])
-        deps_dict["package_name"] = deps_dict.get(
-            "package_name", "experiments")
-        return OrchestratorDeps(**deps_dict)
+        return deps_dict
 
-    async def save_swe_deps(self, run_id: UUID, deps: SWEDeps) -> None:
+    async def save_swe_deps(self, run_id: UUID, deps: Dict) -> None:
         await redis_save_deps(str(run_id), deps)
 
-    async def load_swe_deps(self, run_id: UUID) -> SWEDeps:
+    async def load_swe_deps(self, run_id: UUID) -> Dict:
         deps_dict = await redis_get_saved_deps(str(run_id))
         if deps_dict is None:
             raise RuntimeError("SWE deps not found")
-        deps_dict["orchestrator_id"] = UUID(deps_dict["orchestrator_id"])
-        deps_dict["project_id"] = UUID(deps_dict["project_id"])
-        return SWEDeps(**deps_dict)
+        return deps_dict
 
     async def save_swe_result(self, run_id: UUID, result: str) -> None:
         await redis_save_swe_result(str(run_id), result)
@@ -81,25 +72,14 @@ class RedisCallbacks(KvasirV1Callbacks):
         res = await redis_get_swe_result(str(run_id))
         return res or ""
 
-    async def save_analysis_deps(self, run_id: UUID, deps: AnalysisDeps) -> None:
+    async def save_analysis_deps(self, run_id: UUID, deps: Dict) -> None:
         await redis_save_deps(str(run_id), deps)
 
-    async def load_analysis_deps(self, run_id: UUID) -> AnalysisDeps:
+    async def load_analysis_deps(self, run_id: UUID) -> Dict:
         deps_dict = await redis_get_saved_deps(str(run_id))
         if deps_dict is None:
             raise RuntimeError("Analysis deps not found")
-        deps_dict["orchestrator_id"] = UUID(deps_dict["orchestrator_id"])
-        deps_dict["project_id"] = UUID(deps_dict["project_id"])
-        # Ensure OrderedDict and tuple types for notebook
-        notebook_raw = deps_dict.get("notebook", {})
-        ordered = OrderedDict()
-        for k, v in notebook_raw.items():
-            if isinstance(v, list):
-                ordered[k] = tuple(v)  # [type, content] -> (type, content)
-            else:
-                ordered[k] = v
-        deps_dict["notebook"] = ordered
-        return AnalysisDeps(**deps_dict)
+        return deps_dict
 
     async def save_analysis_result(self, run_id: UUID, result: str) -> None:
         await redis_save_analysis(str(run_id), result)
@@ -114,8 +94,8 @@ class RedisCallbacks(KvasirV1Callbacks):
     async def get_message_history(self, run_id: UUID):
         return await redis_get_message_history(str(run_id))
 
-    async def log(self, run_id: UUID, message: str) -> None:
-        logger.info(f"[{run_id}] {message}")
+    async def log(self, run_id: UUID, message: str, type: Literal["result", "tool_call", "error"]) -> None:
+        logger.info(f"[{run_id}] {message} [{type}]")
 
 
 async def main(project_name: str, sandbox_type: Literal["local", "modal"] = "local") -> List[OrchestratorOutput]:
@@ -141,8 +121,12 @@ async def main(project_name: str, sandbox_type: Literal["local", "modal"] = "loc
         f"The data is available at: {data_dir}"
     )
 
-    outputs = await agent(prompt)
-    return outputs
+    async for orchestrator_output, is_last in agent(prompt):
+        print(
+            f"Orchestrator output:\n\n{orchestrator_output}\n\nIs last: {is_last}")
+        if is_last:
+            # This is the final complete output
+            pass
 
 
 if __name__ == "__main__":

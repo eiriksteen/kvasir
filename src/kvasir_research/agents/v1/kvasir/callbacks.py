@@ -1,14 +1,11 @@
 from uuid import UUID
-from typing import List, Literal
+from typing import List, Literal, Dict
 from abc import abstractmethod
 from pydantic_ai.models import ModelMessage
 from taskiq import TaskiqState, TaskiqEvents
 
 from kvasir_research.agents.abstract_callbacks import AbstractCallbacks
-from kvasir_research.agents.kvasir_v1.orchestrator import OrchestratorDeps
-from kvasir_research.agents.kvasir_v1.swe import SWEDeps
-from kvasir_research.agents.kvasir_v1.analysis import AnalysisDeps
-from kvasir_research.agents.kvasir_v1.broker import kvasir_v1_broker
+from kvasir_research.agents.v1.broker import v1_broker
 
 
 class KvasirV1Callbacks(AbstractCallbacks):
@@ -19,7 +16,7 @@ class KvasirV1Callbacks(AbstractCallbacks):
         def startup(state: TaskiqState) -> None:
             state.callbacks = cls()
 
-        kvasir_v1_broker.add_event_handler(
+        v1_broker.add_event_handler(
             TaskiqEvents.WORKER_STARTUP, startup)
 
     @abstractmethod
@@ -47,19 +44,19 @@ class KvasirV1Callbacks(AbstractCallbacks):
         pass
 
     @abstractmethod
-    async def save_orchestrator_deps(self, run_id: UUID, deps: OrchestratorDeps) -> None:
+    async def save_orchestrator_deps(self, run_id: UUID, deps: Dict) -> None:
         pass
 
     @abstractmethod
-    async def load_orchestrator_deps(self, run_id: UUID) -> OrchestratorDeps:
+    async def load_orchestrator_deps(self, run_id: UUID) -> Dict:
         pass
 
     @abstractmethod
-    async def save_swe_deps(self, run_id: UUID, deps: SWEDeps) -> None:
+    async def save_swe_deps(self, run_id: UUID, deps: Dict) -> None:
         pass
 
     @abstractmethod
-    async def load_swe_deps(self, run_id: UUID) -> SWEDeps:
+    async def load_swe_deps(self, run_id: UUID) -> Dict:
         pass
 
     @abstractmethod
@@ -71,11 +68,11 @@ class KvasirV1Callbacks(AbstractCallbacks):
         pass
 
     @abstractmethod
-    async def save_analysis_deps(self, run_id: UUID, deps: AnalysisDeps) -> None:
+    async def save_analysis_deps(self, run_id: UUID, deps: Dict) -> None:
         pass
 
     @abstractmethod
-    async def load_analysis_deps(self, run_id: UUID) -> AnalysisDeps:
+    async def load_analysis_deps(self, run_id: UUID) -> Dict:
         pass
 
     @abstractmethod
@@ -92,8 +89,4 @@ class KvasirV1Callbacks(AbstractCallbacks):
 
     @abstractmethod
     async def get_message_history(self, run_id: UUID) -> List[ModelMessage]:
-        pass
-
-    @abstractmethod
-    async def log(self, run_id: UUID, message: str) -> None:
         pass

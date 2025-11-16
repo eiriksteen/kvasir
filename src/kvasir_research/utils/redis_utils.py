@@ -29,8 +29,8 @@ def _pydantic_ai_messages_to_bytes(messages: list[ModelMessage]) -> List[bytes]:
     return [ModelMessagesTypeAdapter.dump_json(messages)]
 
 
-async def save_message_history(run_id: str, message_history: List[ModelMessage]):
-    key = f"{run_id}-messages"
+async def save_message_history(run_id: UUID, message_history: List[ModelMessage]):
+    key = f"{str(run_id)}-messages"
     message_bytes = _pydantic_ai_messages_to_bytes(message_history)
 
     await _redis_client.delete(key)
@@ -39,8 +39,8 @@ async def save_message_history(run_id: str, message_history: List[ModelMessage])
         await _redis_client.rpush(key, *message_bytes)
 
 
-async def get_message_history(run_id: str) -> List[ModelMessage]:
-    key = f"{run_id}-messages"
+async def get_message_history(run_id: UUID) -> List[ModelMessage]:
+    key = f"{str(run_id)}-messages"
     message_list = await _redis_client.lrange(key, 0, -1)
 
     if not message_list:
@@ -49,37 +49,37 @@ async def get_message_history(run_id: str) -> List[ModelMessage]:
     return _pydantic_ai_bytes_to_messages(message_list)
 
 
-async def set_run_status(run_id: str, status: RunStatus):
-    key = f"{run_id}-status"
+async def set_run_status(run_id: UUID, status: RunStatus):
+    key = f"{str(run_id)}-status"
     await _redis_client.set(key, status.encode('utf-8'))
 
 
-async def get_run_status(run_id: str) -> str | None:
-    key = f"{run_id}-status"
+async def get_run_status(run_id: UUID) -> str | None:
+    key = f"{str(run_id)}-status"
     status = await _redis_client.get(key)
     return status.decode('utf-8') if status else None
 
 
 # Queue management functions
-async def add_result_to_queue(run_id: str, result: str):
-    key = f"{run_id}-results-queue"
+async def add_result_to_queue(run_id: UUID, result: str):
+    key = f"{str(run_id)}-results-queue"
     await _redis_client.rpush(key, result.encode('utf-8'))
 
 
-async def get_results_queue(run_id: str) -> List[str]:
-    key = f"{run_id}-results-queue"
+async def get_results_queue(run_id: UUID) -> List[str]:
+    key = f"{str(run_id)}-results-queue"
     results = await _redis_client.lrange(key, 0, -1)
     return [r.decode('utf-8') for r in results]
 
 
-async def pop_result_from_queue(run_id: str) -> str | None:
-    key = f"{run_id}-results-queue"
+async def pop_result_from_queue(run_id: UUID) -> str | None:
+    key = f"{str(run_id)}-results-queue"
     result = await _redis_client.lpop(key)
     return result.decode('utf-8') if result else None
 
 
-async def clear_results_queue(run_id: str):
-    key = f"{run_id}-results-queue"
+async def clear_results_queue(run_id: UUID):
+    key = f"{str(run_id)}-results-queue"
     await _redis_client.delete(key)
 
 
@@ -118,8 +118,8 @@ def _dataclass_to_dict_excluding_fields(obj: Any, exclude_fields: set[str]) -> D
     return result
 
 
-async def save_deps(run_id: str, deps: Any):
-    key = f"{run_id}-deps"
+async def save_deps(run_id: UUID, deps: Any):
+    key = f"{str(run_id)}-deps"
 
     if is_dataclass(deps):
         deps_dict = _dataclass_to_dict_excluding_fields(
@@ -135,8 +135,8 @@ async def save_deps(run_id: str, deps: Any):
     await _redis_client.set(key, json.dumps(serialized_dict).encode('utf-8'))
 
 
-async def get_saved_deps(run_id: str) -> Dict[str, Any] | None:
-    key = f"{run_id}-deps"
+async def get_saved_deps(run_id: UUID) -> Dict[str, Any] | None:
+    key = f"{str(run_id)}-deps"
     deps_bytes = await _redis_client.get(key)
 
     if not deps_bytes:
@@ -145,28 +145,28 @@ async def get_saved_deps(run_id: str) -> Dict[str, Any] | None:
     return json.loads(deps_bytes.decode('utf-8'))
 
 
-async def delete_deps(run_id: str):
-    key = f"{run_id}-deps"
+async def delete_deps(run_id: UUID):
+    key = f"{str(run_id)}-deps"
     await _redis_client.delete(key)
 
 
-async def save_analysis(run_id: str, analysis_content: str):
-    key = f"{run_id}-analysis"
+async def save_analysis(run_id: UUID, analysis_content: str):
+    key = f"{str(run_id)}-analysis"
     await _redis_client.set(key, analysis_content.encode('utf-8'))
 
 
-async def get_analysis(run_id: str) -> str | None:
-    key = f"{run_id}-analysis"
+async def get_analysis(run_id: UUID) -> str | None:
+    key = f"{str(run_id)}-analysis"
     analysis = await _redis_client.get(key)
     return analysis.decode('utf-8') if analysis else None
 
 
-async def save_swe_result(run_id: str, swe_result: str):
-    key = f"{run_id}-swe-result"
+async def save_swe_result(run_id: UUID, swe_result: str):
+    key = f"{str(run_id)}-swe-result"
     await _redis_client.set(key, swe_result.encode('utf-8'))
 
 
-async def get_swe_result(run_id: str) -> str | None:
-    key = f"{run_id}-swe-result"
+async def get_swe_result(run_id: UUID) -> str | None:
+    key = f"{str(run_id)}-swe-result"
     swe_result = await _redis_client.get(key)
     return swe_result.decode('utf-8') if swe_result else None

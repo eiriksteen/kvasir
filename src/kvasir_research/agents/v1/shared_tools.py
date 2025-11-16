@@ -1,8 +1,8 @@
-from pydantic_ai import RunContext, ModelRetry
+from pydantic_ai import RunContext, ModelRetry, FunctionToolset
 
 from kvasir_research.utils.code_utils import is_readable_extension, add_line_numbers_to_script
 from kvasir_research.secrets import READABLE_EXTENSIONS
-from kvasir_research.agents.kvasir_v1.knowledge_bank import SUPPORTED_TASKS_LITERAL, get_guidelines
+from kvasir_research.agents.v1.kvasir.knowledge_bank import SUPPORTED_TASKS_LITERAL, get_guidelines
 
 
 async def read_files_tool(ctx: RunContext, file_paths: list[str]) -> str:
@@ -92,6 +92,12 @@ async def ls_tool(ctx: RunContext, paths: list[str] = ["/app"]) -> str:
     return separator.join(results).strip()
 
 
+navigation_toolset = FunctionToolset(
+    tools=[read_files_tool, ls_tool],
+    max_retries=3
+)
+
+
 async def get_guidelines_tool(task: SUPPORTED_TASKS_LITERAL) -> str:
     """
     Get guidelines for a machine learning task.
@@ -100,3 +106,9 @@ async def get_guidelines_tool(task: SUPPORTED_TASKS_LITERAL) -> str:
         return get_guidelines(task)
     except Exception as e:
         raise ModelRetry(f"Error getting guidelines: {e}")
+
+
+knowledge_bank_toolset = FunctionToolset(
+    tools=[get_guidelines_tool],
+    max_retries=3
+)

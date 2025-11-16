@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 from typing import List, Literal
 from pydantic import BaseModel
 from dataclasses import dataclass, field
@@ -8,8 +8,8 @@ from pydantic_ai.exceptions import ModelRetry
 
 from kvasir_research.agents.abstract_agent import AbstractAgentOutput
 from kvasir_research.utils.agent_utils import get_model, get_pyproject_for_env_description
-from kvasir_research.agents.kvasir_v1.shared_tools import read_files_tool, get_guidelines_tool, ls_tool
-from kvasir_research.agents.kvasir_v1.knowledge_bank import SUPPORTED_TASKS_LITERAL
+from kvasir_research.agents.v1.shared_tools import knowledge_bank_toolset, navigation_toolset
+from kvasir_research.agents.v1.kvasir.knowledge_bank import SUPPORTED_TASKS_LITERAL
 from kvasir_research.sandbox.abstract import AbstractSandbox
 from kvasir_research.sandbox.local import LocalSandbox
 from kvasir_research.sandbox.modal import ModalSandbox
@@ -17,7 +17,8 @@ from kvasir_research.sandbox.modal import ModalSandbox
 
 ORCHESTRATOR_SYSTEM_PROMPT = """
 You are Kvasir, the ultimate data science agent tackling ML/DS projects end-to-end, including data integration, cleaning, analysis, and modeling. 
-The user will give you a task to solve.
+The user will give you a task to solve. 
+Remember to respond to the user. 
 
 You manage two agent types to execute your wishes:
 - **Analysis Agent**: Conducts analysis and derives insights - launch just for analysis (no modules or scripts)
@@ -45,7 +46,7 @@ Use `submit_results` to return your response with optional runs to launch or res
 
 **Feedback**: We always aim to create top-notch software and analysis, if the results are not good enough, be clear to the agent about what to fix and ensure it gets done. 
 
-**String IDs**: Provide readable, unique identifiers (e.g., `eda`, `data_cleaning`, `baseline_xgboost`). We will append an UUID to create a full ID. Use the full ID when referring to the runs after creation. 
+**Run Names**: Provide readable, unique names (e.g., `eda`, `data_cleaning`, `baseline_xgboost`). We will create a UUID to associate with the run name. Use the UUID when referring to the runs after creation. 
 
 **Injecting Analyses**: Inject analysis results using `analyses_to_inject` parameter with IDs you defined (e.g., inject `eda` into data cleaning and modeling SWE agents, since they may need to use the insights from the analysis)
 
@@ -137,8 +138,8 @@ class OrchestratorDeps:
     run_id: UUID
     project_id: UUID
     package_name: str
-    launched_analysis_run_ids: List[str] = field(default_factory=list)
-    launched_swe_run_ids: List[str] = field(default_factory=list)
+    launched_analysis_run_ids: List[UUID] = field(default_factory=list)
+    launched_swe_run_ids: List[UUID] = field(default_factory=list)
     sandbox: AbstractSandbox = field(init=False)
     sandbox_type: Literal["local", "modal"] = "local"
 
@@ -152,34 +153,42 @@ class OrchestratorDeps:
 
 
 class AnalysisRunToLaunch(BaseModel):
+    run_name: str
     deliverable_description: str
     data_paths: List[str]
     analyses_to_inject: List[str] = []
     guidelines: List[SUPPORTED_TASKS_LITERAL] = []
     time_limit: int
-    run_id: str
+
+
+class AnalysisRunToLaunchWithId(AnalysisRunToLaunch):
+    run_id: UUID
 
 
 class AnalysisRunToResume(BaseModel):
+    run_id: UUID
     message: str
-    run_id: str
     guidelines: List[SUPPORTED_TASKS_LITERAL] = []
     time_limit: int
 
 
 class SWERunToLaunch(BaseModel):
+    run_name: str
     deliverable_description: str
     read_only_paths: List[str]
     data_paths: List[str]
-    analyses_to_inject: List[str] = []
-    swe_runs_to_inject: List[str] = []
+    analyses_to_inject: List[UUID] = []
+    swe_runs_to_inject: List[UUID] = []
     guidelines: List[SUPPORTED_TASKS_LITERAL] = []
     time_limit: int
-    run_id: str
+
+
+class SWERunToLaunchWithId(SWERunToLaunch):
+    run_id: UUID
 
 
 class SWERunToResume(BaseModel):
-    run_id: str
+    run_id: UUID
     message: str
     guidelines: List[SUPPORTED_TASKS_LITERAL] = []
     time_limit: int
@@ -193,17 +202,20 @@ class OrchestratorOutput(AbstractAgentOutput):
     completed: bool = False
 
 
+class OrchestratorOutputWithIds(OrchestratorOutput):
+    analysis_runs_to_launch: List[AnalysisRunToLaunchWithId] = []
+    analysis_runs_to_resume: List[AnalysisRunToResume] = []
+    swe_runs_to_launch: List[SWERunToLaunchWithId] = []
+    swe_runs_to_resume: List[SWERunToResume] = []
+
+
 model = get_model()
 
 
 orchestrator_agent = Agent[OrchestratorDeps](
     model,
     deps_type=OrchestratorDeps,
-    tools=[
-        read_files_tool,
-        get_guidelines_tool,
-        ls_tool
-    ],
+    toolsets=[navigation_toolset, knowledge_bank_toolset],
     retries=3,
     model_settings=ModelSettings(temperature=0),
     output_type=OrchestratorOutput
@@ -233,7 +245,7 @@ async def orchestrator_system_prompt(ctx: RunContext[OrchestratorDeps]) -> str:
 
 
 @orchestrator_agent.output_validator
-async def submit_results(ctx: RunContext[OrchestratorDeps], output: OrchestratorOutput) -> OrchestratorOutput:
+async def submit_results(ctx: RunContext[OrchestratorDeps], output: OrchestratorOutput) -> OrchestratorOutputWithIds:
     # Validate that resumed runs are in the correct launched run lists
     for analysis_run_to_resume in output.analysis_runs_to_resume:
         if analysis_run_to_resume.run_id not in ctx.deps.launched_analysis_run_ids:
@@ -253,4 +265,23 @@ async def submit_results(ctx: RunContext[OrchestratorDeps], output: Orchestrator
             raise ModelRetry(
                 f"SWE run {swe_run_to_resume.run_id} not in launched SWE run IDs list. Full IDs must be used, choose between {ctx.deps.launched_swe_run_ids}")
 
-    return output
+    final_output = OrchestratorOutputWithIds(
+        **{**output.model_dump(), "analysis_runs_to_launch": [], "swe_runs_to_launch": []}
+    )
+
+    for analysis_run_to_launch in output.analysis_runs_to_launch:
+        analysis_run_with_id = AnalysisRunToLaunchWithId(
+            run_id=uuid4(),
+            **analysis_run_to_launch.model_dump()
+        )
+        final_output.analysis_runs_to_launch.append(analysis_run_with_id)
+        ctx.deps.launched_analysis_run_ids.append(analysis_run_with_id.run_id)
+    for swe_run_to_launch in output.swe_runs_to_launch:
+        swe_run_with_id = SWERunToLaunchWithId(
+            run_id=uuid4(),
+            **swe_run_to_launch.model_dump()
+        )
+        final_output.swe_runs_to_launch.append(swe_run_with_id)
+        ctx.deps.launched_swe_run_ids.append(swe_run_with_id.run_id)
+
+    return final_output

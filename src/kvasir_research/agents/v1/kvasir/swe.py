@@ -13,12 +13,12 @@ from kvasir_research.utils.code_utils import (
     add_lines_to_script_at_line,
     delete_lines_from_script
 )
-from kvasir_research.agents.kvasir_v1.knowledge_bank import SUPPORTED_TASKS_LITERAL, get_guidelines
-from kvasir_research.agents.kvasir_v1.shared_tools import read_files_tool, ls_tool
+from kvasir_research.agents.v1.kvasir.knowledge_bank import SUPPORTED_TASKS_LITERAL, get_guidelines
+from kvasir_research.agents.v1.shared_tools import navigation_toolset, knowledge_bank_toolset
 from kvasir_research.sandbox.abstract import AbstractSandbox
 from kvasir_research.sandbox.local import LocalSandbox
 from kvasir_research.sandbox.modal import ModalSandbox
-from kvasir_research.agents.kvasir_v1.callbacks import KvasirV1Callbacks
+from kvasir_research.agents.v1.kvasir.callbacks import KvasirV1Callbacks
 
 
 # Static guidelines, later we can adapt this based on user codebases
@@ -69,7 +69,7 @@ All your modifications must happen in /app/[package_name].
 - Save outputs to files within the run directory
 - Print key metrics to stdout by default (for orchestrator visibility)
 - The orchestrator should not need to read files for critical metrics
-- Save plots and visualizations to the run directory!
+- Save plots and visualizations to the run directory! Use seaborn and make the plots sleak and cool. 
 
 ### 4. Configuration
 
@@ -139,7 +139,8 @@ The orchestrator will handle your request (e.g., launch an analysis agent) and r
 
 @dataclass
 class SWEDeps:
-    run_id: str
+    run_id: UUID
+    run_name: str
     orchestrator_id: UUID
     project_id: UUID
     package_name: str
@@ -170,14 +171,14 @@ async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_comm
     Remember to use any relevant evaluation code, if specified. 
     """
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_id}] submit_results called: execution_command={execution_command}")
+                                 f"SWE Agent [{ctx.deps.run_name}] submit_results called: execution_command={execution_command}", "tool_call")
 
     # If no execution command provided (e.g., only module modifications), skip execution
     if not execution_command or execution_command.strip() == "":
         result = _modified_files_to_string(
-            ctx.deps.modified_files, ctx.deps.run_id, "", "")
+            ctx.deps.modified_files, ctx.deps.run_id, ctx.deps.run_name, "", "")
         await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                     f"SWE Agent [{ctx.deps.run_id}] submit_results completed (no execution): modified_files={list(ctx.deps.modified_files.keys())}")
+                                     f"SWE Agent [{ctx.deps.run_name}] submit_results completed (no execution): modified_files={list(ctx.deps.modified_files.keys())}", "result")
         return result
 
     # Execute the command via shell with streaming and timeout
@@ -194,13 +195,13 @@ async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_comm
             return_code = content
         elif stream_type == "stdout":
             stdout_lines.append(content)
-            await ctx.deps.callbacks.log(ctx.deps.run_id, f"[{ctx.deps.run_id}] stdout: {content}")
+            await ctx.deps.callbacks.log(ctx.deps.run_id, f"[{ctx.deps.run_name}] stdout: {content}", "result")
         elif stream_type == "stderr":
             stderr_lines.append(content)
-            await ctx.deps.callbacks.log(ctx.deps.run_id, f"[{ctx.deps.run_id}] stderr: {content}")
+            await ctx.deps.callbacks.log(ctx.deps.run_id, f"[{ctx.deps.run_name}] stderr: {content}", "error")
         elif stream_type == "timeout":
             timeout_message = content
-            await ctx.deps.callbacks.log(ctx.deps.run_id, f"[{ctx.deps.run_id}] Timeout: {content}")
+            await ctx.deps.callbacks.log(ctx.deps.run_id, f"[{ctx.deps.run_id}] Timeout: {content}", "error")
 
     # Handle timeout
     if timeout_message:
@@ -215,9 +216,9 @@ async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_comm
             f"Consider optimizing the code, reducing the problem size, or using more efficient algorithms."
         )
         result = _modified_files_to_string(
-            ctx.deps.modified_files, ctx.deps.run_id, execution_command, error_msg)
+            ctx.deps.modified_files, ctx.deps.run_id, ctx.deps.run_name, execution_command, error_msg)
         await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                     f"SWE Agent [{ctx.deps.run_id}] submit_results time limit exceeded: {ctx.deps.time_limit}s")
+                                     f"SWE Agent [{ctx.deps.run_name}] submit_results time limit exceeded: {ctx.deps.time_limit}s", "error")
         return result
 
     # Combine output
@@ -226,14 +227,14 @@ async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_comm
 
     if err:
         await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                     f"SWE Agent [{ctx.deps.run_id}] submit_results error: execution_command={execution_command}, error={err}")
+                                     f"SWE Agent [{ctx.deps.run_name}] submit_results error: execution_command={execution_command}, error={err}", "error")
         raise ModelRetry(f"Error running command '{execution_command}': {err}")
 
-    result = _modified_files_to_string(
-        ctx.deps.modified_files, ctx.deps.run_id, execution_command, out)
-
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_id}] submit_results completed: output_length={len(out)} chars, modified_files={list(ctx.deps.modified_files.keys())}")
+                                 f"SWE Agent [{ctx.deps.run_name}] submit_results completed: output_length={len(out)} chars, modified_files={list(ctx.deps.modified_files.keys())}", "result")
+
+    result = _modified_files_to_string(
+        ctx.deps.modified_files, ctx.deps.run_id, ctx.deps.run_name, execution_command, out)
 
     return result
 
@@ -243,9 +244,9 @@ async def submit_message_to_orchestrator(ctx: RunContext[SWEDeps], message: str)
     Submit a message to the orchestrator for help, to request an analysis, request access to write a file, or notify it of any critical issues. 
     """
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_id}] submit_message_to_orchestrator called: message={message}")
+                                 f"SWE Agent [{ctx.deps.run_name}] submit_message_to_orchestrator called: message={message}", "tool_call")
     result = _modified_files_to_string(
-        ctx.deps.modified_files, ctx.deps.run_id, "", message)
+        ctx.deps.modified_files, ctx.deps.run_id, ctx.deps.run_name, "", message)
     return result
 
 
@@ -255,7 +256,7 @@ model = get_model()
 swe_agent = Agent[SWEDeps, str](
     model,
     deps_type=SWEDeps,
-    tools=[read_files_tool, ls_tool],
+    toolsets=[navigation_toolset, knowledge_bank_toolset],
     output_type=[
         submit_implementation_results,
         submit_message_to_orchestrator
@@ -300,6 +301,9 @@ async def swe_system_prompt(ctx: RunContext[SWEDeps]) -> str:
         guidelines_str
     )
 
+    # await ctx.deps.callbacks.log(
+    #     ctx.deps.run_id, f"SWE Agent [{ctx.deps.run_name}] system prompt: {full_system_prompt}", "tool_call")
+
     return full_system_prompt
 
 
@@ -319,7 +323,7 @@ async def write_script(ctx: RunContext[SWEDeps], content: str, file_path: str) -
         str: The script with line numbers.
     """
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_id}] write_script called: file_path={file_path}, content_length={len(content)} chars")
+                                 f"SWE Agent [{ctx.deps.run_name}] write_script called: file_path={file_path}, content_length={len(content)} chars", "tool_call")
 
     file_path = Path(file_path)
     if not _validate_path_permissions(ctx, file_path):
@@ -338,7 +342,7 @@ async def write_script(ctx: RunContext[SWEDeps], content: str, file_path: str) -
     content_with_line_numbers = add_line_numbers_to_script(content)
 
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_id}] write_script completed: file_path={file_path}")
+                                 f"SWE Agent [{ctx.deps.run_name}] write_script completed: file_path={file_path}", "result")
 
     return f"WROTE TO FILE: {file_path}\n\n<begin_file file_path={file_path}>\n\n{content_with_line_numbers}\n\n<end_file>"
 
@@ -366,7 +370,7 @@ async def replace_script_lines(
         str: The updated script.
     """
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_id}] replace_script_lines called: file_path={file_path}, lines={line_number_start}-{line_number_end}, new_code_length={len(new_code)} chars")
+                                 f"SWE Agent [{ctx.deps.run_name}] replace_script_lines called: file_path={file_path}, lines={line_number_start}-{line_number_end}, new_code_length={len(new_code)} chars", "tool_call")
 
     file_path = Path(file_path)
     if not _validate_path_permissions(ctx, file_path):
@@ -398,7 +402,7 @@ async def replace_script_lines(
     out += "\n\nThe file is not automatically run and validated, you must call the final_result tool to submit the file for validation and feedback.\n"
 
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_id}] replace_script_lines completed: file_path={file_path}")
+                                 f"SWE Agent [{ctx.deps.run_name}] replace_script_lines completed: file_path={file_path}", "result")
 
     return out
 
@@ -418,7 +422,7 @@ async def add_script_lines(ctx: RunContext[SWEDeps], file_name: str, new_code: s
         str: The updated script.
     """
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_id}] add_script_lines called: file_name={file_name}, start_line={start_line}, new_code_length={len(new_code)} chars")
+                                 f"SWE Agent [{ctx.deps.run_name}] add_script_lines called: file_name={file_name}, start_line={start_line}, new_code_length={len(new_code)} chars", "tool_call")
 
     file_path = Path(file_name)
     if not _validate_path_permissions(ctx, file_path):
@@ -448,7 +452,7 @@ async def add_script_lines(ctx: RunContext[SWEDeps], file_name: str, new_code: s
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
 
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_id}] add_script_lines completed: file_path={file_path}")
+                                 f"SWE Agent [{ctx.deps.run_name}] add_script_lines completed: file_path={file_path}", "result")
 
     return out
 
@@ -468,7 +472,7 @@ async def delete_script_lines(ctx: RunContext[SWEDeps], file_path: str, line_num
         str: The updated script.
     """
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_id}] delete_script_lines called: file_path={file_path}, lines={line_number_start}-{line_number_end}")
+                                 f"SWE Agent [{ctx.deps.run_name}] delete_script_lines called: file_path={file_path}, lines={line_number_start}-{line_number_end}", "tool_call")
 
     file_path = Path(file_path)
 
@@ -499,7 +503,7 @@ async def delete_script_lines(ctx: RunContext[SWEDeps], file_path: str, line_num
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
 
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_id}] delete_script_lines completed: file_path={file_path}")
+                                 f"SWE Agent [{ctx.deps.run_name}] delete_script_lines completed: file_path={file_path}", "result")
 
     return out
 
@@ -518,7 +522,7 @@ async def delete_file(ctx: RunContext[SWEDeps], file_path: str) -> str:
         str: Confirmation message.
     """
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_id}] delete_file called: file_path={file_path}")
+                                 f"SWE Agent [{ctx.deps.run_name}] delete_file called: file_path={file_path}", "tool_call")
 
     path = Path(file_path)
     if not _validate_path_permissions(ctx, path):
@@ -535,7 +539,7 @@ async def delete_file(ctx: RunContext[SWEDeps], file_path: str) -> str:
         del ctx.deps.modified_files[str(file_path)]
 
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_id}] delete_file completed: file_path={file_path}")
+                                 f"SWE Agent [{ctx.deps.run_name}] delete_file completed: file_path={file_path}", "result")
 
     return f"Successfully deleted {file_path}"
 
@@ -543,8 +547,8 @@ async def delete_file(ctx: RunContext[SWEDeps], file_path: str) -> str:
 ##
 
 
-def _modified_files_to_string(modified_files: Dict[str, str], run_id: str, execution_command: str, execution_output: str) -> str:
-    result = [f'<swe_result run_id="{run_id}">']
+def _modified_files_to_string(modified_files: Dict[str, str], run_id: UUID, run_name: str, execution_command: str, execution_output: str) -> str:
+    result = [f'<swe_result run_id="{run_id}" run_name="{run_name}">']
 
     if not modified_files:
         result.append("")
