@@ -11,8 +11,7 @@ from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.providers.grok import GrokProvider
-from pydantic_ai.messages import ModelMessage
-from pydantic_ai.messages import ModelMessagesTypeAdapter
+from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
 
 from project_server.utils.docker_utils import get_container_working_directory, list_container_working_directory_contents
 from project_server.app_secrets import (

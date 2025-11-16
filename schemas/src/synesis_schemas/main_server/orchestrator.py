@@ -113,8 +113,8 @@ class ContextCreate(BaseModel):
 class UserChatMessageCreate(BaseModel):
     content: str
     conversation_id: uuid.UUID
+    project_id: uuid.UUID
     context: Optional[ContextCreate] = None
-    save_to_db: bool = True
 
 
 class ConversationCreate(BaseModel):

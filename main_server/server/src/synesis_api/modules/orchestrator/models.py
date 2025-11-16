@@ -38,19 +38,6 @@ chat_message = Table(
 )
 
 
-chat_pydantic_message = Table(
-    "chat_pydantic_message",
-    metadata,
-    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
-    Column("conversation_id", UUID(as_uuid=True),
-           ForeignKey("orchestrator.conversation.id"), nullable=False),
-    Column("message_list", BYTEA, nullable=False),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    schema="orchestrator"
-)
-
-
 chat_context = Table(
     "chat_context",
     metadata,

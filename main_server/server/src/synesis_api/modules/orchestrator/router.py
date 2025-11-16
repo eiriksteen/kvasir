@@ -34,9 +34,11 @@ from synesis_api.modules.orchestrator.service import (
     get_run_status_message,
     get_project_description_message
 )
-from synesis_api.modules.orchestrator.agent import orchestrator_agent, orchestrator_toolset
+from synesis_api.utils.pydanticai_utils import helper_agent
+from synesis_api.modules.project.service import get_projects
+from synesis_api.modules.orchestrator.kvasir_v1.callbacks import ApplicationCallbacks
+from kvasir_research.agents.kvasir_v1.agent import KvasirV1
 from synesis_api.auth.service import get_current_user, user_owns_conversation
-from synesis_api.modules.orchestrator.agent.deps import OrchestratorAgentDeps
 from synesis_api.app_secrets import SSE_MIN_SLEEP_TIME
 
 
@@ -62,15 +64,28 @@ async def post_chat(
             status_code=403, detail="You do not have access to this conversation")
 
     messages = await get_chat_messages_pydantic(prompt.conversation_id)
-    context_message = await get_context_message(user.id, prompt.context)
-    project_graph_message = await get_project_description_message(user.id, conversation_record.project_id)
-    runs_status_message = await get_run_status_message(user.id, prompt.conversation_id)
+    project_objs = await get_projects(user.id, [prompt.project_id])
+    if not project_objs:
+        raise HTTPException(
+            status_code=404, detail="Project not found")
+    project_obj = project_objs[0]
+
+    # context_message = await get_context_message(user.id, prompt.context)
+    # project_graph_message = await get_project_description_message(user.id, conversation_record.project_id)
+    # runs_status_message = await get_run_status_message(user.id, prompt.conversation_id)
+
+    agent = KvasirV1(
+        run_id=conversation_record.id,
+        project_id=prompt.project_id,
+        package_name=project_obj.python_package_name,
+        sandbox_type="modal",
+        callbacks=ApplicationCallbacks()
+    )
 
     is_new_conversation = len(messages) == 0
 
     async def stream_response():
-
-        plan_response_message = ChatMessageInDB(
+        response_message = ChatMessageInDB(
             id=uuid.uuid4(),
             conversation_id=conversation_record.id,
             role="assistant",
@@ -80,136 +95,17 @@ async def post_chat(
             created_at=datetime.now(timezone.utc)
         )
 
-        result_response_message = ChatMessageInDB(
-            id=uuid.uuid4(),
-            conversation_id=conversation_record.id,
-            role="assistant",
-            type="chat",
-            content="",
-            context_id=None,
-            created_at=datetime.now(timezone.utc)
-        )
-
-        context_in_db = None
-        if prompt.context and len(prompt.context.data_source_ids) + len(prompt.context.dataset_ids) + len(prompt.context.pipeline_ids) + len(prompt.context.analysis_ids) > 0:
-            context_in_db = await create_context(prompt.context)
-            plan_response_message.context_id = context_in_db.id
-            result_response_message.context_id = context_in_db.id
-        context_id = context_in_db.id if context_in_db else None
-
-        # Build the initial prompt with all context information
-        initial_prompt = (
-            f"The user just submitted the following prompt:\n\n{prompt.content}\n\n" +
-            f"The context is:\n\n{context_message}\n\n" +
-            f"The project graph is:\n\n{project_graph_message}\n\n" +
-            f"The runs status message is:\n\n{runs_status_message}\n\n" +
-            "First, respond to the user explaining what you plan to do. " +
-            "If you need to launch an agent (analysis, data_integration, pipeline, or model_integration), explain what you will do. " +
-            "If a run just changed state, let the user know and explain the next steps. " +
-            "Otherwise, just respond directly to the user prompt. " +
-            "Do not call any tools here, just describe what you will do. "
-        )
-
-        deps = OrchestratorAgentDeps(
-            user_id=user.id,
-            project_id=conversation_record.project_id,
-            conversation_id=conversation_record.id
-        )
-
-        # Stream the response first to minimize perceived latency
-        async with orchestrator_agent.run_stream(
-            initial_prompt,
-            output_type=str,
-            deps=deps,
-            message_history=messages
-        ) as plan_run:
-            prev_plan_text = ""
-            async for plan_text in plan_run.stream_output(debounce_by=0.01):
-                if plan_text != prev_plan_text:
-                    plan_response_message.content = plan_text
-                    yield f"data: {plan_response_message.model_dump_json(by_alias=True)}\n\n"
-                    prev_plan_text = plan_text
-
-        # Immediately save since the orchestrator run can take a little time
-        if prompt.save_to_db:
-            await create_chat_message(
-                conversation_record.id,
-                "user",
-                prompt.content,
-                context_id=context_id,
-                type="chat"
-            )
-
-        await create_chat_message(
-            conversation_record.id,
-            "assistant",
-            plan_response_message.content,
-            type="chat",
-            context_id=context_id,
-            id=plan_response_message.id
-        )
-
-        async with orchestrator_agent.iter(
-            "Now decide whether to launch an agent, call some other tools, or just respond directly. " +
-            "Please limit yourself to one agent launch at a time, unless it really makes sense to parallelize. " +
-            "The output is a bool indicating whether you would like to explain the results of your run. " +
-            "The default should be False, but if there were any results the user should know about, output True. " +
-            "If you successfully launched an agent, output False! The user will automatically see the specification for the run. " +
-            "Output True if the user asked question where you needed a tool call to answer it, as we will need to explain the results to the user. ",
-            output_type=bool,
-            deps=deps,
-            message_history=messages+plan_run.new_messages(),
-            toolsets=[orchestrator_toolset]
-        ) as orchestator_run:
-            async for node in orchestator_run:
-                if Agent.is_call_tools_node(node):
-                    async with node.stream(orchestator_run.ctx) as handle_stream:
-                        async for event in handle_stream:
-                            if isinstance(event, FunctionToolCallEvent):
-                                tool_call_message = await create_chat_message(
-                                    conversation_record.id,
-                                    "assistant",
-                                    f"Calling {event.part.tool_name}",
-                                    type="tool_call",
-                                    context_id=context_id
-                                )
-                                yield f"data: {tool_call_message.model_dump_json(by_alias=True)}\n\n"
-
-        all_messages_pydantic = [
-            plan_run.new_messages_json(),
-            orchestator_run.result.new_messages_json()
-        ]
-
-        if orchestator_run.result.output:
-            async with orchestrator_agent.run_stream(
-                "Now explain the results of your run.",
-                output_type=str,
-                deps=deps,
-                message_history=messages+plan_run.new_messages()+orchestator_run.result.new_messages()
-            ) as result_run:
-                prev_result_text = ""
-                async for result_text in result_run.stream_output(debounce_by=0.01):
-                    if result_text != prev_result_text:
-                        result_response_message.content = result_text
-                        yield f"data: {result_response_message.model_dump_json(by_alias=True)}\n\n"
-                        prev_result_text = result_text
-
-            all_messages_pydantic.append(result_run.new_messages_json())
-
-            if result_response_message.content:
-                await create_chat_message(
-                    conversation_record.id,
-                    "assistant",
-                    result_response_message.content,
-                    type="chat",
-                    context_id=context_id,
-                    id=result_response_message.id
-                )
-
-        await create_chat_message_pydantic(conversation_record.id, all_messages_pydantic)
+        prev_response_text = ""
+        async for kvasir_v1_output, is_last in agent(prompt.content):
+            if kvasir_v1_output != prev_response_text:
+                response_message.content = kvasir_v1_output
+                yield f"data: {response_message.model_dump_json(by_alias=True)}\n\n"
+                await asyncio.sleep(SSE_MIN_SLEEP_TIME)
+            if is_last:
+                break
 
         if is_new_conversation:
-            name = await orchestrator_agent.run(
+            name = await helper_agent.run(
                 f"The user wants to start a new conversation. The user has written this: '{prompt.content}'.\n\n" +
                 "What is the name of the conversation? Just give me the name of the conversation, no other text.\n\n" +
                 "NB: Do not output a response to the prompt, that is done elsewhere! Just produce a suitable topic name given the prompt.",
@@ -274,26 +170,3 @@ async def create_chat_message_pydantic_endpoint(
 
     result = await create_chat_message_pydantic(conversation_id, messages)
     return result
-
-
-@router.post("/swe-result-approval-request", response_model=ImplementationApprovalResponse)
-async def submit_swe_result_approval_request(
-        implementation_summary: ImplementationSummary,
-        user: Annotated[User, Depends(get_current_user)] = None) -> ImplementationApprovalResponse:
-
-    if not await user_owns_conversation(user.id, implementation_summary.conversation_id):
-        raise HTTPException(
-            status_code=403, detail="You do not have access to this conversation")
-
-    messages = await get_chat_messages_pydantic(implementation_summary.conversation_id)
-
-    approval_response = await orchestrator_agent.run(
-        "The software engineer agent has submitted a solution.\n" +
-        f"Its result is:\n\n{implementation_summary.model_dump_json()}\n\n " +
-        "Decide whether to accept it, or reject it with feedback on what to fix before the solution is approved. " +
-        "Just reject or approve the implementation with feedback. Do not worry about adding the entity to the project, it will be done automatically after approval.",
-        output_type=ImplementationApprovalResponse,
-        message_history=messages
-    )
-
-    return approval_response.output

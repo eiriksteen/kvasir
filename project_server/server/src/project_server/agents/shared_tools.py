@@ -99,7 +99,6 @@ async def ls_tool(ctx: RunContext, paths: list[str] = ["/app"]) -> str:
         raise ModelRetry("No paths provided")
 
     results = []
-
     for directory_path in paths:
         shell_code = f"ls -I '__pycache__' -I '*.egg-info' {directory_path} || true"
 

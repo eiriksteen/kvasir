@@ -1,3 +1,4 @@
+from pydantic_ai import Agent
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.models.anthropic import AnthropicModel
@@ -40,3 +41,6 @@ def get_model():
             f"Unsupported model: {MODEL_TO_USE}, supported models: {SUPPORTED_MODELS}")
 
     return model
+
+
+helper_agent = Agent(get_model(), retries=3)
