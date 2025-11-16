@@ -65,6 +65,34 @@ object_group = Table(
     schema="data_objects"
 )
 
+tabular = Table(
+    "tabular",
+    metadata,
+    Column("id", UUID(as_uuid=True), ForeignKey(
+        "data_objects.data_object.id"), primary_key=True, default=uuid.uuid4),
+    Column("features_schema", JSONB, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="data_objects"
+)
+
+tabular_group = Table(
+    "tabular_group",
+    metadata,
+    Column("id", UUID(as_uuid=True), ForeignKey(
+        "data_objects.object_group.id"), primary_key=True, default=uuid.uuid4),
+    Column("number_of_entities", Integer, nullable=False),
+    Column("number_of_features", Integer, nullable=False),
+    Column("features_schema", JSONB, nullable=True),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True), default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="data_objects"
+)
+
 
 time_series = Table(
     "time_series",
@@ -104,3 +132,4 @@ time_series_group = Table(
            onupdate=datetime.now(timezone.utc), nullable=False),
     schema="data_objects"
 )
+

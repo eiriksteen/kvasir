@@ -15,6 +15,8 @@ from synesis_api.modules.data_objects.models import (
     object_group,
     data_object,
     time_series_group,
+    tabular_group,
+    tabular,
 )
 from synesis_api.modules.visualization.service import create_echarts
 from synesis_schemas.main_server import EchartCreate
@@ -24,6 +26,7 @@ from synesis_schemas.main_server import (
     ObjectGroupWithObjects,
     DataObjectInDB,
     TimeSeriesInDB,
+    TabularInDB,
     Dataset,
     DataObject,
     ObjectGroupWithObjects,
@@ -40,6 +43,7 @@ from synesis_api.database.service import execute, fetch_all, insert_df
 # Table mapping for different modalities
 GROUP_MODALITY_TABLE_MAPPING = {
     "time_series_group": time_series_group,
+    "tabular_group": tabular_group,
     # Add new modality tables here as they're created
 }
 
@@ -225,13 +229,19 @@ async def get_user_datasets(
 
     # Dataset sources relationships are now managed by project_graph module
 
-    # Only query time series groups if we have group_ids
+    # Query modality-specific group tables if we have group_ids
     time_series_groups_result = []
+    tabular_groups_result = []
     if group_ids:
         time_series_groups_query = select(time_series_group).where(
             time_series_group.c.id.in_(group_ids)
         )
         time_series_groups_result = await fetch_all(time_series_groups_query)
+        
+        tabular_groups_query = select(tabular_group).where(
+            tabular_group.c.id.in_(group_ids)
+        )
+        tabular_groups_result = await fetch_all(tabular_groups_query)
 
     # Get first data object for each group
     first_data_objects = {}
@@ -263,18 +273,24 @@ async def get_user_datasets(
         for group in object_groups_result:
             if group["dataset_id"] == dataset_obj.id:
                 if group["modality"] == "time_series":
-                    ts_record = next(
+                    modality_record = next(
                         (ts_record for ts_record in time_series_groups_result if ts_record["id"] == group["id"]), None)
-                    if ts_record is None:
+                    if modality_record is None:
                         raise ValueError(
                             f"Time series group data not found for group {group['id']}")
+                elif group["modality"] == "tabular":
+                    modality_record = next(
+                        (tab_record for tab_record in tabular_groups_result if tab_record["id"] == group["id"]), None)
+                    if modality_record is None:
+                        raise ValueError(
+                            f"Tabular group data not found for group {group['id']}")
                 else:
                     raise ValueError(f"Unknown modality: {group['modality']}")
 
                 # Create ObjectGroup without sources
                 object_group_obj = ObjectGroup(
                     **group,
-                    modality_fields=ts_record,
+                    modality_fields=modality_record,
                     first_data_object=first_data_objects.get(group["id"])
                 )
                 all_object_groups.append(object_group_obj)
@@ -310,12 +326,17 @@ async def get_object_groups(
     object_groups_result = await fetch_all(object_group_query)
     object_group_ids = [group["id"] for group in object_groups_result]
 
-    # Only query time series groups if we have object_group_ids
+    # Query modality-specific group tables if we have object_group_ids
     time_series_groups_result = []
+    tabular_groups_result = []
     if object_group_ids:
         time_series_groups_query = select(time_series_group).where(
             time_series_group.c.id.in_(object_group_ids))
         time_series_groups_result = await fetch_all(time_series_groups_query)
+        
+        tabular_groups_query = select(tabular_group).where(
+            tabular_group.c.id.in_(object_group_ids))
+        tabular_groups_result = await fetch_all(tabular_groups_query)
 
     # Get first data object for each group
     first_data_objects = {}
@@ -349,6 +370,12 @@ async def get_object_groups(
             if structure_fields is None:
                 raise ValueError(
                     f"Time series group data not found for group {group['id']}")
+        elif group["modality"] == "tabular":
+            structure_fields = next(
+                (tab_group for tab_group in tabular_groups_result if tab_group["id"] == group["id"]), None)
+            if structure_fields is None:
+                raise ValueError(
+                    f"Tabular group data not found for group {group['id']}")
         else:
             raise ValueError(f"Unknown modality: {group['modality']}")
 
@@ -378,7 +405,15 @@ async def get_data_objects(
 
     assert object_ids is not None or group_ids is not None, "Either object_ids or group_ids must be provided"
 
-    objects_query = select(data_object)
+    # Join with object_group to get modality information
+    objects_query = select(
+        data_object,
+        object_group.c.modality
+    ).join(
+        object_group,
+        data_object.c.group_id == object_group.c.id
+    )
+    
     if object_ids is not None:
         objects_query = objects_query.where(data_object.c.id.in_(object_ids))
     if group_ids is not None:
@@ -390,28 +425,41 @@ async def get_data_objects(
     if not objects_result:
         return []
 
-    object_ids = [obj["id"] for obj in objects_result]
+    object_ids_list = [obj["id"] for obj in objects_result]
 
-    time_series_objects = await fetch_all(select(time_series).where(time_series.c.id.in_(object_ids)))
+    # Query both modality tables
+    time_series_objects_list = await fetch_all(select(time_series).where(time_series.c.id.in_(object_ids_list)))
+    tabular_objects_list = await fetch_all(select(tabular).where(tabular.c.id.in_(object_ids_list)))
+
+    # Create dictionaries for O(1) lookup
+    time_series_objects = {ts_obj["id"]: TimeSeriesInDB(**ts_obj) for ts_obj in time_series_objects_list}
+    tabular_objects = {tab_obj["id"]: TabularInDB(**tab_obj) for tab_obj in tabular_objects_list}
 
     result_records = []
-    for object_id in object_ids:
-        data_object_record = next(
-            (DataObjectInDB(**obj) for obj in objects_result if obj["id"] == object_id), None)
+    for obj in objects_result:
+        object_id = obj["id"]
+        modality = obj["modality"]
+        
+        del obj["modality"]
+        data_object_record = DataObjectInDB(**obj)
 
-        if data_object_record is None:
-            raise ValueError(f"Data object not found for id {object_id}")
-
-        time_series_object_record = next(
-            (TimeSeriesInDB(**obj) for obj in time_series_objects if obj["id"] == object_id), None)
-
-        if time_series_object_record is None:
-            raise ValueError(
-                f"Time series object not found for id {object_id}")
+        # Get modality-specific fields via dictionary lookup
+        if modality == "time_series":
+            modality_record = time_series_objects.get(object_id)
+            if modality_record is None:
+                raise ValueError(
+                    f"Time series object not found for id {object_id}")
+        elif modality == "tabular":
+            modality_record = tabular_objects.get(object_id)
+            if modality_record is None:
+                raise ValueError(
+                    f"Tabular object not found for id {object_id}")
+        else:
+            raise ValueError(f"Unknown modality: {modality}")
 
         result_records.append(DataObject(
             **data_object_record.model_dump(),
-            modality_fields=time_series_object_record,
+            modality_fields=modality_record,
         ))
 
     return result_records

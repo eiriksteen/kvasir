@@ -101,6 +101,18 @@ def get_dataset_description(dataset: Dataset, from_entities: EdgePoints, to_enti
                 else:
                     lines.append("- Features Schema: Varying between series")
                 lines.append("")
+            
+            elif object_group.modality == "tabular" and object_group.modality_fields:
+                lines.append("**Tabular Group:**")
+                tab_group = object_group.modality_fields
+                lines.append(
+                    f"- Number of Entities: {tab_group.number_of_entities:,}")
+                lines.append(
+                    f"- Number of Features: {tab_group.number_of_features:,}")
+                if tab_group.features_schema:
+                    lines.append(
+                        f"- Features Schema: {tab_group.features_schema}")
+                lines.append("")
 
     lines.append(_get_edges_info(from_entities, to_entities, entity_map))
     return "\n".join(lines)

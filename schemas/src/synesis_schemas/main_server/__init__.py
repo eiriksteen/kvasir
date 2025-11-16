@@ -127,6 +127,10 @@ from .data_objects import (
     DatasetInDB,
     DataObjectInDB,
     ObjectGroupInDB,
+    TabularInDB,
+    TabularGroupInDB,
+    TabularCreate,
+    TabularGroupCreate,
     TimeSeriesInDB,
     DataObject,
     ObjectGroup,
@@ -144,9 +148,9 @@ from .data_objects import (
     get_modality_models,
     ModalityModels,
     MODALITY_LITERAL,
-    GetRawDataRequest,
+    # GetRawDataRequest,
     ObjectGroupEChartCreate,
-    TimeSeriesRawDataParams
+    # TimeSeriesRawDataParams
 )
 
 # Data Sources schemas

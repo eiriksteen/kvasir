@@ -14,6 +14,8 @@ from synesis_api.modules.data_objects.models import (
     data_object,
     time_series_group,
     time_series,
+    tabular_group,
+    tabular,
 )
 from synesis_api.modules.data_objects.service import get_user_datasets
 from synesis_api.modules.model.models import (
@@ -173,6 +175,12 @@ async def delete_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID) -> uuid.UUID
                     time_series.c.id.in_(data_object_ids)),
                 commit_after=True
             )
+            
+            await execute(
+                delete(tabular).where(
+                    tabular.c.id.in_(data_object_ids)),
+                commit_after=True
+            )
 
             await execute(
                 delete(data_object).where(
@@ -183,6 +191,13 @@ async def delete_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID) -> uuid.UUID
         await execute(
             delete(time_series_group).where(
                 time_series_group.c.id.in_(object_group_ids)
+            ),
+            commit_after=True
+        )
+        
+        await execute(
+            delete(tabular_group).where(
+                tabular_group.c.id.in_(object_group_ids)
             ),
             commit_after=True
         )

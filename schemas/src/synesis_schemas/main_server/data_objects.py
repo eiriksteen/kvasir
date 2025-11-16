@@ -42,6 +42,19 @@ class ObjectGroupInDB(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+class TabularInDB(BaseModel):
+    id: uuid.UUID
+    features_schema: Dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+class TabularGroupInDB(BaseModel):
+    id: uuid.UUID
+    number_of_entities: int
+    number_of_features: int
+    features_schema: Dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
 
 class TimeSeriesInDB(BaseModel):
     id: uuid.UUID  # Foreign key to data_object.id
@@ -75,34 +88,34 @@ class TimeSeriesGroupInDB(BaseModel):
 # Raw data schemas
 
 
-class TimeSeriesRawDataParams(BaseModel):
-    """
-    Parameters for reading raw data from a time series data object. 
-    The start_timestamp and end_timestamp are the start and end timestamps of the data that has been read (not the full time series). 
-    All params must be accepted as inputs to the function that reads the raw data. 
-    The default values in the function should be the most recent 96 values of the time series. 
-    """
-    start_timestamp: datetime
-    end_timestamp: datetime
+# class TimeSeriesRawDataParams(BaseModel):
+#     """
+#     Parameters for reading raw data from a time series data object. 
+#     The start_timestamp and end_timestamp are the start and end timestamps of the data that has been read (not the full time series). 
+#     All params must be accepted as inputs to the function that reads the raw data. 
+#     The default values in the function should be the most recent 96 values of the time series. 
+#     """
+#     start_timestamp: datetime
+#     end_timestamp: datetime
 
 
-class TimeSeriesRawData(BaseModel):
-    """"
-    Raw data for a time series data object, for display in the UI. 
-    """
-    data: Dict[str, List[Tuple[datetime, Union[float, int]]]]
-    params: TimeSeriesRawDataParams
+# class TimeSeriesRawData(BaseModel):
+#     """"
+#     Raw data for a time series data object, for display in the UI. 
+#     """
+#     data: Dict[str, List[Tuple[datetime, Union[float, int]]]]
+#     params: TimeSeriesRawDataParams
 
 
 # Schemas for the API
 
 
 class DataObject(DataObjectInDB):
-    modality_fields: Union[TimeSeriesInDB]
+    modality_fields: Union[TimeSeriesInDB, TabularInDB]
 
 
 class ObjectGroup(ObjectGroupInDB):
-    modality_fields: Union[TimeSeriesGroupInDB]
+    modality_fields: Union[TimeSeriesGroupInDB, TabularGroupInDB]
     first_data_object: DataObject
 
 
@@ -118,10 +131,10 @@ class GetDatasetsByIDsRequest(BaseModel):
     dataset_ids: List[uuid.UUID]
 
 
-class GetRawDataRequest(BaseModel):
-    project_id: uuid.UUID
-    object_id: uuid.UUID
-    args: Union[TimeSeriesRawDataParams]
+# class GetRawDataRequest(BaseModel):
+#     project_id: uuid.UUID
+#     object_id: uuid.UUID
+#     args: Union[TimeSeriesRawDataParams]
 
 
 # Create schemas
@@ -131,6 +144,13 @@ class DatasetBaseCreate(BaseModel):
     name: str
     description: Optional[str] = None
 
+class TabularCreate(BaseModel):
+    features_schema: Dict[str, Any]
+
+class TabularGroupCreate(BaseModel):
+    number_of_entities: int
+    number_of_features: int
+    features_schema: Dict[str, Any]
 
 class TimeSeriesCreate(BaseModel):
     """
@@ -171,7 +191,7 @@ class DataObjectCreate(BaseModel):
     name: str
     original_id: str
     description: Optional[str] = None
-    modality_fields: Union[TimeSeriesCreate]
+    modality_fields: Union[TimeSeriesCreate, TabularCreate]
 
     class Config:
         extra = "allow"
@@ -192,7 +212,7 @@ class DataObjectGroupCreate(BaseModel):
     original_id_name: str
     description: str
     modality: str
-    modality_fields: Union[TimeSeriesGroupCreate]
+    modality_fields: Union[TimeSeriesGroupCreate, TabularGroupCreate]
     objects_files: List[ObjectsFile] = []  # Objects that belong to this group
 
     # For custom fields decided by the agent to be interesting enough to be added
@@ -242,6 +262,20 @@ def get_modality_models(modality: MODALITY_LITERAL, type: Literal["object_group"
             return ModalityModels(
                 child_model=TimeSeriesInDB,
                 child_table_name="time_series"
+            )
+        else:
+            raise ValueError(f"Invalid type: {type}")
+
+    elif modality == "tabular":
+        if type == "object_group":
+            return ModalityModels(
+                child_model=TabularGroupInDB,
+                child_table_name="tabular_group"
+            )
+        elif type == "data_object":
+            return ModalityModels(
+                child_model=TabularInDB,
+                child_table_name="tabular"
             )
         else:
             raise ValueError(f"Invalid type: {type}")
