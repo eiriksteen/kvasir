@@ -82,7 +82,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     if (project.graph.datasets.some(ds => ds.id === activeTabId)) return 'dataset';
     if (project.graph.analyses.some(a => a.id === activeTabId)) return 'analysis';
     if (project.graph.pipelines.some(p => p.id === activeTabId)) return 'pipeline';
-    if (project.graph.modelEntities.some(m => m.id === activeTabId)) return 'model_entity';
+    if (project.graph.modelsInstantiated.some(m => m.id === activeTabId)) return 'model_instantiated';
     else return 'code';
   };
 
@@ -132,10 +132,10 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
         initialView={activeTab?.initialView as 'overview' | 'runs' | undefined}
       />
     );
-  } else if (tabType === 'model_entity' && activeTabId) {
+  } else if (tabType === 'model_instantiated' && activeTabId) {
     mainContent = (
       <ModelInfoTab
-        modelEntityId={activeTabId as UUID}
+        modelInstantiatedId={activeTabId as UUID}
         onClose={() => closeTabToProject()}
         onDelete={() => closeTab(activeTabId)}
         projectId={projectId}

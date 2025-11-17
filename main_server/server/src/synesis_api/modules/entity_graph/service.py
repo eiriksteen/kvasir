@@ -21,33 +21,32 @@ from synesis_api.modules.entity_graph.models import (
     dataset_from_data_source,
     data_source_supported_in_pipeline,
     dataset_supported_in_pipeline,
-    model_entity_supported_in_pipeline,
+    model_instantiated_supported_in_pipeline,
     dataset_in_pipeline_run,
     data_source_in_pipeline_run,
-    model_entity_in_pipeline_run,
+    model_instantiated_in_pipeline_run,
     pipeline_run_output_dataset,
     pipeline_run_output_model_entity,
     pipeline_run_output_data_source,
     dataset_in_analysis,
     data_source_in_analysis,
-    model_entity_in_analysis,
+    model_instantiated_in_analysis,
 )
-from synesis_schemas.main_server import (
+from kvasir_ontology.main_server.entity_graph import (
     EntityGraph,
     GraphNode,
     PipelineGraphNode,
-    DataSource,
-    Dataset,
-    Pipeline,
-    ModelEntity,
-    Analysis,
     EdgePoints,
     EdgesCreate,
-    PipelineRunInDB,
     EntityGraphUsingNames,
     EntityDetail,
     EntityDetailsResponse,
 )
+from kvasir_ontology.main_server.data_sources import DataSource
+from kvasir_ontology.main_server.data_objects import Dataset
+from kvasir_ontology.main_server.pipeline import Pipeline, PipelineRunInDB
+from kvasir_ontology.main_server.model import ModelInstantiated
+from kvasir_ontology.main_server.analysis import Analysis
 
 
 # =============================================================================
@@ -60,16 +59,16 @@ VALID_EDGES = {
     ("data_source", "analysis"): data_source_in_analysis,
     ("dataset", "pipeline"): dataset_supported_in_pipeline,
     ("dataset", "analysis"): dataset_in_analysis,
-    ("model_entity", "pipeline"): model_entity_supported_in_pipeline,
-    ("model_entity", "analysis"): model_entity_in_analysis,
+    ("model_instantiated", "pipeline"): model_instantiated_supported_in_pipeline,
+    ("model_instantiated", "analysis"): model_instantiated_in_analysis,
 }
 
 PIPELINE_RUN_EDGE_TABLES = {
     ("dataset", "pipeline_run"): (dataset_in_pipeline_run, "input"),
     ("data_source", "pipeline_run"): (data_source_in_pipeline_run, "input"),
-    ("model_entity", "pipeline_run"): (model_entity_in_pipeline_run, "input"),
+    ("model_instantiated", "pipeline_run"): (model_instantiated_in_pipeline_run, "input"),
     ("pipeline_run", "dataset"): (pipeline_run_output_dataset, "output"),
-    ("pipeline_run", "model_entity"): (pipeline_run_output_model_entity, "output"),
+    ("pipeline_run", "model_instantiated"): (pipeline_run_output_model_entity, "output"),
     ("pipeline_run", "data_source"): (pipeline_run_output_data_source, "output"),
 }
 
@@ -107,8 +106,8 @@ async def create_edges(edges: EdgesCreate) -> None:
                 value["data_source_id"] = edge.from_node_id
             elif edge.from_node_type == "dataset":
                 value["dataset_id"] = edge.from_node_id
-            elif edge.from_node_type == "model_entity":
-                value["model_entity_id"] = edge.from_node_id
+            elif edge.from_node_type == "model_instantiated":
+                value["model_instantiated_id"] = edge.from_node_id
 
         elif is_pipeline_run_output:
             # Entity is an output from a pipeline run
@@ -117,8 +116,8 @@ async def create_edges(edges: EdgesCreate) -> None:
                 value["data_source_id"] = edge.to_node_id
             elif edge.to_node_type == "dataset":
                 value["dataset_id"] = edge.to_node_id
-            elif edge.to_node_type == "model_entity":
-                value["model_entity_id"] = edge.to_node_id
+            elif edge.to_node_type == "model_instantiated":
+                value["model_instantiated_id"] = edge.to_node_id
 
         else:
             # Regular edges
@@ -128,8 +127,8 @@ async def create_edges(edges: EdgesCreate) -> None:
                 value["data_source_id"] = edge.from_node_id
             elif edge.from_node_type == "dataset":
                 value["dataset_id"] = edge.from_node_id
-            elif edge.from_node_type == "model_entity":
-                value["model_entity_id"] = edge.from_node_id
+            elif edge.from_node_type == "model_instantiated":
+                value["model_instantiated_id"] = edge.from_node_id
             elif edge.from_node_type == "analysis":
                 value["analysis_id"] = edge.from_node_id
 
@@ -139,8 +138,8 @@ async def create_edges(edges: EdgesCreate) -> None:
                 value["data_source_id"] = edge.to_node_id
             elif edge.to_node_type == "dataset":
                 value["dataset_id"] = edge.to_node_id
-            elif edge.to_node_type == "model_entity":
-                value["model_entity_id"] = edge.to_node_id
+            elif edge.to_node_type == "model_instantiated":
+                value["model_instantiated_id"] = edge.to_node_id
             elif edge.to_node_type == "analysis":
                 if edge.from_node_type == "analysis":
                     value["past_analysis_id"] = edge.to_node_id
@@ -179,8 +178,8 @@ async def remove_edges(edges: EdgesCreate) -> None:
                                   edge.from_node_id)
             elif edge.from_node_type == "dataset":
                 conditions.append(table.c.dataset_id == edge.from_node_id)
-            elif edge.from_node_type == "model_entity":
-                conditions.append(table.c.model_entity_id ==
+            elif edge.from_node_type == "model_instantiated":
+                conditions.append(table.c.model_instantiated_id ==
                                   edge.from_node_id)
 
         elif is_pipeline_run_output:
@@ -190,8 +189,9 @@ async def remove_edges(edges: EdgesCreate) -> None:
                 conditions.append(table.c.data_source_id == edge.to_node_id)
             elif edge.to_node_type == "dataset":
                 conditions.append(table.c.dataset_id == edge.to_node_id)
-            elif edge.to_node_type == "model_entity":
-                conditions.append(table.c.model_entity_id == edge.to_node_id)
+            elif edge.to_node_type == "model_instantiated":
+                conditions.append(
+                    table.c.model_instantiated_id == edge.to_node_id)
 
         else:
             # Regular edges
@@ -202,8 +202,8 @@ async def remove_edges(edges: EdgesCreate) -> None:
                                   edge.from_node_id)
             elif edge.from_node_type == "dataset":
                 conditions.append(table.c.dataset_id == edge.from_node_id)
-            elif edge.from_node_type == "model_entity":
-                conditions.append(table.c.model_entity_id ==
+            elif edge.from_node_type == "model_instantiated":
+                conditions.append(table.c.model_instantiated_id ==
                                   edge.from_node_id)
             elif edge.from_node_type == "analysis":
                 conditions.append(table.c.analysis_id == edge.from_node_id)
@@ -214,8 +214,9 @@ async def remove_edges(edges: EdgesCreate) -> None:
                 conditions.append(table.c.data_source_id == edge.to_node_id)
             elif edge.to_node_type == "dataset":
                 conditions.append(table.c.dataset_id == edge.to_node_id)
-            elif edge.to_node_type == "model_entity":
-                conditions.append(table.c.model_entity_id == edge.to_node_id)
+            elif edge.to_node_type == "model_instantiated":
+                conditions.append(
+                    table.c.model_instantiated_id == edge.to_node_id)
             elif edge.to_node_type == "analysis":
                 if edge.from_node_type == "analysis":
                     conditions.append(
@@ -235,7 +236,7 @@ async def remove_edges(edges: EdgesCreate) -> None:
 
 async def get_nodes_in_graph(
     entity_type: str,
-    entities: List[DataSource] | List[Dataset] | List[Pipeline] | List[ModelEntity] | List[Analysis]
+    entities: List[DataSource] | List[Dataset] | List[Pipeline] | List[ModelInstantiated] | List[Analysis]
 ) -> List[GraphNode] | List[PipelineGraphNode]:
     """
     Fetch all edges for entities and return complete GraphNode or PipelineGraphNode nodes.
@@ -274,8 +275,8 @@ async def get_nodes_in_graph(
                         to_entities.datasets.append(target_id)
                     elif to_type == "pipeline":
                         to_entities.pipelines.append(target_id)
-                    elif to_type == "model_entity":
-                        to_entities.model_entities.append(target_id)
+                    elif to_type == "model_instantiated":
+                        to_entities.model_instantiatedies.append(target_id)
                     elif to_type == "analysis":
                         to_entities.analyses.append(target_id)
 
@@ -301,8 +302,8 @@ async def get_nodes_in_graph(
                         from_entities.datasets.append(source_id)
                     elif from_type == "pipeline":
                         from_entities.pipelines.append(source_id)
-                    elif from_type == "model_entity":
-                        from_entities.model_entities.append(source_id)
+                    elif from_type == "model_instantiated":
+                        from_entities.model_instantiatedies.append(source_id)
                     elif from_type == "analysis":
                         from_entities.analyses.append(source_id)
 
@@ -363,7 +364,7 @@ async def build_entity_graph(
         data_sources: List[DataSource],
         datasets: List[Dataset],
         pipelines: List[Pipeline],
-        model_entities: List[ModelEntity],
+        model_instantiatedies: List[ModelInstantiated],
         analyses: List[Analysis],
         exclude_ids: bool = False
 ) -> EntityGraph | EntityGraphUsingNames:
@@ -371,7 +372,7 @@ async def build_entity_graph(
     data_sources_in_graph = await get_nodes_in_graph("data_source", data_sources)
     datasets_in_graph = await get_nodes_in_graph("dataset", datasets)
     pipelines_in_graph = await get_nodes_in_graph("pipeline", pipelines)
-    model_entities_in_graph = await get_nodes_in_graph("model_entity", model_entities)
+    model_instantiatedies_in_graph = await get_nodes_in_graph("model_instantiated", model_instantiatedies)
     analyses_in_graph = await get_nodes_in_graph("analysis", analyses)
 
     output_model = EntityGraphUsingNames if exclude_ids else EntityGraph
@@ -388,7 +389,7 @@ async def build_entity_graph(
             datasets=datasets_in_graph,
             pipelines=pipelines_in_graph,
             analyses=analyses_in_graph,
-            model_entities=model_entities_in_graph,
+            model_instantiatedies=model_instantiatedies_in_graph,
             pipeline_runs=all_pipeline_runs
         )
     else:
@@ -397,7 +398,7 @@ async def build_entity_graph(
             datasets=datasets_in_graph,
             pipelines=pipelines_in_graph,
             analyses=analyses_in_graph,
-            model_entities=model_entities_in_graph
+            model_instantiatedies=model_instantiatedies_in_graph
         )
 
 
@@ -407,7 +408,7 @@ async def get_entity_details(user_id: uuid.UUID, entity_ids: List[uuid.UUID], re
     If recursive is True, fetches details for all input entities recursively.
     """
     EntityMap = dict[tuple[uuid.UUID, str], DataSource |
-                     Dataset | Pipeline | ModelEntity | Analysis]
+                     Dataset | Pipeline | ModelInstantiated | Analysis]
 
     all_entity_ids: set[uuid.UUID] = set(entity_ids)
 
@@ -454,7 +455,7 @@ async def get_entity_details(user_id: uuid.UUID, entity_ids: List[uuid.UUID], re
     data_sources = await get_user_data_sources(user_id, all_entity_ids_list)
     datasets = await get_user_datasets(user_id, all_entity_ids_list)
     pipelines = await get_user_pipelines(user_id, all_entity_ids_list)
-    model_entities = await get_user_model_entities(user_id, all_entity_ids_list)
+    model_instantiatedies = await get_user_model_entities(user_id, all_entity_ids_list)
     analyses = await get_user_analyses(user_id, all_entity_ids_list)
 
     entity_map: EntityMap = {}
@@ -465,8 +466,8 @@ async def get_entity_details(user_id: uuid.UUID, entity_ids: List[uuid.UUID], re
         entity_map[(dataset.id, "dataset")] = dataset
     for pipeline in pipelines:
         entity_map[(pipeline.id, "pipeline")] = pipeline
-    for me in model_entities:
-        entity_map[(me.id, "model_entity")] = me
+    for me in model_instantiatedies:
+        entity_map[(me.id, "model_instantiated")] = me
     for analysis in analyses:
         entity_map[(analysis.id, "analysis")] = analysis
 
@@ -500,8 +501,8 @@ async def get_entity_details(user_id: uuid.UUID, entity_ids: List[uuid.UUID], re
                         to_entities.datasets.append(target_id)
                     elif to_type == "pipeline":
                         to_entities.pipelines.append(target_id)
-                    elif to_type == "model_entity":
-                        to_entities.model_entities.append(target_id)
+                    elif to_type == "model_instantiated":
+                        to_entities.model_instantiatedies.append(target_id)
                     elif to_type == "analysis":
                         to_entities.analyses.append(target_id)
 
@@ -525,8 +526,8 @@ async def get_entity_details(user_id: uuid.UUID, entity_ids: List[uuid.UUID], re
                         from_entities.datasets.append(source_id)
                     elif from_type == "pipeline":
                         from_entities.pipelines.append(source_id)
-                    elif from_type == "model_entity":
-                        from_entities.model_entities.append(source_id)
+                    elif from_type == "model_instantiated":
+                        from_entities.model_instantiatedies.append(source_id)
                     elif from_type == "analysis":
                         from_entities.analyses.append(source_id)
 
@@ -564,7 +565,7 @@ async def get_entity_details(user_id: uuid.UUID, entity_ids: List[uuid.UUID], re
 
     for entity_key, entity in entity_map.items():
         entity_id, entity_type = entity_key
-        entity: DataSource | Dataset | Pipeline | ModelEntity | Analysis
+        entity: DataSource | Dataset | Pipeline | ModelInstantiated | Analysis
         from_entities = from_entities_edges_map[entity_key]
         to_entities = to_entities_edges_map[entity_key]
 
@@ -578,7 +579,7 @@ async def get_entity_details(user_id: uuid.UUID, entity_ids: List[uuid.UUID], re
         elif entity_type == "pipeline":
             description = get_pipeline_description(
                 entity, from_entities, to_entities, entity_map)
-        elif entity_type == "model_entity":
+        elif entity_type == "model_instantiated":
             description = get_model_entity_description(
                 entity, from_entities, to_entities, entity_map)
         elif entity_type == "analysis":
@@ -632,9 +633,9 @@ async def _get_pipeline_run_nodes_in_graph(pipeline_runs: List[PipelineRunInDB])
                     from_entities.data_sources.append(record["data_source_id"])
                 elif from_type == "dataset":
                     from_entities.datasets.append(record["dataset_id"])
-                elif from_type == "model_entity":
-                    from_entities.model_entities.append(
-                        record["model_entity_id"])
+                elif from_type == "model_instantiated":
+                    from_entities.model_instantiatedies.append(
+                        record["model_instantiated_id"])
 
         elif direction == "output" and from_type == "pipeline_run":
             # Outputs from pipeline runs
@@ -650,9 +651,9 @@ async def _get_pipeline_run_nodes_in_graph(pipeline_runs: List[PipelineRunInDB])
                     to_entities.data_sources.append(record["data_source_id"])
                 elif to_type == "dataset":
                     to_entities.datasets.append(record["dataset_id"])
-                elif to_type == "model_entity":
-                    to_entities.model_entities.append(
-                        record["model_entity_id"])
+                elif to_type == "model_instantiated":
+                    to_entities.model_instantiatedies.append(
+                        record["model_instantiated_id"])
 
     # Build GraphNode objects for runs
     run_nodes = []

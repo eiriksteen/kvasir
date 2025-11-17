@@ -12,8 +12,8 @@ from synesis_api.modules.data_sources.models import (
 )
 from synesis_api.modules.runs.models import (
     run, run_message, run_pydantic_message,
-    data_source_in_run, dataset_in_run, model_entity_in_run, pipeline_in_run, analysis_in_run,
-    data_source_from_run, dataset_from_run, model_entity_from_run, pipeline_from_run, analysis_from_run
+    data_source_in_run, dataset_in_run, model_instantiated_in_run, pipeline_in_run, analysis_in_run,
+    data_source_from_run, dataset_from_run, model_instantiated_from_run, pipeline_from_run, analysis_from_run
 )
 from synesis_api.modules.data_objects.models import (
     dataset, data_object, object_group, time_series, time_series_group
@@ -21,7 +21,7 @@ from synesis_api.modules.data_objects.models import (
 from synesis_api.modules.orchestrator.models import (
     chat_message, chat_pydantic_message, conversation,
     chat_context, dataset_context, pipeline_context, analysis_context,
-    data_source_context, model_entity_context
+    data_source_context, model_instantiated_context
 )
 from synesis_api.modules.pipeline.models import (
     pipeline, pipeline_implementation, function_in_pipeline, pipeline_run
@@ -30,7 +30,7 @@ from synesis_api.modules.function.models import (
     function, function_definition
 )
 from synesis_api.modules.model.models import (
-    model_definition, model_implementation, model_entity, model_entity_implementation, model_function,
+    model_definition, model_implementation, model_instantiated, model_instantiated_implementation, model_function,
     model_source, pypi_model_source
 )
 from synesis_api.modules.analysis.models import (
@@ -39,10 +39,10 @@ from synesis_api.modules.analysis.models import (
 )
 from synesis_api.modules.entity_graph.models import (
     dataset_from_data_source,
-    data_source_supported_in_pipeline, dataset_supported_in_pipeline, model_entity_supported_in_pipeline,
-    dataset_in_pipeline_run, data_source_in_pipeline_run, model_entity_in_pipeline_run,
+    data_source_supported_in_pipeline, dataset_supported_in_pipeline, model_instantiated_supported_in_pipeline,
+    dataset_in_pipeline_run, data_source_in_pipeline_run, model_instantiated_in_pipeline_run,
     pipeline_run_output_dataset, pipeline_run_output_model_entity, pipeline_run_output_data_source,
-    dataset_in_analysis, data_source_in_analysis, model_entity_in_analysis,
+    dataset_in_analysis, data_source_in_analysis, model_instantiated_in_analysis,
 )
 from synesis_api.modules.project.models import (
     project, project_dataset, project_analysis, project_pipeline, project_data_source, project_model_entity
@@ -74,12 +74,12 @@ __all__ = [
     run_message,
     run_pydantic_message,
     dataset_in_run,
-    model_entity_in_run,
+    model_instantiated_in_run,
     pipeline_in_run,
     analysis_in_run,
     data_source_from_run,
     dataset_from_run,
-    model_entity_from_run,
+    model_instantiated_from_run,
     pipeline_from_run,
     analysis_from_run,
     data_source_in_run,
@@ -99,7 +99,7 @@ __all__ = [
     result_table,
     dataset_in_analysis,
     data_source_in_analysis,
-    model_entity_in_analysis,
+    model_instantiated_in_analysis,
     chat_message,
     chat_pydantic_message,
     conversation,
@@ -108,17 +108,17 @@ __all__ = [
     pipeline_context,
     analysis_context,
     data_source_context,
-    model_entity_context,
+    model_instantiated_context,
     pipeline,
     pipeline_implementation,
     function_in_pipeline,
     data_source_supported_in_pipeline,
     dataset_supported_in_pipeline,
-    model_entity_supported_in_pipeline,
+    model_instantiated_supported_in_pipeline,
     pipeline_run,
     dataset_in_pipeline_run,
     data_source_in_pipeline_run,
-    model_entity_in_pipeline_run,
+    model_instantiated_in_pipeline_run,
     pipeline_run_output_dataset,
     pipeline_run_output_model_entity,
     pipeline_run_output_data_source,
@@ -126,8 +126,8 @@ __all__ = [
     function_definition,
     model_definition,
     model_implementation,
-    model_entity,
-    model_entity_implementation,
+    model_instantiated,
+    model_instantiated_implementation,
     model_function,
     model_source,
     pypi_model_source,

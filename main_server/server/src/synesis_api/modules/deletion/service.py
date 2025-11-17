@@ -17,8 +17,8 @@ from synesis_api.modules.data_objects.models import (
 )
 from synesis_api.modules.data_objects.service import get_user_datasets
 from synesis_api.modules.model.models import (
-    model_entity,
-    model_entity_implementation,
+    model_instantiated,
+    model_instantiated_implementation,
 )
 from synesis_api.modules.model.service import get_user_model_entities
 from synesis_api.modules.pipeline.models import (
@@ -31,16 +31,16 @@ from synesis_api.modules.entity_graph.models import (
     dataset_from_data_source,
     data_source_supported_in_pipeline,
     dataset_supported_in_pipeline,
-    model_entity_supported_in_pipeline,
+    model_instantiated_supported_in_pipeline,
     dataset_in_pipeline_run,
     data_source_in_pipeline_run,
-    model_entity_in_pipeline_run,
+    model_instantiated_in_pipeline_run,
     pipeline_run_output_dataset,
     pipeline_run_output_model_entity,
     pipeline_run_output_data_source,
     data_source_in_analysis,
     dataset_in_analysis,
-    model_entity_in_analysis,
+    model_instantiated_in_analysis,
 )
 from synesis_api.modules.pipeline.service import get_user_pipelines
 from synesis_api.modules.runs.models import (
@@ -50,15 +50,15 @@ from synesis_api.modules.runs.models import (
     data_source_from_run,
     dataset_in_run,
     dataset_from_run,
-    model_entity_in_run,
-    model_entity_from_run,
+    model_instantiated_in_run,
+    model_instantiated_from_run,
     analysis_in_run,
     analysis_from_run,
 )
 from synesis_api.modules.orchestrator.models import (
     data_source_context,
     dataset_context,
-    model_entity_context,
+    model_instantiated_context,
     pipeline_context,
     analysis_context,
 )
@@ -262,78 +262,78 @@ async def delete_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID) -> uuid.UUID
     return dataset_id
 
 
-async def delete_model_entity(user_id: uuid.UUID, model_entity_id: uuid.UUID) -> uuid.UUID:
-    model_entities = await get_user_model_entities(user_id, [model_entity_id])
-    if not model_entities:
+async def delete_model_entity(user_id: uuid.UUID, model_instantiated_id: uuid.UUID) -> uuid.UUID:
+    model_instantiatedies = await get_user_model_entities(user_id, [model_instantiated_id])
+    if not model_instantiatedies:
         raise HTTPException(status_code=404, detail="Model entity not found")
 
     await execute(
-        delete(model_entity_implementation).where(
-            model_entity_implementation.c.id == model_entity_id
+        delete(model_instantiated_implementation).where(
+            model_instantiated_implementation.c.id == model_instantiated_id
         ),
         commit_after=True
     )
 
     await execute(
-        delete(model_entity_supported_in_pipeline).where(
-            model_entity_supported_in_pipeline.c.model_entity_id == model_entity_id
+        delete(model_instantiated_supported_in_pipeline).where(
+            model_instantiated_supported_in_pipeline.c.model_instantiated_id == model_instantiated_id
         ),
         commit_after=True
     )
 
     await execute(
-        delete(model_entity_in_pipeline_run).where(
-            model_entity_in_pipeline_run.c.model_entity_id == model_entity_id
+        delete(model_instantiated_in_pipeline_run).where(
+            model_instantiated_in_pipeline_run.c.model_instantiated_id == model_instantiated_id
         ),
         commit_after=True
     )
 
     await execute(
         delete(pipeline_run_output_model_entity).where(
-            pipeline_run_output_model_entity.c.model_entity_id == model_entity_id
+            pipeline_run_output_model_entity.c.model_instantiated_id == model_instantiated_id
         ),
         commit_after=True
     )
 
     await execute(
-        delete(model_entity_in_run).where(
-            model_entity_in_run.c.model_entity_id == model_entity_id
+        delete(model_instantiated_in_run).where(
+            model_instantiated_in_run.c.model_instantiated_id == model_instantiated_id
         ),
         commit_after=True
     )
 
     await execute(
-        delete(model_entity_from_run).where(
-            model_entity_from_run.c.model_entity_id == model_entity_id
+        delete(model_instantiated_from_run).where(
+            model_instantiated_from_run.c.model_instantiated_id == model_instantiated_id
         ),
         commit_after=True
     )
 
     await execute(
-        delete(model_entity_in_analysis).where(
-            model_entity_in_analysis.c.model_entity_id == model_entity_id
+        delete(model_instantiated_in_analysis).where(
+            model_instantiated_in_analysis.c.model_instantiated_id == model_instantiated_id
         ),
         commit_after=True
     )
 
     await execute(
-        delete(model_entity_context).where(
-            model_entity_context.c.model_entity_id == model_entity_id
+        delete(model_instantiated_context).where(
+            model_instantiated_context.c.model_instantiated_id == model_instantiated_id
         ),
         commit_after=True
     )
 
     await execute(
-        delete(model_entity).where(
+        delete(model_instantiated).where(
             and_(
-                model_entity.c.id == model_entity_id,
-                model_entity.c.user_id == user_id
+                model_instantiated.c.id == model_instantiated_id,
+                model_instantiated.c.user_id == user_id
             )
         ),
         commit_after=True
     )
 
-    return model_entity_id
+    return model_instantiated_id
 
 
 async def delete_pipeline(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> uuid.UUID:
@@ -365,8 +365,8 @@ async def delete_pipeline(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> uuid.UU
         )
 
         await execute(
-            delete(model_entity_in_pipeline_run).where(
-                model_entity_in_pipeline_run.c.pipeline_run_id.in_(
+            delete(model_instantiated_in_pipeline_run).where(
+                model_instantiated_in_pipeline_run.c.pipeline_run_id.in_(
                     pipeline_run_ids)
             ),
             commit_after=True
@@ -439,8 +439,8 @@ async def delete_pipeline(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> uuid.UU
     )
 
     await execute(
-        delete(model_entity_supported_in_pipeline).where(
-            model_entity_supported_in_pipeline.c.pipeline_id == pipeline_id
+        delete(model_instantiated_supported_in_pipeline).where(
+            model_instantiated_supported_in_pipeline.c.pipeline_id == pipeline_id
         ),
         commit_after=True
     )
@@ -453,8 +453,8 @@ async def delete_pipeline(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> uuid.UU
     )
 
     await execute(
-        update(model_entity_implementation).where(
-            model_entity_implementation.c.pipeline_id == pipeline_id
+        update(model_instantiated_implementation).where(
+            model_instantiated_implementation.c.pipeline_id == pipeline_id
         ).values(pipeline_id=None),
         commit_after=True
     )
@@ -546,8 +546,8 @@ async def delete_analysis(user_id: uuid.UUID, analysis_id: uuid.UUID) -> uuid.UU
     )
 
     await execute(
-        delete(model_entity_in_analysis).where(
-            model_entity_in_analysis.c.analysis_id == analysis_id
+        delete(model_instantiated_in_analysis).where(
+            model_instantiated_in_analysis.c.analysis_id == analysis_id
         ),
         commit_after=True
     )

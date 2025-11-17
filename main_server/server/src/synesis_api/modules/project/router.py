@@ -2,22 +2,22 @@ from typing import List, Annotated
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 
-from synesis_schemas.main_server import User
+from synesis_api.auth.schema import User
 from synesis_api.auth.service import get_current_user
-from synesis_schemas.main_server import (
+from kvasir_ontology.main_server.project import (
     Project,
     ProjectCreate,
     ProjectDetailsUpdate,
     AddEntityToProject,
     RemoveEntityFromProject,
     UpdateEntityPosition,
-    UpdateProjectViewport,
-    Dataset,
-    DataSource,
-    Analysis,
-    Pipeline,
-    ModelEntity,
+    UpdateProjectViewport
 )
+from kvasir_ontology.main_server.data_sources import DataSource
+from kvasir_ontology.main_server.data_objects import Dataset
+from kvasir_ontology.main_server.analysis import Analysis
+from kvasir_ontology.main_server.pipeline import Pipeline
+from kvasir_ontology.main_server.model import ModelInstantiated
 from synesis_api.modules.project.service import (
     create_project,
     get_projects,
@@ -158,7 +158,7 @@ async def patch_node_position(
     position_data: UpdateEntityPosition,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> Project:
-    """Update the position of a node (data source, dataset, analysis, pipeline, or model_entity) in a project."""
+    """Update the position of a node (data source, dataset, analysis, pipeline, or model_instantiated) in a project."""
     project = await get_projects(user.id, [position_data.project_id])
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -226,11 +226,11 @@ async def fetch_pipelines(
     return pipelines
 
 
-@router.get("/project-model-entities/{project_id}", response_model=List[ModelEntity])
+@router.get("/project-models-instantiated/{project_id}", response_model=List[ModelInstantiated])
 async def fetch_model_entities(
     project_id: UUID,
     user: Annotated[User, Depends(get_current_user)] = None
-) -> List[ModelEntity]:
+) -> List[ModelInstantiated]:
     project_model_entities = await get_project_model_entities(project_id)
-    model_entities = await get_user_model_entities(user.id, [ds.model_entity_id for ds in project_model_entities])
-    return model_entities
+    model_instantiatedies = await get_user_model_entities(user.id, [ds.model_instantiated_id for ds in project_model_entities])
+    return model_instantiatedies

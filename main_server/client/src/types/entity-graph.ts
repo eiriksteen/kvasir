@@ -1,6 +1,6 @@
 import { UUID } from "crypto";
 
-export type EntityType = "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity";
+export type EntityType = "data_source" | "dataset" | "analysis" | "pipeline" | "model_instantiated";
 
 // =============================================================================
 // Edge and Graph Types
@@ -11,7 +11,7 @@ export interface EdgePoints {
   datasets: UUID[];
   analyses: UUID[];
   pipelines: UUID[];
-  modelEntities: UUID[];
+  modelsInstantiated: UUID[];
   pipelineRuns: UUID[];
 }
 
@@ -32,7 +32,7 @@ export interface EntityGraph {
   datasets: GraphNode[];
   pipelines: PipelineGraphNode[];
   analyses: GraphNode[];
-  modelEntities: GraphNode[];
+  modelsInstantiated: GraphNode[];
 }
 
 // =============================================================================
@@ -44,7 +44,7 @@ export interface EdgePointsUsingNames {
   datasets: string[];
   analyses: string[];
   pipelines: string[];
-  modelEntities: string[];
+  modelsInstantiated: string[];
   pipelineRuns: string[];
 }
 
@@ -65,7 +65,7 @@ export interface EntityGraphUsingNames {
   datasets: GraphNodeUsingNames[];
   pipelines: PipelineGraphNodeUsingNames[];
   analyses: GraphNodeUsingNames[];
-  modelEntities: GraphNodeUsingNames[];
+  modelsInstantiated: GraphNodeUsingNames[];
 }
 
 // =============================================================================

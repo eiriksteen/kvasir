@@ -15,7 +15,8 @@ class AnalysisDeps:
     container_name: str
     # store full analysis done so far
     analysis_id: uuid.UUID
-    model_entities_injected: List[uuid.UUID] = field(default_factory=list)
+    model_instantiatedies_injected: List[uuid.UUID] = field(
+        default_factory=list)
     analyses_injected: List[uuid.UUID] = field(default_factory=list)
     data_sources_injected: List[uuid.UUID] = field(default_factory=list)
     datasets_injected: List[uuid.UUID] = field(default_factory=list)

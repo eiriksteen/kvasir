@@ -9,7 +9,7 @@ import AddDataset from '@/app/projects/[projectId]/_components/add-entity-modals
 import AddPipeline from '@/app/projects/[projectId]/_components/add-entity-modals/AddPipeline';
 import AddModelEntity from '@/app/projects/[projectId]/_components/add-entity-modals/AddModelEntity';
 
-type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_entity';
+type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_instantiated';
 
 interface AddEntityButtonProps {
     type: ItemType;
@@ -42,7 +42,7 @@ export default function AddEntityButton({ type, size = 11, projectId }: AddEntit
     const handleClose = () => {
         setShowModal(false);
     };
-    const getStyleFromType = (type: 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_entity'): Style => {
+    const getStyleFromType = (type: 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_instantiated'): Style => {
         switch (type) {
             case 'dataset':
                 return {
@@ -97,7 +97,7 @@ export default function AddEntityButton({ type, size = 11, projectId }: AddEntit
                     symbol: <Zap size={size} />,
 
                 };
-            case 'model_entity':
+            case 'model_instantiated':
                 return {
                     bg: 'bg-[#491A32]/10',
                     border: 'border border-[#491A32]',
@@ -128,7 +128,7 @@ export default function AddEntityButton({ type, size = 11, projectId }: AddEntit
                     return <AddAnalysis onClose={handleClose} projectId={projectId} />;
                 case 'pipeline':
                     return <AddPipeline onClose={handleClose} projectId={projectId} />;
-                case 'model_entity':
+                case 'model_instantiated':
                     return <AddModelEntity onClose={handleClose} projectId={projectId} />;
                 default:
                     return null;

@@ -59,13 +59,14 @@ def upgrade() -> None:
                         'id', name=op.f('pk_dataset_in_analysis')),
                     schema='analysis'
                     )
-    op.create_table('model_entity_in_analysis',
+    op.create_table('model_instantiated_in_analysis',
                     sa.Column('id', sa.UUID(), nullable=False),
                     sa.Column('analysis_object_id', sa.UUID(), nullable=False),
-                    sa.Column('model_entity_id', sa.UUID(), nullable=False),
+                    sa.Column('model_instantiated_id',
+                              sa.UUID(), nullable=False),
                     sa.ForeignKeyConstraint(['analysis_object_id'], ['analysis.analysis_object.id'], name=op.f(
                         'fk_model_entity_in_analysis_analysis_object_id_analysis_object')),
-                    sa.ForeignKeyConstraint(['model_entity_id'], ['model.model_entity.id'], name=op.f(
+                    sa.ForeignKeyConstraint(['model_instantiated_id'], ['model.model_instantiated.id'], name=op.f(
                         'fk_model_entity_in_analysis_model_entity_id_model_entity')),
                     sa.PrimaryKeyConstraint('id', name=op.f(
                         'pk_model_entity_in_analysis')),
@@ -136,7 +137,7 @@ def downgrade() -> None:
                     schema='runs'
                     )
     op.drop_table('analysis_from_run', schema='runs')
-    op.drop_table('model_entity_in_analysis', schema='analysis')
+    op.drop_table('model_instantiated_in_analysis', schema='analysis')
     op.drop_table('dataset_in_analysis', schema='analysis')
     op.drop_table('data_source_in_analysis', schema='analysis')
     # op.drop_table('script', schema='code')

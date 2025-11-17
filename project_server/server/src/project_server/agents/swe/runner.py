@@ -127,7 +127,7 @@ class SWEAgentRunner(RunnerBase):
             data_sources_injected=self.input_data_source_ids,
             datasets_injected=self.input_dataset_ids,
             analyses_injected=self.input_analysis_ids,
-            model_entities_injected=self.input_model_entity_ids,
+            model_instantiatedies_injected=self.input_model_entity_ids,
             pipelines_injected=self.input_pipeline_ids,
             conversation_id=self.conversation_id,
         )

@@ -5,13 +5,13 @@ import { Brain, BarChart3, Zap, Folder, Database } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { Pipeline } from '@/types/pipeline';
 import { AnalysisSmall } from '@/types/analysis';
-import { ModelEntity } from '@/types/model';
+import { ModelInstantiated } from '@/types/model';
 import { DataSource } from '@/types/data-sources';
 
-type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'model_entity' | 'data_source';
+type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'model_instantiated' | 'data_source';
 
 interface EntityItemProps {
-    item: Dataset | AnalysisSmall | Pipeline | ModelEntity | DataSource;
+    item: Dataset | AnalysisSmall | Pipeline | ModelInstantiated | DataSource;
     type: ItemType;
     isInContext: boolean;
     onClick: () => void;
@@ -21,7 +21,7 @@ interface EntityItemProps {
 export default function EntityItem({ item, type, isInContext, onClick, onOpenTab }: EntityItemProps) {
     const getTheme = (type: ItemType) => {
         switch (type) {
-            case 'model_entity':
+            case 'model_instantiated':
                 return {
                     bg: isInContext ? 'bg-[#491A32]/20' : 'hover:bg-[#491A32]/10',
                     icon: <Brain size={11} />,

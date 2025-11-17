@@ -14,7 +14,7 @@ interface RunPipelineModalProps {
     inputs: {
       dataSourceIds: UUID[];
       datasetIds: UUID[];
-      modelEntityIds: UUID[];
+      modelInstantiatedIds: UUID[];
     };
     name?: string;
     description?: string;
@@ -38,7 +38,7 @@ export default function RunPipelineModal({
   // Get pipeline inputs from entity graph
   const pipelineInputs = useMemo(() => {
     const graphNode = getEntityGraphNode(pipeline.id);
-    return graphNode?.fromEntities || { dataSources: [], datasets: [], modelEntities: [], analyses: [], pipelines: [], pipelineRuns: [] };
+    return graphNode?.fromEntities || { dataSources: [], datasets: [], modelsInstantiated: [], analyses: [], pipelines: [], pipelineRuns: [] };
   }, [pipeline.id, getEntityGraphNode]);
 
   // Prevent body scroll when modal is open
@@ -71,7 +71,7 @@ export default function RunPipelineModal({
       // Pre-select all supported inputs by default
       setSelectedDataSourceIds(pipelineInputs.dataSources);
       setSelectedDatasetIds(pipelineInputs.datasets);
-      setSelectedModelEntityIds(pipelineInputs.modelEntities);
+      setSelectedModelEntityIds(pipelineInputs.modelsInstantiated);
       setRunName('');
       setRunDescription('');
     }
@@ -87,7 +87,7 @@ export default function RunPipelineModal({
       inputs: {
         dataSourceIds: selectedDataSourceIds,
         datasetIds: selectedDatasetIds,
-        modelEntityIds: selectedModelEntityIds,
+        modelInstantiatedIds: selectedModelEntityIds,
       },
       name: runName || undefined,
       description: runDescription || undefined,
@@ -116,7 +116,7 @@ export default function RunPipelineModal({
   const hasInputs =
     pipelineInputs.dataSources.length > 0 ||
     pipelineInputs.datasets.length > 0 ||
-    pipelineInputs.modelEntities.length > 0;
+    pipelineInputs.modelsInstantiated.length > 0;
 
   const hasSelections =
     selectedDataSourceIds.length > 0 ||
@@ -229,13 +229,13 @@ export default function RunPipelineModal({
               )}
 
               {/* Model Entities */}
-              {pipelineInputs.modelEntities.length > 0 && (
+              {pipelineInputs.modelsInstantiated.length > 0 && (
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-gray-600 uppercase">
                     Model Entities
                   </label>
                   <div className="space-y-1">
-                    {pipelineInputs.modelEntities.map((id) => (
+                    {pipelineInputs.modelsInstantiated.map((id) => (
                       <label
                         key={id}
                         className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"

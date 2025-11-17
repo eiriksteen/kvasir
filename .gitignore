@@ -26,3 +26,4 @@ analysis_storage
 analysis_storage
 project_server/sandbox/*-*-*-*-*/
 project_server/server/internal/*
+.cursor

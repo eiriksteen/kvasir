@@ -341,33 +341,33 @@ pipeline_agent = Agent[HelperDeps, str](
 )
 
 
-model_entity_system_prompt = """
+model_instantiated_system_prompt = """
 Submit metadata about a model, which can be a machine learning model, a rule-based model, an optimization model, etc. 
 
-IMPORTANT: If a target entity ID is provided in the prompt, you MUST set model_entity_id to that UUID in the ModelEntityImplementationCreate object.
-When model_entity_id is set, you are adding an implementation to an existing model entity (do not include model_entity_create).
-Otherwise, if this is a brand new model entity, you must include the model_entity_create object (and leave model_entity_id as None).
+IMPORTANT: If a target entity ID is provided in the prompt, you MUST set model_instantiated_id to that UUID in the ModelEntityImplementationCreate object.
+When model_instantiated_id is set, you are adding an implementation to an existing model entity (do not include model_instantiated_create).
+Otherwise, if this is a brand new model entity, you must include the model_instantiated_create object (and leave model_instantiated_id as None).
 """
 
 
-async def submit_model_entity_implementation(ctx: RunContext[HelperDeps], model_entity_implementation_create: ModelEntityImplementationCreate) -> str:
+async def submit_model_entity_implementation(ctx: RunContext[HelperDeps], model_instantiated_implementation_create: ModelEntityImplementationCreate) -> str:
     try:
-        model_entity_obj = await post_model_entity_implementation(ctx.deps.client, model_entity_implementation_create)
-        if model_entity_implementation_create.model_entity_create:
+        model_instantiated_obj = await post_model_entity_implementation(ctx.deps.client, model_instantiated_implementation_create)
+        if model_instantiated_implementation_create.model_instantiated_create:
             await post_add_entity(ctx.deps.client, AddEntityToProject(
                 project_id=ctx.deps.project.id,
-                entity_type="model_entity",
-                entity_id=model_entity_obj.id
+                entity_type="model_instantiated",
+                entity_id=model_instantiated_obj.id
             ))
-        return model_entity_obj.model_dump_json(indent=4)
+        return model_instantiated_obj.model_dump_json(indent=4)
     except Exception as e:
         raise ModelRetry(f"Failed to submit model entity: {str(e)}")
 
 
-model_entity_agent = Agent[HelperDeps, str](
+model_instantiated_agent = Agent[HelperDeps, str](
     model=get_model(),
     deps_type=HelperDeps,
-    system_prompt=model_entity_system_prompt,
+    system_prompt=model_instantiated_system_prompt,
     retries=3,
     output_type=submit_model_entity_implementation
 )

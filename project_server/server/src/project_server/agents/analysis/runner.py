@@ -73,7 +73,7 @@ class AnalysisAgentRunner(RunnerBase):
             project_id=self.project_id,
             analysis_id=self.target_analysis_id,
             container_name=str(self.project_id),
-            model_entities_injected=self.input_model_entity_ids,
+            model_instantiatedies_injected=self.input_model_entity_ids,
             data_sources_injected=self.input_data_source_ids,
             datasets_injected=self.input_dataset_ids,
             analyses_injected=self.input_analysis_ids

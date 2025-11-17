@@ -102,14 +102,14 @@ project_model_entity = Table(
     metadata,
     Column("project_id", UUID(as_uuid=True), ForeignKey(
         "project.project.id"), nullable=False),
-    Column("model_entity_id", UUID(as_uuid=True), ForeignKey(
-        "model.model_entity.id"), nullable=False),
+    Column("model_instantiated_id", UUID(as_uuid=True), ForeignKey(
+        "model.model_instantiated.id"), nullable=False),
     Column("x_position", Float, nullable=False),
     Column("y_position", Float, nullable=False),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
     Column("updated_at", DateTime(timezone=True), nullable=False,
            default=func.now(), onupdate=func.now()),
-    PrimaryKeyConstraint("project_id", "model_entity_id"),
+    PrimaryKeyConstraint("project_id", "model_instantiated_id"),
     schema="project"
 )

@@ -31,20 +31,20 @@ async def get_entities_description(
     client: ProjectClient,
     data_source_ids: List[UUID],
     dataset_ids: List[UUID],
-    model_entity_ids: List[UUID],
+    model_instantiated_ids: List[UUID],
     analysis_ids: List[UUID],
     pipeline_ids: List[UUID]
 ) -> str:
 
     entity_ids: List[UUID] = data_source_ids + dataset_ids + \
-        model_entity_ids + analysis_ids + pipeline_ids
+        model_instantiated_ids + analysis_ids + pipeline_ids
     entity_details_response = await get_entity_details(client, entity_ids)
 
     # Group descriptions by entity type
     data_sources_descriptions = []
     datasets_descriptions = []
     analyses_descriptions = []
-    model_entities_descriptions = []
+    model_instantiatedies_descriptions = []
     pipelines_descriptions = []
 
     for detail in entity_details_response.entity_details:
@@ -54,8 +54,8 @@ async def get_entities_description(
             datasets_descriptions.append(detail.description)
         elif detail.entity_type == "analysis":
             analyses_descriptions.append(detail.description)
-        elif detail.entity_type == "model_entity":
-            model_entities_descriptions.append(detail.description)
+        elif detail.entity_type == "model_instantiated":
+            model_instantiatedies_descriptions.append(detail.description)
         elif detail.entity_type == "pipeline":
             pipelines_descriptions.append(detail.description)
 
@@ -63,10 +63,10 @@ async def get_entities_description(
     data_sources_section = f"<data_sources>\n\n{'\n\n'.join(data_sources_descriptions)}\n\n</data_sources>\n\n" if data_sources_descriptions else ""
     datasets_section = f"<datasets>\n\n{'\n\n'.join(datasets_descriptions)}\n\n</datasets>\n\n" if datasets_descriptions else ""
     analyses_section = f"<analyses>\n\n{'\n\n'.join(analyses_descriptions)}\n\n</analyses>\n\n" if analyses_descriptions else ""
-    model_entities_section = f"<model_entities>\n\n{'\n\n'.join(model_entities_descriptions)}\n\n</model_entities>\n\n" if model_entities_descriptions else ""
+    model_instantiatedies_section = f"<model_instantiatedies>\n\n{'\n\n'.join(model_instantiatedies_descriptions)}\n\n</model_instantiatedies>\n\n" if model_instantiatedies_descriptions else ""
     pipelines_section = f"<pipelines>\n\n{'\n\n'.join(pipelines_descriptions)}\n\n</pipelines>\n\n" if pipelines_descriptions else ""
 
-    return f"The injected entities:\n\n{data_sources_section}{datasets_section}{analyses_section}{model_entities_section}{pipelines_section}"
+    return f"The injected entities:\n\n{data_sources_section}{datasets_section}{analyses_section}{model_instantiatedies_section}{pipelines_section}"
 
 
 def get_sandbox_environment_description() -> str:

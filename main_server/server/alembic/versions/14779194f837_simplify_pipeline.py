@@ -76,7 +76,7 @@ def upgrade() -> None:
                         'pk_pipeline_implementation')),
                     schema='pipeline'
                     )
-    op.create_table('model_entity_implementation',
+    op.create_table('model_instantiated_implementation',
                     sa.Column('id', sa.UUID(), nullable=False),
                     sa.Column('model_id', sa.UUID(), nullable=False),
                     sa.Column('config', postgresql.JSONB(
@@ -87,7 +87,7 @@ def upgrade() -> None:
                         timezone=True), nullable=False),
                     sa.Column('updated_at', sa.DateTime(
                         timezone=True), nullable=False),
-                    sa.ForeignKeyConstraint(['id'], ['model.model_entity.id'], name=op.f(
+                    sa.ForeignKeyConstraint(['id'], ['model.model_instantiated.id'], name=op.f(
                         'fk_model_entity_implementation_id_model_entity')),
                     sa.ForeignKeyConstraint(['model_id'], ['model.model.id'], name=op.f(
                         'fk_model_entity_implementation_model_id_model')),
@@ -111,18 +111,18 @@ def upgrade() -> None:
     op.drop_table('pipeline_graph_node', schema='pipeline')
     op.add_column('variable_group', sa.Column('group_schema', postgresql.JSONB(
         astext_type=sa.Text()), nullable=False), schema='data_objects')
-    op.alter_column('model_entity', 'description',
+    op.alter_column('model_instantiated', 'description',
                     existing_type=sa.VARCHAR(),
                     nullable=True,
                     schema='model')
-    # op.drop_constraint(op.f('model_entity_model_id_fkey'),
-    #                    'model_entity', schema='model', type_='foreignkey')
-    # op.drop_constraint(op.f('model_entity_pipeline_id_fkey'),
-    #                    'model_entity', schema='model', type_='foreignkey')
-    op.drop_column('model_entity', 'model_id', schema='model')
-    op.drop_column('model_entity', 'config', schema='model')
-    op.drop_column('model_entity', 'weights_save_dir', schema='model')
-    op.drop_column('model_entity', 'pipeline_id', schema='model')
+    # op.drop_constraint(op.f('model_instantiated_model_id_fkey'),
+    #                    'model_instantiated', schema='model', type_='foreignkey')
+    # op.drop_constraint(op.f('model_instantiated_pipeline_id_fkey'),
+    #                    'model_instantiated', schema='model', type_='foreignkey')
+    op.drop_column('model_instantiated', 'model_id', schema='model')
+    op.drop_column('model_instantiated', 'config', schema='model')
+    op.drop_column('model_instantiated', 'weights_save_dir', schema='model')
+    op.drop_column('model_instantiated', 'pipeline_id', schema='model')
     op.drop_constraint(op.f('fk_pipeline_implementation_script_id_script'),
                        'pipeline', schema='pipeline', type_='foreignkey')
     op.drop_column('pipeline', 'output_variables_dataclass_name',
@@ -163,19 +163,19 @@ def downgrade() -> None:
                   sa.VARCHAR(), autoincrement=False, nullable=False), schema='pipeline')
     op.create_foreign_key(op.f('fk_pipeline_implementation_script_id_script'), 'pipeline', 'script', [
                           'implementation_script_id'], ['id'], source_schema='pipeline', referent_schema='code')
-    op.add_column('model_entity', sa.Column('pipeline_id', sa.UUID(),
+    op.add_column('model_instantiated', sa.Column('pipeline_id', sa.UUID(),
                   autoincrement=False, nullable=True), schema='model')
-    op.add_column('model_entity', sa.Column('weights_save_dir', sa.VARCHAR(
+    op.add_column('model_instantiated', sa.Column('weights_save_dir', sa.VARCHAR(
     ), autoincrement=False, nullable=True), schema='model')
-    op.add_column('model_entity', sa.Column('config', postgresql.JSONB(
+    op.add_column('model_instantiated', sa.Column('config', postgresql.JSONB(
         astext_type=sa.Text()), autoincrement=False, nullable=False), schema='model')
-    op.add_column('model_entity', sa.Column('model_id', sa.UUID(),
+    op.add_column('model_instantiated', sa.Column('model_id', sa.UUID(),
                   autoincrement=False, nullable=False), schema='model')
-    op.create_foreign_key(op.f('model_entity_pipeline_id_fkey'), 'model_entity', 'pipeline', [
+    op.create_foreign_key(op.f('model_instantiated_pipeline_id_fkey'), 'model_instantiated', 'pipeline', [
                           'pipeline_id'], ['id'], source_schema='model', referent_schema='pipeline')
-    op.create_foreign_key(op.f('model_entity_model_id_fkey'), 'model_entity', 'model', [
+    op.create_foreign_key(op.f('model_instantiated_model_id_fkey'), 'model_instantiated', 'model', [
                           'model_id'], ['id'], source_schema='model', referent_schema='model')
-    op.alter_column('model_entity', 'description',
+    op.alter_column('model_instantiated', 'description',
                     existing_type=sa.VARCHAR(),
                     nullable=False,
                     schema='model')
@@ -192,7 +192,7 @@ def downgrade() -> None:
                     sa.Column('updated_at', postgresql.TIMESTAMP(
                         timezone=True), autoincrement=False, nullable=False),
                     sa.CheckConstraint(
-                        "type::text = ANY (ARRAY['dataset'::character varying, 'function'::character varying, 'model_entity'::character varying]::text[])", name='pipeline_graph_node_type_check'),
+                        "type::text = ANY (ARRAY['dataset'::character varying, 'function'::character varying, 'model_instantiated'::character varying]::text[])", name='pipeline_graph_node_type_check'),
                     sa.ForeignKeyConstraint(['pipeline_id'], [
                         'pipeline.pipeline.id'], name='pipeline_graph_node_pipeline_id_fkey'),
                     sa.PrimaryKeyConstraint(
@@ -403,7 +403,7 @@ def downgrade() -> None:
     op.create_table('pipeline_graph_model_entity_node',
                     sa.Column('id', sa.UUID(),
                               autoincrement=False, nullable=False),
-                    sa.Column('model_entity_id', sa.UUID(),
+                    sa.Column('model_instantiated_id', sa.UUID(),
                               autoincrement=False, nullable=False),
                     sa.Column('function_type', sa.VARCHAR(),
                               autoincrement=False, nullable=False),
@@ -415,13 +415,13 @@ def downgrade() -> None:
                         'pipeline_graph_model_entity_node_function_type_check')),
                     sa.ForeignKeyConstraint(['id'], ['pipeline.pipeline_graph_node.id'], name=op.f(
                         'pipeline_graph_model_entity_node_id_fkey')),
-                    sa.ForeignKeyConstraint(['model_entity_id'], ['model.model_entity.id'], name=op.f(
+                    sa.ForeignKeyConstraint(['model_instantiated_id'], ['model.model_instantiated.id'], name=op.f(
                         'pipeline_graph_model_entity_node_model_entity_id_fkey')),
                     sa.PrimaryKeyConstraint('id', name=op.f(
                         'pipeline_graph_model_entity_node_pkey')),
                     schema='pipeline'
                     )
-    op.drop_table('model_entity_implementation', schema='model')
+    op.drop_table('model_instantiated_implementation', schema='model')
     op.drop_table('pipeline_implementation', schema='pipeline')
     op.drop_table('dataset_in_pipeline', schema='pipeline')
     op.drop_table('data_source_in_pipeline', schema='pipeline')

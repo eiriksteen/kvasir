@@ -9,8 +9,8 @@ from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.model.models import (
     model_implementation,
     model_definition,
-    model_entity,
-    model_entity_implementation,
+    model_instantiated,
+    model_instantiated_implementation,
     model_function,
     model_source,
     pypi_model_source
@@ -19,7 +19,7 @@ from synesis_schemas.main_server import (
     ModelImplementationInDB,
     ModelFunctionInDB,
     ModelImplementationCreate,
-    ModelEntity,
+    ModelInstantiated,
     ModelEntityInDB,
     ModelEntityCreate,
     ModelEntityConfigUpdate,
@@ -196,10 +196,10 @@ async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> M
         await execute(update(model_function).where(model_function.c.id == inference_function_id).values(**model_update.updated_inference_function.model_dump()), commit_after=True)
 
     # Handle model entities updates
-    if model_update.model_entities_to_update:
+    if model_update.model_instantiatedies_to_update:
         await execute(
-            update(model_entity_implementation).where(model_entity_implementation.c.id.in_(
-                model_update.model_entities_to_update)).values(model_id=model_obj.id), commit_after=True)
+            update(model_instantiated_implementation).where(model_instantiated_implementation.c.id.in_(
+                model_update.model_instantiatedies_to_update)).values(model_id=model_obj.id), commit_after=True)
 
     return (await get_models([model_obj.id]))[0]
 
@@ -255,62 +255,62 @@ async def get_models(model_ids: List[uuid.UUID]) -> List[ModelImplementation]:
     return output_objs
 
 
-async def create_model_entity(user_id: uuid.UUID, model_entity_create: ModelEntityCreate) -> ModelEntityInDB:
+async def create_model_entity(user_id: uuid.UUID, model_instantiated_create: ModelEntityCreate) -> ModelEntityInDB:
     """
     Create a bare model entity without implementation.
     Used when developing or when the exact implementation hasn't been selected yet.
     """
-    model_entity_obj = ModelEntityInDB(
+    model_instantiated_obj = ModelEntityInDB(
         id=uuid.uuid4(),
         user_id=user_id,
-        name=model_entity_create.name,
-        description=model_entity_create.description,
+        name=model_instantiated_create.name,
+        description=model_instantiated_create.description,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )
-    await execute(insert(model_entity).values(**model_entity_obj.model_dump()), commit_after=True)
-    return model_entity_obj
+    await execute(insert(model_instantiated).values(**model_instantiated_obj.model_dump()), commit_after=True)
+    return model_instantiated_obj
 
 
-async def create_model_entity_implementation(user_id: uuid.UUID, model_entity_implementation_create: ModelEntityImplementationCreate) -> ModelEntityInDB:
+async def create_model_entity_implementation(user_id: uuid.UUID, model_instantiated_implementation_create: ModelEntityImplementationCreate) -> ModelEntityInDB:
     """
     Create a model entity with an optional implementation.
-    If model_entity_id is provided, use existing entity. Otherwise create new entity.
+    If model_instantiated_id is provided, use existing entity. Otherwise create new entity.
     If model_implementation_id is provided, create implementation. Otherwise leave bare entity.
     """
 
     # Handle model entity creation or retrieval
-    if model_entity_implementation_create.model_entity_id:
+    if model_instantiated_implementation_create.model_instantiated_id:
         # Verify entity exists and user owns it
-        entity_query = select(model_entity).where(
-            model_entity.c.id == model_entity_implementation_create.model_entity_id,
-            model_entity.c.user_id == user_id
+        entity_query = select(model_instantiated).where(
+            model_instantiated.c.id == model_instantiated_implementation_create.model_instantiated_id,
+            model_instantiated.c.user_id == user_id
         )
         entity_record = await fetch_one(entity_query)
         if not entity_record:
             raise HTTPException(
                 status_code=404, detail="Model entity not found")
-        model_entity_obj = ModelEntityInDB(**entity_record)
+        model_instantiated_obj = ModelEntityInDB(**entity_record)
     else:
         # Create new model entity
-        model_entity_obj = ModelEntityInDB(
+        model_instantiated_obj = ModelEntityInDB(
             id=uuid.uuid4(),
             user_id=user_id,
-            name=model_entity_implementation_create.model_entity_create.name,
-            description=model_entity_implementation_create.model_entity_create.description,
+            name=model_instantiated_implementation_create.model_instantiated_create.name,
+            description=model_instantiated_implementation_create.model_instantiated_create.description,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
-        await execute(insert(model_entity).values(**model_entity_obj.model_dump()), commit_after=True)
+        await execute(insert(model_instantiated).values(**model_instantiated_obj.model_dump()), commit_after=True)
 
     # Handle model implementation if provided
-    if model_entity_implementation_create.model_implementation_id or model_entity_implementation_create.model_implementation_create:
+    if model_instantiated_implementation_create.model_implementation_id or model_instantiated_implementation_create.model_implementation_create:
         # Get or create model implementation
-        if model_entity_implementation_create.model_implementation_create:
-            model_impl = await create_model(user_id, model_entity_implementation_create.model_implementation_create)
+        if model_instantiated_implementation_create.model_implementation_create:
+            model_impl = await create_model(user_id, model_instantiated_implementation_create.model_implementation_create)
             model_implementation_id = model_impl.id
         else:
-            model_implementation_id = model_entity_implementation_create.model_implementation_id
+            model_implementation_id = model_instantiated_implementation_create.model_implementation_id
 
         # Validate config against schema
         config_schema_record = await fetch_one(
@@ -321,7 +321,7 @@ async def create_model_entity_implementation(user_id: uuid.UUID, model_entity_im
 
         try:
             jsonschema.validate(
-                model_entity_implementation_create.config,
+                model_instantiated_implementation_create.config,
                 config_schema_record["config_schema"]
             )
         except jsonschema.ValidationError as e:
@@ -331,63 +331,63 @@ async def create_model_entity_implementation(user_id: uuid.UUID, model_entity_im
             )
 
         # Create model entity implementation
-        model_entity_implementation_obj = ModelEntityImplementationInDB(
-            id=model_entity_obj.id,
+        model_instantiated_implementation_obj = ModelEntityImplementationInDB(
+            id=model_instantiated_obj.id,
             model_id=model_implementation_id,
-            config=model_entity_implementation_create.config,
-            weights_save_dir=model_entity_implementation_create.weights_save_dir,
-            pipeline_id=model_entity_implementation_create.pipeline_id,
+            config=model_instantiated_implementation_create.config,
+            weights_save_dir=model_instantiated_implementation_create.weights_save_dir,
+            pipeline_id=model_instantiated_implementation_create.pipeline_id,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
 
-        await execute(insert(model_entity_implementation).values(**model_entity_implementation_obj.model_dump()), commit_after=True)
+        await execute(insert(model_instantiated_implementation).values(**model_instantiated_implementation_obj.model_dump()), commit_after=True)
 
-    return model_entity_obj
+    return model_instantiated_obj
 
 
-async def get_user_model_entities(user_id: uuid.UUID, model_entity_ids: List[uuid.UUID]) -> List[ModelEntity]:
+async def get_user_model_entities(user_id: uuid.UUID, model_instantiated_ids: List[uuid.UUID]) -> List[ModelInstantiated]:
     """
     Fetch model entities with optional implementations.
-    Returns ModelEntity objects with implementation field populated if available.
+    Returns ModelInstantiated objects with implementation field populated if available.
     """
 
     # Fetch base model entities
-    model_entity_query = select(model_entity).where(
-        model_entity.c.id.in_(model_entity_ids),
-        model_entity.c.user_id == user_id
+    model_instantiated_query = select(model_instantiated).where(
+        model_instantiated.c.id.in_(model_instantiated_ids),
+        model_instantiated.c.user_id == user_id
     )
-    model_entity_records = await fetch_all(model_entity_query)
+    model_instantiated_records = await fetch_all(model_instantiated_query)
 
-    if not model_entity_records:
+    if not model_instantiated_records:
         return []
 
-    model_entity_ids = [e["id"] for e in model_entity_records]
+    model_instantiated_ids = [e["id"] for e in model_instantiated_records]
 
     # Fetch implementations (may not exist for all entities)
-    model_entity_implementation_query = select(model_entity_implementation).where(
-        model_entity_implementation.c.id.in_(model_entity_ids)
+    model_instantiated_implementation_query = select(model_instantiated_implementation).where(
+        model_instantiated_implementation.c.id.in_(model_instantiated_ids)
     )
-    model_entity_implementation_records = await fetch_all(model_entity_implementation_query)
+    model_instantiated_implementation_records = await fetch_all(model_instantiated_implementation_query)
 
     # Fetch model implementations if any implementations exist
     model_implementation_objs = []
-    if model_entity_implementation_records:
+    if model_instantiated_implementation_records:
         model_impl_ids = [e["model_id"]
-                          for e in model_entity_implementation_records]
+                          for e in model_instantiated_implementation_records]
         model_implementation_objs = await get_models(model_impl_ids)
 
-    # Build ModelEntity objects
-    model_entity_full_objs = []
-    for entity_id in model_entity_ids:
+    # Build ModelInstantiated objects
+    model_instantiated_full_objs = []
+    for entity_id in model_instantiated_ids:
         # Get base entity
         entity_record = next(
-            (e for e in model_entity_records if e["id"] == entity_id))
+            (e for e in model_instantiated_records if e["id"] == entity_id))
         entity_obj = ModelEntityInDB(**entity_record)
 
         # Get implementation if exists
         impl_record = next(
-            (e for e in model_entity_implementation_records if e["id"] == entity_id), None)
+            (e for e in model_instantiated_implementation_records if e["id"] == entity_id), None)
 
         if impl_record:
             # Entity has implementation
@@ -397,63 +397,63 @@ async def get_user_model_entities(user_id: uuid.UUID, model_entity_ids: List[uui
             entity_implementation_obj = ModelEntityImplementationInDB(
                 **impl_record)
 
-            model_entity_impl = ModelEntityImplementation(
+            model_instantiated_impl = ModelEntityImplementation(
                 **entity_implementation_obj.model_dump(),
                 model_implementation=model_impl_obj
             )
 
-            model_entity_full_objs.append(ModelEntity(
+            model_instantiated_full_objs.append(ModelInstantiated(
                 **entity_obj.model_dump(),
-                implementation=model_entity_impl
+                implementation=model_instantiated_impl
             ))
         else:
             # Entity without implementation (bare entity)
-            model_entity_full_objs.append(ModelEntity(
+            model_instantiated_full_objs.append(ModelInstantiated(
                 **entity_obj.model_dump(),
                 implementation=None
             ))
 
-    return model_entity_full_objs
+    return model_instantiated_full_objs
 
 
-async def set_new_model_entity_config(user_id: uuid.UUID, model_entity_id: uuid.UUID, model_entity_config_update: ModelEntityConfigUpdate) -> ModelEntityInDB:
-    model_entity_obj = (await get_user_model_entities(user_id, [model_entity_id]))[0]
+async def set_new_model_entity_config(user_id: uuid.UUID, model_instantiated_id: uuid.UUID, model_instantiated_config_update: ModelEntityConfigUpdate) -> ModelEntityInDB:
+    model_instantiated_obj = (await get_user_model_entities(user_id, [model_instantiated_id]))[0]
 
     # Check if entity has implementation
-    if not model_entity_obj.implementation:
+    if not model_instantiated_obj.implementation:
         raise HTTPException(
             status_code=400, detail="Model entity has no implementation. Cannot update config.")
 
     # Check if model is already fitted
-    is_fitted = model_entity_obj.implementation.weights_save_dir is not None
+    is_fitted = model_instantiated_obj.implementation.weights_save_dir is not None
     if is_fitted:
         raise HTTPException(
             status_code=400, detail="Model entity is fitted and the config cannot be updated")
 
     # Validate config against schema
     model_record = await fetch_one(
-        select(model_implementation).join(model_entity_implementation).where(
-            model_entity_implementation.c.id == model_entity_id
+        select(model_implementation).join(model_instantiated_implementation).where(
+            model_instantiated_implementation.c.id == model_instantiated_id
         )
     )
 
     try:
         jsonschema.validate(
-            model_entity_config_update.config, model_record["config_schema"])
+            model_instantiated_config_update.config, model_record["config_schema"])
     except jsonschema.ValidationError as e:
         raise HTTPException(
             status_code=400, detail=f"Invalid config: {e.message}")
 
     # Update config
     await execute(
-        update(model_entity_implementation).where(
-            model_entity_implementation.c.id == model_entity_id
-        ).values(**model_entity_config_update.model_dump()),
+        update(model_instantiated_implementation).where(
+            model_instantiated_implementation.c.id == model_instantiated_id
+        ).values(**model_instantiated_config_update.model_dump()),
         commit_after=True
     )
 
     # Return updated entity
-    return (await get_user_model_entities(user_id, [model_entity_id]))[0]
+    return (await get_user_model_entities(user_id, [model_instantiated_id]))[0]
 
 
 async def create_model_source(model_source_create: ModelSourceCreate) -> ModelSource:

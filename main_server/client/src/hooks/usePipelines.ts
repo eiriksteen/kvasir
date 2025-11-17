@@ -70,7 +70,7 @@ async function runPipeline(
     inputs: {
       dataSourceIds: UUID[];
       datasetIds: UUID[];
-      modelEntityIds: UUID[];
+      modelInstantiatedIds: UUID[];
     };
     name?: string;
     description?: string;
@@ -130,7 +130,7 @@ export const usePipelines = (projectId: UUID) => {
        inputs: {
          dataSourceIds: UUID[];
          datasetIds: UUID[];
-         modelEntityIds: UUID[];
+         modelInstantiatedIds: UUID[];
        };
        name?: string;
        description?: string;
@@ -187,7 +187,7 @@ export const usePipelines = (projectId: UUID) => {
               
               // When a pipeline completes we get new datasets and potentially new model entities
               await mutate(["datasets", projectId]);
-              await mutate(["model-entities", projectId])
+              await mutate(["models-instantiated", projectId])
               await mutate("projects");
             }
 
@@ -230,7 +230,7 @@ export const usePipeline = (pipelineId: UUID, projectId: UUID) => {
     inputs: {
       dataSourceIds: UUID[];
       datasetIds: UUID[];
-      modelEntityIds: UUID[];
+      modelInstantiatedIds: UUID[];
     };
     name?: string;
     description?: string;

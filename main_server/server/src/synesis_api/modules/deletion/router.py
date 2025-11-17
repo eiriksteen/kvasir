@@ -36,13 +36,13 @@ async def delete_dataset_endpoint(
     return {"message": "Dataset deleted successfully", "id": str(deleted_id)}
 
 
-@router.delete("/model-entity/{model_entity_id}")
+@router.delete("/model-instantiated/{model_instantiated_id}")
 async def delete_model_entity_endpoint(
-    model_entity_id: UUID,
+    model_instantiated_id: UUID,
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> dict:
     """Delete a model entity and remove it from all projects."""
-    deleted_id = await delete_model_entity_from_project(user.id, model_entity_id)
+    deleted_id = await delete_model_entity_from_project(user.id, model_instantiated_id)
     return {"message": "Model entity deleted successfully", "id": str(deleted_id)}
 
 
@@ -64,4 +64,3 @@ async def delete_analysis_endpoint(
     """Delete an analysis and remove it from all projects."""
     deleted_id = await delete_analysis_from_project(user.id, analysis_id)
     return {"message": "Analysis deleted successfully", "id": str(deleted_id)}
-

@@ -68,7 +68,7 @@ export const useConversationMessages = (conversationId: UUID | null) => {
 export const useProjectChat = (projectId: UUID) => {
   const { data: session } = useSession();
   const { conversations, createConversation, mutateConversations } = useConversations(projectId);
-  const { dataSourcesInContext, datasetsInContext, analysesInContext, pipelinesInContext, modelEntitiesInContext } = useAgentContext(projectId);
+  const { dataSourcesInContext, datasetsInContext, analysesInContext, pipelinesInContext, modelsInstantiatedInContext } = useAgentContext(projectId);
 
   const { data: projectConversationId, mutate: setProjectConversationId } = useSWR(
     session ? ["project-conversation-id", projectId] : null, {fallbackData: null}
@@ -100,7 +100,7 @@ export const useProjectChat = (projectId: UUID) => {
         dataSourceIds: dataSourcesInContext || [],
         datasetIds: datasetsInContext || [],
         pipelineIds: pipelinesInContext || [],
-        modelEntityIds: modelEntitiesInContext || [],
+        modelInstantiatedIds: modelsInstantiatedInContext || [],
         analysisIds: analysesInContext || [],
       };
 
@@ -157,7 +157,7 @@ export const useProjectChat = (projectId: UUID) => {
     datasetsInContext, 
     analysesInContext, 
     pipelinesInContext,
-    modelEntitiesInContext,
+    modelsInstantiatedInContext,
     conversationMessages, 
     projectConversationId, 
     projectId,
@@ -174,7 +174,7 @@ export const useProjectChat = (projectId: UUID) => {
         dataSourceIds: dataSourcesInContext || [],
         datasetIds: datasetsInContext || [],
         pipelineIds: pipelinesInContext || [],
-        modelEntityIds: modelEntitiesInContext || [],
+        modelInstantiatedIds: modelsInstantiatedInContext || [],
         analysisIds: analysesInContext || [],
       };
 
@@ -207,7 +207,7 @@ export const useProjectChat = (projectId: UUID) => {
         }
       };
 
-  }, [session, dataSourcesInContext, datasetsInContext, analysesInContext, pipelinesInContext, modelEntitiesInContext, mutateConversationMessages]);
+  }, [session, dataSourcesInContext, datasetsInContext, analysesInContext, pipelinesInContext, modelsInstantiatedInContext, mutateConversationMessages]);
 
 
 

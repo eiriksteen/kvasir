@@ -45,13 +45,13 @@ def upgrade() -> None:
                           'analysis_id'], ['id'], source_schema='analysis', referent_schema='analysis')
     op.drop_column('dataset_in_analysis',
                    'analysis_object_id', schema='analysis')
-    op.add_column('model_entity_in_analysis', sa.Column(
+    op.add_column('model_instantiated_in_analysis', sa.Column(
         'analysis_id', sa.UUID(), nullable=False), schema='analysis')
     op.drop_constraint(op.f('fk_model_entity_in_analysis_analysis_object_id_analysis_object'),
-                       'model_entity_in_analysis', schema='analysis', type_='foreignkey')
-    op.create_foreign_key(op.f('fk_model_entity_in_analysis_analysis_id_analysis'), 'model_entity_in_analysis', 'analysis', [
+                       'model_instantiated_in_analysis', schema='analysis', type_='foreignkey')
+    op.create_foreign_key(op.f('fk_model_entity_in_analysis_analysis_id_analysis'), 'model_instantiated_in_analysis', 'analysis', [
                           'analysis_id'], ['id'], source_schema='analysis', referent_schema='analysis')
-    op.drop_column('model_entity_in_analysis',
+    op.drop_column('model_instantiated_in_analysis',
                    'analysis_object_id', schema='analysis')
     op.drop_constraint(op.f('fk_analysis_context_analysis_id_analysis_object'),
                        'analysis_context', schema='orchestrator', type_='foreignkey')
@@ -90,13 +90,13 @@ def downgrade() -> None:
                        'analysis_context', schema='orchestrator', type_='foreignkey')
     op.create_foreign_key(op.f('fk_analysis_context_analysis_id_analysis_object'), 'analysis_context', 'analysis_object', [
                           'analysis_id'], ['id'], source_schema='orchestrator', referent_schema='analysis')
-    op.add_column('model_entity_in_analysis', sa.Column('analysis_object_id', sa.UUID(
+    op.add_column('model_instantiated_in_analysis', sa.Column('analysis_object_id', sa.UUID(
     ), autoincrement=False, nullable=False), schema='analysis')
     op.drop_constraint(op.f('fk_model_entity_in_analysis_analysis_id_analysis'),
-                       'model_entity_in_analysis', schema='analysis', type_='foreignkey')
-    op.create_foreign_key(op.f('fk_model_entity_in_analysis_analysis_object_id_analysis_object'), 'model_entity_in_analysis',
+                       'model_instantiated_in_analysis', schema='analysis', type_='foreignkey')
+    op.create_foreign_key(op.f('fk_model_entity_in_analysis_analysis_object_id_analysis_object'), 'model_instantiated_in_analysis',
                           'analysis_object', ['analysis_object_id'], ['id'], source_schema='analysis', referent_schema='analysis')
-    op.drop_column('model_entity_in_analysis',
+    op.drop_column('model_instantiated_in_analysis',
                    'analysis_id', schema='analysis')
     op.add_column('dataset_in_analysis', sa.Column('analysis_object_id', sa.UUID(
     ), autoincrement=False, nullable=False), schema='analysis')

@@ -8,13 +8,15 @@ from pydantic import BaseModel
 
 
 RUN_TYPE_LITERAL = Literal["swe", "analysis", "extraction"]
+RUN_STATUS_LITERAL = Literal["pending", "running",
+                             "completed", "failed", "rejected", "waiting"]
 
 
 class RunInDB(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     type: RUN_TYPE_LITERAL
-    status: Literal["pending", "running", "completed", "failed", "rejected"]
+    status: RUN_STATUS_LITERAL
     run_name: str
     project_id: Optional[uuid.UUID] = None
     conversation_id: Optional[uuid.UUID] = None
@@ -55,7 +57,7 @@ class DatasetInRunInDB(BaseModel):
 
 class ModelEntityInRunInDB(BaseModel):
     run_id: uuid.UUID
-    model_entity_id: uuid.UUID
+    model_instantiated_id: uuid.UUID
     created_at: datetime
 
 
@@ -89,7 +91,7 @@ class PipelineFromRunInDB(BaseModel):
 class RunEntityIds(BaseModel):
     data_source_ids: List[uuid.UUID] = []
     dataset_ids: List[uuid.UUID] = []
-    model_entity_ids: List[uuid.UUID] = []
+    model_instantiated_ids: List[uuid.UUID] = []
     pipeline_ids: List[uuid.UUID] = []
     analysis_ids: List[uuid.UUID] = []
 
@@ -104,8 +106,7 @@ class Run(RunInDB):
 
 class RunCreate(BaseModel):
     type: RUN_TYPE_LITERAL
-    initial_status: Literal["pending", "running",
-                            "completed", "failed"] = "pending"
+    initial_status: RUN_STATUS_LITERAL = "pending"
     run_name: str
     plan_and_deliverable_description_for_user: str
     plan_and_deliverable_description_for_agent: str
@@ -116,7 +117,7 @@ class RunCreate(BaseModel):
     conversation_id: Optional[uuid.UUID] = None
     data_sources_in_run: List[uuid.UUID] = []
     datasets_in_run: List[uuid.UUID] = []
-    model_entities_in_run: List[uuid.UUID] = []
+    model_instantiatedies_in_run: List[uuid.UUID] = []
     pipelines_in_run: List[uuid.UUID] = []
     analyses_in_run: List[uuid.UUID] = []
 
@@ -136,5 +137,5 @@ class RunMessageCreatePydantic(BaseModel):
 
 class RunStatusUpdate(BaseModel):
     run_id: uuid.UUID
-    status: Literal["running", "completed", "failed", "rejected"]
+    status: RUN_STATUS_LITERAL
     summary: Optional[str] = None

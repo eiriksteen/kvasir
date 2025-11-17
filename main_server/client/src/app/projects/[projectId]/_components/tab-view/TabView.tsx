@@ -41,7 +41,7 @@ const TabView: React.FC<CustomTabViewProps> = ({
   const { dataSources } = useDataSources(projectId);
   const { analysisObjects } = useAnalyses(projectId);
   const { pipelines } = usePipelines(projectId);
-  const { modelEntities } = useModelEntities(projectId);
+  const { modelsInstantiated } = useModelEntities(projectId);
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const codeScrollContainerRef = useRef<HTMLDivElement>(null);
@@ -155,7 +155,7 @@ const TabView: React.FC<CustomTabViewProps> = ({
     if (project?.graph.datasets.some(ds => ds.id === id)) return 'dataset';
     if (project?.graph.analyses.some(a => a.id === id)) return 'analysis';
     if (project?.graph.pipelines.some(p => p.id === id)) return 'pipeline';
-    if (project?.graph.modelEntities.some(m => m.id === id)) return 'model_entity';
+    if (project?.graph.modelsInstantiated.some(m => m.id === id)) return 'model_instantiated';
     else return 'code';
 
   };
@@ -177,8 +177,8 @@ const TabView: React.FC<CustomTabViewProps> = ({
         return analysisObjects?.find(a => a.id === id)?.name || '';
       case 'pipeline':
         return pipelines?.find(p => p.id === id)?.name || '';
-      case 'model_entity':
-        return modelEntities?.find(m => m.id === id)?.name || '';
+      case 'model_instantiated':
+        return modelsInstantiated?.find(m => m.id === id)?.name || '';
       default:
         return '';
     }
@@ -228,7 +228,7 @@ const TabView: React.FC<CustomTabViewProps> = ({
           icon: 'text-[#840B08]',
           hover: 'hover:bg-gray-200'
         };
-      case 'model_entity':
+      case 'model_instantiated':
         return {
           bg: 'bg-[#491A32]/10',
           icon: 'text-[#491A32]',
@@ -263,7 +263,7 @@ const TabView: React.FC<CustomTabViewProps> = ({
         return <Bot size={12} className={iconClass} />;
       case 'pipeline':
         return <Zap size={12} className={iconClass} />;
-      case 'model_entity':
+      case 'model_instantiated':
         return <Brain size={12} className={iconClass} />;
       default:
         return null;

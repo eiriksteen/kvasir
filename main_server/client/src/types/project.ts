@@ -1,8 +1,8 @@
 import { UUID } from "crypto";
 import { EntityGraph } from "./entity-graph";
 
-export type EntityType = "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity";
-export type NodeType = "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity";
+export type EntityType = "data_source" | "dataset" | "analysis" | "pipeline" | "model_instantiated";
+export type NodeType = "data_source" | "dataset" | "analysis" | "pipeline" | "model_instantiated";
 
 // DB Models
 
@@ -57,7 +57,7 @@ export interface ProjectPipelineInDB {
 
 export interface ProjectModelEntityInDB {
   projectId: UUID;
-  modelEntityId: UUID;
+  modelInstantiatedId: UUID;
   xPosition: number;
   yPosition: number;
   createdAt: string;

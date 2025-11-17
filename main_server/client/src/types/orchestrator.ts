@@ -50,7 +50,7 @@ export interface DatasetContextInDB {
 
 export interface ModelEntityContextInDB {
   contextId: UUID;
-  modelEntityId: UUID;
+  modelInstantiatedId: UUID;
 }
 
 export interface PipelineContextInDB {
@@ -71,7 +71,7 @@ export interface Context {
   datasetIds: UUID[];
   pipelineIds: UUID[];
   analysisIds: UUID[];
-  modelEntityIds: UUID[];
+  modelInstantiatedIds: UUID[];
 }
 
 export interface ChatMessage extends ChatMessageInDB {
@@ -98,7 +98,7 @@ export interface ContextCreate {
   datasetIds: UUID[];
   pipelineIds: UUID[];
   analysisIds: UUID[];
-  modelEntityIds: UUID[];
+  modelInstantiatedIds: UUID[];
 }
 
 export interface UserChatMessageCreate {

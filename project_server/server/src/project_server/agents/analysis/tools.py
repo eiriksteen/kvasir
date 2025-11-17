@@ -195,7 +195,7 @@ async def generate_analysis_result(
     helper_agent_deps = HelperAgentDeps(
         client=ctx.deps.client,
         container_name=ctx.deps.container_name,
-        model_entities_injected=ctx.deps.model_entities_injected,
+        model_instantiatedies_injected=ctx.deps.model_instantiatedies_injected,
         data_sources_injected=ctx.deps.data_sources_injected,
         datasets_injected=ctx.deps.datasets_injected,
         analysis_id=ctx.deps.analysis_id,

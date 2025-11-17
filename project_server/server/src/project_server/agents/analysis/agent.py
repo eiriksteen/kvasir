@@ -49,7 +49,7 @@ async def analysis_agent_system_prompt(ctx: RunContext[AnalysisDeps]) -> str:
         ctx.deps.client,
         ctx.deps.data_sources_injected,
         ctx.deps.datasets_injected,
-        ctx.deps.model_entities_injected,
+        ctx.deps.model_instantiatedies_injected,
         ctx.deps.analyses_injected,
         []  # pipelines
     )

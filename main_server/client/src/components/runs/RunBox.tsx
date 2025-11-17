@@ -10,7 +10,7 @@ import { usePipelines } from "@/hooks/usePipelines";
 import { useAnalyses } from "@/hooks/useAnalysis";
 import { Dataset } from "@/types/data-objects";
 import { DataSource } from "@/types/data-sources";
-import { ModelEntity } from "@/types/model";
+import { ModelInstantiated } from "@/types/model";
 import { Pipeline } from "@/types/pipeline";
 import { AnalysisSmall } from "@/types/analysis";
 import { useProject } from "@/hooks/useProject";
@@ -129,7 +129,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
   const { run, triggerLaunchRun, triggerRejectRun } = useRun(projectId, runId);
   const { datasets, mutateDatasets } = useDatasets(projectId);
   const { dataSources, mutateDataSources } = useDataSources(projectId);
-  const { modelEntities } = useModelEntities(projectId);
+  const { modelsInstantiated } = useModelEntities(projectId);
   const { pipelines, mutatePipelines } = usePipelines(projectId);
   const { analysisObjects, mutateAnalysisObjects } = useAnalyses(projectId);
   const { getEntityGraphNode } = useProject(projectId);
@@ -165,7 +165,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
   const hasInputs = runNode && (
     runNode.fromEntities.dataSources.length > 0 ||
     runNode.fromEntities.datasets.length > 0 ||
-    runNode.fromEntities.modelEntities.length > 0 ||
+    runNode.fromEntities.modelsInstantiated.length > 0 ||
     runNode.fromEntities.pipelines.length > 0 ||
     runNode.fromEntities.analyses.length > 0
   );
@@ -173,7 +173,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
   const hasOutputs = runNode && (
     runNode.toEntities.dataSources.length > 0 ||
     runNode.toEntities.datasets.length > 0 ||
-    runNode.toEntities.modelEntities.length > 0 ||
+    runNode.toEntities.modelsInstantiated.length > 0 ||
     runNode.toEntities.pipelines.length > 0 ||
     runNode.toEntities.analyses.length > 0
   );
@@ -288,12 +288,12 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                         />
                       );
                     })}
-                    {runNode?.fromEntities.modelEntities.map((modelEntityId) => {
-                      const modelEntity = modelEntities?.find((me: ModelEntity) => me.id === modelEntityId);
+                    {runNode?.fromEntities.modelsInstantiated.map((modelInstantiatedId) => {
+                      const modelInstantiated = modelsInstantiated?.find((me: ModelInstantiated) => me.id === modelInstantiatedId);
                       return (
                         <ModelEntityMini
-                          key={modelEntityId}
-                          name={modelEntity?.name || 'Model'}
+                          key={modelInstantiatedId}
+                          name={modelInstantiated?.name || 'Model'}
                         />
                       );
                     })}
@@ -342,12 +342,12 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                         />
                       );
                     })}
-                    {runNode?.toEntities.modelEntities.map((modelEntityId) => {
-                      const modelEntity = modelEntities?.find((me: ModelEntity) => me.id === modelEntityId);
+                    {runNode?.toEntities.modelsInstantiated.map((modelInstantiatedId) => {
+                      const modelInstantiated = modelsInstantiated?.find((me: ModelInstantiated) => me.id === modelInstantiatedId);
                       return (
                         <ModelEntityMini
-                          key={modelEntityId}
-                          name={modelEntity?.name || 'Model'}
+                          key={modelInstantiatedId}
+                          name={modelInstantiated?.name || 'Model'}
                         />
                       );
                     })}

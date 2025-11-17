@@ -10,7 +10,7 @@ import AddEntityButton from '@/app/projects/[projectId]/_components/entity-sideb
 import EntityOverviewItem from '@/app/projects/[projectId]/_components/entity-sidebar/EntityOverviewItem';
 import { UUID } from 'crypto';
 import { Pipeline } from '@/types/pipeline';
-import { ModelEntity } from '@/types/model';
+import { ModelInstantiated } from '@/types/model';
 import { useAgentContext, useAnalyses, useDatasets, usePipelines, useDataSources } from '@/hooks';
 import { useModelEntities } from '@/hooks/useModelEntities';
 
@@ -42,7 +42,7 @@ export default function EntityTree({ projectId, openTab }: EntityTreeProps) {
         pipelinesInContext,
         addPipelineToContext,
         removePipelineFromContext,
-        modelEntitiesInContext,
+        modelsInstantiatedInContext,
         addModelEntityToContext,
         removeModelEntityFromContext,
     } = useAgentContext(projectId);
@@ -50,7 +50,7 @@ export default function EntityTree({ projectId, openTab }: EntityTreeProps) {
     const { dataSources } = useDataSources(projectId);
     const { datasets } = useDatasets(projectId);
     const { pipelines } = usePipelines(projectId);
-    const { modelEntities } = useModelEntities(projectId);
+    const { modelsInstantiated } = useModelEntities(projectId);
     const { analysisObjects } = useAnalyses(projectId);
 
     const toggleSection = (section: keyof typeof expandedSections) => {
@@ -96,8 +96,8 @@ export default function EntityTree({ projectId, openTab }: EntityTreeProps) {
         }
     };
 
-    const handleModelToggle = (model: ModelEntity) => {
-        const isActive = modelEntitiesInContext.some((m: UUID) => m === model.id);
+    const handleModelToggle = (model: ModelInstantiated) => {
+        const isActive = modelsInstantiatedInContext.some((m: UUID) => m === model.id);
         if (isActive) {
             removeModelEntityFromContext(model.id);
         } else {
@@ -178,24 +178,24 @@ export default function EntityTree({ projectId, openTab }: EntityTreeProps) {
                     <div className="border-b border-gray-200">
                         <EntityOverviewItem
                             title="Models"
-                            count={modelEntities?.length || 0}
+                            count={modelsInstantiated?.length || 0}
                             color="emerald"
                             onToggle={() => toggleSection('models')}
                             projectId={projectId}
                         />
-                        {modelEntities && expandedSections.models && (
+                        {modelsInstantiated && expandedSections.models && (
                             <div className="bg-[#491A32]/10 border-l-2 border-[#491A32]">
-                                {modelEntities.map((model) => (
+                                {modelsInstantiated.map((model) => (
                                     <EntityItem 
                                         key={model.id} 
                                         item={model} 
-                                        type="model_entity" 
-                                        isInContext={modelEntitiesInContext.some((m: UUID) => m === model.id)} 
+                                        type="model_instantiated" 
+                                        isInContext={modelsInstantiatedInContext.some((m: UUID) => m === model.id)} 
                                         onClick={() => handleModelToggle(model)}
                                         onOpenTab={() => openTab(model.id, true)}
                                     />
                                 ))}
-                                {modelEntities.length === 0 && (
+                                {modelsInstantiated.length === 0 && (
                                     <div className="px-3 py-4 text-center">
                                         <Brain size={16} className="text-[#491A32]/40 mx-auto mb-2" />
                                         <p className="text-xs text-gray-500">No models</p>

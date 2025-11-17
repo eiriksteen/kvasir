@@ -9,7 +9,7 @@ from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.analysis.service import create_analysis
 from synesis_api.modules.pipeline.service import create_pipeline
 from synesis_api.modules.project.service import add_entity_to_project
-from synesis_schemas.main_server import (
+from synesis_api.modules.runs.schema import (
     RunInDB,
     DataSourceInRunInDB,
     RunCreate,
@@ -18,12 +18,7 @@ from synesis_schemas.main_server import (
     PipelineInRunInDB,
     AnalysisFromRunInDB,
     PipelineFromRunInDB,
-    PipelineCreate,
-    AddEntityToProject,
-    AnalysisCreate,
     AnalysisInRunInDB,
-    EdgesCreate,
-    EdgeDefinition,
     Run,
     RunEntityIds,
     RunStatusUpdate,
@@ -32,7 +27,11 @@ from synesis_schemas.main_server import (
     RunMessageInDB,
     RunPydanticMessageInDB,
 )
-from synesis_schemas.project_server import RunAnalysisRequest, RunSWERequest
+from synesis_api.modules.project.schema import AddEntityToProject
+from kvasir_ontology.main_server.pipeline import PipelineCreate
+from kvasir_ontology.main_server.analysis import AnalysisCreate
+from kvasir_ontology.main_server.entity_graph import EdgesCreate, EdgeDefinition
+from kvasir_ontology.project_server.agent import RunAnalysisRequest, RunSWERequest
 from synesis_api.modules.entity_graph.service import create_edges
 from synesis_api.modules.runs.models import (
     run,
@@ -40,19 +39,18 @@ from synesis_api.modules.runs.models import (
     run_message,
     data_source_in_run,
     dataset_in_run,
-    model_entity_in_run,
+    model_instantiated_in_run,
     pipeline_in_run,
     pipeline_from_run,
     analysis_from_run,
     analysis_in_run,
     data_source_from_run,
     dataset_from_run,
-    model_entity_from_run,
+    model_instantiated_from_run,
 )
 
 
 async def create_run(user_id: uuid.UUID, run_create: RunCreate) -> RunInDB:
-
     run_record = RunInDB(
         id=uuid.uuid4(),
         user_id=user_id,
@@ -63,7 +61,7 @@ async def create_run(user_id: uuid.UUID, run_create: RunCreate) -> RunInDB:
 
     data_sources_in_run_records = []
     datasets_in_run_records = []
-    model_entities_in_run_records = []
+    model_instantiatedies_in_run_records = []
     pipelines_in_run_records = []
     analysis_in_run_records = []
 
@@ -79,10 +77,10 @@ async def create_run(user_id: uuid.UUID, run_create: RunCreate) -> RunInDB:
             dataset_id=dataset_id,
             created_at=datetime.now(timezone.utc)
         ).model_dump())
-    for model_entity_id in run_create.model_entities_in_run:
-        model_entities_in_run_records.append(ModelEntityInRunInDB(
+    for model_instantiated_id in run_create.model_instantiatedies_in_run:
+        model_instantiatedies_in_run_records.append(ModelEntityInRunInDB(
             run_id=run_record.id,
-            model_entity_id=model_entity_id,
+            model_instantiated_id=model_instantiated_id,
             created_at=datetime.now(timezone.utc)
         ).model_dump())
     for pipeline_id in run_create.pipelines_in_run:
@@ -120,8 +118,8 @@ async def create_run(user_id: uuid.UUID, run_create: RunCreate) -> RunInDB:
         await execute(insert(data_source_in_run).values(data_sources_in_run_records), commit_after=True)
     if datasets_in_run_records:
         await execute(insert(dataset_in_run).values(datasets_in_run_records), commit_after=True)
-    if model_entities_in_run_records:
-        await execute(insert(model_entity_in_run).values(model_entities_in_run_records), commit_after=True)
+    if model_instantiatedies_in_run_records:
+        await execute(insert(model_instantiated_in_run).values(model_instantiatedies_in_run_records), commit_after=True)
     if analysis_in_run_records:
         await execute(insert(analysis_in_run).values(analysis_in_run_records), commit_after=True)
     if pipelines_in_run_records:
@@ -144,9 +142,9 @@ async def launch_run(user_id: uuid.UUID, client: MainServerClient, run_id: uuid.
     dataset_ids = [rec["dataset_id"] for rec in await fetch_all(
         select(dataset_in_run).where(
             dataset_in_run.c.run_id == run_id))]
-    model_entity_ids = [rec["model_entity_id"] for rec in await fetch_all(
-        select(model_entity_in_run).where(
-            model_entity_in_run.c.run_id == run_id))]
+    model_instantiated_ids = [rec["model_instantiated_id"] for rec in await fetch_all(
+        select(model_instantiated_in_run).where(
+            model_instantiated_in_run.c.run_id == run_id))]
     analysis_ids = [rec["analysis_id"] for rec in await fetch_all(
         select(analysis_in_run).where(
             analysis_in_run.c.run_id == run_id))]
@@ -178,7 +176,7 @@ async def launch_run(user_id: uuid.UUID, client: MainServerClient, run_id: uuid.
                 description=run_record.plan_and_deliverable_description_for_agent,
                 # input_data_source_ids=data_source_ids,
                 # input_dataset_ids=dataset_ids,
-                # input_model_entity_ids=model_entity_ids,
+                # input_model_entity_ids=model_instantiated_ids,
                 # input_analysis_ids=analysis_ids
             )
             target_entity_id = (await create_pipeline(pipeline_create=pipeline_create, user_id=user_id)).id
@@ -211,11 +209,11 @@ async def launch_run(user_id: uuid.UUID, client: MainServerClient, run_id: uuid.
                     ) for dataset_id in dataset_ids
                 ] + [
                     EdgeDefinition(
-                        from_node_type="model_entity",
-                        from_node_id=model_entity_id,
+                        from_node_type="model_instantiated",
+                        from_node_id=model_instantiated_id,
                         to_node_type="pipeline",
                         to_node_id=target_entity_id
-                    ) for model_entity_id in model_entity_ids
+                    ) for model_instantiated_id in model_instantiated_ids
                 ]
             )
             if edges_create.edges:
@@ -229,7 +227,7 @@ async def launch_run(user_id: uuid.UUID, client: MainServerClient, run_id: uuid.
             prompt_content=run_record.plan_and_deliverable_description_for_user,
             input_data_source_ids=data_source_ids,
             input_dataset_ids=dataset_ids,
-            input_model_entity_ids=model_entity_ids,
+            input_model_entity_ids=model_instantiated_ids,
             input_analysis_ids=analysis_ids,
         ))
 
@@ -270,11 +268,11 @@ async def launch_run(user_id: uuid.UUID, client: MainServerClient, run_id: uuid.
                     ) for dataset_id in dataset_ids
                 ] + [
                     EdgeDefinition(
-                        from_node_type="model_entity",
-                        from_node_id=model_entity_id,
+                        from_node_type="model_instantiated",
+                        from_node_id=model_instantiated_id,
                         to_node_type="analysis",
                         to_node_id=target_entity_id
-                    ) for model_entity_id in model_entity_ids
+                    ) for model_instantiated_id in model_instantiated_ids
                 ]
             )
             if edges_create.edges:
@@ -288,7 +286,7 @@ async def launch_run(user_id: uuid.UUID, client: MainServerClient, run_id: uuid.
             conversation_id=run_record.conversation_id,
             input_dataset_ids=dataset_ids,
             input_data_source_ids=data_source_ids,
-            input_model_entity_ids=model_entity_ids,
+            input_model_entity_ids=model_instantiated_ids,
             input_analysis_ids=analysis_ids
         ))
 
@@ -341,9 +339,9 @@ async def get_runs(
     datasets_in_runs = await fetch_all(
         select(dataset_in_run).where(dataset_in_run.c.run_id.in_(run_id_list))
     )
-    model_entities_in_runs = await fetch_all(
-        select(model_entity_in_run).where(
-            model_entity_in_run.c.run_id.in_(run_id_list))
+    model_instantiatedies_in_runs = await fetch_all(
+        select(model_instantiated_in_run).where(
+            model_instantiated_in_run.c.run_id.in_(run_id_list))
     )
     pipelines_in_runs = await fetch_all(
         select(pipeline_in_run).where(
@@ -362,9 +360,9 @@ async def get_runs(
         select(dataset_from_run).where(
             dataset_from_run.c.run_id.in_(run_id_list))
     )
-    model_entities_from_runs = await fetch_all(
-        select(model_entity_from_run).where(
-            model_entity_from_run.c.run_id.in_(run_id_list))
+    model_instantiatedies_from_runs = await fetch_all(
+        select(model_instantiated_from_run).where(
+            model_instantiated_from_run.c.run_id.in_(run_id_list))
     )
     pipelines_from_runs = await fetch_all(
         select(pipeline_from_run).where(
@@ -384,8 +382,8 @@ async def get_runs(
                              for r in data_sources_in_runs if r["run_id"] == run_id],
             dataset_ids=[r["dataset_id"]
                          for r in datasets_in_runs if r["run_id"] == run_id],
-            model_entity_ids=[r["model_entity_id"]
-                              for r in model_entities_in_runs if r["run_id"] == run_id],
+            model_instantiated_ids=[r["model_instantiated_id"]
+                                    for r in model_instantiatedies_in_runs if r["run_id"] == run_id],
             pipeline_ids=[r["pipeline_id"]
                           for r in pipelines_in_runs if r["run_id"] == run_id],
             analysis_ids=[r["analysis_id"]
@@ -398,8 +396,8 @@ async def get_runs(
                              for r in data_sources_from_runs if r["run_id"] == run_id],
             dataset_ids=[r["dataset_id"]
                          for r in datasets_from_runs if r["run_id"] == run_id],
-            model_entity_ids=[r["model_entity_id"]
-                              for r in model_entities_from_runs if r["run_id"] == run_id],
+            model_instantiated_ids=[r["model_instantiated_id"]
+                                    for r in model_instantiatedies_from_runs if r["run_id"] == run_id],
             pipeline_ids=[r["pipeline_id"]
                           for r in pipelines_from_runs if r["run_id"] == run_id],
             analysis_ids=[r["analysis_id"]

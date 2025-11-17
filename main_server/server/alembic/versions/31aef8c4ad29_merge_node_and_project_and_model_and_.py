@@ -74,7 +74,7 @@ def upgrade() -> None:
     op.drop_table('pipeline_node', schema='node')
     op.drop_table('data_source_node', schema='node')
     op.drop_table('analysis_node', schema='node')
-    op.drop_table('model_entity_node', schema='node')
+    op.drop_table('model_instantiated_node', schema='node')
     op.drop_table('dataset_node', schema='node')
     op.drop_table('node', schema='node')
 
@@ -173,17 +173,17 @@ def downgrade() -> None:
                         'id', name=op.f('dataset_node_pkey')),
                     schema='node'
                     )
-    op.create_table('model_entity_node',
+    op.create_table('model_instantiated_node',
                     sa.Column('id', sa.UUID(),
                               autoincrement=False, nullable=False),
-                    sa.Column('model_entity_id', sa.UUID(),
+                    sa.Column('model_instantiated_id', sa.UUID(),
                               autoincrement=False, nullable=False),
                     sa.ForeignKeyConstraint(
-                        ['id'], ['node.node.id'], name=op.f('model_entity_node_id_fkey')),
-                    sa.ForeignKeyConstraint(['model_entity_id'], ['model.model_entity.id'], name=op.f(
-                        'model_entity_node_model_entity_id_fkey')),
+                        ['id'], ['node.node.id'], name=op.f('model_instantiated_node_id_fkey')),
+                    sa.ForeignKeyConstraint(['model_instantiated_id'], ['model.model_instantiated.id'], name=op.f(
+                        'model_instantiated_node_model_entity_id_fkey')),
                     sa.PrimaryKeyConstraint(
-                        'id', name=op.f('model_entity_node_pkey')),
+                        'id', name=op.f('model_instantiated_node_pkey')),
                     schema='node'
                     )
     op.create_table('node',

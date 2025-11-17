@@ -5,36 +5,36 @@ import { useModelEntity } from '@/hooks/useModelEntities';
 import { useAgentContext } from '@/hooks/useAgentContext';
 
 interface ModelEntityBoxProps {
-  modelEntityId: UUID;
+  modelInstantiatedId: UUID;
   projectId: UUID;
   openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void;
 }
 
-export default function ModelEntityBox({ modelEntityId, projectId, openTab }: ModelEntityBoxProps) {
-  const { modelEntity } = useModelEntity(projectId, modelEntityId);
+export default function ModelEntityBox({ modelInstantiatedId, projectId, openTab }: ModelEntityBoxProps) {
+  const { modelInstantiated } = useModelEntity(projectId, modelInstantiatedId);
   const { 
-    modelEntitiesInContext, 
+    modelsInstantiatedInContext, 
     addModelEntityToContext, 
     removeModelEntityFromContext 
   } = useAgentContext(projectId);
   
-  const isInContext = modelEntitiesInContext.includes(modelEntityId);
+  const isInContext = modelsInstantiatedInContext.includes(modelInstantiatedId);
 
   const handleClick = (event: React.MouseEvent) => {
     if (event.metaKey || event.ctrlKey) {
       // Cmd+click or Ctrl+click - add to context
       if (isInContext) {
-        removeModelEntityFromContext(modelEntityId);
+        removeModelEntityFromContext(modelInstantiatedId);
       } else {
-        addModelEntityToContext(modelEntityId);
+        addModelEntityToContext(modelInstantiatedId);
       }
     } else {
       // Regular click - open tab
-      openTab(modelEntityId, true);
+      openTab(modelInstantiatedId, true);
     }
   };
 
-  if (!modelEntity) {
+  if (!modelInstantiated) {
     return null;
   }
 
@@ -55,7 +55,7 @@ export default function ModelEntityBox({ modelEntityId, projectId, openTab }: Mo
         <div className="text-[#491A32] font-mono text-xs">Model</div>
       </div>
       <div>
-        <div className="text-xs font-mono text-gray-800 break-words">{modelEntity.name}</div>
+        <div className="text-xs font-mono text-gray-800 break-words">{modelInstantiated.name}</div>
       </div>
       </div>
     </div>

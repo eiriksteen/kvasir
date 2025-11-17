@@ -10,7 +10,7 @@ from project_server.agents.extraction.helper_agent import (
     data_source_agent,
     dataset_agent,
     pipeline_agent,
-    model_entity_agent,
+    model_instantiated_agent,
     HelperDeps
 )
 from project_server.client import ProjectClient
@@ -42,7 +42,7 @@ from synesis_schemas.main_server import (
 class EntityToCreate(BaseModel):
     name: str
     type: Literal["data_source", "dataset", "analysis",
-                  "pipeline", "model_entity"]
+                  "pipeline", "model_instantiated"]
     description: str
     data_file_paths: List[str] = []
     code_file_paths: List[str] = []
@@ -69,7 +69,7 @@ ENTITY_TYPE_TO_AGENT = {
     "dataset": dataset_agent,
     # "analysis": analysis_agent,
     "pipeline": pipeline_agent,
-    "model_entity": model_entity_agent
+    "model_instantiated": model_instantiated_agent
 }
 
 
@@ -88,8 +88,8 @@ def _find_entity_id_in_project_graph(
         entity_list = project.graph.pipelines
     elif entity_type == "analysis":
         entity_list = project.graph.analyses
-    elif entity_type == "model_entity":
-        entity_list = project.graph.model_entities
+    elif entity_type == "model_instantiated":
+        entity_list = project.graph.model_instantiatedies
     elif entity_type == "pipeline_run":
         for pipeline in project.graph.pipelines:
             for run in pipeline.runs:
@@ -189,18 +189,18 @@ async def submit_entities_to_create(
                 if ctx.deps.log_message:
                     await ctx.deps.log_message(f"CREATED PIPELINE", "result")
 
-            elif entity.type == "model_entity":
+            elif entity.type == "model_instantiated":
                 # Create base model entity
-                model_entity_create = ModelEntityCreate(
+                model_instantiated_create = ModelEntityCreate(
                     name=entity.name,
                     description=entity.description
                 )
-                result = await post_model_entity(ctx.deps.client, model_entity_create)
+                result = await post_model_entity(ctx.deps.client, model_instantiated_create)
                 name_to_id_map[entity.name] = result.id
                 # Add to project
                 await post_add_entity(ctx.deps.client, AddEntityToProject(
                     project_id=ctx.deps.project.id,
-                    entity_type="model_entity",
+                    entity_type="model_instantiated",
                     entity_id=result.id
                 ))
                 # Update entity_id for specialized agent

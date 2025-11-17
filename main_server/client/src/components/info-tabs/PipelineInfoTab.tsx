@@ -9,7 +9,7 @@ import { useProject } from '@/hooks/useProject';
 import { SquarePlay, Info, FileText, ArrowDownRight, Trash2 } from 'lucide-react';
 import { Dataset } from '@/types/data-objects';
 import { DataSource } from '@/types/data-sources';
-import { ModelEntity } from '@/types/model';
+import { ModelInstantiated } from '@/types/model';
 import { RunInDB } from '@/types/runs';
 import { mutate } from 'swr';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
@@ -39,7 +39,7 @@ export default function PipelineInfoTab({
   const { runs } = useRuns(projectId);
   const { datasets } = useDatasets(projectId);
   const { dataSources } = useDataSources(projectId);
-  const { modelEntities } = useModelEntities(projectId);
+  const { modelsInstantiated } = useModelEntities(projectId);
   const { getEntityGraphNode } = useProject(projectId);
   
   const isInProgress = !pipeline?.implementation;
@@ -252,19 +252,19 @@ export default function PipelineInfoTab({
                         />
                       );
                     })}
-                    {pipelineNode.fromEntities.modelEntities.map((modelEntityId) => {
-                      const modelEntity = modelEntities?.find((me: ModelEntity) => me.id === modelEntityId);
+                    {pipelineNode.fromEntities.modelsInstantiated.map((modelInstantiatedId) => {
+                      const modelInstantiated = modelsInstantiated?.find((me: ModelInstantiated) => me.id === modelInstantiatedId);
                       return (
                         <ModelEntityMini
-                          key={modelEntityId}
-                          name={modelEntity?.name || 'Model'}
+                          key={modelInstantiatedId}
+                          name={modelInstantiated?.name || 'Model'}
                           size="sm"
                         />
                       );
                     })}
                     {pipelineNode.fromEntities.dataSources.length === 0 &&
                      pipelineNode.fromEntities.datasets.length === 0 &&
-                     pipelineNode.fromEntities.modelEntities.length === 0 && (
+                     pipelineNode.fromEntities.modelsInstantiated.length === 0 && (
                       <p className="text-sm text-gray-400 italic">No input entities</p>
                     )}
                   </div>

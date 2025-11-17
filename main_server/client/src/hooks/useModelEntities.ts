@@ -1,7 +1,7 @@
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { useSession } from "next-auth/react";
-import { ModelEntity } from "@/types/model";
+import { ModelInstantiated } from "@/types/model";
 import { snakeToCamelKeys } from "@/lib/utils";
 import { UUID } from "crypto";
 import { useMemo } from "react";
@@ -9,8 +9,8 @@ import { mutate } from "swr";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-async function fetchModelEntities(token: string, projectId: UUID): Promise<ModelEntity[]> {
-  const response = await fetch(`${API_URL}/project/project-model-entities/${projectId}`, {
+async function fetchModelEntities(token: string, projectId: UUID): Promise<ModelInstantiated[]> {
+  const response = await fetch(`${API_URL}/project/project-models-instantiated/${projectId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -26,8 +26,8 @@ async function fetchModelEntities(token: string, projectId: UUID): Promise<Model
   return snakeToCamelKeys(data);
 }
 
-async function deleteModelEntityEndpoint(token: string, modelEntityId: UUID): Promise<void> {
-  const response = await fetch(`${API_URL}/deletion/model-entity/${modelEntityId}`, {
+async function deleteModelEntityEndpoint(token: string, modelInstantiatedId: UUID): Promise<void> {
+  const response = await fetch(`${API_URL}/deletion/model-instantiated/${modelInstantiatedId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -44,31 +44,31 @@ async function deleteModelEntityEndpoint(token: string, modelEntityId: UUID): Pr
 
 export const useModelEntities = (projectId: UUID) => {
   const {data: session} = useSession();
-  const {data, error, isLoading, mutate: mutateModelEntities} = useSWR(session ? ["model-entities", projectId] : null, () => fetchModelEntities(session ? session.APIToken.accessToken : "", projectId));
+  const {data, error, isLoading, mutate: mutateModelEntities} = useSWR(session ? ["models-instantiated", projectId] : null, () => fetchModelEntities(session ? session.APIToken.accessToken : "", projectId));
 
   const { trigger: deleteModelEntity } = useSWRMutation(
-    session ? ["model-entities", projectId] : null,
-    async (_, { arg }: { arg: { modelEntityId: UUID } }) => {
-      await deleteModelEntityEndpoint(session ? session.APIToken.accessToken : "", arg.modelEntityId);
+    session ? ["models-instantiated", projectId] : null,
+    async (_, { arg }: { arg: { modelInstantiatedId: UUID } }) => {
+      await deleteModelEntityEndpoint(session ? session.APIToken.accessToken : "", arg.modelInstantiatedId);
       await mutateModelEntities();
       await mutate(["projects"]);
     }
   );
 
   return {
-    modelEntities: data,
+    modelsInstantiated: data,
     isLoading,
     isError: error,
     deleteModelEntity,
   };
 }; 
 
-export const useModelEntity = (projectId: UUID, modelEntityId: UUID) => {
-  const { modelEntities: models } = useModelEntities(projectId);
+export const useModelEntity = (projectId: UUID, modelInstantiatedId: UUID) => {
+  const { modelsInstantiated: models } = useModelEntities(projectId);
 
-  const modelEntity = useMemo(() => models?.find(modelEntity => modelEntity.id === modelEntityId), [models, modelEntityId]);
+  const modelInstantiated = useMemo(() => models?.find(modelInstantiated => modelInstantiated.id === modelInstantiatedId), [models, modelInstantiatedId]);
 
   return {
-    modelEntity,
+    modelInstantiated,
   };
 };

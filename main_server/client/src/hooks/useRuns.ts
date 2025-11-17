@@ -348,8 +348,8 @@ export const useProjectRunMessages = (projectId: UUID) => {
                 mutate(["pipelines", projectId]);
                 mutate("projects");
               }
-              if (streamedMessage.content.includes("CREATED MODEL ENTITY")) {
-                mutate(["model-entities", projectId]);
+              if (streamedMessage.content.includes("CREATED MODEL INSTANTIATED")) {
+                mutate(["models-instantiated", projectId]);
               } 
             }
           }

@@ -287,13 +287,13 @@ export const useProject = (projectId?: UUID) => {
                 )
               }
             };
-          case "model_entity":
+          case "model_instantiated":
             return {
               ...p,
               projectNodes: {
                 ...p.projectNodes,
                 projectModelEntities: p.projectNodes.projectModelEntities.map(me => 
-                  me.modelEntityId === arg.entityId 
+                  me.modelInstantiatedId === arg.entityId 
                     ? { ...me, xPosition: arg.xPosition, yPosition: arg.yPosition }
                     : me
                 )
@@ -368,7 +368,7 @@ export const useProject = (projectId?: UUID) => {
 
   // Unified function to add any entity to project
   const addEntity = async (
-    entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity", 
+    entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_instantiated", 
     entityId: UUID
   ) => {
     if (!project) return;
@@ -384,7 +384,7 @@ export const useProject = (projectId?: UUID) => {
   };
 
   // Unified function to remove any entity from project
-  const removeEntity = async (entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity", entityId: UUID) => {
+  const removeEntity = async (entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_instantiated", entityId: UUID) => {
     if (!project) return;
 
     // Update the project to remove the entity
@@ -414,8 +414,8 @@ export const useProject = (projectId?: UUID) => {
     const analysis = project.graph.analyses.find(a => a.id === entityId);
     if (analysis) return analysis;
 
-    const modelEntity = project.graph.modelEntities.find(me => me.id === entityId);
-    if (modelEntity) return modelEntity;
+    const modelInstantiated = project.graph.modelsInstantiated.find(me => me.id === entityId);
+    if (modelInstantiated) return modelInstantiated;
 
     return null;
   }, [project?.graph]);

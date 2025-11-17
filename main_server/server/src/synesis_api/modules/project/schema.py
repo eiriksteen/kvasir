@@ -4,13 +4,13 @@ from uuid import UUID
 from pydantic import model_validator
 from pydantic import BaseModel
 
-from .entity_graph import EntityGraph
+from kvasir_ontology.main_server.entity_graph import EntityGraph
 
 # DB Schemas
 
 
 ENTITY_TYPE_LITERAL = Literal["data_source", "dataset",
-                              "analysis", "pipeline", "model_entity"]
+                              "analysis", "pipeline", "model_instantiated"]
 
 
 class ProjectInDB(BaseModel):
@@ -64,7 +64,7 @@ class ProjectPipelineInDB(BaseModel):
 
 class ProjectModelEntityInDB(BaseModel):
     project_id: UUID
-    model_entity_id: UUID
+    model_instantiated_id: UUID
     x_position: float
     y_position: float
     created_at: datetime = datetime.now(timezone.utc)

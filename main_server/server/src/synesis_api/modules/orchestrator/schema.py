@@ -36,13 +36,6 @@ class ChatMessageInDB(BaseModel):
     created_at: datetime = datetime.now(timezone.utc)
 
 
-class ChatPydanticMessageInDB(BaseModel):
-    id: uuid.UUID
-    conversation_id: uuid.UUID
-    message_list: bytes
-    created_at: datetime = datetime.now(timezone.utc)
-
-
 class ContextInDB(BaseModel):
     id: uuid.UUID
 
@@ -59,7 +52,7 @@ class DatasetContextInDB(BaseModel):
 
 class ModelEntityContextInDB(BaseModel):
     context_id: uuid.UUID
-    model_entity_id: uuid.UUID
+    model_instantiated_id: uuid.UUID
 
 
 class PipelineContextInDB(BaseModel):
@@ -81,7 +74,7 @@ class Context(BaseModel):
     dataset_ids: List[uuid.UUID] = []
     pipeline_ids: List[uuid.UUID] = []
     analysis_ids: List[uuid.UUID] = []
-    model_entity_ids: List[uuid.UUID] = []
+    model_instantiated_ids: List[uuid.UUID] = []
 
 
 class ChatMessage(ChatMessageInDB):
@@ -107,7 +100,7 @@ class ContextCreate(BaseModel):
     dataset_ids: List[uuid.UUID] = []
     pipeline_ids: List[uuid.UUID] = []
     analysis_ids: List[uuid.UUID] = []
-    model_entity_ids: List[uuid.UUID] = []
+    model_instantiated_ids: List[uuid.UUID] = []
 
 
 class UserChatMessageCreate(BaseModel):

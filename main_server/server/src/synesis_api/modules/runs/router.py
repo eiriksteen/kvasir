@@ -9,10 +9,10 @@ from typing import Annotated, List, Optional
 from pydantic import TypeAdapter
 
 from synesis_api.auth.service import get_current_user, user_owns_runs, oauth2_scheme
-from synesis_schemas.main_server import User
+from synesis_api.auth.schema import User
 from synesis_api.redis import get_redis
 from synesis_api.app_secrets import SSE_MAX_TIMEOUT, SSE_MIN_SLEEP_TIME
-from synesis_schemas.main_server import (
+from synesis_api.modules.runs.schema import (
     RunMessageInDB,
     Run,
     RunCreate,

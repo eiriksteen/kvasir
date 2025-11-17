@@ -14,14 +14,14 @@ from cryptography.hazmat.primitives.asymmetric.types import (
     PublicKeyTypes,
 )
 
-from synesis_schemas.main_server import User, UserInDB, TokenData, UserCreate, JWKSEntry, JWKSData
+from synesis_api.auth.schema import User, UserInDB, TokenData, UserCreate, JWKSEntry, JWKSData
 from synesis_api.auth.models import users
 from synesis_api.modules.orchestrator.models import conversation
 from synesis_api.modules.runs.models import run
 from synesis_api.modules.data_objects.models import dataset, object_group, data_object
 from synesis_api.modules.data_sources.models import data_source
 from synesis_api.modules.project.models import project
-from synesis_api.modules.model.models import model_entity_implementation, model_source
+from synesis_api.modules.model.models import model_instantiated_implementation, model_source
 from synesis_api.modules.pipeline.models import pipeline_run, pipeline
 from synesis_api.app_secrets import PRIVATE_KEY_FILE_PATH, PUBLIC_KEY_FILE_PATH
 from synesis_api.database.service import fetch_one, execute, fetch_all
@@ -241,9 +241,9 @@ async def user_can_access_model_source(user_id: uuid.UUID, model_source_id: uuid
     return model_source_record is not None
 
 
-async def user_owns_model_entity(user_id: uuid.UUID, model_entity_id: uuid.UUID) -> bool:
-    model_entity_record = await fetch_one(select(model_entity_implementation).where(model_entity_implementation.c.id == model_entity_id, model_entity_implementation.c.user_id == user_id))
-    return model_entity_record is not None
+async def user_owns_model_entity(user_id: uuid.UUID, model_instantiated_id: uuid.UUID) -> bool:
+    model_instantiated_record = await fetch_one(select(model_instantiated_implementation).where(model_instantiated_implementation.c.id == model_instantiated_id, model_instantiated_implementation.c.user_id == user_id))
+    return model_instantiated_record is not None
 
 
 async def user_owns_pipeline(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> bool:

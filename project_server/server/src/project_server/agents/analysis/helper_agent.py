@@ -56,7 +56,8 @@ class HelperAgentDeps:
     data_sources_injected: List[uuid.UUID] = field(default_factory=list)
     datasets_injected: List[uuid.UUID] = field(default_factory=list)
     analyses_injected: List[uuid.UUID] = field(default_factory=list)
-    model_entities_injected: List[uuid.UUID] = field(default_factory=list)
+    model_instantiatedies_injected: List[uuid.UUID] = field(
+        default_factory=list)
 
     # Outputs of the tool calls
     code: Optional[str] = None
@@ -95,7 +96,7 @@ async def analysis_helper_agent_system_prompt(ctx: RunContext[HelperAgentDeps]) 
         ctx.deps.client,
         ctx.deps.data_sources_injected,
         ctx.deps.datasets_injected,
-        ctx.deps.model_entities_injected,
+        ctx.deps.model_instantiatedies_injected,
         ctx.deps.analyses_injected,
         []  # pipelines
     )

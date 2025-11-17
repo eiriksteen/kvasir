@@ -178,7 +178,7 @@ export default function EntitySidebar({ projectId, openTab }: EntitySidebarProps
                         {/* Centered entity buttons */}
                         <div className="flex-1 flex flex-col items-center justify-center gap-2">
                             <AddEntityButton type="dataset" size={11} projectId={projectId} />
-                            <AddEntityButton type="model_entity" size={11} projectId={projectId} />
+                            <AddEntityButton type="model_instantiated" size={11} projectId={projectId} />
                             <AddEntityButton type="analysis" size={11} projectId={projectId} />
                             <AddEntityButton type="pipeline" size={11} projectId={projectId} />
                         </div>

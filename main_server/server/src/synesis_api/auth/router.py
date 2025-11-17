@@ -12,7 +12,7 @@ from synesis_api.auth.service import (
     get_user_by_id,
     get_jwks
 )
-from synesis_schemas.main_server import User, UserCreate, UserWithToken, JWKSData
+from synesis_api.auth.schema import User, UserCreate, UserWithToken, JWKSData
 from synesis_api.app_secrets import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS, DEV
 from datetime import timedelta
 

@@ -101,10 +101,10 @@ const PipelineNodeWrapper = ({ data }: { data: { pipelineId: UUID; projectId: UU
   </>
 );
 
-const ModelEntityNodeWrapper = ({ data }: { data: { modelEntityId: UUID; projectId: UUID; openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void } }) => (
+const ModelEntityNodeWrapper = ({ data }: { data: { modelInstantiatedId: UUID; projectId: UUID; openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void } }) => (
   <>
     <ModelEntityBox
-      modelEntityId={data.modelEntityId}
+      modelInstantiatedId={data.modelInstantiatedId}
       projectId={data.projectId}
       openTab={data.openTab}
     />
@@ -124,7 +124,7 @@ const nodeTypes = {
   analysis: AnalysisNodeWrapper,
   dataSource: DataSourceNodeWrapper,
   pipeline: PipelineNodeWrapper,
-  modelEntity: ModelEntityNodeWrapper,
+  modelInstantiated: ModelEntityNodeWrapper,
 };
 
 const edgeTypes: EdgeTypes = {
@@ -148,7 +148,7 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
         return '#004806'; // Analysis color
       case 'pipeline':
         return '#840B08'; // Pipeline color
-      case 'modelEntity':
+      case 'modelInstantiated':
         return '#491A32'; // Model entity color
       default:
         return '#0E4F70'; // Default dataset color
@@ -255,15 +255,15 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
     });
 
     // Add model entity nodes
-    project.graph.modelEntities.forEach((me) => {
-      const position = project.projectNodes.projectModelEntities.find(p => p.modelEntityId === me.id);
+    project.graph.modelsInstantiated.forEach((me) => {
+      const position = project.projectNodes.projectModelEntities.find(p => p.modelInstantiatedId === me.id);
       if (position) {
         nodes.push({
           id: me.id,
-          type: 'modelEntity',
+          type: 'modelInstantiated',
           position: { x: position.xPosition, y: position.yPosition },
           data: {
-            modelEntityId: me.id,
+            modelInstantiatedId: me.id,
             projectId: projectId,
             openTab,
           },
@@ -294,7 +294,7 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
     const createEdge = (
       sourceId: UUID,
       targetId: UUID,
-      sourceType: 'dataSource' | 'dataset' | 'analysis' | 'pipeline' | 'modelEntity'
+      sourceType: 'dataSource' | 'dataset' | 'analysis' | 'pipeline' | 'modelInstantiated'
     ): Edge | null => {
       const sourcePos = getEntityPosition(sourceId);
       const targetPos = getEntityPosition(targetId);
@@ -322,9 +322,9 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
         datasets: UUID[];
         analyses: UUID[];
         pipelines: UUID[];
-        modelEntities: UUID[];
+        modelsInstantiated: UUID[];
       },
-      entityType: 'dataSource' | 'dataset' | 'analysis' | 'pipeline' | 'modelEntity'
+      entityType: 'dataSource' | 'dataset' | 'analysis' | 'pipeline' | 'modelInstantiated'
     ): Edge[] => {
       const edges: Edge[] = [];
 
@@ -334,7 +334,7 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
         { targets: outputs.datasets, type: entityType },
         { targets: outputs.analyses, type: entityType },
         { targets: outputs.pipelines, type: entityType },
-        { targets: outputs.modelEntities, type: entityType },
+        { targets: outputs.modelsInstantiated, type: entityType },
       ];
 
       outgoingConnections.forEach(({ targets, type }) => {
@@ -356,7 +356,7 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
         ...processEntityOutputs(p.id, p.toEntities, 'pipeline'),
         ...p.runs.flatMap(run => processEntityOutputs(p.id, run.toEntities, 'pipeline'))
       ]),
-      ...project.graph.modelEntities.flatMap(m => processEntityOutputs(m.id, m.toEntities, 'modelEntity')),
+      ...project.graph.modelsInstantiated.flatMap(m => processEntityOutputs(m.id, m.toEntities, 'modelInstantiated')),
     ];
 
     return allEdges;
@@ -381,7 +381,7 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
     if (!project?.graph || !node || !node.id) return;
 
     // Determine entity type by checking which list contains the node ID
-    let entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_entity" | null = null;
+    let entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_instantiated" | null = null;
 
     if (project.graph.dataSources.some(ds => ds.id === node.id)) {
       entityType = "data_source";
@@ -391,8 +391,8 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
       entityType = "analysis";
     } else if (project.graph.pipelines.some(p => p.id === node.id)) {
       entityType = "pipeline";
-    } else if (project.graph.modelEntities.some(me => me.id === node.id)) {
-      entityType = "model_entity";
+    } else if (project.graph.modelsInstantiated.some(me => me.id === node.id)) {
+      entityType = "model_instantiated";
     }
 
     if (entityType) {

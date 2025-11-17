@@ -81,12 +81,12 @@ model_implementation = Table(
 
 
 # Mirroring the pipeline structure
-# We have the model_entity which is user defined and modifiable
-# The user can compile / index it to create the model_entity_implementation usable within the platform
+# We have the model_instantiated which is user defined and modifiable
+# The user can compile / index it to create the model_instantiated_implementation usable within the platform
 # If not compiled from user code, we start by searching for an existing model implementation and use it
 # If from new user code, we must add the model to the registry
-model_entity = Table(
-    "model_entity",
+model_instantiated = Table(
+    "model_instantiated",
     metadata,
     Column("id", UUID(as_uuid=True),
            default=uuid.uuid4,
@@ -105,11 +105,11 @@ model_entity = Table(
 )
 
 
-model_entity_implementation = Table(
-    "model_entity_implementation",
+model_instantiated_implementation = Table(
+    "model_instantiated_implementation",
     metadata,
     Column("id", UUID(as_uuid=True),
-           ForeignKey("model.model_entity.id"),
+           ForeignKey("model.model_instantiated.id"),
            default=uuid.uuid4,
            primary_key=True),
     Column("model_id", UUID(as_uuid=True),

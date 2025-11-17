@@ -8,7 +8,7 @@ import { ChatMessage } from '@/types/orchestrator';
 import { Dataset } from '@/types/data-objects';
 import { DataSource } from '@/types/data-sources';
 import { Pipeline } from '@/types/pipeline';
-import { ModelEntity } from '@/types/model';
+import { ModelInstantiated } from '@/types/model';
 import { AnalysisSmall } from '@/types/analysis';
 import { useDatasets, useDataSources, usePipelines, useModelEntities, useAnalyses } from '@/hooks';
 import { DataSourceMini, DatasetMini, AnalysisMini, PipelineMini, ModelEntityMini } from '@/components/entity-mini';
@@ -66,7 +66,7 @@ const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
   const { dataSources } = useDataSources(projectId);
   const { datasets } = useDatasets(projectId);
   const { pipelines } = usePipelines(projectId);
-  const { modelEntities } = useModelEntities(projectId);
+  const { modelsInstantiated } = useModelEntities(projectId);
   const { analysisObjects } = useAnalyses(projectId);
 
   const hasContext = message.role !== 'user' && message.context && (
@@ -74,7 +74,7 @@ const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
     message.context.datasetIds?.length > 0 || 
     message.context.analysisIds?.length > 0 || 
     message.context.pipelineIds?.length > 0 ||
-    message.context.modelEntityIds?.length > 0
+    message.context.modelInstantiatedIds?.length > 0
   );
 
   // Different styling based on message type
@@ -140,10 +140,10 @@ const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
               })}
               
               {/* Model Entities */}
-              {message.context?.modelEntityIds?.map((modelEntityId: string) => {
-                const modelEntity = modelEntities?.find((m: ModelEntity) => m.id === modelEntityId);
-                return modelEntity ? (
-                  <ModelEntityMini key={modelEntityId} name={modelEntity.name} size="sm" />
+              {message.context?.modelInstantiatedIds?.map((modelInstantiatedId: string) => {
+                const modelInstantiated = modelsInstantiated?.find((m: ModelInstantiated) => m.id === modelInstantiatedId);
+                return modelInstantiated ? (
+                  <ModelEntityMini key={modelInstantiatedId} name={modelInstantiated.name} size="sm" />
                 ) : null;
               })}
             </div>

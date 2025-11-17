@@ -1,11 +1,9 @@
 import uuid
-from fastapi import HTTPException
 from datetime import datetime, timezone
-from typing import Literal, Optional, List
+from typing import Literal, Optional
 from sqlalchemy import select
-from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
 
-from synesis_schemas.main_server import (
+from synesis_api.modules.orchestrator.schema import (
     ChatMessage,
     Context,
     ContextInDB,
@@ -16,27 +14,24 @@ from synesis_schemas.main_server import (
     ModelEntityContextInDB,
     ConversationInDB,
     ChatMessageInDB,
-    ChatPydanticMessageInDB,
-    ConversationCreate,
-    Run,
-    get_entity_graph_description
+    ConversationCreate
 )
+# from synesis_api.modules.runs.schema import Run
+# from kvasir_ontology.main_server.entity_graph import get_entity_graph_description
 from synesis_api.modules.orchestrator.models import (
     chat_message,
-    chat_pydantic_message,
     conversation,
     chat_context,
     dataset_context,
     pipeline_context,
     analysis_context,
     data_source_context,
-    model_entity_context,
+    model_instantiated_context,
 )
-from synesis_api.modules.orchestrator.agent.history_processors import CONTEXT_PATTERN, PROJECT_DESC_PATTERN, RUN_STATUS_PATTERN
 from synesis_api.database.service import fetch_all, execute, fetch_one
-from synesis_api.modules.runs.service import get_runs
-from synesis_api.modules.project.service import get_projects
-from synesis_api.modules.entity_graph.service import get_entity_details
+# from synesis_api.modules.runs.service import get_runs
+# from synesis_api.modules.project.service import get_projects
+# from synesis_api.modules.entity_graph.service import get_entity_details
 
 
 async def create_conversation(
@@ -114,19 +109,6 @@ async def get_chat_messages_with_context(conversation_id: uuid.UUID) -> list[Cha
     return chat_messages
 
 
-async def get_chat_messages_pydantic(conversation_id: uuid.UUID) -> list[ModelMessage]:
-    c = await fetch_all(
-        select(chat_pydantic_message).where(
-            chat_pydantic_message.c.conversation_id == conversation_id)
-    )
-    messages: list[ModelMessage] = []
-    for message in c:
-        messages.extend(
-            ModelMessagesTypeAdapter.validate_json(message["message_list"]))
-
-    return messages
-
-
 async def create_chat_message(
         conversation_id: uuid.UUID,
         role: Literal["user", "assistant"],
@@ -153,20 +135,6 @@ async def create_chat_message(
     return chat_message_record
 
 
-async def create_chat_message_pydantic(conversation_id: uuid.UUID, messages: List[bytes]) -> List[ChatPydanticMessageInDB]:
-
-    chat_pydantic_message_records = [ChatPydanticMessageInDB(
-        id=uuid.uuid4(),
-        conversation_id=conversation_id,
-        message_list=message,
-        created_at=datetime.now(timezone.utc)
-    ) for message in messages]
-
-    await execute(chat_pydantic_message.insert().values([record.model_dump() for record in chat_pydantic_message_records]), commit_after=True)
-
-    return chat_pydantic_message_records
-
-
 async def create_context(context_data: Context) -> Context:
     context_id = uuid.uuid4()
 
@@ -188,12 +156,12 @@ async def create_context(context_data: Context) -> Context:
         for dataset_id in context_data.dataset_ids
     ]
 
-    model_entity_context_records = [
+    model_instantiated_context_records = [
         ModelEntityContextInDB(
             context_id=context_id,
-            model_entity_id=model_entity_id
+            model_instantiated_id=model_instantiated_id
         )
-        for model_entity_id in context_data.model_entity_ids
+        for model_instantiated_id in context_data.model_instantiated_ids
     ]
 
     pipeline_context_records = [
@@ -212,7 +180,7 @@ async def create_context(context_data: Context) -> Context:
         for analysis_id in context_data.analysis_ids
     ]
 
-    if len(dataset_context_records) == 0 and len(pipeline_context_records) == 0 and len(analysis_context_records) == 0 and len(data_source_context_records) == 0 and len(model_entity_context_records) == 0:
+    if len(dataset_context_records) == 0 and len(pipeline_context_records) == 0 and len(analysis_context_records) == 0 and len(data_source_context_records) == 0 and len(model_instantiated_context_records) == 0:
         raise ValueError("No context records given to create")
     else:
         await execute(chat_context.insert().values(context_record.model_dump()), commit_after=True)
@@ -221,66 +189,14 @@ async def create_context(context_data: Context) -> Context:
             await execute(data_source_context.insert().values([record.model_dump() for record in data_source_context_records]), commit_after=True)
         if len(dataset_context_records) > 0:
             await execute(dataset_context.insert().values([record.model_dump() for record in dataset_context_records]), commit_after=True)
-        if len(model_entity_context_records) > 0:
-            await execute(model_entity_context.insert().values([record.model_dump() for record in model_entity_context_records]), commit_after=True)
+        if len(model_instantiated_context_records) > 0:
+            await execute(model_instantiated_context.insert().values([record.model_dump() for record in model_instantiated_context_records]), commit_after=True)
         if len(pipeline_context_records) > 0:
             await execute(pipeline_context.insert().values([record.model_dump() for record in pipeline_context_records]), commit_after=True)
         if len(analysis_context_records) > 0:
             await execute(analysis_context.insert().values([record.model_dump() for record in analysis_context_records]), commit_after=True)
 
     return context_record
-
-
-async def get_context_message(user_id: uuid.UUID, context: Context) -> str:
-    entitiy_details = await get_entity_details(user_id, context.data_source_ids + context.dataset_ids + context.pipeline_ids + context.analysis_ids + context.model_entity_ids)
-    entitiy_details_message = "\n\n".join(
-        [detail.description for detail in entitiy_details.entity_details])
-    return f"{CONTEXT_PATTERN.start}\n\n{entitiy_details_message}\n\n{CONTEXT_PATTERN.end}"
-
-
-async def get_project_description_message(user_id: uuid.UUID, project_id: uuid.UUID) -> str:
-    projects = await get_projects(user_id, [project_id])
-    if not projects:
-        raise HTTPException(status_code=404, detail="Project not found")
-    project_obj = projects[0]
-
-    project_graph_visualization = get_entity_graph_description(
-        project_obj.graph)
-
-    print(project_graph_visualization)
-
-    desc = (
-        "**Project Name:**\n\n" +
-        f"{project_obj.name}\n\n" +
-        "**Project Description:**\n\n" +
-        f"{project_obj.description}\n\n" +
-        "**Project Python Package Name:**\n\n" +
-        f"{project_obj.python_package_name}\n\n" +
-        "**Project Graph:**\n\n" +
-        f"{project_graph_visualization}\n\n"
-    )
-
-    return f"{PROJECT_DESC_PATTERN.start}\n\n{desc}\n\n{PROJECT_DESC_PATTERN.end}"
-
-
-async def get_run_status_message(user_id: uuid.UUID, conversation_id: uuid.UUID) -> ModelMessage:
-    runs = await get_runs(user_id=user_id, conversation_id=conversation_id)
-
-    def _get_run_string(runs: List[Run]) -> List[str]:
-        return "\n\n".join([
-            f"Run name {run.run_name} with id {run.id} has status {run.status} and was started at {run.started_at}" for run in runs
-        ])
-
-    runs_status_message = (
-        f"{RUN_STATUS_PATTERN.start}\n\n" +
-        "Here are all the agent runs of the conversations, including their status. Note whether any previous runs are completed or failed.\n\n" +
-        "Note also the difference between agent runs and pipeline runs. Pipeline runs are to run actual pipeline code, agent runs are from dispatching agents. "
-        "Runs:\n\n" +
-        _get_run_string(runs) +
-        f"\n\n{RUN_STATUS_PATTERN.end}"
-    )
-
-    return runs_status_message
 
 
 async def _get_context_objects_from_ids(context_ids: list[uuid.UUID]) -> list[Context]:
@@ -307,9 +223,9 @@ async def _get_context_objects_from_ids(context_ids: list[uuid.UUID]) -> list[Co
             analysis_context.c.context_id.in_(context_ids))
     )
 
-    model_entity_contexts = await fetch_all(
-        select(model_entity_context).where(
-            model_entity_context.c.context_id.in_(context_ids))
+    model_instantiated_contexts = await fetch_all(
+        select(model_instantiated_context).where(
+            model_instantiated_context.c.context_id.in_(context_ids))
     )
 
     for ctx_id in context_ids:
@@ -321,8 +237,8 @@ async def _get_context_objects_from_ids(context_ids: list[uuid.UUID]) -> list[Co
                         for ac in pipeline_contexts if ac['context_id'] == ctx_id]
         analysis_ids = [ac['analysis_id']
                         for ac in analysis_contexts if ac['context_id'] == ctx_id]
-        model_entity_ids = [ac['model_entity_id']
-                            for ac in model_entity_contexts if ac['context_id'] == ctx_id]
+        model_instantiated_ids = [ac['model_instantiated_id']
+                                  for ac in model_instantiated_contexts if ac['context_id'] == ctx_id]
 
         context_data.append(Context(
             id=ctx_id,
@@ -330,7 +246,7 @@ async def _get_context_objects_from_ids(context_ids: list[uuid.UUID]) -> list[Co
             dataset_ids=dataset_ids,
             pipeline_ids=pipeline_ids,
             analysis_ids=analysis_ids,
-            model_entity_ids=model_entity_ids
+            model_instantiated_ids=model_instantiated_ids
         ))
 
     return context_data

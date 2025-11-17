@@ -97,13 +97,13 @@ analysis_in_run = Table(
 )
 
 
-model_entity_in_run = Table(
-    "model_entity_in_run",
+model_instantiated_in_run = Table(
+    "model_instantiated_in_run",
     metadata,
     Column("run_id", UUID(as_uuid=True),
            ForeignKey("runs.run.id"), primary_key=True),
-    Column("model_entity_id", UUID(as_uuid=True),
-           ForeignKey("model.model_entity.id"), primary_key=True),
+    Column("model_instantiated_id", UUID(as_uuid=True),
+           ForeignKey("model.model_instantiated.id"), primary_key=True),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
     schema="runs"
@@ -163,13 +163,13 @@ analysis_from_run = Table(
 )
 
 
-model_entity_from_run = Table(
-    "model_entity_from_run",
+model_instantiated_from_run = Table(
+    "model_instantiated_from_run",
     metadata,
     Column("run_id", UUID(as_uuid=True),
            ForeignKey("runs.run.id"), primary_key=True),
-    Column("model_entity_id", UUID(as_uuid=True),
-           ForeignKey("model.model_entity.id"), primary_key=True),
+    Column("model_instantiated_id", UUID(as_uuid=True),
+           ForeignKey("model.model_instantiated.id"), primary_key=True),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
     schema="runs"

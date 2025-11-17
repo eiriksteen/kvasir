@@ -28,7 +28,7 @@ export default function PipelineBox({ pipelineId, projectId, openTab }: Pipeline
     inputs: {
       dataSourceIds: UUID[];
       datasetIds: UUID[];
-      modelEntityIds: UUID[];
+      modelInstantiatedIds: UUID[];
     };
     name?: string;
     description?: string;

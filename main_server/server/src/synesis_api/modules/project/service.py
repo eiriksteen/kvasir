@@ -12,7 +12,7 @@ from synesis_api.modules.project.models import (
     project_data_source,
     project_model_entity
 )
-from synesis_schemas.main_server import (
+from kvasir_ontology.main_server.project import (
     Project,
     ProjectCreate,
     ProjectDetailsUpdate,
@@ -27,7 +27,7 @@ from synesis_schemas.main_server import (
     EntityPositionCreate,
     EntityGraph,
     UpdateEntityPosition,
-    UpdateProjectViewport,
+    UpdateProjectViewport
 )
 from synesis_api.modules.data_sources.service import get_user_data_sources
 from synesis_api.modules.data_objects.service import get_user_datasets
@@ -81,8 +81,8 @@ async def get_project_pipelines(project_id: UUID) -> List[ProjectPipelineInDB]:
 
 
 async def get_project_model_entities(project_id: UUID) -> List[ProjectModelEntityInDB]:
-    model_entity_rows = await fetch_all(select(project_model_entity).where(project_model_entity.c.project_id == project_id))
-    return [ProjectModelEntityInDB(**model_entity_row) for model_entity_row in model_entity_rows]
+    model_instantiated_rows = await fetch_all(select(project_model_entity).where(project_model_entity.c.project_id == project_id))
+    return [ProjectModelEntityInDB(**model_instantiated_row) for model_instantiated_row in model_instantiated_rows]
 
 
 async def _build_project_graph(
@@ -97,14 +97,14 @@ async def _build_project_graph(
     data_sources = await get_user_data_sources(user_id=user_id, data_source_ids=[ds.data_source_id for ds in project_data_sources])
     datasets = await get_user_datasets(user_id=user_id, dataset_ids=[ds.dataset_id for ds in project_datasets])
     pipelines = await get_user_pipelines(user_id=user_id, pipeline_ids=[ds.pipeline_id for ds in project_pipelines])
-    model_entities = await get_user_model_entities(user_id=user_id, model_entity_ids=[ds.model_entity_id for ds in project_model_entities])
+    model_instantiatedies = await get_user_model_entities(user_id=user_id, model_instantiated_ids=[ds.model_instantiated_id for ds in project_model_entities])
     analyses = await get_user_analyses(user_id=user_id, analysis_ids=[ds.analysis_id for ds in project_analyses])
 
     return await build_entity_graph(
         data_sources=data_sources,
         datasets=datasets,
         pipelines=pipelines,
-        model_entities=model_entities,
+        model_instantiatedies=model_instantiatedies,
         analyses=analyses
     )
 
@@ -124,7 +124,7 @@ async def get_projects(user_id: UUID, project_ids: Optional[List[UUID]] = None) 
     dataset_objs = await fetch_all(select(project_dataset).where(project_dataset.c.project_id.in_(project_ids_list)))
     analysis_objs = await fetch_all(select(project_analysis).where(project_analysis.c.project_id.in_(project_ids_list)))
     pipeline_objs = await fetch_all(select(project_pipeline).where(project_pipeline.c.project_id.in_(project_ids_list)))
-    model_entity_objs = await fetch_all(select(project_model_entity).where(project_model_entity.c.project_id.in_(project_ids_list)))
+    model_instantiated_objs = await fetch_all(select(project_model_entity).where(project_model_entity.c.project_id.in_(project_ids_list)))
 
     project_objects = []
     for project_id in project_ids_list:
@@ -137,15 +137,15 @@ async def get_projects(user_id: UUID, project_ids: Optional[List[UUID]] = None) 
             ProjectAnalysisInDB(**d) for d in analysis_objs if d["project_id"] == project_id]
         pipelines_in_project = [
             ProjectPipelineInDB(**d) for d in pipeline_objs if d["project_id"] == project_id]
-        model_entities_in_project = [
-            ProjectModelEntityInDB(**d) for d in model_entity_objs if d["project_id"] == project_id]
+        model_instantiatedies_in_project = [
+            ProjectModelEntityInDB(**d) for d in model_instantiated_objs if d["project_id"] == project_id]
 
         project_graph = await _build_project_graph(
             user_id,
             data_sources_in_project,
             datasets_in_project,
             pipelines_in_project,
-            model_entities_in_project,
+            model_instantiatedies_in_project,
             analyses_in_project
         )
 
@@ -154,7 +154,7 @@ async def get_projects(user_id: UUID, project_ids: Optional[List[UUID]] = None) 
             project_datasets=datasets_in_project,
             project_pipelines=pipelines_in_project,
             project_analyses=analyses_in_project,
-            project_model_entities=model_entities_in_project
+            project_model_entities=model_instantiatedies_in_project
         )
 
         project_objects.append(Project(
@@ -197,11 +197,11 @@ async def add_entity_to_project(user_id: UUID, entity_data: AddEntityToProject) 
                      project_data_source.c.data_source_id == entity_id)
             )
         )
-    elif entity_type == "model_entity":
+    elif entity_type == "model_instantiated":
         existing_entity = await fetch_one(
             select(project_model_entity).where(
                 and_(project_model_entity.c.project_id == entity_data.project_id,
-                     project_model_entity.c.model_entity_id == entity_id)
+                     project_model_entity.c.model_instantiated_id == entity_id)
             )
         )
     elif entity_type == "dataset":
@@ -243,9 +243,9 @@ async def add_entity_to_project(user_id: UUID, entity_data: AddEntityToProject) 
             x_position=entity_position.x,
             y_position=entity_position.y)
         await execute(insert(project_data_source).values(obj.model_dump()), commit_after=True)
-    elif entity_type == "model_entity":
+    elif entity_type == "model_instantiated":
         obj = ProjectModelEntityInDB(
-            model_entity_id=entity_id, **entity_data.model_dump(),
+            model_instantiated_id=entity_id, **entity_data.model_dump(),
             x_position=entity_position.x,
             y_position=entity_position.y)
         await execute(insert(project_model_entity).values(obj.model_dump()), commit_after=True)
@@ -310,11 +310,11 @@ async def remove_entity_from_project(user_id: UUID, entity_data: RemoveEntityFro
             ),
             commit_after=True
         )
-    elif entity_type == "model_entity":
+    elif entity_type == "model_instantiated":
         await execute(
             delete(project_model_entity).where(
                 and_(project_model_entity.c.project_id == entity_data.project_id,
-                     project_model_entity.c.model_entity_id == entity_id),
+                     project_model_entity.c.model_instantiated_id == entity_id),
             ),
             commit_after=True
         )
@@ -339,7 +339,7 @@ async def delete_project(user_id: UUID, project_id: UUID) -> bool:
 
 
 async def update_entity_position(user_id: UUID, position_data: UpdateEntityPosition) -> Project | None:
-    """Update the position of a node (data source, dataset, analysis, pipeline, or model_entity) in a project."""
+    """Update the position of a node (data source, dataset, analysis, pipeline, or model_instantiated) in a project."""
     if position_data.entity_type == "data_source":
         target_table, target_column = project_data_source, project_data_source.c.data_source_id
         update_values = {
@@ -364,8 +364,8 @@ async def update_entity_position(user_id: UUID, position_data: UpdateEntityPosit
             "x_position": position_data.x_position,
             "y_position": position_data.y_position
         }
-    elif position_data.entity_type == "model_entity":
-        target_table, target_column = project_model_entity, project_model_entity.c.model_entity_id
+    elif position_data.entity_type == "model_instantiated":
+        target_table, target_column = project_model_entity, project_model_entity.c.model_instantiated_id
         update_values = {
             "x_position": position_data.x_position,
             "y_position": position_data.y_position
@@ -457,14 +457,14 @@ async def delete_dataset_from_project(user_id: UUID, dataset_id: UUID) -> UUID:
     return await delete_dataset_entity(user_id, dataset_id)
 
 
-async def delete_model_entity_from_project(user_id: UUID, model_entity_id: UUID) -> UUID:
+async def delete_model_entity_from_project(user_id: UUID, model_instantiated_id: UUID) -> UUID:
     """
     Delete a model entity and remove it from all projects.
     """
     # Find all projects containing this model entity
     project_model_entity_records = await fetch_all(
         select(project_model_entity).where(
-            project_model_entity.c.model_entity_id == model_entity_id
+            project_model_entity.c.model_instantiated_id == model_instantiated_id
         )
     )
     project_ids = list(set([r["project_id"]
@@ -476,14 +476,14 @@ async def delete_model_entity_from_project(user_id: UUID, model_entity_id: UUID)
             delete(project_model_entity).where(
                 and_(
                     project_model_entity.c.project_id == project_id,
-                    project_model_entity.c.model_entity_id == model_entity_id
+                    project_model_entity.c.model_instantiated_id == model_instantiated_id
                 )
             ),
             commit_after=True
         )
 
     # Delete the entity itself
-    return await delete_model_entity_entity(user_id, model_entity_id)
+    return await delete_model_entity_entity(user_id, model_instantiated_id)
 
 
 async def delete_pipeline_from_project(user_id: UUID, pipeline_id: UUID) -> UUID:

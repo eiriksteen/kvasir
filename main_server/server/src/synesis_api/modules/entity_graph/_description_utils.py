@@ -5,7 +5,7 @@ from synesis_schemas.main_server import (
     DataSource,
     Dataset,
     Pipeline,
-    ModelEntity,
+    ModelInstantiated,
     Analysis,
     EdgePoints,
     NotebookSection
@@ -13,7 +13,7 @@ from synesis_schemas.main_server import (
 
 # Type alias for entity map
 EntityMap = dict[tuple[UUID, str],
-                 DataSource | Dataset | Pipeline | ModelEntity | Analysis]
+                 DataSource | Dataset | Pipeline | ModelInstantiated | Analysis]
 
 
 def get_data_source_description(data_source: DataSource, from_entities: EdgePoints, to_entities: EdgePoints, entity_map: EntityMap) -> str:
@@ -148,24 +148,24 @@ def get_pipeline_description(pipeline: Pipeline, from_entities: EdgePoints, to_e
     return description
 
 
-def get_model_entity_description(model_entity: ModelEntity, from_entities: EdgePoints, to_entities: EdgePoints, entity_map: EntityMap) -> str:
+def get_model_entity_description(model_instantiated: ModelInstantiated, from_entities: EdgePoints, to_entities: EdgePoints, entity_map: EntityMap) -> str:
     """Generate comprehensive description for model entity including inputs/outputs."""
     lines = [
-        f"## Model Entity with name {model_entity.name} and ID: {model_entity.id}",
+        f"## Model Entity with name {model_instantiated.name} and ID: {model_instantiated.id}",
         "*(An instantiated and configured model entity)*",
         "",
-        f"{model_entity.description}",
+        f"{model_instantiated.description}",
         "",
     ]
 
-    if model_entity.implementation:
-        model_entity_impl = model_entity.implementation
-        lines.append(f"**Configuration:** {model_entity_impl.config}")
+    if model_instantiated.implementation:
+        model_instantiated_impl = model_instantiated.implementation
+        lines.append(f"**Configuration:** {model_instantiated_impl.config}")
         lines.append(
-            f"**Weights Directory:** {model_entity_impl.weights_save_dir or 'Not trained yet'}")
+            f"**Weights Directory:** {model_instantiated_impl.weights_save_dir or 'Not trained yet'}")
         lines.append("")
 
-        model_impl = model_entity_impl.model_implementation
+        model_impl = model_instantiated_impl.model_implementation
         lines.append(
             f"### Model Implementation with name `{model_impl.python_class_name}`, ID: {model_impl.id} and version (v{model_impl.version})")
         lines.append("*(An implemented version of the model definition)*")
@@ -325,10 +325,10 @@ def _get_edges_info(from_entities: EdgePoints, to_entities: EdgePoints, entity_m
                 input_lines.append(f"  * Unknown Pipeline (ID: {pipeline_id})")
         has_inputs = True
 
-    if from_entities.model_entities:
+    if from_entities.model_instantiatedies:
         input_lines.append("- Model Entities:")
-        for me_id in from_entities.model_entities:
-            entity = entity_map.get((me_id, "model_entity"))
+        for me_id in from_entities.model_instantiatedies:
+            entity = entity_map.get((me_id, "model_instantiated"))
             if entity:
                 desc = f" - {entity.description}" if entity.description else ""
                 input_lines.append(
@@ -396,10 +396,10 @@ def _get_edges_info(from_entities: EdgePoints, to_entities: EdgePoints, entity_m
                     f"  * Unknown Pipeline (ID: {pipeline_id})")
         has_outputs = True
 
-    if to_entities.model_entities:
+    if to_entities.model_instantiatedies:
         output_lines.append("- Model Entities:")
-        for me_id in to_entities.model_entities:
-            entity = entity_map.get((me_id, "model_entity"))
+        for me_id in to_entities.model_instantiatedies:
+            entity = entity_map.get((me_id, "model_instantiated"))
             if entity:
                 desc = f" - {entity.description}" if entity.description else ""
                 output_lines.append(

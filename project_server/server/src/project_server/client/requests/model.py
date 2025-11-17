@@ -8,7 +8,7 @@ from synesis_schemas.main_server import (
     ModelEntityImplementationCreate,
     ModelEntityInDB,
     GetModelEntityByIDsRequest,
-    ModelEntity,
+    ModelInstantiated,
     ModelEntityConfigUpdate,
     ModelImplementation,
     ModelUpdateCreate,
@@ -25,28 +25,28 @@ async def post_update_model(client: ProjectClient, request: ModelUpdateCreate) -
     return ModelImplementation(**response.body)
 
 
-async def post_model_entity(client: ProjectClient, model_entity_data: ModelEntityCreate) -> ModelEntityInDB:
+async def post_model_entity(client: ProjectClient, model_instantiated_data: ModelEntityCreate) -> ModelEntityInDB:
     """Create a bare model entity without implementation."""
-    response = await client.send_request("post", "/model/model-entity", json=model_entity_data.model_dump(mode="json"))
+    response = await client.send_request("post", "/model/model-instantiated", json=model_instantiated_data.model_dump(mode="json"))
     return ModelEntityInDB(**response.body)
 
 
-async def post_model_entity_implementation(client: ProjectClient, model_entity_impl_data: ModelEntityImplementationCreate) -> ModelEntityInDB:
+async def post_model_entity_implementation(client: ProjectClient, model_instantiated_impl_data: ModelEntityImplementationCreate) -> ModelEntityInDB:
     """Create a model entity implementation (entity + implementation + config)."""
-    response = await client.send_request("post", "/model/model-entity-implementation", json=model_entity_impl_data.model_dump(mode="json"))
+    response = await client.send_request("post", "/model/model-instantiated-implementation", json=model_instantiated_impl_data.model_dump(mode="json"))
     return ModelEntityInDB(**response.body)
 
 
-async def get_project_model_entities(client: ProjectClient, project_id: UUID) -> List[ModelEntity]:
-    response = await client.send_request("get", f"/project/project-model-entities/{project_id}")
-    return [ModelEntity(**me) for me in response.body]
+async def get_project_model_entities(client: ProjectClient, project_id: UUID) -> List[ModelInstantiated]:
+    response = await client.send_request("get", f"/project/project-models-instantiated/{project_id}")
+    return [ModelInstantiated(**me) for me in response.body]
 
 
-async def get_model_entities_by_ids(client: ProjectClient, request: GetModelEntityByIDsRequest) -> List[ModelEntity]:
-    response = await client.send_request("get", f"/model/model-entities-by-ids", json=request.model_dump(mode="json"))
-    return [ModelEntity(**me) for me in response.body]
+async def get_model_entities_by_ids(client: ProjectClient, request: GetModelEntityByIDsRequest) -> List[ModelInstantiated]:
+    response = await client.send_request("get", f"/model/models-instantiated-by-ids", json=request.model_dump(mode="json"))
+    return [ModelInstantiated(**me) for me in response.body]
 
 
-async def patch_model_entity_config(client: ProjectClient, model_entity_id: UUID, request: ModelEntityConfigUpdate) -> ModelEntityInDB:
-    response = await client.send_request("patch", f"/model/model-entity/{model_entity_id}/config", json=request.model_dump(mode="json"))
+async def patch_model_entity_config(client: ProjectClient, model_instantiated_id: UUID, request: ModelEntityConfigUpdate) -> ModelEntityInDB:
+    response = await client.send_request("patch", f"/model/model-instantiated/{model_instantiated_id}/config", json=request.model_dump(mode="json"))
     return ModelEntityInDB(**response.body)

@@ -1,6 +1,6 @@
 from typing import List
 
-from synesis_schemas.main_server import DataSource, Dataset, ModelEntity
+from synesis_schemas.main_server import DataSource, Dataset, ModelInstantiated
 
 
 def get_object_group_imports() -> str:
@@ -50,24 +50,24 @@ def get_data_source_definitions(data_sources: List[DataSource], bearer_token: st
     return manager_definition + "\n".join(data_source_definitions)
 
 
-def get_model_entity_imports(model_entities: List[ModelEntity]) -> str:
+def get_model_entity_imports(model_instantiatedies: List[ModelInstantiated]) -> str:
     """
     Get the import statements for model entity definitions.
     """
     import_definitions = []
-    for model_entity in model_entities:
+    for model_instantiated in model_instantiatedies:
         import_definitions.append(
-            f"from {model_entity.implementation.model_implementation.implementation_script.module_path} import ModelConfig as ModelConfig{model_entity.implementation.model_implementation.python_class_name}")
+            f"from {model_instantiated.implementation.model_implementation.implementation_script.module_path} import ModelConfig as ModelConfig{model_instantiated.implementation.model_implementation.python_class_name}")
     return "\n".join(import_definitions)
 
 
-def get_model_entity_definitions(model_entities: List[ModelEntity], num_tab_indents: int = 0) -> str:
+def get_model_entity_definitions(model_instantiatedies: List[ModelInstantiated], num_tab_indents: int = 0) -> str:
     """
     Get the model entity object definitions.
     """
     indent = "    " * num_tab_indents
-    model_entity_definitions = []
-    for model_entity in model_entities:
-        model_entity_definitions.append(
-            f"{indent}{model_entity.name} = {model_entity.implementation.model_implementation.python_class_name}(config=ModelConfig{model_entity.implementation.model_implementation.python_class_name}(**{model_entity.implementation.config}))")
-    return "\n".join(model_entity_definitions)
+    model_instantiated_definitions = []
+    for model_instantiated in model_instantiatedies:
+        model_instantiated_definitions.append(
+            f"{indent}{model_instantiated.name} = {model_instantiated.implementation.model_implementation.python_class_name}(config=ModelConfig{model_instantiated.implementation.model_implementation.python_class_name}(**{model_instantiated.implementation.config}))")
+    return "\n".join(model_instantiated_definitions)

@@ -17,7 +17,7 @@ export const useAgentContext = (projectId: UUID) => {
   const { data: datasetsInContext } = useSWR(["datasetsInContext", projectId], { fallbackData: emptyDatasetsInContext });
   const { data: pipelinesInContext } = useSWR(["pipelinesInContext", projectId], { fallbackData: emptyPipelinesInContext });
   const { data: analysesInContext } = useSWR(["analysisesInContext", projectId], { fallbackData: emptyAnalysisesInContext });
-  const { data: modelEntitiesInContext } = useSWR(["modelEntitiesInContext", projectId], { fallbackData: emptyModelEntitiesInContext });
+  const { data: modelsInstantiatedInContext } = useSWR(["modelsInstantiatedInContext", projectId], { fallbackData: emptyModelEntitiesInContext });
 
   const { trigger: addDataSourceToContext } = useSWRMutation(["dataSourcesInContext", projectId],
     async (_, { arg }: { arg: UUID }) => {
@@ -116,23 +116,23 @@ export const useAgentContext = (projectId: UUID) => {
     }
   );
 
-  const { trigger: addModelEntityToContext } = useSWRMutation(["modelEntitiesInContext", projectId],
+  const { trigger: addModelEntityToContext } = useSWRMutation(["modelsInstantiatedInContext", projectId],
     async (_, { arg }: { arg: UUID }) => {
       return arg;
     },
     {
-      populateCache: (newData: UUID) => ([...(modelEntitiesInContext || []), newData])
+      populateCache: (newData: UUID) => ([...(modelsInstantiatedInContext || []), newData])
     }
   );
 
-  const { trigger: removeModelEntityFromContext } = useSWRMutation(["modelEntitiesInContext", projectId],
+  const { trigger: removeModelEntityFromContext } = useSWRMutation(["modelsInstantiatedInContext", projectId],
     async (_, { arg }: { arg: UUID }) => {
       return arg;
     },
     {
       populateCache: (newData: UUID) => {
-        if (modelEntitiesInContext) {
-          return modelEntitiesInContext.filter((m: UUID) => m !== newData);
+        if (modelsInstantiatedInContext) {
+          return modelsInstantiatedInContext.filter((m: UUID) => m !== newData);
         }
         return [];
       }
@@ -146,7 +146,7 @@ export const useAgentContext = (projectId: UUID) => {
     datasetsInContext,
     pipelinesInContext,
     analysesInContext,
-    modelEntitiesInContext,
+    modelsInstantiatedInContext,
     addDataSourceToContext,
     removeDataSourceFromContext,
     addDatasetToContext,

@@ -49,7 +49,7 @@ export interface DatasetInRunInDB {
 
 export interface ModelEntityInRunInDB {
   runId: UUID;
-  modelEntityId: UUID;
+  modelInstantiatedId: UUID;
   createdAt: string;
 }
 
@@ -104,7 +104,7 @@ export interface RunCreate {
   conversationId?: UUID | null;
   dataSourcesInRun: UUID[];
   datasetsInRun: UUID[];
-  modelEntitiesInRun: UUID[];
+  modelsInstantiatedInRun: UUID[];
   pipelinesInRun: UUID[];
   analysesInRun: UUID[];
 }

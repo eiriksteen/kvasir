@@ -63,11 +63,11 @@ dataset_supported_in_pipeline = Table(
 )
 
 
-model_entity_supported_in_pipeline = Table(
-    "model_entity_supported_in_pipeline",
+model_instantiated_supported_in_pipeline = Table(
+    "model_instantiated_supported_in_pipeline",
     metadata,
-    Column("model_entity_id", UUID(as_uuid=True),
-           ForeignKey("model.model_entity.id"), primary_key=True, nullable=False),
+    Column("model_instantiated_id", UUID(as_uuid=True),
+           ForeignKey("model.model_instantiated.id"), primary_key=True, nullable=False),
     Column("pipeline_id", UUID(as_uuid=True),
            ForeignKey("pipeline.pipeline.id"), primary_key=True, nullable=False),
     Column("created_at", DateTime(timezone=True),
@@ -112,13 +112,13 @@ data_source_in_pipeline_run = Table(
 )
 
 
-model_entity_in_pipeline_run = Table(
-    "model_entity_in_pipeline_run",
+model_instantiated_in_pipeline_run = Table(
+    "model_instantiated_in_pipeline_run",
     metadata,
     Column("pipeline_run_id", UUID(as_uuid=True),
            ForeignKey("pipeline.pipeline_run.id"), primary_key=True, nullable=False),
-    Column("model_entity_id", UUID(as_uuid=True),
-           ForeignKey("model.model_entity.id"), primary_key=True, nullable=False),
+    Column("model_instantiated_id", UUID(as_uuid=True),
+           ForeignKey("model.model_instantiated.id"), primary_key=True, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
@@ -153,16 +153,16 @@ pipeline_run_output_model_entity = Table(
     metadata,
     Column("pipeline_run_id", UUID(as_uuid=True),
            ForeignKey("pipeline.pipeline_run.id"), primary_key=True, nullable=False),
-    Column("model_entity_id", UUID(as_uuid=True),
-           ForeignKey("model.model_entity.id"), primary_key=True, nullable=False),
+    Column("model_instantiated_id", UUID(as_uuid=True),
+           ForeignKey("model.model_instantiated.id"), primary_key=True, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
     Column("updated_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc),
            onupdate=datetime.now(timezone.utc), nullable=False),
-    # Unique constraint on model_entity_id since a model entity can only be output from one pipeline run
+    # Unique constraint on model_instantiated_id since a model entity can only be output from one pipeline run
     UniqueConstraint(
-        "model_entity_id", name="uq_pipeline_run_output_model_entity_model_entity_id"),
+        "model_instantiated_id", name="uq_pipeline_run_output_model_entity_model_entity_id"),
     schema="entity_graph"
 )
 
@@ -230,15 +230,15 @@ data_source_in_analysis = Table(
 )
 
 
-model_entity_in_analysis = Table(
-    "model_entity_in_analysis",
+model_instantiated_in_analysis = Table(
+    "model_instantiated_in_analysis",
     metadata,
     Column("analysis_id", UUID(as_uuid=True),
            ForeignKey("analysis.analysis.id"),
            primary_key=True,
            nullable=False),
-    Column("model_entity_id", UUID(as_uuid=True),
-           ForeignKey("model.model_entity.id"),
+    Column("model_instantiated_id", UUID(as_uuid=True),
+           ForeignKey("model.model_instantiated.id"),
            primary_key=True,
            nullable=False),
     Column("created_at", DateTime(timezone=True),

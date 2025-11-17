@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { UUID } from 'crypto';
 
-export type TabType = 'project' | 'data_source' | 'dataset' | 'analysis' | 'automation' | 'pipeline' | 'model_entity' | 'code';
+export type TabType = 'project' | 'data_source' | 'dataset' | 'analysis' | 'automation' | 'pipeline' | 'model_instantiated' | 'code';
 
 export interface Tab {
   id: UUID | null | string;  // null = project tab, string = code file path

@@ -94,13 +94,13 @@ analysis_context = Table(
 )
 
 
-model_entity_context = Table(
-    "model_entity_context",
+model_instantiated_context = Table(
+    "model_instantiated_context",
     metadata,
     Column("context_id", UUID(as_uuid=True),
            ForeignKey("orchestrator.chat_context.id"), nullable=False),
-    Column("model_entity_id", UUID(as_uuid=True),
-           ForeignKey("model.model_entity.id"), nullable=False),
-    PrimaryKeyConstraint("context_id", "model_entity_id"),
+    Column("model_instantiated_id", UUID(as_uuid=True),
+           ForeignKey("model.model_instantiated.id"), nullable=False),
+    PrimaryKeyConstraint("context_id", "model_instantiated_id"),
     schema="orchestrator"
 )

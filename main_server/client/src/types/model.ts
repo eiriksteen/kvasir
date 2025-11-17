@@ -67,7 +67,7 @@ export interface ModelFunctionInDB {
 
 export interface ModelEntityFromPipelineInDB {
   pipelineId: UUID;
-  modelEntityId: UUID;
+  modelInstantiatedId: UUID;
   createdAt: string;
   updatedAt: string;
 }
@@ -121,12 +121,12 @@ export interface ModelEntityImplementation extends ModelEntityImplementationInDB
   modelImplementation: ModelImplementation;
 }
 
-export interface ModelEntity extends ModelEntityInDB {
+export interface ModelInstantiated extends ModelEntityInDB {
   implementation?: ModelEntityImplementation | null;
 }
 
 export interface GetModelEntityByIDsRequest {
-  modelEntityIds: UUID[];
+  modelInstantiatedIds: UUID[];
 }
 
 export interface ModelSource extends ModelSourceInDB {
@@ -183,8 +183,8 @@ export interface ModelEntityImplementationCreate {
   pipelineId?: UUID | null;
   modelImplementationId?: UUID | null;
   modelImplementationCreate?: ModelImplementationCreate | null;
-  modelEntityId?: UUID | null;
-  modelEntityCreate?: ModelEntityCreate | null;
+  modelInstantiatedId?: UUID | null;
+  modelInstantiatedCreate?: ModelEntityCreate | null;
 }
 
 // Update Models
@@ -207,7 +207,7 @@ export interface ModelUpdateCreate {
   updatedTrainingFunction?: ModelFunctionUpdateCreate | null;
   updatedInferenceFunction?: ModelFunctionUpdateCreate | null;
   updatedConfigSchema?: Record<string, unknown> | null;
-  modelEntitiesToUpdate?: UUID[] | null;
+  modelsInstantiatedToUpdate?: UUID[] | null;
   newSetupScriptPath?: string | null;
 }
 

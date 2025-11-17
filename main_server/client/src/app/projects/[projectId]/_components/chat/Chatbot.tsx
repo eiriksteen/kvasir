@@ -15,7 +15,7 @@ import ChatMessageBox from '@/app/projects/[projectId]/_components/chat/ChatMess
 import { DataSource } from '@/types/data-sources';
 import { Dataset } from '@/types/data-objects';
 import { Pipeline } from '@/types/pipeline';
-import { ModelEntity } from '@/types/model';
+import { ModelInstantiated } from '@/types/model';
 import { AnalysisSmall } from '@/types/analysis';
 import { DataSourceMini, DatasetMini, AnalysisMini, PipelineMini, ModelEntityMini } from '@/components/entity-mini';
 
@@ -38,7 +38,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
     removeAnalysisFromContext,
     pipelinesInContext,
     removePipelineFromContext,
-    modelEntitiesInContext,
+    modelsInstantiatedInContext,
     removeModelEntityFromContext,
   } = useAgentContext(projectId);
 
@@ -46,7 +46,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const { dataSources } = useDataSources(projectId);
   const { datasets } = useDatasets(projectId);
   const { pipelines } = usePipelines(projectId);
-  const { modelEntities } = useModelEntities(projectId);
+  const { modelsInstantiated } = useModelEntities(projectId);
   const { analysisObjects } = useAnalyses(projectId);
 
   const { runsInConversation } = useRunsInConversation(projectId, conversation?.id || "");
@@ -181,10 +181,10 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   };
 
   const getModelEntitiesInContext = () => {
-    if (!modelEntities) return [];
-    return modelEntitiesInContext
-      .map((id: UUID) => modelEntities.find((m: ModelEntity) => m.id === id))
-      .filter((m: ModelEntity | undefined): m is ModelEntity => m !== undefined);
+    if (!modelsInstantiated) return [];
+    return modelsInstantiatedInContext
+      .map((id: UUID) => modelsInstantiated.find((m: ModelInstantiated) => m.id === id))
+      .filter((m: ModelInstantiated | undefined): m is ModelInstantiated => m !== undefined);
   };
 
   const getAnalysesInContext = () => {
@@ -200,7 +200,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
     { items: getDatasetsInContext(), type: 'dataset', component: DatasetMini, removeFn: (item: Dataset) => removeDatasetFromContext(item.id) },
     { items: getAnalysesInContext(), type: 'analysis', component: AnalysisMini, removeFn: (item: AnalysisSmall) => removeAnalysisFromContext(item.id) },
     { items: getPipelinesInContext(), type: 'pipeline', component: PipelineMini, removeFn: (item: Pipeline) => removePipelineFromContext(item.id) },
-    { items: getModelEntitiesInContext(), type: 'modelEntity', component: ModelEntityMini, removeFn: (item: ModelEntity) => removeModelEntityFromContext(item.id) }
+    { items: getModelEntitiesInContext(), type: 'modelInstantiated', component: ModelEntityMini, removeFn: (item: ModelInstantiated) => removeModelEntityFromContext(item.id) }
   ];
 
   // Helper function to get all context items

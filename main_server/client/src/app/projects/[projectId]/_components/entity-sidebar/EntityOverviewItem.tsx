@@ -4,7 +4,7 @@ import React from 'react';
 import AddEntityButton from '@/app/projects/[projectId]/_components/entity-sidebar/AddEntityButton';
 import { UUID } from 'crypto';
 
-type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_entity';
+type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_instantiated';
 
 interface EntityOverviewItemProps {
     title: string;
@@ -66,7 +66,7 @@ export default function EntityOverviewItem({ title, count, color, onToggle, proj
         'Analyses': 'analysis',
         'Pipelines': 'pipeline',
         'Data Sources': 'data_source',
-        'Models': 'model_entity',
+        'Models': 'model_instantiated',
     };
     const itemType = itemTypeMap[title];
 
