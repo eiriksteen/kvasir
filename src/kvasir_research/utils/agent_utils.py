@@ -64,10 +64,3 @@ async def get_injected_swe_runs(swe_run_ids: List[UUID]) -> str:
             swe_runs_content.append(swe_result)
 
     return "\n\n".join(swe_runs_content) if swe_runs_content else "(no previous SWE runs)"
-
-
-def get_pyproject_for_env_description() -> str:
-    with open(SANDBOX_PYPROJECT_PATH, "r") as f:
-        dockerfile_content = f.read()
-
-    return dockerfile_content

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
-from typing import Literal
+from typing import Literal, Optional
 from pydantic import BaseModel
 
 from kvasir_research.agents.abstract_callbacks import AbstractCallbacks
@@ -26,11 +26,11 @@ class AbstractAgentOutput(BaseModel):
 class AbstractAgent(ABC):
     def __init__(
         self,
-        run_id: UUID,
         project_id: UUID,
         package_name: str,
         sandbox_type: Literal["local", "modal"],
-        callbacks: AbstractCallbacks
+        callbacks: AbstractCallbacks,
+        run_id: Optional[UUID] = None
     ):
         self.run_id = run_id
         self.project_id = project_id

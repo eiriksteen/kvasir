@@ -47,3 +47,4 @@ MODAL_APP_NAME = "kvasir-research"
 MODAL_PROJECTS_DIR = Path("/projects")
 
 SANDBOX_DOCKERFILE_PATH = Path("/app/src/kvasir_research/sandbox/Dockerfile")
+SANDBOX_INTERNAL_SCRIPT_DIR = Path("/app/internal")

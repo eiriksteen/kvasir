@@ -1,24 +1,30 @@
-import uuid
+from uuid import UUID
+from typing import List, Dict, Literal
 from dataclasses import dataclass, field
-from typing import List, Literal
 
+from kvasir_research.agents.v1.kvasir.knowledge_bank import SUPPORTED_TASKS_LITERAL
 from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
+from kvasir_research.sandbox.abstract import AbstractSandbox
 from kvasir_research.sandbox.local import LocalSandbox
 from kvasir_research.sandbox.modal import ModalSandbox
-from kvasir_research.sandbox.abstract import AbstractSandbox
-from kvasir_ontology.entities.dataset.data_model import Dataset
 
 
 @dataclass
-class ExtractionDeps:
+class SWEDeps:
+    run_id: UUID
+    run_name: str
+    project_id: UUID
     package_name: str
-    run_id: uuid.UUID
-    project_id: uuid.UUID
-    callbacks: KvasirV1Callbacks
-    created_datasets: List[Dataset] = field(default_factory=list)
-    object_groups_with_charts: List[uuid.UUID] = field(default_factory=list)
+    data_paths: List[str]
+    injected_analyses: List[UUID]
+    injected_swe_runs: List[UUID]
+    read_only_paths: List[str]
+    time_limit: int
+    guidelines: List[SUPPORTED_TASKS_LITERAL] = field(default_factory=list)
+    modified_files: Dict[str, str] = field(default_factory=dict)
     sandbox: AbstractSandbox = field(init=False)
     sandbox_type: Literal["local", "modal"] = "local"
+    callbacks: KvasirV1Callbacks = field(default_factory=KvasirV1Callbacks)
 
     def __post_init__(self):
         if self.sandbox_type == "local":

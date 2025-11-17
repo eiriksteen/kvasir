@@ -100,3 +100,9 @@ class AbstractSandbox(ABC):
             return parent_resolved in child_resolved.parents or child_resolved == parent_resolved
         except (OSError, RuntimeError):
             return False
+
+    def get_pyproject_for_env_description(self) -> str:
+        with open(SANDBOX_PYPROJECT_PATH, "r") as f:
+            dockerfile_content = f.read()
+
+        return dockerfile_content

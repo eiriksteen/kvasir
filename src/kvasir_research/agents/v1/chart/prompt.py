@@ -1,7 +1,7 @@
 import json
 
 
-from synesis_schemas.project_server import EChartsOptionSmall
+from kvasir_ontology.visualization.data_model import EChartsOptionSmall
 
 
 CHART_AGENT_SYSTEM_PROMPT = """You are a data visualization specialist that creates interactive chart configurations for analytical results.

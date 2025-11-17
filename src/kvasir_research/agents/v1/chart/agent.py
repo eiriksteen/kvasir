@@ -1,18 +1,17 @@
+from uuid import UUID
+from typing import Literal, List, Optional
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models import ModelSettings
 
-from project_server.agents.chart.deps import ChartDeps
-from project_server.agents.chart.output import submit_chart
-from project_server.agents.chart.prompt import CHART_AGENT_SYSTEM_PROMPT
-from project_server.agents.shared_tools import navigation_toolset
-from project_server.utils.agent_utils import (
-    get_model,
-    get_entities_description,
-    get_sandbox_environment_description,
-    get_working_directory_description
-)
-from project_server.agents.chart.output import ChartAgentOutput
-from project_server.worker import logger
+from kvasir_research.agents.v1.chart.deps import ChartDeps
+from kvasir_research.agents.v1.chart.output import submit_chart
+from kvasir_research.agents.v1.chart.prompt import CHART_AGENT_SYSTEM_PROMPT
+from kvasir_research.agents.v1.shared_tools import navigation_toolset
+from kvasir_research.utils.agent_utils import get_model
+from kvasir_research.agents.v1.chart.output import ChartAgentOutput
+from kvasir_research.agents.abstract_agent import AbstractAgent
+from kvasir_ontology.entities.dataset.data_model import ObjectGroup
+from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
 
 
 model = get_model()
@@ -35,17 +34,12 @@ async def chart_agent_system_prompt(ctx: RunContext[ChartDeps]) -> str:
         return CHART_AGENT_SYSTEM_PROMPT
 
     # Get entity descriptions using the shared utility
-    entities_description = await get_entities_description(
-        ctx.deps.client,
-        ctx.deps.data_sources_injected,
-        ctx.deps.datasets_injected,
-        [],  # model entities
-        [],  # analyses
-        []   # pipelines
+    entities_description = await ctx.deps.callbacks.ontology.describe_entities(
+        [*ctx.deps.datasets_injected, *ctx.deps.data_sources_injected]
     )
 
-    env_description = get_sandbox_environment_description()
-    cwd_description = await get_working_directory_description(ctx.deps.container_name)
+    env_description = ctx.deps.sandbox.get_pyproject_for_env_description()
+    folder_structure_description = await ctx.deps.sandbox.get_folder_structure()
     object_group_description = ""
     if ctx.deps.object_group is not None:
         object_group_description = (
@@ -67,13 +61,63 @@ async def chart_agent_system_prompt(ctx: RunContext[ChartDeps]) -> str:
 
     full_prompt = (
         f"{CHART_AGENT_SYSTEM_PROMPT}\n\n"
-        f"{cwd_description}\n\n"
+        f"{folder_structure_description}\n\n"
         f"{env_description}\n\n"
         f"{entities_description}\n\n"
         f"{object_group_description}\n\n"
         f"{base_code_context}\n\n"
     )
 
-    # logger.info(f"Chart agent system prompt:\n\n{full_prompt}")
-
     return full_prompt
+
+
+class ChartAgentV1(AbstractAgent):
+
+    def __init__(
+        self,
+        project_id: UUID,
+        package_name: str,
+        sandbox_type: Literal["local", "modal"],
+        callbacks: KvasirV1Callbacks,
+        datasets_injected: List[UUID] = None,
+        data_sources_injected: List[UUID] = None,
+        base_code: Optional[str] = None,
+        object_group: Optional[ObjectGroup] = None,
+        run_id: Optional[UUID] = None
+    ):
+        super().__init__(run_id=run_id, project_id=project_id, package_name=package_name,
+                         sandbox_type=sandbox_type, callbacks=callbacks)
+        self.datasets_injected = datasets_injected or []
+        self.data_sources_injected = data_sources_injected or []
+        self.base_code = base_code
+        self.object_group = object_group
+
+    async def __call__(self, prompt: str) -> ChartAgentOutput:
+        try:
+            if self.run_id is None:
+                self.run_id = await self.callbacks.create_run(run_type="chart")
+
+            await self.callbacks.set_run_status(self.run_id, "running")
+
+            deps = ChartDeps(
+                project_id=self.project_id,
+                package_name=self.package_name,
+                sandbox_type=self.sandbox_type,
+                datasets_injected=self.datasets_injected,
+                data_sources_injected=self.data_sources_injected,
+                base_code=self.base_code,
+                object_group=self.object_group,
+                callbacks=self.callbacks
+            )
+
+            response = await chart_agent.run(
+                prompt,
+                deps=deps,
+                message_history=await self.callbacks.get_message_history(self.run_id) if self.run_id else None
+            )
+            return response.output
+
+        except Exception as e:
+            if self.run_id:
+                await self.callbacks.fail_run(self.run_id, f"Error running chart agent: {e}")
+            raise e

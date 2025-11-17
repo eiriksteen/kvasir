@@ -4,36 +4,20 @@ from typing import List, Literal, Optional, Dict
 from pydantic import BaseModel, model_validator
 from pydantic_ai import RunContext, ModelRetry, FunctionToolset
 
-from project_server.worker import logger
-from project_server.agents.extraction.deps import ExtractionDeps
-from project_server.agents.extraction.helper_agent import (
+from kvasir_research.agents.v1.extraction.deps import ExtractionDeps
+from kvasir_research.agents.v1.extraction.helper_agent import (
     data_source_agent,
     dataset_agent,
     pipeline_agent,
-    model_entity_agent,
+    model_agent,
     HelperDeps
 )
-from project_server.client import ProjectClient
-from project_server.agents.shared_tools import read_code_files_tool
-from project_server.client.requests.entity_graph import create_edges, remove_edges
-from project_server.client.requests.data_sources import post_data_source
-from project_server.client.requests.data_objects import post_dataset
-from project_server.client.requests.pipeline import post_pipeline, post_pipeline_run
-from project_server.client.requests.model import post_model_entity
-from project_server.client.requests.project import post_add_entity
-from synesis_schemas.main_server import (
-    EdgesCreateUsingNames,
-    EdgesCreate,
-    EdgeDefinition,
-    DataSourceCreate,
-    DatasetCreate,
-    PipelineCreate,
-    PipelineRunCreate,
-    ModelEntityCreate,
-    AddEntityToProject,
-    Project,
-    DATA_SOURCE_TYPE_LITERAL
-)
+from kvasir_research.agents.v1.shared_tools import read_files_tool
+from kvasir_ontology.entities.data_source.data_model import DataSourceCreate, DATA_SOURCE_TYPE_LITERAL
+from kvasir_ontology.entities.dataset.data_model import DatasetCreate
+from kvasir_ontology.entities.pipeline.data_model import PipelineCreate, PipelineRunCreate
+from kvasir_ontology.entities.model.data_model import ModelInstantiatedCreate
+from kvasir_ontology.graph.data_model import EdgeDefinition, EdgeDefinitionUsingNames, EntityGraph
 
 
 # data sources
@@ -42,7 +26,7 @@ from synesis_schemas.main_server import (
 class EntityToCreate(BaseModel):
     name: str
     type: Literal["data_source", "dataset", "analysis",
-                  "pipeline", "model_entity"]
+                  "pipeline", "model_instantiated"]
     description: str
     data_file_paths: List[str] = []
     code_file_paths: List[str] = []
@@ -69,29 +53,29 @@ ENTITY_TYPE_TO_AGENT = {
     "dataset": dataset_agent,
     # "analysis": analysis_agent,
     "pipeline": pipeline_agent,
-    "model_entity": model_entity_agent
+    "model_instantiated": model_agent
 }
 
 
 def _find_entity_id_in_project_graph(
-    project: Project,
+    graph: EntityGraph,
     entity_name: str,
     entity_type: str
 ) -> Optional[uuid.UUID]:
     entity_list = []
 
     if entity_type == "data_source":
-        entity_list = project.graph.data_sources
+        entity_list = graph.data_sources
     elif entity_type == "dataset":
-        entity_list = project.graph.datasets
+        entity_list = graph.datasets
     elif entity_type == "pipeline":
-        entity_list = project.graph.pipelines
+        entity_list = graph.pipelines
     elif entity_type == "analysis":
-        entity_list = project.graph.analyses
-    elif entity_type == "model_entity":
-        entity_list = project.graph.model_entities
+        entity_list = graph.analyses
+    elif entity_type == "model_instantiated":
+        entity_list = graph.models_instantiated
     elif entity_type == "pipeline_run":
-        for pipeline in project.graph.pipelines:
+        for pipeline in graph.pipelines:
             for run in pipeline.runs:
                 if run.name == entity_name:
                     return run.id
@@ -108,12 +92,12 @@ async def submit_entities_to_create(
     ctx: RunContext[ExtractionDeps],
     entities: List[EntityToCreate],
     pipeline_runs: List[PipelineRunToCreate],
-    edges: List[EdgesCreateUsingNames]
+    edges: List[EdgeDefinitionUsingNames]
 ) -> str:
     """Submit entities, pipeline runs, and edges to create."""
 
-    logger.info(f"Submitting entities to create: {entities}")
-    logger.info(f"Submitting pipeline runs to create: {pipeline_runs}")
+    await ctx.deps.callbacks.log(f"Submitting entities to create: {entities}", "result")
+    await ctx.deps.callbacks.log(f"Submitting pipeline runs to create: {pipeline_runs}", "result")
 
     # Map entity names to IDs for edge creation
     name_to_id_map: Dict[str, uuid.UUID] = {}
@@ -131,22 +115,12 @@ async def submit_entities_to_create(
                     type=entity.data_source_type,
                     type_fields=None
                 )
-                result = await post_data_source(ctx.deps.client, data_source_create)
+                result = await ctx.deps.callbacks.ontology.insert_data_source(data_source_create, [])
                 name_to_id_map[entity.name] = result.id
                 # Add to project
-                await post_add_entity(ctx.deps.client, AddEntityToProject(
-                    project_id=ctx.deps.project.id,
-                    entity_type="data_source",
-                    entity_id=result.id
-                ))
                 # Update entity_id for specialized agent
                 entity.entity_id = result.id
-
-                logger.info(
-                    f"CTX DEPS LOG MESSAGE IS SET: {ctx.deps.log_message is not None}")
-                if ctx.deps.log_message:
-                    logger.info(f"CREATED DATA SOURCE")
-                    await ctx.deps.log_message(f"CREATED DATA SOURCE", "result")
+                await ctx.deps.callbacks.log(f"CREATED DATA SOURCE", "result")
 
             elif entity.type == "dataset":
                 # Create dataset with empty object groups
@@ -155,19 +129,12 @@ async def submit_entities_to_create(
                     description=entity.description,
                     groups=[]
                 )
-                result = await post_dataset(ctx.deps.client, [], dataset_create)
+                result = await ctx.deps.callbacks.ontology.insert_dataset(dataset_create, [])
                 name_to_id_map[entity.name] = result.id
                 # Add to project
-                await post_add_entity(ctx.deps.client, AddEntityToProject(
-                    project_id=ctx.deps.project.id,
-                    entity_type="dataset",
-                    entity_id=result.id
-                ))
                 # Update entity_id for specialized agent
                 entity.entity_id = result.id
-
-                if ctx.deps.log_message:
-                    await ctx.deps.log_message(f"CREATED DATASET", "result")
+                await ctx.deps.callbacks.log(f"CREATED DATASET", "result")
 
             elif entity.type == "pipeline":
                 # Create base pipeline entity
@@ -175,54 +142,39 @@ async def submit_entities_to_create(
                     name=entity.name,
                     description=entity.description
                 )
-                result = await post_pipeline(ctx.deps.client, pipeline_create)
+                result = await ctx.deps.callbacks.ontology.insert_pipeline(pipeline_create, [])
                 name_to_id_map[entity.name] = result.id
                 # Add to project
-                await post_add_entity(ctx.deps.client, AddEntityToProject(
-                    project_id=ctx.deps.project.id,
-                    entity_type="pipeline",
-                    entity_id=result.id
-                ))
                 # Update entity_id for specialized agent
                 entity.entity_id = result.id
+                await ctx.deps.callbacks.log(f"CREATED PIPELINE", "result")
 
-                if ctx.deps.log_message:
-                    await ctx.deps.log_message(f"CREATED PIPELINE", "result")
-
-            elif entity.type == "model_entity":
+            elif entity.type == "model_instantiated":
                 # Create base model entity
-                model_entity_create = ModelEntityCreate(
+                model_instantiated_create = ModelInstantiatedCreate(
                     name=entity.name,
                     description=entity.description
                 )
-                result = await post_model_entity(ctx.deps.client, model_entity_create)
+                result = await ctx.deps.callbacks.ontology.insert_model_instantiated(model_instantiated_create, [])
                 name_to_id_map[entity.name] = result.id
                 # Add to project
-                await post_add_entity(ctx.deps.client, AddEntityToProject(
-                    project_id=ctx.deps.project.id,
-                    entity_type="model_entity",
-                    entity_id=result.id
-                ))
                 # Update entity_id for specialized agent
                 entity.entity_id = result.id
-
-                if ctx.deps.log_message:
-                    await ctx.deps.log_message(f"CREATED MODEL ENTITY", "result")
+                await ctx.deps.callbacks.log(f"CREATED MODEL INSTANTIATED", "result")
         else:
             # Entity already exists, just add to map for edge creation
             name_to_id_map[entity.name] = entity.entity_id
-            logger.info(
-                f"Using existing entity: {entity.name} with ID: {entity.entity_id}")
+            await ctx.deps.callbacks.log(
+                f"Using existing entity: {entity.name} with ID: {entity.entity_id}", "result")
 
     # Phase 1b: Create pipeline runs
     for pipeline_run in pipeline_runs:
         # Resolve pipeline name to ID from the name_to_id_map
         pipeline_id = name_to_id_map.get(pipeline_run.pipeline_name)
         if pipeline_id is None:
-            logger.error(
+            await ctx.deps.callbacks.log(
                 f"Pipeline run '{pipeline_run.name}' references pipeline '{pipeline_run.pipeline_name}' "
-                f"which was not found in created entities. Available names: {list(name_to_id_map.keys())}"
-            )
+                f"which was not found in created entities. Available names: {list(name_to_id_map.keys())}", "error")
             continue
 
         pipeline_run_create = PipelineRunCreate(
@@ -233,63 +185,59 @@ async def submit_entities_to_create(
             output_variables={},
             status="completed"
         )
-        result = await post_pipeline_run(ctx.deps.client, pipeline_run_create)
+        result = await ctx.deps.callbacks.ontology.pipelines.create_pipeline_run(pipeline_run_create)
         name_to_id_map[pipeline_run.name] = result.id
 
     # Phase 2: Create edges
-    logger.info(f"name_to_id_map contents: {name_to_id_map}")
+    await ctx.deps.callbacks.log(f"name_to_id_map contents: {name_to_id_map}", "result")
     if edges:
         # Convert EdgesCreateUsingNames to EdgesCreate
+        entity_graph = await ctx.deps.callbacks.ontology.get_entity_graph()
         edge_definitions = []
         for edge in edges:
-            for edge_def in edge.edges:
-                # Try to get ID from newly created entities first
-                from_id = name_to_id_map.get(edge_def.from_node_name)
-                to_id = name_to_id_map.get(edge_def.to_node_name)
+            # Try to get ID from newly created entities first
+            from_id = name_to_id_map.get(edge.from_node_name)
+            to_id = name_to_id_map.get(edge.to_node_name)
 
-                # Fallback to looking up existing entities in the project graph
-                if from_id is None:
-                    from_id = _find_entity_id_in_project_graph(
-                        ctx.deps.project,
-                        edge_def.from_node_name,
-                        edge_def.from_node_type
-                    )
-                    if from_id:
-                        logger.info(
-                            f"Found existing entity '{edge_def.from_node_name}' in project graph with ID: {from_id}")
+            # Fallback to looking up existing entities in the project graph
+            if from_id is None:
+                from_id = _find_entity_id_in_project_graph(
+                    entity_graph,
+                    edge.from_node_name,
+                    edge.from_node_type
+                )
+                if from_id:
+                    await ctx.deps.callbacks.log(
+                        f"Found existing entity '{edge.from_node_name}' in project graph with ID: {from_id}", "result")
 
-                if to_id is None:
-                    to_id = _find_entity_id_in_project_graph(
-                        ctx.deps.project,
-                        edge_def.to_node_name,
-                        edge_def.to_node_type
-                    )
-                    if to_id:
-                        logger.info(
-                            f"Found existing entity '{edge_def.to_node_name}' in project graph with ID: {to_id}")
+            if to_id is None:
+                to_id = _find_entity_id_in_project_graph(
+                    entity_graph,
+                    edge.to_node_name,
+                    edge.to_node_type
+                )
+                if to_id:
+                    await ctx.deps.callbacks.log(
+                        f"Found existing entity '{edge.to_node_name}' in project graph with ID: {to_id}", "result")
 
-                if from_id is None or to_id is None:
-                    logger.warning(
-                        f"Could not find ID mapping for edge: {edge_def.from_node_name} -> {edge_def.to_node_name}")
-                    logger.warning(
-                        f"Available names in map: {list(name_to_id_map.keys())}")
-                    logger.warning(f"from_id={from_id}, to_id={to_id}")
-                    continue
+            if from_id is None or to_id is None:
+                await ctx.deps.callbacks.log(
+                    f"Could not find ID mapping for edge: {edge.from_node_name} -> {edge.to_node_name}", "error")
+                await ctx.deps.callbacks.log(
+                    f"Available names in map: {list(name_to_id_map.keys())}", "error")
+                await ctx.deps.callbacks.log(f"from_id={from_id}, to_id={to_id}", "error")
+                continue
 
-                edge_definitions.append(EdgeDefinition(
-                    from_node_type=edge_def.from_node_type,
-                    from_node_id=from_id,
-                    to_node_type=edge_def.to_node_type,
-                    to_node_id=to_id
-                ))
+            edge_definitions.append(EdgeDefinition(
+                from_node_type=edge.from_node_type,
+                from_node_id=from_id,
+                to_node_type=edge.to_node_type,
+                to_node_id=to_id
+            ))
 
         if edge_definitions:
-            edges_create = EdgesCreate(edges=edge_definitions)
-            await create_edges(ctx.deps.client, edges_create)
-            logger.info(f"Created {len(edge_definitions)} edges")
-
-    if ctx.deps.initial_submission_callback:
-        await ctx.deps.initial_submission_callback()
+            await ctx.deps.callbacks.ontology.graph.create_edges(edge_definitions)
+            await ctx.deps.callbacks.log(f"Created {len(edge_definitions)} edges", "result")
 
     # Phase 3: Call specialized agents to fill in details
     coroutines = []
@@ -298,7 +246,7 @@ async def submit_entities_to_create(
 
         code_file_contents = []
         for code_file_path in entity.code_file_paths:
-            code_file_content = await read_code_files_tool(ctx, [code_file_path])
+            code_file_content = await read_files_tool(ctx, [code_file_path])
             code_file_contents.append(code_file_content)
 
         code_file_contents_str = "\n\n".join(code_file_contents)
@@ -315,45 +263,47 @@ async def submit_entities_to_create(
         routine = agent.run(
             prompt,
             deps=HelperDeps(
-                client=ctx.deps.client,
-                bearer_token=ctx.deps.bearer_token,
-                project=ctx.deps.project,
-                container_name=ctx.deps.container_name
+                run_id=ctx.deps.run_id,
+                callbacks=ctx.deps.callbacks,
+                sandbox=ctx.deps.sandbox,
+                sandbox_type=ctx.deps.sandbox_type,
+                project_id=ctx.deps.project_id,
+                package_name=ctx.deps.package_name,
             )
         )
         coroutines.append(routine)
 
     if coroutines:
-
         results = await asyncio.gather(*coroutines)
         results_str = "\n\n".join([result.output for result in results])
         return results_str
     else:
-        logger.info("No specialized agents to run (no entities provided)")
+        await ctx.deps.callbacks.log("No specialized agents to run (no entities provided)", "error")
         return "All entities and pipeline runs created successfully"
 
 
-async def submit_entity_edges(ctx: RunContext[ExtractionDeps], edges: EdgesCreate) -> str:
+async def submit_entity_edges(ctx: RunContext[ExtractionDeps], edges: List[EdgeDefinition]) -> str:
     """Submit edges between entities in the graph."""
     try:
-        logger.info(f"Submitting entity edges: {edges}")
-        await create_edges(ctx.deps.client, edges)
+        await ctx.deps.callbacks.log(f"Submitting entity edges: {edges}", "result")
+        await ctx.deps.callbacks.ontology.graph.create_edges(edges)
+        await ctx.deps.callbacks.log("Successfully submitted entity edges to the system", "result")
         return "Successfully submitted entity edges to the system"
     except Exception as e:
-        logger.error(f"Failed to submit entity edges to the system: {str(e)}")
+        await ctx.deps.callbacks.log(f"Failed to submit entity edges to the system: {str(e)}", "error")
         raise ModelRetry(
             f"Failed to submit entity edges to the system: {str(e)}")
 
 
-async def remove_entity_edges(ctx: RunContext[ExtractionDeps], edges: EdgesCreate) -> str:
+async def remove_entity_edges(ctx: RunContext[ExtractionDeps], edges: List[EdgeDefinition]) -> str:
     """Remove edges between entities in the graph."""
     try:
-        logger.info(f"Removing entity edges: {edges}")
-        await remove_edges(ctx.deps.client, edges)
+        await ctx.deps.callbacks.log(f"Removing entity edges: {edges}", "result")
+        await ctx.deps.callbacks.ontology.graph.remove_edges(edges)
         return "Successfully removed entity edges from the system"
     except Exception as e:
-        logger.error(
-            f"Failed to remove entity edges from the system: {str(e)}")
+        await ctx.deps.callbacks.log(
+            f"Failed to remove entity edges from the system: {str(e)}", "error")
         raise ModelRetry(
             f"Failed to remove entity edges from the system: {str(e)}")
 

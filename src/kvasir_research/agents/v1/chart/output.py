@@ -2,9 +2,8 @@ import json
 from pydantic import BaseModel
 from pydantic_ai import RunContext, ModelRetry
 
-from project_server.agents.chart.deps import ChartDeps
-from project_server.utils.code_utils import run_python_code_in_container, remove_print_statements_from_code
-from project_server.worker import logger
+from kvasir_research.agents.v1.chart.deps import ChartDeps
+from kvasir_research.utils.code_utils import remove_print_statements_from_code
 
 
 class ChartAgentOutput(BaseModel):
@@ -55,7 +54,7 @@ async def submit_chart(
         out_code = "\n".join(validation_parts +
                              ["EChartsOption(**result)", "import json", "print(json.dumps(result, default=str))"])
 
-        out, err = await run_python_code_in_container(out_code, ctx.deps.container_name)
+        out, err = await ctx.deps.sandbox.run_python_code(out_code)
 
         err_truncated = err[:2000] + \
             ("[THE REST OF THE ERROR WAS TRUNCATED]" if len(err) > 2000 else "")

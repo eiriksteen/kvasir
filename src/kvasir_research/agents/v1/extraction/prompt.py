@@ -1,4 +1,5 @@
-from synesis_schemas.main_server import MODALITY_LITERAL, DATA_SOURCE_TYPE_LITERAL
+from kvasir_ontology.entities.dataset.data_model import MODALITY_LITERAL
+from kvasir_ontology.entities.data_source.data_model import DATA_SOURCE_TYPE_LITERAL
 
 
 EXTRACTION_AGENT_SYSTEM_PROMPT = f"""
@@ -329,14 +330,14 @@ DON'T MESS WITH THE EDGES TO OR FROM ANALYSES!
 #     description: Forecasting pipeline
 #     from_entities:
 #     - datasets: [dataset_1]
-#     - model_entities: [timemixer_model, xgboost_model]
+#     - model_instantiatedies: [timemixer_model, xgboost_model]
 #     runs:
 #       - id: forecasting_run_1
 #         name: Forecasting run 1
 #         description: Forecasting run 1
 #         from_entities:
 #         - datasets: [dataset_1]
-#         - model_entities: [timemixer_model]
+#         - model_instantiatedies: [timemixer_model]
 #         to_entities:
 #         - data_sources: [forecast_results_source_1, forecast_metrics_source_1]
 
@@ -345,7 +346,7 @@ DON'T MESS WITH THE EDGES TO OR FROM ANALYSES!
 #         description: Forecasting run 2
 #         from_entities:
 #         - datasets: [dataset_1]
-#         - model_entities: [xgboost_model]
+#         - model_instantiatedies: [xgboost_model]
 #         to_entities:
 #         - data_sources: [forecast_results_source_2, forecast_metrics_source_2]
 

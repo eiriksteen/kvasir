@@ -1,22 +1,20 @@
-import uuid
 from dataclasses import dataclass, field
 from typing import List, Literal
+from uuid import UUID
 
-from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
+
+from kvasir_research.sandbox.abstract import AbstractSandbox
 from kvasir_research.sandbox.local import LocalSandbox
 from kvasir_research.sandbox.modal import ModalSandbox
-from kvasir_research.sandbox.abstract import AbstractSandbox
-from kvasir_ontology.entities.dataset.data_model import Dataset
 
 
 @dataclass
-class ExtractionDeps:
+class KvasirV1Deps:
+    run_id: UUID
+    project_id: UUID
     package_name: str
-    run_id: uuid.UUID
-    project_id: uuid.UUID
-    callbacks: KvasirV1Callbacks
-    created_datasets: List[Dataset] = field(default_factory=list)
-    object_groups_with_charts: List[uuid.UUID] = field(default_factory=list)
+    launched_analysis_run_ids: List[UUID] = field(default_factory=list)
+    launched_swe_run_ids: List[UUID] = field(default_factory=list)
     sandbox: AbstractSandbox = field(init=False)
     sandbox_type: Literal["local", "modal"] = "local"
 
