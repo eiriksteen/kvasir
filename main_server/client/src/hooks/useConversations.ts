@@ -1,6 +1,6 @@
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
-import { ConversationCreate, Conversation } from "@/types/orchestrator";
+import { ConversationCreate, Conversation } from "@/types/api/orchestrator";
 import useSWRMutation from "swr/mutation";
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
 import { UUID } from "crypto";

@@ -10,6 +10,11 @@ export default async function SelectProjectPage() {
     redirect('/login');
   }
 
+  // Redirect to complete profile if needed
+  if (session.needsProfileCompletion) {
+    redirect('/complete-profile');
+  }
+
   return (
     <SelectProjectContainer session={session} />
   );

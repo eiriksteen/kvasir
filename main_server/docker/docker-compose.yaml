@@ -16,8 +16,8 @@ services:
   server:
     &server
     build:
-      context: ../..
-      dockerfile: main_server/server/Dockerfile.prod
+      context: ../../..
+      dockerfile: kvasir-app/main_server/server/Dockerfile.prod
     container_name: main-server
     networks:
       - main-backend
@@ -30,8 +30,8 @@ services:
 
   client:
     build:
-      context: ../..
-      dockerfile: main_server/client/Dockerfile.prod
+      context: ../../..
+      dockerfile: kvasir-app/main_server/client/Dockerfile.prod
     container_name: main-client
     networks:
       - main-frontend

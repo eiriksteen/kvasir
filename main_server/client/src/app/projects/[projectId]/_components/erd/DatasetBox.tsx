@@ -1,7 +1,7 @@
 import React from 'react';
 import { Folder } from 'lucide-react';
 import { UUID } from 'crypto';
-import { useDataset } from '@/hooks/useDatasets';
+import { useMountedDataset } from '@/hooks/useOntology';
 import { useAgentContext } from '@/hooks/useAgentContext';
 
 interface DatasetProps {
@@ -11,14 +11,14 @@ interface DatasetProps {
 }
 
 export default function DatasetBox({ datasetId, projectId, openTab }: DatasetProps) {
-  const { dataset } = useDataset(datasetId, projectId);
+  const dataset = useMountedDataset(datasetId, projectId);
   const { 
     datasetsInContext, 
     addDatasetToContext, 
     removeDatasetFromContext 
   } = useAgentContext(projectId);
   
-  const isInContext = datasetsInContext.includes(datasetId);
+  const isInContext = datasetsInContext?.includes(datasetId);
 
   const handleClick = (event: React.MouseEvent) => {
     if (event.metaKey || event.ctrlKey) {

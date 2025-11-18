@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, FileText, Plus, Trash2, ArrowRight, Info, Calendar } from 'lucide-react';
 import { useAnalysis } from '@/hooks/useAnalysis';
-import { NotebookSection, AnalysisSmall } from '@/types/analysis';
+import { Section } from '@/types/ontology/analysis';
 import SectionItemCreate from '@/components/info-tabs/analysis/SectionItemCreate';
-import { buildOrderedSectionsList, findParentSections } from '@/lib/utils';
 import { UUID } from 'crypto';
-import { AnalysisResult as AnalysisResultType } from '@/types/analysis';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
 import GenerateReportPopup from '@/components/info-tabs/analysis/GenerateReportPopup';
 import { useAgentContext } from '@/hooks/useAgentContext';
@@ -17,62 +15,22 @@ interface TableOfContentsProps {
 }
 
 interface TocItemProps {
-  section: NotebookSection;
+  section: Section;
   level: number;
   expandedSections: Set<string>;
   onToggleExpanded: (sectionId: string) => void;
   onScrollToSection?: (sectionId: string) => void;
-  allSections: NotebookSection[];
+  allSections: Section[];
   numbering: string;
 }
 
 
-const TocItem: React.FC<TocItemProps> = ({ section, level, expandedSections, onToggleExpanded, onScrollToSection, allSections, numbering }) => {
-  const isExpanded = expandedSections.has(section.id);
-  
-  
-  // Handle scroll to section with parent expansion
+const TocItem: React.FC<TocItemProps> = ({ section, level, onScrollToSection, numbering }) => {
+  // Handle scroll to section
   const handleScrollToSection = () => {
     if (!onScrollToSection) return;
-    
-    // Find all parent sections that need to be expanded
-    const parentIds = findParentSections(section.id, allSections);
-    
-    // Expand all parent sections
-    parentIds.forEach(parentId => {
-      if (!expandedSections.has(parentId)) {
-        onToggleExpanded(parentId);
-      }
-    });
-    
-    // Scroll to the section (this will also trigger expansion in main content)
     onScrollToSection(section.id);
   };
-  
-
-  
-  // Build ordered list using the new nextType/nextId system
-  const childSections = section.notebookSections || [];
-  const allResults = allSections.flatMap(section => section.analysisResults || []);
-  
-  // Find the first element in the chain (the one that's not referenced by any other element's nextId)
-  const referencedIds = new Set([
-    ...childSections.map(s => s.nextId).filter(Boolean),
-    ...allResults.map(r => r.nextId).filter(Boolean)
-  ]);
-  
-  const firstSection = childSections.find(s => !referencedIds.has(s.id));
-  const firstResult = allResults.find(r => !referencedIds.has(r.id));
-  
-  let orderedChildSections: (NotebookSection | AnalysisResultType)[] = [];
-  
-  if (firstSection) {
-    orderedChildSections = buildOrderedSectionsList(childSections, allResults, firstSection.id, 'notebook_section');
-  } else if (firstResult) {
-    orderedChildSections = buildOrderedSectionsList(childSections, allResults, firstResult.id, 'analysis_result');
-  }
-  
-  const hasChildren = orderedChildSections.length > 0;
 
   return (
     <div className="w-full">
@@ -85,35 +43,11 @@ const TocItem: React.FC<TocItemProps> = ({ section, level, expandedSections, onT
           <span className={`${level === 0 ? 'text-xs' : 'text-xs'} font-mono text-gray-500 flex-shrink-0 ${level === 0 ? 'min-w-[1.5rem]' : 'min-w-[2rem]'}`}>
             {numbering}
           </span>
-          <span className={`${level === 0 ? 'text-sm' : 'text-xs'} text-gray-700 truncate text-left`}>{section.sectionName}</span>
+          <span className={`${level === 0 ? 'text-sm' : 'text-xs'} text-gray-700 truncate text-left`}>{section.name}</span>
           </div>
         </div>
       </div>
-      {isExpanded && hasChildren && (
-        <div className="ml-2 border-l border-gray-300">
-          <div className="">
-            {(() => {
-              let childCounter = 0;
-              return orderedChildSections.map((childSection) => {
-                const isSection = 'sectionName' in childSection;
-                if (isSection) childCounter++;
-                return (
-                  <TocItem
-                    key={childSection.id}
-                    section={childSection as NotebookSection}
-                    level={level + 1}
-                    expandedSections={expandedSections}
-                    onToggleExpanded={onToggleExpanded}
-                    onScrollToSection={onScrollToSection}
-                    allSections={allSections}
-                    numbering={`${numbering}.${childCounter}`}
-                  />
-                );
-              });
-            })()}
-          </div>
-        </div>
-      )}
+      {/* Note: New structure doesn't support nested sections, so no children to render */}
     </div>
   );
 };
@@ -124,7 +58,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   onScrollToSection,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { currentAnalysisObject: analysis, deleteAnalysisObject } = useAnalysis(projectId, analysisObjectId);
+  const { analysis } = useAnalysis(analysisObjectId);
   const [showCreateRootSection, setShowCreateRootSection] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -134,25 +68,13 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
 
   const { addAnalysisToContext, removeAnalysisFromContext } = useAgentContext(projectId);
 
-  // Function to collect all section IDs recursively
-  const getAllSectionIds = useCallback((sections: NotebookSection[]): string[] => {
-    const ids: string[] = [];
-    sections.forEach(section => {
-      ids.push(section.id);
-      if (section.notebookSections) {
-        ids.push(...getAllSectionIds(section.notebookSections));
-      }
-    });
-    return ids;
-  }, []);
-
   // Initialize all sections as expanded when analysis data loads
   useEffect(() => {
-    if (analysis?.notebook?.notebookSections && expandedSections.size === 0) {
-      const allIds = getAllSectionIds(analysis.notebook.notebookSections);
+    if (analysis?.sections && expandedSections.size === 0) {
+      const allIds = analysis.sections.map(s => s.id);
       setExpandedSections(new Set(allIds));
     }
-  }, [analysis, expandedSections.size, getAllSectionIds]);
+  }, [analysis, expandedSections.size]);
 
   // Function to toggle a single section's expanded state
   const toggleSectionExpanded = (sectionId: string) => {
@@ -174,7 +96,8 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   };
 
   const handleConfirmDelete = async () => {
-    await deleteAnalysisObject({analysisObjectId: analysisObjectId});
+    // TODO: Implement delete analysis API call
+    console.log('Delete analysis:', analysisObjectId);
     setShowDeleteConfirmation(false);
   };
 
@@ -266,29 +189,13 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
     );
   }
 
+  // Get sections ordered by creation date
+  const orderedSections = analysis?.sections 
+    ? [...analysis.sections].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
+    : [];
+
   // Early return for collapsed state
   if (!isExpanded) {
-    // Get ordered root sections for display
-    const allSections = analysis?.notebook?.notebookSections || [];
-    const allResults = allSections.flatMap(section => section.analysisResults || []);
-    
-    // Find the first element in the chain
-    const referencedIds = new Set([
-      ...allSections.map(s => s.nextId).filter(Boolean),
-      ...allResults.map(r => r.nextId).filter(Boolean)
-    ]);
-    
-    const firstSection = allSections.find(s => !referencedIds.has(s.id));
-    const firstResult = allResults.find(r => !referencedIds.has(r.id));
-    
-    let orderedRootSections: (NotebookSection | AnalysisResultType)[] = [];
-    
-    if (firstSection) {
-      orderedRootSections = buildOrderedSectionsList(allSections, allResults, firstSection.id, 'notebook_section');
-    } else if (firstResult) {
-      orderedRootSections = buildOrderedSectionsList(allSections, allResults, firstResult.id, 'analysis_result');
-    }
-    
     return (
       <div className="bg-white border-r border-gray-300 flex flex-col h-full">
         <div className="font-mono text-xs flex flex-col items-center px-3 py-3 h-full">
@@ -298,23 +205,15 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
                 <DetailsView />
               </div>
             ) : (
-              (() => {
-                let sectionCounter = 0;
-                return orderedRootSections.map((item) => {
-                  const isSection = 'sectionName' in item;
-                  if (isSection) sectionCounter++;
-                  
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => onScrollToSection?.(item.id)}
-                      className="text-xs font-mono text-gray-400 hover:text-gray-900 transition-colors mb-3 cursor-pointer"
-                    >
-                      {sectionCounter}
-                    </button>
-                  );
-                });
-              })()
+              orderedSections.map((section, index) => (
+                <button
+                  key={section.id}
+                  onClick={() => onScrollToSection?.(section.id)}
+                  className="text-xs font-mono text-gray-400 hover:text-gray-900 transition-colors mb-3 cursor-pointer"
+                >
+                  {index + 1}
+                </button>
+              ))
             )}
           </div>
           <button 
@@ -326,29 +225,6 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
         </div>
       </div>
     );
-  }
-
-  // Build ordered list for root sections using the nextType/nextId system
-  const allSections = analysis.notebook?.notebookSections || [];
-  
-  // Find the first root section in the chain (the one that's not referenced by any other section's nextId)
-  const allResults = allSections.flatMap(section => section.analysisResults || []);
-  
-  // Find the first element in the chain (the one that's not referenced by any other element's nextId)
-  const referencedIds = new Set([
-    ...allSections.map(s => s.nextId).filter(Boolean),
-    ...allResults.map(r => r.nextId).filter(Boolean)
-  ]);
-  
-  const firstSection = allSections.find(s => !referencedIds.has(s.id));
-  const firstResult = allResults.find(r => !referencedIds.has(r.id));
-  
-  let orderedRootSections: (NotebookSection | AnalysisResultType)[] = [];
-  
-  if (firstSection) {
-    orderedRootSections = buildOrderedSectionsList(allSections, allResults, firstSection.id, 'notebook_section');
-  } else if (firstResult) {
-    orderedRootSections = buildOrderedSectionsList(allSections, allResults, firstResult.id, 'analysis_result');
   }
 
   return (
@@ -380,31 +256,23 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
           <DetailsView />
         ) : (
           <>
-            {orderedRootSections.length > 0 ? (
+            {orderedSections.length > 0 ? (
               <div className="">
-                {(() => {
-                  let rootCounter = 0;
-                  return orderedRootSections.map((section) => {
-                    const isSection = 'sectionName' in section;
-                    if (isSection) rootCounter++;
-                    return (
-                      <TocItem
-                        key={section.id}
-                        section={section as NotebookSection}
-                        level={0}
-                        expandedSections={expandedSections}
-                        onToggleExpanded={toggleSectionExpanded}
-                        onScrollToSection={onScrollToSection}
-                        allSections={allSections}
-                        numbering={`${rootCounter}`}
-                      />
-                    );
-                  });
-                })()}
+                {orderedSections.map((section, index) => (
+                  <TocItem
+                    key={section.id}
+                    section={section}
+                    level={0}
+                    expandedSections={expandedSections}
+                    onToggleExpanded={toggleSectionExpanded}
+                    onScrollToSection={onScrollToSection}
+                    allSections={orderedSections}
+                    numbering={`${index + 1}`}
+                  />
+                ))}
                 {showCreateRootSection && (
                   <div className="mb-4">
                     <SectionItemCreate
-                      parentId={null}
                       projectId={projectId}
                       analysisObjectId={analysisObjectId}
                       onCancel={() => setShowCreateRootSection(false)}
@@ -417,7 +285,6 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
                 {showCreateRootSection && (
                   <div className="mb-4">
                     <SectionItemCreate
-                      parentId={null}
                       projectId={projectId}
                       analysisObjectId={analysisObjectId}
                       onCancel={() => setShowCreateRootSection(false)}
@@ -456,7 +323,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
         <GenerateReportPopup
           isOpen={showGenerateReportPopup}
           onClose={() => setShowGenerateReportPopup(false)}
-          analysis={analysis as AnalysisSmall}
+          analysis={analysis}
           projectId={projectId}
         />
       )}

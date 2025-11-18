@@ -35,7 +35,7 @@ const getSourceLabel = (source: ModelSourceType) => {
   }
 };
 
-export default function AddModelEntity({ onClose, projectId }: AddModelEntityProps) {
+export default function AddModelInstantiated({ onClose, projectId }: AddModelEntityProps) {
   const [selectedSource, setSelectedSource] = useState<ModelSourceType | null>(null);
   const [description, setDescription] = useState('');
   const [fields, setFields] = useState<ModelSourceFields>({});

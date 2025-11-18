@@ -1,19 +1,22 @@
-import useSWR, { mutate } from "swr";
+import useSWR from "swr";
 import { useSession } from "next-auth/react";
-import { Pipeline, PipelineRunInDB } from "@/types/pipeline";
+import { Pipeline, PipelineRunBase, PipelineRunCreate } from "@/types/ontology/pipeline";
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
 import { UUID } from "crypto";
 import useSWRSubscription from "swr/subscription";
 import useSWRMutation from "swr/mutation";
 import { SSE } from "sse.js";
 import { SWRSubscriptionOptions } from "swr/subscription";
-import { useCallback } from "react";
 import { useMemo } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-async function fetchPipelines(token: string, projectId: UUID): Promise<Pipeline[]> {
-  const response = await fetch(`${API_URL}/project/project-pipelines/${projectId}`, {
+// =============================================================================
+// API Functions
+// =============================================================================
+
+async function fetchPipeline(token: string, pipelineId: UUID): Promise<Pipeline> {
+  const response = await fetch(`${API_URL}/pipeline/pipelines/${pipelineId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -22,16 +25,36 @@ async function fetchPipelines(token: string, projectId: UUID): Promise<Pipeline[
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Failed to fetch pipelines', errorText);
-    throw new Error(`Failed to fetch pipelines: ${response.status} ${errorText}`);
+    console.error('Failed to fetch pipeline', errorText);
+    throw new Error(`Failed to fetch pipeline: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
   return snakeToCamelKeys(data);
 }
 
-async function fetchPipelineRuns(token: string): Promise<PipelineRunInDB[]> {
+async function fetchPipelinesByIds(token: string, pipelineIds: UUID[]): Promise<Pipeline[]> {
+  const params = new URLSearchParams();
+  pipelineIds.forEach(id => params.append('pipeline_ids', id));
 
+  const response = await fetch(`${API_URL}/pipeline/pipelines-by-ids?${params.toString()}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch pipelines by ids', errorText);
+    throw new Error(`Failed to fetch pipelines by ids: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
+
+async function fetchPipelineRuns(token: string): Promise<PipelineRunBase[]> {
   const response = await fetch(`${API_URL}/pipeline/pipelines/runs`, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -49,6 +72,25 @@ async function fetchPipelineRuns(token: string): Promise<PipelineRunInDB[]> {
   return snakeToCamelKeys(data);
 }
 
+async function createPipelineRun(token: string, pipelineRunCreate: PipelineRunCreate): Promise<PipelineRunBase> {
+  const response = await fetch(`${API_URL}/pipeline/pipeline-run`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(camelToSnakeKeys(pipelineRunCreate)),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to create pipeline run', errorText);
+    throw new Error(`Failed to create pipeline run: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
 
 function createPipelineRunsEventSource(token: string): SSE {
   return new SSE(`${API_URL}/pipeline/stream-pipeline-runs`, {
@@ -60,196 +102,162 @@ function createPipelineRunsEventSource(token: string): SSE {
   });
 }
 
+// =============================================================================
+// Hooks
+// =============================================================================
 
-async function runPipeline(
-  token: string,
-  request: {
-    pipelineId: UUID;
-    projectId: UUID;
-    args: Record<string, unknown>;
-    inputs: {
-      dataSourceIds: UUID[];
-      datasetIds: UUID[];
-      modelInstantiatedIds: UUID[];
-    };
-    name?: string;
-    description?: string;
-  }
-): Promise<PipelineRunInDB> {
-  const response = await fetch(`${API_URL}/pipeline/run-pipeline`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(camelToSnakeKeys(request)),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to run pipeline', errorText);
-    throw new Error(`Failed to run pipeline: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-async function deletePipelineEndpoint(token: string, pipelineId: UUID): Promise<void> {
-  const response = await fetch(`${API_URL}/deletion/pipeline/${pipelineId}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to delete pipeline', errorText);
-    throw new Error(`Failed to delete pipeline: ${response.status} ${errorText}`);
-  }
-}
-
-export const usePipelines = (projectId: UUID) => {
+/**
+ * Hook to fetch pipelines by IDs.
+ * For fetching all pipelines in a project, use useOntology instead.
+ */
+export const usePipelinesByIds = (pipelineIds?: UUID[]) => {
   const { data: session } = useSession();
-  const { data: pipelines, mutate: mutatePipelines, error, isLoading } = useSWR<Pipeline[]>(
-    session ? ["pipelines", projectId] : null, 
-    () => fetchPipelines(session ? session.APIToken.accessToken : "", projectId),
-  );
-  const { data: pipelineRuns, mutate: mutatePipelineRuns } = useSWR<PipelineRunInDB[]>(
-    session ? ["pipelineRuns", projectId] : null, () => fetchPipelineRuns(session ? session.APIToken.accessToken : "")
+
+  const { data: pipelines, mutate: mutatePipelines, error, isLoading } = useSWR(
+    session && pipelineIds && pipelineIds.length > 0 ? ["pipelines-by-ids", pipelineIds] : null,
+    () => fetchPipelinesByIds(session!.APIToken.accessToken, pipelineIds || [])
   );
 
-  const { trigger: triggerRunPipeline } = useSWRMutation(
-    session ? ["pipelineRuns", projectId] : null,
-     (_, { arg }: { arg: {
-       pipelineId: UUID;
-       projectId: UUID;
-       args: Record<string, unknown>;
-       inputs: {
-         dataSourceIds: UUID[];
-         datasetIds: UUID[];
-         modelInstantiatedIds: UUID[];
-       };
-       name?: string;
-       description?: string;
-     } }) => runPipeline(session ? session.APIToken.accessToken : "", arg),
-    {
-      populateCache: (newPipelineRun) => {
-        if (pipelineRuns) {
-          return [...pipelineRuns, newPipelineRun];
+  return {
+    pipelines,
+    mutatePipelines,
+    error,
+    isLoading,
+  };
+};
+
+/**
+ * Hook to fetch a single pipeline.
+ */
+export const usePipeline = (pipelineId?: UUID) => {
+  const { data: session } = useSession();
+
+  const { data: pipeline, mutate: mutatePipeline, error, isLoading } = useSWR(
+    session && pipelineId ? ["pipeline", pipelineId] : null,
+    () => fetchPipeline(session!.APIToken.accessToken, pipelineId!)
+  );
+
+  return {
+    pipeline,
+    mutatePipeline,
+    error,
+    isLoading,
+  };
+};
+
+/**
+ * Hook to fetch and manage pipeline runs with real-time streaming updates.
+ * 
+ * This hook provides:
+ * - All pipeline runs
+ * - Ability to create new pipeline runs
+ * - Real-time SSE streaming of pipeline run status updates
+ * 
+ * Note: For creating/deleting pipelines, use useOntology hook.
+ */
+export const usePipelineRuns = () => {
+  const { data: session } = useSession();
+
+  // Fetch pipeline runs
+  const { data: pipelineRuns, mutate: mutatePipelineRuns, error, isLoading } = useSWR<PipelineRunBase[]>(
+    session ? "pipeline-runs" : null,
+    () => fetchPipelineRuns(session!.APIToken.accessToken),
+    { fallbackData: [] }
+  );
+
+  // Create pipeline run mutation
+  const { trigger: triggerCreatePipelineRun } = useSWRMutation(
+    "pipeline-runs",
+    async (_, { arg }: { arg: PipelineRunCreate }) => {
+      const newPipelineRun = await createPipelineRun(session!.APIToken.accessToken, arg);
+      await mutatePipelineRuns((currentRuns) => {
+        if (currentRuns) {
+          return [...currentRuns, newPipelineRun];
         }
         return [newPipelineRun];
-      },
-      revalidate: false
+      }, { revalidate: false });
+      return newPipelineRun;
     }
   );
 
-  const { trigger: deletePipeline } = useSWRMutation(
-    session ? ["pipelines", projectId] : null,
-    async (_, { arg }: { arg: { pipelineId: UUID } }) => {
-      await deletePipelineEndpoint(session ? session.APIToken.accessToken : "", arg.pipelineId);
-      await mutatePipelines();
-      await mutate(["projects"]);
-    }
-  );
-
+  // SSE streaming for pipeline run updates
   useSWRSubscription(
-    session && pipelineRuns ? ["pipelineRunsStream", pipelineRuns] : null,
-    (_, {next}: SWRSubscriptionOptions<PipelineRunInDB[]>) => {
-      const eventSource = createPipelineRunsEventSource(session ? session.APIToken.accessToken : "");
+    session && pipelineRuns ? ["pipeline-runs-stream", pipelineRuns.length] : null,
+    (_, { next }: SWRSubscriptionOptions<PipelineRunBase[]>) => {
+      if (!session?.APIToken?.accessToken) return;
+
+      const eventSource = createPipelineRunsEventSource(session.APIToken.accessToken);
 
       eventSource.onmessage = (ev) => {
-        const streamedPipelineRuns = snakeToCamelKeys(JSON.parse(ev.data));
+        const streamedPipelineRuns = snakeToCamelKeys(JSON.parse(ev.data)) as PipelineRunBase[];
+        
         next(null, async () => {
-
           await mutatePipelineRuns(async (currentRuns) => {
             if (!currentRuns) {
               return streamedPipelineRuns;
             }
 
-            const newRuns = streamedPipelineRuns.filter((run: PipelineRunInDB) => !currentRuns.find((currentRun: PipelineRunInDB) => currentRun.id === run.id));
-            const runsChangedStatus = streamedPipelineRuns.filter((run: PipelineRunInDB) => run.status !== currentRuns.find((currentRun: PipelineRunInDB) => currentRun.id === run.id)?.status);
+            // Find new runs that don't exist in current runs
+            const newRuns = streamedPipelineRuns.filter(
+              (run: PipelineRunBase) => !currentRuns.find((currentRun: PipelineRunBase) => currentRun.id === run.id)
+            );
 
-            // Return without changes if all streamedRuns are the same as the current runs and no run has changed status
+            // Find runs that changed status
+            const runsChangedStatus = streamedPipelineRuns.filter(
+              (run: PipelineRunBase) => {
+                const currentRun = currentRuns.find((currentRun: PipelineRunBase) => currentRun.id === run.id);
+                return currentRun && run.status !== currentRun.status;
+              }
+            );
+
+            // Return without changes if nothing new
             if (newRuns.length === 0 && runsChangedStatus.length === 0) {
               return currentRuns;
             }
 
             // Update existing runs with status changes and append new runs
-            let updatedRuns = currentRuns.map(run => runsChangedStatus.find((changedRun: PipelineRunInDB) => changedRun.id === run.id) || run);
-            updatedRuns = updatedRuns.concat(newRuns);
-
-            // Trigger project refresh if any runs completed
-            const completedRuns = runsChangedStatus.filter((run: PipelineRunInDB) => run.status === "completed");
-            if (completedRuns.length > 0) {
-              
-              // When a pipeline completes we get new datasets and potentially new model entities
-              await mutate(["datasets", projectId]);
-              await mutate(["models-instantiated", projectId])
-              await mutate("projects");
-            }
+            const updatedRuns = currentRuns.map(
+              run => runsChangedStatus.find((changedRun: PipelineRunBase) => changedRun.id === run.id) || run
+            ).concat(newRuns);
 
             return updatedRuns;
-          }, {revalidate: false});
+          }, { revalidate: false });
 
-          // Return undefined since this is purely to update the pipeline runs by listening to updates from the event source
           return undefined;
         });
-      }
+      };
+
       eventSource.onerror = (ev) => {
         console.error("Pipeline run event source error", ev);
-      }
+      };
 
       return () => eventSource.close();
     }
   );
 
   return {
-    pipelines,
-    pipelineRuns: pipelineRuns || [],
-    triggerRunPipeline,
-    mutatePipelines,
+    pipelineRuns,
+    mutatePipelineRuns,
+    createPipelineRun: triggerCreatePipelineRun,
+    error,
     isLoading,
-    isError: error,
-    deletePipeline,
   };
 }; 
 
+/**
+ * Hook to get pipeline runs filtered by pipeline ID.
+ */
+export const usePipelineRunsByPipelineId = (pipelineId: UUID) => {
+  const { pipelineRuns, mutatePipelineRuns, error, isLoading } = usePipelineRuns();
 
-export const usePipeline = (pipelineId: UUID, projectId: UUID) => {
-  const { pipelines, mutatePipelines, triggerRunPipeline: runPipeline, pipelineRuns } = usePipelines(projectId);
-
-  const pipeline = useMemo(() => {
-    return pipelines?.find((pipeline: Pipeline) => pipeline.id === pipelineId);
-  }, [pipelines, pipelineId]);
-
-  const triggerRunPipeline = useCallback((config: {
-    args: Record<string, unknown>;
-    inputs: {
-      dataSourceIds: UUID[];
-      datasetIds: UUID[];
-      modelInstantiatedIds: UUID[];
-    };
-    name?: string;
-    description?: string;
-  }) => {
-    runPipeline({
-      pipelineId: pipelineId,
-      projectId: projectId,
-      ...config
-    });
-  }, [projectId, pipelineId, runPipeline]);
-
-  const pipelineRuns_ = useMemo(() => {
-    return pipelineRuns.filter((run: PipelineRunInDB) => run.pipelineId === pipelineId);
+  const filteredRuns = useMemo(() => {
+    return (pipelineRuns || []).filter((run: PipelineRunBase) => run.pipelineId === pipelineId);
   }, [pipelineRuns, pipelineId]);
 
   return {
-    pipeline,
-    triggerRunPipeline,
-    mutatePipeline: mutatePipelines,
-    pipelineRuns: pipelineRuns_
+    pipelineRuns: filteredRuns,
+    mutatePipelineRuns,
+    error,
+    isLoading,
   };
 };

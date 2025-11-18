@@ -54,26 +54,6 @@ pipeline_implementation = Table(
 )
 
 
-function_in_pipeline = Table(
-    "function_in_pipeline",
-    metadata,
-    Column("pipeline_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.pipeline.id"),
-           primary_key=True,
-           nullable=False),
-    Column("function_id", UUID(as_uuid=True),
-           ForeignKey("function.function.id"),
-           primary_key=True,
-           nullable=False),
-    Column("created_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc), nullable=False),
-    Column("updated_at", DateTime(timezone=True),
-           default=datetime.now(timezone.utc),
-           onupdate=datetime.now(timezone.utc), nullable=False),
-    schema="pipeline"
-)
-
-
 pipeline_run = Table(
     "pipeline_run",
     metadata,

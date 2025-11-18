@@ -3,18 +3,7 @@ import { useSWRConfig } from "swr"
 import { useRun, useRunMessages } from "@/hooks/useRuns";
 import { BarChart3, Zap, Clock, CheckCircle, XCircle, Loader2, Check, X, Network } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
-import { useDatasets } from "@/hooks/useDatasets";
-import { useDataSources } from "@/hooks/useDataSources";
-import { useModelEntities } from "@/hooks/useModelEntities";
-import { usePipelines } from "@/hooks/usePipelines";
-import { useAnalyses } from "@/hooks/useAnalysis";
-import { Dataset } from "@/types/data-objects";
-import { DataSource } from "@/types/data-sources";
-import { ModelInstantiated } from "@/types/model";
-import { Pipeline } from "@/types/pipeline";
-import { AnalysisSmall } from "@/types/analysis";
-import { useProject } from "@/hooks/useProject";
-import { DataSourceMini, DatasetMini, AnalysisMini, PipelineMini, ModelEntityMini } from "@/components/entity-mini";
+import { useOntology } from "@/hooks/useOntology";
 
 interface RunBoxProps {
   runId: UUID;
@@ -127,12 +116,7 @@ function RunMessageList({ runId, projectId }: { runId: UUID, projectId: UUID }) 
 
 export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBoxProps) {
   const { run, triggerLaunchRun, triggerRejectRun } = useRun(projectId, runId);
-  const { datasets, mutateDatasets } = useDatasets(projectId);
-  const { dataSources, mutateDataSources } = useDataSources(projectId);
-  const { modelsInstantiated } = useModelEntities(projectId);
-  const { pipelines, mutatePipelines } = usePipelines(projectId);
-  const { analysisObjects, mutateAnalysisObjects } = useAnalyses(projectId);
-  const { getEntityGraphNode } = useProject(projectId);
+  const { mutateDataSources, mutateDatasets, mutateModelsInstantiated, mutateAnalyses, mutatePipelines } = useOntology(projectId);
   const [isRejecting, setIsRejecting] = useState(false);
   const isPending = run?.status === 'pending';
   const [showMessages, setShowMessages] = useState(isPending);
@@ -158,25 +142,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
 
   const theme = getRunTheme(run.type as 'analysis' | 'swe' | 'extraction');
   const statusInfo = getStatusInfo(run.status);
-  
-  // Get run inputs/outputs from entity graph
-  const runNode = getEntityGraphNode(run.id);
-  
-  const hasInputs = runNode && (
-    runNode.fromEntities.dataSources.length > 0 ||
-    runNode.fromEntities.datasets.length > 0 ||
-    runNode.fromEntities.modelsInstantiated.length > 0 ||
-    runNode.fromEntities.pipelines.length > 0 ||
-    runNode.fromEntities.analyses.length > 0
-  );
 
-  const hasOutputs = runNode && (
-    runNode.toEntities.dataSources.length > 0 ||
-    runNode.toEntities.datasets.length > 0 ||
-    runNode.toEntities.modelsInstantiated.length > 0 ||
-    runNode.toEntities.pipelines.length > 0 ||
-    runNode.toEntities.analyses.length > 0
-  );
 
 
   const handleAccept = async (e: React.MouseEvent) => {
@@ -189,17 +155,18 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
     } finally {
       setIsLaunching(false);
       if (run.type === 'swe') {
-        await mutatePipelines();
+        await mutateModelsInstantiated();
       }
       else if (run.type === 'analysis') {
-        await mutateAnalysisObjects();
+        await mutateAnalyses();
       }
       else if (run.type === 'extraction') {
         // Extraction runs can create/modify multiple entity types
         await mutateDataSources();
         await mutateDatasets();
+        await mutateModelsInstantiated();
+        await mutateAnalyses();
         await mutatePipelines();
-        await mutateAnalysisObjects();
       }
       // // Update ERD
       await mutate("projects");
@@ -264,114 +231,7 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
                 </div>
               </div>
             )}
-              
-              {/* Entity Context - Inputs */}
-              {hasInputs && (
-                <div className="pt-2">
-                  <div className="text-[10px] font-medium text-gray-600 mb-1">Inputs:</div>
-                  <div className="flex flex-wrap gap-1">
-                    {runNode?.fromEntities.dataSources.map((dataSourceId) => {
-                      const dataSource = dataSources?.find((ds: DataSource) => ds.id === dataSourceId);
-                      return (
-                        <DataSourceMini
-                          key={dataSourceId}
-                          name={dataSource?.name || 'Data Source'}
-                        />
-                      );
-                    })}
-                    {runNode?.fromEntities.datasets.map((datasetId) => {
-                      const dataset = datasets?.find((ds: Dataset) => ds.id === datasetId);
-                      return (
-                        <DatasetMini
-                          key={datasetId}
-                          name={dataset?.name || 'Dataset'}
-                        />
-                      );
-                    })}
-                    {runNode?.fromEntities.modelsInstantiated.map((modelInstantiatedId) => {
-                      const modelInstantiated = modelsInstantiated?.find((me: ModelInstantiated) => me.id === modelInstantiatedId);
-                      return (
-                        <ModelEntityMini
-                          key={modelInstantiatedId}
-                          name={modelInstantiated?.name || 'Model'}
-                        />
-                      );
-                    })}
-                    {runNode?.fromEntities.pipelines.map((pipelineId) => {
-                      const pipeline = pipelines?.find((p: Pipeline) => p.id === pipelineId);
-                      return (
-                        <PipelineMini
-                          key={pipelineId}
-                          name={pipeline?.name || 'Pipeline'}
-                        />
-                      );
-                    })}
-                    {runNode?.fromEntities.analyses.map((analysisId) => {
-                      const analysis = analysisObjects?.find((a: AnalysisSmall) => a.id === analysisId);
-                      return (
-                        <AnalysisMini
-                          key={analysisId}
-                          name={analysis?.name || 'Analysis'}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Entity Context - Outputs */}
-              {hasOutputs && (
-                <div className="pt-2">
-                  <div className="text-[10px] font-medium text-gray-600 mb-1">Outputs:</div>
-                  <div className="flex flex-wrap gap-1">
-                    {runNode?.toEntities.dataSources.map((dataSourceId) => {
-                      const dataSource = dataSources?.find((ds: DataSource) => ds.id === dataSourceId);
-                      return (
-                        <DataSourceMini
-                          key={dataSourceId}
-                          name={dataSource?.name || 'Data Source'}
-                        />
-                      );
-                    })}
-                    {runNode?.toEntities.datasets.map((datasetId) => {
-                      const dataset = datasets?.find((ds: Dataset) => ds.id === datasetId);
-                      return (
-                        <DatasetMini
-                          key={datasetId}
-                          name={dataset?.name || 'Dataset'}
-                        />
-                      );
-                    })}
-                    {runNode?.toEntities.modelsInstantiated.map((modelInstantiatedId) => {
-                      const modelInstantiated = modelsInstantiated?.find((me: ModelInstantiated) => me.id === modelInstantiatedId);
-                      return (
-                        <ModelEntityMini
-                          key={modelInstantiatedId}
-                          name={modelInstantiated?.name || 'Model'}
-                        />
-                      );
-                    })}
-                    {runNode?.toEntities.pipelines.map((pipelineId) => {
-                      const pipeline = pipelines?.find((p: Pipeline) => p.id === pipelineId);
-                      return (
-                        <PipelineMini
-                          key={pipelineId}
-                          name={pipeline?.name || 'Pipeline'}
-                        />
-                      );
-                    })}
-                    {runNode?.toEntities.analyses.map((analysisId) => {
-                      const analysis = analysisObjects?.find((a: AnalysisSmall) => a.id === analysisId);
-                      return (
-                        <AnalysisMini
-                          key={analysisId}
-                          name={analysis?.name || 'Analysis'}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-            )}
+            
             
             {/* Accept/Reject Buttons for Pending Runs */}
             {isPending && (

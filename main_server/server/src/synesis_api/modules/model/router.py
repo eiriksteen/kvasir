@@ -1,96 +1,55 @@
-from typing import List, Union
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Annotated
+from fastapi import APIRouter, Depends
 
-from synesis_schemas.main_server import (
+
+from synesis_api.modules.model.service import get_models_service
+from kvasir_ontology.entities.model.interface import ModelInterface
+from kvasir_ontology.entities.model.data_model import (
+    Model,
+    ModelCreate,
     ModelImplementationCreate,
-    ModelEntityInDB,
-    ModelEntityCreate,
-    ModelEntityImplementationCreate,
     ModelInstantiated,
-    User,
-    GetModelEntityByIDsRequest,
-    ModelEntityConfigUpdate,
-    ModelImplementation,
-    ModelUpdateCreate
+    ModelInstantiatedCreate,
 )
-from synesis_api.auth.service import get_current_user, user_owns_model_entity, user_can_access_model_source
-from synesis_api.modules.model.service import (
-    create_model,
-    create_model_entity,
-    create_model_entity_implementation,
-    get_user_model_entities,
-    set_new_model_entity_config,
-    update_model
-)
-
 
 router = APIRouter()
 
 
-@router.post("/model", response_model=ModelImplementation)
+@router.post("/model", response_model=Model)
 async def post_model(
-    request: ModelImplementationCreate,
-    user: User = Depends(get_current_user),
-) -> ModelImplementation:
-    model = await create_model(user.id, request)
-    return model
+    request: ModelCreate,
+    model_service: Annotated[ModelInterface, Depends(get_models_service)]
+) -> Model:
+    return await model_service.create_model(request)
 
 
-@router.post("/model/update", response_model=ModelImplementation)
-async def post_update_model(
-    request: ModelUpdateCreate,
-    user: User = Depends(get_current_user),
-) -> ModelImplementation:
-    model = await update_model(user.id, request)
-    return model
+@router.post("/model-implementation", response_model=Model)
+async def post_model(
+        request: ModelImplementationCreate,
+        model_service: Annotated[ModelInterface, Depends(get_models_service)]) -> Model:
+    return await model_service.create_model_implementation(request)
 
 
-@router.post("/model-instantiated", response_model=ModelEntityInDB)
-async def post_model_entity(
-    request: ModelEntityCreate,
-    user: User = Depends(get_current_user),
-) -> ModelEntityInDB:
-    """
-    Create a bare model entity without implementation.
-    This is used when developing or when the exact implementation hasn't been selected yet.
-    """
-    model_instantiated = await create_model_entity(user.id, request)
-    return model_instantiated
-
-
-@router.post("/model-instantiated-implementation", response_model=ModelEntityInDB)
-async def post_model_entity_implementation(
-    request: ModelEntityImplementationCreate,
-    user: User = Depends(get_current_user),
-) -> ModelEntityInDB:
-    """
-    Create a model entity implementation.
-    This creates or uses an existing model entity and attaches a model implementation with config.
-    """
-    model_instantiated = await create_model_entity_implementation(user.id, request)
-    return model_instantiated
+@router.post("/model-instantiated", response_model=ModelInstantiated)
+async def post_model_instantiated(
+    request: ModelInstantiatedCreate,
+    model_service: Annotated[ModelInterface, Depends(get_models_service)]
+) -> ModelInstantiated:
+    return await model_service.create_model_instantiated(request)
 
 
 @router.get("/models-instantiated-by-ids", response_model=List[ModelInstantiated])
-async def fetch_model_entities_by_ids(
-    request: GetModelEntityByIDsRequest,
-    user: User = Depends(get_current_user),
+async def fetch_models_instantiated_by_ids(
+    model_instantiated_ids: List[UUID],
+    model_service: Annotated[ModelInterface, Depends(get_models_service)]
 ) -> List[ModelInstantiated]:
-
-    # TODO: Should add user id field to model entity to enable auth
-    return await get_user_model_entities(user.id, request.model_instantiated_ids)
+    return await model_service.get_models_instantiated(model_instantiated_ids)
 
 
-@router.patch("/model-instantiated/{model_instantiated_id}/config", response_model=ModelInstantiated)
-async def patch_model_entity_config(
+@router.get("/model-instantiated/{model_instantiated_id}", response_model=ModelInstantiated)
+async def get_model_instantiated(
     model_instantiated_id: UUID,
-    request: ModelEntityConfigUpdate,
-    user: User = Depends(get_current_user),
+    model_service: Annotated[ModelInterface, Depends(get_models_service)]
 ) -> ModelInstantiated:
-    """Update the config of a model entity implementation."""
-    if not await user_owns_model_entity(user.id, model_instantiated_id):
-        raise HTTPException(
-            status_code=403, detail="Not authorized to access this model entity")
-
-    return await set_new_model_entity_config(user.id, model_instantiated_id, request)
+    return await model_service.get_model_instantiated(model_instantiated_id)

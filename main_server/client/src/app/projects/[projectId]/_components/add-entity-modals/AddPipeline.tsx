@@ -1,14 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { X, Folder, ChevronDown } from 'lucide-react';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { UUID } from 'crypto';
-import { useDatasets } from '@/hooks/useDatasets';
+import { useOntology } from '@/hooks/useOntology';
 import { useProjectChat } from '@/hooks/useProjectChat';
-
-import { useProject } from '@/hooks/useProject';
-import { Dataset } from '@/types/data-objects';
+import { Dataset } from '@/types/ontology/dataset';
 
 function DatasetListItem({ dataset, isFirst, isInContext }: { dataset: Dataset; isFirst: boolean; isInContext: boolean }) {
 
@@ -43,22 +41,15 @@ export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
   const [scheduleConfig, setScheduleConfig] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const { datasets } = useDatasets(projectId);
+  const { datasets } = useOntology(projectId);
   const { 
     datasetsInContext, 
     addDatasetToContext, 
     removeDatasetFromContext 
   } = useAgentContext(projectId);
 
-  const { project } = useProject(projectId);
   const { submitPrompt } = useProjectChat(projectId);
   const backdropRef = useRef<HTMLDivElement>(null);
-
-  const datasetsInProject = useMemo(() => {
-    if (!project?.graph || !datasets) return [];
-    const projectDatasetIds = project.graph.datasets.map(ds => ds.id);
-    return datasets.filter((dataset: Dataset) => projectDatasetIds.includes(dataset.id));
-  }, [datasets, project?.graph]);
 
   useEffect(() => { 
     const handleClickOutside = (event: MouseEvent) => {
@@ -122,9 +113,9 @@ export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
             </div>
             
             <div className="overflow-y-auto max-h-[40vh]">
-              {datasetsInProject && datasetsInProject.length > 0 ? (
+              {datasets && datasets.length > 0 ? (
                 <div className="grid gap-0">
-                  {datasetsInProject.map((dataset: Dataset, index: number) => {
+                  {datasets.map((dataset: Dataset, index: number) => {
                     const isInContext = datasetsInContext.some((d: UUID) => d === dataset.id);
                     return (
                       <div key={dataset.id} onClick={() => handleDatasetToggle(dataset)}>

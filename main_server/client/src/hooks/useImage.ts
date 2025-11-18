@@ -2,14 +2,15 @@ import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { UUID } from "crypto";
 
-const PROJECT_API_URL = process.env.NEXT_PUBLIC_PROJECT_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 async function fetchImage(
   token: string,
-  imageId: UUID
+  imageId: UUID,
+  mountGroupId: UUID
 ): Promise<string> {
   const response = await fetch(
-    `${PROJECT_API_URL}/image/get-image/${imageId}`,
+    `${API_URL}/visualization/images/${imageId}/download?mount_group_id=${mountGroupId}`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -27,12 +28,12 @@ async function fetchImage(
   return blobUrl;
 }
 
-export const useImage = (imageId: UUID) => {
+export const useImage = (imageId: UUID, mountGroupId: UUID) => {
   const { data: session } = useSession();
 
   const { data: imageBlobUrl, error, isLoading } = useSWR(
-    session && imageId ? ["image", imageId] : null,
-    () => fetchImage(session ? session.APIToken.accessToken : "", imageId)
+    session && imageId && mountGroupId ? ["image", imageId, mountGroupId] : null,
+    () => fetchImage(session!.APIToken.accessToken, imageId, mountGroupId)
   );
 
   return {
@@ -41,4 +42,3 @@ export const useImage = (imageId: UUID) => {
     isError: error,
   };
 };
-

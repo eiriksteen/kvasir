@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
-import { useAnalyses } from '@/hooks/useAnalysis';
-import { AnalysisCreate } from '@/types/analysis';
+import { useOntology } from '@/hooks/useOntology';
+import { AnalysisCreate } from '@/types/ontology/analysis';
 import { UUID } from 'crypto';
 
 interface AddAnalysisProps {
@@ -14,7 +14,9 @@ interface AddAnalysisProps {
 export default function AddAnalysis({ projectId, onClose }: AddAnalysisProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const { createAnalysis } = useAnalyses(projectId);
+  const { insertAnalysis, mutateEntityGraph } = useOntology(projectId);
+
+  // const { createAnalysis } = useAnalysis(projectId);
   const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,14 +34,18 @@ export default function AddAnalysis({ projectId, onClose }: AddAnalysisProps) {
   }, [onClose]);
 
   const handleSubmit = async () => {
-    const analysisCreate: AnalysisCreate = {
-      name,
-      description: description || null
-    };
-    await createAnalysis(analysisCreate);
-    setName('');
-    setDescription('');
-    onClose();
+    try {
+      const analysisCreate: AnalysisCreate = {
+        name,
+        description: description || null
+      };
+      await insertAnalysis({ analysisCreate, edges: [] });
+      setName('');
+      setDescription('');
+      onClose();
+    } finally {
+      await mutateEntityGraph();
+    }
   };
 
   return (

@@ -2,21 +2,20 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Send, Plus, History, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
-import { useProjectChat } from '@/hooks';
+import { useOntology, useProjectChat } from '@/hooks';
 import { useAgentContext } from '@/hooks/useAgentContext';
-import { useDataSources, useDatasets, usePipelines, useModelEntities, useAnalyses } from '@/hooks';
 import { ChatHistory } from '@/app/projects/[projectId]/_components/chat/ChatHistory';
-import { ChatMessage } from '@/types/orchestrator';
+import { ChatMessage } from '@/types/api/orchestrator';
 import { UUID } from 'crypto';
 import { useRunsInConversation } from '@/hooks/useRuns';
 import RunBox from '@/components/runs/RunBox';
-import { RunInDB } from '@/types/runs';
+import { RunInDB } from '@/types/api/runs';
 import ChatMessageBox from '@/app/projects/[projectId]/_components/chat/ChatMessageBox';
-import { DataSource } from '@/types/data-sources';
-import { Dataset } from '@/types/data-objects';
-import { Pipeline } from '@/types/pipeline';
-import { ModelInstantiated } from '@/types/model';
-import { AnalysisSmall } from '@/types/analysis';
+import { DataSource } from '@/types/ontology/data-source';
+import { Dataset } from '@/types/ontology/dataset';
+import { Pipeline } from '@/types/ontology/pipeline';
+import { ModelInstantiated } from '@/types/ontology/model';
+import { Analysis } from '@/types/ontology/analysis';
 import { DataSourceMini, DatasetMini, AnalysisMini, PipelineMini, ModelEntityMini } from '@/components/entity-mini';
 
 export default function Chatbot({ projectId }: { projectId: UUID }) {
@@ -43,11 +42,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   } = useAgentContext(projectId);
 
   // Get the actual objects to display names
-  const { dataSources } = useDataSources(projectId);
-  const { datasets } = useDatasets(projectId);
-  const { pipelines } = usePipelines(projectId);
-  const { modelsInstantiated } = useModelEntities(projectId);
-  const { analysisObjects } = useAnalyses(projectId);
+  const { dataSources, datasets, pipelines, modelsInstantiated, analyses } = useOntology(projectId);
 
   const { runsInConversation } = useRunsInConversation(projectId, conversation?.id || "");
 
@@ -188,17 +183,17 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   };
 
   const getAnalysesInContext = () => {
-    if (!analysisObjects) return [];
+    if (!analyses) return [];
     return analysesInContext
-      .map((id: UUID) => analysisObjects.find((a: AnalysisSmall) => a.id === id))
-      .filter((a: AnalysisSmall | undefined): a is AnalysisSmall => a !== undefined);
+      .map((id: UUID) => analyses.find((a: Analysis) => a.id === id))
+      .filter((a: Analysis | undefined): a is Analysis => a !== undefined);
   };
 
   // Context item configuration
   const contextItemConfigs = [
     { items: getDataSourcesInContext(), type: 'dataSource', component: DataSourceMini, removeFn: (item: DataSource) => removeDataSourceFromContext(item.id) },
     { items: getDatasetsInContext(), type: 'dataset', component: DatasetMini, removeFn: (item: Dataset) => removeDatasetFromContext(item.id) },
-    { items: getAnalysesInContext(), type: 'analysis', component: AnalysisMini, removeFn: (item: AnalysisSmall) => removeAnalysisFromContext(item.id) },
+    { items: getAnalysesInContext(), type: 'analysis', component: AnalysisMini, removeFn: (item: Analysis) => removeAnalysisFromContext(item.id) },
     { items: getPipelinesInContext(), type: 'pipeline', component: PipelineMini, removeFn: (item: Pipeline) => removePipelineFromContext(item.id) },
     { items: getModelEntitiesInContext(), type: 'modelInstantiated', component: ModelEntityMini, removeFn: (item: ModelInstantiated) => removeModelEntityFromContext(item.id) }
   ];

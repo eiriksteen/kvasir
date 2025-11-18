@@ -4,7 +4,7 @@ import base64
 from typing import Annotated
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
-from sqlalchemy import insert, select, or_, and_
+from sqlalchemy import insert, select, or_, and_, update, func
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
@@ -14,16 +14,16 @@ from cryptography.hazmat.primitives.asymmetric.types import (
     PublicKeyTypes,
 )
 
-from synesis_api.auth.schema import User, UserInDB, TokenData, UserCreate, JWKSEntry, JWKSData
+from synesis_api.auth.schema import User, UserInDB, TokenData, UserCreate, GoogleUserLogin, JWKSEntry, JWKSData, RegistrationStatus
 from synesis_api.auth.models import users
 from synesis_api.modules.orchestrator.models import conversation
 from synesis_api.modules.runs.models import run
 from synesis_api.modules.data_objects.models import dataset, object_group, data_object
 from synesis_api.modules.data_sources.models import data_source
-from synesis_api.modules.project.models import project
-from synesis_api.modules.model.models import model_instantiated_implementation, model_source
+
 from synesis_api.modules.pipeline.models import pipeline_run, pipeline
-from synesis_api.app_secrets import PRIVATE_KEY_FILE_PATH, PUBLIC_KEY_FILE_PATH
+from synesis_api.modules.analysis.models import analysis
+from synesis_api.app_secrets import PRIVATE_KEY_FILE_PATH, PUBLIC_KEY_FILE_PATH, MAX_USERS
 from synesis_api.database.service import fetch_one, execute, fetch_all
 
 
@@ -87,6 +87,26 @@ async def get_user_by_id(user_id: uuid.UUID) -> UserInDB | None:
     if user:
         return UserInDB(**user)
     return None
+
+
+async def get_user_count() -> int:
+    """Get the total number of users in the database"""
+    result = await fetch_one(select(func.count()).select_from(users))
+    return result['count_1'] if result else 0
+
+
+async def get_registration_status() -> RegistrationStatus:
+    """Check if registration is open based on user count"""
+    user_count = await get_user_count()
+    is_open = user_count < MAX_USERS
+
+    if not is_open:
+        return RegistrationStatus(
+            is_open=False,
+            message="Registration is currently full. Please sign up on the waitlist."
+        )
+
+    return RegistrationStatus(is_open=True)
 
 
 async def authenticate_user(email: str, password: str) -> User:
@@ -170,11 +190,71 @@ async def create_user(user_create: UserCreate) -> UserInDB:
     user = UserInDB(id=user_id,
                     email=user_create.email,
                     name=user_create.name,
+                    affiliation=user_create.affiliation,
+                    role=user_create.role,
                     hashed_password=hashed_password,
                     created_at=datetime.now(timezone.utc),
                     updated_at=datetime.now(timezone.utc))
     await execute(insert(users).values(user.model_dump()), commit_after=True)
     return user
+
+
+async def google_login(google_user: GoogleUserLogin) -> UserInDB:
+    # First, check if user exists by google_id
+    user_record = await fetch_one(select(users).where(users.c.google_id == google_user.google_id))
+
+    if user_record:
+        return UserInDB(**user_record)
+
+    # Check if user exists by email
+    user_by_email = await get_user_by_email(google_user.email)
+
+    if user_by_email:
+        # Link Google account to existing user
+        await execute(
+            update(users)
+            .where(users.c.email == google_user.email)
+            .values(google_id=google_user.google_id, updated_at=datetime.now(timezone.utc)),
+            commit_after=True
+        )
+        updated_user = await get_user_by_email(google_user.email)
+        if updated_user is None:
+            raise HTTPException(
+                status_code=500, detail="Failed to update user")
+        return updated_user
+
+    # Create new user with Google account
+    user_id = uuid.uuid4()
+    new_user = UserInDB(
+        id=user_id,
+        email=google_user.email,
+        name=google_user.name,
+        affiliation="Unknown",
+        role="Unknown",
+        google_id=google_user.google_id,
+        hashed_password=None,
+        disabled=False,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
+    )
+    await execute(insert(users).values(new_user.model_dump()), commit_after=True)
+    return new_user
+
+
+async def update_user_profile(user_id: uuid.UUID, affiliation: str, role: str) -> User:
+    await execute(
+        update(users)
+        .where(users.c.id == user_id)
+        .values(affiliation=affiliation, role=role, updated_at=datetime.now(timezone.utc)),
+        commit_after=True
+    )
+
+    updated_user = await get_user_by_id(user_id)
+    if updated_user is None:
+        raise HTTPException(
+            status_code=500, detail="Failed to update user profile")
+
+    return User(**updated_user.model_dump())
 
 
 async def user_owns_runs(user_id: uuid.UUID, run_ids: list[uuid.UUID]) -> bool:
@@ -210,11 +290,6 @@ async def user_owns_data_object(user_id: uuid.UUID, data_object_id: uuid.UUID) -
     return data_object_record is not None
 
 
-async def user_owns_project(user_id: uuid.UUID, project_id: uuid.UUID) -> bool:
-    project_record = await fetch_one(select(project).where(project.c.id == project_id, project.c.user_id == user_id))
-    return project_record is not None
-
-
 async def user_owns_time_series(user_id: uuid.UUID, time_series_id: uuid.UUID) -> bool:
     owner_id = await fetch_one(select(
         dataset.c.user_id
@@ -236,16 +311,6 @@ async def user_owns_data_source(user_id: uuid.UUID, data_source_id: uuid.UUID) -
     return data_source_record is not None
 
 
-async def user_can_access_model_source(user_id: uuid.UUID, model_source_id: uuid.UUID) -> bool:
-    model_source_record = await fetch_one(select(model_source).where(model_source.c.id == model_source_id).where(or_(model_source.c.user_id == user_id, model_source.c.public == True)))
-    return model_source_record is not None
-
-
-async def user_owns_model_entity(user_id: uuid.UUID, model_instantiated_id: uuid.UUID) -> bool:
-    model_instantiated_record = await fetch_one(select(model_instantiated_implementation).where(model_instantiated_implementation.c.id == model_instantiated_id, model_instantiated_implementation.c.user_id == user_id))
-    return model_instantiated_record is not None
-
-
 async def user_owns_pipeline(user_id: uuid.UUID, pipeline_id: uuid.UUID) -> bool:
     pipeline_record = await fetch_one(select(pipeline).where(pipeline.c.id == pipeline_id, pipeline.c.user_id == user_id))
     return pipeline_record is not None
@@ -257,3 +322,8 @@ async def user_owns_pipeline_run(user_id: uuid.UUID, pipeline_run_id: uuid.UUID)
                                   pipeline.c.id).where(and_(pipeline.c.user_id == user_id, pipeline_run.c.id == pipeline_run_id))
     )
     return pipeline_run_record is not None
+
+
+async def user_owns_analysis(user_id: uuid.UUID, analysis_id: uuid.UUID) -> bool:
+    analysis_record = await fetch_one(select(analysis).where(analysis.c.id == analysis_id, analysis.c.user_id == user_id))
+    return analysis_record is not None

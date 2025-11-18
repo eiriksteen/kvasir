@@ -29,9 +29,8 @@ from synesis_api.modules.orchestrator.models import (
     model_instantiated_context,
 )
 from synesis_api.database.service import fetch_all, execute, fetch_one
-# from synesis_api.modules.runs.service import get_runs
-# from synesis_api.modules.project.service import get_projects
-# from synesis_api.modules.entity_graph.service import get_entity_details
+from synesis_api.modules.runs.service import create_run
+from synesis_api.modules.runs.schema import RunCreate
 
 
 async def create_conversation(
@@ -40,12 +39,25 @@ async def create_conversation(
         name: str,
         conversation_id: Optional[uuid.UUID] = None) -> ConversationInDB:
 
+    conv_id = conversation_id if conversation_id else uuid.uuid4()
+
+    run_record = await create_run(user_id, RunCreate(
+        id=uuid.uuid4(),
+        type="kvasir",
+        run_name="Kvasir run",
+        project_id=conversation_create.project_id,
+        # conversation_id=conv_id,
+        initial_status="waiting"
+    ))
+
     conversation_record = ConversationInDB(
-        id=conversation_id if conversation_id else uuid.uuid4(),
+        id=conv_id,
+        kvasir_run_id=run_record.id,
         user_id=user_id,
         project_id=conversation_create.project_id,
         name=name,
     )
+
     await execute(conversation.insert().values(conversation_record.model_dump()), commit_after=True)
 
     return conversation_record

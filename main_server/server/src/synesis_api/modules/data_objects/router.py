@@ -1,43 +1,65 @@
+import io
 import json
+import pandas as pd
 from uuid import UUID
-from typing import Annotated, List, Union
-from fastapi import APIRouter, Depends, HTTPException, Form, UploadFile
+from typing import Annotated, List, Union, Dict
+from fastapi import APIRouter, Depends, HTTPException, Form, UploadFile, Query
 
-from synesis_api.modules.data_objects.service import (
-    get_object_groups,
-    create_dataset,
-    get_user_datasets,
-    get_data_objects,
-    create_object_group,
-    create_data_objects,
-    create_object_group_echart
-)
-# from synesis_api.modules.data_objects.service import get_time_series_payload_data_by_id
-from synesis_schemas.main_server import (
-    DatasetCreate,
+from synesis_api.modules.data_objects.service import get_datasets_service
+from kvasir_ontology.entities.dataset.interface import DatasetInterface
+from kvasir_ontology.entities.dataset.data_model import (
     Dataset,
-    GetDatasetsByIDsRequest,
+    DatasetCreate,
     ObjectGroup,
     ObjectGroupWithObjects,
     DataObject,
     ObjectsFile,
-    DataObjectGroupCreate,
-    ObjectGroupEChartCreate
+    ObjectGroupCreate,
 )
-from synesis_schemas.main_server import User
+from kvasir_ontology.visualization.data_model import EchartCreate
 from synesis_api.auth.service import get_current_user, user_owns_dataset, user_owns_object_group, user_owns_data_object
+from synesis_api.auth.schema import User
 
 
 router = APIRouter()
 
 
-@router.post("/dataset")
+async def _convert_upload_files_to_dataframes(files: List[UploadFile]) -> Dict[str, pd.DataFrame]:
+
+    filename_to_dataframe = {}
+    for file in files:
+        content = await file.read()
+        df = pd.read_parquet(io.BytesIO(content))
+        filename_to_dataframe[file.filename] = df
+    return filename_to_dataframe
+
+
+async def _get_matched_dataframes(
+    files: List[UploadFile],
+    objects_files: List[ObjectsFile]
+) -> Dict[str, pd.DataFrame]:
+    filename_to_dataframe = await _convert_upload_files_to_dataframes(files)
+
+    # Verify all required files are present and create filtered mapping
+    matched_dataframes = {}
+    for objects_file in objects_files:
+        if objects_file.filename not in filename_to_dataframe:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File {objects_file.filename} not found in uploaded files"
+            )
+        matched_dataframes[objects_file.filename] = filename_to_dataframe[objects_file.filename]
+
+    return matched_dataframes
+
+
+@router.post("/dataset", response_model=Dataset)
 async def post_dataset(
-    files: list[UploadFile] = [],
+    files: List[UploadFile] = None,
     metadata: str = Form(...),
-    user: Annotated[User, Depends(get_current_user)] = None
+    dataset_service: Annotated[DatasetInterface,
+                               Depends(get_datasets_service)] = None
 ) -> Dataset:
-    """Create a new dataset with groups and objects"""
 
     try:
         dataset_create = DatasetCreate(**json.loads(metadata))
@@ -45,19 +67,21 @@ async def post_dataset(
         raise HTTPException(
             status_code=400, detail=f"Invalid metadata: {e}")
 
-    return await create_dataset(user.id, dataset_create, files)
+    filename_to_dataframe = await _convert_upload_files_to_dataframes(files) if files else None
+    return await dataset_service.create_dataset(dataset_create, filename_to_dataframe)
 
 
 @router.post("/object-group/{dataset_id}", response_model=ObjectGroup)
 async def post_object_group(
     dataset_id: UUID,
-    files: list[UploadFile] = [],
+    files: List[UploadFile] = None,
     metadata: str = Form(...),
-    user: Annotated[User, Depends(get_current_user)] = None
+    user: Annotated[User, Depends(get_current_user)] = None,
+    dataset_service: Annotated[DatasetInterface,
+                               Depends(get_datasets_service)] = None
 ) -> ObjectGroup:
-    """Create an object group in a dataset"""
 
-    if len(files) == 0:
+    if not files or len(files) == 0:
         raise HTTPException(
             status_code=400, detail="No files provided")
 
@@ -66,24 +90,26 @@ async def post_object_group(
             status_code=403, detail="Not authorized to access this dataset")
 
     try:
-        group_create = DataObjectGroupCreate(**json.loads(metadata))
+        group_create = ObjectGroupCreate(**json.loads(metadata))
     except Exception as e:
         raise HTTPException(
             status_code=400, detail=f"Invalid metadata: {e}")
 
-    return await create_object_group(dataset_id, group_create, files)
+    group_filename_to_dataframe = await _get_matched_dataframes(files, group_create.objects_files)
+    return await dataset_service.add_object_group(dataset_id, group_create, group_filename_to_dataframe)
 
 
-@router.post("/objects/{group_id}")
+@router.post("/objects/{group_id}", response_model=List[DataObject])
 async def post_objects(
     group_id: UUID,
-    files: list[UploadFile] = [],
+    files: List[UploadFile] = None,
     metadata: str = Form(...),
-    user: Annotated[User, Depends(get_current_user)] = None
+    user: Annotated[User, Depends(get_current_user)] = None,
+    dataset_service: Annotated[DatasetInterface,
+                               Depends(get_datasets_service)] = None
 ) -> List[DataObject]:
-    """Create objects in a group (using DataFrame insertion)"""
 
-    if len(files) == 0:
+    if not files or len(files) == 0:
         raise HTTPException(
             status_code=400, detail="No files provided")
 
@@ -98,36 +124,36 @@ async def post_objects(
         raise HTTPException(
             status_code=400, detail=f"Invalid metadata: {e}")
 
-    return await create_data_objects(group_id, files, objects_files)
+    filename_to_dataframe = await _get_matched_dataframes(files, objects_files)
+    return await dataset_service.add_data_objects(group_id, objects_files, filename_to_dataframe)
 
 
 @router.get("/dataset/{dataset_id}", response_model=Dataset)
 async def fetch_dataset(
     dataset_id: UUID,
-    user: Annotated[User, Depends(get_current_user)] = None
+    dataset_service: Annotated[DatasetInterface, Depends(get_datasets_service)]
 ) -> Dataset:
     """Get a specific dataset by ID"""
-    dataset_objs = await get_user_datasets(user.id, dataset_ids=[dataset_id])
-    if not dataset_objs:
-        raise HTTPException(
-            status_code=404, detail="Dataset not found")
-    return dataset_objs[0]
+    return await dataset_service.get_dataset(dataset_id)
 
 
 @router.get("/datasets-by-ids", response_model=List[Dataset])
 async def fetch_datasets_by_ids(
-    request: GetDatasetsByIDsRequest,
-    user: Annotated[User, Depends(get_current_user)] = None
+    dataset_ids: List[UUID] = Query(...),
+    dataset_service: Annotated[DatasetInterface,
+                               Depends(get_datasets_service)] = None
 ) -> List[Dataset]:
-    """Get a specific dataset by ID"""
-    return await get_user_datasets(user.id, dataset_ids=request.dataset_ids)
+    """Get datasets by IDs"""
+    return await dataset_service.get_datasets(dataset_ids)
 
 
 @router.get("/object-group/{group_id}", response_model=Union[ObjectGroup, ObjectGroupWithObjects])
 async def fetch_object_group(
     group_id: UUID,
     include_objects: bool = False,
-    user: Annotated[User, Depends(get_current_user)] = None
+    user: Annotated[User, Depends(get_current_user)] = None,
+    dataset_service: Annotated[DatasetInterface,
+                               Depends(get_datasets_service)] = None
 ) -> Union[ObjectGroup, ObjectGroupWithObjects]:
     """Get a specific object group by ID"""
 
@@ -135,51 +161,54 @@ async def fetch_object_group(
         raise HTTPException(
             status_code=403, detail="Not authorized to access this object group")
 
-    object_groups = await get_object_groups(group_ids=[group_id], include_objects=include_objects)
-    if not object_groups:
+    groups = await dataset_service.get_object_groups(group_ids=[group_id], include_objects=include_objects)
+    if not groups:
         raise HTTPException(
             status_code=404, detail="Object group not found")
-    return object_groups[0]
+    return groups[0]
 
 
 @router.get("/object-groups-in-dataset/{dataset_id}", response_model=List[ObjectGroupWithObjects])
 async def fetch_object_groups_in_dataset(
     dataset_id: UUID,
-    user: Annotated[User, Depends(get_current_user)] = None
+    user: Annotated[User, Depends(get_current_user)] = None,
+    dataset_service: Annotated[DatasetInterface,
+                               Depends(get_datasets_service)] = None
 ) -> List[ObjectGroupWithObjects]:
-    """Get a specific object group by ID"""
+    """Get all object groups in a dataset"""
 
     if not await user_owns_dataset(user.id, dataset_id):
         raise HTTPException(
             status_code=403, detail="Not authorized to access this dataset")
 
-    return await get_object_groups(dataset_id=dataset_id, include_objects=True)
+    groups = await dataset_service.get_object_groups(dataset_id=dataset_id, include_objects=True)
+    return groups
 
 
 @router.get("/data-object/{object_id}", response_model=DataObject)
 async def fetch_data_object(
     object_id: UUID,
-    user: Annotated[User, Depends(get_current_user)] = None
+    user: Annotated[User, Depends(get_current_user)] = None,
+    dataset_service: Annotated[DatasetInterface,
+                               Depends(get_datasets_service)] = None
 ) -> DataObject:
     if not await user_owns_data_object(user.id, object_id):
         raise HTTPException(
             status_code=403, detail="Not authorized to access this data object")
 
-    data_objects = await get_data_objects(object_ids=[object_id])
-    if not data_objects:
-        raise HTTPException(
-            status_code=404, detail="Data object not found")
-    return data_objects[0]
+    return await dataset_service.get_data_object(object_id)
 
 
 @router.post("/object-group/{group_id}/echart", response_model=ObjectGroup)
 async def create_object_group_echart_endpoint(
     group_id: UUID,
-    request: ObjectGroupEChartCreate,
-    user: Annotated[User, Depends(get_current_user)] = None
+    request: EchartCreate,
+    user: Annotated[User, Depends(get_current_user)] = None,
+    dataset_service: Annotated[DatasetInterface,
+                               Depends(get_datasets_service)] = None
 ) -> ObjectGroup:
     if not await user_owns_object_group(user.id, group_id):
         raise HTTPException(
             status_code=403, detail="Not authorized to access this object group")
 
-    return await create_object_group_echart(group_id, request)
+    return await dataset_service.create_object_group_echart(group_id, request)

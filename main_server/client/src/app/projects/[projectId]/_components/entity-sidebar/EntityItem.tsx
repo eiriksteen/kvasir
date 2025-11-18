@@ -2,16 +2,16 @@
 
 import React from 'react';
 import { Brain, BarChart3, Zap, Folder, Database } from 'lucide-react';
-import { Dataset } from '@/types/data-objects';
-import { Pipeline } from '@/types/pipeline';
-import { AnalysisSmall } from '@/types/analysis';
-import { ModelInstantiated } from '@/types/model';
-import { DataSource } from '@/types/data-sources';
+import { Dataset } from '@/types/ontology/dataset';
+import { Pipeline } from '@/types/ontology/pipeline';
+import { Analysis } from '@/types/ontology/analysis';
+import { ModelInstantiated } from '@/types/ontology/model';
+import { DataSource } from '@/types/ontology/data-source';
 
 type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'model_instantiated' | 'data_source';
 
 interface EntityItemProps {
-    item: Dataset | AnalysisSmall | Pipeline | ModelInstantiated | DataSource;
+    item: Dataset | Analysis | Pipeline | ModelInstantiated | DataSource;
     type: ItemType;
     isInContext: boolean;
     onClick: () => void;

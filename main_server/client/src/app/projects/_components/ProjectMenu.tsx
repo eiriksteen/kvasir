@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, Loader2, ChevronRight, FolderGit2, X, Plus } from 'lucide-react';
 import { useProjects } from '@/hooks/useProject';
-import { Project } from '@/types/project';
+import { Project } from '@/types/api/project';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
@@ -121,7 +121,10 @@ export default function ProjectMenu() {
             <div className="p-6 overflow-y-auto max-h-[60vh]">
               {projects && projects.length > 0 ? (
                 <div className="space-y-3">
-                  {projects.slice().reverse().map((project) => (
+                  {projects
+                    .slice()
+                    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                    .map((project) => (
                     <button
                       key={project.id}
                       onClick={() => handleProjectSelect(project)}

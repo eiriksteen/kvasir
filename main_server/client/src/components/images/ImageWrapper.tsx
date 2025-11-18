@@ -1,10 +1,11 @@
 import React from "react";
 import Image from "next/image";
 import { UUID } from "crypto";
-import { useImage } from "@/hooks/useImage";
+import { useImage } from "@/hooks";
 
 interface ImageWrapperProps {
   imageId: UUID;
+  projectId: UUID;
   width?: number;
   height?: number;
   className?: string;
@@ -13,12 +14,13 @@ interface ImageWrapperProps {
 
 const ImageWrapper = ({ 
   imageId,
+  projectId,
   width = 600,
   height = 450,
   className = "w-full h-auto rounded",
   alt = "Analysis image"
 }: ImageWrapperProps) => {
-  const { imageBlobUrl, isLoading, isError } = useImage(imageId);
+  const { imageBlobUrl, isLoading, isError } = useImage(imageId, projectId);
 
   if (isLoading) {
     return (

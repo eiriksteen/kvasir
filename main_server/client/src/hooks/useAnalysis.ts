@@ -2,52 +2,32 @@ import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import useSWRMutation from 'swr/mutation'
 import useSWRSubscription, { SWRSubscriptionOptions } from "swr/subscription";
-import { 
-  Analysis, 
-  AnalysisCreate, 
-  AnalysisStatusMessage,
-  AnalysisResult,
-  NotebookSectionCreate,
-  NotebookSectionUpdate,
-  NotebookSection,
-  GenerateReportRequest,
-  MoveRequest,
-  AnalysisSmall
-} from "@/types/analysis";
-import { useProject } from "./useProject";
-import { useMemo, useRef } from "react";
-// import { useAgentContext } from './useAgentContext';
-import { useRuns } from './useRuns';
-import { RunInDB } from "@/types/runs";
 import { UUID } from "crypto";
 import { SSE } from 'sse.js';
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
+import { 
+  Analysis, 
+  AnalysisCell,
+  Section,
+  SectionCreate,
+  CodeCellCreate,
+  MarkdownCellCreate,
+  CodeOutputCreate,
+} from "@/types/ontology/analysis";
+import { 
+  ImageCreate,
+  EchartCreate,
+  TableCreate,
+} from "@/types/ontology/visualization";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+// =============================================================================
+// API Functions
+// =============================================================================
 
-// routes for analysis object
-
-export async function deleteAnalysisObjectEndpoint(token: string, analysisObjectId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/deletion/analysis/${analysisObjectId}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to delete analysis object', errorText);
-    throw new Error(`Failed to delete analysis object: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-export async function fetchAnalysisObjects(token: string, projectId: UUID): Promise<AnalysisSmall[]> {
-  const response = await fetch(`${API_URL}/project/project-analyses/${projectId}`, {
+async function fetchAnalysis(token: string, analysisId: UUID): Promise<Analysis> {
+  const response = await fetch(`${API_URL}/analysis/analysis/${analysisId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -55,67 +35,170 @@ export async function fetchAnalysisObjects(token: string, projectId: UUID): Prom
   });
 
   if (!response.ok) {
-    const errorText = await response.text()
-    console.error('Failed to fetch analysis objects', errorText);
-    throw new Error(`Failed to fetch analysis objects: ${response.status} ${errorText}`);
+    const errorText = await response.text();
+    console.error('Failed to fetch analysis', errorText);
+    throw new Error(`Failed to fetch analysis: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
   return snakeToCamelKeys(data);
 }
 
-export async function postAnalysisObject(token: string, analysisObjectCreate: AnalysisCreate): Promise<Analysis> {
-  const response = await fetch(`${API_URL}/analysis/analysis-object`, {
+async function fetchAnalysesByIds(token: string, analysisIds: UUID[]): Promise<Analysis[]> {
+  const response = await fetch(`${API_URL}/analysis/analyses-by-ids`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(camelToSnakeKeys(analysisObjectCreate))
+    body: JSON.stringify(analysisIds)
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Failed to create analysis object', errorText);
-    throw new Error(`Failed to create analysis object: ${response.status} ${errorText}`);
+    console.error('Failed to fetch analyses by ids', errorText);
+    throw new Error(`Failed to fetch analyses by ids: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
   return snakeToCamelKeys(data);
 }
 
-export async function generateAnalysisReport(token: string, analysisObjectId: string, generateReportRequest: GenerateReportRequest): Promise<void> {
-  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/generate-report`, {
+async function createSection(token: string, analysisId: UUID, sectionCreate: SectionCreate): Promise<Analysis> {
+  const response = await fetch(`${API_URL}/analysis/analysis/${analysisId}/section`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(camelToSnakeKeys(generateReportRequest))
+    body: JSON.stringify(camelToSnakeKeys(sectionCreate))
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Failed to generate analysis report', errorText);
-    throw new Error(`Failed to generate analysis report: ${response.status} ${errorText}`);
+    throw new Error(`Failed to create section: ${response.status} ${errorText}`);
   }
 
-  const filename = generateReportRequest.filename + '.pdf';
-
-  // Create a blob and download it
-  const blob = await response.blob();
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  window.URL.revokeObjectURL(url);
-  document.body.removeChild(a);
+  const data = await response.json();
+  return snakeToCamelKeys(data);
 }
 
-export function createAnalysisEventSource(token: string, jobId: string): SSE {
-  return new SSE(`${API_URL}/analysis/analysis-agent-sse/${jobId}`,
+async function createMarkdownCell(token: string, analysisId: UUID, markdownCellCreate: MarkdownCellCreate): Promise<AnalysisCell> {
+  const response = await fetch(`${API_URL}/analysis/analysis/${analysisId}/markdown-cell`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(camelToSnakeKeys(markdownCellCreate))
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create markdown cell: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
+
+async function createCodeCell(token: string, analysisId: UUID, codeCellCreate: CodeCellCreate): Promise<AnalysisCell> {
+  const response = await fetch(`${API_URL}/analysis/analysis/${analysisId}/code-cell`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(camelToSnakeKeys(codeCellCreate))
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create code cell: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
+
+async function createCodeOutput(token: string, analysisId: UUID, codeOutputCreate: CodeOutputCreate): Promise<Analysis> {
+  const response = await fetch(`${API_URL}/analysis/analysis/${analysisId}/code-output`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(camelToSnakeKeys(codeOutputCreate))
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create code output: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
+
+async function createCodeOutputImage(token: string, analysisId: UUID, codeCellId: UUID, imageCreate: ImageCreate): Promise<Analysis> {
+  const response = await fetch(`${API_URL}/analysis/analysis/${analysisId}/code-cell/${codeCellId}/image`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(camelToSnakeKeys(imageCreate))
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create code output image: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
+
+async function createCodeOutputEchart(token: string, analysisId: UUID, codeCellId: UUID, echartCreate: EchartCreate): Promise<Analysis> {
+  const response = await fetch(`${API_URL}/analysis/analysis/${analysisId}/code-cell/${codeCellId}/echart`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(camelToSnakeKeys(echartCreate))
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create code output echart: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
+
+async function createCodeOutputTable(token: string, analysisId: UUID, codeCellId: UUID, tableCreate: TableCreate): Promise<Analysis> {
+  const response = await fetch(`${API_URL}/analysis/analysis/${analysisId}/code-cell/${codeCellId}/table`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(camelToSnakeKeys(tableCreate))
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create code output table: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
+
+function createAnalysisEventSource(token: string, runId: UUID): SSE {
+  return new SSE(`${API_URL}/analysis/analysis-agent-sse/${runId}`,
     {
       method: 'GET',
       headers: {
@@ -125,523 +208,245 @@ export function createAnalysisEventSource(token: string, jobId: string): SSE {
   );
 }
 
+// =============================================================================
+// Hooks
+// =============================================================================
 
-export async function fetchAnalysisObject(token: string, analysisObjectId: string): Promise<Analysis> {
-  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to fetch analysis object', errorText);
-    throw new Error(`Failed to fetch analysis object: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-export async function createNotebookSection(token: string, analysisObjectId: string, notebookSectionCreate: NotebookSectionCreate): Promise<NotebookSection> {
-  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/create-section`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(camelToSnakeKeys(notebookSectionCreate))
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create analysis section: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-export async function updateNotebookSection(token: string, analysisObjectId: string, sectionId: string, sectionUpdate: NotebookSectionUpdate): Promise<NotebookSection> {
-  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/section/${sectionId}`, {
-    method: 'PATCH',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(camelToSnakeKeys(sectionUpdate))
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to update analysis section: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-export async function updateAnalysisResult(token: string, analysisResultId: string, analysisResult: AnalysisResult): Promise<AnalysisResult> {
-  const response = await fetch(`${API_URL}/analysis/analysis-result/${analysisResultId}`, {
-    method: 'PATCH',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(camelToSnakeKeys(analysisResult))
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to update analysis result: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-export async function deleteNotebookSectionEndpoint(token: string, analysisObjectId: string, sectionId: string): Promise<string> {
-  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/section/${sectionId}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to delete notebook section: ${response.status} ${errorText}`);
-  }
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-export async function changeAnalysisResultSectionEndpoint(token: string, analysisResultId: string, newSectionId: string, oldSectionId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/analysis/analysis-result/${analysisResultId}/new-section/${newSectionId}/old-section/${oldSectionId}`, {
-    method: 'PATCH',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to change analysis result section', errorText);
-    throw new Error(`Failed to change analysis result section: ${response.status} ${errorText}`);
-  }
-
-  // returns nothing
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-export async function reorderNotebookSections(token: string, analysisObjectId: string, sectionReorderRequest: unknown): Promise<void> {
-  // Note: SectionReorderRequest type no longer exists in schema - function kept for backward compatibility but may not work
-  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/reorder-sections`, {
-    method: 'PATCH',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(camelToSnakeKeys(sectionReorderRequest))
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to reorder notebook sections: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-
-export async function moveNotebookSections(token: string, analysisObjectId: string, sectionMoveRequest: unknown): Promise<void> {
-  // Note: SectionMoveRequest type no longer exists in schema - function kept for backward compatibility but may not work
-  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/move-sections`, {
-    method: 'PATCH',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(camelToSnakeKeys(sectionMoveRequest))
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to move notebook sections: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-export async function moveElementEndpoint(token: string, analysisObjectId: string, moveRequest: MoveRequest): Promise<void> {
-  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/move-element`, {
-    method: 'PATCH',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(camelToSnakeKeys(moveRequest))
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to move element: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-
-export async function deleteAnalysisResultEndpoint(token: string, analysisObjectId: string, analysisResultId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/analysis-result/${analysisResultId}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to delete analysis result: ${response.status} ${errorText}`);
-  }
-}
-
-export async function getAnalysisResultPlotsEndpoint(token: string, analysisObjectId: string, analysisResultId: string, plotUrl: string): Promise<string> {
-  const response = await fetch(`${API_URL}/analysis/analysis-object/${analysisObjectId}/analysis-result/${analysisResultId}/${plotUrl}`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    
-    throw new Error(`Failed to get analysis result plots: ${response.status} ${errorText}`);
-  }
-  const url = URL.createObjectURL(await response.blob());
-  return url;
-} 
-
-
-// hooks for analysis object
-
-
-export const useAnalyses = (projectId: UUID) => {
-    const { data: session } = useSession();
-
-    // const { datasetsInContext, analysesInContext } = useAgentContext(projectId);
-
-    const { addEntity } = useProject(projectId);
-    
-    const { data: analysisObjects, mutate: mutateAnalysisObjects } = useSWR(session && projectId ? ["analysisObjects", projectId] : null, () => fetchAnalysisObjects(session ? session.APIToken.accessToken : "", projectId), {fallbackData: [] as AnalysisSmall[]});
-
-    const { trigger: createAnalysisObject } = useSWRMutation(
-      session && projectId ? ["analysisObjects", projectId] : null,
-      async (_, { arg }: { arg: AnalysisCreate }) => {
-        const analysisObject = await postAnalysisObject(session ? session.APIToken.accessToken : "", arg);
-        return analysisObject;
-      },
-      {
-        populateCache: (analysisObject) => {
-          if (analysisObjects) {
-            return [...analysisObjects, analysisObject];
-          }
-          return [analysisObject];
-        },
-        revalidate: false
-      }
-    );
-
-    const createAnalysis = async (analysisObjectCreate: AnalysisCreate) => {
-      const analysisObject = await createAnalysisObject(analysisObjectCreate);
-
-      await addEntity("analysis", analysisObject.id);
-
-    }
-
-
-    return {
-      analysisObjects: analysisObjects || [],
-      mutateAnalysisObjects,
-      createAnalysis
-    };
-  }
-
-export const useAnalysis = (projectId: UUID, analysisObjectId: UUID) => {
+/**
+ * Hook to fetch analyses by IDs.
+ * For fetching all analyses in a project, use useOntology instead.
+ */
+export const useAnalysesByIds = (analysisIds?: UUID[]) => {
   const { data: session } = useSession();
-  const {data: currentAnalysisObject, mutate: mutateCurrentAnalysisObject} = useSWR(["analysisObject", analysisObjectId], () => fetchAnalysisObject(session?.APIToken.accessToken || "", analysisObjectId));
-  const { analysisObjects, mutateAnalysisObjects } = useAnalyses(projectId);
 
-  const { trigger: deleteAnalysisObject } = useSWRMutation(
-    "analysisObject",
-    async (_, { arg }: { arg: { analysisObjectId: UUID } }) => {
-      await deleteAnalysisObjectEndpoint(session ? session.APIToken.accessToken : "", arg.analysisObjectId);
-    },
-    {
-      populateCache: () => {
-        if (analysisObjects) {
-          mutateAnalysisObjects(analysisObjects.filter(analysisObject => analysisObject.id !== analysisObjectId));
-        }
-      }
+  const { data: analyses, mutate: mutateAnalyses, error, isLoading } = useSWR(
+    session && analysisIds && analysisIds.length > 0 ? ["analyses-by-ids", analysisIds] : null,
+    () => fetchAnalysesByIds(session!.APIToken.accessToken, analysisIds || [])
+  );
+
+  return {
+    analyses,
+    mutateAnalyses,
+    error,
+    isLoading,
+  };
+};
+
+/**
+ * Hook to fetch and interact with a single analysis.
+ * 
+ * This hook provides:
+ * - Analysis data with sections and cells
+ * - Mutations for creating sections, cells, and outputs
+ * - SSE streaming for real-time updates during analysis runs
+ * 
+ * Note: For creating/deleting analyses, use useOntology hook.
+ */
+export const useAnalysis = (analysisId?: UUID) => {
+  const { data: session } = useSession();
+
+  // Fetch the analysis
+  const { data: analysis, mutate: mutateAnalysis, error, isLoading } = useSWR(
+    session && analysisId ? ["analysis", analysisId] : null,
+    () => fetchAnalysis(session!.APIToken.accessToken, analysisId!)
+  );
+
+  // Section mutations
+  const { trigger: triggerCreateSection } = useSWRMutation(
+    ["analysis", analysisId],
+    async (_, { arg }: { arg: SectionCreate }) => {
+      const updatedAnalysis = await createSection(
+        session!.APIToken.accessToken,
+        analysisId!,
+        arg
+      );
+      await mutateAnalysis(updatedAnalysis);
+      return updatedAnalysis;
     }
   );
 
-  const { trigger: generateReport } = useSWRMutation(
-    "analysisObject",
-    async (_, { arg }: { arg: { analysisObjectId: UUID, generateReportRequest: GenerateReportRequest } }) => {
-      const analysisObject = await generateAnalysisReport(session ? session.APIToken.accessToken : "", arg.analysisObjectId, arg.generateReportRequest);
-      return analysisObject;
+  // Cell mutations
+  const { trigger: triggerCreateMarkdownCell } = useSWRMutation(
+    ["analysis", analysisId],
+    async (_, { arg }: { arg: MarkdownCellCreate }) => {
+      const cell = await createMarkdownCell(
+        session!.APIToken.accessToken,
+        analysisId!,
+        arg
+      );
+      await mutateAnalysis();
+      return cell;
     }
   );
 
-  const { data: analysisStatusMessages, mutate: mutateAnalysisStatusMessages } = useSWR(["analysisStatusMessages", analysisObjectId], null, {fallbackData: [] as AnalysisStatusMessage[]});
+  const { trigger: triggerCreateCodeCell } = useSWRMutation(
+    ["analysis", analysisId],
+    async (_, { arg }: { arg: CodeCellCreate }) => {
+      const cell = await createCodeCell(
+        session!.APIToken.accessToken,
+        analysisId!,
+        arg
+      );
+      await mutateAnalysis();
+      return cell;
+    }
+  );
 
-  const { runs } = useRuns(projectId);
+  // Code output mutations
+  const { trigger: triggerCreateCodeOutput } = useSWRMutation(
+    ["analysis", analysisId],
+    async (_, { arg }: { arg: CodeOutputCreate }) => {
+      const updatedAnalysis = await createCodeOutput(
+        session!.APIToken.accessToken,
+        analysisId!,
+        arg
+      );
+      await mutateAnalysis(updatedAnalysis);
+      return updatedAnalysis;
+    }
+  );
 
-  const runningJobs = useMemo(() => {
-    if (!runs) return [];
-    return runs.filter((run: RunInDB) => run.status === "running").sort((a: RunInDB, b: RunInDB) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
-  }, [runs]);
+  const { trigger: triggerCreateCodeOutputImage } = useSWRMutation(
+    ["analysis", analysisId],
+    async (_, { arg }: { arg: { codeCellId: UUID; imageCreate: ImageCreate } }) => {
+      const updatedAnalysis = await createCodeOutputImage(
+        session!.APIToken.accessToken,
+        analysisId!,
+        arg.codeCellId,
+        arg.imageCreate
+      );
+      await mutateAnalysis(updatedAnalysis);
+      return updatedAnalysis;
+    }
+  );
 
-  // Subscribe to streaming updates for the first running job
-  // Note: For multiple running runs, we would need a more complex implementation
-  const firstRunningJob = runningJobs[0];
-  
-  // Track which sections and results we've already seen to trigger refetch only once
-  const seenSectionsRef = useRef<Set<UUID>>(new Set());
-  const seenResultsRef = useRef<Set<UUID>>(new Set());
-  
-  useSWRSubscription<AnalysisStatusMessage[]>(
-    session && firstRunningJob ? ["analysis-agent-stream", firstRunningJob.id, analysisObjectId] : null,
-    (_: string, { next }: SWRSubscriptionOptions<AnalysisStatusMessage[]>) => {
-      if (!session?.APIToken?.accessToken) {
+  const { trigger: triggerCreateCodeOutputEchart } = useSWRMutation(
+    ["analysis", analysisId],
+    async (_, { arg }: { arg: { codeCellId: UUID; echartCreate: EchartCreate } }) => {
+      const updatedAnalysis = await createCodeOutputEchart(
+        session!.APIToken.accessToken,
+        analysisId!,
+        arg.codeCellId,
+        arg.echartCreate
+      );
+      await mutateAnalysis(updatedAnalysis);
+      return updatedAnalysis;
+    }
+  );
+
+  const { trigger: triggerCreateCodeOutputTable } = useSWRMutation(
+    ["analysis", analysisId],
+    async (_, { arg }: { arg: { codeCellId: UUID; tableCreate: TableCreate } }) => {
+      const updatedAnalysis = await createCodeOutputTable(
+        session!.APIToken.accessToken,
+        analysisId!,
+        arg.codeCellId,
+        arg.tableCreate
+      );
+      await mutateAnalysis(updatedAnalysis);
+      return updatedAnalysis;
+    }
+  );
+
+  // SSE streaming for real-time updates
+  const { data: streamedUpdates } = useSWRSubscription<(Section | AnalysisCell)[]>(
+    session && analysisId ? ["analysis-stream", analysisId] : null,
+    (_: string, { next }: SWRSubscriptionOptions<(Section | AnalysisCell)[]>) => {
+      if (!session?.APIToken?.accessToken || !analysisId) {
         return;
       }
-      const eventSource = createAnalysisEventSource(session.APIToken.accessToken, firstRunningJob.id);
+
+      const eventSource = createAnalysisEventSource(session.APIToken.accessToken, analysisId);
+      const updates: (Section | AnalysisCell)[] = [];
+
       eventSource.onmessage = (event) => {
-        // Parse and convert snake_case keys to camelCase
         const rawMessage = JSON.parse(event.data);
-        const newMessage = snakeToCamelKeys(rawMessage) as AnalysisStatusMessage;
-
-        // If the message contains a new section we haven't seen, refetch the analysis object
-        if (newMessage.section && !seenSectionsRef.current.has(newMessage.section.id)) {
-          seenSectionsRef.current.add(newMessage.section.id);
-          mutateCurrentAnalysisObject();
-        }
-
-        // If the message contains a new result we haven't seen, refetch the analysis object
-        if (newMessage.analysisResult && !seenResultsRef.current.has(newMessage.analysisResult.id)) {
-          seenResultsRef.current.add(newMessage.analysisResult.id);
-          mutateCurrentAnalysisObject();
-        }
-
-        // Append the new message to analysisStatusMessages, deduplicating by id
-        mutateAnalysisStatusMessages((current: AnalysisStatusMessage[] = []) => {
-          if (current.some(m => m.id === newMessage.id)) return current;
-          const updated = [...current, newMessage];
-
-          return updated;
-        }, true); // true = revalidate to trigger re-renders
+        const update = snakeToCamelKeys(rawMessage) as Section | AnalysisCell;
         
-        // Trigger the subscription to update
-        next(null, undefined);
+        updates.push(update);
+        
+        // Update the in-memory analysis object directly
+        mutateAnalysis((currentAnalysis) => {
+          if (!currentAnalysis) return currentAnalysis;
+          
+          // Check if this is a Section or AnalysisCell
+          if ('cells' in update) {
+            const section = update as Section;
+            const sectionExists = currentAnalysis.sections.some(s => s.id === section.id);
+            
+            if (sectionExists) {
+              return {
+                ...currentAnalysis,
+                sections: currentAnalysis.sections.map(s => 
+                  s.id === section.id ? section : s
+                )
+              };
+            } else {
+              return {
+                ...currentAnalysis,
+                sections: [...currentAnalysis.sections, section]
+              };
+            }
+          } else {
+            const cell = update as AnalysisCell;
+            return {
+              ...currentAnalysis,
+              sections: currentAnalysis.sections.map(section => {
+                if (section.id === cell.sectionId) {
+                  const cellExists = section.cells.some(c => c.id === cell.id);
+                  if (cellExists) {
+                    return {
+                      ...section,
+                      cells: section.cells.map(c => c.id === cell.id ? cell : c)
+                    };
+                  } else {
+                    return {
+                      ...section,
+                      cells: [...section.cells, cell]
+                    };
+                  }
+                }
+                return section;
+              })
+            };
+          }
+        }, { revalidate: false });
+        
+        next(null, updates);
       };
+
+      eventSource.onerror = (error) => {
+        console.error('SSE error:', error);
+        eventSource.close();
+      };
+
       return () => {
         eventSource.close();
-        // Clear seen tracking when subscription ends
-        seenSectionsRef.current.clear();
-        seenResultsRef.current.clear();
-        // mutateCurrentAnalysisObject();
-        // mutateAnalysisStatusMessages([]);
       };
     },
     { fallbackData: [] }
   );
-  
-
-  const { trigger: createSection } = useSWRMutation(
-    "analysisObject",
-    async (_, { arg }: { arg: { sectionName: string, sectionDescription: string | null, parentSectionId: UUID | null } }) => {
-      if (!currentAnalysisObject?.notebook?.id) {
-        throw new Error("No notebook found");
-      }
-
-      const notebookSectionCreate: NotebookSectionCreate = {
-        analysisId: analysisObjectId,
-        sectionName: arg.sectionName,
-        sectionDescription: arg.sectionDescription,
-        parentSectionId: arg.parentSectionId
-      };
-
-      const section = await createNotebookSection(
-        session ? session.APIToken.accessToken : "", 
-        analysisObjectId,
-        notebookSectionCreate
-      );
-      return section;
-    },
-    {
-      populateCache: () => {
-        mutateCurrentAnalysisObject();
-      }
-    }
-  );
-
-  const { trigger: updateSection } = useSWRMutation(
-    "analysisObject",
-    async (_, { arg }: { arg: { sectionId: UUID, sectionUpdate: NotebookSectionUpdate } }) => {
-      const section = await updateNotebookSection(
-        session ? session.APIToken.accessToken : "", 
-        analysisObjectId,
-        arg.sectionId,
-        arg.sectionUpdate
-      );
-      return section;
-    },
-    {
-      populateCache: () => {
-        mutateCurrentAnalysisObject();
-      }
-    }
-  );
-
-  const { trigger: updateAnalysisResultMutation } = useSWRMutation(
-    "analysisObject",
-    async (_, { arg }: { arg: { analysisResultId: UUID, analysisResult: AnalysisResult } }): Promise<AnalysisResult> => {
-      const analysisResult: AnalysisResult = await updateAnalysisResult(
-        session ? session.APIToken.accessToken : "", 
-        arg.analysisResultId,
-        arg.analysisResult
-      );
-      return analysisResult;
-    },
-    {
-      populateCache: () => {
-        mutateCurrentAnalysisObject();
-      }
-    }
-  );
-
-  const { trigger: deleteSection } = useSWRMutation(
-    "analysisObject",
-    async (_, { arg }: { arg: { sectionId: UUID } }) => {
-      await deleteNotebookSectionEndpoint(session ? session.APIToken.accessToken : "", analysisObjectId, arg.sectionId);
-      return arg.sectionId;
-    },
-    {
-      populateCache: () => {
-        mutateCurrentAnalysisObject();
-      }
-    }
-  );
-
-  const { trigger: changeAnalysisResultSection } = useSWRMutation(
-    "analysisObject",
-    async (_, { arg }: { arg: { analysisResultId: UUID, newSectionId: UUID, oldSectionId: UUID } }) => {
-      await changeAnalysisResultSectionEndpoint(session ? session.APIToken.accessToken : "", arg.analysisResultId, arg.newSectionId, arg.oldSectionId);
-    },
-    {
-      populateCache: () => {
-        mutateCurrentAnalysisObject();
-      }
-    }
-  );
-
-  const { trigger: reorderSections } = useSWRMutation(
-    "analysisObject",
-    async (_, { arg }: { arg: { analysisObjectId: UUID, sectionReorderRequest: unknown } }) => {
-      await reorderNotebookSections(session ? session.APIToken.accessToken : "", arg.analysisObjectId, arg.sectionReorderRequest);
-    },
-    {
-      populateCache: () => {
-        mutateCurrentAnalysisObject();
-      }
-    }
-  );
-
-  const { trigger: moveSections } = useSWRMutation(
-    "analysisObject",
-    async (_, { arg }: { arg: { analysisObjectId: UUID, sectionMoveRequest: unknown } }) => {
-      await moveNotebookSections(session ? session.APIToken.accessToken : "", arg.analysisObjectId, arg.sectionMoveRequest);
-    },
-    {
-      populateCache: () => {
-        mutateCurrentAnalysisObject();
-      }
-    }
-  );
-  
-  const { trigger: moveElement } = useSWRMutation(
-    "analysisObject",
-    async (_, { arg }: { arg: { analysisObjectId: UUID, moveRequest: MoveRequest } }) => {
-      await moveElementEndpoint(session ? session.APIToken.accessToken : "", arg.analysisObjectId, arg.moveRequest);
-    },
-    {
-      populateCache: () => {
-        mutateCurrentAnalysisObject();
-      }
-    }
-  );
-  const { trigger: deleteAnalysisResult } = useSWRMutation(
-    "analysisObject",
-    async (_, { arg }: { arg: { analysisObjectId: UUID, analysisResultId: UUID } }) => {
-      await deleteAnalysisResultEndpoint(session ? session.APIToken.accessToken : "", arg.analysisObjectId, arg.analysisResultId);
-    },
-    {
-      populateCache: () => {
-        mutateCurrentAnalysisObject();
-      }
-    }
-  );
-
-  const { data: analysisResultPlots, mutate: mutateAnalysisResultPlots } = useSWR(["analysisResultPlots"], null, {fallbackData: {} as Record<UUID, string[]>});
-
-  const { trigger: getAnalysisResultPlots } = useSWRMutation(
-    "analysisObject",
-    async (_, { arg }: { arg: { analysisObjectId: UUID, analysisResultId: UUID, plotUrls: string[] } }) => {
-      // Fetch all plots and convert them to blob URLs
-      const plotBlobUrls = await Promise.all(
-        arg.plotUrls.map(plotUrl => 
-          getAnalysisResultPlotsEndpoint(
-            session ? session.APIToken.accessToken : "", 
-            arg.analysisObjectId, 
-            arg.analysisResultId, 
-            plotUrl
-          )
-        )
-      );
-      return {analysisResultId: arg.analysisResultId, plots: plotBlobUrls};
-    },
-    {
-      populateCache: (data) => {
-        mutateAnalysisResultPlots((current: Record<UUID, string[]> = {}) => ({...current, [data.analysisResultId]: data.plots}));
-      }
-    }
-  );
-
 
   return {
-    currentAnalysisObject,
-    deleteAnalysisObject,
-    generateReport,
-    analysisStatusMessages,
-    createSection,
-    updateSection,
-    updateAnalysisResult: updateAnalysisResultMutation,
-    deleteSection,
-    changeAnalysisResultSection,
-    reorderSections,
-    moveSections,
+    analysis,
+    mutateAnalysis,
+    error,
+    isLoading,
 
-    moveElement,
-    deleteAnalysisResult,
-    getAnalysisResultPlots,
-    analysisResultPlots
-  }
-}
+    // Section operations
+    createSection: triggerCreateSection,
+
+    // Cell operations
+    createMarkdownCell: triggerCreateMarkdownCell,
+    createCodeCell: triggerCreateCodeCell,
+
+    // Code output operations
+    createCodeOutput: triggerCreateCodeOutput,
+    createCodeOutputImage: triggerCreateCodeOutputImage,
+    createCodeOutputEchart: triggerCreateCodeOutputEchart,
+    createCodeOutputTable: triggerCreateCodeOutputTable,
+
+    // Streaming updates
+    streamedUpdates,
+  };
+};

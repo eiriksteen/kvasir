@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Zap, Play } from 'lucide-react';
-import { usePipeline } from '@/hooks/usePipelines';
+import { useMountedPipeline } from '@/hooks/useOntology';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { UUID } from 'crypto';
 import RunPipelineModal from '@/components/RunPipelineModal';
@@ -12,7 +12,7 @@ interface PipelineBoxProps {
 }
 
 export default function PipelineBox({ pipelineId, projectId, openTab }: PipelineBoxProps) {
-  const { pipeline, triggerRunPipeline } = usePipeline(pipelineId, projectId);
+  const pipeline = useMountedPipeline(pipelineId, projectId);
 
   const { 
     pipelinesInContext, 
@@ -33,7 +33,7 @@ export default function PipelineBox({ pipelineId, projectId, openTab }: Pipeline
     name?: string;
     description?: string;
   }) => {
-    triggerRunPipeline(config);
+    console.log(config);
   };
 
   const handleMainBoxClick = (event: React.MouseEvent) => {

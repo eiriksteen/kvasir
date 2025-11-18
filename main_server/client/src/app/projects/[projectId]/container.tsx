@@ -8,7 +8,7 @@ import UserHeader from "@/components/headers/UserHeader";
 import EntityRelationshipDiagram from "@/app/projects/[projectId]/_components/erd/EntityRelationshipDiagram";
 import TabView from "@/app/projects/[projectId]/_components/tab-view/TabView";
 import { useProject } from "@/hooks/useProject";
-import { useExtraction } from "@/hooks/useExtraction";
+import { useOntology } from "@/hooks/useOntology";
 import { useTabs } from "@/hooks/useTabs";
 import { useRuns } from "@/hooks/useRuns";
 import FileInfoTab from "@/components/info-tabs/FileInfoTab";
@@ -30,7 +30,7 @@ interface DashboardProps {
 function DashboardContent({ projectId }: { projectId: UUID }) {
   const { project } = useProject(projectId);
   const { openTabs, activeTabId, openTab, closeTab, closeTabToProject, selectTab } = useTabs();
-  const { runExtraction } = useExtraction();
+  const { runExtraction, entityGraph } = useOntology(projectId);
   const { runs } = useRuns(projectId);
   const [isScanning, setIsScanning] = useState(false);
 
@@ -49,16 +49,13 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
   const handleScanCodebase = useCallback(async () => {
     setIsScanning(true);
     try {
-      await runExtraction({
-        projectId,
-        promptContent: "Scan the codebase to update the project graph. Add any new entities, remove any no longer relevant, add new edges between entities, or remove any edges that are no longer relevant. Ensure the graph accurately represents the current state of the project. ",
-      });
+      await runExtraction();
     } catch (error) {
       console.error('Failed to run extraction:', error);
     } finally {
       setIsScanning(false);
     }
-  }, [projectId, runExtraction]);
+  }, [runExtraction]);
   
   // If no project is selected, show loading or return null
   if (!project) {
@@ -78,11 +75,11 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     
     // Check if it's a code tab
     
-    if (project.graph.dataSources.some(ds => ds.id === activeTabId)) return 'data_source';
-    if (project.graph.datasets.some(ds => ds.id === activeTabId)) return 'dataset';
-    if (project.graph.analyses.some(a => a.id === activeTabId)) return 'analysis';
-    if (project.graph.pipelines.some(p => p.id === activeTabId)) return 'pipeline';
-    if (project.graph.modelsInstantiated.some(m => m.id === activeTabId)) return 'model_instantiated';
+    if (entityGraph?.dataSources.some(ds => ds.id === activeTabId)) return 'data_source';
+    if (entityGraph?.datasets.some(ds => ds.id === activeTabId)) return 'dataset';
+    if (entityGraph?.analyses.some(a => a.id === activeTabId)) return 'analysis';
+    if (entityGraph?.pipelines.some(p => p.id === activeTabId)) return 'pipeline';
+    if (entityGraph?.modelsInstantiated.some(m => m.id === activeTabId)) return 'model_instantiated';
     else return 'code';
   };
 

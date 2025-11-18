@@ -1,501 +1,269 @@
+from synesis_api.auth.schema import User
+from synesis_api.auth.service import get_current_user
+from fastapi import Depends
+from typing import Annotated
 import uuid
 import jsonschema
 from datetime import datetime, timezone
-from typing import List
-from sqlalchemy import select, insert, update, func, and_
+from typing import List, Optional
+from sqlalchemy import select, insert, delete
 from fastapi import HTTPException
 
 from synesis_api.database.service import fetch_all, execute, fetch_one
 from synesis_api.modules.model.models import (
     model_implementation,
-    model_definition,
+    model,
     model_instantiated,
-    model_instantiated_implementation,
     model_function,
-    model_source,
-    pypi_model_source
 )
-from synesis_schemas.main_server import (
-    ModelImplementationInDB,
-    ModelFunctionInDB,
-    ModelImplementationCreate,
-    ModelInstantiated,
-    ModelEntityInDB,
-    ModelEntityCreate,
-    ModelEntityConfigUpdate,
-    ModelDefinitionInDB,
-    ModelEntityImplementationInDB,
-    ModelEntityImplementationCreate,
-    ModelEntityImplementation,
+from kvasir_ontology.entities.model.data_model import (
+    ModelBase,
+    ModelImplementationBase,
     ModelImplementation,
-    ModelUpdateCreate,
-    ModelSource,
-    ModelSourceCreate,
-    ModelSourceInDB,
-    PypiModelSourceInDB,
+    ModelFunctionBase,
+    ModelInstantiatedBase,
+    ModelInstantiated,
+    Model,
+    ModelCreate,
+    ModelImplementationCreate,
+    ModelInstantiatedCreate,
+    ModelFunctionCreate,
 )
-from synesis_api.utils.rag_utils import embed
+from kvasir_ontology.entities.model.interface import ModelInterface
 
 
-async def create_model(user_id: uuid.UUID, model_create: ModelImplementationCreate) -> ModelImplementation:
+class Models(ModelInterface):
 
-    model_definition_obj = ModelDefinitionInDB(
-        id=uuid.uuid4(),
-        **model_create.model_dump(),
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    )
-
-    embedding = (await embed([f"{model_create.name}: {model_create.description}"]))[0]
-
-    training_function_obj = ModelFunctionInDB(
-        id=uuid.uuid4(),
-        **model_create.training_function.model_dump(),
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    )
-
-    inference_function_obj = ModelFunctionInDB(
-        id=uuid.uuid4(),
-        **model_create.inference_function.model_dump(),
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    )
-
-    model_source_obj = await create_model_source(model_create.source)
-
-    model_obj = ModelImplementationInDB(
-        id=uuid.uuid4(),
-        source_id=model_source_obj.id,
-        **model_create.model_dump(),
-        definition_id=model_definition_obj.id,
-        version=1,
-        newest_update_description="First version",
-        user_id=user_id,
-        training_function_id=training_function_obj.id,
-        inference_function_id=inference_function_obj.id,
-        embedding=embedding,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    )
-
-    await execute(insert(model_definition).values(**model_definition_obj.model_dump()), commit_after=True)
-    await execute(insert(model_function).values(**training_function_obj.model_dump()), commit_after=True)
-    await execute(insert(model_function).values(**inference_function_obj.model_dump()), commit_after=True)
-    await execute(insert(model_implementation).values(**model_obj.model_dump()), commit_after=True)
-
-    training_function_full = ModelFunctionInDB(
-        **training_function_obj.model_dump()
-    )
-
-    inference_function_full = ModelFunctionInDB(
-        **inference_function_obj.model_dump()
-    )
-
-    return ModelImplementation(
-        **{k: v for k, v in model_obj.model_dump().items() if k != 'embedding'},
-        definition=model_definition_obj,
-        training_function=training_function_full,
-        inference_function=inference_function_full
-    )
-
-
-async def update_model(user_id: uuid.UUID, model_update: ModelUpdateCreate) -> ModelImplementation:
-    max_version_subquery = select(func.max(model_implementation.c.version)).where(
-        model_implementation.c.definition_id == model_update.definition_id)
-    existing_model = await fetch_one(select(model_implementation).where(and_(model_implementation.c.definition_id == model_update.definition_id,
-                                                                             model_implementation.c.version == max_version_subquery)))
-
-    if model_update.updated_description:
-        embedding = (await embed([f"{existing_model['filename']}: {model_update.updated_description}"]))[0]
-    else:
-        embedding = existing_model["embedding"]
-
-    existing_training_function = await fetch_one(
-        select(model_function).where(model_function.c.id ==
-                                     existing_model["training_function_id"])
-    )
-    existing_inference_function = await fetch_one(
-        select(model_function).where(model_function.c.id ==
-                                     existing_model["inference_function_id"])
-    )
-
-    # update script
-    implementation_script_path = model_update.new_implementation_script_path
-    setup_script_path = model_update.new_setup_script_path if model_update.new_setup_script_path else existing_model.get(
-        "setup_script_path")
-
-    if model_update.updated_training_function:
-        training_function_obj = ModelFunctionInDB(
+    async def create_model(self, model_create: ModelCreate) -> Model:
+        model_record = ModelBase(
             id=uuid.uuid4(),
-            docstring=model_update.updated_training_function.docstring if model_update.updated_training_function.docstring else existing_training_function[
-                "docstring"],
-            args_schema=model_update.updated_training_function.args_schema if model_update.updated_training_function.args_schema else existing_training_function[
-                "args_schema"],
-            default_args=model_update.updated_training_function.default_args if model_update.updated_training_function.default_args else existing_training_function[
-                "default_args"],
+            user_id=self.user_id,
+            **model_create.model_dump(exclude={"implementation_create"}),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
+        )
+
+        await execute(insert(model).values(model_record.model_dump()), commit_after=True)
+
+        implementation_obj = None
+        if model_create.implementation_create:
+            implementation_obj = await self.create_model_implementation(model_create.implementation_create)
+
+        return Model(
+            **model_record.model_dump(),
+            implementation=implementation_obj
+        )
+
+    async def create_model_implementation(self, model_implementation_create: ModelImplementationCreate) -> Model:
+        model_record = await self.get_model(model_implementation_create.model_id)
+        if not model_record:
+            raise HTTPException(
+                status_code=404, detail=f"Model with id {model_implementation_create.model_id} not found")
+
+        # Create training function
+        training_function_obj = ModelFunctionBase(
+            id=uuid.uuid4(),
+            **model_implementation_create.training_function.model_dump(),
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
         )
         await execute(insert(model_function).values(**training_function_obj.model_dump()), commit_after=True)
-        training_function_id = training_function_obj.id
-    else:
-        training_function_id = existing_model["training_function_id"]
 
-    if model_update.updated_inference_function:
-        inference_function_obj = ModelFunctionInDB(
+        inference_function_obj = ModelFunctionBase(
             id=uuid.uuid4(),
-            docstring=model_update.updated_inference_function.docstring if model_update.updated_inference_function.docstring else existing_inference_function[
-                "docstring"],
-            args_schema=model_update.updated_inference_function.args_schema if model_update.updated_inference_function.args_schema else existing_inference_function[
-                "args_schema"],
-            default_args=model_update.updated_inference_function.default_args if model_update.updated_inference_function.default_args else existing_inference_function[
-                "default_args"],
+            **model_implementation_create.inference_function.model_dump(),
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
         )
         await execute(insert(model_function).values(**inference_function_obj.model_dump()), commit_after=True)
-        inference_function_id = inference_function_obj.id
-    else:
-        inference_function_id = existing_model["inference_function_id"]
 
-    model_obj = ModelImplementationInDB(
-        id=uuid.uuid4(),
-        implementation_script_path=implementation_script_path,
-        setup_script_path=setup_script_path,
-        definition_id=model_update.definition_id,
-        python_class_name=model_update.updated_python_class_name if model_update.updated_python_class_name else existing_model[
-            "python_class_name"],
-        version=existing_model["version"] + 1,
-        description=model_update.updated_description if model_update.updated_description else existing_model[
-            "description"],
-        newest_update_description=model_update.updates_made_description,
-        user_id=user_id,
-        source_id=existing_model["source_id"],
-        model_class_docstring=model_update.updated_model_class_docstring if model_update.updated_model_class_docstring else existing_model[
-            "model_class_docstring"],
-        default_config=model_update.updated_default_config if model_update.updated_default_config else existing_model[
-            "default_config"],
-        config_schema=model_update.updated_config_schema if model_update.updated_config_schema else existing_model[
-            "config_schema"],
-        training_function_id=training_function_id,
-        inference_function_id=inference_function_id,
-        embedding=embedding,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    )
-
-    await execute(insert(model_implementation).values(**model_obj.model_dump()), commit_after=True)
-
-    # Handle training function updates
-    if model_update.updated_training_function:
-        await execute(update(model_function).where(model_function.c.id == training_function_id).values(**model_update.updated_training_function.model_dump()), commit_after=True)
-
-    # Handle inference function updates
-    if model_update.updated_inference_function:
-        await execute(update(model_function).where(model_function.c.id == inference_function_id).values(**model_update.updated_inference_function.model_dump()), commit_after=True)
-
-    # Handle model entities updates
-    if model_update.model_instantiatedies_to_update:
-        await execute(
-            update(model_instantiated_implementation).where(model_instantiated_implementation.c.id.in_(
-                model_update.model_instantiatedies_to_update)).values(model_id=model_obj.id), commit_after=True)
-
-    return (await get_models([model_obj.id]))[0]
-
-
-async def get_models(model_ids: List[uuid.UUID]) -> List[ModelImplementation]:
-
-    model_query = select(model_implementation).where(
-        model_implementation.c.id.in_(model_ids))
-    models = await fetch_all(model_query)
-
-    model_definition_query = select(model_definition).where(
-        model_definition.c.id.in_([m["definition_id"] for m in models]))
-    model_definition_records = await fetch_all(model_definition_query)
-
-    # Get all function IDs
-    function_ids = []
-    for m in models:
-        function_ids.append(m["training_function_id"])
-        function_ids.append(m["inference_function_id"])
-
-    # Query function records
-    function_query = select(model_function).where(
-        model_function.c.id.in_(function_ids))
-    function_records = await fetch_all(function_query)
-
-    output_objs = []
-    for model_id in model_ids:
-        model_obj = ModelImplementationInDB(
-            **next(m for m in models if m["id"] == model_id))
-        model_definition_obj = ModelDefinitionInDB(**next(
-            m for m in model_definition_records if m["id"] == model_obj.definition_id))
-
-        # Get function records for this model
-        training_function_record = next(
-            f for f in function_records if f["id"] == model_obj.training_function_id)
-        inference_function_record = next(
-            f for f in function_records if f["id"] == model_obj.inference_function_id)
-
-        # Build ModelFunction objects
-        training_function_obj = ModelFunctionInDB(**training_function_record)
-        inference_function_obj = ModelFunctionInDB(**inference_function_record)
-
-        # Build Model object (excluding embedding)
-        output_objs.append(
-            ModelImplementation(
-                **model_obj.model_dump(),
-                definition=model_definition_obj,
-                training_function=training_function_obj,
-                inference_function=inference_function_obj
-            )
-        )
-
-    return output_objs
-
-
-async def create_model_entity(user_id: uuid.UUID, model_instantiated_create: ModelEntityCreate) -> ModelEntityInDB:
-    """
-    Create a bare model entity without implementation.
-    Used when developing or when the exact implementation hasn't been selected yet.
-    """
-    model_instantiated_obj = ModelEntityInDB(
-        id=uuid.uuid4(),
-        user_id=user_id,
-        name=model_instantiated_create.name,
-        description=model_instantiated_create.description,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
-    )
-    await execute(insert(model_instantiated).values(**model_instantiated_obj.model_dump()), commit_after=True)
-    return model_instantiated_obj
-
-
-async def create_model_entity_implementation(user_id: uuid.UUID, model_instantiated_implementation_create: ModelEntityImplementationCreate) -> ModelEntityInDB:
-    """
-    Create a model entity with an optional implementation.
-    If model_instantiated_id is provided, use existing entity. Otherwise create new entity.
-    If model_implementation_id is provided, create implementation. Otherwise leave bare entity.
-    """
-
-    # Handle model entity creation or retrieval
-    if model_instantiated_implementation_create.model_instantiated_id:
-        # Verify entity exists and user owns it
-        entity_query = select(model_instantiated).where(
-            model_instantiated.c.id == model_instantiated_implementation_create.model_instantiated_id,
-            model_instantiated.c.user_id == user_id
-        )
-        entity_record = await fetch_one(entity_query)
-        if not entity_record:
-            raise HTTPException(
-                status_code=404, detail="Model entity not found")
-        model_instantiated_obj = ModelEntityInDB(**entity_record)
-    else:
-        # Create new model entity
-        model_instantiated_obj = ModelEntityInDB(
-            id=uuid.uuid4(),
-            user_id=user_id,
-            name=model_instantiated_implementation_create.model_instantiated_create.name,
-            description=model_instantiated_implementation_create.model_instantiated_create.description,
+        model_implementation_obj = ModelImplementationBase(
+            id=model_record.id,
+            **model_implementation_create.model_dump(exclude={"training_function", "inference_function"}),
+            training_function_id=training_function_obj.id,
+            inference_function_id=inference_function_obj.id,
             created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
+
+        await execute(insert(model_implementation).values(**model_implementation_obj.model_dump()), commit_after=True)
+
+        return await self.get_model(model_implementation_create.model_id)
+
+    async def create_model_instantiated(self, model_instantiated_create: ModelInstantiatedCreate) -> ModelInstantiated:
+        # Handle model creation or retrieval
+        model_id = None
+        if model_instantiated_create.model_create:
+            model_obj = await self.create_model(model_instantiated_create.model_create)
+            model_id = model_obj.id
+        else:
+            model_obj = await self.get_model(model_id)
+            if not model_obj or model_obj.user_id != self.user_id:
+                raise HTTPException(
+                    status_code=404, detail="Model not found or access denied")
+            model_id = model_instantiated_create.model_id
+
+        if not model_id:
+            raise HTTPException(
+                status_code=400, detail="Either model_id or model_create must be provided")
+
+        # Validate config against schema if implementation exists
+        if model_obj.implementation:
+            try:
+                jsonschema.validate(
+                    model_instantiated_create.config,
+                    model_obj.implementation.config_schema
+                )
+            except jsonschema.ValidationError as e:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid config: {e.message}, schema: {model_obj.implementation.config_schema}"
+                )
+
+        model_instantiated_obj = ModelInstantiatedBase(
+            id=uuid.uuid4(),
+            model_id=model_id,
+            user_id=self.user_id,
+            **model_instantiated_create.model_dump(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
+        )
+
         await execute(insert(model_instantiated).values(**model_instantiated_obj.model_dump()), commit_after=True)
 
-    # Handle model implementation if provided
-    if model_instantiated_implementation_create.model_implementation_id or model_instantiated_implementation_create.model_implementation_create:
-        # Get or create model implementation
-        if model_instantiated_implementation_create.model_implementation_create:
-            model_impl = await create_model(user_id, model_instantiated_implementation_create.model_implementation_create)
-            model_implementation_id = model_impl.id
-        else:
-            model_implementation_id = model_instantiated_implementation_create.model_implementation_id
-
-        # Validate config against schema
-        config_schema_record = await fetch_one(
-            select(model_implementation.c.config_schema).where(
-                model_implementation.c.id == model_implementation_id
-            )
+        model_obj = await self.get_model(model_id)
+        return ModelInstantiated(
+            **model_instantiated_obj.model_dump(),
+            model=model_obj
         )
 
-        try:
-            jsonschema.validate(
-                model_instantiated_implementation_create.config,
-                config_schema_record["config_schema"]
-            )
-        except jsonschema.ValidationError as e:
+    async def get_model(self, model_id: uuid.UUID) -> Model:
+        models = await self.get_models([model_id])
+        if not models:
             raise HTTPException(
-                status_code=400,
-                detail=f"Invalid config: {e.message}, schema: {config_schema_record['config_schema']}"
-            )
+                status_code=404, detail=f"Model with id {model_id} not found")
+        return models[0]
 
-        # Create model entity implementation
-        model_instantiated_implementation_obj = ModelEntityImplementationInDB(
-            id=model_instantiated_obj.id,
-            model_id=model_implementation_id,
-            config=model_instantiated_implementation_create.config,
-            weights_save_dir=model_instantiated_implementation_create.weights_save_dir,
-            pipeline_id=model_instantiated_implementation_create.pipeline_id,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
-        )
+    async def get_models(self, model_ids: List[uuid.UUID]) -> List[Model]:
+        model_query = select(model).where(model.c.user_id == self.user_id)
+        if model_ids:
+            model_query = model_query.where(
+                model.c.id.in_(model_ids))
 
-        await execute(insert(model_instantiated_implementation).values(**model_instantiated_implementation_obj.model_dump()), commit_after=True)
+        models = await fetch_all(model_query)
 
-    return model_instantiated_obj
+        if not models:
+            return []
 
+        model_ids_list = [m["id"] for m in models]
 
-async def get_user_model_entities(user_id: uuid.UUID, model_instantiated_ids: List[uuid.UUID]) -> List[ModelInstantiated]:
-    """
-    Fetch model entities with optional implementations.
-    Returns ModelInstantiated objects with implementation field populated if available.
-    """
+        # Fetch implementations
+        model_implementation_query = select(model_implementation).where(
+            model_implementation.c.id.in_(model_ids_list))
+        model_implementations = await fetch_all(model_implementation_query)
 
-    # Fetch base model entities
-    model_instantiated_query = select(model_instantiated).where(
-        model_instantiated.c.id.in_(model_instantiated_ids),
-        model_instantiated.c.user_id == user_id
-    )
-    model_instantiated_records = await fetch_all(model_instantiated_query)
+        # Get all function IDs
+        function_ids = []
+        for impl in model_implementations:
+            function_ids.append(impl["training_function_id"])
+            function_ids.append(impl["inference_function_id"])
 
-    if not model_instantiated_records:
-        return []
+        # Query function records
+        function_records = []
+        if function_ids:
+            function_query = select(model_function).where(
+                model_function.c.id.in_(function_ids))
+            function_records = await fetch_all(function_query)
 
-    model_instantiated_ids = [e["id"] for e in model_instantiated_records]
+        # Build output objects
+        output_objs = []
+        for model_id_val in model_ids_list:
+            model_obj = ModelBase(**next(
+                iter([m for m in models if m["id"] == model_id_val])))
 
-    # Fetch implementations (may not exist for all entities)
-    model_instantiated_implementation_query = select(model_instantiated_implementation).where(
-        model_instantiated_implementation.c.id.in_(model_instantiated_ids)
-    )
-    model_instantiated_implementation_records = await fetch_all(model_instantiated_implementation_query)
+            impl_record = next(iter([
+                impl for impl in model_implementations if impl["id"] == model_id_val]), None)
 
-    # Fetch model implementations if any implementations exist
-    model_implementation_objs = []
-    if model_instantiated_implementation_records:
-        model_impl_ids = [e["model_id"]
-                          for e in model_instantiated_implementation_records]
-        model_implementation_objs = await get_models(model_impl_ids)
+            implementation_obj = None
+            if impl_record:
+                # Get function records for this implementation
+                training_function_record = next(
+                    (f for f in function_records if f["id"] == impl_record["training_function_id"]), None)
+                inference_function_record = next(
+                    (f for f in function_records if f["id"] == impl_record["inference_function_id"]), None)
 
-    # Build ModelInstantiated objects
-    model_instantiated_full_objs = []
-    for entity_id in model_instantiated_ids:
-        # Get base entity
-        entity_record = next(
-            (e for e in model_instantiated_records if e["id"] == entity_id))
-        entity_obj = ModelEntityInDB(**entity_record)
+                if training_function_record and inference_function_record:
+                    training_function_obj = ModelFunctionBase(
+                        **training_function_record)
+                    inference_function_obj = ModelFunctionBase(
+                        **inference_function_record)
 
-        # Get implementation if exists
-        impl_record = next(
-            (e for e in model_instantiated_implementation_records if e["id"] == entity_id), None)
+                    implementation_obj = ModelImplementation(
+                        **{k: v for k, v in impl_record.items() if k != "training_function_id" and k != "inference_function_id"},
+                        training_function=training_function_obj,
+                        inference_function=inference_function_obj
+                    )
 
-        if impl_record:
-            # Entity has implementation
-            model_impl_obj = next(
-                (m for m in model_implementation_objs if m.id == impl_record["model_id"]))
-
-            entity_implementation_obj = ModelEntityImplementationInDB(
-                **impl_record)
-
-            model_instantiated_impl = ModelEntityImplementation(
-                **entity_implementation_obj.model_dump(),
-                model_implementation=model_impl_obj
-            )
-
-            model_instantiated_full_objs.append(ModelInstantiated(
-                **entity_obj.model_dump(),
-                implementation=model_instantiated_impl
-            ))
-        else:
-            # Entity without implementation (bare entity)
-            model_instantiated_full_objs.append(ModelInstantiated(
-                **entity_obj.model_dump(),
-                implementation=None
+            output_objs.append(Model(
+                **model_obj.model_dump(),
+                implementation=implementation_obj
             ))
 
-    return model_instantiated_full_objs
+        return output_objs
+
+    async def get_model_instantiated(self, model_instantiated_id: uuid.UUID) -> ModelInstantiated:
+        models_instantiated = await self.get_models_instantiated([model_instantiated_id])
+        if not models_instantiated:
+            raise HTTPException(
+                status_code=404, detail=f"Model instantiated with id {model_instantiated_id} not found")
+        return models_instantiated[0]
+
+    async def get_models_instantiated(self, model_instantiated_ids: List[uuid.UUID]) -> List[ModelInstantiated]:
+        model_instantiated_query = select(model_instantiated).where(
+            model_instantiated.c.user_id == self.user_id)
+        if model_instantiated_ids:
+            model_instantiated_query = model_instantiated_query.where(
+                model_instantiated.c.id.in_(model_instantiated_ids))
+
+        model_instantiated_records = await fetch_all(model_instantiated_query)
+
+        if not model_instantiated_records:
+            return []
+
+        # Get all model IDs
+        model_ids_list = [record["model_id"]
+                          for record in model_instantiated_records]
+        models_dict = {m.id: m for m in await self.get_models(model_ids_list)}
+
+        output_objs = []
+        for record in model_instantiated_records:
+            model_obj = models_dict.get(record["model_id"])
+            if not model_obj:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Model with id {record['model_id']} not found for model instantiated {record['id']}")
+            output_objs.append(ModelInstantiated(
+                **{k: v for k, v in record.items() if k != "model_id"},
+                model=model_obj
+            ))
+
+        return output_objs
+
+    async def delete_model(self, model_id: uuid.UUID) -> None:
+        # Verify model exists and user owns it
+        model_obj = await self.get_model(model_id)
+        if not model_obj or model_obj.user_id != self.user_id:
+            raise HTTPException(
+                status_code=404, detail="Model not found or access denied")
+
+        # Delete implementation if exists
+        await execute(delete(model_implementation).where(model_implementation.c.id == model_id), commit_after=True)
+        # Delete model
+        await execute(delete(model).where(model.c.id == model_id), commit_after=True)
 
 
-async def set_new_model_entity_config(user_id: uuid.UUID, model_instantiated_id: uuid.UUID, model_instantiated_config_update: ModelEntityConfigUpdate) -> ModelEntityInDB:
-    model_instantiated_obj = (await get_user_model_entities(user_id, [model_instantiated_id]))[0]
-
-    # Check if entity has implementation
-    if not model_instantiated_obj.implementation:
-        raise HTTPException(
-            status_code=400, detail="Model entity has no implementation. Cannot update config.")
-
-    # Check if model is already fitted
-    is_fitted = model_instantiated_obj.implementation.weights_save_dir is not None
-    if is_fitted:
-        raise HTTPException(
-            status_code=400, detail="Model entity is fitted and the config cannot be updated")
-
-    # Validate config against schema
-    model_record = await fetch_one(
-        select(model_implementation).join(model_instantiated_implementation).where(
-            model_instantiated_implementation.c.id == model_instantiated_id
-        )
-    )
-
-    try:
-        jsonschema.validate(
-            model_instantiated_config_update.config, model_record["config_schema"])
-    except jsonschema.ValidationError as e:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid config: {e.message}")
-
-    # Update config
-    await execute(
-        update(model_instantiated_implementation).where(
-            model_instantiated_implementation.c.id == model_instantiated_id
-        ).values(**model_instantiated_config_update.model_dump()),
-        commit_after=True
-    )
-
-    # Return updated entity
-    return (await get_user_model_entities(user_id, [model_instantiated_id]))[0]
+# For dependency injection
 
 
-async def create_model_source(model_source_create: ModelSourceCreate) -> ModelSource:
-    # Check if source with the data exists:
-    if model_source_create.type == "pypi":
-        model_source_query = select(model_source, pypi_model_source
-                                    ).join(pypi_model_source, model_source.c.id == pypi_model_source.c.id
-                                           ).where(pypi_model_source.c.package_name == model_source_create.type_fields.package_name,
-                                                   pypi_model_source.c.package_version == model_source_create.type_fields.package_version)
-
-        model_source_record = await fetch_one(model_source_query)
-
-        if model_source_record:
-            return ModelSource(
-                **model_source_record,
-                type_fields=PypiModelSourceInDB(**model_source_record)
-            )
-
-    model_source_obj = ModelSourceInDB(
-        id=uuid.uuid4(),
-        **model_source_create.model_dump(),
-        created_at=datetime.now(),
-        updated_at=datetime.now()
-    )
-
-    type_fields_obj = None
-    if model_source_create.type == "pypi":
-        type_fields_obj = PypiModelSourceInDB(
-            id=model_source_obj.id,
-            model_source_id=model_source_obj.id,
-            package_name=model_source_create.type_fields.package_name,
-            package_version=model_source_create.type_fields.package_version,
-            created_at=datetime.now(),
-            updated_at=datetime.now()
-        )
-
-    else:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid model source type: {model_source_create.type}")
-
-    await execute(insert(model_source).values(**model_source_obj.model_dump()), commit_after=True)
-    if type_fields_obj:
-        await execute(insert(pypi_model_source).values(**type_fields_obj.model_dump()), commit_after=True)
-
-    return ModelSource(**model_source_obj.model_dump(), type_fields=type_fields_obj)
+async def get_models_service(user: Annotated[User, Depends(get_current_user)]) -> ModelInterface:
+    return Models(user.id)

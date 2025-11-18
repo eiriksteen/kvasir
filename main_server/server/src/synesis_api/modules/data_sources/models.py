@@ -17,7 +17,7 @@ data_source = Table(
            nullable=False),
     Column("type", String, nullable=False),
     Column("name", String, nullable=False),
-    Column("description", String, nullable=False),
+    Column("description", String, nullable=True),
     Column("additional_variables", JSONB, nullable=True),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),

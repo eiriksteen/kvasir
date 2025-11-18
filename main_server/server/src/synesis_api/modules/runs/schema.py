@@ -1,28 +1,26 @@
 import uuid
 from typing import Literal, List, Optional, Union
 from datetime import datetime, timezone
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # DB Models
 
 
-RUN_TYPE_LITERAL = Literal["swe", "analysis", "extraction"]
+RUN_TYPE_LITERAL = Literal["swe", "analysis", "extraction", "kvasir"]
 RUN_STATUS_LITERAL = Literal["pending", "running",
                              "completed", "failed", "rejected", "waiting"]
 
 
 class RunInDB(BaseModel):
     id: uuid.UUID
+    run_name: str
     user_id: uuid.UUID
     type: RUN_TYPE_LITERAL
     status: RUN_STATUS_LITERAL
-    run_name: str
+    description: Optional[str] = None
     project_id: Optional[uuid.UUID] = None
     conversation_id: Optional[uuid.UUID] = None
-    plan_and_deliverable_description_for_user: str
-    plan_and_deliverable_description_for_agent: str
-    questions_for_user: Optional[str] = None
     configuration_defaults_description: Optional[str] = None
     started_at: datetime
     completed_at: Optional[datetime] = None
@@ -33,14 +31,16 @@ class RunMessageInDB(BaseModel):
     content: str
     run_id: uuid.UUID
     type:  Literal["tool_call", "result", "error"]
-    created_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc))
 
 
 class RunPydanticMessageInDB(BaseModel):
     id: uuid.UUID
     run_id: uuid.UUID
     message_list: bytes
-    created_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc))
 
 
 class DataSourceInRunInDB(BaseModel):
@@ -105,19 +105,17 @@ class Run(RunInDB):
 
 
 class RunCreate(BaseModel):
+    id: Optional[uuid.UUID] = None
     type: RUN_TYPE_LITERAL
     initial_status: RUN_STATUS_LITERAL = "pending"
     run_name: str
-    plan_and_deliverable_description_for_user: str
-    plan_and_deliverable_description_for_agent: str
-    questions_for_user: Optional[str] = None
     configuration_defaults_description: Optional[str] = None
     target_entity_id: Optional[uuid.UUID] = None
     project_id: Optional[uuid.UUID] = None
     conversation_id: Optional[uuid.UUID] = None
     data_sources_in_run: List[uuid.UUID] = []
     datasets_in_run: List[uuid.UUID] = []
-    model_instantiatedies_in_run: List[uuid.UUID] = []
+    models_instantiated_in_run: List[uuid.UUID] = []
     pipelines_in_run: List[uuid.UUID] = []
     analyses_in_run: List[uuid.UUID] = []
 

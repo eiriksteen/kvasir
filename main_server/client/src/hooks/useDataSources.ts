@@ -1,25 +1,23 @@
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
-import useSWRMutation from "swr/mutation";
-import { DataSource } from '@/types/data-sources';
-import { useMemo } from "react";
+import useSWRMutation from 'swr/mutation';
 import { UUID } from "crypto";
-import { snakeToCamelKeys } from "@/lib/utils";
-import { mutate } from "swr";
+import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
+import { DataSource, DataSourceCreate, DataSourceDetailsCreate } from "@/types/ontology/data-source";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-const PROJECT_SERVER_URL = process.env.NEXT_PUBLIC_PROJECT_API_URL;
 
-async function fetchProjectDataSources(token: string, projectId: UUID): Promise<DataSource[]> {
-  const response = await fetch(`${API_URL}/project/project-data-sources/${projectId}`, {
+async function fetchDataSources(token: string): Promise<DataSource[]> {
+  const response = await fetch(`${API_URL}/data-sources/data-sources`, {
     headers: {
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
     }
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Failed to fetch project data sources', errorText);
+    console.error('Failed to fetch data sources', errorText);
     throw new Error(`Failed to fetch data sources: ${response.status} ${errorText}`);
   }
 
@@ -27,14 +25,93 @@ async function fetchProjectDataSources(token: string, projectId: UUID): Promise<
   return snakeToCamelKeys(data);
 }
 
-async function createFileDataSource(token: string, projectId: UUID, files: File[]): Promise<DataSource[]> {
+async function fetchDataSource(token: string, dataSourceId: UUID): Promise<DataSource> {
+  const response = await fetch(`${API_URL}/data-sources/data-source/${dataSourceId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch data source', errorText);
+    throw new Error(`Failed to fetch data source: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
+
+async function fetchDataSourcesByIds(token: string, dataSourceIds: UUID[]): Promise<DataSource[]> {
+  const params = new URLSearchParams();
+  dataSourceIds.forEach(id => params.append('data_source_ids', id));
+
+  const response = await fetch(`${API_URL}/data-sources/data-sources-by-ids?${params.toString()}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch data sources by ids', errorText);
+    throw new Error(`Failed to fetch data sources by ids: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
+
+async function createDataSource(token: string, dataSourceCreate: DataSourceCreate): Promise<DataSource> {
+  const response = await fetch(`${API_URL}/data-sources/data-source`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(camelToSnakeKeys(dataSourceCreate))
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to create data source', errorText);
+    throw new Error(`Failed to create data source: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
+
+async function addDataSourceDetails(token: string, detailsCreate: DataSourceDetailsCreate): Promise<DataSource> {
+  const response = await fetch(`${API_URL}/data-sources/data-source-details`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(camelToSnakeKeys(detailsCreate))
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to add data source details', errorText);
+    throw new Error(`Failed to add data source details: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return snakeToCamelKeys(data);
+}
+
+async function createFilesDataSources(token: string, files: File[], mountGroupId: UUID): Promise<DataSource> {
   const formData = new FormData();
   files.forEach(file => {
     formData.append('files', file);
   });
-  formData.append('project_id', projectId);
+  formData.append('mount_group_id', mountGroupId.toString());
 
-  const response = await fetch(`${PROJECT_SERVER_URL}/data-source/file`, {
+  const response = await fetch(`${API_URL}/data-sources/files-data-sources`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -44,78 +121,59 @@ async function createFileDataSource(token: string, projectId: UUID, files: File[
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Failed to create file data source', errorText);
-    throw new Error(`Failed to create file data source: ${response.status} ${errorText}`);
+    console.error('Failed to create files data sources', errorText);
+    throw new Error(`Failed to create files data sources: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
   return snakeToCamelKeys(data);
 }
-
-async function deleteDataSourceEndpoint(token: string, dataSourceId: UUID): Promise<void> {
-  const response = await fetch(`${API_URL}/deletion/data-source/${dataSourceId}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to delete data source', errorText);
-    throw new Error(`Failed to delete data source: ${response.status} ${errorText}`);
-  }
-}
-
-async function fetchAllUserDataSources(token: string): Promise<DataSource[]> {
-  const response = await fetch(`${API_URL}/data-source/data-sources`, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to fetch user data sources', errorText);
-    throw new Error(`Failed to fetch data sources: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-export const useDataSources = (projectId?: UUID) => {
+export const useDataSources = () => {
   const { data: session } = useSession();
   const { data: dataSources, mutate: mutateDataSources, error, isLoading } = useSWR(
-    session ? (projectId ? ["data-sources", projectId] : ["data-sources", "all"]) : null, 
-    () => projectId 
-      ? fetchProjectDataSources(session ? session.APIToken.accessToken : "", projectId)
-      : fetchAllUserDataSources(session ? session.APIToken.accessToken : "")
+    session ? "data-sources" : null,
+    () => fetchDataSources(session ? session.APIToken.accessToken : "")
   );
 
-  const { trigger: triggerCreateFileDataSource } = useSWRMutation(
-    session && projectId ? ["data-sources", projectId] : null,
-    async (_, { arg }: { arg: { files: File[] } }) => {
-      if (!projectId) {
-        throw new Error("Cannot create data source without a project context");
+  const { trigger: triggerCreateDataSource, isMutating: isCreating } = useSWRMutation(
+    "data-sources",
+    async (_, { arg }: { arg: DataSourceCreate }) => {
+      if (!session?.APIToken?.accessToken) {
+        throw new Error('No session token available');
       }
-      const newDataSources = await createFileDataSource(
-        session ? session.APIToken.accessToken : "", 
-        projectId, 
-        arg.files
+      const newDataSource = await createDataSource(
+        session.APIToken.accessToken,
+        arg
       );
       await mutateDataSources();
-      return newDataSources;
+      return newDataSource;
     }
   );
 
-  const { trigger: deleteDataSource } = useSWRMutation(
-    session ? (projectId ? ["data-sources", projectId] : ["data-sources", "all"]) : null,
-    async (_, { arg }: { arg: { dataSourceId: UUID } }) => {
-      await deleteDataSourceEndpoint(session ? session.APIToken.accessToken : "", arg.dataSourceId);
+  const { trigger: triggerCreateFilesDataSources, isMutating: isCreatingFiles } = useSWRMutation(
+    "data-sources",
+    async (_, { arg }: { arg: { files: File[]; mountGroupId: UUID } }) => {
+      if (!session?.APIToken?.accessToken) {
+        throw new Error('No session token available');
+      }
+      const newDataSource = await createFilesDataSources(session.APIToken.accessToken, arg.files, arg.mountGroupId);
       await mutateDataSources();
-      await mutate(["projects"]);
+      return newDataSource;
+    }
+  );
+
+  const { trigger: triggerAddDataSourceDetails, isMutating: isAddingDetails } = useSWRMutation(
+    "data-sources",
+    async (_, { arg }: { arg: DataSourceDetailsCreate }) => {
+      if (!session?.APIToken?.accessToken) {
+        throw new Error('No session token available');
+      }
+      const updatedDataSource = await addDataSourceDetails(
+        session.APIToken.accessToken,
+        arg
+      );
+      await mutateDataSources();
+      return updatedDataSource;
     }
   );
 
@@ -123,15 +181,42 @@ export const useDataSources = (projectId?: UUID) => {
     dataSources, 
     mutateDataSources, 
     error, 
-    isLoading, 
-    triggerCreateFileDataSource,
-    deleteDataSource
+    isLoading,
+    triggerCreateDataSource,
+    triggerAddDataSourceDetails,
+    isCreating,
+    isAddingDetails,
+    triggerCreateFilesDataSources,
+    isCreatingFiles,
   };
-}
+};
 
-export const useDataSource = (projectId: UUID, dataSourceId: UUID) => {
-  const { dataSources } = useDataSources(projectId);
-  const dataSource = useMemo(() => dataSources?.find(ds => ds.id === dataSourceId), [dataSources, dataSourceId]);
+export const useDataSourcesByIds = (dataSourceIds?: UUID[]) => {
+  const { data: session } = useSession();
+  const { data: dataSources, mutate: mutateDataSources, error, isLoading } = useSWR(
+    session && dataSourceIds && dataSourceIds.length > 0 ? ["data-sources-by-ids", dataSourceIds] : null,
+    () => fetchDataSourcesByIds(session ? session.APIToken.accessToken : "", dataSourceIds || [])
+  );
 
-  return { dataSource };
-}
+  return { 
+    dataSources, 
+    mutateDataSources, 
+    error, 
+    isLoading, 
+  };
+};
+
+export const useDataSource = (dataSourceId?: UUID) => {
+  const { data: session } = useSession();
+  const { data: dataSource, mutate: mutateDataSource, error, isLoading } = useSWR(
+    session && dataSourceId ? ["data-source", dataSourceId] : null,
+    () => fetchDataSource(session ? session.APIToken.accessToken : "", dataSourceId!)
+  );
+
+  return { 
+    dataSource,
+    mutateDataSource,
+    error, 
+    isLoading,
+  };
+};

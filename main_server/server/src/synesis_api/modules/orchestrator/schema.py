@@ -1,7 +1,7 @@
 import uuid
 from typing import Literal, List, Optional
 from datetime import datetime, timezone
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Literal
 
 script_type_literal = Literal["function", "model", "pipeline",
@@ -13,17 +13,20 @@ script_type_literal = Literal["function", "model", "pipeline",
 
 class ConversationInDB(BaseModel):
     id: uuid.UUID
+    kvasir_run_id: uuid.UUID
     user_id: uuid.UUID
     name: str
     project_id: uuid.UUID
-    created_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc))
 
 
 class RunInConversationInDB(BaseModel):
     conversation_id: uuid.UUID
     run_id: uuid.UUID
     context_id: Optional[uuid.UUID] = None
-    created_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ChatMessageInDB(BaseModel):
@@ -33,7 +36,8 @@ class ChatMessageInDB(BaseModel):
     role: Literal["user", "assistant"]
     type: Literal["tool_call", "chat"]
     context_id: Optional[uuid.UUID] = None
-    created_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ContextInDB(BaseModel):

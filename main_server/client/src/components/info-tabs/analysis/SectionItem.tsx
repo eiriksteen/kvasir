@@ -1,18 +1,16 @@
-import React, { useState, Fragment, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { NotebookSection, AnalysisResult as AnalysisResultType } from '@/types/analysis';
+import { Section, AnalysisCell } from '@/types/ontology/analysis';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
-import SectionItemCreate from '@/components/info-tabs/analysis/SectionItemCreate';
-import AnalysisResult from '@/components/info-tabs/analysis/AnalysisResult';
 import DnDComponent from '@/components/info-tabs/analysis/DnDComponent';
 import { useAnalysis } from '@/hooks/useAnalysis';
-import { buildOrderedList } from '@/lib/utils';
-import { Plus, Trash2, Move, MoreVertical, Pencil, Save, Loader2, X } from 'lucide-react';
+import { Trash2, Move, MoreVertical, Pencil, Save, Loader2, X } from 'lucide-react';
 import { UUID } from 'crypto';
+import CellItem from '@/components/info-tabs/analysis/CellItem';
 
 interface SectionItemProps {
-  section: NotebookSection;
-  sections: NotebookSection[];
+  section: Section;
+  sections: Section[];
   projectId: UUID;
   analysisObjectId: UUID;
   depth?: number;
@@ -26,22 +24,17 @@ interface SectionItemProps {
 
 const SectionItem: React.FC<SectionItemProps> = ({ 
   section, 
-  sections, 
   projectId, 
   analysisObjectId,
-  depth = 0,
   numbering,
-  onScrollToSection,
-  setSectionRef,
   expandedSections: parentExpandedSections,
   setExpandedSections: parentSetExpandedSections
 }) => {
   const [showConfirm, setShowConfirm] = useState(false);
-  const [showCreateSubsection, setShowCreateSubsection] = useState(false);
   const [showEditSection, setShowEditSection] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [editName, setEditName] = useState(section.sectionName);
-  const [editDescription, setEditDescription] = useState(section.sectionDescription || '');
+  const [editName, setEditName] = useState(section.name);
+  const [editDescription, setEditDescription] = useState(section.description || '');
   const [isUpdating, setIsUpdating] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -50,9 +43,8 @@ const SectionItem: React.FC<SectionItemProps> = ({
   const isExpanded = parentExpandedSections?.has(section.id) || false;
   
   const {
-    deleteSection,
-    updateSection,
-  } = useAnalysis(projectId, analysisObjectId);
+    mutateAnalysis,
+  } = useAnalysis(analysisObjectId);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -89,22 +81,20 @@ const SectionItem: React.FC<SectionItemProps> = ({
 
 
 
-  const handleDeleteSection = (sectionId: UUID) => {
-    deleteSection({ sectionId });
+  const handleDeleteSection = async (sectionId: UUID) => {
+    // TODO: Implement delete section API call
+    // For now, just close the confirmation
     setShowConfirm(false);
+    console.log('Delete section:', sectionId);
   };
 
   const handleUpdateSection = async () => {
     if (editName.trim() && !isUpdating) {
       setIsUpdating(true);
       try {
-        await updateSection({
-          sectionId: section.id,
-          sectionUpdate: {
-            sectionName: editName.trim(),
-            sectionDescription: editDescription.trim() || null,
-          }
-        });
+        // TODO: Implement update section API call
+        // For now, just update local state
+        await mutateAnalysis();
         setShowEditSection(false);
       } catch (error) {
         console.error('Error updating section:', error);
@@ -115,8 +105,8 @@ const SectionItem: React.FC<SectionItemProps> = ({
   };
 
   const handleCancelEdit = () => {
-    setEditName(section.sectionName);
-    setEditDescription(section.sectionDescription || '');
+    setEditName(section.name);
+    setEditDescription(section.description || '');
     setShowEditSection(false);
   };
 
@@ -131,26 +121,10 @@ const SectionItem: React.FC<SectionItemProps> = ({
     }
   };
 
-  // Build ordered list for this section's children using the new nextType/nextId system
-  const childSections = section.notebookSections || [];
-  const results = section.analysisResults || [];
-  
-  // Find the first element in the chain for this section's children
-  const referencedIds = new Set([
-    ...childSections.map(s => s.nextId).filter(Boolean),
-    ...results.map(r => r.nextId).filter(Boolean)
-  ]);
-  
-  const firstChildSection = childSections.find(s => !referencedIds.has(s.id));
-  const firstResult = results.find(r => !referencedIds.has(r.id));
-  
-  let orderedChildren: (NotebookSection | AnalysisResultType)[] = [];
-  
-  if (firstChildSection) {
-    orderedChildren = buildOrderedList(childSections, results, firstChildSection.id, 'notebook_section');
-  } else if (firstResult) {
-    orderedChildren = buildOrderedList(childSections, results, firstResult.id, 'analysis_result');
-  }
+  // Get cells ordered by their order field
+  const orderedCells = section.cells 
+    ? [...section.cells].sort((a, b) => a.order - b.order)
+    : [];
 
   return (
     <div className="w-full">
@@ -159,7 +133,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
         <DnDComponent
           nextType={"notebook_section"}
           nextId={section.id}
-          sectionId={section.parentSectionId ?? null}
+          sectionId={null}
         />
       )}
       
@@ -243,7 +217,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
                 </div>
               ) : (
                 <span className={`${getTitleStyle(numbering)} text-gray-900 flex-1`}>
-                  {numbering}. {section.sectionName}
+                  {numbering}. {section.name}
                 </span>
               )}
               
@@ -285,16 +259,6 @@ const SectionItem: React.FC<SectionItemProps> = ({
                       </button>
                       <button
                         onClick={() => {
-                          setShowCreateSubsection(true);
-                          setShowMenu(false);
-                        }}
-                        className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2"
-                      >
-                        <Plus size={14} />
-                        Add subsection
-                      </button>
-                      <button
-                        onClick={() => {
                           setShowConfirm(true);
                           setShowMenu(false);
                         }}
@@ -309,71 +273,27 @@ const SectionItem: React.FC<SectionItemProps> = ({
                 </div>
               )}
             </div>
-            {showCreateSubsection && (
-              <div className="mb-3">
-                <SectionItemCreate
-                  parentId={section.id}
-                  projectId={projectId}
-                  analysisObjectId={analysisObjectId}
-                  onCancel={() => setShowCreateSubsection(false)}
-                />
-              </div>
-            )}
-            
             {/* Expandable Content */}
             {isExpanded && (
               <div>
-                {/* Create Subsection Form */}
-                
-                
                 {/* Section Description */}
-                {/* {(section.sectionDescription && !showEditSection) && (
+                {section.description && !showEditSection && (
                   <div className="text-sm text-gray-700 mb-2 leading-relaxed">
-                    {section.sectionDescription}
+                    {section.description}
                   </div>
-                )} */}
+                )}
                 
-                {/* Ordered Children (Sections and Results) */}
-                {orderedChildren.length > 0 && (
+                {/* Ordered Cells */}
+                {orderedCells.length > 0 && (
                   <div>
-                    {(() => {
-                      let sectionCounter = 0;
-                      return orderedChildren.map((item: NotebookSection | AnalysisResultType) => {
-                        const isSection = 'sectionName' in item;
-                        if (isSection) sectionCounter++;
-                        
-                        return (
-                          <Fragment key={item.id}>
-                            
-                            {isSection ? (
-                              <div ref={setSectionRef ? setSectionRef(item.id) : undefined}>
-                                <SectionItem
-                                  section={item}
-                                  sections={sections}
-                                  projectId={projectId}
-                                  analysisObjectId={analysisObjectId}
-                                  depth={depth + 1}
-                                  numbering={`${numbering}.${sectionCounter}`}
-                                  onScrollToSection={onScrollToSection}
-                                  setSectionRef={setSectionRef}
-                                  expandedSections={parentExpandedSections}
-                                  setExpandedSections={parentSetExpandedSections}
-                                />
-                              </div>
-                            ) : (
-                              <div ref={setSectionRef ? setSectionRef(item.id) : undefined}>
-                                <AnalysisResult 
-                                  projectId={projectId}
-                                  analysisResult={item}
-                                  analysisObjectId={analysisObjectId}
-                                />
-                              </div>
-                            )}
-                            
-                          </Fragment>
-                        );
-                      });
-                    })()}
+                    {orderedCells.map((cell: AnalysisCell) => (
+                      <CellItem
+                        key={cell.id}
+                        cell={cell}
+                        projectId={projectId}
+                        analysisObjectId={analysisObjectId}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
@@ -384,11 +304,11 @@ const SectionItem: React.FC<SectionItemProps> = ({
       {/* Edit Mode Actions */}
       
 
-      {!isDragging && section.nextType === null && section.nextId === null && (
+      {!isDragging && (
         <DnDComponent
           nextType={null}
           nextId={null}
-          sectionId={section.parentSectionId ?? null}
+          sectionId={section.id}
         />
       )}
 

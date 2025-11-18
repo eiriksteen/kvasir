@@ -1,17 +1,17 @@
 import React from 'react';
 import { Brain } from 'lucide-react';
 import { UUID } from 'crypto';
-import { useModelEntity } from '@/hooks/useModelEntities';
+import { useMountedModelInstantiated } from '@/hooks/useOntology';
 import { useAgentContext } from '@/hooks/useAgentContext';
 
-interface ModelEntityBoxProps {
+interface ModelInstantiatedBoxProps {
   modelInstantiatedId: UUID;
   projectId: UUID;
   openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void;
 }
 
-export default function ModelEntityBox({ modelInstantiatedId, projectId, openTab }: ModelEntityBoxProps) {
-  const { modelInstantiated } = useModelEntity(projectId, modelInstantiatedId);
+export default function ModelInstantiatedBox({ modelInstantiatedId, projectId, openTab }: ModelInstantiatedBoxProps) {
+  const modelInstantiated = useMountedModelInstantiated(modelInstantiatedId, projectId);
   const { 
     modelsInstantiatedInContext, 
     addModelEntityToContext, 

@@ -1,8 +1,63 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, ForeignKey, Table, UUID, DateTime, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, Table, UUID, DateTime, UniqueConstraint, String, Float
 
 from synesis_api.database.core import metadata
+
+
+# =============================================================================
+# Node Models
+# =============================================================================
+
+entity_node = Table(
+    "entity_node",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True, nullable=False),
+    Column("name", String, nullable=False),
+    Column("x_position", Float, nullable=False),
+    Column("y_position", Float, nullable=False),
+    Column("entity_type", String, nullable=False),
+    Column("description", String, nullable=True),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="entity_graph"
+)
+
+
+node_group = Table(
+    "node_group",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True,
+           default=uuid.uuid4, nullable=False),
+    Column("name", String, nullable=False),
+    Column("description", String, nullable=True),
+    Column("python_package_name", String, nullable=True),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="entity_graph"
+)
+
+
+node_in_group = Table(
+    "node_in_group",
+    metadata,
+    Column("node_id", UUID(as_uuid=True),
+           ForeignKey("entity_graph.entity_node.id"), primary_key=True, nullable=False),
+    Column("node_group_id", UUID(as_uuid=True),
+           ForeignKey("entity_graph.node_group.id"), primary_key=True, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="entity_graph"
+)
 
 
 # =============================================================================
@@ -13,9 +68,9 @@ from synesis_api.database.core import metadata
 dataset_from_data_source = Table(
     "dataset_from_data_source",
     metadata,
-    Column("data_source_id", UUID, ForeignKey(
+    Column("data_source_id", UUID(as_uuid=True), ForeignKey(
         "data_sources.data_source.id"), primary_key=True, nullable=False),
-    Column("dataset_id", UUID, ForeignKey(
+    Column("dataset_id", UUID(as_uuid=True), ForeignKey(
         "data_objects.dataset.id"), primary_key=True, nullable=False),
     Column("created_at", DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),

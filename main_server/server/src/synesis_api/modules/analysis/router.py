@@ -1,151 +1,51 @@
 import uuid
 import time
 import redis
-from typing import Annotated, List
+import json
+from datetime import datetime, timezone
+from typing import Annotated, List, Union
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse, Response
-from pathlib import Path
-import aiofiles
+from fastapi.responses import StreamingResponse
+from sqlalchemy import select
+from pydantic import BaseModel
 # from weasyprint import HTML
 
 
-from synesis_schemas.main_server import (
+from synesis_api.auth.schema import User
+from synesis_api.auth.service import get_current_user, user_owns_runs, user_owns_analysis
+from synesis_api.modules.analysis.service import (
+    get_analysis_service,
+)
+from kvasir_ontology.entities.analysis.interface import AnalysisInterface
+from kvasir_ontology.entities.analysis.data_model import (
     Analysis,
     AnalysisCreate,
-    AnalysisStatusMessage,
-    NotebookSection,
-    NotebookSectionCreate,
-    NotebookSectionUpdate,
-    AnalysisSmall,
-    AnalysisResult,
-    GenerateReportRequest,
-    MoveRequest,
-    AnalysisResultFindRequest,
-    User,
-    # AggregationObjectWithRawData,
-    GetAnalysesByIDsRequest,
-    AnalysisResultVisualizationCreate,
+    SectionCreate,
+    CodeCellCreate,
+    MarkdownCellCreate,
+    CodeOutputCreate,
+    Section,
+    AnalysisCell,
 )
-from synesis_api.auth.service import get_current_user, user_owns_runs
-from synesis_api.modules.analysis.service import (
-    create_analysis,
-    get_user_analyses,
-    check_user_owns_analysis,
-    delete_notebook_section_recursive,
-    create_section,
-    update_section,
-    update_analysis_result,
-    add_analysis_result_to_section,
-    generate_notebook_report,
-    get_notebook_by_id,
-    move_element as move_element_service,
-    delete_analysis_result as delete_analysis_result_service,
-    get_analysis_results_by_ids,
-    get_analysis_result_by_id,
-    create_analysis_result,
-    create_analysis_result_visualization
+from kvasir_ontology.visualization.data_model import (
+    ImageCreate,
+    EchartCreate,
+    TableCreate,
 )
-from synesis_api.redis import get_redis
-from synesis_api.utils.markdown_utils import convert_markdown_to_html
+# from synesis_api.utils.markdown_utils import convert_markdown_to_html
 
 router = APIRouter()
 
 SSE_MAX_TIMEOUT = 3600
 
 
-@router.post("/analysis-object", response_model=AnalysisSmall)
-async def post_analysis(
-    analysis_create: AnalysisCreate,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> AnalysisSmall:
-    return await create_analysis(analysis_create, user.id)
-
-
-@router.get("/analysis-object/{analysis_id}", response_model=Analysis)
-async def get_analysis(
-    analysis_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> Analysis:
-    if not await check_user_owns_analysis(user.id, analysis_id):
-        raise HTTPException(
-            status_code=403,
-            detail="You do not have permission to access this analysis object"
-        )
-    return (await get_user_analyses(user.id, [analysis_id]))[0]
-
-
-@router.get("/analyses-by-ids", response_model=List[Analysis])
-async def get_analyses_by_ids_endpoint(
-    request: GetAnalysesByIDsRequest,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> List[Analysis]:
-    return await get_user_analyses(user_id=user.id, analysis_ids=request.analysis_ids)
-
-
-@router.post("/analysis-object/{analysis_id}/generate-report", response_class=FileResponse)
-async def generate_report_endpoint(
-    analysis_id: uuid.UUID,
-    generate_report_request: GenerateReportRequest,
-    user: Annotated[User, Depends(get_current_user)] = None
-) -> FileResponse:
-    if not await check_user_owns_analysis(user.id, analysis_id):
-        raise HTTPException(
-            status_code=403,
-            detail="You do not have permission to modify this analysis object"
-        )
-
-    analysis_obj = (await get_user_analyses(user.id, [analysis_id]))[0]
-    notebook = await get_notebook_by_id(analysis_obj.notebook_id)
-
-    # Generate markdown report content
-    report_content = await generate_notebook_report(analysis_obj, notebook, generate_report_request.include_code, user.id)
-
-    # Convert markdown to HTML
-    html_content = convert_markdown_to_html(report_content)
-
-    # Create temporary HTML file
-    html_path = Path.cwd() / "tmp" / \
-        f"{generate_report_request.filename}_temp.html"
-    async with aiofiles.open(html_path, mode="w", encoding="utf-8") as f:
-        await f.write(html_content)
-
-    # Convert HTML to PDF using weasyprint
-    pdf_path = Path.cwd() / "tmp" / f"{generate_report_request.filename}.pdf"
-
-    # TODO: FIX THIS
-
-    # try:
-
-    #     # Convert HTML to PDF
-    #     HTML(string=html_content).write_pdf(str(pdf_path))
-
-    #     # Clean up temporary HTML file
-    #     html_path.unlink()
-
-    #     return FileResponse(
-    #         path=pdf_path,
-    #         filename=f"{generate_report_request.filename}.pdf",
-    #         media_type="application/pdf",
-    #         background=BackgroundTask(pdf_path.unlink)
-    #     )
-    # except Exception as e:
-    #     # Clean up files on error
-    #     if html_path.exists():
-    #         html_path.unlink()
-    #     if pdf_path.exists():
-    #         pdf_path.unlink()
-    #     raise HTTPException(
-    #         status_code=500,
-    #         detail=f"Failed to generate PDF: {str(e)}"
-    #     )
-
-
 @router.get("/analysis-agent-sse/{run_id}")
 async def analysis_agent_sse(
     run_id: uuid.UUID,
-    cache: Annotated[redis.Redis, Depends(get_redis)],
     timeout: int = SSE_MAX_TIMEOUT,
-    user: Annotated[User, Depends(get_current_user)] = None
+    user: Annotated[User, Depends(get_current_user)] = None,
+    analysis_service: Annotated[AnalysisInterface,
+                                Depends(get_analysis_service)] = None
 ) -> StreamingResponse:
     """Stream analysis status messages for a running run."""
     if not user or not await user_owns_runs(user.id, [run_id]):
@@ -155,186 +55,182 @@ async def analysis_agent_sse(
     timeout = min(timeout, SSE_MAX_TIMEOUT)
 
     async def stream_run_updates():
-        response = await cache.xread({str(run_id) + "-analysis-status-message": "$"}, count=1, block=timeout*1000)
-
         start_time = time.time()
-        last_id = response[0][1][-1][0] if response else None
-        data = response[0][1][0][1]
 
-        if 'analysis_result' in data.keys():
-            analysis_result = AnalysisResult.model_validate_json(
-                data["analysis_result"])
-            data["analysis_result"] = analysis_result
-            status_message = AnalysisStatusMessage.model_validate(data)
+        async for item in analysis_service.listen_to_analysis_stream(run_id):
+            if isinstance(item, (Section, AnalysisCell)):
+                yield f"data: {item.model_dump_json(by_alias=True)}\n\n"
 
-            yield f"data: {status_message.model_dump_json(by_alias=True)}\n\n"
-        elif 'section' in data.keys():
-            section = NotebookSection.model_validate_json(
-                data["section"])
-            data["section"] = section
-            status_message = AnalysisStatusMessage.model_validate(data)
-
-            yield f"data: {status_message.model_dump_json(by_alias=True)}\n\n"
-
-        while True:
-            response = await cache.xread({str(run_id) + "-analysis-status-message": last_id}, count=1)
-
-            if response:
-                start_time = time.time()
-                last_id = response[0][1][-1][0]
-                data = response[0][1][0][1]
-                if "analysis_result" in data.keys():
-                    analysis_result = AnalysisResult.model_validate_json(
-                        data["analysis_result"])
-                    data["analysis_result"] = analysis_result
-                    status_message = AnalysisStatusMessage.model_validate(data)
-                    yield f"data: {status_message.model_dump_json(by_alias=True)}\n\n"
-                elif "section" in data.keys():
-                    section = NotebookSection.model_validate_json(
-                        data["section"])
-                    data["section"] = section
-                    status_message = AnalysisStatusMessage.model_validate(data)
-                    yield f"data: {status_message.model_dump_json(by_alias=True)}\n\n"
-
-            if start_time + timeout < time.time():
+            # Check timeout
+            if time.time() - start_time > timeout:
                 break
 
     return StreamingResponse(stream_run_updates(), media_type="text/event-stream")
 
 
-@router.post("/analysis-object/{analysis_id}/create-section", response_model=NotebookSection)
+# Routes for AnalysisInterface methods using dependency injection
+
+@router.post("/analysis", response_model=Analysis)
+async def create_analysis_endpoint(
+    analysis_create: AnalysisCreate,
+    _: Annotated[User, Depends(get_current_user)],
+    analysis_service: Annotated[AnalysisInterface,
+                                Depends(get_analysis_service)]
+) -> Analysis:
+    return await analysis_service.create_analysis(analysis_create)
+
+
+@router.get("/analysis/{analysis_id}", response_model=Analysis)
+async def get_analysis_endpoint(
+    analysis_id: uuid.UUID,
+    user: Annotated[User, Depends(get_current_user)],
+    analysis_service: Annotated[AnalysisInterface,
+                                Depends(get_analysis_service)]
+) -> Analysis:
+    if not await user_owns_analysis(user.id, analysis_id):
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to access this analysis"
+        )
+    return await analysis_service.get_analysis(analysis_id)
+
+
+@router.post("/analyses-by-ids", response_model=List[Analysis])
+async def get_analyses_endpoint(
+    analysis_ids: List[uuid.UUID],
+    _: Annotated[User, Depends(get_current_user)],
+    analysis_service: Annotated[AnalysisInterface,
+                                Depends(get_analysis_service)]
+) -> List[Analysis]:
+    return await analysis_service.get_analyses(analysis_ids)
+
+
+@router.post("/analysis/{analysis_id}/section", response_model=Analysis)
 async def create_section_endpoint(
     analysis_id: uuid.UUID,
-    section_create: NotebookSectionCreate,
-    user: Annotated[User, Depends(get_current_user)] = None,
-) -> NotebookSection:
-    if not await check_user_owns_analysis(user.id, analysis_id):
+    section_create: SectionCreate,
+    user: Annotated[User, Depends(get_current_user)],
+    analysis_service: Annotated[AnalysisInterface,
+                                Depends(get_analysis_service)]
+) -> Analysis:
+    if not await user_owns_analysis(user.id, analysis_id):
         raise HTTPException(
             status_code=403,
-            detail="You do not have permission to access this analysis object"
+            detail="You do not have permission to access this analysis"
         )
+    section_create.analysis_id = analysis_id
+    return await analysis_service.create_section(section_create)
 
-    return await create_section(section_create)
 
-
-@router.patch("/analysis-object/{analysis_id}/section/{section_id}", response_model=NotebookSection)
-async def update_section_endpoint(
+@router.post("/analysis/{analysis_id}/markdown-cell", response_model=AnalysisCell)
+async def create_markdown_cell_endpoint(
     analysis_id: uuid.UUID,
-    section_id: uuid.UUID,
-    section_update: NotebookSectionUpdate,
-    user: Annotated[User, Depends(get_current_user)] = None,
-) -> NotebookSection:
-    if not await check_user_owns_analysis(user.id, analysis_id):
+    markdown_cell_create: MarkdownCellCreate,
+    user: Annotated[User, Depends(get_current_user)],
+    analysis_service: Annotated[AnalysisInterface,
+                                Depends(get_analysis_service)]
+) -> AnalysisCell:
+    if not await user_owns_analysis(user.id, analysis_id):
         raise HTTPException(
             status_code=403,
-            detail="You do not have permission to access this analysis object"
+            detail="You do not have permission to access this analysis"
         )
+    return await analysis_service.create_markdown_cell(markdown_cell_create)
 
-    return await update_section(section_id, section_update)
 
-
-@router.delete("/analysis-object/{analysis_id}/section/{section_id}")
-async def delete_section_endpoint(
+@router.post("/analysis/{analysis_id}/code-cell", response_model=AnalysisCell)
+async def create_code_cell_endpoint(
     analysis_id: uuid.UUID,
-    section_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None,
-):
-    if not await check_user_owns_analysis(user.id, analysis_id):
+    code_cell_create: CodeCellCreate,
+    user: Annotated[User, Depends(get_current_user)],
+    analysis_service: Annotated[AnalysisInterface,
+                                Depends(get_analysis_service)]
+) -> AnalysisCell:
+    if not await user_owns_analysis(user.id, analysis_id):
         raise HTTPException(
             status_code=403,
-            detail="You do not have permission to access this analysis object"
+            detail="You do not have permission to access this analysis"
         )
-
-    await delete_notebook_section_recursive(section_id)
-    return
+    return await analysis_service.create_code_cell(code_cell_create)
 
 
-@router.post("/analysis-object/{analysis_id}/section/{section_id}/add-analysis-result/{analysis_result_id}", response_model=NotebookSection)
-async def add_analysis_result_to_section_endpoint(
+@router.post("/analysis/{analysis_id}/code-output", response_model=Analysis)
+async def create_code_output_endpoint(
     analysis_id: uuid.UUID,
-    section_id: uuid.UUID,
-    analysis_result_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None,
-) -> NotebookSection:
-    if not await check_user_owns_analysis(user.id, analysis_id):
+    code_output_create: CodeOutputCreate,
+    user: Annotated[User, Depends(get_current_user)],
+    analysis_service: Annotated[AnalysisInterface,
+                                Depends(get_analysis_service)]
+) -> Analysis:
+    if not await user_owns_analysis(user.id, analysis_id):
         raise HTTPException(
             status_code=403,
-            detail="You do not have permission to access this analysis object"
+            detail="You do not have permission to access this analysis"
         )
+    return await analysis_service.create_code_output(code_output_create)
 
-    return await add_analysis_result_to_section(section_id, analysis_result_id)
 
-
-@router.patch("/analysis-object/{analysis_id}/move-element")
-async def move_element(
+@router.post("/analysis/{analysis_id}/code-cell/{code_cell_id}/image", response_model=Analysis)
+async def create_code_output_image_endpoint(
     analysis_id: uuid.UUID,
-    move_request: MoveRequest,
-    user: Annotated[User, Depends(get_current_user)] = None,
-):
-    if not await check_user_owns_analysis(user.id, analysis_id):
+    code_cell_id: uuid.UUID,
+    image_create: ImageCreate,
+    user: Annotated[User, Depends(get_current_user)],
+    analysis_service: Annotated[AnalysisInterface,
+                                Depends(get_analysis_service)]
+) -> Analysis:
+    if not await user_owns_analysis(user.id, analysis_id):
         raise HTTPException(
             status_code=403,
-            detail="You do not have permission to access this analysis object"
+            detail="You do not have permission to access this analysis"
         )
-    await move_element_service(move_request)
-    return
+    return await analysis_service.create_code_output_image(code_cell_id, image_create)
 
 
-@router.patch("/analysis-result/{analysis_result_id}", response_model=AnalysisResult)
-async def update_analysis_result_endpoint(
-    analysis_result: AnalysisResult,
-    user: Annotated[User, Depends(get_current_user)] = None,
-) -> AnalysisResult:
-
-    return await update_analysis_result(analysis_result)
-
-
-@router.delete("/analysis-object/{analysis_id}/analysis-result/{analysis_result_id}")
-async def delete_analysis_result_endpoint(
+@router.post("/analysis/{analysis_id}/code-cell/{code_cell_id}/echart", response_model=Analysis)
+async def create_code_output_echart_endpoint(
     analysis_id: uuid.UUID,
-    analysis_result_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None,
-):
-    if not await check_user_owns_analysis(user.id, analysis_id):
+    code_cell_id: uuid.UUID,
+    echart_create: EchartCreate,
+    user: Annotated[User, Depends(get_current_user)],
+    analysis_service: Annotated[AnalysisInterface,
+                                Depends(get_analysis_service)]
+) -> Analysis:
+    if not await user_owns_analysis(user.id, analysis_id):
         raise HTTPException(
             status_code=403,
-            detail="You do not have permission to access this analysis object"
+            detail="You do not have permission to access this analysis"
         )
-    await delete_analysis_result_service(analysis_result_id)
-    return
+    return await analysis_service.create_code_output_echart(code_cell_id, echart_create)
 
 
-@router.post("/analysis-result", response_model=AnalysisResult)
-async def create_analysis_result_endpoint(
-    analysis_result: AnalysisResult,
-    user: Annotated[User, Depends(get_current_user)] = None,
-) -> AnalysisResult:
-    return await create_analysis_result(analysis_result)
-
-
-@router.get("/analysis-result/{analysis_result_id}", response_model=AnalysisResult)
-async def get_analysis_result_endpoint(
-    analysis_result_id: uuid.UUID,
-    user: Annotated[User, Depends(get_current_user)] = None,
-) -> AnalysisResult:
-    result = await get_analysis_result_by_id(analysis_result_id)
-    if result is None:
+@router.post("/analysis/{analysis_id}/code-cell/{code_cell_id}/table", response_model=Analysis)
+async def create_code_output_table_endpoint(
+    analysis_id: uuid.UUID,
+    code_cell_id: uuid.UUID,
+    table_create: TableCreate,
+    user: Annotated[User, Depends(get_current_user)],
+    analysis_service: Annotated[AnalysisInterface,
+                                Depends(get_analysis_service)]
+) -> Analysis:
+    if not await user_owns_analysis(user.id, analysis_id):
         raise HTTPException(
-            status_code=404, detail="Analysis result not found")
-    return result
+            status_code=403,
+            detail="You do not have permission to access this analysis"
+        )
+    return await analysis_service.create_code_output_table(code_cell_id, table_create)
 
 
-@router.post("/analysis-results/by-ids", response_model=List[AnalysisResult])
-async def get_analysis_results_by_ids_endpoint(
-    analysis_result_find_request: AnalysisResultFindRequest,
-    user: Annotated[User, Depends(get_current_user)] = None,
-) -> List[AnalysisResult]:
-    return await get_analysis_results_by_ids(analysis_result_find_request.analysis_result_ids)
-
-
-@router.post("/analysis-result/visualization", response_model=AnalysisResult)
-async def create_analysis_result_visualization_endpoint(
-    analysis_result_visualization_create: AnalysisResultVisualizationCreate,
-    user: Annotated[User, Depends(get_current_user)] = None,
-) -> AnalysisResult:
-    return await create_analysis_result_visualization(analysis_result_visualization_create)
+@router.delete("/analysis/{analysis_id}")
+async def delete_analysis_endpoint(
+    analysis_id: uuid.UUID,
+    user: Annotated[User, Depends(get_current_user)],
+    analysis_service: Annotated[AnalysisInterface,
+                                Depends(get_analysis_service)]
+) -> None:
+    if not await user_owns_analysis(user.id, analysis_id):
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to access this analysis"
+        )
+    await analysis_service.delete_analysis(analysis_id)

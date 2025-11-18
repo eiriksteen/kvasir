@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Folder } from 'lucide-react';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { UUID } from 'crypto';
-import { useDataSources } from '@/hooks/useDataSources';
+import { useOntology } from '@/hooks/useOntology';
 import { useProjectChat } from '@/hooks/useProjectChat';
-import { DataSource } from '@/types/data-sources';
+import { DataSource } from '@/types/ontology/data-source';
+import { DatasetCreate } from '@/types/ontology/dataset';
 
 function DataSourceListItem({ dataSource, isFirst, isInContext }: { dataSource: DataSource; isFirst: boolean; isInContext: boolean }) {
   return (
@@ -39,7 +40,8 @@ export default function AddDataset({ onClose, projectId }: AddDatasetProps) {
   const [description, setDescription] = useState('');
   const [isSubmitting] = useState(false);
 
-  const { dataSources } = useDataSources(projectId);
+  const { dataSources, insertDataset, mutateEntityGraph } = useOntology(projectId);
+
   const { 
     dataSourcesInContext, 
     addDataSourceToContext, 
@@ -73,8 +75,18 @@ export default function AddDataset({ onClose, projectId }: AddDatasetProps) {
   };
 
   const handleSubmit = async () => {
-    await submitPrompt(`Create a new dataset from the data sources in the context!${description ? `\n\nDescription: ${description}` : ''}`);
-    onClose();
+    try {
+      const datasetCreate: DatasetCreate = {
+        name: 'New Dataset',
+        description: description || '',
+        groups: []
+      };
+      const newDataset = await insertDataset({ datasetCreate: datasetCreate, edges: [] });
+      await submitPrompt(`Populate the dataset ${newDataset.name} from the data sources in the context!${description ? `\n\nDescription: ${description}` : ''}`);
+      onClose();
+    } finally {
+      await mutateEntityGraph();
+    }
   };
 
   return (

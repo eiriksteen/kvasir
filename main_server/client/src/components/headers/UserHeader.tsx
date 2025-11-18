@@ -2,12 +2,15 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, LogOut } from 'lucide-react';
 import { useProjects, useProject } from '@/hooks';
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
-import { Project } from '@/types/project';
+import { Project } from '@/types/api/project';
 import { UUID } from 'crypto';
+import { signOut } from 'next-auth/react';
+import ConfirmationPopup from '@/components/ConfirmationPopup';
+
 
 interface UserHeaderProps {
 	projectId?: UUID;
@@ -17,6 +20,7 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 	const { projects } = useProjects();
 	const { project } = useProject(projectId);
 	const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+	const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
 	const router = useRouter();
 
@@ -41,6 +45,16 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 	const handleBackToMenu = () => {
 		setShowProjectDropdown(false);
 		router.push('/projects');
+	};
+
+	const handleLogoutConfirm = async () => {
+		try {
+			await signOut({ callbackUrl: '/login' });
+		} catch (error) {
+			console.error('Error logging out:', error);
+		} finally {
+			setShowLogoutConfirm(false);
+		}
 	};
 
 	return (
@@ -84,7 +98,7 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 						<div className="relative" ref={dropdownRef}>
 							<button
 								onClick={() => setShowProjectDropdown(!showProjectDropdown)}
-								className="text-gray-800 hover:text-gray-200 transition-colors px-3 py-1 rounded-md border border-[#000034] flex items-center space-x-1"
+								className="text-gray-800 hover:text-gray-200 transition-colors px-3 py-1 rounded-md flex items-center space-x-1"
 								title="Select Project"
 							>
 								<span className="text-sm font-medium">
@@ -99,7 +113,10 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 									<div className="p-2">
 										{/* Projects List */}
 										<div className="max-h-48 overflow-y-auto">
-											{projects?.slice().reverse().map((project) => (
+											{projects
+												?.slice()
+												.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+												.map((project) => (
 												<button
 													key={project.id}
 													onClick={() => handleProjectSelect(project)}
@@ -133,13 +150,22 @@ export default function UserHeader({ projectId }: UserHeaderProps) {
 								</div>
 							)}
 						</div>
-						{/* <Link 
-							href="/data-sources"
-							className="p-2 rounded-lg hover:bg-[#000034] transition-colors duration-200 text-[#000034] hover:text-gray-200"
-							title="Manage Data Sources"
+						
+						{/* Logout Button */}
+						<button
+							onClick={() => setShowLogoutConfirm(true)}
+							className="text-gray-800 hover:text-gray-200 transition-colors px-3 py-1 rounded-md flex items-center space-x-1"
+							title="Logout"
 						>
-							<Database size={18} />
-						</Link> */}
+							<LogOut size={14} />
+						</button>
+
+						<ConfirmationPopup
+							message="Are you sure you want to logout?"
+							isOpen={showLogoutConfirm}
+							onConfirm={handleLogoutConfirm}
+							onCancel={() => setShowLogoutConfirm(false)}
+						/>
 					</div>
 				</div>
 			</div>

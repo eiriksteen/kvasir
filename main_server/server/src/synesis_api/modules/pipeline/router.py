@@ -2,116 +2,121 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import TypeAdapter
-from typing import List
+from typing import List, Annotated
 from uuid import UUID
 
-from synesis_api.auth.service import get_current_user, user_owns_pipeline, user_owns_pipeline_run, oauth2_scheme
-from synesis_schemas.main_server import User
-from synesis_api.modules.pipeline.service import (
-    create_pipeline,
-    create_pipeline_implementation,
-    get_pipeline_runs,
-    create_pipeline_run,
-    update_pipeline_run_status,
-    get_user_pipelines
-)
-from synesis_api.client import MainServerClient, post_run_pipeline
-from synesis_schemas.main_server import (
+from synesis_api.auth.service import get_current_user, user_owns_pipeline, user_owns_pipeline_run
+from synesis_api.auth.schema import User
+from synesis_api.modules.pipeline.service import get_pipelines_service
+from kvasir_ontology.entities.pipeline.interface import PipelineInterface
+from kvasir_ontology.entities.pipeline.data_model import (
     Pipeline,
     PipelineImplementationCreate,
-    PipelineInDB,
-    PipelineRunInDB,
-    PipelineRunStatusUpdate,
-    PipelineCreate,
-    PipelineImplementationInDB,
+    PipelineRunBase,
     PipelineRunCreate,
-    GetPipelinesByIDsRequest
+    PipelineCreate,
+    PIPELINE_RUN_STATUS_LITERAL
 )
 from synesis_api.app_secrets import SSE_MIN_SLEEP_TIME
 
 router = APIRouter()
 
 
-@router.get("/pipelines/runs", response_model=List[PipelineRunInDB])
-async def fetch_pipeline_runs(user: User = Depends(get_current_user)) -> List[PipelineRunInDB]:
-    return await get_pipeline_runs(user.id)
+@router.get("/pipelines/runs", response_model=List[PipelineRunBase])
+async def fetch_pipeline_runs(
+    pipeline_service: Annotated[PipelineInterface,
+                                Depends(get_pipelines_service)]
+) -> List[PipelineRunBase]:
+    return await pipeline_service.get_pipeline_runs()
 
 
-@router.get("/pipelines/{pipeline_id}", response_model=PipelineInDB)
+@router.get("/pipelines/{pipeline_id}", response_model=Pipeline)
 async def fetch_pipeline(
     pipeline_id: UUID,
-    user: User = Depends(get_current_user),
+    pipeline_service: Annotated[PipelineInterface,
+                                Depends(get_pipelines_service)]
 ) -> Pipeline:
-    return (await get_user_pipelines(user.id, [pipeline_id]))[0]
+    return await pipeline_service.get_pipeline(pipeline_id)
 
 
 @router.get("/pipelines-by-ids", response_model=List[Pipeline])
 async def fetch_pipelines_by_ids(
-    request: GetPipelinesByIDsRequest,
-    user: User = Depends(get_current_user),
+    pipeline_ids: List[UUID],
+    pipeline_service: Annotated[PipelineInterface,
+                                Depends(get_pipelines_service)]
 ) -> List[Pipeline]:
     """Get pipelines by IDs"""
-    return await get_user_pipelines(user.id, pipeline_ids=request.pipeline_ids)
+    return await pipeline_service.get_pipelines(pipeline_ids)
 
 
-@router.post("/pipeline", response_model=PipelineInDB)
+@router.post("/pipeline", response_model=Pipeline)
 async def post_pipeline(
     request: PipelineCreate,
-    user: User = Depends(get_current_user),
-) -> PipelineInDB:
-    return await create_pipeline(user.id, request)
+    pipeline_service: Annotated[PipelineInterface,
+                                Depends(get_pipelines_service)]
+) -> Pipeline:
+    return await pipeline_service.create_pipeline(request)
 
 
-@router.post("/pipeline-implementation", response_model=PipelineImplementationInDB)
+@router.post("/pipeline-implementation", response_model=Pipeline)
 async def post_pipeline_implementation(
     request: PipelineImplementationCreate,
-    user: User = Depends(get_current_user),
-) -> PipelineImplementationInDB:
-    pipeline = await create_pipeline_implementation(user.id, request)
+    pipeline_service: Annotated[PipelineInterface,
+                                Depends(get_pipelines_service)]
+) -> Pipeline:
+    pipeline = await pipeline_service.create_pipeline_implementation(request)
     return pipeline
 
 
-@router.post("/pipeline-run", response_model=PipelineRunInDB)
+@router.post("/pipeline-run", response_model=PipelineRunBase)
 async def post_pipeline_run(
-        request: PipelineRunCreate,
-        user: User = Depends(get_current_user)) -> PipelineRunInDB:
+    request: PipelineRunCreate,
+    user: Annotated[User, Depends(get_current_user)],
+    pipeline_service: Annotated[PipelineInterface,
+                                Depends(get_pipelines_service)]
+) -> PipelineRunBase:
 
     if not await user_owns_pipeline(user.id, request.pipeline_id):
         raise HTTPException(
             status_code=403, detail="You do not have permission to run this pipeline")
 
-    return await create_pipeline_run(request)
+    return await pipeline_service.create_pipeline_run(request)
 
 
-@router.patch("/pipelines/{pipeline_run_id}/status", response_model=PipelineRunInDB)
+@router.patch("/pipelines/{pipeline_run_id}/status", response_model=PipelineRunBase)
 async def patch_pipeline_run_status(
-    pipeline_run_id: str,
-    request: PipelineRunStatusUpdate,
-    user: User = Depends(get_current_user),
-) -> PipelineRunInDB:
+    pipeline_run_id: UUID,
+    status: PIPELINE_RUN_STATUS_LITERAL,
+    user: Annotated[User, Depends(get_current_user)],
+    pipeline_service: Annotated[PipelineInterface,
+                                Depends(get_pipelines_service)]
+) -> PipelineRunBase:
 
-    if not await user_owns_pipeline_run(user.id, pipeline_run_id):
+    if not await user_owns_pipeline_run(user.id, str(pipeline_run_id)):
         raise HTTPException(
             status_code=403, detail="You do not have permission to update the status of this pipeline run")
 
-    pipeline = await update_pipeline_run_status(pipeline_run_id, request.status)
-    return pipeline
+    pipeline_run = await pipeline_service.update_pipeline_run_status(pipeline_run_id, status)
+    return pipeline_run
 
 
 @router.get("/stream-pipeline-runs")
-async def stream_pipeline_runs(user: User = Depends(get_current_user),) -> StreamingResponse:
-    adapter = TypeAdapter(List[PipelineRunInDB])
+async def stream_pipeline_runs(
+    pipeline_service: Annotated[PipelineInterface,
+                                Depends(get_pipelines_service)]
+) -> StreamingResponse:
+    adapter = TypeAdapter(List[PipelineRunBase])
 
     async def stream_incomplete_runs():
         prev_run_ids = []
         while True:
-            incomplete_runs = await get_pipeline_runs(user.id, only_running=True)
+            incomplete_runs = await pipeline_service.get_pipeline_runs(only_running=True)
 
             # Include recently stopped runs to ensure we don't miss the associated state changes
             # Could optionally listen for when a run id is removed from this list in the frontend, then mutate all jobs, but this is more efficient
             stopped_run_ids = [
                 run_id for run_id in prev_run_ids if run_id not in [run.id for run in incomplete_runs]]
-            stopped_runs = await get_pipeline_runs(user.id, run_ids=stopped_run_ids)
+            stopped_runs = await pipeline_service.get_pipeline_runs(run_ids=stopped_run_ids)
 
             runs = stopped_runs + incomplete_runs
             yield f"data: {adapter.dump_json(runs, by_alias=True).decode('utf-8')}\n\n"

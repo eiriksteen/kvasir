@@ -1,5 +1,6 @@
 import uuid
-from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Boolean, JSON
+from datetime import timezone, datetime
+from sqlalchemy import Column, String, ForeignKey, Table, UUID, DateTime, Integer, CheckConstraint
 
 from synesis_api.database.core import metadata
 
@@ -15,114 +16,163 @@ analysis = Table(
            nullable=False),
     Column("name", String, nullable=False),
     Column("description", String, nullable=True),
-    Column("created_at", DateTime, nullable=False),
-    Column("report_generated", Boolean, nullable=False,
-           default=False),  # TODO: delete?
-    Column("notebook_id", UUID(as_uuid=True), nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
     schema="analysis",
 )
 
 
-notebook = Table(
-    "notebook",
+analysis_section = Table(
+    "analysis_section",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
            default=uuid.uuid4),
-    schema="analysis",
-)
-
-
-notebook_section = Table(
-    "notebook_section",
-    metadata,
-    Column("id", UUID(as_uuid=True),
-           primary_key=True,
-           default=uuid.uuid4),
-    Column("notebook_id", UUID(as_uuid=True),
-           ForeignKey("analysis.notebook.id"),
+    Column("name", String, nullable=False),
+    Column("analysis_id", UUID(as_uuid=True),
+           ForeignKey("analysis.analysis.id"),
            nullable=False),
-    Column("section_name", String, nullable=False),
-    Column("section_description", String, nullable=True),
-    # 'analysis_result' or 'notebook_section'
-    Column("next_type", String, nullable=True),
-    Column("next_id", UUID(as_uuid=True), nullable=True),
-    Column("parent_section_id", UUID(as_uuid=True),
-           ForeignKey("analysis.notebook_section.id"),
-           nullable=True),
+    Column("description", String, nullable=True),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
     schema="analysis",
 )
 
 
-analysis_status_message = Table(
-    "analysis_status_message",
+analysis_cell = Table(
+    "analysis_cell",
     metadata,
     Column("id", UUID(as_uuid=True),
            primary_key=True,
            default=uuid.uuid4),
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"),
-           nullable=False),
+    Column("order", Integer, nullable=False),
     Column("type", String, nullable=False),
-    Column("message", String, nullable=False),
-    Column("created_at", DateTime, nullable=False),
-    Column("analysis_result_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis_result.id"),
+    Column("section_id", UUID(as_uuid=True),
+           ForeignKey("analysis.analysis_section.id"),
            nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    CheckConstraint("type IN ('markdown', 'code')",
+                    name="analysis_cell_type_check"),
     schema="analysis",
 )
 
 
-analysis_result = Table(
-    "analysis_result",
+markdown_cell = Table(
+    "markdown_cell",
     metadata,
     Column("id", UUID(as_uuid=True),
-           primary_key=True,
-           default=uuid.uuid4),
-    Column("analysis", String, nullable=False),
-    Column("python_code", String, nullable=True),
-    Column("section_id", UUID(as_uuid=True), ForeignKey(
-        "analysis.notebook_section.id"), nullable=True,),
-    # 'analysis_result' or 'notebook_section'
-    Column("next_type", String, nullable=True),
-    Column("next_id", UUID(as_uuid=True), nullable=True),
+           ForeignKey("analysis.analysis_cell.id"),
+           primary_key=True),
+    Column("markdown", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="analysis",
+)
+
+
+code_cell = Table(
+    "code_cell",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           ForeignKey("analysis.analysis_cell.id"),
+           primary_key=True),
+    Column("code", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="analysis",
+)
+
+
+code_output = Table(
+    "code_output",
+    metadata,
+    Column("id", UUID(as_uuid=True),
+           ForeignKey("analysis.code_cell.id"),
+           primary_key=True),
+    Column("output", String, nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
     schema="analysis",
 )
 
 
 result_image = Table(
-    'result_image',
+    "result_image",
     metadata,
-    Column('id', UUID, primary_key=True, default=uuid.uuid4),
-    Column('analysis_result_id', UUID, ForeignKey(
-        'analysis.analysis_result.id'), nullable=False),
-    #     Column('plot_config', JSON, nullable=False), # TODO: uncomment this when we change to echarts.
-    Column('image_id', UUID, ForeignKey(
-        'visualization.image.id'), nullable=False),
-    schema='analysis',
+    Column("id", UUID(as_uuid=True),
+           primary_key=True,
+           default=uuid.uuid4),
+    Column("code_cell_id", UUID(as_uuid=True),
+           ForeignKey("analysis.code_cell.id"),
+           nullable=False),
+    Column("image_id", UUID(as_uuid=True),
+           ForeignKey("visualization.image.id"),
+           nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="analysis",
 )
 
 
 result_echart = Table(
-    'result_echart',
+    "result_echart",
     metadata,
-    Column('id', UUID, primary_key=True, default=uuid.uuid4),
-    Column('analysis_result_id', UUID, ForeignKey(
-        'analysis.analysis_result.id'), nullable=False),
-    Column("echart_id", UUID, ForeignKey(
-        'visualization.echart.id'), nullable=False),
-    schema='analysis',
+    Column("id", UUID(as_uuid=True),
+           primary_key=True,
+           default=uuid.uuid4),
+    Column("code_cell_id", UUID(as_uuid=True),
+           ForeignKey("analysis.code_cell.id"),
+           nullable=False),
+    Column("echart_id", UUID(as_uuid=True),
+           ForeignKey("visualization.echart.id"),
+           nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="analysis",
 )
 
 
 result_table = Table(
-    'result_table',
+    "result_table",
     metadata,
-    Column('id', UUID, primary_key=True, default=uuid.uuid4),
-    Column('analysis_result_id', UUID, ForeignKey(
-        'analysis.analysis_result.id'), nullable=False),
-    # Stores project server path to the parquet file of the dataframe corresponding to the table
-    Column('table_id', UUID, ForeignKey(
-        'visualization.table.id'), nullable=False),
-    schema='analysis',
+    Column("id", UUID(as_uuid=True),
+           primary_key=True,
+           default=uuid.uuid4),
+    Column("code_cell_id", UUID(as_uuid=True),
+           ForeignKey("analysis.code_cell.id"),
+           nullable=False),
+    Column("table_id", UUID(as_uuid=True),
+           ForeignKey("visualization.table.id"),
+           nullable=False),
+    Column("created_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc), nullable=False),
+    Column("updated_at", DateTime(timezone=True),
+           default=datetime.now(timezone.utc),
+           onupdate=datetime.now(timezone.utc), nullable=False),
+    schema="analysis",
 )

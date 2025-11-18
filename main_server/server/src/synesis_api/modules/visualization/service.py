@@ -1,65 +1,197 @@
+import json
 import uuid
+import modal
 from datetime import datetime, timezone
-from typing import List
-from sqlalchemy import insert, select
+from typing import List, Annotated
+from sqlalchemy import insert, select, and_
+from fastapi import Depends, HTTPException
 
 from synesis_api.database.service import execute, fetch_all
 from synesis_api.modules.visualization.models import image, echart, table
-from synesis_schemas.main_server import (
-    ImageInDB, ImageCreate,
-    EchartInDB, EchartCreate,
-    TableInDB, TableCreate
-)
+from synesis_api.modules.entity_graph.service import EntityGraphs
+from synesis_api.auth.service import get_current_user
+from synesis_api.auth.schema import User
+
+from kvasir_ontology.visualization.interface import VisualizationInterface
+from kvasir_ontology.visualization.data_model import ImageBase, EchartBase, TableBase, ImageCreate, EchartCreate, TableCreate, EChartsOption
+
+from kvasir_research.sandbox.modal import ModalSandbox
 
 
-async def create_images(image_creates: List[ImageCreate]) -> List[ImageInDB]:
-    images_in_db = [ImageInDB(
-        id=uuid.uuid4(),
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
-        **image_create.model_dump()
-    ) for image_create in image_creates]
+class VisualizationService(VisualizationInterface):
 
-    await execute(
-        insert(image).values([image_in_db.model_dump()
-                              for image_in_db in images_in_db]),
-        commit_after=True
-    )
-    return images_in_db
+    def __init__(self, user_id: uuid.UUID):
+        super().__init__(user_id)
+
+    async def create_image(self, image_create: ImageCreate) -> ImageBase:
+        images = await self.create_images([image_create])
+        return images[0]
+
+    async def create_echart(self, echart_create: EchartCreate) -> EchartBase:
+        echarts = await self.create_echarts([echart_create])
+        return echarts[0]
+
+    async def create_table(self, table_create: TableCreate) -> TableBase:
+        tables = await self.create_tables([table_create])
+        return tables[0]
+
+    async def get_image(self, image_id: uuid.UUID) -> ImageBase:
+        images = await self.get_images([image_id])
+        return images[0]
+
+    async def get_echart(self, echart_id: uuid.UUID) -> EchartBase:
+        echarts = await self.get_echarts([echart_id])
+        return echarts[0]
+
+    async def get_table(self, table_id: uuid.UUID) -> TableBase:
+        tables = await self.get_tables([table_id])
+        return tables[0]
+
+    async def create_images(self, image_creates: List[ImageCreate]) -> List[ImageBase]:
+        now = datetime.now(timezone.utc)
+        image_values = [
+            ImageBase({
+                "id": uuid.uuid4(),
+                "user_id": self.user_id,
+                "image_path": img_create.image_path,
+                "created_at": now,
+                "updated_at": now,
+            })
+            for img_create in image_creates
+        ]
+
+        await execute(
+            insert(image).values([img.model_dump() for img in image_values]),
+            commit_after=True
+        )
+        return image_values
+
+    async def create_echarts(self, echart_creates: List[EchartCreate]) -> List[EchartBase]:
+        now = datetime.now(timezone.utc)
+        echart_values = [
+            EchartBase({
+                "id": uuid.uuid4(),
+                "user_id": self.user_id,
+                "chart_script_path": echart_create.chart_script_path,
+                "created_at": now,
+                "updated_at": now,
+            })
+            for echart_create in echart_creates
+        ]
+        await execute(insert(echart).values([ech.model_dump() for ech in echart_values]), commit_after=True)
+        return echart_values
+
+    async def create_tables(self, table_creates: List[TableCreate]) -> List[TableBase]:
+        now = datetime.now(timezone.utc)
+        table_values = [
+            TableBase({
+                "id": uuid.uuid4(),
+                "user_id": self.user_id,
+                "table_path": table_create.table_path,
+                "created_at": now,
+                "updated_at": now,
+            })
+            for table_create in table_creates
+        ]
+        await execute(insert(table).values([tbl.model_dump() for tbl in table_values]), commit_after=True)
+        return table_values
+
+    async def get_images(self, image_ids: List[uuid.UUID]) -> List[ImageBase]:
+        image_records = await fetch_all(
+            select(image).where(
+                and_(
+                    image.c.id.in_(image_ids),
+                    image.c.user_id == self.user_id
+                )
+            )
+        )
+        return [ImageBase(**img) for img in image_records]
+
+    async def get_echarts(self, echart_ids: List[uuid.UUID]) -> List[EchartBase]:
+        echart_records = await fetch_all(
+            select(echart).where(
+                and_(
+                    echart.c.id.in_(echart_ids),
+                    echart.c.user_id == self.user_id
+                )
+            )
+        )
+        return [EchartBase(**ech) for ech in echart_records]
+
+    async def get_tables(self, table_ids: List[uuid.UUID]) -> List[TableBase]:
+        table_records = await fetch_all(
+            select(table).where(
+                and_(
+                    table.c.id.in_(table_ids),
+                    table.c.user_id == self.user_id
+                )
+            )
+        )
+        return [TableBase(**tbl) for tbl in table_records]
+
+    async def download_image(self, image_id: uuid.UUID, mount_group_id: uuid.UUID) -> bytes:
+        image_obj = await self.get_image(image_id)
+
+        vol = modal.Volume.from_name(
+            str(mount_group_id), create_if_missing=True)
+
+        chunks = []
+        async for chunk in vol.read_file.aio(image_obj.image_path):
+            chunks.append(chunk)
+
+        return b"".join(chunks)
+
+    async def download_table(self, table_id: uuid.UUID, mount_group_id: uuid.UUID) -> bytes:
+        table_obj = await self.get_table(table_id)
+
+        vol = modal.Volume.from_name(
+            str(mount_group_id), create_if_missing=True)
+
+        chunks = []
+        async for chunk in vol.read_file.aio(table_obj.table_path):
+            chunks.append(chunk)
+
+        return b"".join(chunks)
+
+    async def download_echart(self, echart_id: uuid.UUID, mount_group_id: uuid.UUID) -> bytes:
+        echart_obj = await self.get_echart(echart_id)
+
+        vol = modal.Volume.from_name(
+            str(mount_group_id), create_if_missing=True)
+
+        chunks = []
+        async for chunk in vol.read_file.aio(echart_obj.chart_script_path):
+            chunks.append(chunk)
+
+        return b"".join(chunks)
+
+    async def get_echart_config(self, echart_id: uuid.UUID, mount_group_id: uuid.UUID) -> EChartsOption:
+
+        graph_service = EntityGraphs(self.user_id)
+        mount_group = await graph_service.get_node_group(mount_group_id)
+        if not mount_group.python_package_name:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Mount group with ID {mount_group_id} does not have a Python package name"
+            )
+        package_name = mount_group.python_package_name
+        echart = await self.get_echart(echart_id)
+        sandbox = ModalSandbox(self.user_id, package_name)
+        script_content = await sandbox.read_file(echart.chart_script_path)
+        out, err = await sandbox.run_python_code(script_content)
+
+        if err:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Chart script execution error: {err}"
+            )
+
+        result_data = json.loads(out.strip())
+        chart_config = EChartsOption(**result_data)
+
+        return chart_config
 
 
-async def create_echarts(echart_creates: List[EchartCreate]) -> List[EchartInDB]:
-    echarts_in_db = [EchartInDB(
-        id=uuid.uuid4(),
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
-        **echart_create.model_dump()
-    ) for echart_create in echart_creates]
-    await execute(insert(echart).values([echart_in_db.model_dump() for echart_in_db in echarts_in_db]), commit_after=True)
-    return echarts_in_db
-
-
-async def create_tables(table_creates: List[TableCreate]) -> List[TableInDB]:
-    tables_in_db = [TableInDB(
-        id=uuid.uuid4(),
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
-        **table_create.model_dump()
-    ) for table_create in table_creates]
-    await execute(insert(table).values([table_in_db.model_dump() for table_in_db in tables_in_db]), commit_after=True)
-    return tables_in_db
-
-
-async def get_images(image_ids: List[uuid.UUID]) -> List[ImageInDB]:
-    images = await fetch_all(select(image).where(image.c.id.in_(image_ids)))
-    return [ImageInDB(**image) for image in images]
-
-
-async def get_echarts(echart_ids: List[uuid.UUID]) -> List[EchartInDB]:
-    echarts = await fetch_all(select(echart).where(echart.c.id.in_(echart_ids)))
-    return [EchartInDB(**echart) for echart in echarts]
-
-
-async def get_tables(table_ids: List[uuid.UUID]) -> List[TableInDB]:
-    tables = await fetch_all(select(table).where(table.c.id.in_(table_ids)))
-    return [TableInDB(**table) for table in tables]
+# For dependency injection
+async def get_visualization_service(user: Annotated[User, Depends(get_current_user)]) -> VisualizationInterface:
+    return VisualizationService(user.id)

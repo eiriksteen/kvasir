@@ -5,10 +5,10 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Install dependencies
-COPY main_server/client/package.json ./
+COPY kvasir-app/main_server/client/package.json ./
 
 # Copy source code
-COPY main_server/client .
+COPY kvasir-app/main_server/client .
 
 RUN npm install
 

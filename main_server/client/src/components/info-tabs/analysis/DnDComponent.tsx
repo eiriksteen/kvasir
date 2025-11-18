@@ -3,7 +3,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { UUID } from 'crypto';
 
 interface DnDComponentProps {
-  nextType: 'analysis_result' | 'notebook_section' | null;
+  nextType: 'analysis_result' | 'notebook_section' | 'cell' | null;
   nextId: UUID | null;
   sectionId: UUID | null;
 }

@@ -13,12 +13,7 @@ import {
 } from 'react-icons/si';
 import { VscJson, VscFile } from 'react-icons/vsc';
 import { TabType, Tab } from '@/hooks/useTabs';
-import { useProject } from '@/hooks/useProject';
-import { useDatasets } from '@/hooks/useDatasets';
-import { useDataSources } from '@/hooks/useDataSources';
-import { useAnalyses } from '@/hooks/useAnalysis';
-import { usePipelines } from '@/hooks/usePipelines';
-import { useModelEntities } from '@/hooks/useModelEntities';
+import { useEntityGraph } from '@/hooks';
 import { UUID } from 'crypto';
 
 interface CustomTabViewProps {
@@ -36,12 +31,8 @@ const TabView: React.FC<CustomTabViewProps> = ({
   closeTab, 
   selectTab 
 }) => {
-  const { project } = useProject(projectId);
-  const { datasets } = useDatasets(projectId);
-  const { dataSources } = useDataSources(projectId);
-  const { analysisObjects } = useAnalyses(projectId);
-  const { pipelines } = usePipelines(projectId);
-  const { modelsInstantiated } = useModelEntities(projectId);
+
+  const { entityGraph} = useEntityGraph(projectId);
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const codeScrollContainerRef = useRef<HTMLDivElement>(null);
@@ -151,11 +142,11 @@ const TabView: React.FC<CustomTabViewProps> = ({
     const id = tab.id;
     if (id === null) return 'project';
     
-    if (project?.graph.dataSources.some(ds => ds.id === id)) return 'data_source';
-    if (project?.graph.datasets.some(ds => ds.id === id)) return 'dataset';
-    if (project?.graph.analyses.some(a => a.id === id)) return 'analysis';
-    if (project?.graph.pipelines.some(p => p.id === id)) return 'pipeline';
-    if (project?.graph.modelsInstantiated.some(m => m.id === id)) return 'model_instantiated';
+    if (entityGraph?.dataSources.some(ds => ds.id === id)) return 'data_source';
+    if (entityGraph?.datasets.some(ds => ds.id === id)) return 'dataset';
+    if (entityGraph?.analyses.some(a => a.id === id)) return 'analysis';
+    if (entityGraph?.pipelines.some(p => p.id === id)) return 'pipeline';
+    if (entityGraph?.modelsInstantiated.some(m => m.id === id)) return 'model_instantiated';
     else return 'code';
 
   };
@@ -170,15 +161,15 @@ const TabView: React.FC<CustomTabViewProps> = ({
         // Extract just the filename from the full path
         return tab.filePath?.split('/').pop() || '';
       case 'data_source':
-        return dataSources?.find(ds => ds.id === id)?.name || '';
+        return entityGraph?.dataSources.find(ds => ds.id === id)?.name || '';
       case 'dataset':
-        return datasets?.find(ds => ds.id === id)?.name || '';
+        return entityGraph?.datasets.find(ds => ds.id === id)?.name || '';
       case 'analysis':
-        return analysisObjects?.find(a => a.id === id)?.name || '';
+        return entityGraph?.analyses.find(a => a.id === id)?.name || '';
       case 'pipeline':
-        return pipelines?.find(p => p.id === id)?.name || '';
+        return entityGraph?.pipelines.find(p => p.id === id)?.name || '';
       case 'model_instantiated':
-        return modelsInstantiated?.find(m => m.id === id)?.name || '';
+        return entityGraph?.modelsInstantiated.find(m => m.id === id)?.name || '';
       default:
         return '';
     }

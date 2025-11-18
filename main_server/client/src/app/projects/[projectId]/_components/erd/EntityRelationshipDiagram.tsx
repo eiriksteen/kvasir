@@ -24,8 +24,9 @@ import TransportEdge from '@/app/projects/[projectId]/_components/erd/TransportE
 import DataSourceBox from '@/app/projects/[projectId]/_components/erd/DataSourceBox';
 import PipelineBox from '@/app/projects/[projectId]/_components/erd/PipelineBox';
 import { UUID } from 'crypto';
-import ModelEntityBox from '@/app/projects/[projectId]/_components/erd/ModelEntityBox';
+import ModelInstantiatedBox from '@/app/projects/[projectId]/_components/erd/ModelEntityBox';
 import { computeBoxEdgeLocations } from '@/app/projects/[projectId]/_components/erd/computeBoxEdgeLocations';
+import { useEntityGraph } from '@/hooks/useEntityGraph';
 
 const DataSourceNodeWrapper = ({ data }: { data: { dataSourceId: UUID; projectId: UUID; openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void } }) => (
   <>
@@ -103,7 +104,7 @@ const PipelineNodeWrapper = ({ data }: { data: { pipelineId: UUID; projectId: UU
 
 const ModelEntityNodeWrapper = ({ data }: { data: { modelInstantiatedId: UUID; projectId: UUID; openTab: (id: UUID | null | string, closable?: boolean, initialView?: 'overview' | 'code' | 'runs', filePath?: string) => void } }) => (
   <>
-    <ModelEntityBox
+    <ModelInstantiatedBox
       modelInstantiatedId={data.modelInstantiatedId}
       projectId={data.projectId}
       openTab={data.openTab}
@@ -155,7 +156,8 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
     }
   }, []);
 
-  const { project, updatePosition, updateProjectViewPort } = useProject(projectId);
+  const { entityGraph, triggerUpdateNodePosition } = useEntityGraph(projectId);
+  const { project, triggerUpdateProjectViewPort } = useProject(projectId);
   
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -163,9 +165,10 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
 
 
   useOnViewportChange({
-    onEnd: (viewport: Viewport) => updateProjectViewPort({x: viewport.x, y: viewport.y, zoom: viewport.zoom})
+    onEnd: (viewport: Viewport) => {
+      triggerUpdateProjectViewPort({ projectId: projectId, viewPortX: viewport.x, viewPortY: viewport.y, zoom: viewport.zoom });
     }
-  );
+  });
 
   useEffect(() => {
     if (project) {
@@ -180,15 +183,15 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
 
   // Memoize nodes
   const memoizedNodes = useMemo(() => {
-    if (!project?.graph || !project?.projectNodes) {
+    if (!entityGraph) {
       return [];
     }
 
     const nodes: Node[] = [];
 
     // Add data source nodes
-    project.graph.dataSources.forEach((ds) => {
-      const position = project.projectNodes.projectDataSources.find(p => p.dataSourceId === ds.id);
+    entityGraph.dataSources.forEach((ds) => {
+      const position = entityGraph.dataSources.find(p => p.id === ds.id);
       if (position) {
         nodes.push({
           id: ds.id,
@@ -204,80 +207,68 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
     });
 
     // Add dataset nodes
-    project.graph.datasets.forEach((d) => {
-      const position = project.projectNodes.projectDatasets.find(p => p.datasetId === d.id);
-      if (position) {
-        nodes.push({
-          id: d.id,
-          type: 'dataset',
-          position: { x: position.xPosition, y: position.yPosition },
-          data: {
-            datasetId: d.id,
-            projectId: projectId,
-            openTab,
-          },
-        });
-      }
+    entityGraph.datasets.forEach((d) => {
+      nodes.push({
+        id: d.id,
+        type: 'dataset',
+        position: { x: d.xPosition, y: d.yPosition },
+        data: {
+          datasetId: d.id,
+          projectId: projectId,
+          openTab,
+        },
+      });
     });
 
     // Add pipeline nodes
-    project.graph.pipelines.forEach((p) => {
-      const position = project.projectNodes.projectPipelines.find(pos => pos.pipelineId === p.id);
-      if (position) {
-        nodes.push({
-          id: p.id,
-          type: 'pipeline',
-          position: { x: position.xPosition, y: position.yPosition },
-          data: {
-            pipelineId: p.id,
-            projectId: projectId,
-            openTab,
-          },
-        });
-      }
+    entityGraph.pipelines.forEach((p) => {
+      nodes.push({
+        id: p.id,
+        type: 'pipeline',
+        position: { x: p.xPosition, y: p.yPosition },
+        data: {
+          pipelineId: p.id,
+          projectId: projectId,
+          openTab,
+        },
+      });
     });
 
     // Add analysis nodes
-    project.graph.analyses.forEach((a) => {
-      const position = project.projectNodes.projectAnalyses.find(p => p.analysisId === a.id);
-      if (position) {
-        nodes.push({
-          id: a.id,
-          type: 'analysis',
-          position: { x: position.xPosition, y: position.yPosition },
-          data: {
-            analysisId: a.id,
-            projectId: projectId,
-            openTab,
-          },
-        });
-      }
+    entityGraph.analyses.forEach((a) => {
+      nodes.push({
+        id: a.id,
+        type: 'analysis',
+        position: { x: a.xPosition, y: a.yPosition },
+        data: {
+          analysisId: a.id,
+          projectId: projectId,
+          openTab,
+        },
+      });
     });
 
     // Add model entity nodes
-    project.graph.modelsInstantiated.forEach((me) => {
-      const position = project.projectNodes.projectModelEntities.find(p => p.modelInstantiatedId === me.id);
-      if (position) {
-        nodes.push({
-          id: me.id,
-          type: 'modelInstantiated',
-          position: { x: position.xPosition, y: position.yPosition },
-          data: {
-            modelInstantiatedId: me.id,
-            projectId: projectId,
-            openTab,
-          },
-        });
-      }
+    entityGraph.modelsInstantiated.forEach((me) => {
+      nodes.push({
+        id: me.id,
+        type: 'modelInstantiated',
+        position: { x: me.xPosition, y: me.yPosition },
+        data: {
+          modelInstantiatedId: me.id,
+          projectId: projectId,
+          openTab,
+        },
+      });
     });
 
     return nodes;
 
-  }, [project?.graph, project?.projectNodes, projectId, openTab]);
+  }, [entityGraph, projectId, openTab]);
 
   // Memoize edges - uses current node positions from state for live updates during dragging
   const memoizedEdges = useMemo(() => {
-    if (!project?.graph || nodes.length === 0) {
+    if (!entityGraph || nodes.length === 0) {
       return [];
     }
 
@@ -349,18 +340,18 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
 
     // Generate all edges from all entity types
     const allEdges: Edge[] = [
-      ...project.graph.dataSources.flatMap(ds => processEntityOutputs(ds.id, ds.toEntities, 'dataSource')),
-      ...project.graph.datasets.flatMap(d => processEntityOutputs(d.id, d.toEntities, 'dataset')),
-      ...project.graph.analyses.flatMap(a => processEntityOutputs(a.id, a.toEntities, 'analysis')),
-      ...project.graph.pipelines.flatMap(p => [
+      ...entityGraph.dataSources.flatMap(ds => processEntityOutputs(ds.id, ds.toEntities, 'dataSource')),
+      ...entityGraph.datasets.flatMap(d => processEntityOutputs(d.id, d.toEntities, 'dataset')),
+      ...entityGraph.analyses.flatMap(a => processEntityOutputs(a.id, a.toEntities, 'analysis')),
+      ...entityGraph.pipelines.flatMap(p => [
         ...processEntityOutputs(p.id, p.toEntities, 'pipeline'),
         ...p.runs.flatMap(run => processEntityOutputs(p.id, run.toEntities, 'pipeline'))
       ]),
-      ...project.graph.modelsInstantiated.flatMap(m => processEntityOutputs(m.id, m.toEntities, 'modelInstantiated')),
+      ...entityGraph.modelsInstantiated.flatMap(m => processEntityOutputs(m.id, m.toEntities, 'modelInstantiated')),
     ];
 
     return allEdges;
-  }, [project?.graph, getEdgeColor, nodes]);
+  }, [entityGraph, getEdgeColor, nodes]);
 
   // Sync nodes: only update if the set of node IDs has changed
   useEffect(() => {
@@ -378,33 +369,14 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
   }, [memoizedEdges, setEdges]);
 
   const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
-    if (!project?.graph || !node || !node.id) return;
+    if (!entityGraph || !node || !node.id) return;
 
-    // Determine entity type by checking which list contains the node ID
-    let entityType: "data_source" | "dataset" | "analysis" | "pipeline" | "model_instantiated" | null = null;
-
-    if (project.graph.dataSources.some(ds => ds.id === node.id)) {
-      entityType = "data_source";
-    } else if (project.graph.datasets.some(ds => ds.id === node.id)) {
-      entityType = "dataset";
-    } else if (project.graph.analyses.some(a => a.id === node.id)) {
-      entityType = "analysis";
-    } else if (project.graph.pipelines.some(p => p.id === node.id)) {
-      entityType = "pipeline";
-    } else if (project.graph.modelsInstantiated.some(me => me.id === node.id)) {
-      entityType = "model_instantiated";
-    }
-
-    if (entityType) {
-      updatePosition({
-        projectId: project.id,
-        entityType,
-        entityId: node.id as UUID,
-        xPosition: node.position.x,
-        yPosition: node.position.y,
-      });
-    }
-  }, [project?.graph, project?.id, updatePosition]);
+    triggerUpdateNodePosition({
+      nodeId: node.id as UUID,
+      xPosition: node.position.x,
+      yPosition: node.position.y,
+    });
+  }, [entityGraph, triggerUpdateNodePosition]);
 
   return (
     <div className="w-full h-full bg-white">

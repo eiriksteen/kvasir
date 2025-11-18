@@ -7,7 +7,7 @@ import AddDataSource from '@/app/projects/[projectId]/_components/add-entity-mod
 import AddAnalysis from '@/app/projects/[projectId]/_components/add-entity-modals/AddAnalysis';
 import AddDataset from '@/app/projects/[projectId]/_components/add-entity-modals/AddDataset';
 import AddPipeline from '@/app/projects/[projectId]/_components/add-entity-modals/AddPipeline';
-import AddModelEntity from '@/app/projects/[projectId]/_components/add-entity-modals/AddModelEntity';
+import AddModelInstantiated from '@/app/projects/[projectId]/_components/add-entity-modals/AddModelEntity';
 
 type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'data_source' | 'model_instantiated';
 
@@ -129,7 +129,7 @@ export default function AddEntityButton({ type, size = 11, projectId }: AddEntit
                 case 'pipeline':
                     return <AddPipeline onClose={handleClose} projectId={projectId} />;
                 case 'model_instantiated':
-                    return <AddModelEntity onClose={handleClose} projectId={projectId} />;
+                    return <AddModelInstantiated onClose={handleClose} projectId={projectId} />;
                 default:
                     return null;
             }

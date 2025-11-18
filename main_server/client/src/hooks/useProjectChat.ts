@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { ChatMessage, Prompt, Context } from "@/types/orchestrator";
+import { ChatMessage, Prompt, Context } from "@/types/api/orchestrator";
 import { useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useAgentContext } from '@/hooks/useAgentContext';
@@ -119,9 +119,9 @@ export const useProjectChat = (projectId: UUID) => {
       // Create the prompt with conversation_id
       const prompt: Prompt = {
         conversationId: convId,
+        projectId: projectId,
         context: context,
         content: content,
-        saveToDb: true
       };
 
       mutateConversationMessages([...conversationMessages, userMessage], {revalidate: false});
@@ -180,9 +180,9 @@ export const useProjectChat = (projectId: UUID) => {
 
       const prompt: Prompt = {
         conversationId: conversationId,
+        projectId: projectId,
         context: context,
         content: "Continue the conversation. If a run was completed suggest the next step or conclude the conversation if done. No need for long text here, something like 'The X run succeeded, and we can continue with building Y ...' is enough.",
-        saveToDb: false
       };
 
       const eventSource = createOrchestratorEventSource(session ? session.APIToken.accessToken : "", prompt);
@@ -207,7 +207,7 @@ export const useProjectChat = (projectId: UUID) => {
         }
       };
 
-  }, [session, dataSourcesInContext, datasetsInContext, analysesInContext, pipelinesInContext, modelsInstantiatedInContext, mutateConversationMessages]);
+  }, [session, dataSourcesInContext, datasetsInContext, analysesInContext, pipelinesInContext, modelsInstantiatedInContext, mutateConversationMessages, projectId]);
 
 
 

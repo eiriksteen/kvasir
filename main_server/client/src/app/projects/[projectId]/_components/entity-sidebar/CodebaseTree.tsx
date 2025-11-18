@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useCodebaseTree } from "@/hooks/useCodebase";
 import { UUID } from "crypto";
-import { ProjectPath } from "@/types/code";
+import { CodebasePath } from "@/types/ontology/code";
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen } from 'lucide-react';
 import { 
     SiPython, 
@@ -24,7 +24,7 @@ interface CodebaseTreeProps {
 }
 
 interface FileTreeItemProps {
-    node: ProjectPath;
+    node: CodebasePath;
     depth: number;
     parentPath: string;
     onFileClick: (fullPath: string) => void;
@@ -143,6 +143,8 @@ export default function CodebaseTree({ projectId, onFileClick }: CodebaseTreePro
             </div>
         );
     }
+
+    console.log(codebaseTree);
 
     return (
         <div>

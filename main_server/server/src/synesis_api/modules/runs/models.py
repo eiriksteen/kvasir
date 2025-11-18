@@ -13,14 +13,9 @@ run = Table(
     # Only for user-facing runs, SWE does not need spec
     Column("user_id", UUID(as_uuid=True),
            ForeignKey("auth.users.id"), nullable=False),
-    Column("conversation_id", UUID(as_uuid=True),
-           ForeignKey("orchestrator.conversation.id"), nullable=True),
-    Column("project_id", UUID(as_uuid=True),
-           ForeignKey("project.project.id"), nullable=True),
+    Column("project_id", UUID(as_uuid=True), nullable=True),
     Column("run_name", String, nullable=False),
-    Column("plan_and_deliverable_description_for_user", String, nullable=False),
-    Column("plan_and_deliverable_description_for_agent", String, nullable=False),
-    Column("questions_for_user", String, nullable=True),
+    Column("description", String, nullable=True),
     Column("configuration_defaults_description", String, nullable=True),
     Column("type", String, nullable=False),
     Column("status", String, nullable=False),
@@ -58,132 +53,51 @@ run_pydantic_message = Table(
 )
 
 
-data_source_in_run = Table(
-    "data_source_in_run",
+analysis_run = Table(
+    "analysis_run",
     metadata,
     Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"), primary_key=True),
-    Column("data_source_id", UUID(as_uuid=True),
-           ForeignKey("data_sources.data_source.id"), primary_key=True),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    schema="runs"
-)
-
-
-dataset_in_run = Table(
-    "dataset_in_run",
-    metadata,
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"), primary_key=True),
-    Column("dataset_id", UUID(as_uuid=True),
-           ForeignKey("data_objects.dataset.id"), primary_key=True),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    schema="runs"
-)
-
-
-analysis_in_run = Table(
-    "analysis_in_run",
-    metadata,
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"), primary_key=True),
+           ForeignKey("runs.run.id"), nullable=False),
     Column("analysis_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis.id"), primary_key=True),
+           ForeignKey("analysis.analysis.id"), nullable=False),
+    # Track what Kvasir run started the analysis run
+    Column("kvasir_run_id", UUID(as_uuid=True),
+           ForeignKey("runs.kvasir_run.id"), nullable=False),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
+    Column("updated_at", DateTime(timezone=True),
+           nullable=False, default=func.now(), onupdate=func.now()),
     schema="runs"
 )
 
 
-model_instantiated_in_run = Table(
-    "model_instantiated_in_run",
+pipeline_run = Table(
+    "pipeline_run",
     metadata,
     Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"), primary_key=True),
-    Column("model_instantiated_id", UUID(as_uuid=True),
-           ForeignKey("model.model_instantiated.id"), primary_key=True),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    schema="runs"
-)
-
-
-pipeline_in_run = Table(
-    "pipeline_in_run",
-    metadata,
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"), primary_key=True),
+           ForeignKey("runs.run.id"), nullable=False),
     Column("pipeline_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.pipeline.id"), primary_key=True),
+           ForeignKey("pipeline.pipeline.id"), nullable=False),
+    Column("kvasir_run_id", UUID(as_uuid=True),
+           ForeignKey("runs.kvasir_run.id"), nullable=False),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
-    schema="runs"
-)
-
-# Output tables - track entities created by runs
-
-data_source_from_run = Table(
-    "data_source_from_run",
-    metadata,
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"), primary_key=True),
-    Column("data_source_id", UUID(as_uuid=True),
-           ForeignKey("data_sources.data_source.id"), primary_key=True),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
+    Column("updated_at", DateTime(timezone=True),
+           nullable=False, default=func.now(), onupdate=func.now()),
     schema="runs"
 )
 
 
-dataset_from_run = Table(
-    "dataset_from_run",
+kvasir_run = Table(
+    "kvasir_run",
     metadata,
     Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"), primary_key=True),
-    Column("dataset_id", UUID(as_uuid=True),
-           ForeignKey("data_objects.dataset.id"), primary_key=True),
+           ForeignKey("runs.run.id"), nullable=False),
+    Column("conversation_id", UUID(as_uuid=True),
+           ForeignKey("orchestrator.conversation.id"), nullable=False),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
-    schema="runs"
-)
-
-
-analysis_from_run = Table(
-    "analysis_from_run",
-    metadata,
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"), primary_key=True),
-    Column("analysis_id", UUID(as_uuid=True),
-           ForeignKey("analysis.analysis.id"), primary_key=True),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    schema="runs"
-)
-
-
-model_instantiated_from_run = Table(
-    "model_instantiated_from_run",
-    metadata,
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"), primary_key=True),
-    Column("model_instantiated_id", UUID(as_uuid=True),
-           ForeignKey("model.model_instantiated.id"), primary_key=True),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    schema="runs"
-)
-
-
-pipeline_from_run = Table(
-    "pipeline_from_run",
-    metadata,
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("runs.run.id"), primary_key=True),
-    Column("pipeline_id", UUID(as_uuid=True),
-           ForeignKey("pipeline.pipeline.id"), primary_key=True),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
+    Column("updated_at", DateTime(timezone=True),
+           nullable=False, default=func.now(), onupdate=func.now()),
     schema="runs"
 )

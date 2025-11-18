@@ -4,13 +4,13 @@ import React, { memo, ReactNode } from 'react';
 import { Wrench } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ChatMessage } from '@/types/orchestrator';
-import { Dataset } from '@/types/data-objects';
-import { DataSource } from '@/types/data-sources';
-import { Pipeline } from '@/types/pipeline';
-import { ModelInstantiated } from '@/types/model';
-import { AnalysisSmall } from '@/types/analysis';
-import { useDatasets, useDataSources, usePipelines, useModelEntities, useAnalyses } from '@/hooks';
+import { ChatMessage } from '@/types/api/orchestrator';
+import { Dataset } from '@/types/ontology/dataset';
+import { DataSource } from '@/types/ontology/data-source';
+import { Pipeline } from '@/types/ontology/pipeline';
+import { ModelInstantiated } from '@/types/ontology/model';
+import { Analysis } from '@/types/ontology/analysis';
+import { useOntology } from '@/hooks/useOntology';
 import { DataSourceMini, DatasetMini, AnalysisMini, PipelineMini, ModelEntityMini } from '@/components/entity-mini';
 import { MarkdownComponents } from '@/components/MarkdownComponents';
 import { UUID } from 'crypto';
@@ -63,11 +63,7 @@ const ChatMarkdownComponents = {
 
 
 const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
-  const { dataSources } = useDataSources(projectId);
-  const { datasets } = useDatasets(projectId);
-  const { pipelines } = usePipelines(projectId);
-  const { modelsInstantiated } = useModelEntities(projectId);
-  const { analysisObjects } = useAnalyses(projectId);
+  const { dataSources, datasets, pipelines, modelsInstantiated, analyses } = useOntology(projectId);
 
   const hasContext = message.role !== 'user' && message.context && (
     message.context.dataSourceIds?.length > 0 ||
@@ -125,7 +121,7 @@ const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
               
               {/* Analyses */}
               {message.context?.analysisIds?.map((analysisId: string) => {
-                const analysis = analysisObjects?.find((a: AnalysisSmall) => a.id === analysisId);
+                const analysis = analyses?.find((a: Analysis) => a.id === analysisId);
                 return analysis ? (
                   <AnalysisMini key={analysisId} name={analysis.name} size="sm" />
                 ) : null;

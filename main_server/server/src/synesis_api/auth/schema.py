@@ -6,11 +6,20 @@ from pydantic import EmailStr, BaseModel
 class UserBase(BaseModel):
     email: EmailStr
     name: str
+    affiliation: str = "Unknown"
+    role: str = "Unknown"
     disabled: bool = False
+    google_id: str | None = None
 
 
 class UserCreate(UserBase):
     password: str
+
+
+class GoogleUserLogin(BaseModel):
+    email: EmailStr
+    name: str
+    google_id: str
 
 
 class User(UserBase):
@@ -20,7 +29,7 @@ class User(UserBase):
 
 
 class UserInDB(User):
-    hashed_password: str
+    hashed_password: str | None = None
 
 
 class UserWithToken(User):
@@ -55,3 +64,13 @@ class JWKSEntry(BaseModel):
 
 class JWKSData(BaseModel):
     keys: list[JWKSEntry]
+
+
+class UserProfileUpdate(BaseModel):
+    affiliation: str
+    role: str
+
+
+class RegistrationStatus(BaseModel):
+    is_open: bool
+    message: str | None = None

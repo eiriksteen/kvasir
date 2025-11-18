@@ -2,17 +2,17 @@
 
 import React, { useState } from 'react';
 import { BarChart3, Zap, Folder, Brain, Database } from 'lucide-react';
-import { Dataset } from '@/types/data-objects';
-import { DataSource } from '@/types/data-sources';
-import { AnalysisSmall } from '@/types/analysis';
+import { Dataset } from '@/types/ontology/dataset';
+import { DataSource } from '@/types/ontology/data-source';
+import { Analysis } from '@/types/ontology/analysis';
 import EntityItem from '@/app/projects/[projectId]/_components/entity-sidebar/EntityItem';
 import AddEntityButton from '@/app/projects/[projectId]/_components/entity-sidebar/AddEntityButton';
 import EntityOverviewItem from '@/app/projects/[projectId]/_components/entity-sidebar/EntityOverviewItem';
 import { UUID } from 'crypto';
-import { Pipeline } from '@/types/pipeline';
-import { ModelInstantiated } from '@/types/model';
-import { useAgentContext, useAnalyses, useDatasets, usePipelines, useDataSources } from '@/hooks';
-import { useModelEntities } from '@/hooks/useModelEntities';
+import { Pipeline } from '@/types/ontology/pipeline';
+import { ModelInstantiated } from '@/types/ontology/model';
+import { useAgentContext } from '@/hooks/useAgentContext';
+import { useOntology } from '@/hooks/useOntology';
 
 interface EntityTreeProps {
     projectId: UUID;
@@ -47,11 +47,7 @@ export default function EntityTree({ projectId, openTab }: EntityTreeProps) {
         removeModelEntityFromContext,
     } = useAgentContext(projectId);
 
-    const { dataSources } = useDataSources(projectId);
-    const { datasets } = useDatasets(projectId);
-    const { pipelines } = usePipelines(projectId);
-    const { modelsInstantiated } = useModelEntities(projectId);
-    const { analysisObjects } = useAnalyses(projectId);
+    const { dataSources, datasets, pipelines, modelsInstantiated, analyses } = useOntology(projectId);
 
     const toggleSection = (section: keyof typeof expandedSections) => {
         setExpandedSections(prev => ({
@@ -78,7 +74,7 @@ export default function EntityTree({ projectId, openTab }: EntityTreeProps) {
         }
     };
 
-    const handleAnalysisToggle = (analysis: AnalysisSmall) => {
+    const handleAnalysisToggle = (analysis: Analysis) => {
         const isActive = analysesInContext.some((a: UUID) => a === analysis.id);
         if (isActive) {
             removeAnalysisFromContext(analysis.id);
@@ -105,27 +101,33 @@ export default function EntityTree({ projectId, openTab }: EntityTreeProps) {
         }
     };
 
+    console.log(dataSources);
+    
+
     return (
         <>
             {/* Data Sources Section */}
             <div>
                 <div className="flex items-center justify-between pl-4 pr-3 h-7 border-b border-t border-gray-400 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors" onClick={() => toggleSection('dataSources')}>
                     <h3 className='text-xs font-mono uppercase tracking-wider text-gray-900'> DATA SOURCES </h3>
-                    <AddEntityButton type="data_source" size={11} projectId={projectId} />
+                    <div onClick={(e) => e.stopPropagation()}>
+                        <AddEntityButton type="data_source" size={11} projectId={projectId} />
+                    </div>
                 </div>
-                {dataSources && expandedSections.dataSources && (
+                {expandedSections.dataSources && (
                     <div className="bg-gray-50 border-l-2 border-gray-600">
-                        {dataSources.map((dataSource) => (
-                            <EntityItem
-                                key={dataSource.id}
-                                item={dataSource}
-                                type="data_source"
-                                isInContext={dataSourcesInContext.some((ds: UUID) => ds === dataSource.id)}
-                                onClick={() => handleDataSourceToggle(dataSource)}
-                                onOpenTab={() => openTab(dataSource.id, true)}
-                            />
-                        ))}
-                        {dataSources.length === 0 && (
+                        {dataSources && dataSources.length > 0 ? (
+                            dataSources.map((dataSource) => (
+                                <EntityItem
+                                    key={dataSource.id}
+                                    item={dataSource}
+                                    type="data_source"
+                                    isInContext={dataSourcesInContext.some((ds: UUID) => ds === dataSource.id)}
+                                    onClick={() => handleDataSourceToggle(dataSource)}
+                                    onOpenTab={() => openTab(dataSource.id, true)}
+                                />
+                            ))
+                        ) : (
                             <div className="px-3 py-4 text-center">
                                 <Database size={16} className="text-gray-400 mx-auto mb-2" />
                                 <p className="text-xs text-gray-500">No data sources</p>
@@ -209,14 +211,14 @@ export default function EntityTree({ projectId, openTab }: EntityTreeProps) {
                     <div className="border-b border-gray-200">
                         <EntityOverviewItem
                             title="Analyses"
-                            count={analysisObjects.length}
+                            count={analyses?.length || 0}
                             color="purple"
                             onToggle={() => toggleSection('analysis')}
                             projectId={projectId}
                         />
                         {expandedSections.analysis && (
                             <div className="bg-[#004806]/10 border-l-2 border-[#004806]">
-                                {analysisObjects.map((analysis) => (
+                                {analyses?.map((analysis) => (
                                     <EntityItem
                                         key={analysis.id}
                                         item={analysis}
@@ -226,7 +228,7 @@ export default function EntityTree({ projectId, openTab }: EntityTreeProps) {
                                         onOpenTab={() => openTab(analysis.id, true)}
                                     />
                                 ))}
-                                {analysisObjects.length === 0 && (
+                                {analyses?.length === 0 && (
                                     <div className="px-3 py-4 text-center">
                                         <BarChart3 size={16} className="text-[#004806]/40 mx-auto mb-2" />
                                         <p className="text-xs text-gray-500">No analysis</p>

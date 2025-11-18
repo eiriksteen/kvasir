@@ -1,48 +1,49 @@
 import uuid
 import asyncio
 import logging
-from pydantic_ai.agent import Agent
-from pydantic_ai.messages import FunctionToolCallEvent
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from typing import Annotated, List
 
-from synesis_schemas.main_server import (
+# from synesis_schemas.main_server import (
+#     ChatMessage,
+#     UserChatMessageCreate,
+#     ChatMessageInDB,
+#     ConversationInDB,
+#     ConversationCreate,
+#     User,
+#     ImplementationApprovalResponse,
+#     # ContextCreate,
+#     # ContextInDB,
+# )
+from synesis_api.modules.orchestrator.schema import (
     ChatMessage,
     UserChatMessageCreate,
     ChatMessageInDB,
     ConversationInDB,
     ConversationCreate,
-    User,
-    ImplementationApprovalResponse,
-    # ContextCreate,
-    # ContextInDB,
 )
-from synesis_schemas.project_server import ImplementationSummary
+from synesis_api.modules.runs.schema import RunCreate
+from synesis_api.auth.schema import User
 from synesis_api.modules.orchestrator.service import (
     create_conversation,
-    get_chat_messages_pydantic,
     create_chat_message,
     get_project_conversations,
-    create_context,
-    create_chat_message_pydantic,
-    get_context_message,
+    # create_context,
     get_chat_messages_with_context,
     get_conversation_by_id,
     update_conversation_name,
-    get_run_status_message,
-    get_project_description_message
 )
+from synesis_api.modules.runs.service import create_run
 from synesis_api.utils.pydanticai_utils import helper_agent
-from synesis_api.modules.project.service import get_projects
-from synesis_api.modules.orchestrator.kvasir_v1.callbacks import ApplicationCallbacks
-from kvasir_research.agents.kvasir_v1.agent import KvasirV1
-from synesis_api.auth.service import get_current_user, user_owns_conversation
+from synesis_api.modules.ontology.kvasir_v1.callbacks import ApplicationCallbacks
+from kvasir_research.agents.v1.kvasir.agent import KvasirV1
+from synesis_api.auth.service import get_current_user, user_owns_conversation, oauth2_scheme
 from synesis_api.app_secrets import SSE_MIN_SLEEP_TIME
+from synesis_api.modules.entity_graph.service import EntityGraphs
 
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -52,7 +53,8 @@ router = APIRouter()
 @router.post("/completions")
 async def post_chat(
     prompt: UserChatMessageCreate,
-    user: Annotated[User, Depends(get_current_user)] = None
+    user: Annotated[User, Depends(get_current_user)] = None,
+    token: str = Depends(oauth2_scheme)
 ) -> StreamingResponse:
 
     # TODO: Add support for open connection with analysis, and add rejected status to a run so we don't keep monitoring it
@@ -63,26 +65,26 @@ async def post_chat(
         raise HTTPException(
             status_code=403, detail="You do not have access to this conversation")
 
-    messages = await get_chat_messages_pydantic(prompt.conversation_id)
-    project_objs = await get_projects(user.id, [prompt.project_id])
-    if not project_objs:
+    graph_service = EntityGraphs(user.id)
+    node_group = await graph_service.get_node_group(prompt.project_id)
+    if not node_group:
         raise HTTPException(
             status_code=404, detail="Project not found")
-    project_obj = project_objs[0]
 
-    # context_message = await get_context_message(user.id, prompt.context)
-    # project_graph_message = await get_project_description_message(user.id, conversation_record.project_id)
-    # runs_status_message = await get_run_status_message(user.id, prompt.conversation_id)
+    messages = await get_chat_messages_with_context(conversation_record.id)
+    is_new_conversation = len(messages) == 0
+
+    await create_chat_message(conversation_record.id, "user", prompt.content, "chat", None, None, datetime.now(timezone.utc))
 
     agent = KvasirV1(
-        run_id=conversation_record.id,
+        user_id=user.id,
+        run_id=conversation_record.kvasir_run_id,
         project_id=prompt.project_id,
-        package_name=project_obj.python_package_name,
+        package_name=node_group.python_package_name,
         sandbox_type="modal",
-        callbacks=ApplicationCallbacks()
+        callbacks=ApplicationCallbacks(),
+        bearer_token=token
     )
-
-    is_new_conversation = len(messages) == 0
 
     async def stream_response():
         response_message = ChatMessageInDB(
@@ -98,11 +100,22 @@ async def post_chat(
         prev_response_text = ""
         async for kvasir_v1_output, is_last in agent(prompt.content):
             if kvasir_v1_output != prev_response_text:
-                response_message.content = kvasir_v1_output
+                response_message.content = kvasir_v1_output.response
                 yield f"data: {response_message.model_dump_json(by_alias=True)}\n\n"
-                await asyncio.sleep(SSE_MIN_SLEEP_TIME)
             if is_last:
-                break
+                # Multiple messages can be streamed in one go
+                await create_chat_message(conversation_record.id, "assistant", response_message.content, "chat", None, None, datetime.now(timezone.utc))
+                response_message = ChatMessageInDB(
+                    id=uuid.uuid4(),
+                    conversation_id=conversation_record.id,
+                    role="assistant",
+                    type="chat",
+                    content="",
+                    context_id=None,
+                    created_at=datetime.now(timezone.utc)
+                )
+
+                prev_response_text = ""
 
         if is_new_conversation:
             name = await helper_agent.run(
@@ -156,17 +169,3 @@ async def fetch_messages(
 async def fetch_project_conversations(project_id: uuid.UUID, user: Annotated[User, Depends(get_current_user)] = None) -> List[ConversationInDB]:
     conversations = await get_project_conversations(user.id, project_id)
     return conversations
-
-
-@router.post("/chat-message-pydantic/{conversation_id}", response_model=ChatMessageInDB)
-async def create_chat_message_pydantic_endpoint(
-    conversation_id: uuid.UUID,
-    messages: List[bytes],
-    user: Annotated[User, Depends(get_current_user)] = None
-):
-    if not await user_owns_conversation(user.id, conversation_id):
-        raise HTTPException(
-            status_code=403, detail="You do not have access to this conversation")
-
-    result = await create_chat_message_pydantic(conversation_id, messages)
-    return result

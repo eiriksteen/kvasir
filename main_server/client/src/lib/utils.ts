@@ -1,4 +1,3 @@
-import { NotebookSection, AnalysisResult } from '@/types/analysis';
 import { UUID } from 'crypto';
 
 export const getStatusColor = (status: string) => {
@@ -79,83 +78,6 @@ export const camelToSnakeKeys = <T>(obj: T): T => {
 };
 
 
-// Utility function to build ordered list from nextType/nextId chain
-export const buildOrderedList = (
-	sections: NotebookSection[],
-	results: AnalysisResult[],
-	firstId: UUID | null,
-	firstType: 'analysis_result' | 'notebook_section' | null
-  ): (NotebookSection | AnalysisResult)[] => {
-	const orderedList: (NotebookSection | AnalysisResult)[] = [];
-	const sectionsMap = new Map(sections.map(s => [s.id, s]));
-	const resultsMap = new Map(results.map(r => [r.id, r]));
-	
-	let currentId = firstId;
-	let currentType = firstType;
-	
-	while (currentId && currentType) {
-	  if (currentType === 'notebook_section') {
-		const section = sectionsMap.get(currentId);
-		if (section) {
-		  orderedList.push(section);
-		  currentId = section.nextId ?? null;
-		  currentType = section.nextType ?? null;
-		} else {
-		  break;
-		}
-	  } else if (currentType === 'analysis_result') {
-		const result = resultsMap.get(currentId);
-		if (result) {
-		  orderedList.push(result);
-		  currentId = result.nextId ?? null;
-		  currentType = result.nextType ?? null;
-		} else {
-		  break;
-		}
-	  } else {
-		break;
-	  }
-	}
-	
-	return orderedList;
-  };
-  
-  // Overloaded version for sections only (used by TableOfContents)
-  export const buildOrderedSectionsList = (
-	sections: NotebookSection[],
-	results: AnalysisResult[],
-	firstId: UUID | null,
-	firstType: 'notebook_section' | 'analysis_result' 
-  ): NotebookSection[] => {
-	const orderedList = buildOrderedList(sections, results, firstId, firstType) as (NotebookSection | AnalysisResult)[];
-	const filteredList = orderedList.filter(item => 'sectionName' in item) as NotebookSection[];
-	return filteredList;
-  };
-  
-  // Function to find all parent sections of a given section
-  export const findParentSections = (targetSectionId: string, sections: NotebookSection[]): string[] => {
-	const parentIds: string[] = [];
-	
-	const findParent = (sections: NotebookSection[], targetId: string, currentPath: string[] = []): boolean => {
-	  for (const section of sections) {
-		const newPath = [...currentPath, section.id];
-		
-		if (section.id === targetId) {
-		  parentIds.push(...currentPath);
-		  return true;
-		}
-		
-		if (section.notebookSections && findParent(section.notebookSections, targetId, newPath)) {
-		  return true;
-		}
-	  }
-	  return false;
-	};
-	
-	findParent(sections, targetSectionId);
-	return parentIds;
-  };
-  
   // Smooth text streaming utility
   // Streams text character by character or word by word for a smoother UX
   export const createSmoothTextStream = (

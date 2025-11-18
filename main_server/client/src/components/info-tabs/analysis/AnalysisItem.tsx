@@ -1,13 +1,10 @@
-import React, { Fragment, useRef, useCallback, useState, useEffect } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { DndContext, DragEndEvent } from '@dnd-kit/core';
 import SectionItem from '@/components/info-tabs/analysis/SectionItem';
 import TableOfContents from '@/components/info-tabs/analysis/TableOfContents';
-import AnalysisResult from '@/components/info-tabs/analysis/AnalysisResult';
 import { Bot } from 'lucide-react';
 import { useAnalysis } from '@/hooks/useAnalysis';
-import { buildOrderedList, findParentSections } from '@/lib/utils';
 import { UUID } from 'crypto';
-import { NotebookSection, AnalysisResult as AnalysisResultType, MoveRequest } from '@/types/analysis';
 
 interface AnalysisItemProps {
   analysisObjectId: UUID;
@@ -22,9 +19,8 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
   onClose,
 }) => {
   const {
-    currentAnalysisObject: analysis,
-    moveElement,
-  } = useAnalysis(projectId, analysisObjectId);
+    analysis,
+  } = useAnalysis(analysisObjectId);
   
   // Refs for scrolling to sections
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -34,17 +30,11 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
 
   // Update expanded sections when analysis loads
   useEffect(() => {
-    if (analysis?.notebook?.notebookSections) {
+    if (analysis?.sections) {
       const allSectionIds = new Set<string>();
-      const collectSectionIds = (sections: NotebookSection[]) => {
-        sections.forEach(section => {
-          allSectionIds.add(section.id);
-          if (section.notebookSections) {
-            collectSectionIds(section.notebookSections);
-          }
-        });
-      };
-      collectSectionIds(analysis.notebook.notebookSections);
+      analysis.sections.forEach(section => {
+        allSectionIds.add(section.id);
+      });
       setExpandedSections(allSectionIds);
     }
   }, [analysis]);
@@ -77,16 +67,12 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
 
   // Enhanced scroll handler that also handles expansion
   const handleScrollToSection = useCallback((sectionId: string) => {
-    if (!analysis?.notebook?.notebookSections) return;
+    if (!analysis?.sections) return;
     
-    // Find all parent sections that need to be expanded
-    const parentIds = findParentSections(sectionId, analysis.notebook.notebookSections);
-    
-    // Expand all parent sections in main content
-    const allParentIds = [...parentIds, sectionId];
+    // Expand the section in main content
     setExpandedSections((prev: Set<string>) => {
       const newSet = new Set(prev);
-      allParentIds.forEach(id => newSet.add(id));
+      newSet.add(sectionId);
       return newSet;
     });
     
@@ -111,26 +97,9 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
     
     if (!over) return;
     
-    // Handle the new DnD system
-    if (over.data.current?.type === 'dnd-zone') {
-      const draggedId = active.id as UUID;
-      const draggedType = active.data.current?.type as 'analysis_result' | 'notebook_section';
-      const { nextType, nextId, sectionId } = over.data.current;
-      
-      // Create MoveRequest
-      const moveRequest: MoveRequest = {
-        newSectionId: sectionId as UUID,
-        movingElementType: draggedType,
-        movingElementId: draggedId,
-        nextElementType: nextType,
-        nextElementId: nextId
-      };
-      // Call the moveElement function
-      moveElement({
-        analysisObjectId,
-        moveRequest
-      });
-    }
+    // TODO: Implement drag and drop for new structure
+    // The new structure uses cells within sections, so DnD logic needs to be updated
+    console.log('Drag end:', { active, over });
   };
 
   if (!analysis) {
@@ -152,26 +121,13 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
     );
   }
 
-  // Build ordered list using the new nextType/nextId system
-  const allSections = analysis.notebook?.notebookSections || [];
-  const allResults = allSections.flatMap(section => section.analysisResults || []);
-  
-  // Find the first element in the chain (the one that's not referenced by any other element's nextId)
-  const referencedIds = new Set([
-    ...allSections.map(s => s.nextId).filter(Boolean),
-    ...allResults.map(r => r.nextId).filter(Boolean)
-  ]);
-  
-  const firstSection = allSections.find(s => !referencedIds.has(s.id));
-  const firstResult = allResults.find(r => !referencedIds.has(r.id));
-  
-  let orderedItems: (NotebookSection | AnalysisResultType)[] = [];
-  
-  if (firstSection) {
-    orderedItems = buildOrderedList(allSections, allResults, firstSection.id, 'notebook_section');
-  } else if (firstResult) {
-    orderedItems = buildOrderedList(allSections, allResults, firstResult.id, 'analysis_result');
-  }
+  // Get sections ordered by their order field (or by creation if no order)
+  const orderedSections = analysis?.sections 
+    ? [...analysis.sections].sort((a, b) => {
+        // Sort by order if available, otherwise by creation date
+        return (a.createdAt < b.createdAt ? -1 : 1);
+      })
+    : [];
 
   return (
     <div className="w-full h-full bg-white overflow-hidden">
@@ -193,53 +149,29 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
                   {/* Main Content - Right Side */}
                   <div className="flex-1 text-sm text-gray-600 flex flex-col overflow-y-auto">
                     {/* Sections Content */}
-                    {orderedItems.length > 0 && (
+                    {orderedSections.length > 0 && (
                       <div className="flex-1 px-2">
-                        {/* <div className="space-y-3"> */}
-                          {(() => {
-                            let sectionCounter = 0;
-                            return orderedItems.map((item: NotebookSection | AnalysisResultType) => {
-                              const isSection = 'sectionName' in item;
-                              if (isSection) sectionCounter++;
-                              
-                              return (
-                                <Fragment key={item.id}>
-                                  
-                                  {isSection ? (
-                                    <div ref={setSectionRef(item.id)}>
-                                      <SectionItem
-                                        section={item}
-                                        sections={allSections}
-                                        projectId={projectId}
-                                        analysisObjectId={analysisObjectId}
-                                        depth={0}
-                                        numbering={`${sectionCounter}`}
-                                        onScrollToSection={handleScrollToSection}
-                                        setSectionRef={setSectionRef}
-                                        expandedSections={expandedSections}
-                                        setExpandedSections={setExpandedSections}
-                                      />
-                                    </div>
-                                  ) : (
-                                    <div ref={setSectionRef(item.id)}>
-                                      <AnalysisResult 
-                                        projectId={projectId}
-                                        analysisResult={item}
-                                        analysisObjectId={analysisObjectId}
-                                      />
-                                    </div>
-                                  )}
-                                  
-                                </Fragment>
-                              );
-                            });
-                          })()}
-                        {/* </div> */}
+                        {orderedSections.map((section, index) => (
+                          <div key={section.id} ref={setSectionRef(section.id)}>
+                            <SectionItem
+                              section={section}
+                              sections={orderedSections}
+                              projectId={projectId}
+                              analysisObjectId={analysisObjectId}
+                              depth={0}
+                              numbering={`${index + 1}`}
+                              onScrollToSection={handleScrollToSection}
+                              setSectionRef={setSectionRef}
+                              expandedSections={expandedSections}
+                              setExpandedSections={setExpandedSections}
+                            />
+                          </div>
+                        ))}
                       </div>
                     )}
 
                     {/* Empty State */}
-                    {orderedItems.length === 0 && (
+                    {orderedSections.length === 0 && (
                       <div className="flex-1 text-center py-8">
                         <Bot size={48} className="mx-auto text-gray-600 mb-4" />
                         <p className="text-gray-500 mb-4">No sections created yet.</p>

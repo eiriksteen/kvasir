@@ -1,7 +1,7 @@
 import React from 'react';   
 import { Database } from 'lucide-react';
 import { UUID } from 'crypto';
-import { useDataSource } from '@/hooks/useDataSources';
+import { useMountedDataSource } from '@/hooks/useOntology';
 import { useAgentContext } from '@/hooks/useAgentContext';
 
 interface DataSourceBoxProps {
@@ -11,14 +11,14 @@ interface DataSourceBoxProps {
 }
 
 export default function DataSourceBox({ dataSourceId, projectId, openTab }: DataSourceBoxProps) {
-  const { dataSource } = useDataSource(projectId, dataSourceId);
+  const dataSource = useMountedDataSource(dataSourceId, projectId);
   const { 
     dataSourcesInContext, 
     addDataSourceToContext, 
     removeDataSourceFromContext 
   } = useAgentContext(projectId);
   
-  const isInContext = dataSourcesInContext.includes(dataSourceId);
+  const isInContext = dataSourcesInContext?.includes(dataSourceId);
 
   const handleClick = (event: React.MouseEvent) => {
     if (event.metaKey || event.ctrlKey) {

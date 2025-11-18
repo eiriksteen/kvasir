@@ -1,4 +1,4 @@
-import { RunInDB, RunMessageInDB} from "@/types/runs";
+import { RunInDB, RunMessageInDB} from "@/types/api/runs";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import useSWR, { useSWRConfig } from "swr";

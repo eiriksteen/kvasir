@@ -12,12 +12,12 @@ interface EChartWrapperProps {
 const EChartWrapper = ({ 
   projectId, 
   chartId, 
-  originalObjectId 
+  // originalObjectId 
 }: EChartWrapperProps) => {
   const { chartOption, isLoading, isError } = useChart(
     projectId,
     chartId,
-    originalObjectId
+    // originalObjectId
   );
 
   if (isLoading) {

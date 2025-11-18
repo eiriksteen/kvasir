@@ -1,9 +1,10 @@
 import { X, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useDataSource, useDataSources } from "@/hooks/useDataSources";
+import { useDataSource } from "@/hooks/useDataSources";
 import { UUID } from 'crypto';
 import JsonViewer from '@/components/JsonViewer';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
+import { useOntology } from '@/hooks/useOntology';
 
 interface FileInfoTabProps {
   dataSourceId: UUID;
@@ -21,8 +22,8 @@ export default function FileInfoTab({
   asModal = false
 }: FileInfoTabProps) {
   
-  const { dataSource } = useDataSource(projectId, dataSourceId);
-  const { deleteDataSource } = useDataSources(projectId);
+  const { dataSource } = useDataSource(dataSourceId);
+  const { deleteDataSource } = useOntology(projectId);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleDelete = async () => {

@@ -16,39 +16,38 @@ from synesis_api.modules.runs.models import (
     data_source_from_run, dataset_from_run, model_instantiated_from_run, pipeline_from_run, analysis_from_run
 )
 from synesis_api.modules.data_objects.models import (
-    dataset, data_object, object_group, time_series, time_series_group
+    dataset, data_object, object_group, tabular, tabular_group, time_series, time_series_group
 )
 from synesis_api.modules.orchestrator.models import (
-    chat_message, chat_pydantic_message, conversation,
+    chat_message, conversation,
     chat_context, dataset_context, pipeline_context, analysis_context,
     data_source_context, model_instantiated_context
 )
 from synesis_api.modules.pipeline.models import (
-    pipeline, pipeline_implementation, function_in_pipeline, pipeline_run
-)
-from synesis_api.modules.function.models import (
-    function, function_definition
+    pipeline, pipeline_implementation, pipeline_run
 )
 from synesis_api.modules.model.models import (
-    model_definition, model_implementation, model_instantiated, model_instantiated_implementation, model_function,
-    model_source, pypi_model_source
+    model, model_implementation, model_instantiated, model_function
 )
 from synesis_api.modules.analysis.models import (
-    analysis_status_message, analysis, analysis_result,
-    notebook_section, notebook, result_image, result_echart, result_table
+    analysis, analysis_section, analysis_cell, markdown_cell, code_cell, code_output,
+    result_image, result_echart, result_table
 )
 from synesis_api.modules.entity_graph.models import (
+    entity_node, node_group, node_in_group,
     dataset_from_data_source,
     data_source_supported_in_pipeline, dataset_supported_in_pipeline, model_instantiated_supported_in_pipeline,
     dataset_in_pipeline_run, data_source_in_pipeline_run, model_instantiated_in_pipeline_run,
     pipeline_run_output_dataset, pipeline_run_output_model_entity, pipeline_run_output_data_source,
     dataset_in_analysis, data_source_in_analysis, model_instantiated_in_analysis,
 )
-from synesis_api.modules.project.models import (
-    project, project_dataset, project_analysis, project_pipeline, project_data_source, project_model_entity
-)
 from synesis_api.modules.visualization.models import (
     image, echart, table
+)
+from synesis_api.modules.waitlist.models import waitlist
+from synesis_api.modules.project.models import project
+from synesis_api.modules.ontology.kvasir_v1.models import (
+    results_queue, deps, result, pydantic_ai_message
 )
 from synesis_api.app_secrets import DATABASE_URL
 from synesis_api.database.core import metadata
@@ -86,14 +85,20 @@ __all__ = [
     dataset,
     data_object,
     object_group,
+    tabular,
+    tabular_group,
     time_series,
     time_series_group,
+    entity_node,
+    node_group,
+    node_in_group,
     dataset_from_data_source,
     analysis,
-    analysis_result,
-    notebook_section,
-    notebook,
-    analysis_status_message,
+    analysis_section,
+    analysis_cell,
+    markdown_cell,
+    code_cell,
+    code_output,
     result_image,
     result_echart,
     result_table,
@@ -101,7 +106,6 @@ __all__ = [
     data_source_in_analysis,
     model_instantiated_in_analysis,
     chat_message,
-    chat_pydantic_message,
     conversation,
     chat_context,
     dataset_context,
@@ -111,7 +115,6 @@ __all__ = [
     model_instantiated_context,
     pipeline,
     pipeline_implementation,
-    function_in_pipeline,
     data_source_supported_in_pipeline,
     dataset_supported_in_pipeline,
     model_instantiated_supported_in_pipeline,
@@ -122,24 +125,19 @@ __all__ = [
     pipeline_run_output_dataset,
     pipeline_run_output_model_entity,
     pipeline_run_output_data_source,
-    function,
-    function_definition,
-    model_definition,
+    model,
     model_implementation,
     model_instantiated,
-    model_instantiated_implementation,
     model_function,
-    model_source,
-    pypi_model_source,
-    project,
-    project_dataset,
-    project_analysis,
-    project_pipeline,
-    project_data_source,
-    project_model_entity,
     image,
     echart,
     table,
+    waitlist,
+    project,
+    results_queue,
+    deps,
+    result,
+    pydantic_ai_message,
 ]
 
 # add your model's MetaData object here
@@ -151,7 +149,7 @@ target_metadata = metadata
 
 def include_name(name, type_, parent_names):
     if type_ == "schema":
-        return name in ["public", "auth", "data_sources", "runs", "data_objects", "analysis", "orchestrator", "pipeline", "function", "model", "model_sources", "project", "node", "tables", "plots", "notebooks", "entity_graph"]
+        return name in ["public", "auth", "data_sources", "runs", "data_objects", "analysis", "orchestrator", "pipeline", "model", "entity_graph", "visualization", "project", "kvasir_v1"]
     else:
         return True
 

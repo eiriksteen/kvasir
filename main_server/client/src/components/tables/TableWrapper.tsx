@@ -4,12 +4,14 @@ import { useTable } from "@/hooks/useTable";
 
 interface TableWrapperProps {
   tableId: UUID;
+  projectId: UUID;
 }
 
 const TableWrapper = ({ 
-  tableId 
+  tableId,
+  projectId
 }: TableWrapperProps) => {
-  const { table, isLoading, isError } = useTable(tableId);
+  const { tableData, isLoading, isError } = useTable(tableId, projectId);
 
   if (isLoading) {
     return (
@@ -19,7 +21,7 @@ const TableWrapper = ({
     );
   }
 
-  if (isError || !table) {
+  if (isError || !tableData) {
     return (
       <div className="w-full h-full flex items-center justify-center text-red-500">
         Failed to load table
@@ -28,8 +30,8 @@ const TableWrapper = ({
   }
 
   // Get all column names (excluding the index column)
-  const columns = Object.keys(table.data).filter(col => col !== table.indexColumn);
-  const indexData = table.data[table.indexColumn];
+  const columns = Object.keys(tableData.data).filter(col => col !== tableData.indexColumn);
+  const indexData = tableData.data[tableData.indexColumn];
 
   return (
     <div className="w-full overflow-x-auto">
@@ -37,7 +39,7 @@ const TableWrapper = ({
         <thead className="bg-gray-100">
           <tr>
             <th className="border border-gray-300 px-3 py-2 text-left font-semibold">
-              {table.indexColumn}
+              {tableData.indexColumn}
             </th>
             {columns.map((col) => (
               <th key={col} className="border border-gray-300 px-3 py-2 text-left font-semibold">
@@ -54,7 +56,7 @@ const TableWrapper = ({
               </td>
               {columns.map((col) => (
                 <td key={col} className="border border-gray-300 px-3 py-2">
-                  {table.data[col][rowIndex]?.toString() ?? ''}
+                  {tableData.data[col][rowIndex]?.toString() ?? ''}
                 </td>
               ))}
             </tr>

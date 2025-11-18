@@ -1,4 +1,3 @@
-import asyncio
 import asyncpg
 import pandas as pd
 from typing import Any

@@ -1,9 +1,10 @@
 import { Brain, FileCode, Info, Settings, ArrowLeft, ArrowRight, Trash2, FileText } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { UUID } from 'crypto';
-import { useModelEntity, useModelEntities } from '@/hooks/useModelEntities';
+import { useModelInstantiated } from '@/hooks/useModelsInstantiated';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
 import JsonSchemaViewer from '@/components/JsonSchemaViewer';
+import { useOntology } from '@/hooks/useOntology';
 
 interface ModelInfoTabProps {
   modelInstantiatedId: UUID;
@@ -21,18 +22,18 @@ export default function ModelInfoTab({
   onDelete
 }: ModelInfoTabProps) {
 
-  const { modelInstantiated } = useModelEntity(projectId, modelInstantiatedId);
-  const { deleteModelEntity } = useModelEntities(projectId);
+  const { modelInstantiated } = useModelInstantiated(modelInstantiatedId);
+  const { deleteModelInstantiated } = useOntology(projectId);
   const [currentView, setCurrentView] = useState<ViewType>('overview');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleDelete = async () => {
     try {
-      await deleteModelEntity({ modelInstantiatedId });
+      await deleteModelInstantiated({ modelInstantiatedId });
       onDelete?.();
       onClose();
     } catch (error) {
-      console.error('Failed to delete model entity:', error);
+      console.error('Failed to delete model instantiated:', error);
     }
   };
 
@@ -77,7 +78,7 @@ export default function ModelInfoTab({
         >
           <Info className="w-4 h-4" />
         </button>
-        {modelInstantiated?.implementation && (
+        {modelInstantiated?.model?.implementation && (
           <button
             onClick={() => setCurrentView('code')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
@@ -94,7 +95,7 @@ export default function ModelInfoTab({
         <button
           onClick={() => setShowDeleteConfirm(true)}
           className="p-2 text-red-800 hover:bg-red-100 rounded-lg transition-colors"
-          title="Delete model entity"
+          title="Delete model instantiated"
         >
           <Trash2 size={18} />
         </button>
@@ -102,7 +103,7 @@ export default function ModelInfoTab({
 
       {/* Content Area */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        {currentView === 'code' && modelInstantiated?.implementation ? (
+        {currentView === 'code' && modelInstantiated?.model?.implementation ? (
           <div className="h-full">
             {/* Note: implementationScriptPath is now a string path, not a UUID. Code view not available. */}
             <div className="flex items-center justify-center h-full">
@@ -112,10 +113,10 @@ export default function ModelInfoTab({
         ) : (
           <div className="h-full overflow-y-auto pl-4 pr-4 pb-4 space-y-4">
             {/* Model Docstring */}
-            {modelInstantiated?.implementation?.modelImplementation?.modelClassDocstring ? (
+            {modelInstantiated?.model?.implementation?.modelClassDocstring ? (
               <div className="bg-white rounded-lg p-4 border border-gray-200">
                 <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">
-                  {modelInstantiated.implementation.modelImplementation.modelClassDocstring}
+                  {modelInstantiated.model.implementation.modelClassDocstring}
                 </pre>
               </div>
             ) : (
@@ -124,7 +125,7 @@ export default function ModelInfoTab({
               </div>
             )}
 
-            {!modelInstantiated.implementation ? (
+            {!modelInstantiated.model.implementation ? (
               <div className="flex items-center justify-center h-32">
                 <div className="flex items-center gap-2 text-[#491A32]/60">
                   <Brain size={20} />
@@ -134,10 +135,10 @@ export default function ModelInfoTab({
             ) : (
               <>
                 {/* Config Schema */}
-                {modelInstantiated.implementation?.modelImplementation?.configSchema && Object.keys(modelInstantiated.implementation.modelImplementation.configSchema).length > 0 && (
+                {modelInstantiated.model.implementation?.configSchema && Object.keys(modelInstantiated.model.implementation.configSchema).length > 0 && (
                   <div className="bg-gray-50 rounded-xl p-4 flex flex-col min-h-0">
                     <JsonSchemaViewer
-                      schema={modelInstantiated.implementation.modelImplementation.configSchema}
+                      schema={modelInstantiated.model.implementation.configSchema}
                       title="Configuration Schema"
                       icon={FileText}
                       iconColor="#491A32"
@@ -155,8 +156,8 @@ export default function ModelInfoTab({
                     <h3 className="text-sm font-semibold text-gray-900">Configuration</h3>
                   </div>
                   <div className="space-y-2">
-                    {modelInstantiated.implementation && Object.keys(modelInstantiated.implementation.config).length > 0 ? (
-                      Object.entries(modelInstantiated.implementation.config).map(([key, value]) => (
+                    {modelInstantiated.model.implementation && Object.keys(modelInstantiated.model.implementation.defaultConfig).length > 0 ? (
+                      Object.entries(modelInstantiated.model.implementation.defaultConfig).map(([key, value]) => (
                         <div key={key} className="flex justify-between items-center">
                           <span className="text-sm text-gray-600">{key}:</span>
                           <span className="text-sm text-gray-900 font-mono">

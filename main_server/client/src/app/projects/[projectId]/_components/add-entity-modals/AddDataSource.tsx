@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { X, Upload, Check, AlertTriangle, Loader2 } from 'lucide-react';
-import { useDataSources } from '@/hooks/useDataSources';
-import { useSession } from "next-auth/react";
 import { UUID } from 'crypto';
+import { useOntology } from '@/hooks/useOntology';
 
 interface AddDataSourceProps {
   onClose: () => void;
@@ -12,8 +11,7 @@ interface AddDataSourceProps {
 }
 
 export default function AddDataSource({ onClose, projectId }: AddDataSourceProps) {
-  const { triggerCreateFileDataSource, mutateDataSources } = useDataSources(projectId);
-  const { data: session } = useSession();
+  const { insertFilesDataSources, mutateEntityGraph } = useOntology(projectId);
   const [files, setFiles] = useState<File[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -102,25 +100,18 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
       return;
     }
 
-    if (!session) {
-      setUploadError('Session expired. Please log in again.');
-      return;
-    }
-
     setUploadError(null);
     setIsUploading(true);
 
     try {
-      await triggerCreateFileDataSource({
-        files: files,
-      });
+      await insertFilesDataSources({ files: Array.from(files), edges: [] });
       resetForm();
-      await mutateDataSources();
       onClose();
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "An unknown error occurred during upload");
     } finally {
       setIsUploading(false);
+      await mutateEntityGraph();
     }
   };
 

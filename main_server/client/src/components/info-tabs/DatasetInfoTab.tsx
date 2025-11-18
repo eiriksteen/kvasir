@@ -1,11 +1,12 @@
 import { Layers, ChevronDown, ChevronRight, Database, Calendar, Trash2, Settings } from 'lucide-react';  
 import { useEffect, useState } from 'react';
-import { useDataset, useDatasets } from "@/hooks/useDatasets";
-import { ObjectGroupWithObjects, DataObject, TimeSeriesInDB, Modality } from "@/types/data-objects";
+import { useDataset } from "@/hooks/useDatasets";
+import { ObjectGroupWithObjects, DataObject, TimeSeriesBase, Modality } from "@/types/ontology/dataset";
 import EChartWrapper from '@/components/charts/EChartWrapper';
 import { UUID } from 'crypto';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
 import JsonViewer from '@/components/JsonViewer';
+import { useOntology } from '@/hooks/useOntology';
 
 
 interface DatasetInfoTabProps {
@@ -30,8 +31,8 @@ export default function DatasetInfoTab({
   onDelete
 }: DatasetInfoTabProps) {
 
-  const { dataset, objectGroups } = useDataset(datasetId, projectId);
-  const { deleteDataset } = useDatasets(projectId);
+  const { dataset, objectGroups } = useDataset(datasetId);
+  const { deleteDataset } = useOntology(projectId);
   const [selectedDataObject, setSelectedDataObject] = useState<SelectedDataObject | null>(null);
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -77,7 +78,7 @@ export default function DatasetInfoTab({
   };
 
   const formatTimeRange = (obj: DataObject) => {
-    const fields = obj.modalityFields as TimeSeriesInDB;
+    const fields = obj.modalityFields as TimeSeriesBase;
     const start = new Date(fields.startTimestamp).toLocaleDateString();
     const end = new Date(fields.endTimestamp).toLocaleDateString();
     return `${start} - ${end}`;
@@ -223,7 +224,7 @@ export default function DatasetInfoTab({
                                                     </div>
                                                     <div className="flex items-center gap-1 text-xs px-2 py-1 border border-gray-300 rounded-full text-gray-600">
                                                       <Database size={12} />
-                                                      <span>{(obj.modalityFields as TimeSeriesInDB).numTimestamps} points</span>
+                                                      <span>{(obj.modalityFields as TimeSeriesBase).numTimestamps} points</span>
                                                     </div>
                                                   </>
                                                 )}

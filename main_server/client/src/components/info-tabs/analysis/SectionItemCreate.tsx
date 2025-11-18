@@ -5,15 +5,12 @@ import { Loader2, Plus, X } from 'lucide-react';
 import { UUID } from 'crypto';
 
 interface SectionItemCreateProps {
-  parentId: UUID | null;
   projectId: UUID;
   analysisObjectId: UUID;
   onCancel: () => void;
 }
 
 const SectionItemCreate: React.FC<SectionItemCreateProps> = ({ 
-  parentId, 
-  projectId, 
   analysisObjectId, 
   onCancel 
 }) => {
@@ -22,7 +19,7 @@ const SectionItemCreate: React.FC<SectionItemCreateProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   
-  const { createSection } = useAnalysis(projectId, analysisObjectId);
+  const { createSection } = useAnalysis(analysisObjectId);
   const { showError } = useError();
 
   useEffect(() => {
@@ -34,9 +31,9 @@ const SectionItemCreate: React.FC<SectionItemCreateProps> = ({
       setIsCreating(true);
       try {
         await createSection({
-          sectionName: name.trim(),
-          sectionDescription: description.trim() || null,
-          parentSectionId: parentId,
+          analysisId: analysisObjectId,
+          name: name.trim(),
+          description: description.trim() || null,
         });
         setName('');
         setDescription('');
@@ -50,7 +47,7 @@ const SectionItemCreate: React.FC<SectionItemCreateProps> = ({
     }
   };
 
-  const isCompact = parentId === null;
+  const isCompact = false;
 
   return (
     <div className={`w-full ${isCompact ? 'flex items-center gap-1 my-1' : 'my-3'}`}>

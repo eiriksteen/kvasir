@@ -1,20 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { UUID } from 'crypto';
-import { usePipeline, usePipelines } from '@/hooks/usePipelines';
-import { useRuns } from '@/hooks/useRuns';
-import { useDatasets } from '@/hooks/useDatasets';
-import { useDataSources } from '@/hooks/useDataSources';
-import { useModelEntities } from '@/hooks/useModelEntities';
-import { useProject } from '@/hooks/useProject';
+import { usePipeline } from '@/hooks/usePipelines';
 import { SquarePlay, Info, FileText, ArrowDownRight, Trash2 } from 'lucide-react';
-import { Dataset } from '@/types/data-objects';
-import { DataSource } from '@/types/data-sources';
-import { ModelInstantiated } from '@/types/model';
-import { RunInDB } from '@/types/runs';
-import { mutate } from 'swr';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
 import JsonSchemaViewer from '@/components/JsonSchemaViewer';
-import { DataSourceMini, DatasetMini, ModelEntityMini } from '@/components/entity-mini';
+import { useEntityNode } from '@/hooks/useEntityGraph';
+import { useOntology } from '@/hooks/useOntology';
 
 export type ViewType = 'overview' | 'runs';
 
@@ -34,13 +25,10 @@ export default function PipelineInfoTab({
   initialView
 }: PipelineInfoTabProps) {
 
-  const { pipeline } = usePipeline(pipelineId, projectId);
-  const { deletePipeline } = usePipelines(projectId);
-  const { runs } = useRuns(projectId);
-  const { datasets } = useDatasets(projectId);
-  const { dataSources } = useDataSources(projectId);
-  const { modelsInstantiated } = useModelEntities(projectId);
-  const { getEntityGraphNode } = useProject(projectId);
+  const { pipeline } = usePipeline(pipelineId);
+  const { deletePipeline } = useOntology(projectId);
+  const { node: pipelineNode } = useEntityNode(pipelineId);
+
   
   const isInProgress = !pipeline?.implementation;
   const [currentView, setCurrentView] = useState<ViewType>(
@@ -48,10 +36,6 @@ export default function PipelineInfoTab({
   );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Get pipeline graph node for inputs
-  const pipelineNode = useMemo(() => {
-    return pipeline ? getEntityGraphNode(pipeline.id) : null;
-  }, [pipeline, getEntityGraphNode]);
 
   const handleDelete = async () => {
     try {
@@ -62,14 +46,6 @@ export default function PipelineInfoTab({
       console.error('Failed to delete pipeline:', error);
     }
   };
-
-  // Find the run that has this pipeline in its outputs
-  const pipelineAgentRun: RunInDB | undefined = useMemo(() => {
-    return runs.find(run => {
-      const runNode = getEntityGraphNode(run.id);
-      return runNode?.toEntities.pipelines.includes(pipelineId);
-    });
-  }, [runs, pipelineId, getEntityGraphNode]);
 
   // Update view when initialView changes (e.g., when clicking runs box on already-open tab)
   useEffect(() => {
@@ -100,13 +76,6 @@ export default function PipelineInfoTab({
     return () => document.removeEventListener('keydown', handleEscape, { capture: true });
   }, [onClose]);
 
-
-  // Update the info when the pipeline implementation completes
-  useEffect(() => {
-    if (pipelineAgentRun && pipelineAgentRun.status === 'completed') {
-      mutate(["pipelines", projectId]);
-    }
-  }, [pipelineAgentRun, pipeline, projectId]);
 
   if (!pipeline) {
     return null;
@@ -232,36 +201,6 @@ export default function PipelineInfoTab({
                     <h4 className="text-sm font-semibold text-gray-900">Input Entities</h4>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {pipelineNode.fromEntities.dataSources.map((dataSourceId) => {
-                      const dataSource = dataSources?.find((ds: DataSource) => ds.id === dataSourceId);
-                      return (
-                        <DataSourceMini
-                          key={dataSourceId}
-                          name={dataSource?.name || 'Data Source'}
-                          size="sm"
-                        />
-                      );
-                    })}
-                    {pipelineNode.fromEntities.datasets.map((datasetId) => {
-                      const dataset = datasets?.find((ds: Dataset) => ds.id === datasetId);
-                      return (
-                        <DatasetMini
-                          key={datasetId}
-                          name={dataset?.name || 'Dataset'}
-                          size="sm"
-                        />
-                      );
-                    })}
-                    {pipelineNode.fromEntities.modelsInstantiated.map((modelInstantiatedId) => {
-                      const modelInstantiated = modelsInstantiated?.find((me: ModelInstantiated) => me.id === modelInstantiatedId);
-                      return (
-                        <ModelEntityMini
-                          key={modelInstantiatedId}
-                          name={modelInstantiated?.name || 'Model'}
-                          size="sm"
-                        />
-                      );
-                    })}
                     {pipelineNode.fromEntities.dataSources.length === 0 &&
                      pipelineNode.fromEntities.datasets.length === 0 &&
                      pipelineNode.fromEntities.modelsInstantiated.length === 0 && (

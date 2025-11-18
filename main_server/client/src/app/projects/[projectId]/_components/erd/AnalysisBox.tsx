@@ -1,8 +1,8 @@
 import React from 'react';
 import { BarChart3 } from 'lucide-react';
 import { UUID } from 'crypto';
-import { useAnalysis } from '@/hooks/useAnalysis';
 import { useAgentContext } from '@/hooks/useAgentContext';
+import { useMountedAnalysis } from '@/hooks/useOntology';
 
 interface AnalysisBoxProps {
   analysisId: UUID;
@@ -11,14 +11,14 @@ interface AnalysisBoxProps {
 }
 
 export default function AnalysisBox({ analysisId, projectId, openTab }: AnalysisBoxProps) {
-  const { currentAnalysisObject } = useAnalysis(projectId, analysisId);
+  const analysis = useMountedAnalysis(analysisId, projectId);
   const { 
     analysesInContext, 
-    addAnalysisToContext, 
-    removeAnalysisFromContext 
+    addAnalysisToContext,
+    removeAnalysisFromContext
   } = useAgentContext(projectId);
   
-  const isInContext = analysesInContext.includes(analysisId);
+  const isInContext = analysesInContext?.includes(analysisId);
 
   const handleClick = (event: React.MouseEvent) => {
     if (event.metaKey || event.ctrlKey) {
@@ -34,7 +34,7 @@ export default function AnalysisBox({ analysisId, projectId, openTab }: Analysis
     }
   };
   
-  if (!currentAnalysisObject) {
+  if (!analysis) {
     return null;
   }
   
@@ -55,7 +55,7 @@ export default function AnalysisBox({ analysisId, projectId, openTab }: Analysis
           <div className="text-[#004806] font-mono text-xs">Analysis</div>
         </div>
         <div>
-          <div className="text-xs font-mono text-gray-800 break-words">{currentAnalysisObject.name}</div>
+          <div className="text-xs font-mono text-gray-800 break-words">{analysis.name}</div>
         </div>
       </div>
     </div>

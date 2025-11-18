@@ -4,14 +4,17 @@ WORKDIR /app
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-COPY schemas /app/schemas
-
 # Copy the api project files
-COPY main_server/server /app
+COPY kvasir-app/main_server/server /app/server
+COPY kvasir-research /app/kvasir-research
+COPY kvasir-ontology /app/kvasir-ontology
 
 # Install synesis data structures package from source and the main package
 RUN pip install --upgrade pip && \
-    pip install -e /app/schemas && \
-    pip install -e .
+    pip install /app/server && \
+    pip install /app/kvasir-research && \
+    pip install /app/kvasir-ontology
+
+WORKDIR /app/server
 
 CMD ["uvicorn", "src.synesis_api.main:app", "--host", "0.0.0.0", "--port", "8000"]

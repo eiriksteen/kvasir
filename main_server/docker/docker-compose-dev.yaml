@@ -16,29 +16,54 @@ services:
   server:
     &server
     build:
-      context: ../..
-      dockerfile: main_server/server/Dockerfile.dev  
+      context: ../../..
+      dockerfile: kvasir-app/main_server/server/Dockerfile.dev  
     container_name: main-server
     networks:
       - main-backend
       - main-frontend
     depends_on:
       - db
+    working_dir: /app/server
     volumes:
       - type: bind
         source: ../server
-        target: /app
+        target: /app/server
       - type: bind
-        source: ../../schemas
-        target: /app/schemas
+        source: ../../../kvasir-research
+        target: /app/kvasir-research
+      - type: bind
+        source: ../../../kvasir-ontology
+        target: /app/kvasir-ontology
+      - type: bind
+        source: ${HOME}/.modal.toml
+        target:  /root/.modal.toml
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
       - ${HOME}/.ssh/es256-private.pem:/app/.ssh/es256-private.pem
       - ${HOME}/.ssh/es256-public.pem:/app/.ssh/es256-public.pem
 
+  taskiq-worker:
+    <<: *server
+    container_name: main-taskiq-worker
+    command: ["sh", "-c", "cd /app/kvasir-research/src && taskiq worker kvasir_research.agents.v1.broker:v1_broker --tasks-pattern '**/*agent.py' --tasks-pattern '**/*callbacks.py'  -fsd --reload"]
+
+    networks:
+      - main-backend
+    depends_on:
+      - server
+    environment:
+      - DOCKER_API_VERSION=1.41
+      - KVASIR_CALLBACKS_MODULE=synesis_api.modules.ontology.kvasir_v1.callbacks
+
+
   client:
     build:
-      context: ../..
-      dockerfile: main_server/client/Dockerfile.dev
+      context: ../../..
+      dockerfile: kvasir-app/main_server/client/Dockerfile.dev
     container_name: main-client
+    working_dir: /app/client
     networks:
       - main-frontend
     depends_on:
@@ -46,10 +71,9 @@ services:
     volumes:
       - type: bind
         source: ../client
-        target: /app
+        target: /app/client
       - /app/node_modules
       - /app/.next
-    # command: tail -f /dev/null
 
   proxy:
     image: nginx:latest

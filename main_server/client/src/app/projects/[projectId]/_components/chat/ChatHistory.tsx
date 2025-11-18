@@ -1,6 +1,6 @@
 import React from 'react';
 import { useProjectChat } from '@/hooks/useProjectChat';
-import { Conversation } from '@/types/orchestrator';
+import { Conversation } from '@/types/api/orchestrator';
 import { MessageSquare, Loader2, AlertCircle } from 'lucide-react';
 import { useProject } from '@/hooks/useProject';
 import { useConversations } from '@/hooks/useConversations';

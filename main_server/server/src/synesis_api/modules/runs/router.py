@@ -30,10 +30,8 @@ from synesis_api.modules.runs.service import (
     update_run_status,
     create_run_message_pydantic,
     get_run_messages_pydantic,
-    launch_run,
     reject_run
 )
-from synesis_api.client import MainServerClient
 
 
 router = APIRouter()
@@ -64,11 +62,7 @@ async def post_launch_run(
         user: Annotated[User, Depends(get_current_user)] = None,
         token: str = Depends(oauth2_scheme)) -> RunInDB:
 
-    if not await user_owns_runs(user.id, [run_id]):
-        raise HTTPException(
-            status_code=403, detail="You do not have permission to access this run")
-
-    return await launch_run(user.id, MainServerClient(token), run_id)
+    raise NotImplementedError("Launch run is not implemented")
 
 
 @router.patch("/reject-run/{run_id}")

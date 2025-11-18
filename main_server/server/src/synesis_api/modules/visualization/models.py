@@ -9,6 +9,7 @@ image = Table(
     'image',
     metadata,
     Column('id', UUID, primary_key=True, default=uuid.uuid4),
+    Column('user_id', UUID, nullable=False),
     Column('image_path', String, nullable=False),
     Column('created_at', DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
@@ -22,6 +23,7 @@ echart = Table(
     'echart',
     metadata,
     Column('id', UUID, primary_key=True, default=uuid.uuid4),
+    Column('user_id', UUID, nullable=False),
     Column("chart_script_path", String, nullable=False),
     Column('created_at', DateTime(timezone=True),
            default=datetime.now(timezone.utc), nullable=False),
@@ -35,6 +37,7 @@ table = Table(
     'table',
     metadata,
     Column('id', UUID, primary_key=True, default=uuid.uuid4),
+    Column('user_id', UUID, nullable=False),
     # Stores project server path to the parquet file of the dataframe corresponding to the table
     Column('table_path', String, nullable=False),
     Column('created_at', DateTime(timezone=True),

@@ -1,42 +1,43 @@
-import { UUID } from "crypto";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
+import { UUID } from "crypto";
 import { snakeToCamelKeys } from "@/lib/utils";
-import { ProjectPath } from "@/types/code";
+import { CodebasePath, CodebaseFile } from "@/types/ontology/code";
 
-const PROJECT_SERVER_URL = process.env.NEXT_PUBLIC_PROJECT_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// Fetcher function for getting the codebase tree
-async function fetchCodebaseTree(projectId: UUID, token: string): Promise<ProjectPath> {
-  const response = await fetch(
-    `${PROJECT_SERVER_URL}/code/codebase-tree?project_id=${projectId}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    }
-  );
+// Fetch codebase tree
+async function fetchCodebaseTree(
+  token: string,
+  mountGroupId: UUID
+): Promise<CodebasePath> {
+  const response = await fetch(`${API_URL}/codebase/${mountGroupId}/tree`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch codebase tree: ${response.statusText}`);
+    const errorText = await response.text();
+    console.error("Failed to fetch codebase tree", errorText);
+    throw new Error(`Failed to fetch codebase tree: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
-  return snakeToCamelKeys(data) as ProjectPath;
+  return snakeToCamelKeys(data) as CodebasePath;
 }
 
-// Fetcher function for getting a specific file
+// Fetch codebase file
 async function fetchCodebaseFile(
-  projectId: UUID,
-  filePath: string,
-  token: string
-): Promise<string> {
+  token: string,
+  mountGroupId: UUID,
+  filePath: string
+): Promise<CodebaseFile> {
+  const params = new URLSearchParams({ file_path: filePath });
   const response = await fetch(
-    `${PROJECT_SERVER_URL}/code/codebase-file?project_id=${projectId}&file_path=${encodeURIComponent(filePath)}`,
+    `${API_URL}/codebase/${mountGroupId}/file?${params.toString()}`,
     {
-      method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -45,42 +46,55 @@ async function fetchCodebaseFile(
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch file: ${response.statusText}`);
+    const errorText = await response.text();
+    console.error("Failed to fetch codebase file", errorText);
+    throw new Error(`Failed to fetch codebase file: ${response.status} ${errorText}`);
   }
 
-  return response.text();
+  const data = await response.json();
+  return snakeToCamelKeys(data) as CodebaseFile;
 }
 
 // Hook for getting the codebase tree
-export const useCodebaseTree = (projectId: UUID | null) => {
+export const useCodebaseTree = (mountGroupId: UUID | null) => {
   const { data: session } = useSession();
-
-  const { data: codebaseTree, error, mutate } = useSWR<ProjectPath | null>(
-    session && projectId ? ["codebaseTree", projectId] : null,
-    () => fetchCodebaseTree(projectId!, session!.APIToken.accessToken),
+  
+  const { data, mutate, error, isLoading } = useSWR(
+    session && mountGroupId ? ["codebase-tree", mountGroupId] : null,
+    () => fetchCodebaseTree(session!.APIToken.accessToken, mountGroupId!)
   );
 
   return {
-    codebaseTree,
+    codebaseTree: data,
     error,
     mutate,
-    isLoading: !codebaseTree && !error,
+    isLoading,
   };
 };
 
 // Hook for getting a specific file from the codebase
-export const useCodebaseFile = (projectId: UUID | null, filePath: string | null) => {
+export const useCodebaseFile = (
+  mountGroupId: UUID | null,
+  filePath: string | null
+) => {
   const { data: session } = useSession();
-
-  const { data: fileContent, error, mutate } = useSWR<string | null>(
-    session && projectId && filePath ? ["codebaseFile", projectId, filePath] : null,
-    () => fetchCodebaseFile(projectId!, filePath!, session!.APIToken.accessToken),
+  
+  const { data, mutate, error, isLoading } = useSWR(
+    session && mountGroupId && filePath
+      ? ["codebase-file", mountGroupId, filePath]
+      : null,
+    () =>
+      fetchCodebaseFile(
+        session!.APIToken.accessToken,
+        mountGroupId!,
+        filePath!
+      )
   );
 
   return {
-    fileContent,
+    fileContent: data?.content ?? null,
     error,
     mutate,
-    isLoading: !fileContent && !error && filePath !== null,
+    isLoading,
   };
 };
