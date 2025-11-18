@@ -26,7 +26,7 @@ CODEBASE_DIR = Path("/app/exp")
 SANDBOX_PYPROJECT_HOST_PATH = Path(
     "/Users/eiriksteen/Personal/project/kvasir-research/src/kvasir_research/sandbox/pyproject.toml")
 SANDBOX_PYPROJECT_PATH = Path(
-    "/app/src/kvasir_research/sandbox/pyproject.toml")
+    "/app/kvasir-research/src/kvasir_research/sandbox/pyproject.toml")
 
 
 READABLE_EXTENSIONS = {
@@ -46,5 +46,6 @@ PROJECTS_HOST_DIR = Path(
 MODAL_APP_NAME = "kvasir-research"
 MODAL_PROJECTS_DIR = Path("/projects")
 
-SANDBOX_DOCKERFILE_PATH = Path("/app/src/kvasir_research/sandbox/Dockerfile")
+SANDBOX_DOCKERFILE_PATH = Path(
+    "/app/kvasir-research/src/kvasir_research/sandbox/Dockerfile")
 SANDBOX_INTERNAL_SCRIPT_DIR = Path("/app/internal")

@@ -30,13 +30,12 @@ chart_agent = Agent[ChartDeps, ChartAgentOutput](
 
 @chart_agent.system_prompt
 async def chart_agent_system_prompt(ctx: RunContext[ChartDeps]) -> str:
-    if not ctx.deps:
+    if ctx.deps is None:
         return CHART_AGENT_SYSTEM_PROMPT
 
-    # Get entity descriptions using the shared utility
-    entities_description = await ctx.deps.callbacks.ontology.describe_entities(
-        [*ctx.deps.datasets_injected, *ctx.deps.data_sources_injected]
-    )
+    # Get entity descriptions
+    entity_ids = [*ctx.deps.datasets_injected, *ctx.deps.data_sources_injected]
+    entities_description = await ctx.deps.ontology.describe_entities(entity_ids)
 
     env_description = ctx.deps.sandbox.get_pyproject_for_env_description()
     folder_structure_description = await ctx.deps.sandbox.get_folder_structure()
@@ -75,6 +74,7 @@ class ChartAgentV1(AbstractAgent):
 
     def __init__(
         self,
+        user_id: UUID,
         project_id: UUID,
         package_name: str,
         sandbox_type: Literal["local", "modal"],
@@ -83,10 +83,18 @@ class ChartAgentV1(AbstractAgent):
         data_sources_injected: List[UUID] = None,
         base_code: Optional[str] = None,
         object_group: Optional[ObjectGroup] = None,
-        run_id: Optional[UUID] = None
+        run_id: Optional[UUID] = None,
+        bearer_token: Optional[str] = None
     ):
-        super().__init__(run_id=run_id, project_id=project_id, package_name=package_name,
-                         sandbox_type=sandbox_type, callbacks=callbacks)
+        super().__init__(
+            user_id=user_id,
+            project_id=project_id,
+            package_name=package_name,
+            sandbox_type=sandbox_type,
+            callbacks=callbacks,
+            bearer_token=bearer_token,
+            run_id=run_id
+        )
         self.datasets_injected = datasets_injected or []
         self.data_sources_injected = data_sources_injected or []
         self.base_code = base_code
@@ -95,19 +103,21 @@ class ChartAgentV1(AbstractAgent):
     async def __call__(self, prompt: str) -> ChartAgentOutput:
         try:
             if self.run_id is None:
-                self.run_id = await self.callbacks.create_run(run_type="chart")
+                self.run_id = await self.callbacks.create_run(self.user_id, self.project_id, run_type="chart")
 
             await self.callbacks.set_run_status(self.run_id, "running")
 
             deps = ChartDeps(
                 project_id=self.project_id,
                 package_name=self.package_name,
+                user_id=self.user_id,
                 sandbox_type=self.sandbox_type,
                 datasets_injected=self.datasets_injected,
                 data_sources_injected=self.data_sources_injected,
                 base_code=self.base_code,
                 object_group=self.object_group,
-                callbacks=self.callbacks
+                callbacks=self.callbacks,
+                bearer_token=self.bearer_token
             )
 
             response = await chart_agent.run(

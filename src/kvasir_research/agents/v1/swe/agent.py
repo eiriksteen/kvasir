@@ -13,6 +13,7 @@ from kvasir_research.agents.v1.swe.tools import swe_toolset
 from kvasir_research.agents.v1.swe.output import submit_implementation_results, submit_message_to_orchestrator
 from kvasir_research.agents.abstract_agent import AbstractAgent
 from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
+from kvasir_ontology.ontology import Ontology
 
 
 model = get_model()
@@ -73,18 +74,22 @@ class SweAgentV1(AbstractAgent):
 
     def __init__(
         self,
+        user_id: UUID,
         project_id: UUID,
         package_name: str,
         sandbox_type: Literal["local", "modal"],
         callbacks: KvasirV1Callbacks,
+        bearer_token: Optional[str] = None,
         run_id: Optional[UUID] = None
     ):
         super().__init__(
-            run_id=run_id,
+            user_id=user_id,
             project_id=project_id,
             package_name=package_name,
             sandbox_type=sandbox_type,
             callbacks=callbacks,
+            bearer_token=bearer_token,
+            run_id=run_id
         )
         self.callbacks = callbacks
         self._deps: Optional[SWEDeps] = None
@@ -100,22 +105,25 @@ class SweAgentV1(AbstractAgent):
         guidelines: List[SUPPORTED_TASKS_LITERAL] = None,
     ) -> SWEDeps:
         if self.run_id is None:
-            self.run_id = await self.callbacks.create_run(run_type="swe")
+            self.run_id = await self.callbacks.create_run(self.user_id, self.project_id, run_type="swe")
 
         deps = SWEDeps(
             run_id=self.run_id,
             run_name=run_name,
             project_id=self.project_id,
             package_name=self.package_name,
+            user_id=self.user_id,
             data_paths=data_paths,
             injected_analyses=injected_analyses,
             injected_swe_runs=injected_swe_runs,
             read_only_paths=read_only_paths,
             time_limit=time_limit,
+            ontology=self.ontology,
             guidelines=guidelines or [],
             modified_files={},
             sandbox_type=self.sandbox_type,
             callbacks=self.callbacks,
+            bearer_token=self.bearer_token,
         )
         self._deps = deps
         return deps
@@ -136,7 +144,7 @@ class SweAgentV1(AbstractAgent):
         if not deps_dict or "run_id" not in deps_dict:
             raise ValueError(f"SWE run {run_id} not found")
 
-        deps = _swe_dict_to_deps(deps_dict, self.callbacks)
+        deps = _swe_dict_to_deps(deps_dict, self.callbacks, self.ontology)
 
         # Apply overrides if provided
         if guidelines is not None:
@@ -208,6 +216,8 @@ def _swe_deps_to_dict(deps: SWEDeps) -> Dict:
         "run_name": deps.run_name,
         "project_id": str(deps.project_id),
         "package_name": deps.package_name,
+        "user_id": str(deps.user_id) if deps.user_id else None,
+        "bearer_token": deps.bearer_token,
         "data_paths": deps.data_paths,
         "injected_analyses": injected_analyses_str,
         "injected_swe_runs": injected_swe_runs_str,
@@ -219,7 +229,7 @@ def _swe_deps_to_dict(deps: SWEDeps) -> Dict:
     }
 
 
-def _swe_dict_to_deps(deps_dict: Dict, callbacks: KvasirV1Callbacks) -> SWEDeps:
+def _swe_dict_to_deps(deps_dict: Dict, callbacks: KvasirV1Callbacks, ontology: Ontology) -> SWEDeps:
     run_name = deps_dict.get("run_name", deps_dict.get("run_id"))
     try:
         run_uuid = UUID(deps_dict["run_id"])
@@ -264,14 +274,18 @@ def _swe_dict_to_deps(deps_dict: Dict, callbacks: KvasirV1Callbacks) -> SWEDeps:
         run_name=run_name,
         project_id=UUID(deps_dict["project_id"]),
         package_name=deps_dict["package_name"],
+        user_id=UUID(deps_dict["user_id"]) if deps_dict.get(
+            "user_id") else None,
         data_paths=deps_dict["data_paths"],
         injected_analyses=injected_analyses_uuids,
         injected_swe_runs=injected_swe_runs_uuids,
         read_only_paths=deps_dict.get("read_only_paths", []),
         time_limit=deps_dict["time_limit"],
+        ontology=ontology,
         guidelines=deps_dict.get("guidelines", []),
         modified_files=deps_dict.get("modified_files", {}),
         sandbox_type=deps_dict.get("sandbox_type", "local"),
         callbacks=callbacks,
+        bearer_token=deps_dict.get("bearer_token"),
     )
     return deps

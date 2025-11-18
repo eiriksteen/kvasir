@@ -54,8 +54,8 @@ class LocalSandbox(AbstractSandbox):
             )
             container.start()
 
-    async def setup_project(self, package_name: str) -> Path:
-        create_empty_project_package_local(self.project_id, package_name)
+    async def setup_project(self) -> Path:
+        create_empty_project_package_local(self.project_id, self.package_name)
 
         _, err = await self.run_shell_code(
             "pip install -e ."
@@ -65,7 +65,7 @@ class LocalSandbox(AbstractSandbox):
             raise RuntimeError(
                 f"Failed to install package in container: {err}")
 
-        return Path(f"/app/{package_name}")
+        return Path(f"/app/{self.package_name}")
 
     async def delete_container_if_exists(self):
         docker_client = docker.from_env()

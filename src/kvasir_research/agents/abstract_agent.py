@@ -26,17 +26,25 @@ class AbstractAgentOutput(BaseModel):
 class AbstractAgent(ABC):
     def __init__(
         self,
+        user_id: UUID,
         project_id: UUID,
         package_name: str,
         sandbox_type: Literal["local", "modal"],
         callbacks: AbstractCallbacks,
+        bearer_token: Optional[str] = None,
         run_id: Optional[UUID] = None
     ):
         self.run_id = run_id
+        self.user_id = user_id
         self.project_id = project_id
         self.package_name = package_name
         self.sandbox_type = sandbox_type
+        self.bearer_token = bearer_token
         self.callbacks = callbacks
+
+        # Create ontology using callbacks factory (project_id is used as mount_group_id)
+        self.ontology = self.callbacks.create_ontology(
+            user_id, project_id, bearer_token)
 
         if self.sandbox_type == "local":
             self.sandbox = LocalSandbox(project_id, package_name)

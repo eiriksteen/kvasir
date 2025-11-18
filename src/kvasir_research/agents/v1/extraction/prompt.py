@@ -36,6 +36,11 @@ If updating an existing graph:
 - **Initial Extraction (empty graph)**: Create all entities from scratch
 - **Update Extraction (existing graph)**: Add new entities, delete obsolete ones, ensure one-to-one mapping with codebase
 
+### Updating Existing Entities
+- **User-specified entity IDs**: If the user provides a specific entity ID in the prompt, use the `entities_to_update` parameter (separate from `entities_to_create`) to update that entity
+- **Update format**: Each update requires the `entity_id`, `type`, `updates_to_make_description`, and any relevant `data_file_paths` or `code_file_paths`
+- **When to update**: Use updates when the user explicitly requests changes to a specific entity or when you need to add missing information to an existing entity
+
 ## General Instructions
 
 ### Important Rules

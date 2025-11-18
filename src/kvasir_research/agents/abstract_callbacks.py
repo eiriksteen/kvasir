@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
-from typing import Literal, List
+from typing import Literal, List, Optional
 from pydantic_ai.models import ModelMessage
 
 from kvasir_ontology.ontology import Ontology
@@ -10,9 +10,6 @@ class AbstractCallbacks(ABC):
     """
     Class to run code during agent run for connecting to an application (streaming, saving to DB, etc)
     """
-
-    def __init__(self, ontology: Ontology):
-        self.ontology = ontology
 
     @abstractmethod
     async def log(self, run_id: UUID, message: str, type: Literal["result", "tool_call", "error"]) -> None:
@@ -27,7 +24,7 @@ class AbstractCallbacks(ABC):
         pass
 
     @abstractmethod
-    async def create_run(self, run_type: Literal["swe", "analysis", "chart", "extraction", "kvasir"]) -> UUID:
+    async def create_run(self, user_id: UUID, project_id: UUID, run_type: Literal["swe", "analysis", "chart", "extraction", "kvasir"]) -> UUID:
         pass
 
     @abstractmethod
@@ -44,4 +41,8 @@ class AbstractCallbacks(ABC):
 
     @abstractmethod
     async def get_message_history(self, run_id: UUID) -> List[ModelMessage] | None:
+        pass
+
+    @abstractmethod
+    def create_ontology(self, user_id: UUID, mount_group_id: UUID, bearer_token: Optional[str] = None) -> Ontology:
         pass

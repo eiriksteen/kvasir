@@ -11,6 +11,12 @@ You will have the tools to:
 - Execute code cells - NB: Include prints if you want to see outputs. We curently don't have support for showing you plots, make do with the terminal output.  
 - Write markdown cells. This can be used for interpretation, explanation, planning, and more, before and after code cells. 
 
+Organization:
+You must organize your analysis into sections. When creating a cell:
+- Use `new_section_name` to start a new section (e.g., "Data Loading", "Exploratory Analysis", "Findings").
+- Use `section_id` to add cells to an existing section.
+- Structure your analysis logically with clear section boundaries.
+
 NB: 
 We will concatenate all cells you execute into a single script, and when running a cell you will have access to the previous cells', but not the following cells', variables and functions. 
 Keep this in mind for naming. 

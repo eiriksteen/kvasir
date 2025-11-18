@@ -1,29 +1,12 @@
-import uuid
+from uuid import UUID
 from dataclasses import dataclass, field
-from typing import List, Literal
+from typing import List
 
-from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
-from kvasir_research.sandbox.local import LocalSandbox
-from kvasir_research.sandbox.modal import ModalSandbox
-from kvasir_research.sandbox.abstract import AbstractSandbox
 from kvasir_ontology.entities.dataset.data_model import Dataset
+from kvasir_research.agents.v1.deps import AgentDepsFull
 
 
-@dataclass
-class ExtractionDeps:
-    package_name: str
-    run_id: uuid.UUID
-    project_id: uuid.UUID
-    callbacks: KvasirV1Callbacks
+@dataclass(kw_only=True)
+class ExtractionDeps(AgentDepsFull):
     created_datasets: List[Dataset] = field(default_factory=list)
-    object_groups_with_charts: List[uuid.UUID] = field(default_factory=list)
-    sandbox: AbstractSandbox = field(init=False)
-    sandbox_type: Literal["local", "modal"] = "local"
-
-    def __post_init__(self):
-        if self.sandbox_type == "local":
-            self.sandbox = LocalSandbox(self.project_id, self.package_name)
-        elif self.sandbox_type == "modal":
-            self.sandbox = ModalSandbox(self.project_id, self.package_name)
-        else:
-            raise ValueError(f"Invalid sandbox type: {self.sandbox_type}")
+    object_groups_with_charts: List[UUID] = field(default_factory=list)

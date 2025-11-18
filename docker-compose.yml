@@ -1,35 +1,36 @@
 version: '3.8'
 
 services:
-  redis:
-    image: redis:7-alpine
-    container_name: kvasir-research-redis
-    ports:
-      - "6379:6379"
-    networks:
-      - kvasir-backend
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: kvasir-research-redis
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     - kvasir-backend
+  #   volumes:
+  #     - redis_data:/data
+  #   command: redis-server --appendonly yes
 
   experiments: &base-service
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: kvasir-research/Dockerfile
     image: kvasir-research:latest
     container_name: kvasir-research-experiments
     command: ["tail", "-f", "/dev/null"]
     networks:
       - kvasir-backend
-    depends_on:
-      - redis
+    # depends_on:
+    #   - redis
+    working_dir: /app/kvasir-research
     volumes: &shared-volumes
       - type: bind
-        source: ./src
-        target: /app/src
+        source: .
+        target: /app/kvasir-research
       - type: bind
-        source: ./scripts
-        target: /app/scripts
+        source: ../kvasir-ontology
+        target: /app/kvasir-ontology
       - type: bind
         source: /var/run/docker.sock
         target: /var/run/docker.sock
@@ -48,10 +49,10 @@ services:
   taskiq-worker:
     <<: *base-service
     container_name: kvasir-research-v1-worker
-    command: ["sh", "-c", "cd /app && taskiq worker kvasir_research.agents.v1.broker:kvasir_v1_broker --tasks-pattern 'scripts/*.py' -fsd"]
+    command: ["sh", "-c", "cd /app/kvasir-research/src && taskiq worker kvasir_research.agents.v1.broker:v1_broker --tasks-pattern '**/*agent.py' -fsd --reload"]
 
-volumes:
-  redis_data:
+# volumes:
+#   redis_data:
 
 networks:
   kvasir-backend:

@@ -27,6 +27,9 @@ def create_empty_project_package_local(project_id: UUID, package_name: str) -> P
 class AbstractSandbox(ABC):
     @abstractmethod
     def __init__(self, project_id: UUID, package_name: str, image_name: str = "research-sandbox"):
+        self.project_id = project_id
+        self.package_name = package_name
+        self.image_name = image_name
         pass
 
     @abstractmethod
@@ -34,7 +37,11 @@ class AbstractSandbox(ABC):
         pass
 
     @abstractmethod
-    async def setup_project(self, package_name: str) -> Path:
+    async def reload_container(self) -> None:
+        pass
+
+    @abstractmethod
+    async def setup_project(self) -> Path:
         pass
 
     @abstractmethod

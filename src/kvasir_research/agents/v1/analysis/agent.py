@@ -56,18 +56,22 @@ class AnalysisAgentV1(AbstractAgent):
 
     def __init__(
         self,
+        user_id: UUID,
         project_id: UUID,
         package_name: str,
         sandbox_type: Literal["local", "modal"],
         callbacks: KvasirV1Callbacks,
+        bearer_token: Optional[str] = None,
         run_id: Optional[UUID] = None
     ):
         super().__init__(
-            run_id=run_id,
+            user_id=user_id,
             project_id=project_id,
             package_name=package_name,
             sandbox_type=sandbox_type,
             callbacks=callbacks,
+            bearer_token=bearer_token,
+            run_id=run_id
         )
         self.callbacks = callbacks
         self._deps: Optional[AnalysisDeps] = None
@@ -81,7 +85,7 @@ class AnalysisAgentV1(AbstractAgent):
         guidelines: List[SUPPORTED_TASKS_LITERAL] = None,
     ) -> AnalysisDeps:
         if self.run_id is None:
-            self.run_id = await self.callbacks.create_run(run_type="analysis")
+            self.run_id = await self.callbacks.create_run(self.user_id, self.project_id, run_type="analysis")
 
         deps = AnalysisDeps(
             run_id=self.run_id,
@@ -93,6 +97,7 @@ class AnalysisAgentV1(AbstractAgent):
             time_limit=time_limit,
             guidelines=guidelines or [],
             notebook=OrderedDict(),
+            ontology=self.ontology,
             sandbox_type=self.sandbox_type,
             callbacks=self.callbacks,
         )
@@ -113,7 +118,7 @@ class AnalysisAgentV1(AbstractAgent):
         if not deps_dict or "run_id" not in deps_dict:
             raise ValueError(f"Analysis run {run_id} not found")
 
-        deps = _analysis_dict_to_deps(deps_dict, self.callbacks)
+        deps = _analysis_dict_to_deps(deps_dict, self.callbacks, self.ontology)
 
         # Apply overrides if provided
         if guidelines is not None:
@@ -141,7 +146,6 @@ class AnalysisAgentV1(AbstractAgent):
 
             deps = self._deps
 
-            # Apply overrides if provided
             if guidelines is not None:
                 deps.guidelines = guidelines
             if time_limit is not None:
@@ -195,6 +199,8 @@ def _analysis_deps_to_dict(deps: AnalysisDeps) -> Dict:
         "run_name": deps.run_name,
         "project_id": str(deps.project_id),
         "package_name": deps.package_name,
+        "user_id": str(deps.user_id) if deps.user_id else None,
+        "bearer_token": deps.bearer_token,
         "data_paths": deps.data_paths,
         "injected_analyses": injected_analyses_str,
         "time_limit": deps.time_limit,
@@ -204,7 +210,7 @@ def _analysis_deps_to_dict(deps: AnalysisDeps) -> Dict:
     }
 
 
-def _analysis_dict_to_deps(deps_dict: Dict, callbacks: KvasirV1Callbacks) -> AnalysisDeps:
+def _analysis_dict_to_deps(deps_dict: Dict, callbacks: KvasirV1Callbacks, ontology: Ontology) -> AnalysisDeps:
     notebook_raw = deps_dict.get("notebook", {})
     notebook = OrderedDict()
     for k, v in notebook_raw.items():
@@ -242,12 +248,16 @@ def _analysis_dict_to_deps(deps_dict: Dict, callbacks: KvasirV1Callbacks) -> Ana
         run_name=run_name,
         project_id=UUID(deps_dict["project_id"]),
         package_name=deps_dict["package_name"],
+        user_id=UUID(deps_dict["user_id"]) if deps_dict.get(
+            "user_id") else None,
         data_paths=deps_dict["data_paths"],
         injected_analyses=injected_analyses_uuids,
         time_limit=deps_dict["time_limit"],
         notebook=notebook,
+        ontology=ontology,
         guidelines=deps_dict.get("guidelines", []),
         sandbox_type=deps_dict.get("sandbox_type", "local"),
-        callbacks=callbacks
+        callbacks=callbacks,
+        bearer_token=deps_dict.get("bearer_token")
     )
     return deps

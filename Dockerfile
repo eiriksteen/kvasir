@@ -15,13 +15,17 @@ RUN apt-get update && apt-get install -y \
     && apt-get install -y docker-ce-cli \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only pyproject.toml first for better caching
-COPY pyproject.toml .
+# Copy kvasir-research directory for installation
+COPY kvasir-research /app/kvasir-research
 
-# Create minimal src structure for pip install
-RUN mkdir -p src/kvasir_research && \
-    touch src/kvasir_research/__init__.py
+# Copy kvasir-ontology directory for installation
+COPY kvasir-ontology /app/kvasir-ontology
 
-# Install package in editable mode (dependencies get cached)
+# Install kvasir-ontology in editable mode
+WORKDIR /app/kvasir-ontology
+RUN pip install --no-cache-dir -e .
+
+# Install kvasir-research in editable mode
+WORKDIR /app/kvasir-research
 RUN pip install --no-cache-dir -e .
 

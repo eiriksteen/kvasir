@@ -1,14 +1,39 @@
-from uuid import UUID
-from typing import Literal, Dict, Tuple
+import uuid
+from typing import Literal, Dict, Tuple, Optional
 from pydantic_ai import RunContext, ModelRetry, FunctionToolset
 
 
 from kvasir_research.utils.code_utils import remove_print_statements_from_code
 from kvasir_research.agents.v1.analysis.deps import AnalysisDeps
 from kvasir_research.agents.v1.analysis.utils import notebook_to_string
+from kvasir_ontology.entities.analysis.data_model import SectionCreate, CodeCellCreate, MarkdownCellCreate, CodeOutputCreate
 
 
-async def create_or_replace_cell(ctx: RunContext[AnalysisDeps], content: str, name: str, cell_type: Literal["code", "markdown"]) -> str:
+async def create_or_replace_cell(
+    ctx: RunContext[AnalysisDeps],
+    content: str,
+    name: str,
+    cell_type: Literal["code", "markdown"],
+    section_id: Optional[uuid.UUID] = None,
+    new_section_name: Optional[str] = None,
+) -> str:
+
+    if section_id is None and new_section_name is None:
+        raise ModelRetry(
+            "Either section_id or new_section_name must be provided")
+
+    elif not section_id:
+        section_obj = await ctx.deps.ontology.analyses.create_section(SectionCreate(
+            name=new_section_name,
+            analysis_id=ctx.deps.project_id,
+            description=None,
+            code_cells_create=[],
+            markdown_cells_create=[]
+        ))
+
+        await ctx.deps.ontology.analyses.write_to_analysis_stream(ctx.deps.run_id, section_obj)
+        section_id = section_obj.id
+
     await ctx.deps.callbacks.log(ctx.deps.run_id,
                                  f"Analysis Agent [{ctx.deps.run_name}] create_or_replace_cell called: name={name}, cell_type={cell_type}, content_length={len(content)} chars", "tool_call")
 
@@ -32,9 +57,27 @@ async def create_or_replace_cell(ctx: RunContext[AnalysisDeps], content: str, na
 
         ctx.deps.notebook[name] = (cell_type, content)
         ctx.deps.notebook[f"{name}_output"] = ("output", out)
+
+        analysis_cell = await ctx.deps.ontology.analyses.create_code_cell(CodeCellCreate(
+            section_id=section_id,
+            code=content,
+            order=len(ctx.deps.notebook),
+            output=CodeOutputCreate(
+                output=out,
+                # TODO: Add charts and shit
+            )
+        ))
+
     else:
         ctx.deps.notebook[name] = (cell_type, content)
 
+        analysis_cell = await ctx.deps.ontology.analyses.create_markdown_cell(MarkdownCellCreate(
+            section_id=section_id,
+            markdown=content,
+            order=len(ctx.deps.notebook)
+        ))
+
+    await ctx.deps.ontology.analyses.write_to_analysis_stream(ctx.deps.run_id, analysis_cell)
     await ctx.deps.callbacks.log(ctx.deps.run_id,
                                  f"Analysis Agent [{ctx.deps.run_name}] create_or_replace_cell completed: name={name}, total_cells={len(ctx.deps.notebook)}", "tool_call")
 
@@ -48,7 +91,14 @@ async def delete_cell(ctx: RunContext[AnalysisDeps], cell_name: str) -> str:
     await ctx.deps.callbacks.log(ctx.deps.run_id,
                                  f"Analysis Agent [{ctx.deps.run_name}] delete_cell called: cell_name={cell_name}", "tool_call")
 
+    if cell_name not in ctx.deps.notebook:
+        raise ModelRetry(
+            f"Cell '{cell_name}' does not exist in the notebook. Available cells: {list(ctx.deps.notebook.keys())}")
+
     del ctx.deps.notebook[cell_name]
+    output_cell_name = f"{cell_name}_output"
+    if output_cell_name in ctx.deps.notebook:
+        del ctx.deps.notebook[output_cell_name]
 
     result = notebook_to_string(
         ctx.deps.notebook, ctx.deps.run_id, ctx.deps.run_name)

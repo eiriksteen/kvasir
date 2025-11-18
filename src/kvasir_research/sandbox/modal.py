@@ -22,7 +22,6 @@ class ModalSandbox(AbstractSandbox):
         self.workdir = f"/app/{package_name}"
         self.vol = modal.Volume.from_name(
             str(project_id), create_if_missing=True)
-        self.project_dir = MODAL_PROJECTS_DIR / str(self.project_id)
         self.sb: modal.Sandbox | None = None
         self.create_container_if_not_exists()
 
@@ -32,13 +31,6 @@ class ModalSandbox(AbstractSandbox):
                 self.sb = modal.Sandbox.from_name(
                     MODAL_APP_NAME, str(self.project_id))
             except modal.exception.NotFoundError:
-                try:
-                    with self.vol.batch_upload() as batch:
-                        batch.put_directory(f"{PROJECTS_DIR}/",
-                                            f"/{PROJECTS_DIR.name}")
-                except FileExistsError:
-                    pass
-
                 sandbox_image = modal.Image.from_dockerfile(
                     str(SANDBOX_DOCKERFILE_PATH))
                 self.sb = modal.Sandbox.create(
@@ -49,9 +41,34 @@ class ModalSandbox(AbstractSandbox):
                     timeout=24*60*60  # 24 hours
                 )
 
-    async def setup_project(self, package_name: str) -> Path:
+    async def reload_container(self) -> None:
+        await self.sb.terminate.aio()
+        await self.sb.wait.aio(raise_on_termination=False)
+        sandbox_image = modal.Image.from_dockerfile(
+            str(SANDBOX_DOCKERFILE_PATH))
+        self.sb = await modal.Sandbox.create.aio(
+            image=sandbox_image,
+            app=app,
+            name=str(self.project_id),
+            volumes={"/app": self.vol}
+        )
+
+    # def reload_container_sync(self) -> None:
+    #     self.sb.terminate()
+    #     self.sb.wait(raise_on_termination=False)
+    #     sandbox_image = modal.Image.from_dockerfile(
+    #         str(SANDBOX_DOCKERFILE_PATH))
+
+    #     self.sb = modal.Sandbox.create(
+    #         image=sandbox_image,
+    #         app=app,
+    #         name=str(self.project_id),
+    #         volumes={"/app": self.vol}
+    #     )
+
+    async def setup_project(self) -> Path:
         local_project_package_dir = create_empty_project_package_local(
-            self.project_id, package_name)
+            self.project_id, self.package_name)
 
         try:
             def _upload_directory():
@@ -77,13 +94,13 @@ class ModalSandbox(AbstractSandbox):
         finally:
             shutil.rmtree(local_project_package_dir)
 
-        _, err = await self.run_shell_code("pip install -e .")
+        # # Reload to reflect changes
+        # await self.reload_container()
 
-        if err:
-            raise RuntimeError(
-                f"Failed to install package in container: {err}")
+        # Run pip install as a background task
+        asyncio.create_task(self.run_shell_code("pip install -e ."))
 
-        return Path(f"/app/{package_name}")
+        return Path(f"/app/{self.package_name}")
 
     async def delete_container_if_exists(self):
         if self.sb:

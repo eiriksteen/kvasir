@@ -1,5 +1,5 @@
 from typing import List
-from uuid import uuid4, UUID
+from uuid import UUID
 from pydantic import BaseModel
 from pydantic_ai import RunContext
 from pydantic_ai.exceptions import ModelRetry
@@ -16,10 +16,6 @@ class AnalysisRunToLaunch(BaseModel):
     analyses_to_inject: List[UUID] = []
     guidelines: List[SUPPORTED_TASKS_LITERAL] = []
     time_limit: int
-
-
-class AnalysisRunToLaunchWithId(AnalysisRunToLaunch):
-    run_id: UUID
 
 
 class AnalysisRunToResume(BaseModel):
@@ -40,10 +36,6 @@ class SWERunToLaunch(BaseModel):
     time_limit: int
 
 
-class SWERunToLaunchWithId(SWERunToLaunch):
-    run_id: UUID
-
-
 class SWERunToResume(BaseModel):
     run_id: UUID
     message: str
@@ -59,14 +51,7 @@ class OrchestratorOutput(AbstractAgentOutput):
     completed: bool = False
 
 
-class OrchestratorOutputWithIds(OrchestratorOutput):
-    analysis_runs_to_launch: List[AnalysisRunToLaunchWithId] = []
-    analysis_runs_to_resume: List[AnalysisRunToResume] = []
-    swe_runs_to_launch: List[SWERunToLaunchWithId] = []
-    swe_runs_to_resume: List[SWERunToResume] = []
-
-
-async def submit_kvasir_response(ctx: RunContext[KvasirV1Deps], output: OrchestratorOutput) -> OrchestratorOutputWithIds:
+async def submit_kvasir_response(ctx: RunContext[KvasirV1Deps], output: OrchestratorOutput) -> OrchestratorOutput:
     # Validate that resumed runs are in the correct launched run lists
     for analysis_run_to_resume in output.analysis_runs_to_resume:
         if analysis_run_to_resume.run_id not in ctx.deps.launched_analysis_run_ids:
@@ -86,23 +71,4 @@ async def submit_kvasir_response(ctx: RunContext[KvasirV1Deps], output: Orchestr
             raise ModelRetry(
                 f"SWE run {swe_run_to_resume.run_id} not in launched SWE run IDs list. Full IDs must be used, choose between {ctx.deps.launched_swe_run_ids}")
 
-    final_output = OrchestratorOutputWithIds(
-        **{**output.model_dump(), "analysis_runs_to_launch": [], "swe_runs_to_launch": []}
-    )
-
-    for analysis_run_to_launch in output.analysis_runs_to_launch:
-        analysis_run_with_id = AnalysisRunToLaunchWithId(
-            run_id=uuid4(),
-            **analysis_run_to_launch.model_dump()
-        )
-        final_output.analysis_runs_to_launch.append(analysis_run_with_id)
-        ctx.deps.launched_analysis_run_ids.append(analysis_run_with_id.run_id)
-    for swe_run_to_launch in output.swe_runs_to_launch:
-        swe_run_with_id = SWERunToLaunchWithId(
-            run_id=uuid4(),
-            **swe_run_to_launch.model_dump()
-        )
-        final_output.swe_runs_to_launch.append(swe_run_with_id)
-        ctx.deps.launched_swe_run_ids.append(swe_run_with_id.run_id)
-
-    return final_output
+    return output

@@ -1,22 +1,12 @@
 from uuid import UUID
 from typing import List, Dict
 from abc import abstractmethod
-from taskiq import TaskiqState, TaskiqEvents
 
 from kvasir_research.agents.abstract_callbacks import AbstractCallbacks
 from kvasir_research.agents.v1.broker import v1_broker
 
 
 class KvasirV1Callbacks(AbstractCallbacks):
-
-    def __init_subclass__(cls) -> None:
-        super().__init_subclass__()
-
-        def startup(state: TaskiqState) -> None:
-            state.callbacks = cls()
-
-        v1_broker.add_event_handler(
-            TaskiqEvents.WORKER_STARTUP, startup)
 
     @abstractmethod
     async def get_results_queue(self, run_id: UUID) -> List[str]:

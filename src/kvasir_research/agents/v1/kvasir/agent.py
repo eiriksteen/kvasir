@@ -11,44 +11,35 @@ from kvasir_research.agents.v1.kvasir.knowledge_bank import SUPPORTED_TASKS_LITE
 from kvasir_research.agents.v1.analysis.agent import AnalysisAgentV1
 from kvasir_research.agents.v1.swe.agent import SweAgentV1
 from kvasir_research.agents.v1.kvasir.deps import KvasirV1Deps
-from kvasir_research.agents.v1.kvasir.output import OrchestratorOutput, OrchestratorOutputWithIds, submit_kvasir_response
+from kvasir_research.agents.v1.kvasir.output import OrchestratorOutput, submit_kvasir_response
 from kvasir_research.agents.abstract_agent import AbstractAgent
 from kvasir_research.utils.agent_utils import get_model
 from kvasir_research.agents.v1.shared_tools import navigation_toolset, knowledge_bank_toolset
 from kvasir_research.agents.v1.kvasir.prompt import KVASIR_V1_SYSTEM_PROMPT
+from kvasir_research.agents.v1.deps import AgentDeps
+from kvasir_ontology.ontology import Ontology
 
 
-@dataclass
-class AnalysisRunToStart:
-    run_id: UUID
-    run_name: str
+@dataclass(kw_only=True)
+class AnalysisRunToStart(AgentDeps):
     orchestrator_id: UUID
     deliverable_description: str
     data_paths: List[str]
     injected_analyses: List[UUID]
     time_limit: int
-    project_id: UUID
-    package_name: str
     guidelines: List[SUPPORTED_TASKS_LITERAL] = field(default_factory=list)
-    sandbox_type: Literal["local", "modal"] = "local"
 
 
-@dataclass
-class AnalysisRunToResume:
-    run_id: UUID
+@dataclass(kw_only=True)
+class AnalysisRunToResume(AgentDeps):
     message: str
     time_limit: int
     orchestrator_id: UUID
-    project_id: UUID
-    package_name: str
     guidelines: List[SUPPORTED_TASKS_LITERAL] = field(default_factory=list)
-    sandbox_type: Literal["local", "modal"] = "local"
 
 
-@dataclass
-class SWERunToStart:
-    run_id: UUID
-    run_name: str
+@dataclass(kw_only=True)
+class SWERunToStart(AgentDeps):
     orchestrator_id: UUID
     deliverable_description: str
     data_paths: List[str]
@@ -56,22 +47,15 @@ class SWERunToStart:
     injected_swe_runs: List[UUID]
     read_only_paths: List[str]
     time_limit: int
-    project_id: UUID
-    package_name: str
     guidelines: List[SUPPORTED_TASKS_LITERAL] = field(default_factory=list)
-    sandbox_type: Literal["local", "modal"] = "local"
 
 
-@dataclass
-class SWERunToResume:
-    run_id: UUID
+@dataclass(kw_only=True)
+class SWERunToResume(AgentDeps):
     message: str
     time_limit: int
     orchestrator_id: UUID
-    project_id: UUID
-    package_name: str
     guidelines: List[SUPPORTED_TASKS_LITERAL] = field(default_factory=list)
-    sandbox_type: Literal["local", "modal"] = "local"
 
 
 @v1_broker.task
@@ -79,11 +63,12 @@ async def _start_swe_run_from_orchestrator(swe_run: SWERunToStart, context: Anno
     callbacks: KvasirV1Callbacks = context.state.callbacks
 
     swe_agent = SweAgentV1(
+        user_id=swe_run.user_id,
         project_id=swe_run.project_id,
         package_name=swe_run.package_name,
         sandbox_type=swe_run.sandbox_type,
         callbacks=callbacks,
-        run_id=swe_run.run_id,
+        bearer_token=swe_run.bearer_token
     )
 
     await swe_agent.create_deps(
@@ -102,11 +87,13 @@ async def _start_swe_run_from_orchestrator(swe_run: SWERunToStart, context: Anno
 
     if await callbacks.get_run_status(swe_run.orchestrator_id) == "waiting":
         kvasir_v1 = KvasirV1(
+            user_id=swe_run.user_id,
             run_id=swe_run.orchestrator_id,
             project_id=swe_run.project_id,
             package_name=swe_run.package_name,
             sandbox_type=swe_run.sandbox_type,
-            callbacks=callbacks
+            callbacks=callbacks,
+            bearer_token=swe_run.bearer_token
         )
         async for _ in kvasir_v1("Continue processing results from the queue."):
             pass
@@ -119,10 +106,12 @@ async def _resume_swe_run_from_orchestrator(swe_run: SWERunToResume, context: An
     callbacks: KvasirV1Callbacks = context.state.callbacks
 
     swe_agent = SweAgentV1(
+        user_id=swe_run.user_id,
         project_id=swe_run.project_id,
         package_name=swe_run.package_name,
         sandbox_type=swe_run.sandbox_type,
         callbacks=callbacks,
+        bearer_token=swe_run.bearer_token,
         run_id=swe_run.run_id,
     )
 
@@ -138,11 +127,13 @@ async def _resume_swe_run_from_orchestrator(swe_run: SWERunToResume, context: An
 
     if await callbacks.get_run_status(swe_run.orchestrator_id) == "waiting":
         kvasir_v1 = KvasirV1(
+            user_id=swe_run.user_id,
             run_id=swe_run.orchestrator_id,
             project_id=swe_run.project_id,
             package_name=swe_run.package_name,
             sandbox_type=swe_run.sandbox_type,
-            callbacks=callbacks
+            callbacks=callbacks,
+            bearer_token=swe_run.bearer_token
         )
         async for _ in kvasir_v1("Continue processing results from the queue."):
             pass
@@ -155,11 +146,12 @@ async def _start_analysis_run_from_orchestrator(analysis_run: AnalysisRunToStart
     callbacks: KvasirV1Callbacks = context.state.callbacks
 
     analysis_agent = AnalysisAgentV1(
+        user_id=analysis_run.user_id,
         project_id=analysis_run.project_id,
         package_name=analysis_run.package_name,
         sandbox_type=analysis_run.sandbox_type,
         callbacks=callbacks,
-        run_id=analysis_run.run_id,
+        bearer_token=analysis_run.bearer_token
     )
 
     await analysis_agent.create_deps(
@@ -176,11 +168,13 @@ async def _start_analysis_run_from_orchestrator(analysis_run: AnalysisRunToStart
 
     if await callbacks.get_run_status(analysis_run.orchestrator_id) == "waiting":
         kvasir_v1 = KvasirV1(
+            user_id=analysis_run.user_id,
             run_id=analysis_run.orchestrator_id,
             project_id=analysis_run.project_id,
             package_name=analysis_run.package_name,
             sandbox_type=analysis_run.sandbox_type,
-            callbacks=callbacks
+            callbacks=callbacks,
+            bearer_token=analysis_run.bearer_token
         )
         async for _ in kvasir_v1("Continue processing results from the queue."):
             pass
@@ -193,10 +187,12 @@ async def _resume_analysis_run_from_orchestrator(analysis_run: AnalysisRunToResu
     callbacks: KvasirV1Callbacks = context.state.callbacks
 
     analysis_agent = AnalysisAgentV1(
+        user_id=analysis_run.user_id,
         project_id=analysis_run.project_id,
         package_name=analysis_run.package_name,
         sandbox_type=analysis_run.sandbox_type,
         callbacks=callbacks,
+        bearer_token=analysis_run.bearer_token,
         run_id=analysis_run.run_id,
     )
 
@@ -212,11 +208,13 @@ async def _resume_analysis_run_from_orchestrator(analysis_run: AnalysisRunToResu
 
     if await callbacks.get_run_status(analysis_run.orchestrator_id) == "waiting":
         kvasir_v1 = KvasirV1(
+            user_id=analysis_run.user_id,
             run_id=analysis_run.orchestrator_id,
             project_id=analysis_run.project_id,
             package_name=analysis_run.package_name,
             sandbox_type=analysis_run.sandbox_type,
-            callbacks=callbacks
+            callbacks=callbacks,
+            bearer_token=analysis_run.bearer_token
         )
         async for _ in kvasir_v1("Continue processing results from the queue."):
             pass
@@ -248,13 +246,18 @@ async def kvasir_v1_system_prompt(ctx: RunContext[KvasirV1Deps]) -> str:
     current_wd = f"ls out:\n{ls}\n\n"
     folder_structure = await ctx.deps.sandbox.get_folder_structure()
     env_description = ctx.deps.sandbox.get_pyproject_for_env_description()
+    project_description = await ctx.deps.ontology.describe_mount_group()
 
     full_system_prompt = (
         f"{KVASIR_V1_SYSTEM_PROMPT}\n\n" +
+        f"Project description: {project_description}\n\n" +
         f"Current working directory: {current_wd}\n\n" +
         f"Folder structure: {folder_structure}\n\n" +
         f"You environment is described by the following pyproject.toml:\n\n<pyproject>\n{env_description}\n</pyproject>\n\n"
     )
+
+    await ctx.deps.callbacks.log(
+        ctx.deps.run_id, f"Kvasir V1 system prompt full:\n\n{full_system_prompt}", "tool_call")
 
     return full_system_prompt
 
@@ -262,13 +265,16 @@ async def kvasir_v1_system_prompt(ctx: RunContext[KvasirV1Deps]) -> str:
 class KvasirV1(AbstractAgent):
     def __init__(
         self,
+        user_id: UUID,
         project_id: UUID,
         package_name: str,
         sandbox_type: Literal["local", "modal"],
         callbacks: KvasirV1Callbacks,
+        bearer_token: Optional[str] = None,
         run_id: Optional[UUID] = None
     ):
-        super().__init__(project_id, package_name, sandbox_type, callbacks, run_id)
+        super().__init__(user_id, project_id, package_name,
+                         sandbox_type, callbacks, bearer_token, run_id)
         self.callbacks = callbacks
 
     async def __call__(self, prompt: str) -> AsyncGenerator[Tuple[OrchestratorOutput, bool], None]:
@@ -277,18 +283,34 @@ class KvasirV1(AbstractAgent):
             await self.callbacks.log(self.run_id, "Running orchestrator...", "tool_call")
 
             if self.run_id is None:
-                self.run_id = await self.callbacks.create_run(run_type="kvasir")
-                await self.sandbox.setup_project(self.package_name)
+                self.run_id = await self.callbacks.create_run(self.user_id, self.project_id, run_type="kvasir")
                 deps = KvasirV1Deps(
                     run_id=self.run_id,
                     project_id=self.project_id,
                     package_name=self.package_name,
-                    sandbox_type=self.sandbox_type
+                    user_id=self.user_id,
+                    ontology=self.ontology,
+                    sandbox_type=self.sandbox_type,
+                    callbacks=self.callbacks,
+                    bearer_token=self.bearer_token
                 )
                 await self.callbacks.save_orchestrator_deps(self.run_id, _orchestrator_deps_to_dict(deps))
             else:
-                deps_dict = await self.callbacks.load_orchestrator_deps(self.run_id)
-                deps = _orchestrator_dict_to_deps(deps_dict, self.callbacks)
+                try:
+                    deps_dict = await self.callbacks.load_orchestrator_deps(self.run_id)
+                    deps = _orchestrator_dict_to_deps(
+                        deps_dict, self.callbacks, self.ontology)
+                except:
+                    deps = KvasirV1Deps(
+                        run_id=self.run_id,
+                        project_id=self.project_id,
+                        package_name=self.package_name,
+                        user_id=self.user_id,
+                        ontology=self.ontology,
+                        sandbox_type=self.sandbox_type,
+                        callbacks=self.callbacks,
+                        bearer_token=self.bearer_token)
+                    await self.callbacks.save_orchestrator_deps(self.run_id, _orchestrator_deps_to_dict(deps))
 
             await self.callbacks.set_run_status(self.run_id, "running")
 
@@ -302,7 +324,6 @@ class KvasirV1(AbstractAgent):
             )
 
             await self.callbacks.log(self.run_id, f"Orchestrator prompt:\n\n{prompt}", "tool_call")
-            await self.callbacks.log(self.run_id, f"Orchestrator message history size: {len(await self.callbacks.get_message_history(self.run_id))}", "tool_call")
 
             while results_queue or first:
                 async with kvasir_v1_agent.run_stream(
@@ -312,7 +333,7 @@ class KvasirV1(AbstractAgent):
                 ) as orchestrator_run:
                     async for message, last in orchestrator_run.stream_responses(debounce_by=0.01):
                         try:
-                            output: OrchestratorOutputWithIds = await orchestrator_run.validate_response_output(
+                            output: OrchestratorOutput = await orchestrator_run.validate_response_output(
                                 message,
                                 allow_partial=not last
                             )
@@ -321,19 +342,20 @@ class KvasirV1(AbstractAgent):
                             continue
 
                 await self.callbacks.save_message_history(self.run_id, orchestrator_run.all_messages())
+                if output is None:
+                    raise RuntimeError(
+                        "No valid output received from orchestrator")
                 await self.callbacks.log(self.run_id, f"Orchestrator output: {output}", "result")
 
                 if output.completed:
                     await self.callbacks.set_run_status(self.run_id, "completed")
                     await self.callbacks.save_orchestrator_deps(self.run_id, _orchestrator_deps_to_dict(deps))
                     await self.callbacks.log(self.run_id, f"Orchestrator completed, cleaning up container for project {deps.project_id}", "result")
-                    await deps.sandbox.delete_container_if_exists()
                     break
 
                 for analysis_run_to_launch in output.analysis_runs_to_launch:
                     await _start_analysis_run_from_orchestrator.kiq(
                         AnalysisRunToStart(
-                            run_id=analysis_run_to_launch.run_id,
                             run_name=analysis_run_to_launch.run_name,
                             orchestrator_id=self.run_id,
                             deliverable_description=analysis_run_to_launch.deliverable_description,
@@ -341,9 +363,11 @@ class KvasirV1(AbstractAgent):
                             injected_analyses=analysis_run_to_launch.analyses_to_inject,
                             time_limit=analysis_run_to_launch.time_limit,
                             guidelines=analysis_run_to_launch.guidelines,
+                            user_id=self.user_id,
                             project_id=self.project_id,
                             package_name=self.package_name,
-                            sandbox_type=self.sandbox_type
+                            sandbox_type=self.sandbox_type,
+                            bearer_token=self.bearer_token
                         )
                     )
 
@@ -355,16 +379,17 @@ class KvasirV1(AbstractAgent):
                             time_limit=analysis_run_to_resume.time_limit,
                             guidelines=analysis_run_to_resume.guidelines if analysis_run_to_resume.guidelines else [],
                             orchestrator_id=self.run_id,
+                            user_id=self.user_id,
                             project_id=self.project_id,
                             package_name=self.package_name,
-                            sandbox_type=self.sandbox_type
+                            sandbox_type=self.sandbox_type,
+                            bearer_token=self.bearer_token
                         )
                     )
 
                 for swe_run_to_launch in output.swe_runs_to_launch:
                     await _start_swe_run_from_orchestrator.kiq(
                         SWERunToStart(
-                            run_id=swe_run_to_launch.run_id,
                             run_name=swe_run_to_launch.run_name,
                             orchestrator_id=self.run_id,
                             deliverable_description=swe_run_to_launch.deliverable_description,
@@ -374,9 +399,11 @@ class KvasirV1(AbstractAgent):
                             read_only_paths=swe_run_to_launch.read_only_paths,
                             time_limit=swe_run_to_launch.time_limit,
                             guidelines=swe_run_to_launch.guidelines,
+                            user_id=self.user_id,
                             project_id=self.project_id,
                             package_name=self.package_name,
-                            sandbox_type=self.sandbox_type
+                            sandbox_type=self.sandbox_type,
+                            bearer_token=self.bearer_token
                         )
                     )
 
@@ -388,9 +415,11 @@ class KvasirV1(AbstractAgent):
                             time_limit=swe_run_to_resume.time_limit,
                             guidelines=swe_run_to_resume.guidelines if swe_run_to_resume.guidelines else [],
                             orchestrator_id=self.run_id,
+                            user_id=self.user_id,
                             project_id=self.project_id,
                             package_name=self.package_name,
-                            sandbox_type=self.sandbox_type
+                            sandbox_type=self.sandbox_type,
+                            bearer_token=self.bearer_token
                         )
                     )
 
@@ -421,21 +450,28 @@ def _orchestrator_deps_to_dict(deps: KvasirV1Deps) -> Dict:
         "run_id": str(deps.run_id),
         "project_id": str(deps.project_id),
         "package_name": deps.package_name,
+        "user_id": str(deps.user_id) if deps.user_id else None,
+        "bearer_token": deps.bearer_token,
         "launched_analysis_run_ids": [str(x) for x in deps.launched_analysis_run_ids],
         "launched_swe_run_ids": [str(x) for x in deps.launched_swe_run_ids],
-        "sandbox_type": deps.sandbox_type,
+        "sandbox_type": deps.sandbox_type
     }
 
 
-def _orchestrator_dict_to_deps(deps_dict: Dict, callbacks: KvasirV1Callbacks) -> KvasirV1Deps:
+def _orchestrator_dict_to_deps(deps_dict: Dict, callbacks: KvasirV1Callbacks, ontology: Ontology) -> KvasirV1Deps:
     deps = KvasirV1Deps(
         run_id=UUID(deps_dict["run_id"]),
         project_id=UUID(deps_dict["project_id"]),
         package_name=deps_dict["package_name"],
+        user_id=UUID(deps_dict["user_id"]) if deps_dict.get(
+            "user_id") else None,
+        ontology=ontology,
         launched_analysis_run_ids=[UUID(x) for x in deps_dict.get(
             "launched_analysis_run_ids", [])],
         launched_swe_run_ids=[UUID(x) for x in deps_dict.get(
             "launched_swe_run_ids", [])],
         sandbox_type=deps_dict.get("sandbox_type", "local"),
+        callbacks=callbacks,
+        bearer_token=deps_dict.get("bearer_token")
     )
     return deps
