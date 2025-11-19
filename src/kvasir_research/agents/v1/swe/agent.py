@@ -138,7 +138,6 @@ class SweAgentV1(BaseAgent):
         guidelines: Optional[List[SUPPORTED_TASKS_LITERAL]] = None,
         time_limit: Optional[int] = None,
     ) -> SWEDeps:
-        """Load deps from an existing run, with optional overrides."""
         try:
             deps_dict = await self.callbacks.load_deps(self.user_id, run_id, "swe")
         except (ValueError, RuntimeError):
@@ -172,7 +171,6 @@ class SweAgentV1(BaseAgent):
                     raise ValueError(
                         "Must call create_deps() before starting a new agent run")
                 else:
-                    # Auto-load if run_id was provided in __init__
                     await self.load_deps_from_run(self.run_id, guidelines=guidelines, time_limit=time_limit)
 
             deps = self._deps

@@ -128,7 +128,7 @@ async def submit_entities_to_create(
                 # Add to project
                 # Update entity_id for specialized agent
                 entity.entity_id = result.id
-                await ctx.deps.callbacks.log(ctx.deps.run_id, f"CREATED DATA SOURCE", "result")
+                await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"CREATED DATA SOURCE", "result")
 
             elif entity.type == "dataset":
                 dataset_create = DatasetCreate(
@@ -141,7 +141,7 @@ async def submit_entities_to_create(
                 # Add to project
                 # Update entity_id for specialized agent
                 entity.entity_id = result.id
-                await ctx.deps.callbacks.log(ctx.deps.run_id, f"CREATED DATASET", "result")
+                await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"CREATED DATASET", "result")
 
             elif entity.type == "pipeline":
                 pipeline_create = PipelineCreate(
@@ -153,7 +153,7 @@ async def submit_entities_to_create(
                 # Add to project
                 # Update entity_id for specialized agent
                 entity.entity_id = result.id
-                await ctx.deps.callbacks.log(ctx.deps.run_id, f"CREATED PIPELINE", "result")
+                await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"CREATED PIPELINE", "result")
 
             elif entity.type == "model_instantiated":
                 model_instantiated_create = ModelInstantiatedCreate(
@@ -165,7 +165,7 @@ async def submit_entities_to_create(
                 # Add to project
                 # Update entity_id for specialized agent
                 entity.entity_id = result.id
-                await ctx.deps.callbacks.log(ctx.deps.run_id, f"CREATED MODEL INSTANTIATED", "result")
+                await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"CREATED MODEL INSTANTIATED", "result")
         else:
             name_to_id_map[entity.name] = entity.entity_id
             await ctx.deps.callbacks.log(
@@ -193,7 +193,7 @@ async def submit_entities_to_create(
         name_to_id_map[pipeline_run.name] = result.id
 
     # Phase 2: Create edges
-    await ctx.deps.callbacks.log(ctx.deps.run_id, f"name_to_id_map contents: {name_to_id_map}", "result")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"name_to_id_map contents: {name_to_id_map}", "result")
     if edges_to_create:
         # Convert EdgesCreateUsingNames to EdgesCreate
         entity_graph = await ctx.deps.ontology.get_entity_graph()
@@ -212,7 +212,7 @@ async def submit_entities_to_create(
                 )
                 if from_id:
                     await ctx.deps.callbacks.log(
-                        ctx.deps.run_id, f"Found existing entity '{edge.from_node_name}' in project graph with ID: {from_id}", "result")
+                        ctx.deps.user_id, ctx.deps.run_id, f"Found existing entity '{edge.from_node_name}' in project graph with ID: {from_id}", "result")
 
             if to_id is None:
                 to_id = _find_entity_id_in_project_graph(
@@ -222,13 +222,13 @@ async def submit_entities_to_create(
                 )
                 if to_id:
                     await ctx.deps.callbacks.log(
-                        ctx.deps.run_id, f"Found existing entity '{edge.to_node_name}' in project graph with ID: {to_id}", "result")
+                        ctx.deps.user_id, ctx.deps.run_id, f"Found existing entity '{edge.to_node_name}' in project graph with ID: {to_id}", "result")
 
             if from_id is None or to_id is None:
                 await ctx.deps.callbacks.log(
-                    ctx.deps.run_id, f"Could not find ID mapping for edge: {edge.from_node_name} -> {edge.to_node_name}", "error")
+                    ctx.deps.user_id, ctx.deps.run_id, f"Could not find ID mapping for edge: {edge.from_node_name} -> {edge.to_node_name}", "error")
                 await ctx.deps.callbacks.log(
-                    ctx.deps.run_id, f"Available names in map: {list(name_to_id_map.keys())}", "error")
+                    ctx.deps.user_id, ctx.deps.run_id, f"Available names in map: {list(name_to_id_map.keys())}", "error")
                 await ctx.deps.callbacks.log(ctx.deps.run_id, f"from_id={from_id}, to_id={to_id}", "error")
                 continue
 
@@ -241,7 +241,7 @@ async def submit_entities_to_create(
 
         if edge_definitions:
             await ctx.deps.ontology.graph.create_edges(edge_definitions)
-            await ctx.deps.callbacks.log(ctx.deps.run_id, f"Created {len(edge_definitions)} edges", "result")
+            await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Created {len(edge_definitions)} edges", "result")
 
     # Phase 3: Call specialized agents to fill in details
     coroutines = []
@@ -317,19 +317,19 @@ async def submit_entities_to_create(
         results_str = "\n\n".join([result.output for result in results])
         return results_str
     else:
-        await ctx.deps.callbacks.log(ctx.deps.run_id, "No specialized agents to run (no entities provided)", "error")
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, "No specialized agents to run (no entities provided)", "error")
         return "All entities and pipeline runs created successfully"
 
 
 async def submit_entity_edges(ctx: RunContext[ExtractionDeps], edges: List[EdgeDefinition]) -> str:
     """Submit edges between entities in the graph."""
     try:
-        await ctx.deps.callbacks.log(ctx.deps.run_id, f"Submitting entity edges: {edges}", "result")
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Submitting entity edges: {edges}", "result")
         await ctx.deps.ontology.graph.create_edges(edges)
-        await ctx.deps.callbacks.log(ctx.deps.run_id, "Successfully submitted entity edges to the system", "result")
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, "Successfully submitted entity edges to the system", "result")
         return "Successfully submitted entity edges to the system"
     except Exception as e:
-        await ctx.deps.callbacks.log(ctx.deps.run_id, f"Failed to submit entity edges to the system: {str(e)}", "error")
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Failed to submit entity edges to the system: {str(e)}", "error")
         raise ModelRetry(
             f"Failed to submit entity edges to the system: {str(e)}")
 
@@ -337,13 +337,13 @@ async def submit_entity_edges(ctx: RunContext[ExtractionDeps], edges: List[EdgeD
 async def remove_entity_edges(ctx: RunContext[ExtractionDeps], edges: List[EdgeDefinition]) -> str:
     """Remove edges between entities in the graph."""
     try:
-        await ctx.deps.callbacks.log(ctx.deps.run_id, f"Removing entity edges: {edges}", "result")
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Removing entity edges: {edges}", "result")
         await ctx.deps.ontology.graph.remove_edges(edges)
-        await ctx.deps.callbacks.log(ctx.deps.run_id, "Successfully removed entity edges from the system", "result")
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, "Successfully removed entity edges from the system", "result")
         return "Successfully removed entity edges from the system"
     except Exception as e:
         await ctx.deps.callbacks.log(
-            ctx.deps.run_id, f"Failed to remove entity edges from the system: {str(e)}", "error")
+            ctx.deps.user_id, ctx.deps.run_id, f"Failed to remove entity edges from the system: {str(e)}", "error")
         raise ModelRetry(
             f"Failed to remove entity edges from the system: {str(e)}")
 

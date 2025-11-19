@@ -9,6 +9,7 @@ from kvasir_research.agents.v1.deps import AgentDepsFull
 @dataclass(kw_only=True)
 class AnalysisDeps(AgentDepsFull):
     kvasir_run_id: UUID
+    analysis_id: UUID
     data_paths: List[str]
     injected_analyses: List[UUID]
     time_limit: int

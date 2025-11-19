@@ -21,7 +21,7 @@ async def submit_analysis_results(ctx: RunContext[AnalysisDeps], summary: str) -
     result = notebook_to_string(
         ctx.deps.notebook, ctx.deps.run_id, ctx.deps.run_name)
 
-    await ctx.deps.callbacks.save_analysis_result(ctx.deps.run_id, result)
+    await ctx.deps.callbacks.save_result(ctx.deps.user_id, ctx.deps.run_id, result, "analysis")
     await ctx.deps.callbacks.log(ctx.deps.run_id,
                                  f"Analysis Agent [{ctx.deps.run_name}] submit_results completed: notebook_cells={len(ctx.deps.notebook)}, saved to Redis", "result")
 
