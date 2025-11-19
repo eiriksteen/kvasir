@@ -4,11 +4,9 @@ from contextlib import asynccontextmanager
 
 from synesis_api.auth.router import router as auth_router
 from synesis_api.modules.data_sources.router import router as data_sources_router
-from synesis_api.modules.orchestrator.router import router as orchestrator_router
 from synesis_api.modules.analysis.router import router as analysis_router
 from synesis_api.modules.data_objects.router import router as data_objects_router
 from synesis_api.modules.pipeline.router import router as pipeline_router
-from synesis_api.modules.runs.router import router as runs_router
 from synesis_api.modules.model.router import router as model_router
 from synesis_api.modules.ontology.router import router as ontology_router
 from synesis_api.modules.entity_graph.router import router as entity_graph_router
@@ -41,10 +39,6 @@ app.add_middleware(
 )
 
 
-app.include_router(orchestrator_router,
-                   prefix="/orchestrator",
-                   tags=["Orchestrator"])
-
 
 app.include_router(auth_router,
                    prefix="/auth",
@@ -69,11 +63,6 @@ app.include_router(analysis_router,
 app.include_router(pipeline_router,
                    prefix="/pipeline",
                    tags=["Pipeline"])
-
-
-app.include_router(runs_router,
-                   prefix="/runs",
-                   tags=["Runs"])
 
 
 app.include_router(model_router,

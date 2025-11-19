@@ -16,8 +16,6 @@ from cryptography.hazmat.primitives.asymmetric.types import (
 
 from synesis_api.auth.schema import User, UserInDB, TokenData, UserCreate, GoogleUserLogin, JWKSEntry, JWKSData, RegistrationStatus
 from synesis_api.auth.models import users
-from synesis_api.modules.orchestrator.models import conversation
-from synesis_api.modules.runs.models import run
 from synesis_api.modules.data_objects.models import dataset, object_group, data_object
 from synesis_api.modules.data_sources.models import data_source
 

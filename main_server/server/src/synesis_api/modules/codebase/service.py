@@ -2,8 +2,9 @@ from uuid import UUID
 from typing import Annotated, List, Dict
 from pathlib import Path
 from fastapi import Depends
+import shlex
 
-from kvasir_ontology.code.data_model import CodebaseFile, CodebasePath
+from kvasir_ontology.code.data_model import CodebaseFile, CodebasePath, CodebaseFilePaginated
 from kvasir_ontology.code.interface import CodeInterface
 from synesis_api.modules.entity_graph.service import EntityGraphs
 from kvasir_research.sandbox.modal import ModalSandbox
@@ -124,6 +125,70 @@ class Codebase(CodeInterface):
         try:
             file_content = await sandbox.read_file(file_path, truncate=False)
             return CodebaseFile(path=file_path, content=file_content)
+        except Exception as e:
+            raise FileNotFoundError(f"File not found: {file_path}") from e
+
+    async def get_codebase_file_paginated(
+        self, 
+        file_path: str, 
+        offset: int = 0, 
+        limit: int = 100
+    ) -> CodebaseFilePaginated:
+        """Get a paginated portion of a file's content.
+        
+        Args:
+            file_path: Path to the file
+            offset: Line number to start from (0-indexed)
+            limit: Number of lines to return
+            
+        Returns:
+            CodebaseFilePaginated with the requested lines and pagination metadata
+        """
+        mount_group = await self.graph_service.get_node_group(self.mount_group_id)
+        sandbox = ModalSandbox(self.mount_group_id,
+                               mount_group.python_package_name)
+
+        try:
+            quoted_path = shlex.quote(file_path)
+            
+            # Get total line count efficiently without reading the file
+            line_count_out, line_count_err = await sandbox.run_shell_code(
+                f"wc -l < {quoted_path}",
+                truncate_output=False
+            )
+            
+            if line_count_err:
+                raise FileNotFoundError(f"File not found: {file_path}")
+            
+            total_lines = int(line_count_out.strip())
+            
+            # Calculate pagination
+            start_line = offset + 1  # sed uses 1-indexed lines
+            end_line = min(offset + limit, total_lines)
+            has_more = end_line < total_lines
+            
+            # Read only the requested lines using sed
+            if total_lines > 0 and start_line <= total_lines:
+                sed_out, sed_err = await sandbox.run_shell_code(
+                    f"sed -n '{start_line},{end_line}p' {quoted_path}",
+                    truncate_output=False
+                )
+                
+                if sed_err:
+                    raise RuntimeError(f"Failed to read file lines: {sed_err}")
+                
+                paginated_content = sed_out
+            else:
+                paginated_content = ""
+            
+            return CodebaseFilePaginated(
+                path=file_path,
+                content=paginated_content,
+                offset=offset,
+                limit=limit,
+                total_lines=total_lines,
+                has_more=has_more
+            )
         except Exception as e:
             raise FileNotFoundError(f"File not found: {file_path}") from e
 
