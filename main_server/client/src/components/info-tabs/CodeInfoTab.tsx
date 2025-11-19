@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { UUID } from 'crypto';
-import { useCodebaseFile } from '@/hooks/useCodebase';
+import { useCodebaseFilePaginated } from '@/hooks/useCodebase';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -38,7 +38,18 @@ const getLanguageFromPath = (path: string): string => {
 };
 
 export default function CodeInfoTab({ projectId, filePath, onClose }: CodeInfoTabProps) {
-    const { fileContent, isLoading, error } = useCodebaseFile(projectId, filePath);
+    const { 
+        fileContent, 
+        totalLines, 
+        loadedLines, 
+        hasMore,
+        hasReachedCap,
+        maxLines,
+        loadMore, 
+        isLoading, 
+        isLoadingMore, 
+        error 
+    } = useCodebaseFilePaginated(projectId, filePath, 100);
 
     // Handle escape key to close tab and return to project view
     useEffect(() => {
@@ -94,6 +105,29 @@ export default function CodeInfoTab({ projectId, filePath, onClose }: CodeInfoTa
                         >
                             {String(fileContent)}
                         </SyntaxHighlighter>
+                        
+                        {/* File info and Load More section */}
+                        {totalLines > 100 && (
+                            <div className="border-t border-gray-200 bg-gray-50">
+                                <div className="flex flex-col items-center py-3 px-4 gap-2">
+                                    <p className="text-xs text-gray-600">
+                                        Showing {Math.min(loadedLines, totalLines)} of {totalLines} lines
+                                        {hasReachedCap && totalLines > maxLines && (
+                                            <span className="text-amber-600"> (max {maxLines} line limit reached)</span>
+                                        )}
+                                    </p>
+                                    {hasMore && (
+                                        <button
+                                            onClick={loadMore}
+                                            disabled={isLoadingMore}
+                                            className="px-6 py-2 bg-gray-400 text-white text-sm font-medium rounded-md hover:bg-gray-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            {isLoadingMore ? 'Loading...' : `Load More`}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
