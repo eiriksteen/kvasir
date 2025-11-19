@@ -164,6 +164,11 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
                       <p className="text-xs text-gray-600 mt-1">
                         Total size: {(files.reduce((acc, file) => acc + file.size, 0) / 1024).toFixed(1)} KB
                       </p>
+                      {files.some(file => file.name.toLowerCase().endsWith('.zip')) && (
+                        <p className="text-xs text-blue-600 mt-2 bg-blue-50 px-3 py-1 rounded">
+                          ✓ ZIP file{files.filter(f => f.name.toLowerCase().endsWith('.zip')).length > 1 ? 's' : ''} will be automatically extracted
+                        </p>
+                      )}
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); resetForm(); }}
@@ -176,7 +181,8 @@ export default function AddDataSource({ onClose, projectId }: AddDataSourceProps
                     <div className="flex flex-col items-center text-gray-600">
                       <Upload size={28} className="text-gray-400 mb-3" />
                       <p className="text-sm font-medium text-gray-700">Drag & drop files here</p>
-                      <p className="text-xs text-gray-500 mt-1">Or click to browse and select files (multiple files supported)</p>
+                      <p className="text-xs text-gray-500 mt-1">Or click to browse and select files</p>
+                      <p className="text-xs text-gray-400 mt-1">Supports individual files, multiple files, and .zip archives</p>
                     </div>
                   )}
                 </div>

@@ -1,5 +1,6 @@
 import io
 import uuid
+import zipfile
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import List, Optional, Annotated, Tuple
@@ -197,13 +198,79 @@ class DataSources(DataSourceInterface):
         await execute(delete(data_source).where(data_source.c.id == data_source_id), commit_after=True)
 
     async def create_files_data_sources(self, file_bytes: List[io.BytesIO], file_names: List[str], mount_group_id: uuid.UUID) -> Tuple[List[DataSource], List[Path]]:
+        """
+        Create data sources from uploaded files.
+        
+        Supports individual files and .zip archives. ZIP files are automatically detected and extracted,
+        with each file inside the archive being added as a separate data source.
+        
+        Args:
+            file_bytes: List of file contents as BytesIO objects
+            file_names: List of corresponding file names
+            mount_group_id: UUID of the mount group to add the data sources to
+            
+        Returns:
+            Tuple of (list of created DataSource objects, list of file paths in the sandbox)
+        """
         graph_service = EntityGraphs(self.user_id)
         mount_group = await graph_service.get_node_group(mount_group_id)
         sandbox = ModalSandbox(mount_group_id, mount_group.python_package_name)
 
+        # Process files and extract zip files if present
+        processed_files = []
+        for file_byte, file_name in zip(file_bytes, file_names):
+            # Check if the file is a zip file
+            if file_name.lower().endswith('.zip'):
+                # Reset the file pointer to the beginning
+                file_byte.seek(0)
+                try:
+                    with zipfile.ZipFile(file_byte, 'r') as zip_ref:
+                        # Extract all files from the zip
+                        for zip_info in zip_ref.infolist():
+                            # Skip directories
+                            if zip_info.is_dir():
+                                continue
+                            
+                            # Skip macOS metadata files and hidden files
+                            # Common patterns: __MACOSX/, .DS_Store, ._filename (resource forks)
+                            if ('__MACOSX' in zip_info.filename or 
+                                zip_info.filename.startswith('._') or
+                                '/.DS_Store' in zip_info.filename or
+                                zip_info.filename == '.DS_Store'):
+                                continue
+                            
+                            # Use only the filename (not the full path in the zip)
+                            extracted_name = Path(zip_info.filename).name
+                            
+                            # Skip if filename is empty (edge case)
+                            if not extracted_name:
+                                continue
+                            
+                            # Skip hidden files (starting with .)
+                            if extracted_name.startswith('.'):
+                                continue
+                            
+                            # Skip resource fork files (starting with ._)
+                            if extracted_name.startswith('._'):
+                                continue
+                            
+                            # Read the file content
+                            extracted_content = zip_ref.read(zip_info.filename)
+                            extracted_byte = io.BytesIO(extracted_content)
+                            
+                            processed_files.append((extracted_byte, extracted_name))
+                except zipfile.BadZipFile:
+                    # If it's not a valid zip file, treat it as a regular file
+                    file_byte.seek(0)
+                    processed_files.append((file_byte, file_name))
+            else:
+                # Regular file, add as-is
+                file_byte.seek(0)
+                processed_files.append((file_byte, file_name))
+
         objs = []
         new_paths_full = []
-        for file_byte, file_name in zip(file_bytes, file_names):
+        for file_byte, file_name in processed_files:
             try:
                 with sandbox.vol.batch_upload() as batch:
                     data_source_id = uuid.uuid4()
