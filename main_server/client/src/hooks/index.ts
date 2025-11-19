@@ -16,7 +16,7 @@ export { useDataSources, useDataSourcesByIds, useDataSource } from '@/hooks/useD
 export { useDatasetsByIds, useDataset } from '@/hooks/useDatasets';
 export { usePipelinesByIds, usePipeline, usePipelineRuns, usePipelineRunsByPipelineId } from '@/hooks/usePipelines';
 export { useModelsInstantiated, useModelInstantiated } from '@/hooks/useModelsInstantiated';
-export { useAnalysesByIds, useAnalysis } from '@/hooks/useAnalysis';
+export { useAnalysis } from '@/hooks/useAnalysis';
 
 // Runs and orchestration
 export { useRuns, useRun, useKvasirRuns, useRunMessages, useProjectRunMessages } from '@/hooks/useRuns';

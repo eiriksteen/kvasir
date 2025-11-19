@@ -1,24 +1,17 @@
 import { useSession } from "next-auth/react";
+import { useMemo } from "react";
 import useSWR from "swr";
-import useSWRMutation from 'swr/mutation'
 import useSWRSubscription, { SWRSubscriptionOptions } from "swr/subscription";
 import { UUID } from "crypto";
 import { SSE } from 'sse.js';
-import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
+import { snakeToCamelKeys } from "@/lib/utils";
 import { 
   Analysis, 
   AnalysisCell,
   Section,
-  SectionCreate,
-  CodeCellCreate,
-  MarkdownCellCreate,
-  CodeOutputCreate,
 } from "@/types/ontology/analysis";
-import { 
-  ImageCreate,
-  EchartCreate,
-  TableCreate,
-} from "@/types/ontology/visualization";
+import { useAnalysisRuns } from "@/hooks/useRuns";
+
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -44,158 +37,7 @@ async function fetchAnalysis(token: string, analysisId: UUID): Promise<Analysis>
   return snakeToCamelKeys(data);
 }
 
-async function fetchAnalysesByIds(token: string, analysisIds: UUID[]): Promise<Analysis[]> {
-  const response = await fetch(`${API_URL}/analysis/analyses-by-ids`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(analysisIds)
-  });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to fetch analyses by ids', errorText);
-    throw new Error(`Failed to fetch analyses by ids: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-async function createSection(token: string, analysisId: UUID, sectionCreate: SectionCreate): Promise<Analysis> {
-  const response = await fetch(`${API_URL}/analysis/analysis/${analysisId}/section`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(camelToSnakeKeys(sectionCreate))
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create section: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-async function createMarkdownCell(token: string, analysisId: UUID, markdownCellCreate: MarkdownCellCreate): Promise<AnalysisCell> {
-  const response = await fetch(`${API_URL}/analysis/analysis/${analysisId}/markdown-cell`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(camelToSnakeKeys(markdownCellCreate))
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create markdown cell: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-async function createCodeCell(token: string, analysisId: UUID, codeCellCreate: CodeCellCreate): Promise<AnalysisCell> {
-  const response = await fetch(`${API_URL}/analysis/analysis/${analysisId}/code-cell`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(camelToSnakeKeys(codeCellCreate))
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create code cell: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-async function createCodeOutput(token: string, analysisId: UUID, codeOutputCreate: CodeOutputCreate): Promise<Analysis> {
-  const response = await fetch(`${API_URL}/analysis/analysis/${analysisId}/code-output`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(camelToSnakeKeys(codeOutputCreate))
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create code output: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-async function createCodeOutputImage(token: string, analysisId: UUID, codeCellId: UUID, imageCreate: ImageCreate): Promise<Analysis> {
-  const response = await fetch(`${API_URL}/analysis/analysis/${analysisId}/code-cell/${codeCellId}/image`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(camelToSnakeKeys(imageCreate))
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create code output image: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-async function createCodeOutputEchart(token: string, analysisId: UUID, codeCellId: UUID, echartCreate: EchartCreate): Promise<Analysis> {
-  const response = await fetch(`${API_URL}/analysis/analysis/${analysisId}/code-cell/${codeCellId}/echart`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(camelToSnakeKeys(echartCreate))
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create code output echart: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-async function createCodeOutputTable(token: string, analysisId: UUID, codeCellId: UUID, tableCreate: TableCreate): Promise<Analysis> {
-  const response = await fetch(`${API_URL}/analysis/analysis/${analysisId}/code-cell/${codeCellId}/table`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(camelToSnakeKeys(tableCreate))
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create code output table: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
 
 function createAnalysisEventSource(token: string, runId: UUID): SSE {
   return new SSE(`${API_URL}/analysis/analysis-agent-sse/${runId}`,
@@ -212,151 +54,35 @@ function createAnalysisEventSource(token: string, runId: UUID): SSE {
 // Hooks
 // =============================================================================
 
-/**
- * Hook to fetch analyses by IDs.
- * For fetching all analyses in a project, use useOntology instead.
- */
-export const useAnalysesByIds = (analysisIds?: UUID[]) => {
-  const { data: session } = useSession();
 
-  const { data: analyses, mutate: mutateAnalyses, error, isLoading } = useSWR(
-    session && analysisIds && analysisIds.length > 0 ? ["analyses-by-ids", analysisIds] : null,
-    () => fetchAnalysesByIds(session!.APIToken.accessToken, analysisIds || [])
-  );
 
-  return {
-    analyses,
-    mutateAnalyses,
-    error,
-    isLoading,
-  };
-};
-
-/**
- * Hook to fetch and interact with a single analysis.
- * 
- * This hook provides:
- * - Analysis data with sections and cells
- * - Mutations for creating sections, cells, and outputs
- * - SSE streaming for real-time updates during analysis runs
- * 
- * Note: For creating/deleting analyses, use useOntology hook.
- */
-export const useAnalysis = (analysisId?: UUID) => {
+export const useAnalysis = (projectId: UUID, analysisId: UUID) => {
   const { data: session } = useSession();
 
   // Fetch the analysis
   const { data: analysis, mutate: mutateAnalysis, error, isLoading } = useSWR(
     session && analysisId ? ["analysis", analysisId] : null,
     () => fetchAnalysis(session!.APIToken.accessToken, analysisId!)
-  );
+  );  
 
-  // Section mutations
-  const { trigger: triggerCreateSection } = useSWRMutation(
-    ["analysis", analysisId],
-    async (_, { arg }: { arg: SectionCreate }) => {
-      const updatedAnalysis = await createSection(
-        session!.APIToken.accessToken,
-        analysisId!,
-        arg
-      );
-      await mutateAnalysis(updatedAnalysis);
-      return updatedAnalysis;
-    }
-  );
+  console.log("analysis", analysis);
 
-  // Cell mutations
-  const { trigger: triggerCreateMarkdownCell } = useSWRMutation(
-    ["analysis", analysisId],
-    async (_, { arg }: { arg: MarkdownCellCreate }) => {
-      const cell = await createMarkdownCell(
-        session!.APIToken.accessToken,
-        analysisId!,
-        arg
-      );
-      await mutateAnalysis();
-      return cell;
-    }
-  );
+  const { analysisRuns } = useAnalysisRuns(projectId, analysisId);
 
-  const { trigger: triggerCreateCodeCell } = useSWRMutation(
-    ["analysis", analysisId],
-    async (_, { arg }: { arg: CodeCellCreate }) => {
-      const cell = await createCodeCell(
-        session!.APIToken.accessToken,
-        analysisId!,
-        arg
-      );
-      await mutateAnalysis();
-      return cell;
-    }
-  );
-
-  // Code output mutations
-  const { trigger: triggerCreateCodeOutput } = useSWRMutation(
-    ["analysis", analysisId],
-    async (_, { arg }: { arg: CodeOutputCreate }) => {
-      const updatedAnalysis = await createCodeOutput(
-        session!.APIToken.accessToken,
-        analysisId!,
-        arg
-      );
-      await mutateAnalysis(updatedAnalysis);
-      return updatedAnalysis;
-    }
-  );
-
-  const { trigger: triggerCreateCodeOutputImage } = useSWRMutation(
-    ["analysis", analysisId],
-    async (_, { arg }: { arg: { codeCellId: UUID; imageCreate: ImageCreate } }) => {
-      const updatedAnalysis = await createCodeOutputImage(
-        session!.APIToken.accessToken,
-        analysisId!,
-        arg.codeCellId,
-        arg.imageCreate
-      );
-      await mutateAnalysis(updatedAnalysis);
-      return updatedAnalysis;
-    }
-  );
-
-  const { trigger: triggerCreateCodeOutputEchart } = useSWRMutation(
-    ["analysis", analysisId],
-    async (_, { arg }: { arg: { codeCellId: UUID; echartCreate: EchartCreate } }) => {
-      const updatedAnalysis = await createCodeOutputEchart(
-        session!.APIToken.accessToken,
-        analysisId!,
-        arg.codeCellId,
-        arg.echartCreate
-      );
-      await mutateAnalysis(updatedAnalysis);
-      return updatedAnalysis;
-    }
-  );
-
-  const { trigger: triggerCreateCodeOutputTable } = useSWRMutation(
-    ["analysis", analysisId],
-    async (_, { arg }: { arg: { codeCellId: UUID; tableCreate: TableCreate } }) => {
-      const updatedAnalysis = await createCodeOutputTable(
-        session!.APIToken.accessToken,
-        analysisId!,
-        arg.codeCellId,
-        arg.tableCreate
-      );
-      await mutateAnalysis(updatedAnalysis);
-      return updatedAnalysis;
-    }
-  );
+  const runningID = useMemo(() => {
+    // For now assume only one run going for an analysis at a time
+    return analysisRuns.filter(run => run.status === "running").map(run => run.id)[0] ?? null;
+  }, [analysisRuns]) as UUID | null;
 
   // SSE streaming for real-time updates
   const { data: streamedUpdates } = useSWRSubscription<(Section | AnalysisCell)[]>(
-    session && analysisId ? ["analysis-stream", analysisId] : null,
+    session && runningID ? ["analysis-stream", analysisId, runningID] : null,
     (_: string, { next }: SWRSubscriptionOptions<(Section | AnalysisCell)[]>) => {
-      if (!session?.APIToken?.accessToken || !analysisId) {
+      if (!session?.APIToken?.accessToken || !runningID) {
         return;
       }
 
-      const eventSource = createAnalysisEventSource(session.APIToken.accessToken, analysisId);
+      const eventSource = createAnalysisEventSource(session.APIToken.accessToken, runningID);
       const updates: (Section | AnalysisCell)[] = [];
 
       eventSource.onmessage = (event) => {
@@ -432,20 +158,6 @@ export const useAnalysis = (analysisId?: UUID) => {
     mutateAnalysis,
     error,
     isLoading,
-
-    // Section operations
-    createSection: triggerCreateSection,
-
-    // Cell operations
-    createMarkdownCell: triggerCreateMarkdownCell,
-    createCodeCell: triggerCreateCodeCell,
-
-    // Code output operations
-    createCodeOutput: triggerCreateCodeOutput,
-    createCodeOutputImage: triggerCreateCodeOutputImage,
-    createCodeOutputEchart: triggerCreateCodeOutputEchart,
-    createCodeOutputTable: triggerCreateCodeOutputTable,
-
     // Streaming updates
     streamedUpdates,
   };

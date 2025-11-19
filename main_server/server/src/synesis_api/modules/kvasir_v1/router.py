@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pprint import pprint
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse, Response
-from typing import Annotated, List, Optional
+from typing import Annotated, List, Optional, Union
 from pydantic import TypeAdapter
 from sqlalchemy import insert
 
@@ -19,12 +19,15 @@ from synesis_api.modules.kvasir_v1.models import message
 from synesis_api.database.service import execute
 from synesis_api.modules.entity_graph.service import EntityGraphs
 from kvasir_research.agents.v1.kvasir.agent import KvasirV1
+from kvasir_research.agents.v1.kvasir.deps import KvasirV1Deps
 from synesis_api.utils.pydanticai_utils import helper_agent
 from kvasir_research.agents.v1.data_model import (
     Message,
     MessageCreate,
     RunBase,
     RunCreate,
+    AnalysisRun,
+    SweRun,
 )
 
 
@@ -42,7 +45,7 @@ async def post_chat(
 
     # TODO: Add support for open connection with analysis, and add rejected status to a run so we don't keep monitoring it
 
-    run_records = await _callbacks.get_runs(user.id, run_id=prompt.run_id)
+    run_records = await _callbacks.get_runs(user.id, run_ids=[prompt.run_id])
     if not run_records:
         raise HTTPException(
             status_code=404, detail="Run not found")
@@ -66,7 +69,20 @@ async def post_chat(
     messages = await _callbacks.get_messages(user.id, run_record.id)
     is_new_conversation = len(messages) == 0
 
-    # Create user message
+    if is_new_conversation:
+        deps = KvasirV1Deps(
+            user_id=user.id,
+            project_id=node_group.id,
+            package_name=node_group.python_package_name,
+            callbacks=ApplicationCallbacks(),
+            sandbox_type="modal",
+            bearer_token=token,
+            run_id=run_record.id
+        )
+        agent = KvasirV1(deps)
+    else:
+        agent = await KvasirV1.from_run(user.id, run_record.id, ApplicationCallbacks(), token)
+
     user_message = Message(
         id=uuid.uuid4(),
         run_id=prompt.run_id,
@@ -75,17 +91,8 @@ async def post_chat(
         type=prompt.type,
         created_at=datetime.now(timezone.utc)
     )
-    await execute(insert(message).values(**user_message.model_dump()), commit_after=True)
 
-    agent = KvasirV1(
-        user_id=user.id,
-        run_id=run_record.id,
-        project_id=run_record.project_id,
-        package_name=node_group.python_package_name,
-        sandbox_type="modal",
-        callbacks=ApplicationCallbacks(),
-        bearer_token=token
-    )
+    await execute(insert(message).values(**user_message.model_dump()), commit_after=True)
 
     async def stream_response():
         response_message = Message(
@@ -143,7 +150,6 @@ async def post_chat(
         )
 
         yield f"data: {success_message.model_dump_json(by_alias=True)}\n\n"
-
         await asyncio.sleep(SSE_MIN_SLEEP_TIME)
 
     return StreamingResponse(stream_response(), media_type="text/event-stream")
@@ -158,7 +164,7 @@ async def post_user_run(run_data: RunCreate, user: Annotated[User, Depends(get_c
 async def fetch_runs(
     project_id: Optional[uuid.UUID] = None,
     user: Annotated[User, Depends(get_current_user)] = None
-) -> List[RunBase]:
+) -> List[Union[RunBase, AnalysisRun, SweRun]]:
     runs = await _callbacks.get_runs(user.id, project_id=project_id)
     return runs
 
@@ -241,7 +247,7 @@ async def stream_incomplete_runs(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> StreamingResponse:
 
-    adapter = TypeAdapter(List[RunBase])
+    adapter = TypeAdapter(List[Union[RunBase, AnalysisRun, SweRun]])
 
     async def stream_incomplete_runs():
         prev_run_ids = []

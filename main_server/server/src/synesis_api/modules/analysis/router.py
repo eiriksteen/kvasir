@@ -105,14 +105,14 @@ async def get_analyses_endpoint(
     return await analysis_service.get_analyses(analysis_ids)
 
 
-@router.post("/analysis/{analysis_id}/section", response_model=Analysis)
+@router.post("/analysis/{analysis_id}/section", response_model=Section)
 async def create_section_endpoint(
     analysis_id: uuid.UUID,
     section_create: SectionCreate,
     user: Annotated[User, Depends(get_current_user)],
     analysis_service: Annotated[AnalysisInterface,
                                 Depends(get_analysis_service)]
-) -> Analysis:
+) -> Section:
     if not await user_owns_analysis(user.id, analysis_id):
         raise HTTPException(
             status_code=403,

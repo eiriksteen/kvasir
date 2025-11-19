@@ -1,4 +1,5 @@
 import uuid
+import json
 from datetime import datetime, timezone
 from typing import List, Annotated, AsyncGenerator, Union
 from sqlalchemy import select, insert, delete
@@ -390,10 +391,11 @@ class Analyses(AnalysisInterface):
 
         return output_analyses
 
-    async def create_section(self, section_create: SectionCreate) -> Analysis:
+    async def create_section(self, section_create: SectionCreate) -> Section:
         now = datetime.now(timezone.utc)
+        section_id = uuid.uuid4()
         section_record = AnalysisSectionBase(
-            id=uuid.uuid4(),
+            id=section_id,
             name=section_create.name,
             analysis_id=section_create.analysis_id,
             description=section_create.description,
@@ -406,17 +408,22 @@ class Analyses(AnalysisInterface):
             commit_after=True
         )
 
+        cells = []
         if section_create.code_cells_create:
             for code_cell_create in section_create.code_cells_create:
-                code_cell_create.section_id = section_record.id
-                await self.create_code_cell(code_cell_create)
+                code_cell_create.section_id = section_id
+                cell = await self.create_code_cell(code_cell_create)
+                cells.append(cell)
 
         if section_create.markdown_cells_create:
             for markdown_cell_create in section_create.markdown_cells_create:
-                markdown_cell_create.section_id = section_record.id
-                await self.create_markdown_cell(markdown_cell_create)
+                markdown_cell_create.section_id = section_id
+                cell = await self.create_markdown_cell(markdown_cell_create)
+                cells.append(cell)
 
-        return await self.get_analysis(section_create.analysis_id)
+        cells.sort(key=lambda c: c.order)
+
+        return Section(**section_record.model_dump(), cells=cells)
 
     async def create_markdown_cell(self, markdown_cell_create: MarkdownCellCreate) -> AnalysisCell:
         now = datetime.now(timezone.utc)
@@ -901,7 +908,8 @@ class Analyses(AnalysisInterface):
 
     async def write_to_analysis_stream(self, run_id: uuid.UUID, message: Union[Section, AnalysisCell]) -> None:
         redis_stream = get_redis()
-        await redis_stream.xadd(str(run_id) + "-analysis", message.model_dump(mode="json"))
+        message_json = message.model_dump_json(exclude_none=True)
+        await redis_stream.xadd(str(run_id) + "-analysis", {"data": message_json})
 
     async def listen_to_analysis_stream(self, run_id: uuid.UUID) -> AsyncGenerator[Union[Section, AnalysisCell], None]:
         redis_stream = get_redis()
@@ -918,11 +926,17 @@ class Analyses(AnalysisInterface):
                 for message_id, message_data in messages:
                     last_id = message_id
 
-                    if "type" in message_data and message_data["type"] in ["code", "markdown"]:
-                        cell = AnalysisCell.model_validate(message_data)
+                    message_json = message_data.get("data")
+                    if not message_json:
+                        continue
+
+                    parsed_data = json.loads(message_json)
+
+                    if "type" in parsed_data and parsed_data["type"] in ["code", "markdown"]:
+                        cell = AnalysisCell.model_validate(parsed_data)
                         yield cell
                     else:
-                        section = Section.model_validate(message_data)
+                        section = Section.model_validate(parsed_data)
                         yield section
 
 

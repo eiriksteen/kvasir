@@ -11,6 +11,7 @@ interface SectionItemCreateProps {
 }
 
 const SectionItemCreate: React.FC<SectionItemCreateProps> = ({ 
+  projectId,
   analysisObjectId, 
   onCancel 
 }) => {
@@ -19,7 +20,7 @@ const SectionItemCreate: React.FC<SectionItemCreateProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   
-  const { createSection } = useAnalysis(analysisObjectId);
+  const { createSection } = useAnalysis(projectId, analysisObjectId);
   const { showError } = useError();
 
   useEffect(() => {

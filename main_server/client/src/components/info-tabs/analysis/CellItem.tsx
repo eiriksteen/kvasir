@@ -31,7 +31,7 @@ export default function CellItem({ projectId, cell, analysisObjectId }: CellItem
     const optionsRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     
-    const { mutateAnalysis } = useAnalysis(analysisObjectId);
+    const { mutateAnalysis } = useAnalysis(projectId, analysisObjectId);
     
     // Determine cell type
     const isCodeCell = cell.type === 'code';

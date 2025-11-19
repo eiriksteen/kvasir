@@ -58,7 +58,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   onScrollToSection,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { analysis } = useAnalysis(analysisObjectId);
+  const { analysis } = useAnalysis(projectId, analysisObjectId);
   const [showCreateRootSection, setShowCreateRootSection] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);

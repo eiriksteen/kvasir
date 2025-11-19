@@ -144,8 +144,6 @@ export default function CodebaseTree({ projectId, onFileClick }: CodebaseTreePro
         );
     }
 
-    console.log(codebaseTree);
-
     return (
         <div>
             {codebaseTree.subPaths.map((subNode, idx) => (

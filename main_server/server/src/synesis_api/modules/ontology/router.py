@@ -122,12 +122,9 @@ async def insert_files_data_sources_endpoint(
 
     file_objs, file_paths = await ontology.insert_files_data_sources(file_bytes, file_names, edges_parsed)
 
-    print("PATHS", file_paths)
-    print("MOUNT GROUP ID", mount_group_id)
     if file_paths:
         group_info = await ontology.graph.get_node_group(mount_group_id)
 
-        print("Running extraction agent"*100)
         await run_extraction_agent.kiq(
             "We have added new files at the paths: " +
             ", ".join([file_path.as_posix() for file_path in file_paths]) +

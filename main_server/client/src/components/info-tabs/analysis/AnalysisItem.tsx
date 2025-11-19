@@ -20,7 +20,7 @@ const AnalysisItem: React.FC<AnalysisItemProps> = ({
 }) => {
   const {
     analysis,
-  } = useAnalysis(analysisObjectId);
+  } = useAnalysis(projectId, analysisObjectId);
   
   // Refs for scrolling to sections
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());

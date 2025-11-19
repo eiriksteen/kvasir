@@ -44,7 +44,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
   
   const {
     mutateAnalysis,
-  } = useAnalysis(analysisObjectId);
+  } = useAnalysis(projectId, analysisObjectId);
 
   // Close menu when clicking outside
   useEffect(() => {

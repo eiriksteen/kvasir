@@ -101,9 +101,6 @@ export default function EntityTree({ projectId, openTab }: EntityTreeProps) {
         }
     };
 
-    console.log(dataSources);
-    
-
     return (
         <>
             {/* Data Sources Section */}

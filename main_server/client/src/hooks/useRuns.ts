@@ -1,4 +1,4 @@
-import { RunBase, Message} from "@/types/kvasirV1";
+import { RunBase, Message, AnalysisRun, SweRun} from "@/types/kvasirV1";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import useSWR, { useSWRConfig } from "swr";
@@ -269,11 +269,48 @@ export const useKvasirRuns = (projectId: UUID) => {
 }
 
 
+export const useAnalysisRuns = (projectId: UUID, analysisID?: UUID, kvasirRunId?: UUID) => {
+  const { runs, triggerLaunchRun } = useRuns(projectId)
+
+  const analysisRuns = useMemo(() => {
+    const analysisRunsFiltered = runs.filter((run): run is AnalysisRun => run.type === "analysis")
+    if (analysisID) {
+      return analysisRunsFiltered.filter(run => run.analysisId === analysisID)
+    } 
+    else if (kvasirRunId) {
+      return analysisRunsFiltered.filter(run => run.kvasirRunId === kvasirRunId)
+    }
+    else {
+      return analysisRunsFiltered;
+    }
+  }, [runs, analysisID, kvasirRunId]);
+
+  return { analysisRuns, triggerLaunchRun };
+}
+
+
+export const useSWERuns = (projectId: UUID, kvasirRunId?: UUID) => {
+  const { runs, triggerLaunchRun } = useRuns(projectId)
+
+  const sweRuns = useMemo(() => {
+    const sweRunsFiltered = runs.filter((run): run is SweRun => run.type === "swe")
+    if (kvasirRunId) {
+      return sweRunsFiltered.filter(run => run.kvasirRunId === kvasirRunId)
+    }
+    else {
+      return sweRunsFiltered;
+    }
+  }, [runs, kvasirRunId]);
+
+  return { sweRuns, triggerLaunchRun };
+}
+
+
 export const useRun = (projectId: UUID, runId: UUID) => {
   const { runs, triggerLaunchRun, triggerRejectRun } = useRuns(projectId)
 
   const run = useMemo(() => {
-    return runs.find((run: RunBase) => run.id === runId)
+    return runs.find((run: RunBase | AnalysisRun | SweRun) => run.id === runId)
   }, [runs, runId])
 
   return { run, triggerLaunchRun, triggerRejectRun }
