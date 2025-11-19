@@ -25,7 +25,7 @@ async def write_script(ctx: RunContext[SWEDeps], content: str, file_path: str) -
     Returns:
         str: The script with line numbers.
     """
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                  f"SWE Agent [{ctx.deps.run_name}] write_script called: file_path={file_path}, content_length={len(content)} chars", "tool_call")
 
     file_path = Path(file_path)
@@ -44,7 +44,7 @@ async def write_script(ctx: RunContext[SWEDeps], content: str, file_path: str) -
 
     content_with_line_numbers = add_line_numbers_to_script(content)
 
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                  f"SWE Agent [{ctx.deps.run_name}] write_script completed: file_path={file_path}", "result")
 
     return f"WROTE TO FILE: {file_path}\n\n<begin_file file_path={file_path}>\n\n{content_with_line_numbers}\n\n<end_file>"
@@ -71,7 +71,7 @@ async def replace_script_lines(
     Returns:
         str: The updated script.
     """
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                  f"SWE Agent [{ctx.deps.run_name}] replace_script_lines called: file_path={file_path}, lines={line_number_start}-{line_number_end}, new_code_length={len(new_code)} chars", "tool_call")
 
     file_path = Path(file_path)
@@ -103,7 +103,7 @@ async def replace_script_lines(
     out = f"UPDATED FILE: {file_path}\n\n <begin_file file_path={file_path}>\n\n {updated_content_with_line_numbers}\n\n <end_file>"
     out += "\n\nThe file is not automatically run and validated, you must call the final_result tool to submit the file for validation and feedback.\n"
 
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                  f"SWE Agent [{ctx.deps.run_name}] replace_script_lines completed: file_path={file_path}", "result")
 
     return out
@@ -122,7 +122,7 @@ async def add_script_lines(ctx: RunContext[SWEDeps], file_name: str, new_code: s
     Returns:
         str: The updated script.
     """
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                  f"SWE Agent [{ctx.deps.run_name}] add_script_lines called: file_name={file_name}, start_line={start_line}, new_code_length={len(new_code)} chars", "tool_call")
 
     file_path = Path(file_name)
@@ -152,7 +152,7 @@ async def add_script_lines(ctx: RunContext[SWEDeps], file_name: str, new_code: s
     out = f"UPDATED SCRIPT: \n\n <begin_file file_path={file_path}>\n\n {script_with_line_numbers}\n\n <end_file>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
 
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                  f"SWE Agent [{ctx.deps.run_name}] add_script_lines completed: file_path={file_path}", "result")
 
     return out
@@ -171,7 +171,7 @@ async def delete_script_lines(ctx: RunContext[SWEDeps], file_path: str, line_num
     Returns:    
         str: The updated script.
     """
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                  f"SWE Agent [{ctx.deps.run_name}] delete_script_lines called: file_path={file_path}, lines={line_number_start}-{line_number_end}", "tool_call")
 
     file_path = Path(file_path)
@@ -202,7 +202,7 @@ async def delete_script_lines(ctx: RunContext[SWEDeps], file_path: str, line_num
     out = f"UPDATED SCRIPT: \n\n <begin_file file_path={file_path}>\n\n {script_with_line_numbers}\n\n <end_file>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
 
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                  f"SWE Agent [{ctx.deps.run_name}] delete_script_lines completed: file_path={file_path}", "result")
 
     return out
@@ -220,7 +220,7 @@ async def delete_file(ctx: RunContext[SWEDeps], file_path: str) -> str:
     Returns:
         str: Confirmation message.
     """
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                  f"SWE Agent [{ctx.deps.run_name}] delete_file called: file_path={file_path}", "tool_call")
 
     path = Path(file_path)
@@ -237,7 +237,7 @@ async def delete_file(ctx: RunContext[SWEDeps], file_path: str) -> str:
     if str(file_path) in ctx.deps.modified_files:
         del ctx.deps.modified_files[str(file_path)]
 
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                  f"SWE Agent [{ctx.deps.run_name}] delete_file completed: file_path={file_path}", "result")
 
     return f"Successfully deleted {file_path}"

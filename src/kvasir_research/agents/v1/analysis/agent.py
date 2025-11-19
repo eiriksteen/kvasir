@@ -1,20 +1,21 @@
 from pathlib import Path
-from uuid import UUID, uuid4
-from typing import Literal, List, OrderedDict, Optional, Dict
+from uuid import UUID
+from typing import Optional, List
+from typing_extensions import Self
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models import ModelSettings
 
 from kvasir_research.utils.agent_utils import get_model
 from kvasir_research.history_processors import keep_only_most_recent_notebook
 from kvasir_research.agents.v1.analysis.deps import AnalysisDeps
+from kvasir_research.agents.v1.data_model import AnalysisRun
 from kvasir_ontology.entities.analysis.data_model import AnalysisCreate
 from kvasir_research.agents.v1.analysis.prompt import ANALYSIS_SYSTEM_PROMPT
 from kvasir_research.agents.v1.kvasir.knowledge_bank import get_guidelines, SUPPORTED_TASKS_LITERAL
 from kvasir_research.agents.v1.analysis.tools import analysis_toolset
 from kvasir_research.agents.v1.analysis.output import submit_analysis_results
-from kvasir_research.agents.v1.base_agent import BaseAgent
+from kvasir_research.agents.v1.base_agent import AgentV1
 from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
-from kvasir_ontology.ontology import Ontology
 
 
 model = get_model()
@@ -53,229 +54,56 @@ async def analysis_system_prompt(ctx: RunContext[AnalysisDeps]) -> str:
     return full_system_prompt
 
 
-class AnalysisAgentV1(BaseAgent):
+class AnalysisAgentV1(AgentV1[AnalysisDeps, str]):
+    deps_class = AnalysisDeps
+    deps: AnalysisDeps
 
-    def __init__(
-        self,
-        user_id: UUID,
-        project_id: UUID,
-        package_name: str,
-        sandbox_type: Literal["local", "modal"],
-        callbacks: KvasirV1Callbacks,
-        bearer_token: Optional[str] = None,
-        run_id: Optional[UUID] = None
-    ):
-        super().__init__(
-            user_id=user_id,
-            project_id=project_id,
-            package_name=package_name,
-            sandbox_type=sandbox_type,
-            callbacks=callbacks,
-            bearer_token=bearer_token,
-            run_id=run_id
-        )
-        self.callbacks = callbacks
-        self._deps: Optional[AnalysisDeps] = None
+    def __init__(self, deps: AnalysisDeps):
+        super().__init__(deps, analysis_agent)
 
-    async def create_deps(
-        self,
-        kvasir_run_id: UUID,
-        run_name: str,
-        data_paths: List[str],
-        injected_analyses: List[UUID],
-        time_limit: int,
-        guidelines: List[SUPPORTED_TASKS_LITERAL] = None,
-    ) -> AnalysisDeps:
-        if self.run_id is None:
-            self.analysis = await self.ontology.insert_analysis(AnalysisCreate(
-                name=run_name,
-                description=None,
-                code_cells_create=[],
-                markdown_cells_create=[]
-            ), edges=[])
-            self.run = await self.callbacks.create_analysis_run(self.user_id, self.project_id, kvasir_run_id, self.analysis.id, run_name, "running")
-            self.run_id = self.run.id
-        else:
-            self.analysis = await self.ontology.analyses.get_analysis(self.run.analysis_id)
-            self.run = await self.callbacks.get_analysis_run(self.user_id, self.run_id)
-            self.run_id = self.run.id
+    async def _setup_run(self) -> UUID:
+        if self.deps.run_id is None:
+            assert self.deps.run_name is not None, "Run name must be set for analysis runs"
+            analysis = await self.deps.ontology.insert_analysis(AnalysisCreate(name=self.deps.run_name), edges=[])
+            analysis_run = await self.deps.callbacks.create_analysis_run(self.deps.user_id, self.deps.project_id, self.deps.kvasir_run_id, analysis.id, self.deps.run_name)
+            self.deps.analysis_id = analysis.id
+            self.deps.run_id = analysis_run.id
 
-        deps = AnalysisDeps(
-            kvasir_run_id=kvasir_run_id,
-            run_id=self.run_id,
-            run_name=run_name,
-            project_id=self.project_id,
-            analysis_id=self.analysis.id,
-            package_name=self.package_name,
-            data_paths=data_paths,
-            injected_analyses=injected_analyses,
-            time_limit=time_limit,
-            guidelines=guidelines or [],
-            notebook=OrderedDict(),
-            ontology=self.ontology,
-            sandbox_type=self.sandbox_type,
-            callbacks=self.callbacks,
-        )
-        self._deps = deps
+        await self.deps.callbacks.set_run_status(self.deps.user_id, self.deps.run_id, "running")
+        return self.deps.run_id
+
+    @classmethod
+    async def from_run(cls, user_id: UUID, run_id: UUID, callbacks: KvasirV1Callbacks, bearer_token: Optional[str] = None) -> Self:
+        return await super().from_run(user_id, run_id, callbacks, bearer_token)
+
+    @classmethod
+    async def load_deps(cls, user_id: UUID, run_id: UUID, callbacks: KvasirV1Callbacks, bearer_token: Optional[str] = None) -> AnalysisDeps:
+        deps = await super().load_deps(user_id, run_id, callbacks, bearer_token)
+        analysis = await deps.ontology.analyses.get_analysis(run_id)
+        deps.analysis_id = analysis.id
         return deps
 
-    async def load_deps_from_run(
-        self,
-        run_id: UUID,
-        guidelines: Optional[List[SUPPORTED_TASKS_LITERAL]] = None,
-        time_limit: Optional[int] = None,
-    ) -> AnalysisDeps:
+    def update_time_limit(self, time_limit: int):
+        self.deps.time_limit = time_limit
+
+    def update_guidelines(self, guidelines: List[SUPPORTED_TASKS_LITERAL]):
+        self.deps.guidelines = guidelines
+
+    async def __call__(self, prompt: str) -> str:
         try:
-            deps_dict = await self.callbacks.load_deps(self.user_id, run_id, "analysis")
-        except (ValueError, RuntimeError):
-            raise ValueError(f"Analysis run {run_id} not found")
+            await self._setup_run()
+            output = await self._run_agent(prompt)
 
-        if not deps_dict or "run_id" not in deps_dict:
-            raise ValueError(f"Analysis run {run_id} not found")
-
-        deps = _analysis_dict_to_deps(deps_dict, self.callbacks, self.ontology)
-
-        if guidelines is not None:
-            deps.guidelines = guidelines
-        if time_limit is not None:
-            deps.time_limit = time_limit
-
-        self.run_id = run_id
-        self._deps = deps
-        return deps
-
-    async def __call__(
-        self,
-        prompt: str,
-        guidelines: Optional[List[SUPPORTED_TASKS_LITERAL]] = None,
-        time_limit: Optional[int] = None,
-    ) -> str:
-        try:
-            if self._deps is None and self.run_id is None:
-                raise ValueError(
-                    "Must call create_deps() before starting a new agent run")
-            if self._deps is None:
-                try:
-                    await self.load_deps_from_run(self.run_id)
-                except Exception as e:
-                    raise ValueError(
-                        f"Error loading deps from run {self.run_id}: {e}") from e
-
-            deps = self._deps
-
-            if guidelines is not None:
-                deps.guidelines = guidelines
-            if time_limit is not None:
-                deps.time_limit = time_limit
-
-            message_history = None
-            if self.run_id:
-                message_history = await self.callbacks.get_message_history(self.user_id, self.run_id)
-
-            await self.callbacks.set_run_status(self.user_id, self.run_id, "running")
-
-            response = await analysis_agent.run(
-                prompt,
-                deps=deps,
-                message_history=message_history
+            await self.deps.sandbox.write_file(
+                str(Path("/app") / self.deps.package_name /
+                    "analysis" / f"{self.deps.run_name}.txt"),
+                output
             )
 
-            await deps.sandbox.write_file(
-                str(Path("/app") / deps.package_name /
-                    "analysis" / f"{deps.run_name}.txt"),
-                response.output
-            )
-
-            await self.callbacks.save_message_history(self.user_id, self.run_id, response.all_messages())
-            await self.callbacks.save_deps(self.user_id, self.run_id, _analysis_deps_to_dict(deps), "analysis")
-            await self.callbacks.save_result(self.user_id, self.run_id, response.output, "analysis")
-            await self.callbacks.set_run_status(self.user_id, self.run_id, "completed")
-
-            return response.output
+            await self.finish_run("Analysis run completed")
+            await self.deps.callbacks.save_result(self.deps.user_id, self.deps.run_id, output, "analysis")
+            return output
 
         except Exception as e:
-            if self.run_id:
-                await self.callbacks.fail_run(self.user_id, self.run_id, f"Error running analysis agent: {e}")
+            await self.fail_run_if_exists(f"Error running analysis agent: {e}")
             raise e
-
-
-def _analysis_deps_to_dict(deps: AnalysisDeps) -> Dict:
-    notebook_dict = {}
-    for key, value in deps.notebook.items():
-        if isinstance(value, tuple):
-            notebook_dict[key] = list(value)
-        else:
-            notebook_dict[key] = value
-
-    # Convert UUIDs to strings for injected_analyses
-    injected_analyses_str = [str(aid) if isinstance(
-        aid, UUID) else aid for aid in deps.injected_analyses]
-
-    return {
-        "run_id": str(deps.run_id),
-        "kvasir_run_id": str(deps.kvasir_run_id),
-        "run_name": deps.run_name,
-        "project_id": str(deps.project_id),
-        "package_name": deps.package_name,
-        "user_id": str(deps.user_id) if deps.user_id else None,
-        "bearer_token": deps.bearer_token,
-        "data_paths": deps.data_paths,
-        "injected_analyses": injected_analyses_str,
-        "time_limit": deps.time_limit,
-        "notebook": notebook_dict,
-        "guidelines": deps.guidelines,
-        "sandbox_type": deps.sandbox_type,
-        "analysis_id": str(deps.analysis_id),
-    }
-
-
-def _analysis_dict_to_deps(deps_dict: Dict, callbacks: KvasirV1Callbacks, ontology: Ontology) -> AnalysisDeps:
-    notebook_raw = deps_dict.get("notebook", {})
-    notebook = OrderedDict()
-    for k, v in notebook_raw.items():
-        if isinstance(v, list):
-            notebook[k] = tuple(v)
-        else:
-            notebook[k] = v
-
-    run_name = deps_dict.get("run_name", deps_dict.get("run_id"))
-    try:
-        run_uuid = UUID(deps_dict["run_id"])
-    except Exception:
-        run_uuid = uuid4()
-
-    injected_analyses_raw = deps_dict.get("injected_analyses", [])
-    injected_analyses_uuids = []
-    for aid in injected_analyses_raw:
-        if isinstance(aid, str):
-            try:
-                injected_analyses_uuids.append(UUID(aid))
-            except Exception as e:
-                raise ValueError(
-                    f"Invalid UUID string in injected_analyses: {aid}") from e
-        elif isinstance(aid, UUID):
-            injected_analyses_uuids.append(aid)
-        else:
-            raise TypeError(
-                f"Invalid type in injected_analyses: {type(aid)}, expected str or UUID")
-
-    deps = AnalysisDeps(
-        run_id=run_uuid,
-        kvasir_run_id=UUID(deps_dict["kvasir_run_id"]),
-        run_name=run_name,
-        project_id=UUID(deps_dict["project_id"]),
-        package_name=deps_dict["package_name"],
-        user_id=UUID(deps_dict["user_id"]) if deps_dict.get(
-            "user_id") else None,
-        data_paths=deps_dict["data_paths"],
-        injected_analyses=injected_analyses_uuids,
-        time_limit=deps_dict["time_limit"],
-        notebook=notebook,
-        ontology=ontology,
-        guidelines=deps_dict.get("guidelines", []),
-        sandbox_type=deps_dict.get("sandbox_type", "local"),
-        callbacks=callbacks,
-        bearer_token=deps_dict.get("bearer_token"),
-        analysis_id=UUID(deps_dict["analysis_id"])
-    )
-    return deps

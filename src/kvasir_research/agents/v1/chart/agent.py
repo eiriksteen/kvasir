@@ -1,5 +1,6 @@
 from uuid import UUID
 from typing import Literal, List, Optional
+from typing_extensions import Self
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models import ModelSettings
 
@@ -9,11 +10,10 @@ from kvasir_research.agents.v1.chart.prompt import CHART_AGENT_SYSTEM_PROMPT
 from kvasir_research.agents.v1.shared_tools import navigation_toolset
 
 from kvasir_research.agents.v1.chart.output import ChartAgentOutput
-from kvasir_research.agents.v1.base_agent import BaseAgent
+from kvasir_research.agents.v1.base_agent import AgentV1
 
 from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
-from kvasir_research.agents.v1.data_model import RunCreate
-from kvasir_ontology.entities.dataset.data_model import ObjectGroup
+from kvasir_research.agents.v1.data_model import RunBase, RunCreate
 from kvasir_research.utils.agent_utils import get_model
 
 
@@ -23,11 +23,10 @@ model = get_model()
 chart_agent = Agent[ChartDeps, ChartAgentOutput](
     model,
     deps_type=ChartDeps,
-    system_prompt=CHART_AGENT_SYSTEM_PROMPT,
-    output_type=submit_chart,
     toolsets=[navigation_toolset],
-    model_settings=ModelSettings(temperature=0),
-    retries=5
+    output_type=submit_chart,
+    retries=5,
+    model_settings=ModelSettings(temperature=0)
 )
 
 
@@ -68,66 +67,40 @@ async def chart_agent_system_prompt(ctx: RunContext[ChartDeps]) -> str:
     return full_prompt
 
 
-class ChartAgentV1(BaseAgent):
+class ChartAgentV1(AgentV1[ChartDeps, ChartAgentOutput]):
+    deps_class = ChartDeps
+    deps: ChartDeps
 
-    def __init__(
-        self,
-        user_id: UUID,
-        project_id: UUID,
-        package_name: str,
-        sandbox_type: Literal["local", "modal"],
-        callbacks: KvasirV1Callbacks,
-        datasets_injected: List[UUID] = None,
-        data_sources_injected: List[UUID] = None,
-        base_code: Optional[str] = None,
-        object_group: Optional[ObjectGroup] = None,
-        run_id: Optional[UUID] = None,
-        bearer_token: Optional[str] = None
-    ):
-        super().__init__(
-            user_id=user_id,
-            project_id=project_id,
-            package_name=package_name,
-            sandbox_type=sandbox_type,
-            callbacks=callbacks,
-            bearer_token=bearer_token,
-            run_id=run_id
-        )
-        self.datasets_injected = datasets_injected or []
-        self.data_sources_injected = data_sources_injected or []
-        self.base_code = base_code
-        self.object_group = object_group
+    def __init__(self, deps: ChartDeps):
+        super().__init__(deps, chart_agent)
+
+    async def _setup_run(self) -> UUID:
+        if self.deps.run_id is None:
+            assert self.deps.run_name is not None, "Run name must be set for chart runs"
+            run = await self.deps.callbacks.create_run(
+                self.deps.user_id,
+                RunCreate(
+                    type="extraction",  # Chart runs use extraction type since chart is not in RUN_TYPE_LITERAL
+                    project_id=self.deps.project_id,
+                    run_name=self.deps.run_name
+                )
+            )
+            self.deps.run_id = run.id
+
+        await self.deps.callbacks.set_run_status(self.deps.user_id, self.deps.run_id, "running")
+        return self.deps.run_id
+
+    @classmethod
+    async def from_run(cls, user_id: UUID, run_id: UUID, callbacks: KvasirV1Callbacks, bearer_token: Optional[str] = None) -> Self:
+        return await super().from_run(user_id, run_id, callbacks, bearer_token)
 
     async def __call__(self, prompt: str) -> ChartAgentOutput:
         try:
-            if self.run_id is None:
-                run_create = RunCreate(
-                    type="chart", project_id=self.project_id)
-                self.run_id = (await self.callbacks.create_run(self.user_id, run_create)).id
-
-            await self.callbacks.set_run_status(self.user_id, self.run_id, "running")
-
-            deps = ChartDeps(
-                project_id=self.project_id,
-                package_name=self.package_name,
-                user_id=self.user_id,
-                sandbox_type=self.sandbox_type,
-                datasets_injected=self.datasets_injected,
-                data_sources_injected=self.data_sources_injected,
-                base_code=self.base_code,
-                object_group=self.object_group,
-                callbacks=self.callbacks,
-                bearer_token=self.bearer_token
-            )
-
-            response = await chart_agent.run(
-                prompt,
-                deps=deps,
-                message_history=await self.callbacks.get_message_history(self.user_id, self.run_id) if self.run_id else None
-            )
-            return response.output
+            await self._setup_run()
+            output = await self._run_agent(prompt)
+            await self.finish_run("Chart run completed")
+            return output
 
         except Exception as e:
-            if self.run_id:
-                await self.callbacks.fail_run(self.user_id, self.run_id, f"Error running chart agent: {e}")
+            await self.fail_run_if_exists(f"Error running chart agent: {e}")
             raise e

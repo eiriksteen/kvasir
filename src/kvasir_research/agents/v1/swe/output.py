@@ -10,14 +10,14 @@ async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_comm
     The execution_command should be a shell command (e.g., "python scripts/train_model.py --epochs 100" or "bash run_pipeline.sh").
     Remember to use any relevant evaluation code, if specified. 
     """
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                  f"SWE Agent [{ctx.deps.run_name}] submit_results called: execution_command={execution_command}", "tool_call")
 
     # If no execution command provided (e.g., only module modifications), skip execution
     if not execution_command or execution_command.strip() == "":
         result = modified_files_to_string(
             ctx.deps.modified_files, ctx.deps.run_id, ctx.deps.run_name, "", "")
-        await ctx.deps.callbacks.log(ctx.deps.run_id,
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                      f"SWE Agent [{ctx.deps.run_name}] submit_results completed (no execution): modified_files={list(ctx.deps.modified_files.keys())}", "result")
         return result
 
@@ -35,13 +35,13 @@ async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_comm
             return_code = content
         elif stream_type == "stdout":
             stdout_lines.append(content)
-            await ctx.deps.callbacks.log(ctx.deps.run_id, f"[{ctx.deps.run_name}] stdout: {content}", "result")
+            await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"[{ctx.deps.run_name}] stdout: {content}", "result")
         elif stream_type == "stderr":
             stderr_lines.append(content)
-            await ctx.deps.callbacks.log(ctx.deps.run_id, f"[{ctx.deps.run_name}] stderr: {content}", "error")
+            await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"[{ctx.deps.run_name}] stderr: {content}", "error")
         elif stream_type == "timeout":
             timeout_message = content
-            await ctx.deps.callbacks.log(ctx.deps.run_id, f"[{ctx.deps.run_id}] Timeout: {content}", "error")
+            await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"[{ctx.deps.run_id}] Timeout: {content}", "error")
 
     # Handle timeout
     if timeout_message:
@@ -57,7 +57,7 @@ async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_comm
         )
         result = modified_files_to_string(
             ctx.deps.modified_files, ctx.deps.run_id, ctx.deps.run_name, execution_command, error_msg)
-        await ctx.deps.callbacks.log(ctx.deps.run_id,
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                      f"SWE Agent [{ctx.deps.run_name}] submit_results time limit exceeded: {ctx.deps.time_limit}s", "error")
         return result
 
@@ -66,11 +66,11 @@ async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_comm
     err = "\n".join(stderr_lines) if return_code != 0 else None
 
     if err:
-        await ctx.deps.callbacks.log(ctx.deps.run_id,
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                      f"SWE Agent [{ctx.deps.run_name}] submit_results error: execution_command={execution_command}, error={err}", "error")
         raise ModelRetry(f"Error running command '{execution_command}': {err}")
 
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                  f"SWE Agent [{ctx.deps.run_name}] submit_results completed: output_length={len(out)} chars, modified_files={list(ctx.deps.modified_files.keys())}", "result")
 
     result = modified_files_to_string(
@@ -83,9 +83,8 @@ async def submit_message_to_orchestrator(ctx: RunContext[SWEDeps], message: str)
     """
     Submit a message to the orchestrator for help, to request an analysis, request access to write a file, or notify it of any critical issues. 
     """
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                  f"SWE Agent [{ctx.deps.run_name}] submit_message_to_orchestrator called: message={message}", "tool_call")
     result = modified_files_to_string(
         ctx.deps.modified_files, ctx.deps.run_id, ctx.deps.run_name, "", message)
     return result
-

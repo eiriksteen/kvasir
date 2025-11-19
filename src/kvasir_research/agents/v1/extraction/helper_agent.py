@@ -15,7 +15,7 @@ from kvasir_research.agents.v1.chart.agent import chart_agent
 from kvasir_research.agents.v1.chart.deps import ChartDeps
 from kvasir_research.agents.v1.chart.output import ChartAgentOutput
 from kvasir_research.secrets import SANDBOX_INTERNAL_SCRIPT_DIR
-from kvasir_research.agents.v1.deps import AgentDepsFull
+from kvasir_research.agents.v1.extraction.deps import ExtractionDeps
 
 
 data_source_system_prompt = f"""
@@ -45,7 +45,7 @@ head = df.head().to_string()
 """
 
 
-async def submit_data_source_details(ctx: RunContext[AgentDepsFull], python_code: str) -> str:
+async def submit_data_source_details(ctx: RunContext[ExtractionDeps], python_code: str) -> str:
 
     if "data_source_details_dict" not in python_code:
         raise ModelRetry(
@@ -54,12 +54,12 @@ async def submit_data_source_details(ctx: RunContext[AgentDepsFull], python_code
         python_code = remove_print_statements_from_code(python_code)
         submission_code, _ = await ctx.deps.ontology.data_sources.get_data_source_details_submission_code()
         full_code = f"{python_code}\n\n{submission_code}"
-        await ctx.deps.callbacks.log(ctx.deps.run_id, f"SANDBOX PROJECT ID: {ctx.deps.sandbox.project_id}"*10, "result")
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"SANDBOX PROJECT ID: {ctx.deps.sandbox.project_id}"*10, "result")
         out, err = await ctx.deps.sandbox.run_python_code(full_code)
 
-        await ctx.deps.callbacks.log(ctx.deps.run_id, f"Data Source Details Submission Code:\n\n{full_code}", "result")
-        await ctx.deps.callbacks.log(ctx.deps.run_id, f"Data Source Details Submission Output:\n\n{out}", "result")
-        await ctx.deps.callbacks.log(ctx.deps.run_id, f"Data Source Details Submission Error:\n\n{err}", "error")
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Data Source Details Submission Code:\n\n{full_code}", "result")
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Data Source Details Submission Output:\n\n{out}", "result")
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Data Source Details Submission Error:\n\n{err}", "error")
 
         if err:
             raise ModelRetry(f"Code execution error: {err}")
@@ -70,9 +70,9 @@ async def submit_data_source_details(ctx: RunContext[AgentDepsFull], python_code
         raise ModelRetry(
             f"Failed to submit data source details from code: {str(e)}")
 
-data_source_agent = Agent[AgentDepsFull, str](
+data_source_agent = Agent[ExtractionDeps, str](
     model=get_model(),
-    deps_type=AgentDepsFull,
+    deps_type=ExtractionDeps,
     system_prompt=data_source_system_prompt,
     retries=3,
     output_type=submit_data_source_details
@@ -80,7 +80,7 @@ data_source_agent = Agent[AgentDepsFull, str](
 
 
 @data_source_agent.system_prompt
-async def get_data_source_submission_code(ctx: RunContext[AgentDepsFull]) -> str:
+async def get_data_source_submission_code(ctx: RunContext[ExtractionDeps]) -> str:
     _, submission_desc = await ctx.deps.ontology.data_sources.get_data_source_details_submission_code()
 
     full_sys_prompt = (
@@ -122,7 +122,7 @@ class ChartDescription(BaseModel):
 
 
 async def submit_object_groups(
-    ctx: RunContext[AgentDepsFull],
+    ctx: RunContext[ExtractionDeps],
     python_code: str,
     chart_descriptions: List[ChartDescription]
 ) -> str:
@@ -136,9 +136,9 @@ async def submit_object_groups(
         full_code = f"{python_code}\n\n{submission_code}"
         out, err = await ctx.deps.sandbox.run_python_code(full_code)
 
-        await ctx.deps.callbacks.log(ctx.deps.run_id, f"Object Groups Submission Code:\n\n{full_code}", "result")
-        await ctx.deps.callbacks.log(ctx.deps.run_id, f"Object Groups Submission Output:\n\n{out}", "result")
-        await ctx.deps.callbacks.log(ctx.deps.run_id, f"Object Groups Submission Error:\n\n{err}", "error")
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Object Groups Submission Code:\n\n{full_code}", "result")
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Object Groups Submission Output:\n\n{out}", "result")
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Object Groups Submission Error:\n\n{err}", "error")
 
         if err:
             raise ModelRetry(f"Code execution error: {err}")
@@ -180,9 +180,9 @@ async def submit_object_groups(
         raise ModelRetry(f"Failed to submit object groups from code: {str(e)}")
 
 
-dataset_agent = Agent[AgentDepsFull, str](
+dataset_agent = Agent[ExtractionDeps, str](
     model=get_model(),
-    deps_type=AgentDepsFull,
+    deps_type=ExtractionDeps,
     system_prompt=dataset_system_prompt,
     retries=3,
     output_type=submit_object_groups
@@ -190,7 +190,7 @@ dataset_agent = Agent[AgentDepsFull, str](
 
 
 @dataset_agent.system_prompt
-async def get_dataset_submission_code(ctx: RunContext[AgentDepsFull]) -> str:
+async def get_dataset_submission_code(ctx: RunContext[ExtractionDeps]) -> str:
     _, object_group_submission_desc = await ctx.deps.ontology.datasets.get_object_group_submission_code()
 
     full_sys_prompt = (
@@ -217,7 +217,7 @@ You may also include pipeline runs if applicable, following this schema:
 
 
 async def submit_pipeline_implementation(
-    ctx: RunContext[AgentDepsFull],
+    ctx: RunContext[ExtractionDeps],
     pipeline_implementation_create: PipelineImplementationCreate,
     runs: List[PipelineRunCreate] = []
 ) -> str:
@@ -240,9 +240,9 @@ async def submit_pipeline_implementation(
         raise ModelRetry(f"Failed to submit pipeline implementation: {str(e)}")
 
 
-pipeline_agent = Agent[AgentDepsFull, str](
+pipeline_agent = Agent[ExtractionDeps, str](
     model=get_model(),
-    deps_type=AgentDepsFull,
+    deps_type=ExtractionDeps,
     system_prompt=pipeline_system_prompt,
     retries=3,
     output_type=submit_pipeline_implementation
@@ -260,7 +260,7 @@ Output the model implementation following this schema:
 
 
 async def submit_model_implementation(
-    ctx: RunContext[AgentDepsFull],
+    ctx: RunContext[ExtractionDeps],
     model_implementation_create: ModelImplementationCreate
 ) -> str:
     try:
@@ -271,9 +271,9 @@ async def submit_model_implementation(
         raise ModelRetry(f"Failed to submit model implementation: {str(e)}")
 
 
-model_agent = Agent[AgentDepsFull, str](
+model_agent = Agent[ExtractionDeps, str](
     model=get_model(),
-    deps_type=AgentDepsFull,
+    deps_type=ExtractionDeps,
     system_prompt=model_system_prompt,
     retries=3,
     output_type=submit_model_implementation
@@ -284,7 +284,7 @@ model_agent = Agent[AgentDepsFull, str](
 
 
 async def _create_chart_for_object_group(
-    ctx: RunContext[AgentDepsFull],
+    ctx: RunContext[ExtractionDeps],
     object_group_id: uuid.UUID,
     chart_description: str,
     datasets_to_inject: List[uuid.UUID],
@@ -300,13 +300,15 @@ async def _create_chart_for_object_group(
     chart_result = await chart_agent.run(
         chart_description,
         deps=ChartDeps(
-            callbacks=ctx.deps.callbacks,
+            user_id=ctx.deps.user_id,
             project_id=ctx.deps.project_id,
             package_name=ctx.deps.package_name,
             sandbox_type=ctx.deps.sandbox_type,
+            callbacks=ctx.deps.callbacks,
             datasets_injected=datasets_to_inject,
             data_sources_injected=data_sources_to_inject,
-            object_group=object_group
+            object_group=object_group,
+            bearer_token=ctx.deps.bearer_token
         )
     )
     save_path = SANDBOX_INTERNAL_SCRIPT_DIR / f"{object_group_id}.py"

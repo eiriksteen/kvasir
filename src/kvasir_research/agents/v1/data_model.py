@@ -6,10 +6,13 @@ from pydantic import BaseModel, Field
 
 # Schemas
 
-RUN_TYPE_LITERAL = Literal["swe", "analysis", "extraction", "kvasir"]
-RESULT_TYPE_LITERAL = Literal["swe", "analysis"]
+RUN_TYPE_LITERAL = Literal["swe", "analysis", "extraction", "kvasir", "chart"]
+RESULT_TYPE_LITERAL = Literal["swe", "analysis", "extraction", "chart"]
 RUN_STATUS_LITERAL = Literal["pending", "running",
                              "completed", "failed", "rejected", "waiting"]
+MESSAGE_ROLE_LITERAL = Literal["swe", "analysis",
+                               "kvasir", "user", "extraction", "chart"]
+MESSAGE_TYPE_LITERAL = Literal["tool_call", "result", "error", "info", "chat"]
 
 
 class RunBase(BaseModel):
@@ -28,8 +31,8 @@ class Message(BaseModel):
     id: uuid.UUID
     content: str
     run_id: uuid.UUID
-    role: Literal["swe", "analysis", "kvasir", "user"]
-    type: Literal["tool_call", "result", "error", "info", "chat"]
+    role: MESSAGE_ROLE_LITERAL
+    type: MESSAGE_TYPE_LITERAL
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc))
 
@@ -100,8 +103,8 @@ class Context(BaseModel):
 class MessageCreate(BaseModel):
     content: str
     run_id: uuid.UUID
-    role: Literal["swe", "analysis", "kvasir", "user"]
-    type: Literal["tool_call", "result", "error", "info", "chat"]
+    role: MESSAGE_ROLE_LITERAL
+    type: MESSAGE_TYPE_LITERAL
     context: Context = Field(default_factory=Context)
 
 

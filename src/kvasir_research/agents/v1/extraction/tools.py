@@ -4,7 +4,6 @@ from typing import List, Literal, Optional, Dict
 from pydantic import BaseModel, model_validator
 from pydantic_ai import RunContext, ModelRetry, FunctionToolset
 
-from kvasir_research.agents.v1.deps import AgentDepsFull
 from kvasir_research.agents.v1.extraction.deps import ExtractionDeps
 from kvasir_research.agents.v1.extraction.helper_agent import (
     data_source_agent,
@@ -106,8 +105,8 @@ async def submit_entities_to_create(
 ) -> str:
     """Submit entities, pipeline runs, and edges to create."""
 
-    await ctx.deps.callbacks.log(ctx.deps.run_id, f"Submitting entities to create: {entities_to_create}", "result")
-    await ctx.deps.callbacks.log(ctx.deps.run_id, f"Submitting pipeline runs to create: {pipeline_runs_to_create}", "result")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Submitting entities to create: {entities_to_create}", "result")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Submitting pipeline runs to create: {pipeline_runs_to_create}", "result")
 
     # Map entity names to IDs for edge creation
     name_to_id_map: Dict[str, uuid.UUID] = {}
@@ -169,7 +168,7 @@ async def submit_entities_to_create(
         else:
             name_to_id_map[entity.name] = entity.entity_id
             await ctx.deps.callbacks.log(
-                ctx.deps.run_id, f"Using existing entity: {entity.name} with ID: {entity.entity_id}", "result")
+                ctx.deps.user_id, ctx.deps.run_id, f"Using existing entity: {entity.name} with ID: {entity.entity_id}", "result")
 
     # Phase 1b: Create pipeline runs
     for pipeline_run in pipeline_runs_to_create:
@@ -177,7 +176,7 @@ async def submit_entities_to_create(
         pipeline_id = name_to_id_map.get(pipeline_run.pipeline_name)
         if pipeline_id is None:
             await ctx.deps.callbacks.log(
-                ctx.deps.run_id, f"Pipeline run '{pipeline_run.name}' references pipeline '{pipeline_run.pipeline_name}' "
+                ctx.deps.user_id, ctx.deps.run_id, f"Pipeline run '{pipeline_run.name}' references pipeline '{pipeline_run.pipeline_name}' "
                 f"which was not found in created entities. Available names: {list(name_to_id_map.keys())}", "error")
             continue
 
@@ -229,7 +228,7 @@ async def submit_entities_to_create(
                     ctx.deps.user_id, ctx.deps.run_id, f"Could not find ID mapping for edge: {edge.from_node_name} -> {edge.to_node_name}", "error")
                 await ctx.deps.callbacks.log(
                     ctx.deps.user_id, ctx.deps.run_id, f"Available names in map: {list(name_to_id_map.keys())}", "error")
-                await ctx.deps.callbacks.log(ctx.deps.run_id, f"from_id={from_id}, to_id={to_id}", "error")
+                await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"from_id={from_id}, to_id={to_id}", "error")
                 continue
 
             edge_definitions.append(EdgeDefinition(
@@ -266,7 +265,8 @@ async def submit_entities_to_create(
         agent = ENTITY_TYPE_TO_AGENT[entity.type]
         routine = agent.run(
             prompt,
-            deps=AgentDepsFull(
+            deps=ExtractionDeps(
+                user_id=ctx.deps.user_id,
                 run_id=ctx.deps.run_id,
                 callbacks=ctx.deps.callbacks,
                 sandbox=ctx.deps.sandbox,
@@ -299,7 +299,8 @@ async def submit_entities_to_create(
 
         routine = agent.run(
             prompt,
-            deps=AgentDepsFull(
+            deps=ExtractionDeps(
+                user_id=ctx.deps.user_id,
                 run_id=ctx.deps.run_id,
                 callbacks=ctx.deps.callbacks,
                 sandbox=ctx.deps.sandbox,

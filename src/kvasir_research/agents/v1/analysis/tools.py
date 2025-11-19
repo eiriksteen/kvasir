@@ -23,7 +23,7 @@ async def create_or_replace_cell(
             "Either section_id or new_section_name must be provided")
 
     elif not section_id:
-        section_obj = await ctx.deps.ontology.analyses.create_section(SectionCreate(
+        created_section = await ctx.deps.ontology.analyses.create_section(SectionCreate(
             name=new_section_name,
             analysis_id=ctx.deps.analysis_id,
             description=None,
@@ -31,10 +31,10 @@ async def create_or_replace_cell(
             markdown_cells_create=[]
         ))
 
-        await ctx.deps.ontology.analyses.write_to_analysis_stream(ctx.deps.run_id, section_obj)
-        section_id = section_obj.id
+        await ctx.deps.ontology.analyses.write_to_analysis_stream(ctx.deps.run_id, created_section)
+        section_id = created_section.id
 
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                  f"Analysis Agent [{ctx.deps.run_name}] create_or_replace_cell called: name={name}, cell_type={cell_type}, content_length={len(content)} chars", "tool_call")
 
     if cell_type == "code":
@@ -47,11 +47,11 @@ async def create_or_replace_cell(
             timeout=ctx.deps.time_limit
         )
 
-        await ctx.deps.callbacks.log(ctx.deps.run_id,
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                      f"Analysis Agent [{ctx.deps.run_name}] executed code cell: {name}, output_length={len(out)} chars", "result")
 
         if err:
-            await ctx.deps.callbacks.log(ctx.deps.run_id,
+            await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                          f"Analysis Agent [{ctx.deps.run_name}] error executing code cell: {name}, error={err}", "error")
             raise ModelRetry(f"Error executing code cell: {err}")
 
@@ -78,8 +78,8 @@ async def create_or_replace_cell(
         ))
 
     await ctx.deps.ontology.analyses.write_to_analysis_stream(ctx.deps.run_id, analysis_cell)
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"Analysis Agent [{ctx.deps.run_name}] create_or_replace_cell completed: name={name}, total_cells={len(ctx.deps.notebook)}", "info")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
+                                 f"Analysis Agent [{ctx.deps.run_name}] create_or_replace_cell completed: name={name}, total_cells={len(ctx.deps.notebook)}", "result")
 
     result = notebook_to_string(
         ctx.deps.notebook, ctx.deps.run_id, ctx.deps.run_name)
@@ -88,7 +88,7 @@ async def create_or_replace_cell(
 
 
 async def delete_cell(ctx: RunContext[AnalysisDeps], cell_name: str) -> str:
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
                                  f"Analysis Agent [{ctx.deps.run_name}] delete_cell called: cell_name={cell_name}", "tool_call")
 
     if cell_name not in ctx.deps.notebook:
@@ -102,8 +102,8 @@ async def delete_cell(ctx: RunContext[AnalysisDeps], cell_name: str) -> str:
 
     result = notebook_to_string(
         ctx.deps.notebook, ctx.deps.run_id, ctx.deps.run_name)
-    await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"Analysis Agent [{ctx.deps.run_name}] delete_cell completed: cell_name={cell_name}, remaining_cells={len(ctx.deps.notebook)}", "info")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
+                                 f"Analysis Agent [{ctx.deps.run_name}] delete_cell completed: cell_name={cell_name}, remaining_cells={len(ctx.deps.notebook)}", "result")
 
     return result
 

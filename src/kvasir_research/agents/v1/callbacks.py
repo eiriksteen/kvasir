@@ -56,14 +56,6 @@ class KvasirV1Callbacks(ABC):
         pass
 
     @abstractmethod
-    async def complete_run(self, user_id: UUID, run_id: UUID, output: str) -> None:
-        pass
-
-    @abstractmethod
-    async def fail_run(self, user_id: UUID, run_id: UUID, error: str) -> None:
-        pass
-
-    @abstractmethod
     async def save_message_history(self, user_id: UUID, run_id: UUID, message_history: List[ModelMessage]) -> None:
         pass
 
@@ -84,11 +76,11 @@ class KvasirV1Callbacks(ABC):
         pass
 
     @abstractmethod
-    async def save_deps(self, user_id: UUID, run_id: UUID, deps: Dict, type: Literal["swe", "analysis", "kvasir"]) -> None:
+    async def save_deps(self, user_id: UUID, run_id: UUID, deps: Dict) -> None:
         pass
 
     @abstractmethod
-    async def load_deps(self, user_id: UUID, run_id: UUID, type: Literal["swe", "analysis", "kvasir"]) -> Dict:
+    async def load_deps(self, user_id: UUID, run_id: UUID) -> Dict:
         pass
 
     @abstractmethod
@@ -107,7 +99,6 @@ class KvasirV1Callbacks(ABC):
     async def get_runs(
         self,
         user_id: UUID,
-        run_id: Optional[UUID] = None,
         run_ids: Optional[List[UUID]] = None,
         project_id: Optional[UUID] = None,
         status: Optional[str] = None,

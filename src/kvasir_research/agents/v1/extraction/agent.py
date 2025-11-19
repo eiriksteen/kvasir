@@ -1,5 +1,6 @@
 from uuid import UUID
 from typing import Literal, Optional, Annotated
+from typing_extensions import Self
 from taskiq import Context, TaskiqDepends
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models import ModelSettings
@@ -8,10 +9,10 @@ from kvasir_research.agents.v1.extraction.deps import ExtractionDeps
 from kvasir_research.agents.v1.extraction.tools import extraction_toolset
 from kvasir_research.agents.v1.shared_tools import navigation_toolset
 from kvasir_research.agents.v1.extraction.prompt import EXTRACTION_AGENT_SYSTEM_PROMPT
-from kvasir_research.agents.v1.base_agent import BaseAgent
+from kvasir_research.agents.v1.base_agent import AgentV1
 from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
 from kvasir_research.agents.v1.broker import v1_broker
-from kvasir_research.agents.v1.data_model import RunCreate
+from kvasir_research.agents.v1.data_model import RunBase, RunCreate
 from kvasir_research.utils.agent_utils import get_model
 
 model = get_model()
@@ -20,10 +21,9 @@ model = get_model()
 extraction_agent = Agent[ExtractionDeps, str](
     model,
     deps_type=ExtractionDeps,
-    system_prompt=EXTRACTION_AGENT_SYSTEM_PROMPT,
     toolsets=[navigation_toolset, extraction_toolset],
-    model_settings=ModelSettings(temperature=0),
-    retries=5
+    retries=5,
+    model_settings=ModelSettings(temperature=0)
 )
 
 
@@ -42,53 +42,41 @@ async def extraction_agent_system_prompt(ctx: RunContext[ExtractionDeps]) -> str
     return full_prompt
 
 
-class ExtractionAgentV1(BaseAgent):
+class ExtractionAgentV1(AgentV1[ExtractionDeps, str]):
+    deps_class = ExtractionDeps
+    deps: ExtractionDeps
 
-    def __init__(
-        self,
-        user_id: UUID,
-        project_id: UUID,
-        package_name: str,
-        sandbox_type: Literal["local", "modal"],
-        callbacks: KvasirV1Callbacks,
-        bearer_token: Optional[str] = None,
-        run_id: Optional[UUID] = None
-    ):
-        super().__init__(user_id, project_id, package_name,
-                         sandbox_type, callbacks, bearer_token, run_id)
+    def __init__(self, deps: ExtractionDeps):
+        super().__init__(deps, extraction_agent)
+
+    async def _setup_run(self) -> UUID:
+        if self.deps.run_id is None:
+            run = await self.deps.callbacks.create_run(
+                self.deps.user_id,
+                RunCreate(
+                    type="extraction",
+                    project_id=self.deps.project_id,
+                    run_name=self.deps.run_name or "Extraction Run"
+                )
+            )
+            self.deps.run_id = run.id
+
+        await self.deps.callbacks.set_run_status(self.deps.user_id, self.deps.run_id, "running")
+        return self.deps.run_id
+
+    @classmethod
+    async def from_run(cls, user_id: UUID, run_id: UUID, callbacks: KvasirV1Callbacks, bearer_token: Optional[str] = None) -> Self:
+        return await super().from_run(user_id, run_id, callbacks, bearer_token)
 
     async def __call__(self, prompt: str) -> str:
         try:
-            if self.run_id is None:
-                run_create = RunCreate(
-                    type="extraction", project_id=self.project_id)
-                self.run_id = (await self.callbacks.create_run(self.user_id, run_create)).id
-
-            await self.callbacks.set_run_status(self.user_id, self.run_id, "running")
-
-            deps = ExtractionDeps(
-                run_id=self.run_id,
-                project_id=self.project_id,
-                package_name=self.package_name,
-                user_id=self.user_id,
-                sandbox_type=self.sandbox_type,
-                callbacks=self.callbacks,
-                ontology=self.ontology,
-                bearer_token=self.bearer_token
-            )
-
-            response = await extraction_agent.run(
-                f"{prompt}\n\nRespond with a summary of what you did.",
-                deps=deps,
-                message_history=await self.callbacks.get_message_history(self.user_id, self.run_id)
-            )
-
-            await self.callbacks.log(self.user_id, self.run_id, f"Extraction agent completed", "result")
-            return response.output
+            await self._setup_run()
+            output = await self._run_agent(f"{prompt}\n\nRespond with a summary of what you did.")
+            await self.finish_run("Extraction agent completed")
+            return output
 
         except Exception as e:
-            if self.run_id:
-                await self.callbacks.fail_run(self.user_id, self.run_id, f"Error running extraction agent: {e}")
+            await self.fail_run_if_exists(f"Error running extraction agent: {e}")
             raise e
 
 
@@ -104,7 +92,7 @@ async def run_extraction_agent(
 ) -> str:
     callbacks: KvasirV1Callbacks = context.state.callbacks
 
-    extraction_agent = ExtractionAgentV1(
+    deps = ExtractionDeps(
         user_id=user_id,
         project_id=project_id,
         package_name=package_name,
@@ -112,4 +100,5 @@ async def run_extraction_agent(
         callbacks=callbacks,
         bearer_token=bearer_token
     )
+    extraction_agent = ExtractionAgentV1(deps)
     return await extraction_agent(prompt)
