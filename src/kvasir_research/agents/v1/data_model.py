@@ -70,12 +70,12 @@ class ResultBase(BaseModel):
 class AnalysisRun(RunBase):
     analysis_id: uuid.UUID
     kvasir_run_id: uuid.UUID
-    result: ResultBase
+    result: Optional[ResultBase] = None
 
 
 class SweRun(RunBase):
     kvasir_run_id: uuid.UUID
-    result: ResultBase
+    result: Optional[ResultBase] = None
 
 
 # Create Schemas

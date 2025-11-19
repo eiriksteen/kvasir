@@ -25,7 +25,7 @@ async def create_or_replace_cell(
     elif not section_id:
         section_obj = await ctx.deps.ontology.analyses.create_section(SectionCreate(
             name=new_section_name,
-            analysis_id=ctx.deps.project_id,
+            analysis_id=ctx.deps.analysis_id,
             description=None,
             code_cells_create=[],
             markdown_cells_create=[]

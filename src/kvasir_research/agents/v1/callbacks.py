@@ -30,15 +30,17 @@ class KvasirV1Callbacks(ABC):
         pass
 
     @abstractmethod
-    async def create_swe_run(self, user_id: UUID, project_id: UUID, kvasir_run_id: UUID, run_name: str | None = None, initial_status: Literal["pending", "completed", "failed", "waiting", "running"] | None = None) -> UUID:
+    async def create_swe_run(
+            self, user_id: UUID, project_id: UUID, kvasir_run_id: UUID, run_name: str | None = None, initial_status: Literal["pending", "completed", "failed", "waiting", "running"] | None = None) -> SweRun:
         pass
 
     @abstractmethod
-    async def create_analysis_run(self, user_id: UUID, project_id: UUID, kvasir_run_id: UUID, analysis_id: UUID, run_name: str | None = None, initial_status: Literal["pending", "completed", "failed", "waiting", "running"] | None = None) -> UUID:
+    async def create_analysis_run(
+            self, user_id: UUID, project_id: UUID, kvasir_run_id: UUID, analysis_id: UUID, run_name: str | None = None, initial_status: Literal["pending", "completed", "failed", "waiting", "running"] | None = None) -> AnalysisRun:
         pass
 
     @abstractmethod
-    async def create_kvasir_run(self, user_id: UUID, project_id: UUID, run_name: str | None = None, initial_status: Literal["pending", "completed", "failed", "waiting", "running"] | None = None) -> UUID:
+    async def create_kvasir_run(self, user_id: UUID, project_id: UUID, run_name: str | None = None, initial_status: Literal["pending", "completed", "failed", "waiting", "running"] | None = None) -> RunBase:
         pass
 
     @abstractmethod
@@ -50,7 +52,7 @@ class KvasirV1Callbacks(ABC):
         pass
 
     @abstractmethod
-    async def create_extraction_run(self, user_id: UUID, project_id: UUID, run_name: str | None = None, initial_status: Literal["pending", "completed", "failed", "waiting", "running"] | None = None) -> UUID:
+    async def create_extraction_run(self, user_id: UUID, project_id: UUID, run_name: str | None = None, initial_status: Literal["pending", "completed", "failed", "waiting", "running"] | None = None) -> RunBase:
         pass
 
     @abstractmethod

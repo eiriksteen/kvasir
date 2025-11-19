@@ -14,7 +14,6 @@ from kvasir_research.agents.v1.analysis.tools import analysis_toolset
 from kvasir_research.agents.v1.analysis.output import submit_analysis_results
 from kvasir_research.agents.v1.base_agent import BaseAgent
 from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
-from kvasir_research.agents.v1.data_model import RunCreate
 from kvasir_ontology.ontology import Ontology
 
 
@@ -88,14 +87,25 @@ class AnalysisAgentV1(BaseAgent):
         guidelines: List[SUPPORTED_TASKS_LITERAL] = None,
     ) -> AnalysisDeps:
         if self.run_id is None:
-            run_create = RunCreate(type="analysis", project_id=self.project_id)
-            self.run_id = (await self.callbacks.create_run(self.user_id, run_create)).id
+            self.analysis = await self.ontology.insert_analysis(AnalysisCreate(
+                name=run_name,
+                description=None,
+                code_cells_create=[],
+                markdown_cells_create=[]
+            ), edges=[])
+            self.run = await self.callbacks.create_analysis_run(self.user_id, self.project_id, kvasir_run_id, self.analysis.id, run_name, "running")
+            self.run_id = self.run.id
+        else:
+            self.analysis = await self.ontology.analyses.get_analysis(self.run.analysis_id)
+            self.run = await self.callbacks.get_analysis_run(self.user_id, self.run_id)
+            self.run_id = self.run.id
 
         deps = AnalysisDeps(
             kvasir_run_id=kvasir_run_id,
             run_id=self.run_id,
             run_name=run_name,
             project_id=self.project_id,
+            analysis_id=self.analysis.id,
             package_name=self.package_name,
             data_paths=data_paths,
             injected_analyses=injected_analyses,
@@ -141,17 +151,15 @@ class AnalysisAgentV1(BaseAgent):
         time_limit: Optional[int] = None,
     ) -> str:
         try:
-            if self.run_id is None:
-                self.analysis = await self.ontology.insert_analysis(AnalysisCreate(
-                    name=self._deps.run_name,
-                    description=None,
-                    code_cells_create=[],
-                    markdown_cells_create=[]
-                ), edges=[])
-                self.run = await self.callbacks.create_analysis_run(self.user_id, self.project_id, self._deps.kvasir_run_id, self.analysis.id, self._deps.run_name)
-            else:
-                self.run = await self.callbacks.get_analysis_run(self.user_id, self.run_id)
-                self.analysis = await self.ontology.analyses.get_analysis(self.run.analysis_id)
+            if self._deps is None and self.run_id is None:
+                raise ValueError(
+                    "Must call create_deps() before starting a new agent run")
+            if self._deps is None:
+                try:
+                    await self.load_deps_from_run(self.run_id)
+                except Exception as e:
+                    raise ValueError(
+                        f"Error loading deps from run {self.run_id}: {e}") from e
 
             deps = self._deps
 
@@ -217,6 +225,7 @@ def _analysis_deps_to_dict(deps: AnalysisDeps) -> Dict:
         "notebook": notebook_dict,
         "guidelines": deps.guidelines,
         "sandbox_type": deps.sandbox_type,
+        "analysis_id": str(deps.analysis_id),
     }
 
 
@@ -266,6 +275,7 @@ def _analysis_dict_to_deps(deps_dict: Dict, callbacks: KvasirV1Callbacks, ontolo
         guidelines=deps_dict.get("guidelines", []),
         sandbox_type=deps_dict.get("sandbox_type", "local"),
         callbacks=callbacks,
-        bearer_token=deps_dict.get("bearer_token")
+        bearer_token=deps_dict.get("bearer_token"),
+        analysis_id=UUID(deps_dict["analysis_id"])
     )
     return deps
