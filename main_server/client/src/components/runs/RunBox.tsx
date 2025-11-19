@@ -213,24 +213,8 @@ export default function RunBox({ runId, projectId, onRunCompleteOrFail }: RunBox
               {run.runName}
             </div>
             <div className="text-xs text-gray-500 leading-relaxed">
-              {run.planAndDeliverableDescriptionForUser}
+              {run.description}
             </div>
-            {run.questionsForUser && (
-              <div className="mt-2">
-                <div className="text-[10px] font-medium text-gray-600 mb-1">Questions:</div>
-                <div className="text-xs text-gray-500 leading-relaxed">
-                  {run.questionsForUser}
-                </div>
-              </div>
-            )}
-            {run.configurationDefaultsDescription && (
-              <div className="mt-2 pt-2">
-                <div className="text-[10px] font-medium text-gray-600 mb-1">Default Configuration:</div>
-                <div className="text-xs text-gray-500 leading-relaxed">
-                  {run.configurationDefaultsDescription}
-                </div>
-              </div>
-            )}
             
             
             {/* Accept/Reject Buttons for Pending Runs */}

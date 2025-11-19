@@ -4,20 +4,11 @@ import React, { memo, ReactNode } from 'react';
 import { Wrench } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ChatMessage } from '@/types/api/orchestrator';
-import { Dataset } from '@/types/ontology/dataset';
-import { DataSource } from '@/types/ontology/data-source';
-import { Pipeline } from '@/types/ontology/pipeline';
-import { ModelInstantiated } from '@/types/ontology/model';
-import { Analysis } from '@/types/ontology/analysis';
-import { useOntology } from '@/hooks/useOntology';
-import { DataSourceMini, DatasetMini, AnalysisMini, PipelineMini, ModelEntityMini } from '@/components/entity-mini';
+import { Message } from '@/types/kvasirV1';
 import { MarkdownComponents } from '@/components/MarkdownComponents';
-import { UUID } from 'crypto';
 
 interface ChatMessageBoxProps {
-  message: ChatMessage;
-  projectId: UUID;
+  message: Message;
 }
 
 interface BaseComponentProps {
@@ -62,16 +53,7 @@ const ChatMarkdownComponents = {
 };
 
 
-const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
-  const { dataSources, datasets, pipelines, modelsInstantiated, analyses } = useOntology(projectId);
-
-  const hasContext = message.role !== 'user' && message.context && (
-    message.context.dataSourceIds?.length > 0 ||
-    message.context.datasetIds?.length > 0 || 
-    message.context.analysisIds?.length > 0 || 
-    message.context.pipelineIds?.length > 0 ||
-    message.context.modelInstantiatedIds?.length > 0
-  );
+const ChatMessageBox = memo(({ message }: ChatMessageBoxProps) => {
 
   // Different styling based on message type
   const getMessageStyles = () => {
@@ -87,7 +69,7 @@ const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
       }`,
       content: `text-xs leading-relaxed ${
         message.role === 'user' ? 'text-white' : 'text-gray-800'
-      } ${message.role === 'assistant' && !isToolCall ? 'animate-fade-in' : ''}`
+      } ${message.role === 'kvasir' && !isToolCall ? 'animate-fade-in' : ''}`
     };
   };
 
@@ -100,51 +82,7 @@ const ChatMessageBox = memo(({ message, projectId }: ChatMessageBoxProps) => {
     >
       <div className={styles.container} style={message.role === 'user' ? { backgroundColor: '#000034' } : {}}>
 
-        {hasContext && (
-          <div className="mb-2">
-            <div className="flex flex-wrap gap-1">
-              {/* Data Sources */}
-              {message.context?.dataSourceIds?.map((dataSourceId: string) => {
-                const dataSource = dataSources?.find((ds: DataSource) => ds.id === dataSourceId);
-                return dataSource ? (
-                  <DataSourceMini key={dataSourceId} name={dataSource.name} size="sm" />
-                ) : null;
-              })}
-              
-              {/* Datasets */}
-              {message.context?.datasetIds?.map((datasetId: string) => {
-                const dataset = datasets?.find((ds: Dataset) => ds.id === datasetId);
-                return dataset ? (
-                  <DatasetMini key={datasetId} name={dataset.name} size="sm" />
-                ) : null;
-              })}
-              
-              {/* Analyses */}
-              {message.context?.analysisIds?.map((analysisId: string) => {
-                const analysis = analyses?.find((a: Analysis) => a.id === analysisId);
-                return analysis ? (
-                  <AnalysisMini key={analysisId} name={analysis.name} size="sm" />
-                ) : null;
-              })}
-              
-              {/* Pipelines */}
-              {message.context?.pipelineIds?.map((pipelineId: string) => {
-                const pipeline = pipelines?.find((p: Pipeline) => p.id === pipelineId);
-                return pipeline ? (
-                  <PipelineMini key={pipelineId} name={pipeline.name} size="sm" />
-                ) : null;
-              })}
-              
-              {/* Model Entities */}
-              {message.context?.modelInstantiatedIds?.map((modelInstantiatedId: string) => {
-                const modelInstantiated = modelsInstantiated?.find((m: ModelInstantiated) => m.id === modelInstantiatedId);
-                return modelInstantiated ? (
-                  <ModelEntityMini key={modelInstantiatedId} name={modelInstantiated.name} size="sm" />
-                ) : null;
-              })}
-            </div>
-          </div>
-        )}
+
         
         {isToolCall ? (
           <div className="flex gap-2 items-start">

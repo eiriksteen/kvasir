@@ -5,7 +5,7 @@ import { X, Folder } from 'lucide-react';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { UUID } from 'crypto';
 import { useOntology } from '@/hooks/useOntology';
-import { useProjectChat } from '@/hooks/useProjectChat';
+import { useKvasirV1 } from '@/hooks/useKvasirV1';
 import { DataSource } from '@/types/ontology/data-source';
 import { DatasetCreate } from '@/types/ontology/dataset';
 
@@ -48,7 +48,7 @@ export default function AddDataset({ onClose, projectId }: AddDatasetProps) {
     removeDataSourceFromContext 
   } = useAgentContext(projectId);
 
-  const { submitPrompt } = useProjectChat(projectId);
+  const { submitPrompt } = useKvasirV1(projectId);
   const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

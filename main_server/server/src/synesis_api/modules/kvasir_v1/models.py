@@ -26,30 +26,17 @@ run = Table(
 )
 
 
-run_message = Table(
-    "run_message",
+message = Table(
+    "message",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     Column("content", String, nullable=False),
     Column("run_id", UUID(as_uuid=True),
            ForeignKey("kvasir_v1.run.id"), nullable=False),
-    # swe, analysis, kvasir
-    Column("agent", String, nullable=False),
-    # tool_call, result, error, info
-    Column("type", String, nullable=True),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    schema="kvasir_v1"
-)
-
-
-user_message = Table(
-    "user_message",
-    metadata,
-    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
-    Column("content", String, nullable=False),
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("kvasir_v1.run.id"), nullable=False),
+    # swe, analysis, kvasir, user
+    Column("role", String, nullable=False),
+    # tool_call, result, error, info, chat
+    Column("type", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
            nullable=False, default=func.now()),
     schema="kvasir_v1"

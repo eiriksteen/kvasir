@@ -19,11 +19,10 @@ export { useModelsInstantiated, useModelInstantiated } from '@/hooks/useModelsIn
 export { useAnalysesByIds, useAnalysis } from '@/hooks/useAnalysis';
 
 // Runs and orchestration
-export { useRuns, useRun, useRunsInConversation, useRunMessages, useProjectRunMessages } from '@/hooks/useRuns';
+export { useRuns, useRun, useKvasirRuns, useRunMessages, useProjectRunMessages } from '@/hooks/useRuns';
 export { useConversations } from '@/hooks/useConversations';
-export { useProjectChat, useConversationMessages } from '@/hooks/useProjectChat';
 export { useAgentContext } from '@/hooks/useAgentContext';
-
+export { useKvasirV1 } from '@/hooks/useKvasirV1';
 // Visualization hooks
 export { useChart } from '@/hooks/useCharts';
 export { useCodebaseTree, useCodebaseFile } from '@/hooks/useCodebase';

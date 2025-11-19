@@ -15,17 +15,15 @@ from synesis_api.auth.schema import User
 from synesis_api.redis import get_redis
 from synesis_api.app_secrets import SSE_MAX_TIMEOUT, SSE_MIN_SLEEP_TIME
 from synesis_api.modules.kvasir_v1.callbacks import ApplicationCallbacks
-from synesis_api.modules.kvasir_v1.models import run_message
+from synesis_api.modules.kvasir_v1.models import message
 from synesis_api.database.service import execute
 from synesis_api.modules.entity_graph.service import EntityGraphs
 from kvasir_research.agents.v1.kvasir.agent import KvasirV1
 from synesis_api.utils.pydanticai_utils import helper_agent
 from kvasir_research.agents.v1.data_model import (
-    UserMessage,
-    RunMessageBase,
+    Message,
+    MessageCreate,
     RunBase,
-    RunMessageCreate,
-    UserMessageCreate,
     RunCreate,
 )
 
@@ -37,7 +35,7 @@ router = APIRouter()
 
 @router.post("/completions")
 async def post_chat(
-    prompt: UserMessageCreate,
+    prompt: MessageCreate,
     user: Annotated[User, Depends(get_current_user)] = None,
     token: str = Depends(oauth2_scheme)
 ) -> StreamingResponse:
@@ -65,17 +63,19 @@ async def post_chat(
         raise HTTPException(
             status_code=404, detail="Project not found")
 
-    messages = await _callbacks.get_run_messages(run_record.id)
+    messages = await _callbacks.get_messages(user.id, run_record.id)
     is_new_conversation = len(messages) == 0
 
-    # Create user message directly (user messages use "info" type which isn't in RunMessageCreate)
-    user_message = UserMessage(
+    # Create user message
+    user_message = Message(
         id=uuid.uuid4(),
-        run_id=run_record.id,
+        run_id=prompt.run_id,
         content=prompt.content,
+        role=prompt.role,
+        type=prompt.type,
         created_at=datetime.now(timezone.utc)
     )
-    await execute(insert(user_message).values(**user_message.model_dump()), commit_after=True)
+    await execute(insert(message).values(**user_message.model_dump()), commit_after=True)
 
     agent = KvasirV1(
         user_id=user.id,
@@ -88,11 +88,11 @@ async def post_chat(
     )
 
     async def stream_response():
-        response_message = RunMessageBase(
+        response_message = Message(
             id=uuid.uuid4(),
             run_id=run_record.id,
-            agent="kvasir",
-            type="result",
+            role="kvasir",
+            type="chat",
             content="",
             created_at=datetime.now(timezone.utc)
         )
@@ -104,16 +104,17 @@ async def post_chat(
                 yield f"data: {response_message.model_dump_json(by_alias=True)}\n\n"
             if is_last:
                 # Multiple messages can be streamed in one go
-                await _callbacks.create_run_message(RunMessageCreate(
+                await _callbacks.create_message(user.id, MessageCreate(
                     run_id=run_record.id,
-                    type="result",
-                    content=response_message.content
+                    type="chat",
+                    content=response_message.content,
+                    role="kvasir"
                 ))
-                response_message = RunMessageBase(
+                response_message = Message(
                     id=uuid.uuid4(),
                     run_id=run_record.id,
-                    agent="kvasir",
-                    type="result",
+                    role="kvasir",
+                    type="chat",
                     content="",
                     created_at=datetime.now(timezone.utc)
                 )
@@ -130,12 +131,12 @@ async def post_chat(
             name = name.output.replace(
                 '"', '').replace("'", "").strip()
 
-            await _callbacks.update_run_name(run_record.id, name)
+            await _callbacks.update_run_name(user.id, run_record.id, name)
 
-        success_message = RunMessageBase(
+        success_message = Message(
             id=uuid.uuid4(),
             run_id=run_record.id,
-            agent="kvasir",
+            role="kvasir",
             type="result",
             content="DONE",
             created_at=datetime.now(timezone.utc)
@@ -166,13 +167,13 @@ async def fetch_runs(
 async def fetch_run_messages(
     run_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)] = None,
-) -> List[RunMessageBase]:
+) -> List[Message]:
 
     if not user or not await user_owns_runs(user.id, [run_id]):
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this run")
 
-    messages = await _callbacks.get_run_messages(run_id)
+    messages = await _callbacks.get_messages(user.id, run_id)
     return messages
 
 
@@ -217,12 +218,13 @@ async def stream_run_messages(
                     for message_id, message_data in messages:
                         last_ids[stream_key] = message_id
 
-                        message_validated = RunMessageCreate(**message_data)
-                        output_data = RunMessageBase(
+                        message_validated = MessageCreate(**message_data)
+                        output_data = Message(
                             id=uuid.uuid4(),
                             content=message_validated.content,
                             run_id=uuid.UUID(stream_key),
                             type=message_validated.type,
+                            role=message_validated.role,
                             created_at=datetime.now(timezone.utc)
                         )
                         yield f"data: {output_data.model_dump_json(by_alias=True)}\n\n"

@@ -1,4 +1,4 @@
-import { RunInDB, RunMessageInDB} from "@/types/api/runs";
+import { RunBase, Message} from "@/types/kvasirV1";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import useSWR, { useSWRConfig } from "swr";
@@ -11,10 +11,10 @@ import useSWRMutation from "swr/mutation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-async function fetchRuns(token: string, projectId?: UUID): Promise<RunInDB[]> {
+async function fetchRuns(token: string, projectId?: UUID): Promise<RunBase[]> {
   const url = projectId 
-    ? `${API_URL}/runs/runs?project_id=${projectId}`
-    : `${API_URL}/runs/runs`;
+    ? `${API_URL}/kvasir-v1/runs?project_id=${projectId}`
+    : `${API_URL}/kvasir-v1/runs`;
     
   const response = await fetch(url, {
     headers: {
@@ -33,8 +33,8 @@ async function fetchRuns(token: string, projectId?: UUID): Promise<RunInDB[]> {
   return snakeToCamelKeys(data);
 } 
 
-async function fetchRunMessages(token: string, runId: UUID): Promise<RunMessageInDB[]> {
-  const response = await fetch(`${API_URL}/runs/messages/${runId}`, {
+async function fetchRunMessages(token: string, runId: UUID): Promise<Message[]> {
+  const response = await fetch(`${API_URL}/kvasir-v1/messages/${runId}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -52,8 +52,8 @@ async function fetchRunMessages(token: string, runId: UUID): Promise<RunMessageI
 
 function createIncompleteRunsEventSource(token: string, projectId?: UUID): SSE {
   const url = projectId
-    ? `${API_URL}/runs/stream-incomplete-runs?project_id=${projectId}`
-    : `${API_URL}/runs/stream-incomplete-runs`;
+    ? `${API_URL}/kvasir-v1/stream-incomplete-runs?project_id=${projectId}`
+    : `${API_URL}/kvasir-v1/stream-incomplete-runs`;
     
   return new SSE(url, {
     method: 'GET',
@@ -65,7 +65,7 @@ function createIncompleteRunsEventSource(token: string, projectId?: UUID): SSE {
 }
 
 function createProjectRunMessagesEventSource(token: string, projectId: UUID): SSE {
-  return new SSE(`${API_URL}/runs/stream-messages?project_id=${projectId}`, {
+  return new SSE(`${API_URL}/kvasir-v1/stream-messages?project_id=${projectId}`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -75,8 +75,8 @@ function createProjectRunMessagesEventSource(token: string, projectId: UUID): SS
 }
 
 
-export async function launchRun(token: string, runId: UUID): Promise<RunInDB> {
-  const response = await fetch(`${API_URL}/runs/launch-run/${runId}`, {
+export async function launchRun(token: string, runId: UUID): Promise<RunBase> {
+  const response = await fetch(`${API_URL}/kvasir-v1/launch-run/${runId}`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,
@@ -95,8 +95,8 @@ export async function launchRun(token: string, runId: UUID): Promise<RunInDB> {
 
 }
 
-async function rejectRun(token: string, runId: UUID): Promise<RunInDB> {
-  const response = await fetch(`${API_URL}/runs/reject-run/${runId}`, {
+async function rejectRun(token: string, runId: UUID): Promise<RunBase> {
+  const response = await fetch(`${API_URL}/kvasir-v1/reject-run/${runId}`, {
     method: "PATCH",
     headers: {
       "Authorization": `Bearer ${token}`,
@@ -140,7 +140,7 @@ export const useRuns = (projectId: UUID) => {
     session && projectId ? ["runs", projectId] : null, 
     () => fetchRuns(session ? session.APIToken.accessToken : "", projectId), 
     {
-      onSuccess: (runs: RunInDB[]) => {
+      onSuccess: (runs: RunBase[]) => {
         const newRunState = computeRunState(runs);
         if (newRunState === "running" || newRunState === "paused" || newRunState === "awaiting_approval" || newRunState === "rejected") {
           mutateRunState(newRunState, {revalidate: false});
@@ -156,8 +156,8 @@ export const useRuns = (projectId: UUID) => {
       populateCache: (newRun) => {
         // Replace run with newRun if run with same ID exists, else append newRun
         if (runs) {
-          if (runs.some((run: RunInDB) => run.id === newRun.id)) {
-            return runs.map((run: RunInDB) => run.id === newRun.id ? newRun : run);
+          if (runs.some((run: RunBase) => run.id === newRun.id)) {
+            return runs.map((run: RunBase) => run.id === newRun.id ? newRun : run);
           } else {
             return [...runs, newRun];
           }
@@ -175,8 +175,8 @@ export const useRuns = (projectId: UUID) => {
     {
       populateCache: (newRun) => {
         if (runs) {
-          if (runs.some((run: RunInDB) => run.id === newRun.id)) {
-            return runs.map((run: RunInDB) => run.id === newRun.id ? newRun : run);
+          if (runs.some((run: RunBase) => run.id === newRun.id)) {
+            return runs.map((run: RunBase) => run.id === newRun.id ? newRun : run);
           } else {
             return [...runs, newRun];
           }
@@ -190,7 +190,7 @@ export const useRuns = (projectId: UUID) => {
   // This thing will always be running. Do we want to stop it when no runs are active?
   useSWRSubscription(
     session && runs && projectId ? ["runStream", projectId, runs] : null,
-    (_, {next}: SWRSubscriptionOptions<RunInDB[]>) => {
+    (_, {next}: SWRSubscriptionOptions<RunBase[]>) => {
       const eventSource = createIncompleteRunsEventSource(session ? session.APIToken.accessToken : "", projectId);
 
       eventSource.onmessage = (ev) => {
@@ -202,8 +202,8 @@ export const useRuns = (projectId: UUID) => {
               return streamedRuns;
             }
 
-            const newRuns = streamedRuns.filter((run: RunInDB) => !currentRuns.find((currentRun: RunInDB) => currentRun.id === run.id));
-            const runsChangedStatus = streamedRuns.filter((run: RunInDB) => run.status !== currentRuns.find((currentRun: RunInDB) => currentRun.id === run.id)?.status);
+            const newRuns = streamedRuns.filter((run: RunBase) => !currentRuns.find((currentRun: RunBase) => currentRun.id === run.id));
+            const runsChangedStatus = streamedRuns.filter((run: RunBase) => run.status !== currentRuns.find((currentRun: RunBase) => currentRun.id === run.id)?.status);
 
             // Return without changes if all streamedRuns are the same as the current runs and no run has changed status
             if (newRuns.length === 0 && runsChangedStatus.length === 0) {
@@ -211,14 +211,14 @@ export const useRuns = (projectId: UUID) => {
             }
 
             // Update existing runs with status changes and append new runs
-            let updatedRuns = currentRuns.map(run => runsChangedStatus.find((changedRun: RunInDB) => changedRun.id === run.id) || run);
+            let updatedRuns = currentRuns.map(run => runsChangedStatus.find((changedRun: RunBase) => changedRun.id === run.id) || run);
             updatedRuns = updatedRuns.concat(newRuns);
 
             // Update run state based on the updated runs
             const newRunState = computeRunState(updatedRuns);
-            if (updatedRuns.every((run: RunInDB) => run.status !== "running")) {
+            if (updatedRuns.every((run: RunBase) => run.status !== "running")) {
               mutateRunState(newRunState, {revalidate: false});
-              const noRunningRuns = updatedRuns.filter((run: RunInDB) => run.status === "running").length === 0;
+              const noRunningRuns = updatedRuns.filter((run: RunBase) => run.status === "running").length === 0;
               if (noRunningRuns) {
                 setTimeout(() => {
                   mutateRunState(emptyRunState, {revalidate: false});
@@ -227,7 +227,7 @@ export const useRuns = (projectId: UUID) => {
             }
 
             // Trigger project refresh if any runs completed
-            const completedRuns = runsChangedStatus.filter((run: RunInDB) => run.status === "completed");
+            const completedRuns = runsChangedStatus.filter((run: RunBase) => run.status === "completed");
             if (completedRuns.length > 0) {
               mutate("projects");
             }
@@ -258,14 +258,14 @@ export const useRuns = (projectId: UUID) => {
 };
 
 
-export const useRunsInConversation = (projectId: UUID, conversationId: string) => {
+export const useKvasirRuns = (projectId: UUID) => {
   const { runs, triggerLaunchRun } = useRuns(projectId)
 
-  const runsInConversation = useMemo(() => {
-    return runs.filter((run: RunInDB) => run.conversationId === conversationId)
-  }, [runs, conversationId])
+  const kvasirRuns = useMemo(() => {
+    return runs.filter((run: RunBase) => run.type === "kvasir")
+  }, [runs])
 
-  return { runsInConversation, triggerLaunchRun }
+  return { kvasirRuns, triggerLaunchRun }
 }
 
 
@@ -273,7 +273,7 @@ export const useRun = (projectId: UUID, runId: UUID) => {
   const { runs, triggerLaunchRun, triggerRejectRun } = useRuns(projectId)
 
   const run = useMemo(() => {
-    return runs.find((run: RunInDB) => run.id === runId)
+    return runs.find((run: RunBase) => run.id === runId)
   }, [runs, runId])
 
   return { run, triggerLaunchRun, triggerRejectRun }
@@ -285,7 +285,7 @@ export const useProjectRunMessages = (projectId: UUID) => {
   const { runs } = useRuns(projectId)
   const { mutate } = useSWRConfig()
 
-  const { data: projectRunMessages, mutate: mutateProjectRunMessages } = useSWR<Record<string, RunMessageInDB[]>>(
+  const { data: projectRunMessages, mutate: mutateProjectRunMessages } = useSWR<Record<string, Message[]>>(
     session && projectId ? ["projectRunMessages", projectId] : null, 
     async () => {
       // Fetch messages for all runs in the project
@@ -296,7 +296,7 @@ export const useProjectRunMessages = (projectId: UUID) => {
       const messagesResults = await Promise.all(messagesPromises);
       
       // Convert to record of runId -> messages[]
-      const messagesRecord: Record<string, RunMessageInDB[]> = {};
+      const messagesRecord: Record<string, Message[]> = {};
       messagesResults.forEach(({ runId, messages }) => {
         messagesRecord[runId] = messages;
       });
@@ -310,7 +310,7 @@ export const useProjectRunMessages = (projectId: UUID) => {
 
   useSWRSubscription(
     session && runs.length > 0 && projectId ? ["projectRunMessagesStream", projectId, hasRunningRuns] : null,
-    (_, {next}: SWRSubscriptionOptions<Record<string, RunMessageInDB[]>>) => {
+    (_, {next}: SWRSubscriptionOptions<Record<string, Message[]>>) => {
 
       if (!projectRunMessages) {
         return () => {};
@@ -320,7 +320,7 @@ export const useProjectRunMessages = (projectId: UUID) => {
         const eventSource = createProjectRunMessagesEventSource(session!.APIToken.accessToken, projectId)
 
         eventSource.onmessage = (ev) => {
-          const streamedMessage: RunMessageInDB = snakeToCamelKeys(JSON.parse(ev.data));
+          const streamedMessage: Message = snakeToCamelKeys(JSON.parse(ev.data));
           next(null, () => {
             mutateProjectRunMessages((current) => {
               if (!current) return { [streamedMessage.runId]: [streamedMessage] };
@@ -335,7 +335,7 @@ export const useProjectRunMessages = (projectId: UUID) => {
 
           if (streamedMessage.type === "result") {
             if (streamedMessage.content.includes("CREATED")) {
-              mutate(["projects"]);
+              mutate(["entity-graph", projectId]);
               if (streamedMessage.content.includes("CREATED DATA SOURCE")) {
                 mutate(["data-sources", projectId]);
                 mutate("projects");

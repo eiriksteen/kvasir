@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Github, Package } from 'lucide-react';
 import { UUID } from 'crypto';
-import { useProjectChat } from '@/hooks';
+import { useKvasirV1 } from '@/hooks/useKvasirV1';
 
 type ModelSourceType = "github" | "pypi";
 
@@ -39,7 +39,7 @@ export default function AddModelInstantiated({ onClose, projectId }: AddModelEnt
   const [selectedSource, setSelectedSource] = useState<ModelSourceType | null>(null);
   const [description, setDescription] = useState('');
   const [fields, setFields] = useState<ModelSourceFields>({});
-  const { submitPrompt } = useProjectChat(projectId);
+  const { submitPrompt } = useKvasirV1(projectId);
   const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

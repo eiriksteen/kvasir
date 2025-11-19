@@ -16,8 +16,7 @@ from cryptography.hazmat.primitives.asymmetric.types import (
 
 from synesis_api.auth.schema import User, UserInDB, TokenData, UserCreate, GoogleUserLogin, JWKSEntry, JWKSData, RegistrationStatus
 from synesis_api.auth.models import users
-from synesis_api.modules.orchestrator.models import conversation
-from synesis_api.modules.runs.models import run
+from synesis_api.modules.kvasir_v1.models import run
 from synesis_api.modules.data_objects.models import dataset, object_group, data_object
 from synesis_api.modules.data_sources.models import data_source
 
@@ -260,11 +259,6 @@ async def update_user_profile(user_id: uuid.UUID, affiliation: str, role: str) -
 async def user_owns_runs(user_id: uuid.UUID, run_ids: list[uuid.UUID]) -> bool:
     run_records = await fetch_all(select(run).where(run.c.id.in_(run_ids), run.c.user_id == user_id))
     return len(run_records) == len(run_ids)
-
-
-async def user_owns_conversation(user_id: uuid.UUID, conversation_id: uuid.UUID) -> bool:
-    conversation_record = await fetch_one(select(conversation).where(conversation.c.id == conversation_id, conversation.c.user_id == user_id))
-    return conversation_record is not None
 
 
 async def user_owns_dataset(user_id: uuid.UUID, dataset_id: uuid.UUID) -> bool:

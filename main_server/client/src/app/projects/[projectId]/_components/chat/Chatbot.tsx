@@ -2,14 +2,13 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Send, Plus, History, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
-import { useOntology, useProjectChat } from '@/hooks';
+import { useOntology, useKvasirV1 } from '@/hooks';
+import { useKvasirRuns } from '@/hooks/useRuns';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { ChatHistory } from '@/app/projects/[projectId]/_components/chat/ChatHistory';
-import { ChatMessage } from '@/types/api/orchestrator';
+import { Message, RunBase } from '@/types/kvasirV1';
 import { UUID } from 'crypto';
-import { useRunsInConversation } from '@/hooks/useRuns';
 import RunBox from '@/components/runs/RunBox';
-import { RunInDB } from '@/types/api/runs';
 import ChatMessageBox from '@/app/projects/[projectId]/_components/chat/ChatMessageBox';
 import { DataSource } from '@/types/ontology/data-source';
 import { Dataset } from '@/types/ontology/dataset';
@@ -26,7 +25,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const [showChatHistory, setShowChatHistory] = useState(false);
   const [showAllContext, setShowAllContext] = useState(false);
 
-  const { submitPrompt, conversation, setProjectConversationId, conversationMessages, continueConversation } = useProjectChat(projectId);
+  const { submitPrompt, runMessages, setAgentRunId, continueRun, projectRunId } = useKvasirV1(projectId);
 
   const { 
     dataSourcesInContext, 
@@ -44,7 +43,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   // Get the actual objects to display names
   const { dataSources, datasets, pipelines, modelsInstantiated, analyses } = useOntology(projectId);
 
-  const { runsInConversation } = useRunsInConversation(projectId, conversation?.id || "");
+  const { kvasirRuns } = useKvasirRuns(projectId);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -72,7 +71,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [conversationMessages, runsInConversation]);
+  }, [runMessages, kvasirRuns]);
 
   
   useEffect(() => {
@@ -126,8 +125,8 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   };
 
   const handleRunCompleteOrFail = () => {
-    if (!conversation?.id) return;
-    continueConversation(conversation.id);
+    if (!projectRunId) return;
+    continueRun(projectRunId);
   };
 
   const handleExpandChat = () => {
@@ -240,7 +239,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
       <div className="flex items-center justify-center pt-2">
         <button
           onClick={() => {
-            setProjectConversationId(null);
+            setAgentRunId(null);
             handleExpandChat();
           }}
           className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
@@ -333,12 +332,12 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   // Render timeline of messages and runs
   const renderTimeline = () => {
     const timelineItems = [
-      ...conversationMessages.map((message: ChatMessage) => ({
+      ...runMessages.map((message: Message) => ({
         type: 'message' as const,
         item: message,
         createdAt: message.createdAt
       })),
-      ...runsInConversation.map((run: RunInDB) => ({
+      ...kvasirRuns.filter((run: RunBase) => run.type !== 'kvasir').map((run: RunBase) => ({
         type: 'run' as const,
         item: run,
         createdAt: run.startedAt
@@ -355,7 +354,6 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
           <ChatMessageBox 
             key={`msg-${timelineItem.item.id}`} 
             message={timelineItem.item} 
-            projectId={projectId} 
           />
         );
       } else {
@@ -390,12 +388,12 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
           <div className="border-b border-t border-gray-400 h-7 flex justify-between items-center relative bg-gray-100 px-3">
             <div className="flex-1">
               <h3 className="text-xs font-mono text-gray-900">
-                {conversation?.name || "Chat"}
+                {projectRunId ? "Chat" : "New Chat"}
               </h3>
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setProjectConversationId(null)}
+                onClick={() => setAgentRunId(null)}
                 className="p-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 text-gray-600 hover:text-gray-900"
                 title="New Chat"
               >
@@ -429,11 +427,11 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
             className="flex-1 overflow-y-auto px-3 py-3 pb-24 scrollbar-thin scrollbar-thumb-gray-700"
             style={{ scrollBehavior: 'smooth' }}
           >
-            {conversationMessages.length === 0 && runsInConversation.length === 0 && (
+            {runMessages.length === 0 && kvasirRuns.length === 0 && (
               <div className="flex h-full items-center justify-center text-zinc-500">
                 <div className="text-center">
                   <p className="mb-2">
-                    {conversation?.id ? 'Start a conversation' : 'Start a new conversation'}
+                    {projectRunId ? 'Start a conversation' : 'Start a new conversation'}
                   </p>
                 </div>
               </div>

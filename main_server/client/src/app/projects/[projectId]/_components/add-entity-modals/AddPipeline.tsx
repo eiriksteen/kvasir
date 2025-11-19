@@ -5,7 +5,7 @@ import { X, Folder, ChevronDown } from 'lucide-react';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { UUID } from 'crypto';
 import { useOntology } from '@/hooks/useOntology';
-import { useProjectChat } from '@/hooks/useProjectChat';
+import { useKvasirV1 } from '@/hooks/useKvasirV1';
 import { Dataset } from '@/types/ontology/dataset';
 
 function DatasetListItem({ dataset, isFirst, isInContext }: { dataset: Dataset; isFirst: boolean; isInContext: boolean }) {
@@ -48,7 +48,7 @@ export default function AddPipeline({ onClose, projectId }: AddPipelineProps) {
     removeDatasetFromContext 
   } = useAgentContext(projectId);
 
-  const { submitPrompt } = useProjectChat(projectId);
+  const { submitPrompt } = useKvasirV1(projectId);
   const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { 
