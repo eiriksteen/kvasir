@@ -7,11 +7,12 @@ from pydantic_ai.models import ModelSettings
 from kvasir_research.utils.agent_utils import get_model
 from kvasir_research.history_processors import keep_only_most_recent_notebook
 from kvasir_research.agents.v1.analysis.deps import AnalysisDeps
+from kvasir_ontology.entities.analysis.data_model import AnalysisCreate
 from kvasir_research.agents.v1.analysis.prompt import ANALYSIS_SYSTEM_PROMPT
 from kvasir_research.agents.v1.kvasir.knowledge_bank import get_guidelines, SUPPORTED_TASKS_LITERAL
 from kvasir_research.agents.v1.analysis.tools import analysis_toolset
 from kvasir_research.agents.v1.analysis.output import submit_analysis_results
-from kvasir_research.agents.abstract_agent import AbstractAgent
+from kvasir_research.agents.v1.base_agent import BaseAgent
 from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
 from kvasir_ontology.ontology import Ontology
 
@@ -32,7 +33,7 @@ analysis_agent = Agent[AnalysisDeps, str](
 
 @analysis_agent.system_prompt
 async def analysis_system_prompt(ctx: RunContext[AnalysisDeps]) -> str:
-    injected_analyses_str = "\n\n".join([await ctx.deps.callbacks.get_analysis_result(analysis_run_id) for analysis_run_id in ctx.deps.injected_analyses])
+    injected_analyses_str = "\n\n".join([await ctx.deps.callbacks.get_result(ctx.deps.user_id, analysis_run_id, "analysis") for analysis_run_id in ctx.deps.injected_analyses])
     pyproject_str = ctx.deps.sandbox.get_pyproject_for_env_description()
 
     guidelines_str = ""
@@ -52,7 +53,7 @@ async def analysis_system_prompt(ctx: RunContext[AnalysisDeps]) -> str:
     return full_system_prompt
 
 
-class AnalysisAgentV1(AbstractAgent):
+class AnalysisAgentV1(BaseAgent):
 
     def __init__(
         self,
@@ -85,7 +86,9 @@ class AnalysisAgentV1(AbstractAgent):
         guidelines: List[SUPPORTED_TASKS_LITERAL] = None,
     ) -> AnalysisDeps:
         if self.run_id is None:
-            self.run_id = await self.callbacks.create_run(self.user_id, self.project_id, run_type="analysis")
+            from kvasir_research.agents.v1.data_model import RunCreate
+            run_create = RunCreate(type="analysis", project_id=self.project_id)
+            self.run_id = (await self.callbacks.create_run(self.user_id, run_create)).id
 
         deps = AnalysisDeps(
             run_id=self.run_id,
@@ -111,7 +114,7 @@ class AnalysisAgentV1(AbstractAgent):
         time_limit: Optional[int] = None,
     ) -> AnalysisDeps:
         try:
-            deps_dict = await self.callbacks.load_analysis_deps(run_id)
+            deps_dict = await self.callbacks.load_deps(self.user_id, run_id, "analysis")
         except (ValueError, RuntimeError):
             raise ValueError(f"Analysis run {run_id} not found")
 
@@ -120,7 +123,6 @@ class AnalysisAgentV1(AbstractAgent):
 
         deps = _analysis_dict_to_deps(deps_dict, self.callbacks, self.ontology)
 
-        # Apply overrides if provided
         if guidelines is not None:
             deps.guidelines = guidelines
         if time_limit is not None:
@@ -137,12 +139,17 @@ class AnalysisAgentV1(AbstractAgent):
         time_limit: Optional[int] = None,
     ) -> str:
         try:
-            if self._deps is None:
-                if self.run_id is None:
-                    raise ValueError(
-                        "Must call create_deps() before starting a new agent run")
-                else:
-                    await self.load_deps_from_run(self.run_id, guidelines=guidelines, time_limit=time_limit)
+            if self.run_id is None:
+                self.analysis = await self.ontology.insert_analysis(AnalysisCreate(
+                    name=self._deps.run_name,
+                    description=None,
+                    code_cells_create=[],
+                    markdown_cells_create=[]
+                ), edges=[])
+                self.run = await self.callbacks.create_analysis_run(self.user_id, self.project_id, self._deps.kvasir_run_id, self.analysis.id, self._deps.run_name)
+            else:
+                self.run = await self.callbacks.get_analysis_run(self.user_id, self.run_id)
+                self.analysis = await self.ontology.analyses.get_analysis(self.run.analysis_id)
 
             deps = self._deps
 
@@ -153,9 +160,9 @@ class AnalysisAgentV1(AbstractAgent):
 
             message_history = None
             if self.run_id:
-                message_history = await self.callbacks.get_message_history(self.run_id)
+                message_history = await self.callbacks.get_message_history(self.user_id, self.run_id)
 
-            await self.callbacks.set_run_status(self.run_id, "running")
+            await self.callbacks.set_run_status(self.user_id, self.run_id, "running")
 
             response = await analysis_agent.run(
                 prompt,
@@ -169,16 +176,16 @@ class AnalysisAgentV1(AbstractAgent):
                 response.output
             )
 
-            await self.callbacks.save_message_history(self.run_id, response.all_messages())
-            await self.callbacks.save_analysis_deps(self.run_id, _analysis_deps_to_dict(deps))
-            await self.callbacks.save_analysis_result(self.run_id, response.output)
-            await self.callbacks.set_run_status(self.run_id, "completed")
+            await self.callbacks.save_message_history(self.user_id, self.run_id, response.all_messages())
+            await self.callbacks.save_deps(self.user_id, self.run_id, _analysis_deps_to_dict(deps), "analysis")
+            await self.callbacks.save_result(self.user_id, self.run_id, response.output, "analysis")
+            await self.callbacks.set_run_status(self.user_id, self.run_id, "completed")
 
             return response.output
 
         except Exception as e:
             if self.run_id:
-                await self.callbacks.fail_run(self.run_id, f"Error running analysis agent: {e}")
+                await self.callbacks.fail_run(self.user_id, self.run_id, f"Error running analysis agent: {e}")
             raise e
 
 
@@ -219,15 +226,12 @@ def _analysis_dict_to_deps(deps_dict: Dict, callbacks: KvasirV1Callbacks, ontolo
         else:
             notebook[k] = v
 
-    # Backward compatibility: handle cases where run_name is missing or run_id stored as name
     run_name = deps_dict.get("run_name", deps_dict.get("run_id"))
     try:
         run_uuid = UUID(deps_dict["run_id"])
     except Exception:
-        # If previous versions stored run_name in run_id, generate a new UUID for run_id
         run_uuid = uuid4()
 
-    # Convert string IDs to UUIDs for injected_analyses
     injected_analyses_raw = deps_dict.get("injected_analyses", [])
     injected_analyses_uuids = []
     for aid in injected_analyses_raw:

@@ -7,9 +7,9 @@ from kvasir_research.agents.v1.analysis.utils import notebook_to_string
 
 async def submit_analysis_results(ctx: RunContext[AnalysisDeps], summary: str) -> str:
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"Analysis Agent [{ctx.deps.run_name}] submit_results called: summary={summary}", "tool_call")
+                                 f"Analysis Agent [{ctx.deps.run_name}] submit_results called: summary={summary}", "info")
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"Analysis Agent [{ctx.deps.run_name}] submit_results called: notebook_cells={len(ctx.deps.notebook)}", "tool_call")
+                                 f"Analysis Agent [{ctx.deps.run_name}] submit_results called: notebook_cells={len(ctx.deps.notebook)}", "info")
 
     # if no code cells, model retry
     if not any(cell_type == "code" for cell_type, _ in ctx.deps.notebook.values()):

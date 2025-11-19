@@ -11,8 +11,9 @@ from kvasir_research.agents.v1.kvasir.knowledge_bank import get_guidelines, SUPP
 from kvasir_research.agents.v1.shared_tools import navigation_toolset, knowledge_bank_toolset
 from kvasir_research.agents.v1.swe.tools import swe_toolset
 from kvasir_research.agents.v1.swe.output import submit_implementation_results, submit_message_to_orchestrator
-from kvasir_research.agents.abstract_agent import AbstractAgent
+from kvasir_research.agents.v1.base_agent import BaseAgent
 from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
+from kvasir_research.agents.v1.data_model import RunCreate
 from kvasir_ontology.ontology import Ontology
 
 
@@ -45,8 +46,8 @@ async def swe_system_prompt(ctx: RunContext[SWEDeps]) -> str:
     folder_structure = await ctx.deps.sandbox.get_folder_structure()
     env_description = ctx.deps.sandbox.get_pyproject_for_env_description()
 
-    injected_analyses_str = "\n\n".join([await ctx.deps.callbacks.get_analysis_result(analysis_run_id) for analysis_run_id in ctx.deps.injected_analyses])
-    injected_swe_runs_str = "\n\n".join([await ctx.deps.callbacks.get_swe_result(swe_run_id) for swe_run_id in ctx.deps.injected_swe_runs])
+    injected_analyses_str = "\n\n".join([await ctx.deps.callbacks.get_result(ctx.deps.user_id, analysis_run_id, "analysis") for analysis_run_id in ctx.deps.injected_analyses])
+    injected_swe_runs_str = "\n\n".join([await ctx.deps.callbacks.get_result(ctx.deps.user_id, swe_run_id, "swe") for swe_run_id in ctx.deps.injected_swe_runs])
 
     guidelines_str = ""
     if ctx.deps.guidelines:
@@ -70,7 +71,7 @@ async def swe_system_prompt(ctx: RunContext[SWEDeps]) -> str:
     return full_system_prompt
 
 
-class SweAgentV1(AbstractAgent):
+class SweAgentV1(BaseAgent):
 
     def __init__(
         self,
@@ -105,7 +106,8 @@ class SweAgentV1(AbstractAgent):
         guidelines: List[SUPPORTED_TASKS_LITERAL] = None,
     ) -> SWEDeps:
         if self.run_id is None:
-            self.run_id = await self.callbacks.create_run(self.user_id, self.project_id, run_type="swe")
+            run_create = RunCreate(type="swe", project_id=self.project_id)
+            self.run_id = (await self.callbacks.create_run(self.user_id, run_create)).id
 
         deps = SWEDeps(
             run_id=self.run_id,
@@ -136,7 +138,7 @@ class SweAgentV1(AbstractAgent):
     ) -> SWEDeps:
         """Load deps from an existing run, with optional overrides."""
         try:
-            deps_dict = await self.callbacks.load_swe_deps(run_id)
+            deps_dict = await self.callbacks.load_deps(self.user_id, run_id, "swe")
         except (ValueError, RuntimeError):
             # Some callbacks raise exceptions when deps not found
             raise ValueError(f"SWE run {run_id} not found")
@@ -181,9 +183,9 @@ class SweAgentV1(AbstractAgent):
 
             message_history = None
             if self.run_id:
-                message_history = await self.callbacks.get_message_history(self.run_id)
+                message_history = await self.callbacks.get_message_history(self.user_id, self.run_id)
 
-            await self.callbacks.set_run_status(self.run_id, "running")
+            await self.callbacks.set_run_status(self.user_id, self.run_id, "running")
 
             response = await swe_agent.run(
                 prompt,
@@ -191,16 +193,16 @@ class SweAgentV1(AbstractAgent):
                 message_history=message_history
             )
 
-            await self.callbacks.save_message_history(self.run_id, response.all_messages())
-            await self.callbacks.save_swe_deps(self.run_id, _swe_deps_to_dict(deps))
-            await self.callbacks.save_swe_result(self.run_id, response.output)
-            await self.callbacks.set_run_status(self.run_id, "completed")
+            await self.callbacks.save_message_history(self.user_id, self.run_id, response.all_messages())
+            await self.callbacks.save_deps(self.user_id, self.run_id, _swe_deps_to_dict(deps), "swe")
+            await self.callbacks.save_result(self.user_id, self.run_id, response.output, "swe")
+            await self.callbacks.set_run_status(self.user_id, self.run_id, "completed")
 
             return response.output
 
         except Exception as e:
             if self.run_id:
-                await self.callbacks.fail_run(self.run_id, f"Error running SWE agent: {e}")
+                await self.callbacks.fail_run(self.user_id, self.run_id, f"Error running SWE agent: {e}")
             raise e
 
 

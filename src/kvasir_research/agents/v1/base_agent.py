@@ -3,7 +3,7 @@ from uuid import UUID
 from typing import Literal, Optional
 from pydantic import BaseModel
 
-from kvasir_research.agents.abstract_callbacks import AbstractCallbacks
+from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
 from kvasir_research.sandbox.local import LocalSandbox
 from kvasir_research.sandbox.modal import ModalSandbox
 
@@ -19,18 +19,18 @@ Inputs:
 """
 
 
-class AbstractAgentOutput(BaseModel):
+class BaseAgentOutput(BaseModel):
     response: str
 
 
-class AbstractAgent(ABC):
+class BaseAgent(ABC):
     def __init__(
         self,
         user_id: UUID,
         project_id: UUID,
         package_name: str,
         sandbox_type: Literal["local", "modal"],
-        callbacks: AbstractCallbacks,
+        callbacks: KvasirV1Callbacks,
         bearer_token: Optional[str] = None,
         run_id: Optional[UUID] = None
     ):
@@ -52,5 +52,5 @@ class AbstractAgent(ABC):
             self.sandbox = ModalSandbox(project_id, package_name)
 
     @abstractmethod
-    async def __call__(self, prompt: str) -> AbstractAgentOutput:
+    async def __call__(self, prompt: str) -> BaseAgentOutput:
         pass

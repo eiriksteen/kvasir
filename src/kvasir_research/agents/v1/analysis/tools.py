@@ -79,7 +79,7 @@ async def create_or_replace_cell(
 
     await ctx.deps.ontology.analyses.write_to_analysis_stream(ctx.deps.run_id, analysis_cell)
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"Analysis Agent [{ctx.deps.run_name}] create_or_replace_cell completed: name={name}, total_cells={len(ctx.deps.notebook)}", "tool_call")
+                                 f"Analysis Agent [{ctx.deps.run_name}] create_or_replace_cell completed: name={name}, total_cells={len(ctx.deps.notebook)}", "info")
 
     result = notebook_to_string(
         ctx.deps.notebook, ctx.deps.run_id, ctx.deps.run_name)
@@ -103,7 +103,7 @@ async def delete_cell(ctx: RunContext[AnalysisDeps], cell_name: str) -> str:
     result = notebook_to_string(
         ctx.deps.notebook, ctx.deps.run_id, ctx.deps.run_name)
     await ctx.deps.callbacks.log(ctx.deps.run_id,
-                                 f"Analysis Agent [{ctx.deps.run_name}] delete_cell completed: cell_name={cell_name}, remaining_cells={len(ctx.deps.notebook)}", "tool_call")
+                                 f"Analysis Agent [{ctx.deps.run_name}] delete_cell completed: cell_name={cell_name}, remaining_cells={len(ctx.deps.notebook)}", "info")
 
     return result
 

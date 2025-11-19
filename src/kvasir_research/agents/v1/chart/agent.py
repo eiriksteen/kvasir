@@ -7,11 +7,14 @@ from kvasir_research.agents.v1.chart.deps import ChartDeps
 from kvasir_research.agents.v1.chart.output import submit_chart
 from kvasir_research.agents.v1.chart.prompt import CHART_AGENT_SYSTEM_PROMPT
 from kvasir_research.agents.v1.shared_tools import navigation_toolset
-from kvasir_research.utils.agent_utils import get_model
+
 from kvasir_research.agents.v1.chart.output import ChartAgentOutput
-from kvasir_research.agents.abstract_agent import AbstractAgent
-from kvasir_ontology.entities.dataset.data_model import ObjectGroup
+from kvasir_research.agents.v1.base_agent import BaseAgent
+
 from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
+from kvasir_research.agents.v1.data_model import RunCreate
+from kvasir_ontology.entities.dataset.data_model import ObjectGroup
+from kvasir_research.utils.agent_utils import get_model
 
 
 model = get_model()
@@ -30,10 +33,6 @@ chart_agent = Agent[ChartDeps, ChartAgentOutput](
 
 @chart_agent.system_prompt
 async def chart_agent_system_prompt(ctx: RunContext[ChartDeps]) -> str:
-    if ctx.deps is None:
-        return CHART_AGENT_SYSTEM_PROMPT
-
-    # Get entity descriptions
     entity_ids = [*ctx.deps.datasets_injected, *ctx.deps.data_sources_injected]
     entities_description = await ctx.deps.ontology.describe_entities(entity_ids)
 
@@ -48,7 +47,6 @@ async def chart_agent_system_prompt(ctx: RunContext[ChartDeps]) -> str:
             "</object_group>\n\n"
         )
 
-    # Add base_code context if available
     base_code_context = ""
     if ctx.deps.base_code:
         base_code_context = (
@@ -70,7 +68,7 @@ async def chart_agent_system_prompt(ctx: RunContext[ChartDeps]) -> str:
     return full_prompt
 
 
-class ChartAgentV1(AbstractAgent):
+class ChartAgentV1(BaseAgent):
 
     def __init__(
         self,
@@ -103,9 +101,11 @@ class ChartAgentV1(AbstractAgent):
     async def __call__(self, prompt: str) -> ChartAgentOutput:
         try:
             if self.run_id is None:
-                self.run_id = await self.callbacks.create_run(self.user_id, self.project_id, run_type="chart")
+                run_create = RunCreate(
+                    type="chart", project_id=self.project_id)
+                self.run_id = (await self.callbacks.create_run(self.user_id, run_create)).id
 
-            await self.callbacks.set_run_status(self.run_id, "running")
+            await self.callbacks.set_run_status(self.user_id, self.run_id, "running")
 
             deps = ChartDeps(
                 project_id=self.project_id,
@@ -123,11 +123,11 @@ class ChartAgentV1(AbstractAgent):
             response = await chart_agent.run(
                 prompt,
                 deps=deps,
-                message_history=await self.callbacks.get_message_history(self.run_id) if self.run_id else None
+                message_history=await self.callbacks.get_message_history(self.user_id, self.run_id) if self.run_id else None
             )
             return response.output
 
         except Exception as e:
             if self.run_id:
-                await self.callbacks.fail_run(self.run_id, f"Error running chart agent: {e}")
+                await self.callbacks.fail_run(self.user_id, self.run_id, f"Error running chart agent: {e}")
             raise e

@@ -8,11 +8,11 @@ from kvasir_research.agents.v1.extraction.deps import ExtractionDeps
 from kvasir_research.agents.v1.extraction.tools import extraction_toolset
 from kvasir_research.agents.v1.shared_tools import navigation_toolset
 from kvasir_research.agents.v1.extraction.prompt import EXTRACTION_AGENT_SYSTEM_PROMPT
-from kvasir_research.utils.agent_utils import get_model
-from kvasir_research.agents.abstract_agent import AbstractAgent
+from kvasir_research.agents.v1.base_agent import BaseAgent
 from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
 from kvasir_research.agents.v1.broker import v1_broker
-
+from kvasir_research.agents.v1.data_model import RunCreate
+from kvasir_research.utils.agent_utils import get_model
 
 model = get_model()
 
@@ -42,7 +42,7 @@ async def extraction_agent_system_prompt(ctx: RunContext[ExtractionDeps]) -> str
     return full_prompt
 
 
-class ExtractionAgentV1(AbstractAgent):
+class ExtractionAgentV1(BaseAgent):
 
     def __init__(
         self,
@@ -60,9 +60,11 @@ class ExtractionAgentV1(AbstractAgent):
     async def __call__(self, prompt: str) -> str:
         try:
             if self.run_id is None:
-                self.run_id = await self.callbacks.create_run(self.user_id, self.project_id, run_type="extraction")
+                run_create = RunCreate(
+                    type="extraction", project_id=self.project_id)
+                self.run_id = (await self.callbacks.create_run(self.user_id, run_create)).id
 
-            await self.callbacks.set_run_status(self.run_id, "running")
+            await self.callbacks.set_run_status(self.user_id, self.run_id, "running")
 
             deps = ExtractionDeps(
                 run_id=self.run_id,
@@ -78,15 +80,15 @@ class ExtractionAgentV1(AbstractAgent):
             response = await extraction_agent.run(
                 f"{prompt}\n\nRespond with a summary of what you did.",
                 deps=deps,
-                message_history=await self.callbacks.get_message_history(self.run_id)
+                message_history=await self.callbacks.get_message_history(self.user_id, self.run_id)
             )
 
-            await self.callbacks.log(self.run_id, f"Extraction agent completed", "result")
+            await self.callbacks.log(self.user_id, self.run_id, f"Extraction agent completed", "result")
             return response.output
 
         except Exception as e:
             if self.run_id:
-                await self.callbacks.fail_run(self.run_id, f"Error running extraction agent: {e}")
+                await self.callbacks.fail_run(self.user_id, self.run_id, f"Error running extraction agent: {e}")
             raise e
 
 

@@ -8,6 +8,7 @@ from kvasir_research.agents.v1.deps import AgentDepsFull
 
 @dataclass(kw_only=True)
 class SWEDeps(AgentDepsFull):
+    kvasir_run_id: UUID
     data_paths: List[str]
     injected_analyses: List[UUID]
     injected_swe_runs: List[UUID]

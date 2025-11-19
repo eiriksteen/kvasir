@@ -1,10 +1,10 @@
-from typing import List
 from uuid import UUID
+from typing import List, Optional
 from pydantic import BaseModel
 from pydantic_ai import RunContext
 from pydantic_ai.exceptions import ModelRetry
 
-from kvasir_research.agents.abstract_agent import AbstractAgentOutput
+from kvasir_research.agents.v1.base_agent import BaseAgentOutput
 from kvasir_research.agents.v1.kvasir.knowledge_bank import SUPPORTED_TASKS_LITERAL
 from kvasir_research.agents.v1.kvasir.deps import KvasirV1Deps
 
@@ -16,6 +16,7 @@ class AnalysisRunToLaunch(BaseModel):
     analyses_to_inject: List[UUID] = []
     guidelines: List[SUPPORTED_TASKS_LITERAL] = []
     time_limit: int
+    analysis_id: Optional[UUID] = None
 
 
 class AnalysisRunToResume(BaseModel):
@@ -43,7 +44,7 @@ class SWERunToResume(BaseModel):
     time_limit: int
 
 
-class OrchestratorOutput(AbstractAgentOutput):
+class KvasirOutput(BaseAgentOutput):
     analysis_runs_to_launch: List[AnalysisRunToLaunch] = []
     analysis_runs_to_resume: List[AnalysisRunToResume] = []
     swe_runs_to_launch: List[SWERunToLaunch] = []
@@ -51,7 +52,7 @@ class OrchestratorOutput(AbstractAgentOutput):
     completed: bool = False
 
 
-async def submit_kvasir_response(ctx: RunContext[KvasirV1Deps], output: OrchestratorOutput) -> OrchestratorOutput:
+async def submit_kvasir_response(ctx: RunContext[KvasirV1Deps], output: KvasirOutput) -> KvasirOutput:
     # Validate that resumed runs are in the correct launched run lists
     for analysis_run_to_resume in output.analysis_runs_to_resume:
         if analysis_run_to_resume.run_id not in ctx.deps.launched_analysis_run_ids:
