@@ -28,7 +28,7 @@ class Message(BaseModel):
     id: uuid.UUID
     content: str
     run_id: uuid.UUID
-    role: Literal["swe", "analysis", "kvasir", "user"]
+    role: Literal["swe", "analysis", "kvasir", "user", "extraction"]
     type: Literal["tool_call", "result", "error", "info", "chat"]
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc))
@@ -100,7 +100,7 @@ class Context(BaseModel):
 class MessageCreate(BaseModel):
     content: str
     run_id: uuid.UUID
-    role: Literal["swe", "analysis", "kvasir", "user"]
+    role: Literal["swe", "analysis", "kvasir", "user", "extraction"]
     type: Literal["tool_call", "result", "error", "info", "chat"]
     context: Context = Field(default_factory=Context)
 
