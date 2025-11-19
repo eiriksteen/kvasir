@@ -24,7 +24,7 @@ class AnalysisInterface(ABC):
         pass
 
     @abstractmethod
-    async def create_section(self, section: SectionCreate) -> Analysis:
+    async def create_section(self, section: SectionCreate) -> Section:
         pass
 
     @abstractmethod
