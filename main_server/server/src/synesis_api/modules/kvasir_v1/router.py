@@ -27,7 +27,7 @@ from kvasir_research.agents.v1.data_model import (
     RunCreate,
 )
 
-# Create a single instance for router use
+
 _callbacks = ApplicationCallbacks()
 
 router = APIRouter()

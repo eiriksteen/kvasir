@@ -55,7 +55,7 @@ services:
       - server
     environment:
       - DOCKER_API_VERSION=1.41
-      - KVASIR_CALLBACKS_MODULE=synesis_api.modules.ontology.kvasir_v1.callbacks
+      - KVASIR_CALLBACKS_MODULE=synesis_api.modules.kvasir_v1.callbacks
 
 
   client:

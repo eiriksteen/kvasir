@@ -332,7 +332,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   // Render timeline of messages and runs
   const renderTimeline = () => {
     const timelineItems = [
-      ...runMessages.map((message: Message) => ({
+      ...runMessages.filter((message: Message) => message.type === 'chat').map((message: Message) => ({
         type: 'message' as const,
         item: message,
         createdAt: message.createdAt

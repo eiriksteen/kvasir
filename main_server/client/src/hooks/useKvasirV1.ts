@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { UUID } from "crypto";
 import { SSE } from 'sse.js';
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
+import { v4 as uuidv4 } from 'uuid';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -110,13 +111,23 @@ export const useKvasirV1 = (projectId: UUID) => {
         await setAgentRunId(newRun.id, {revalidate: false});
       }
 
-      // Create the prompt
+      const userMessage: Message = {
+        id: uuidv4() as UUID,
+        role: "user", 
+        type: "chat",
+        runId: runId!,
+        content: content,
+        createdAt: new Date().toISOString(),
+      };
+
       const prompt: MessageCreate = {
         content: content,
         runId: runId!,
         role: "user",
         type: "chat",
       };
+
+      mutateRunMessages([...runMessages, userMessage], {revalidate: false});
 
       const eventSource = createKvasirV1EventSource(session.APIToken.accessToken, prompt);
 
@@ -146,7 +157,8 @@ export const useKvasirV1 = (projectId: UUID) => {
     agentRunId, 
     projectId,
     setAgentRunId,
-    mutateRunMessages
+    mutateRunMessages,
+    runMessages
   ]);
 
   const continueRun = useCallback(async (runId: UUID) => {
