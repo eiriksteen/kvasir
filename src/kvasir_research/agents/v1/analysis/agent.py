@@ -14,6 +14,7 @@ from kvasir_research.agents.v1.analysis.tools import analysis_toolset
 from kvasir_research.agents.v1.analysis.output import submit_analysis_results
 from kvasir_research.agents.v1.base_agent import BaseAgent
 from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
+from kvasir_research.agents.v1.data_model import RunCreate
 from kvasir_ontology.ontology import Ontology
 
 
@@ -79,6 +80,7 @@ class AnalysisAgentV1(BaseAgent):
 
     async def create_deps(
         self,
+        kvasir_run_id: UUID,
         run_name: str,
         data_paths: List[str],
         injected_analyses: List[UUID],
@@ -86,11 +88,11 @@ class AnalysisAgentV1(BaseAgent):
         guidelines: List[SUPPORTED_TASKS_LITERAL] = None,
     ) -> AnalysisDeps:
         if self.run_id is None:
-            from kvasir_research.agents.v1.data_model import RunCreate
             run_create = RunCreate(type="analysis", project_id=self.project_id)
             self.run_id = (await self.callbacks.create_run(self.user_id, run_create)).id
 
         deps = AnalysisDeps(
+            kvasir_run_id=kvasir_run_id,
             run_id=self.run_id,
             run_name=run_name,
             project_id=self.project_id,
@@ -203,6 +205,7 @@ def _analysis_deps_to_dict(deps: AnalysisDeps) -> Dict:
 
     return {
         "run_id": str(deps.run_id),
+        "kvasir_run_id": str(deps.kvasir_run_id),
         "run_name": deps.run_name,
         "project_id": str(deps.project_id),
         "package_name": deps.package_name,
@@ -249,6 +252,7 @@ def _analysis_dict_to_deps(deps_dict: Dict, callbacks: KvasirV1Callbacks, ontolo
 
     deps = AnalysisDeps(
         run_id=run_uuid,
+        kvasir_run_id=UUID(deps_dict["kvasir_run_id"]),
         run_name=run_name,
         project_id=UUID(deps_dict["project_id"]),
         package_name=deps_dict["package_name"],

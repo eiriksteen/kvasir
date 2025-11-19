@@ -73,6 +73,7 @@ async def _start_swe_run_from_orchestrator(swe_run: SWERunToStart, context: Anno
     )
 
     await swe_agent.create_deps(
+        kvasir_run_id=swe_run.kvasir_run_id,
         run_name=swe_run.run_name,
         data_paths=swe_run.data_paths,
         injected_analyses=swe_run.injected_analyses,
@@ -156,6 +157,7 @@ async def _start_analysis_run_from_orchestrator(analysis_run: AnalysisRunToStart
     )
 
     await analysis_agent.create_deps(
+        kvasir_run_id=analysis_run.kvasir_run_id,
         run_name=analysis_run.run_name,
         data_paths=analysis_run.data_paths,
         injected_analyses=analysis_run.injected_analyses,
@@ -341,7 +343,6 @@ class KvasirV1(BaseAgent):
                 if output is None:
                     raise RuntimeError(
                         "No valid output received from orchestrator")
-                await self.callbacks.log(self.user_id, self.run_id, f"Orchestrator output: {output}", "result")
 
                 if output.completed:
                     await self.callbacks.set_run_status(self.user_id, self.run_id, "completed")

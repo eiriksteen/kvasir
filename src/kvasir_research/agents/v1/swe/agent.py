@@ -97,6 +97,7 @@ class SweAgentV1(BaseAgent):
 
     async def create_deps(
         self,
+        kvasir_run_id: UUID,
         run_name: str,
         data_paths: List[str],
         injected_analyses: List[UUID],
@@ -110,6 +111,7 @@ class SweAgentV1(BaseAgent):
             self.run_id = (await self.callbacks.create_run(self.user_id, run_create)).id
 
         deps = SWEDeps(
+            kvasir_run_id=kvasir_run_id,
             run_id=self.run_id,
             run_name=run_name,
             project_id=self.project_id,
@@ -215,6 +217,7 @@ def _swe_deps_to_dict(deps: SWEDeps) -> Dict:
 
     return {
         "run_id": str(deps.run_id),
+        "kvasir_run_id": str(deps.kvasir_run_id),
         "run_name": deps.run_name,
         "project_id": str(deps.project_id),
         "package_name": deps.package_name,
