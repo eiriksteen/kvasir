@@ -10,18 +10,8 @@ from synesis_api.auth.models import users, user_api_keys
 from synesis_api.modules.data_sources.models import (
     data_source, file_data_source
 )
-from synesis_api.modules.runs.models import (
-    run, run_message, run_pydantic_message,
-    data_source_in_run, dataset_in_run, model_instantiated_in_run, pipeline_in_run, analysis_in_run,
-    data_source_from_run, dataset_from_run, model_instantiated_from_run, pipeline_from_run, analysis_from_run
-)
 from synesis_api.modules.data_objects.models import (
     dataset, data_object, object_group, tabular, tabular_group, time_series, time_series_group
-)
-from synesis_api.modules.orchestrator.models import (
-    chat_message, conversation,
-    chat_context, dataset_context, pipeline_context, analysis_context,
-    data_source_context, model_instantiated_context
 )
 from synesis_api.modules.pipeline.models import (
     pipeline, pipeline_implementation, pipeline_run
@@ -46,8 +36,9 @@ from synesis_api.modules.visualization.models import (
 )
 from synesis_api.modules.waitlist.models import waitlist
 from synesis_api.modules.project.models import project
-from synesis_api.modules.ontology.kvasir_v1.models import (
-    results_queue, deps, result, pydantic_ai_message
+from synesis_api.modules.kvasir_v1.models import (
+    run, run_message, user_message, pydantic_ai_message,
+    results_queue, deps, result, analysis_run, swe_run
 )
 from synesis_api.app_secrets import DATABASE_URL
 from synesis_api.database.core import metadata
@@ -69,19 +60,6 @@ __all__ = [
     user_api_keys,
     data_source,
     file_data_source,
-    run,
-    run_message,
-    run_pydantic_message,
-    dataset_in_run,
-    model_instantiated_in_run,
-    pipeline_in_run,
-    analysis_in_run,
-    data_source_from_run,
-    dataset_from_run,
-    model_instantiated_from_run,
-    pipeline_from_run,
-    analysis_from_run,
-    data_source_in_run,
     dataset,
     data_object,
     object_group,
@@ -105,14 +83,6 @@ __all__ = [
     dataset_in_analysis,
     data_source_in_analysis,
     model_instantiated_in_analysis,
-    chat_message,
-    conversation,
-    chat_context,
-    dataset_context,
-    pipeline_context,
-    analysis_context,
-    data_source_context,
-    model_instantiated_context,
     pipeline,
     pipeline_implementation,
     data_source_supported_in_pipeline,
@@ -134,10 +104,15 @@ __all__ = [
     table,
     waitlist,
     project,
+    run,
+    run_message,
+    user_message,
+    pydantic_ai_message,
     results_queue,
     deps,
     result,
-    pydantic_ai_message,
+    analysis_run,
+    swe_run,
 ]
 
 # add your model's MetaData object here
@@ -149,7 +124,7 @@ target_metadata = metadata
 
 def include_name(name, type_, parent_names):
     if type_ == "schema":
-        return name in ["public", "auth", "data_sources", "runs", "data_objects", "analysis", "orchestrator", "pipeline", "model", "entity_graph", "visualization", "project", "kvasir_v1"]
+        return name in ["public", "auth", "data_sources", "data_objects", "analysis", "pipeline", "model", "entity_graph", "visualization", "project", "kvasir_v1", "waitlist"]
     else:
         return True
 
