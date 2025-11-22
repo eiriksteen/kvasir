@@ -12,6 +12,7 @@ from synesis_api.modules.pipeline.models import (
     pipeline_implementation,
     pipeline_run,
 )
+from synesis_api.modules.kvasir_v1.models import swe_run
 from kvasir_ontology.entities.pipeline.data_model import (
     PipelineBase,
     PipelineImplementationBase,
@@ -183,10 +184,17 @@ class Pipelines(PipelineInterface):
         return runs[0]
 
     async def update_pipeline_run_status(self, pipeline_run_id: uuid.UUID, status: PIPELINE_RUN_STATUS_LITERAL) -> PipelineRunBase:
-        await execute(pipeline_run.update().where(pipeline_run.c.id == pipeline_run_id).values(status=status), commit_after=True)
+        await execute(
+            pipeline_run.update().where(pipeline_run.c.id == pipeline_run_id).values(
+                status=status,
+                updated_at=datetime.now(timezone.utc)
+            ),
+            commit_after=True
+        )
         return (await self.get_pipeline_run(pipeline_run_id))
 
     async def delete_pipeline(self, pipeline_id: uuid.UUID) -> None:
+        await execute(delete(swe_run).where(swe_run.c.pipeline_id == pipeline_id), commit_after=True)
         await execute(delete(pipeline_run).where(pipeline_run.c.pipeline_id == pipeline_id), commit_after=True)
         await execute(delete(pipeline_implementation).where(pipeline_implementation.c.id == pipeline_id), commit_after=True)
         await execute(delete(pipeline).where(pipeline.c.id == pipeline_id), commit_after=True)

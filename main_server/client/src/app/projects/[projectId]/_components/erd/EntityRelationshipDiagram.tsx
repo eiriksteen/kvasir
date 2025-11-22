@@ -344,7 +344,6 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
       ...entityGraph.datasets.flatMap(d => processEntityOutputs(d.id, d.toEntities, 'dataset')),
       ...entityGraph.analyses.flatMap(a => processEntityOutputs(a.id, a.toEntities, 'analysis')),
       ...entityGraph.pipelines.flatMap(p => [
-        ...processEntityOutputs(p.id, p.toEntities, 'pipeline'),
         ...p.runs.flatMap(run => processEntityOutputs(p.id, run.toEntities, 'pipeline'))
       ]),
       ...entityGraph.modelsInstantiated.flatMap(m => processEntityOutputs(m.id, m.toEntities, 'modelInstantiated')),

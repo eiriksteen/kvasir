@@ -276,7 +276,10 @@ class EntityGraphs(GraphInterface):
     async def update_node_position(self, node_id: uuid.UUID, x_position: float, y_position: float) -> EntityNode:
         await execute(
             update(entity_node).where(entity_node.c.id == node_id).values(
-                x_position=x_position, y_position=y_position),
+                x_position=x_position,
+                y_position=y_position,
+                updated_at=datetime.now(timezone.utc)
+            ),
             commit_after=True
         )
         return await self.get_node(node_id)

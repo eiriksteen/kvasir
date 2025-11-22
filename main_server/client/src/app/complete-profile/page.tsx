@@ -6,7 +6,6 @@ import CompleteProfileContainer from "./container";
 export default async function CompleteProfilePage() {
   const session = await getServerSession(authOptions);
 
-  // If no session or no need to complete profile, redirect to projects
   if (!session) {
     redirect("/login");
   }

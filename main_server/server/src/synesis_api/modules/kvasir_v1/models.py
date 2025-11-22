@@ -70,7 +70,7 @@ results_queue = Table(
 
 
 deps = Table(
-    "swe_deps",
+    "deps",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     Column("run_id", UUID(as_uuid=True),
@@ -126,6 +126,9 @@ swe_run = Table(
     Column("run_id", UUID(as_uuid=True),
            ForeignKey("kvasir_v1.run.id"),
            primary_key=True,
+           nullable=False),
+    Column("pipeline_id", UUID(as_uuid=True),
+           ForeignKey("pipeline.pipeline.id"),
            nullable=False),
     Column("kvasir_run_id", UUID(as_uuid=True),
            ForeignKey("kvasir_v1.run.id"),

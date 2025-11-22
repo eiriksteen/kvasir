@@ -7,11 +7,13 @@ import { UUID } from 'crypto';
 import ConfirmationPopup from '@/components/ConfirmationPopup';
 import GenerateReportPopup from '@/components/info-tabs/analysis/GenerateReportPopup';
 import { useAgentContext } from '@/hooks/useAgentContext';
+import { useOntology } from '@/hooks/useOntology';
 
 interface TableOfContentsProps {
   analysisObjectId: UUID;
   projectId: UUID;
   onScrollToSection?: (sectionId: string) => void;
+  onClose?: () => void;
 }
 
 interface TocItemProps {
@@ -56,6 +58,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   analysisObjectId,
   projectId,
   onScrollToSection,
+  onClose,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { analysis } = useAnalysis(projectId, analysisObjectId);
@@ -67,6 +70,7 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   const [showDetails, setShowDetails] = useState(false);
 
   const { addAnalysisToContext, removeAnalysisFromContext } = useAgentContext(projectId);
+  const { deleteAnalysis } = useOntology(projectId);
 
   // Initialize all sections as expanded when analysis data loads
   useEffect(() => {
@@ -96,9 +100,14 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   };
 
   const handleConfirmDelete = async () => {
-    // TODO: Implement delete analysis API call
-    console.log('Delete analysis:', analysisObjectId);
-    setShowDeleteConfirmation(false);
+    try {
+      await deleteAnalysis({ analysisId: analysisObjectId });
+      setShowDeleteConfirmation(false);
+      onClose?.();
+    } catch (error) {
+      console.error('Failed to delete analysis:', error);
+      setShowDeleteConfirmation(false);
+    }
   };
 
   const handleAddAnalysisToContext = async () => {

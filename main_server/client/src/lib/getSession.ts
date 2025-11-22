@@ -4,15 +4,20 @@ import { Session } from "next-auth";
 
 
 export async function getSession() : Promise<Session | null> {
-
     const session = await getServerSession(authOptions);
-
-    if (session?.error === "RefreshAccessTokenError") {
-        console.error("Error refreshing access token:", session.error);
+    
+    // If session is null (refresh failed), return null to trigger redirect to login
+    if (!session) {
         return null;
     }
-    else if (session?.error) {
-        console.error("Error getting session:", session.error);
+    
+    // Only ignore refresh token errors - raise other errors normally
+    if (session.error === "RefreshAccessTokenError") {
+        return null;
+    }
+    
+    // Raise other errors
+    if (session.error) {
         throw new Error(session.error);
     }
 

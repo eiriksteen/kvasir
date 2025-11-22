@@ -3,7 +3,7 @@ import GoogleProvider from "next-auth/providers/google"
 import { AuthOptions } from "next-auth"
 import { User as UserType } from "@/types/next-auth"
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
-import { UserCreate, User, UserProfileUpdate } from "@/types/auth";
+import { UserCreate, User, UserProfileUpdate } from "@/types/api/auth";
 
 export const authOptions: AuthOptions = {
 
@@ -124,46 +124,48 @@ export const authOptions: AuthOptions = {
         return token;
       }
       
-      const tokenExpiresAt = new Date(token.APIToken?.tokenExpiresAt);
+      // If no APIToken exists, return token as-is (session callback will handle it)
+      if (!token.APIToken) {
+        return token;
+      }
+
+      const tokenExpiresAt = new Date(token.APIToken.tokenExpiresAt);
       const now = new Date();
       
       if (tokenExpiresAt && tokenExpiresAt < now) {
-
         try {
           const response = await fetch(process.env.NEXT_PUBLIC_API_URL_INTERNAL + "/auth/refresh", {
             method: "POST",
             credentials: "include", // Important for cookies
           });
 
-        const refreshedUser = snakeToCamelKeys(await response.json());
+          if (!response.ok) {
+            // Refresh failed - remove APIToken to invalidate session
+            delete token.APIToken;
+            return token;
+          }
 
-        if (!response.ok) {
-          throw refreshedUser
-        }
-
-        token.APIToken = {
-          accessToken: refreshedUser.accessToken,
+          const refreshedUser = snakeToCamelKeys(await response.json());
+          token.APIToken = {
+            accessToken: refreshedUser.accessToken,
             tokenExpiresAt: refreshedUser.tokenExpiresAt,
           };
-        } catch (error) {
-          console.error("Error refreshing access token:", error);
-          return {
-            ...token,
-            error: "RefreshAccessTokenError",
-          }
+        } catch {
+          // Refresh failed - remove APIToken to invalidate session
+          delete token.APIToken;
+          return token;
         }
       }
 
       return token;
     },
     async session({ session, token }) {
-
-      if (!token) {
-        throw new Error("No token found");
+      // If no APIToken exists (refresh failed), throw error to invalidate session
+      if (!token.APIToken) {
+        throw new Error("RefreshAccessTokenError");
       }
       
       session.APIToken = token.APIToken;
-      session.error = token.error;
       session.needsProfileCompletion = token.needsProfileCompletion;
       return session;
     },

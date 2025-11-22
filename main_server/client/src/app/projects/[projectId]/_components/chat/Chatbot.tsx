@@ -6,7 +6,7 @@ import { useOntology, useKvasirV1 } from '@/hooks';
 import { useKvasirRuns } from '@/hooks/useRuns';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { ChatHistory } from '@/app/projects/[projectId]/_components/chat/ChatHistory';
-import { Message, RunBase } from '@/types/kvasirV1';
+import { Message, RunBase } from '@/types/kvasirv1';
 import { UUID } from 'crypto';
 import RunBox from '@/components/runs/RunBox';
 import ChatMessageBox from '@/app/projects/[projectId]/_components/chat/ChatMessageBox';
@@ -332,7 +332,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   // Render timeline of messages and runs
   const renderTimeline = () => {
     const timelineItems = [
-      ...runMessages.filter((message: Message) => message.type === 'chat').map((message: Message) => ({
+      ...runMessages.filter((message: Message) => message.type === 'chat' || message.type === 'tool_call').map((message: Message) => ({
         type: 'message' as const,
         item: message,
         createdAt: message.createdAt

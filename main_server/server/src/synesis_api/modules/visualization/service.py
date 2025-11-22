@@ -50,13 +50,13 @@ class VisualizationService(VisualizationInterface):
     async def create_images(self, image_creates: List[ImageCreate]) -> List[ImageBase]:
         now = datetime.now(timezone.utc)
         image_values = [
-            ImageBase({
-                "id": uuid.uuid4(),
-                "user_id": self.user_id,
-                "image_path": img_create.image_path,
-                "created_at": now,
-                "updated_at": now,
-            })
+            ImageBase(
+                id=uuid.uuid4(),
+                user_id=self.user_id,
+                image_path=img_create.image_path,
+                created_at=now,
+                updated_at=now,
+            )
             for img_create in image_creates
         ]
 
@@ -69,13 +69,13 @@ class VisualizationService(VisualizationInterface):
     async def create_echarts(self, echart_creates: List[EchartCreate]) -> List[EchartBase]:
         now = datetime.now(timezone.utc)
         echart_values = [
-            EchartBase({
-                "id": uuid.uuid4(),
-                "user_id": self.user_id,
-                "chart_script_path": echart_create.chart_script_path,
-                "created_at": now,
-                "updated_at": now,
-            })
+            EchartBase(
+                id=uuid.uuid4(),
+                user_id=self.user_id,
+                chart_script_path=echart_create.chart_script_path,
+                created_at=now,
+                updated_at=now,
+            )
             for echart_create in echart_creates
         ]
         await execute(insert(echart).values([ech.model_dump() for ech in echart_values]), commit_after=True)
@@ -84,13 +84,13 @@ class VisualizationService(VisualizationInterface):
     async def create_tables(self, table_creates: List[TableCreate]) -> List[TableBase]:
         now = datetime.now(timezone.utc)
         table_values = [
-            TableBase({
-                "id": uuid.uuid4(),
-                "user_id": self.user_id,
-                "table_path": table_create.table_path,
-                "created_at": now,
-                "updated_at": now,
-            })
+            TableBase(
+                id=uuid.uuid4(),
+                user_id=self.user_id,
+                table_path=table_create.table_path,
+                created_at=now,
+                updated_at=now,
+            )
             for table_create in table_creates
         ]
         await execute(insert(table).values([tbl.model_dump() for tbl in table_values]), commit_after=True)
@@ -131,12 +131,11 @@ class VisualizationService(VisualizationInterface):
 
     async def download_image(self, image_id: uuid.UUID, mount_group_id: uuid.UUID) -> bytes:
         image_obj = await self.get_image(image_id)
-
         vol = modal.Volume.from_name(
             str(mount_group_id), create_if_missing=True)
 
         chunks = []
-        async for chunk in vol.read_file.aio(image_obj.image_path):
+        async for chunk in vol.read_file.aio(image_obj.image_path.replace("/app", "")):
             chunks.append(chunk)
 
         return b"".join(chunks)
@@ -148,25 +147,12 @@ class VisualizationService(VisualizationInterface):
             str(mount_group_id), create_if_missing=True)
 
         chunks = []
-        async for chunk in vol.read_file.aio(table_obj.table_path):
+        async for chunk in vol.read_file.aio(table_obj.table_path.replace("/app", "")):
             chunks.append(chunk)
 
         return b"".join(chunks)
 
-    async def download_echart(self, echart_id: uuid.UUID, mount_group_id: uuid.UUID) -> bytes:
-        echart_obj = await self.get_echart(echart_id)
-
-        vol = modal.Volume.from_name(
-            str(mount_group_id), create_if_missing=True)
-
-        chunks = []
-        async for chunk in vol.read_file.aio(echart_obj.chart_script_path):
-            chunks.append(chunk)
-
-        return b"".join(chunks)
-
-    async def get_echart_config(self, echart_id: uuid.UUID, mount_group_id: uuid.UUID) -> EChartsOption:
-
+    async def download_echart(self, echart_id: uuid.UUID, mount_group_id: uuid.UUID) -> EChartsOption:
         graph_service = EntityGraphs(self.user_id)
         mount_group = await graph_service.get_node_group(mount_group_id)
         if not mount_group.python_package_name:
@@ -174,9 +160,11 @@ class VisualizationService(VisualizationInterface):
                 status_code=400,
                 detail=f"Mount group with ID {mount_group_id} does not have a Python package name"
             )
-        package_name = mount_group.python_package_name
+
         echart = await self.get_echart(echart_id)
-        sandbox = ModalSandbox(self.user_id, package_name)
+        sandbox = ModalSandbox(mount_group_id,
+                               mount_group.python_package_name,
+                               install_package_in_background=True)
         script_content = await sandbox.read_file(echart.chart_script_path)
         out, err = await sandbox.run_python_code(script_content)
 

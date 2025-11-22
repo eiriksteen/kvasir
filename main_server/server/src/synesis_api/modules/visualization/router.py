@@ -83,37 +83,29 @@ async def download_image_endpoint(
     visualization_service: Annotated[VisualizationInterface, Depends(
         get_visualization_service)]
 ) -> Response:
-    try:
-        image_obj = await visualization_service.get_image(image_id)
-        image_path = Path(image_obj.image_path)
-        allowed_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp']
-        if image_path.suffix.lower() not in allowed_extensions:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid image file type: {image_path.suffix}"
-            )
-
-        image_content = await visualization_service.download_image(image_id, mount_group_id)
-
-        content_type_map = {
-            '.png': 'image/png',
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.gif': 'image/gif',
-            '.svg': 'image/svg+xml',
-            '.webp': 'image/webp'
-        }
-        content_type = content_type_map.get(
-            image_path.suffix.lower(), 'application/octet-stream')
-
-        return Response(content=image_content, media_type=content_type)
-    except HTTPException:
-        raise
-    except Exception as e:
+    image_obj = await visualization_service.get_image(image_id)
+    image_path = Path(image_obj.image_path)
+    allowed_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp']
+    if image_path.suffix.lower() not in allowed_extensions:
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to read image: {str(e)}"
+            status_code=400,
+            detail=f"Invalid image file type: {image_path.suffix}"
         )
+
+    image_content = await visualization_service.download_image(image_id, mount_group_id)
+
+    content_type_map = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.svg': 'image/svg+xml',
+        '.webp': 'image/webp'
+    }
+    content_type = content_type_map.get(
+        image_path.suffix.lower(), 'application/octet-stream')
+
+    return Response(content=image_content, media_type=content_type)
 
 
 class ResultTable(BaseModel):
@@ -165,4 +157,4 @@ async def get_chart_endpoint(
     visualization_service: Annotated[VisualizationInterface, Depends(
         get_visualization_service)]
 ) -> EChartsOption:
-    return await visualization_service.get_echart_config(chart_id, mount_group_id)
+    return await visualization_service.download_echart(chart_id, mount_group_id)

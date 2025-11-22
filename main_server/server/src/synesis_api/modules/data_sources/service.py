@@ -52,7 +52,8 @@ class DataSources(DataSourceInterface):
             user_id=self.user_id,
             **data_source_create.model_dump(exclude={'type_fields'}),
             additional_variables=additional_variables if additional_variables else None,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
 
         await execute(
@@ -113,7 +114,10 @@ class DataSources(DataSourceInterface):
         await execute(
             update(data_source)
             .where(data_source.c.id == data_source_id)
-            .values(additional_variables=new_additional_variables),
+            .values(
+                additional_variables=new_additional_variables,
+                updated_at=datetime.now(timezone.utc)
+            ),
             commit_after=True
         )
 
@@ -200,15 +204,15 @@ class DataSources(DataSourceInterface):
     async def create_files_data_sources(self, file_bytes: List[io.BytesIO], file_names: List[str], mount_group_id: uuid.UUID) -> Tuple[List[DataSource], List[Path]]:
         """
         Create data sources from uploaded files.
-        
+
         Supports individual files and .zip archives. ZIP files are automatically detected and extracted,
         with each file inside the archive being added as a separate data source.
-        
+
         Args:
             file_bytes: List of file contents as BytesIO objects
             file_names: List of corresponding file names
             mount_group_id: UUID of the mount group to add the data sources to
-            
+
         Returns:
             Tuple of (list of created DataSource objects, list of file paths in the sandbox)
         """
@@ -230,35 +234,29 @@ class DataSources(DataSourceInterface):
                             # Skip directories
                             if zip_info.is_dir():
                                 continue
-                            
+
                             # Skip macOS metadata files and hidden files
                             # Common patterns: __MACOSX/, .DS_Store, ._filename (resource forks)
-                            if ('__MACOSX' in zip_info.filename or 
+                            if ('__MACOSX' in zip_info.filename or
                                 zip_info.filename.startswith('._') or
                                 '/.DS_Store' in zip_info.filename or
-                                zip_info.filename == '.DS_Store'):
+                                    zip_info.filename == '.DS_Store'):
                                 continue
-                            
-                            # Use only the filename (not the full path in the zip)
+
                             extracted_name = Path(zip_info.filename).name
-                            
-                            # Skip if filename is empty (edge case)
-                            if not extracted_name:
-                                continue
-                            
-                            # Skip hidden files (starting with .)
+
                             if extracted_name.startswith('.'):
                                 continue
-                            
-                            # Skip resource fork files (starting with ._)
+
                             if extracted_name.startswith('._'):
                                 continue
-                            
+
                             # Read the file content
                             extracted_content = zip_ref.read(zip_info.filename)
                             extracted_byte = io.BytesIO(extracted_content)
-                            
-                            processed_files.append((extracted_byte, extracted_name))
+
+                            processed_files.append(
+                                (extracted_byte, extracted_name))
                 except zipfile.BadZipFile:
                     # If it's not a valid zip file, treat it as a regular file
                     file_byte.seek(0)

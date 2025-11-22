@@ -77,7 +77,16 @@ export interface RunCreate {
   projectId?: UUID | null;
 }
 
+export interface Context {
+  dataSources: UUID[];
+  datasets: UUID[];
+  pipelines: UUID[];
+  analyses: UUID[];
+  models: UUID[];
+}
+
 export interface MessageCreate {
+  context: Context;
   content: string;
   runId: UUID;
   role: MessageRole;

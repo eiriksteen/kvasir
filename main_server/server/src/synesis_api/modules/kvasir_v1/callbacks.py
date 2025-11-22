@@ -34,7 +34,8 @@ from kvasir_research.agents.v1.data_model import (
     ResultBase,
     PydanticAIMessage,
     RUN_TYPE_LITERAL,
-    RESULT_TYPE_LITERAL
+    RESULT_TYPE_LITERAL,
+    MESSAGE_TYPE_LITERAL
 )
 
 from kvasir_ontology.ontology import Ontology
@@ -70,7 +71,7 @@ class ApplicationCallbacks(KvasirV1Callbacks):
         )
         return status
 
-    async def create_swe_run(self, user_id: UUID, project_id: UUID, kvasir_run_id: UUID, run_name: str | None = None, initial_status: Literal["pending", "completed", "failed", "waiting", "running"] | None = None) -> SweRun:
+    async def create_swe_run(self, user_id: UUID, project_id: UUID, kvasir_run_id: UUID, pipeline_id: UUID, run_name: str | None = None, initial_status: Literal["pending", "completed", "failed", "waiting", "running"] | None = None) -> SweRun:
         run_create = RunCreate(
             type="swe",
             run_name=run_name or "swe run",
@@ -82,6 +83,7 @@ class ApplicationCallbacks(KvasirV1Callbacks):
         await execute(
             insert(swe_run).values(
                 run_id=run_record.id,
+                pipeline_id=pipeline_id,
                 kvasir_run_id=kvasir_run_id,
                 created_at=datetime.now(timezone.utc)
             ),
@@ -91,6 +93,7 @@ class ApplicationCallbacks(KvasirV1Callbacks):
         return SweRun(
             **run_record.model_dump(),
             kvasir_run_id=kvasir_run_id,
+            pipeline_id=pipeline_id,
             result=None
         )
 
@@ -236,13 +239,13 @@ class ApplicationCallbacks(KvasirV1Callbacks):
             return ResultBase(**record)
         return None
 
-    async def save_result(self, user_id: UUID, run_id: UUID, result: str, type: Literal["swe", "analysis", "kvasir"]) -> None:
+    async def save_result(self, user_id: UUID, run_id: UUID, result_content: str, type: Literal["swe", "analysis", "kvasir"]) -> None:
         await self._verify_run_ownership(user_id, run_id)
         result_obj = ResultBase(
             id=uuid.uuid4(),
             run_id=run_id,
             type=type,
-            content=result,
+            content=result_content,
             created_at=datetime.now(timezone.utc)
         )
         await execute(insert(result).values(**result_obj.model_dump()), commit_after=True)
@@ -377,19 +380,19 @@ class ApplicationCallbacks(KvasirV1Callbacks):
             analysis_run.c.kvasir_run_id
         ).where(analysis_run.c.run_id.in_(run_id_list))
         analysis_run_records = await fetch_all(analysis_run_query)
-        analysis_run_map = {record["run_id"]: record for record in analysis_run_records}
+        analysis_run_map = {record["run_id"]
+            : record for record in analysis_run_records}
 
-        swe_run_query = select(
-            swe_run.c.run_id,
-            swe_run.c.kvasir_run_id
-        ).where(swe_run.c.run_id.in_(run_id_list))
+        swe_run_query = select(swe_run).where(
+            swe_run.c.run_id.in_(run_id_list))
         swe_run_records = await fetch_all(swe_run_query)
         swe_run_map = {record["run_id"]: record for record in swe_run_records}
 
         run_results_query = select(result).where(
             result.c.run_id.in_(run_id_list))
         run_results_records = await fetch_all(run_results_query)
-        run_results_map = {record["run_id"]: record for record in run_results_records}
+        run_results_map = {record["run_id"]
+            : record for record in run_results_records}
 
         result_objs = []
         for record in records:
@@ -411,7 +414,8 @@ class ApplicationCallbacks(KvasirV1Callbacks):
                 result_objs.append(SweRun(
                     **run_base.model_dump(),
                     kvasir_run_id=swe_run_data["kvasir_run_id"],
-                    result=result_obj
+                    pipeline_id=swe_run_data["pipeline_id"],
+                    result=result_obj,
                 ))
             else:
                 result_objs.append(run_base)
@@ -422,13 +426,13 @@ class ApplicationCallbacks(KvasirV1Callbacks):
         self,
         user_id: UUID,
         run_id: UUID,
-        type: Optional[Literal["tool_call", "result", "error"]] = None
+        types: Optional[List[MESSAGE_TYPE_LITERAL]] = None
     ) -> List[Message]:
         await self._verify_run_ownership(user_id, run_id)
         query = select(message).where(message.c.run_id == run_id)
 
-        if type:
-            query = query.where(message.c.type == type)
+        if types:
+            query = query.where(message.c.type.in_(types))
 
         query = query.order_by(message.c.created_at)
 

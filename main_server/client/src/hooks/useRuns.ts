@@ -1,4 +1,4 @@
-import { RunBase, Message, AnalysisRun, SweRun} from "@/types/kvasirV1";
+import { RunBase, Message, AnalysisRun, SweRun} from "@/types/kvasirv1";
 import { useSession } from "next-auth/react";
 import { useMemo } from "react";
 import useSWR, { useSWRConfig } from "swr";

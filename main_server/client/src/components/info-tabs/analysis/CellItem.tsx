@@ -38,10 +38,10 @@ export default function CellItem({ projectId, cell, analysisObjectId }: CellItem
     const codeCell = isCodeCell ? (cell.typeFields as CodeCell) : null;
     const markdownCell = !isCodeCell ? (cell.typeFields as MarkdownCellBase) : null;
     
-    // Get content based on cell type
-    const content = isCodeCell ? (codeCell?.output?.output || '') : (markdownCell?.markdown || '');
-    const code = isCodeCell ? codeCell?.code || '' : '';
-    const [editContent, setEditContent] = useState(content);
+    // For code cells, edit the code; for markdown cells, edit the content
+    const [editContent, setEditContent] = useState(
+        isCodeCell ? (codeCell?.code || '') : (markdownCell?.markdown || '')
+    );
     
     // Handle click outside to close options
     useEffect(() => {
@@ -69,20 +69,21 @@ export default function CellItem({ projectId, cell, analysisObjectId }: CellItem
         }
     }, [showEdit]);
 
-    // Smooth streaming for content updates
-    const [smoothStreamedText, setSmoothStreamedText] = useState(content);
+    // Smooth streaming for content updates (only for markdown cells)
+    const markdownContent = !isCodeCell ? (markdownCell?.markdown || '') : '';
+    const [smoothStreamedText, setSmoothStreamedText] = useState(markdownContent);
     const streamCancelRef = useRef<{ cancel: () => void } | null>(null);
-    const previousContentRef = useRef<string>(content);
+    const previousContentRef = useRef<string>(markdownContent);
 
     useEffect(() => {
         const previousContent = previousContentRef.current;
         
-        if (content.startsWith(previousContent) && content.length > previousContent.length) {
+        if (markdownContent.startsWith(previousContent) && markdownContent.length > previousContent.length) {
             if (streamCancelRef.current) {
                 streamCancelRef.current.cancel();
             }
 
-            const newText = content.slice(previousContent.length);
+            const newText = markdownContent.slice(previousContent.length);
             
             streamCancelRef.current = createSmoothTextStream(
                 newText,
@@ -94,13 +95,13 @@ export default function CellItem({ projectId, cell, analysisObjectId }: CellItem
                     intervalMs: 15,
                 }
             );
-        } else if (content !== previousContent) {
+        } else if (markdownContent !== previousContent) {
             if (streamCancelRef.current) {
                 streamCancelRef.current.cancel();
             }
 
             streamCancelRef.current = createSmoothTextStream(
-                content,
+                markdownContent,
                 setSmoothStreamedText,
                 {
                     mode: 'word',
@@ -109,14 +110,14 @@ export default function CellItem({ projectId, cell, analysisObjectId }: CellItem
             );
         }
 
-        previousContentRef.current = content;
+        previousContentRef.current = markdownContent;
 
         return () => {
             if (streamCancelRef.current) {
                 streamCancelRef.current.cancel();
             }
         };
-    }, [content, cell.id]);
+    }, [markdownContent, cell.id]);
 
     // Drag functionality with dnd-kit
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -158,7 +159,7 @@ export default function CellItem({ projectId, cell, analysisObjectId }: CellItem
     };
 
     const handleCancelEdit = () => {
-        setEditContent(content);
+        setEditContent(isCodeCell ? (codeCell?.code || '') : (markdownCell?.markdown || ''));
         setShowEdit(false);
     };
 
@@ -196,101 +197,189 @@ export default function CellItem({ projectId, cell, analysisObjectId }: CellItem
                     </div>
                 ) : (
                     <>
-                        {/* Main Content with Info and Delete Buttons */}
-                        <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                                <div className="text-base text-gray-800 leading-relaxed text-justify">
-                                    {showEdit ? (
-                                        <div className="space-y-3">
-                                            <textarea
-                                                ref={textareaRef}
-                                                value={editContent}
-                                                onChange={(e) => setEditContent(e.target.value)}
-                                                className="w-full px-3 py-2 text-xs rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E4F70] resize-none"
-                                                placeholder="Edit content..."
-                                                rows={8}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Escape') handleCancelEdit();
-                                                }}
-                                                disabled={isUpdating}
-                                            />
-                                            <div className="flex items-center justify-evenly gap-2">
-                                                <button
-                                                    onClick={handleCancelEdit}
+                        {/* Markdown cells: show content directly */}
+                        {!isCodeCell && (
+                            <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                    <div className="text-base text-gray-800 leading-relaxed text-justify">
+                                        {showEdit ? (
+                                            <div className="space-y-3">
+                                                <textarea
+                                                    ref={textareaRef}
+                                                    value={editContent}
+                                                    onChange={(e) => setEditContent(e.target.value)}
+                                                    className="w-full px-3 py-2 text-xs rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E4F70] resize-none"
+                                                    placeholder="Edit content..."
+                                                    rows={8}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Escape') handleCancelEdit();
+                                                    }}
                                                     disabled={isUpdating}
-                                                    className="flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                                >
-                                                    <X size={16} />
-                                                    <span>Cancel</span>
-                                                </button>
-                                                <button
-                                                    onClick={handleUpdate}
-                                                    disabled={isUpdating || !editContent.trim()}
-                                                    className="flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                                >
-                                                    {isUpdating ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                                                    <span>{isUpdating ? 'Saving...' : 'Save'}</span>
+                                                />
+                                                <div className="flex items-center justify-evenly gap-2">
+                                                    <button
+                                                        onClick={handleCancelEdit}
+                                                        disabled={isUpdating}
+                                                        className="flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                                    >
+                                                        <X size={16} />
+                                                        <span>Cancel</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={handleUpdate}
+                                                        disabled={isUpdating || !editContent.trim()}
+                                                        className="flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                                    >
+                                                        {isUpdating ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                                        <span>{isUpdating ? 'Saving...' : 'Save'}</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={MarkdownComponents}
+                                            >
+                                                {smoothStreamedText}
+                                            </ReactMarkdown>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div ref={optionsRef} className="relative">
+                                    {showOptions && !showEdit ? (
+                                        <div className="flex flex-col items-center gap-1 ml-4">
+                                            <div 
+                                                {...listeners}
+                                                {...attributes}
+                                            >
+                                                <button className="p-1 text-gray-600 hover:text-gray-900 transition-colors">
+                                                    <Move size={12} />
                                                 </button>
                                             </div>
-                                        </div>
-                                    ) : (
-                                        <ReactMarkdown
-                                            remarkPlugins={[remarkGfm]}
-                                            components={MarkdownComponents}
-                                        >
-                                            {smoothStreamedText}
-                                        </ReactMarkdown>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div ref={optionsRef} className="relative">
-                                {showOptions && !showEdit ? (
-                                    <div className="flex flex-col items-center gap-1 ml-4">
-                                        <div 
-                                            {...listeners}
-                                            {...attributes}
-                                        >
-                                            <button className="p-1 text-gray-600 hover:text-gray-900 transition-colors">
-                                                <Move size={12} />
+                                            <button
+                                                onClick={() => {
+                                                    setShowEdit(true);
+                                                    setShowOptions(false);
+                                                }}
+                                                className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
+                                                title="Edit cell"
+                                            >
+                                                <Pencil size={12} />
+                                            </button>
+                                            <button
+                                                onClick={handleDelete}
+                                                className="p-1 rounded transition-colors text-red-600 hover:text-red-800"
+                                                title="Delete cell"
+                                            >
+                                                <Trash2 size={12} />
                                             </button>
                                         </div>
-                                        <button
-                                            onClick={() => {
-                                                setShowEdit(true);
-                                                setShowOptions(false);
-                                            }}
-                                            className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
-                                            title="Edit cell"
-                                        >
-                                            <Pencil size={12} />
-                                        </button>
-                                        <button
-                                            onClick={handleDelete}
-                                            className="p-1 rounded transition-colors text-red-600 hover:text-red-800"
-                                            title="Delete cell"
-                                        >
-                                            <Trash2 size={12} />
-                                        </button>
-                                    </div>
-                                ) : !showEdit ? (
-                                    <div className="ml-4">
-                                        <button 
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setShowOptions(true);
-                                            }}
-                                            className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
-                                        >
-                                            <EllipsisVertical size={12} />
-                                        </button>
-                                    </div>
-                                ) : null}
+                                    ) : !showEdit ? (
+                                        <div className="ml-4">
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setShowOptions(true);
+                                                }}
+                                                className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
+                                            >
+                                                <EllipsisVertical size={12} />
+                                            </button>
+                                        </div>
+                                    ) : null}
+                                </div>
                             </div>
-                        </div>
+                        )}
+
+                        {/* Code cells: show code and options menu */}
+                        {isCodeCell && (
+                            <>
+                                {showEdit ? (
+                                    <div className="space-y-3">
+                                        <textarea
+                                            ref={textareaRef}
+                                            value={editContent}
+                                            onChange={(e) => setEditContent(e.target.value)}
+                                            className="w-full px-3 py-2 text-xs rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0E4F70] resize-none font-mono"
+                                            placeholder="Edit code..."
+                                            rows={12}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Escape') handleCancelEdit();
+                                            }}
+                                            disabled={isUpdating}
+                                        />
+                                        <div className="flex items-center justify-evenly gap-2">
+                                            <button
+                                                onClick={handleCancelEdit}
+                                                disabled={isUpdating}
+                                                className="flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                            >
+                                                <X size={16} />
+                                                <span>Cancel</span>
+                                            </button>
+                                            <button
+                                                onClick={handleUpdate}
+                                                disabled={isUpdating || !editContent.trim()}
+                                                className="flex-1 p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                            >
+                                                {isUpdating ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                                <span>{isUpdating ? 'Saving...' : 'Save'}</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-start justify-end">
+                                        <div ref={optionsRef} className="relative">
+                                            {showOptions ? (
+                                                <div className="flex flex-col items-center gap-1 ml-4">
+                                                    <div 
+                                                        {...listeners}
+                                                        {...attributes}
+                                                    >
+                                                        <button className="p-1 text-gray-600 hover:text-gray-900 transition-colors">
+                                                            <Move size={12} />
+                                                        </button>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => {
+                                                            setShowEdit(true);
+                                                            setShowOptions(false);
+                                                        }}
+                                                        className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
+                                                        title="Edit cell"
+                                                    >
+                                                        <Pencil size={12} />
+                                                    </button>
+                                                    <button
+                                                        onClick={handleDelete}
+                                                        className="p-1 rounded transition-colors text-red-600 hover:text-red-800"
+                                                        title="Delete cell"
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="ml-4">
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setShowOptions(true);
+                                                        }}
+                                                        className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
+                                                    >
+                                                        <EllipsisVertical size={12} />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
 
                         {/* Code display for code cells */}
-                        {isCodeCell && code && (
+                        {isCodeCell && codeCell?.code && (
                             <div>
                                 <button
                                     onClick={() => setShowCode(!showCode)}
@@ -305,7 +394,7 @@ export default function CellItem({ projectId, cell, analysisObjectId }: CellItem
                                             remarkPlugins={[remarkGfm]}
                                             components={MarkdownComponents}
                                         >
-                                            {`\`\`\`python\n${code}\n\`\`\``}
+                                            {`\`\`\`python\n${codeCell.code}\n\`\`\``}
                                         </ReactMarkdown>
                                     </div>
                                 )}

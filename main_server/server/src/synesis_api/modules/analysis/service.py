@@ -1,8 +1,8 @@
 import uuid
 import json
 from datetime import datetime, timezone
-from typing import List, Annotated, AsyncGenerator, Union
-from sqlalchemy import select, insert, delete
+from typing import List, Annotated, AsyncGenerator, Union, Optional
+from sqlalchemy import select, insert, delete, update, func
 from fastapi import HTTPException, Depends
 
 from synesis_api.database.service import fetch_all, execute, fetch_one
@@ -18,6 +18,7 @@ from synesis_api.modules.analysis.models import (
     result_echart,
     result_table,
 )
+from synesis_api.modules.kvasir_v1.models import analysis_run
 from synesis_api.modules.visualization.service import VisualizationService
 from kvasir_ontology.entities.analysis.data_model import (
     AnalysisBase,
@@ -41,6 +42,7 @@ from kvasir_ontology.entities.analysis.data_model import (
     CodeOutputCreate,
 )
 from kvasir_ontology.entities.analysis.interface import AnalysisInterface
+from kvasir_ontology.visualization.data_model import ImageCreate, EchartCreate, TableCreate
 from synesis_api.auth.service import get_current_user
 from synesis_api.auth.schema import User
 
@@ -394,11 +396,37 @@ class Analyses(AnalysisInterface):
     async def create_section(self, section_create: SectionCreate) -> Section:
         now = datetime.now(timezone.utc)
         section_id = uuid.uuid4()
+
+        # Get max order using SQL
+        max_order_query = select(func.max(analysis_section.c.order)).where(
+            analysis_section.c.analysis_id == section_create.analysis_id
+        )
+        max_order_result = await fetch_one(max_order_query)
+        max_order = max_order_result["max_1"] if max_order_result and max_order_result["max_1"] is not None else -1
+
+        final_order = section_create.order if section_create.order is not None else max_order + 1
+
+        # If not appending at end, shift existing sections (batch update)
+        if final_order != max_order + 1:
+            await execute(
+                update(analysis_section)
+                .where(
+                    analysis_section.c.analysis_id == section_create.analysis_id,
+                    analysis_section.c.order >= final_order
+                )
+                .values(
+                    order=analysis_section.c.order + 1,
+                    updated_at=datetime.now(timezone.utc)
+                ),
+                commit_after=True
+            )
+
         section_record = AnalysisSectionBase(
             id=section_id,
             name=section_create.name,
             analysis_id=section_create.analysis_id,
             description=section_create.description,
+            order=final_order,
             created_at=now,
             updated_at=now,
         )
@@ -425,13 +453,54 @@ class Analyses(AnalysisInterface):
 
         return Section(**section_record.model_dump(), cells=cells)
 
+    async def _update_cell_orders(self, section_id: uuid.UUID, new_cell_id: uuid.UUID, new_cell_order: Optional[int]) -> int:
+        max_order_query = select(func.max(analysis_cell.c.order)).where(
+            analysis_cell.c.section_id == section_id
+        )
+        max_order_result = await fetch_one(max_order_query)
+        max_order = max_order_result["max_1"] if max_order_result and max_order_result["max_1"] is not None else -1
+
+        if new_cell_order is None:
+            return max_order + 1
+
+        cell_exists_query = select(analysis_cell.c.id).where(
+            analysis_cell.c.id == new_cell_id
+        )
+        cell_exists_result = await fetch_one(cell_exists_query)
+        cell_exists = cell_exists_result is not None
+
+        where_conditions = [
+            analysis_cell.c.section_id == section_id,
+            analysis_cell.c.order >= new_cell_order
+        ]
+        if cell_exists:
+            where_conditions.append(analysis_cell.c.id != new_cell_id)
+
+        await execute(
+            update(analysis_cell)
+            .where(*where_conditions)
+            .values(
+                order=analysis_cell.c.order + 1,
+                updated_at=datetime.now(timezone.utc)
+            ),
+            commit_after=True
+        )
+
+        return new_cell_order
+
     async def create_markdown_cell(self, markdown_cell_create: MarkdownCellCreate) -> AnalysisCell:
         now = datetime.now(timezone.utc)
-
         cell_id = uuid.uuid4()
+
+        final_order = await self._update_cell_orders(
+            markdown_cell_create.section_id,
+            cell_id,
+            markdown_cell_create.order
+        )
+
         cell_record = AnalysisCellBase(
             id=cell_id,
-            order=markdown_cell_create.order,
+            order=final_order,
             type="markdown",
             section_id=markdown_cell_create.section_id,
             created_at=now,
@@ -461,9 +530,16 @@ class Analyses(AnalysisInterface):
         now = datetime.now(timezone.utc)
 
         cell_id = uuid.uuid4()
+
+        final_order = await self._update_cell_orders(
+            code_cell_create.section_id,
+            cell_id,
+            code_cell_create.order
+        )
+
         cell_record = AnalysisCellBase(
             id=cell_id,
-            order=code_cell_create.order,
+            order=final_order,
             type="code",
             section_id=code_cell_create.section_id,
             created_at=now,
@@ -700,7 +776,7 @@ class Analyses(AnalysisInterface):
         return await self.get_analysis(section_record["analysis_id"])
 
     async def create_code_output_image(
-        self, code_cell_id: uuid.UUID, code_output_image
+        self, code_cell_id: uuid.UUID, code_output_image: ImageCreate
     ) -> Analysis:
         now = datetime.now(timezone.utc)
 
@@ -741,7 +817,7 @@ class Analyses(AnalysisInterface):
         return await self.get_analysis(section_record["analysis_id"])
 
     async def create_code_output_echart(
-        self, code_cell_id: uuid.UUID, code_output_echart
+        self, code_cell_id: uuid.UUID, code_output_echart: EchartCreate
     ) -> Analysis:
         now = datetime.now(timezone.utc)
 
@@ -782,7 +858,7 @@ class Analyses(AnalysisInterface):
         return await self.get_analysis(section_record["analysis_id"])
 
     async def create_code_output_table(
-        self, code_cell_id: uuid.UUID, code_output_table
+        self, code_cell_id: uuid.UUID, code_output_table: TableCreate
     ) -> Analysis:
         now = datetime.now(timezone.utc)
 
@@ -902,7 +978,75 @@ class Analyses(AnalysisInterface):
             )
 
         await execute(
+            delete(analysis_run).where(
+                analysis_run.c.analysis_id == analysis_id
+            ),
+            commit_after=True
+        )
+
+        await execute(
             delete(analysis).where(analysis.c.id == analysis_id),
+            commit_after=True
+        )
+
+    async def delete_cells(self, cell_ids: List[uuid.UUID]) -> None:
+        if not cell_ids:
+            return
+
+        await execute(
+            delete(result_image).where(
+                result_image.c.code_cell_id.in_(cell_ids)
+            ),
+            commit_after=True
+        )
+        await execute(
+            delete(result_echart).where(
+                result_echart.c.code_cell_id.in_(cell_ids)
+            ),
+            commit_after=True
+        )
+        await execute(
+            delete(result_table).where(
+                result_table.c.code_cell_id.in_(cell_ids)
+            ),
+            commit_after=True
+        )
+        await execute(
+            delete(code_output).where(
+                code_output.c.id.in_(cell_ids)
+            ),
+            commit_after=True
+        )
+        await execute(
+            delete(code_cell).where(
+                code_cell.c.id.in_(cell_ids)
+            ),
+            commit_after=True
+        )
+        await execute(
+            delete(markdown_cell).where(
+                markdown_cell.c.id.in_(cell_ids)
+            ),
+            commit_after=True
+        )
+        await execute(
+            delete(analysis_cell).where(analysis_cell.c.id.in_(cell_ids)),
+            commit_after=True
+        )
+
+    async def delete_sections(self, section_ids: List[uuid.UUID]) -> None:
+        if not section_ids:
+            return
+
+        cell_query = select(analysis_cell).where(
+            analysis_cell.c.section_id.in_(section_ids)
+        )
+        cell_records = await fetch_all(cell_query)
+        await self.delete_cells([c["id"] for c in cell_records])
+
+        await execute(
+            delete(analysis_section).where(
+                analysis_section.c.id.in_(section_ids)),
             commit_after=True
         )
 

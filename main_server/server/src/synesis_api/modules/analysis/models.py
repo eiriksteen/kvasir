@@ -32,6 +32,7 @@ analysis_section = Table(
            primary_key=True,
            default=uuid.uuid4),
     Column("name", String, nullable=False),
+    Column("order", Integer, nullable=False),
     Column("analysis_id", UUID(as_uuid=True),
            ForeignKey("analysis.analysis.id"),
            nullable=False),

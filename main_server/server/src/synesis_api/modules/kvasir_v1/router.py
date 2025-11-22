@@ -2,25 +2,22 @@ import uuid
 import time
 import redis
 import asyncio
+from pydantic import TypeAdapter
 from datetime import datetime, timezone
-from pprint import pprint
+from typing import Annotated, List, Optional, Union
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse, Response
-from typing import Annotated, List, Optional, Union
-from pydantic import TypeAdapter
-from sqlalchemy import insert
+
 
 from synesis_api.auth.service import get_current_user, user_owns_runs, oauth2_scheme
 from synesis_api.auth.schema import User
 from synesis_api.redis import get_redis
 from synesis_api.app_secrets import SSE_MAX_TIMEOUT, SSE_MIN_SLEEP_TIME
 from synesis_api.modules.kvasir_v1.callbacks import ApplicationCallbacks
-from synesis_api.modules.kvasir_v1.models import message
-from synesis_api.database.service import execute
 from synesis_api.modules.entity_graph.service import EntityGraphs
+from synesis_api.utils.pydanticai_utils import helper_agent
 from kvasir_research.agents.v1.kvasir.agent import KvasirV1
 from kvasir_research.agents.v1.kvasir.deps import KvasirV1Deps
-from synesis_api.utils.pydanticai_utils import helper_agent
 from kvasir_research.agents.v1.data_model import (
     Message,
     MessageCreate,
@@ -28,6 +25,7 @@ from kvasir_research.agents.v1.data_model import (
     RunCreate,
     AnalysisRun,
     SweRun,
+    MESSAGE_TYPE_LITERAL,
 )
 
 
@@ -42,7 +40,6 @@ async def post_chat(
     user: Annotated[User, Depends(get_current_user)] = None,
     token: str = Depends(oauth2_scheme)
 ) -> StreamingResponse:
-
     # TODO: Add support for open connection with analysis, and add rejected status to a run so we don't keep monitoring it
 
     run_records = await _callbacks.get_runs(user.id, run_ids=[prompt.run_id])
@@ -60,16 +57,16 @@ async def post_chat(
         raise HTTPException(
             status_code=400, detail="Run is not a Kvasir run")
 
-    graph_service = EntityGraphs(user.id)
-    node_group = await graph_service.get_node_group(run_record.project_id)
-    if not node_group:
-        raise HTTPException(
-            status_code=404, detail="Project not found")
-
     messages = await _callbacks.get_messages(user.id, run_record.id)
     is_new_conversation = len(messages) == 0
 
     if is_new_conversation:
+        graph_service = EntityGraphs(user.id)
+        node_group = await graph_service.get_node_group(run_record.project_id)
+        if not node_group:
+            raise HTTPException(
+                status_code=404, detail="Project not found")
+
         deps = KvasirV1Deps(
             user_id=user.id,
             project_id=node_group.id,
@@ -79,20 +76,17 @@ async def post_chat(
             bearer_token=token,
             run_id=run_record.id
         )
-        agent = KvasirV1(deps)
+
+        kvasir = KvasirV1(deps)
     else:
-        agent = await KvasirV1.from_run(user.id, run_record.id, ApplicationCallbacks(), token)
+        kvasir = await KvasirV1.from_run(user.id, run_record.id, ApplicationCallbacks(), token)
 
-    user_message = Message(
-        id=uuid.uuid4(),
-        run_id=prompt.run_id,
+    await _callbacks.create_message(user.id, MessageCreate(
+        run_id=run_record.id,
         content=prompt.content,
-        role=prompt.role,
-        type=prompt.type,
-        created_at=datetime.now(timezone.utc)
-    )
-
-    await execute(insert(message).values(**user_message.model_dump()), commit_after=True)
+        role="user",
+        type="chat"
+    ))
 
     async def stream_response():
         response_message = Message(
@@ -105,17 +99,17 @@ async def post_chat(
         )
 
         prev_response_text = ""
-        async for kvasir_v1_output, is_last in agent(prompt.content):
-            if kvasir_v1_output != prev_response_text:
-                response_message.content = kvasir_v1_output.response
+        async for response, is_last in kvasir.run_agent_streaming(prompt.content, context=prompt.context):
+            if response != prev_response_text:
+                response_message.content = response
                 yield f"data: {response_message.model_dump_json(by_alias=True)}\n\n"
             if is_last:
                 # Multiple messages can be streamed in one go
                 await _callbacks.create_message(user.id, MessageCreate(
                     run_id=run_record.id,
-                    type="chat",
-                    content=response_message.content,
-                    role="kvasir"
+                    content=response,
+                    role="kvasir",
+                    type="chat"
                 ))
                 response_message = Message(
                     id=uuid.uuid4(),
@@ -125,7 +119,6 @@ async def post_chat(
                     content="",
                     created_at=datetime.now(timezone.utc)
                 )
-
                 prev_response_text = ""
 
         if is_new_conversation:
@@ -172,6 +165,7 @@ async def fetch_runs(
 @router.get("/messages/{run_id}")
 async def fetch_run_messages(
     run_id: uuid.UUID,
+    types: Optional[List[MESSAGE_TYPE_LITERAL]] = None,
     user: Annotated[User, Depends(get_current_user)] = None,
 ) -> List[Message]:
 
@@ -179,7 +173,7 @@ async def fetch_run_messages(
         raise HTTPException(
             status_code=403, detail="You do not have permission to access this run")
 
-    messages = await _callbacks.get_messages(user.id, run_id)
+    messages = await _callbacks.get_messages(user.id, run_id, types=types)
     return messages
 
 
@@ -209,7 +203,7 @@ async def stream_run_messages(
     timeout = min(timeout, SSE_MAX_TIMEOUT)
     stream_keys = [str(run.id) for run in runs]
 
-    async def stream_run_updates():
+    async def stream_run_messages():
         # Track last_id for each stream
         last_ids = {key: "$" for key in stream_keys}
         start_time = time.time()
@@ -238,7 +232,7 @@ async def stream_run_messages(
             if start_time + timeout < time.time():
                 break
 
-    return StreamingResponse(stream_run_updates(), media_type="text/event-stream")
+    return StreamingResponse(stream_run_messages(), media_type="text/event-stream")
 
 
 @router.get("/stream-incomplete-runs")

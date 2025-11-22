@@ -1,11 +1,12 @@
 import useSWR from "swr";
-import { RunBase, Message, MessageCreate, RunCreate } from "@/types/kvasirV1";
+import { RunBase, Message, MessageCreate, RunCreate } from "@/types/kvasirv1";
 import { useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { UUID } from "crypto";
 import { SSE } from 'sse.js';
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
 import { v4 as uuidv4 } from 'uuid';
+import { useAgentContext } from "@/hooks/useAgentContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -89,6 +90,8 @@ export const useKvasirV1 = (projectId: UUID) => {
   );
   const { runMessages, error, isLoading, mutateRunMessages } = useRunMessages(agentRunId);
 
+  const { dataSourcesInContext, datasetsInContext, pipelinesInContext, analysesInContext, modelsInstantiatedInContext } = useAgentContext(projectId);
+
   const run = useMemo(() => {
     return null; // Will need to fetch run by ID if needed
   }, []);
@@ -121,6 +124,13 @@ export const useKvasirV1 = (projectId: UUID) => {
       };
 
       const prompt: MessageCreate = {
+        context: {
+          dataSources: dataSourcesInContext,
+          datasets: datasetsInContext,
+          pipelines: pipelinesInContext,
+          analyses: analysesInContext,
+          models: modelsInstantiatedInContext,
+        },
         content: content,
         runId: runId!,
         role: "user",
@@ -158,7 +168,12 @@ export const useKvasirV1 = (projectId: UUID) => {
     projectId,
     setAgentRunId,
     mutateRunMessages,
-    runMessages
+    runMessages,
+    dataSourcesInContext,
+    datasetsInContext,
+    pipelinesInContext,
+    analysesInContext,
+    modelsInstantiatedInContext,
   ]);
 
   const continueRun = useCallback(async (runId: UUID) => {
@@ -168,6 +183,13 @@ export const useKvasirV1 = (projectId: UUID) => {
         runId: runId,
         role: "user",
         type: "chat",
+        context: {
+          dataSources: dataSourcesInContext,
+          datasets: datasetsInContext,
+          pipelines: pipelinesInContext,
+          analyses: analysesInContext,
+          models: modelsInstantiatedInContext,
+        },
       };
 
       const eventSource = createKvasirV1EventSource(session ? session.APIToken.accessToken : "", prompt);
@@ -192,7 +214,7 @@ export const useKvasirV1 = (projectId: UUID) => {
         }
       };
 
-  }, [session, mutateRunMessages]);
+  }, [session, mutateRunMessages, dataSourcesInContext, datasetsInContext, pipelinesInContext, analysesInContext, modelsInstantiatedInContext]);
 
 
 

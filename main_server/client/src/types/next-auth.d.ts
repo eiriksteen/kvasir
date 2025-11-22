@@ -11,11 +11,11 @@ export interface User {
 
 declare module "next-auth/jwt" {
   interface JWT extends DefaultJWT {
-    APIToken: {
+    APIToken?: {
       accessToken: string;
       tokenExpiresAt: string;
     },
-    error: string | undefined;
+    error?: string;
     needsProfileCompletion?: boolean;
   } 
 }
@@ -27,7 +27,7 @@ declare module "next-auth" {
       accessToken: string;
       tokenExpiresAt: string;
     },
-    error: string | undefined;
+    error?: string;
     needsProfileCompletion?: boolean;
   }
 }

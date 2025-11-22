@@ -1,5 +1,6 @@
 import uuid
 import re
+import asyncio
 from datetime import datetime, timezone
 from typing import List, Optional, Annotated
 from sqlalchemy import select, insert, update
@@ -38,14 +39,15 @@ class Projects:
 
     async def create_project(self, project_create: ProjectCreate) -> Project:
         mount_group_id = project_create.mount_group_id
+        name_snake_case = _to_snake_case(project_create.name)
 
         # Create a node group if mount_group_id is not provided
         if mount_group_id is None:
             node_group = await self.graph_service.create_node_group(
                 NodeGroupCreate(
-                    name=project_create.name,
+                    name=name_snake_case,
                     description=project_create.description,
-                    python_package_name=_to_snake_case(project_create.name)
+                    python_package_name=name_snake_case
                 )
             )
             project_create.mount_group_id = node_group.id
@@ -61,9 +63,10 @@ class Projects:
             updated_at=datetime.now(timezone.utc)
         )
 
-        sandbox = ModalSandbox(
-            project_create.mount_group_id, project_create.name)
-        await sandbox.setup_project()
+        # Run the init to get the project setup
+        # Need to force_build on project creation to ensure the package is installed
+        sb = ModalSandbox(project_create.mount_group_id, name_snake_case)
+        await sb.create_container_if_not_exists(force_build=True)
 
         await execute(
             insert(project).values(project_record.model_dump()),
