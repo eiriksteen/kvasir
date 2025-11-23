@@ -168,7 +168,7 @@ async def delete_model_entity_endpoint(
     user: Annotated[User, Depends(get_current_user)] = None
 ) -> str:
     ontology = create_ontology_for_user(user.id, mount_group_id)
-    await ontology.delete_model(model_instantiated_id)
+    await ontology.delete_model_instantiated(model_instantiated_id)
     return f"Model entity deleted successfully: {model_instantiated_id}"
 
 

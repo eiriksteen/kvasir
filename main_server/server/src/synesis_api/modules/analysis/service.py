@@ -19,7 +19,7 @@ from synesis_api.modules.analysis.models import (
     result_table,
 )
 from synesis_api.modules.kvasir_v1.models import analysis_run
-from synesis_api.modules.visualization.service import VisualizationService
+from synesis_api.modules.visualization.service import Visualizations
 from kvasir_ontology.entities.analysis.data_model import (
     AnalysisBase,
     AnalysisSectionBase,
@@ -50,7 +50,7 @@ from synesis_api.auth.schema import User
 class Analyses(AnalysisInterface):
     def __init__(self, user_id: uuid.UUID):
         super().__init__(user_id)
-        self.visualization_service = VisualizationService(user_id)
+        self.visualization_service = Visualizations(user_id)
 
     async def create_analysis(self, analysis_create: AnalysisCreate) -> Analysis:
         now = datetime.now(timezone.utc)

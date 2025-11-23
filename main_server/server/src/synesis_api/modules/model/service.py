@@ -5,7 +5,7 @@ from typing import Annotated
 import uuid
 import jsonschema
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List  # , Optional
 from sqlalchemy import select, insert, delete
 from fastapi import HTTPException
 
@@ -27,7 +27,7 @@ from kvasir_ontology.entities.model.data_model import (
     ModelCreate,
     ModelImplementationCreate,
     ModelInstantiatedCreate,
-    ModelFunctionCreate,
+    # ModelFunctionCreate,
 )
 from kvasir_ontology.entities.model.interface import ModelInterface
 
@@ -91,23 +91,16 @@ class Models(ModelInterface):
         return await self.get_model(model_implementation_create.model_id)
 
     async def create_model_instantiated(self, model_instantiated_create: ModelInstantiatedCreate) -> ModelInstantiated:
-        # Handle model creation or retrieval
-        model_id = None
         if model_instantiated_create.model_create:
             model_obj = await self.create_model(model_instantiated_create.model_create)
-            model_id = model_obj.id
+
         else:
-            model_obj = await self.get_model(model_id)
+            assert model_instantiated_create.model_id, "model_id or model_create must be provided"
+            model_obj = await self.get_model(model_instantiated_create.model_id)
             if not model_obj or model_obj.user_id != self.user_id:
                 raise HTTPException(
                     status_code=404, detail="Model not found or access denied")
-            model_id = model_instantiated_create.model_id
 
-        if not model_id:
-            raise HTTPException(
-                status_code=400, detail="Either model_id or model_create must be provided")
-
-        # Validate config against schema if implementation exists
         if model_obj.implementation:
             try:
                 jsonschema.validate(
@@ -122,7 +115,6 @@ class Models(ModelInterface):
 
         model_instantiated_obj = ModelInstantiatedBase(
             id=uuid.uuid4(),
-            model_id=model_id,
             user_id=self.user_id,
             **model_instantiated_create.model_dump(),
             created_at=datetime.now(timezone.utc),
@@ -131,7 +123,6 @@ class Models(ModelInterface):
 
         await execute(insert(model_instantiated).values(**model_instantiated_obj.model_dump()), commit_after=True)
 
-        model_obj = await self.get_model(model_id)
         return ModelInstantiated(
             **model_instantiated_obj.model_dump(),
             model=model_obj
@@ -199,7 +190,7 @@ class Models(ModelInterface):
                         **inference_function_record)
 
                     implementation_obj = ModelImplementation(
-                        **{k: v for k, v in impl_record.items() if k != "training_function_id" and k != "inference_function_id"},
+                        **impl_record,
                         training_function=training_function_obj,
                         inference_function=inference_function_obj
                     )
@@ -243,23 +234,29 @@ class Models(ModelInterface):
                     status_code=404,
                     detail=f"Model with id {record['model_id']} not found for model instantiated {record['id']}")
             output_objs.append(ModelInstantiated(
-                **{k: v for k, v in record.items() if k != "model_id"},
+                **record,
                 model=model_obj
             ))
 
         return output_objs
 
     async def delete_model(self, model_id: uuid.UUID) -> None:
-        # Verify model exists and user owns it
         model_obj = await self.get_model(model_id)
         if not model_obj or model_obj.user_id != self.user_id:
             raise HTTPException(
                 status_code=404, detail="Model not found or access denied")
 
-        # Delete implementation if exists
         await execute(delete(model_implementation).where(model_implementation.c.id == model_id), commit_after=True)
-        # Delete model
         await execute(delete(model).where(model.c.id == model_id), commit_after=True)
+
+    async def delete_model_instantiated(self, model_instantiated_id: uuid.UUID) -> None:
+        model_instantiated_obj = await self.get_model_instantiated(model_instantiated_id)
+        if not model_instantiated_obj or model_instantiated_obj.user_id != self.user_id:
+            raise HTTPException(
+                status_code=404, detail="Model instantiated not found or access denied")
+
+        await execute(delete(model_instantiated).where(model_instantiated.c.id == model_instantiated_id), commit_after=True)
+        await self.delete_model(model_instantiated_obj.model_id)
 
 
 # For dependency injection

@@ -13,6 +13,7 @@ from kvasir_ontology.graph.data_model import (
 )
 from synesis_api.modules.entity_graph.service import get_graph_service
 
+
 router = APIRouter()
 
 

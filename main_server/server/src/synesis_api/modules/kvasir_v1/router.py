@@ -31,6 +31,7 @@ from kvasir_research.agents.v1.data_model import (
 
 _callbacks = ApplicationCallbacks()
 
+
 router = APIRouter()
 
 

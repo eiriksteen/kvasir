@@ -327,7 +327,7 @@ class ApplicationCallbacks(KvasirV1Callbacks):
                 ModelMessagesTypeAdapter.validate_json(message["message_list"]))
         return messages if messages else None
 
-    async def log(self, user_id: UUID, run_id: UUID, message: str, type: Literal["result", "tool_call", "error"]) -> None:
+    async def log(self, user_id: UUID, run_id: UUID, message: str, type: Literal["result", "tool_call", "error", "info"]) -> None:
         log_message = f"[{run_id}] [{type.upper()}] {message}"
         logger.info(log_message)
         # Infer role from run type

@@ -163,7 +163,6 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { setViewport } = useReactFlow();
 
-
   useOnViewportChange({
     onEnd: (viewport: Viewport) => {
       triggerUpdateProjectViewPort({ projectId: projectId, viewPortX: viewport.x, viewPortY: viewport.y, zoom: viewport.zoom });
@@ -171,14 +170,16 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
   });
 
   useEffect(() => {
-    if (project) {
+    if (project?.viewPortX && project?.viewPortY && project?.viewPortZoom) {
+
       setViewport({
         x: project.viewPortX,
         y: project.viewPortY,
         zoom: project.viewPortZoom,
       });
+
     }
-  }, [project, setViewport]);
+  }, [project?.viewPortX, project?.viewPortY, project?.viewPortZoom, setViewport]);
 
 
   // Memoize nodes

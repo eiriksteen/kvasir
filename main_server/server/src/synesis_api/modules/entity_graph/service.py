@@ -553,6 +553,62 @@ class EntityGraphs(GraphInterface):
                     ),
                 )
 
+            # Check if edge already exists
+            conditions = []
+            if is_pipeline_run_input:
+                conditions.append(table.c.pipeline_run_id == edge.to_node_id)
+                if edge.from_node_type == "data_source":
+                    conditions.append(
+                        table.c.data_source_id == edge.from_node_id)
+                elif edge.from_node_type == "dataset":
+                    conditions.append(table.c.dataset_id == edge.from_node_id)
+                elif edge.from_node_type == "model_instantiated":
+                    conditions.append(
+                        table.c.model_instantiated_id == edge.from_node_id)
+            elif is_pipeline_run_output:
+                conditions.append(table.c.pipeline_run_id == edge.from_node_id)
+                if edge.to_node_type == "data_source":
+                    conditions.append(
+                        table.c.data_source_id == edge.to_node_id)
+                elif edge.to_node_type == "dataset":
+                    conditions.append(table.c.dataset_id == edge.to_node_id)
+                elif edge.to_node_type == "model_instantiated":
+                    conditions.append(
+                        table.c.model_instantiated_id == edge.to_node_id)
+            else:
+                if edge.from_node_type == "pipeline":
+                    conditions.append(table.c.pipeline_id == edge.from_node_id)
+                elif edge.from_node_type == "data_source":
+                    conditions.append(
+                        table.c.data_source_id == edge.from_node_id)
+                elif edge.from_node_type == "dataset":
+                    conditions.append(table.c.dataset_id == edge.from_node_id)
+                elif edge.from_node_type == "model_instantiated":
+                    conditions.append(
+                        table.c.model_instantiated_id == edge.from_node_id)
+                elif edge.from_node_type == "analysis":
+                    conditions.append(table.c.analysis_id == edge.from_node_id)
+
+                if edge.to_node_type == "pipeline":
+                    conditions.append(table.c.pipeline_id == edge.to_node_id)
+                elif edge.to_node_type == "data_source":
+                    conditions.append(
+                        table.c.data_source_id == edge.to_node_id)
+                elif edge.to_node_type == "dataset":
+                    conditions.append(table.c.dataset_id == edge.to_node_id)
+                elif edge.to_node_type == "model_instantiated":
+                    conditions.append(
+                        table.c.model_instantiated_id == edge.to_node_id)
+                elif edge.to_node_type == "analysis":
+                    conditions.append(table.c.analysis_id == edge.to_node_id)
+
+            # Skip if edge already exists
+            existing = await fetch_one(
+                select(table).where(and_(*conditions))
+            )
+            if existing:
+                continue
+
             value = {"created_at": timestamp, "updated_at": timestamp}
 
             if is_pipeline_run_input:
@@ -671,6 +727,18 @@ class EntityGraphs(GraphInterface):
                     conditions.append(table.c.analysis_id == edge.to_node_id)
 
             await execute(delete(table).where(and_(*conditions)), commit_after=True)
+
+    async def remove_pipeline_run_edges(self, pipeline_run_ids: List[uuid.UUID]) -> None:
+        if not pipeline_run_ids:
+            return
+
+        # Delete all associations from pipeline run edge tables
+        for (from_type, to_type), (table, direction) in PIPELINE_RUN_EDGE_TABLES.items():
+            await execute(
+                delete(table).where(
+                    table.c.pipeline_run_id.in_(pipeline_run_ids)),
+                commit_after=True
+            )
 
     async def get_entity_graph(
         self,

@@ -107,6 +107,12 @@ export const useProjects = () => {
       return updatedProject;
     },
     {
+      populateCache: (updatedProject: Project) => {
+        if (projects) {
+          return projects.map(p => p.id === updatedProject.id ? updatedProject : p);
+        }
+        return [updatedProject];
+      },
       revalidate: false
     }
   );

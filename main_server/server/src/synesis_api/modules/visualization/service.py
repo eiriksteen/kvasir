@@ -18,7 +18,7 @@ from kvasir_ontology.visualization.data_model import ImageBase, EchartBase, Tabl
 from kvasir_research.sandbox.modal import ModalSandbox
 
 
-class VisualizationService(VisualizationInterface):
+class Visualizations(VisualizationInterface):
 
     def __init__(self, user_id: uuid.UUID):
         super().__init__(user_id)
@@ -182,4 +182,4 @@ class VisualizationService(VisualizationInterface):
 
 # For dependency injection
 async def get_visualization_service(user: Annotated[User, Depends(get_current_user)]) -> VisualizationInterface:
-    return VisualizationService(user.id)
+    return Visualizations(user.id)
