@@ -4,9 +4,10 @@ import asyncio
 import shutil
 from pathlib import Path
 from typing import AsyncGenerator, Tuple, Optional
+from typing_extensions import Self
 from uuid import UUID
 
-from kvasir_research.secrets import MODAL_APP_NAME, MODAL_PROJECTS_DIR, SANDBOX_DOCKERFILE_PATH, PROJECTS_DIR
+from kvasir_research.secrets import MODAL_APP_NAME, SANDBOX_DOCKERFILE_PATH
 from kvasir_research.sandbox.abstract import AbstractSandbox, create_empty_project_package_local
 from kvasir_research.utils.code_utils import parse_code
 
@@ -16,98 +17,73 @@ app = modal.App.lookup(MODAL_APP_NAME, create_if_missing=True)
 
 class ModalSandbox(AbstractSandbox):
 
-    def __init__(self, project_id: UUID, package_name: str, image_name: str = "research-sandbox"):
-        self.project_id = project_id
-        self.package_name = package_name
-        self.workdir = f"/app/{package_name}"
+    def __init__(self, project_id: UUID, package_name: str, image_name: str = "research-sandbox") -> None:
+        super().__init__(project_id, package_name)
         self.vol = modal.Volume.from_name(
             str(project_id), create_if_missing=True)
         self.sb: modal.Sandbox | None = None
-        self.create_container_if_not_exists()
 
-    def create_container_if_not_exists(self):
-        with modal.enable_output():
-            try:
-                self.sb = modal.Sandbox.from_name(
-                    MODAL_APP_NAME, str(self.project_id))
-            except modal.exception.NotFoundError:
-                sandbox_image = modal.Image.from_dockerfile(
-                    str(SANDBOX_DOCKERFILE_PATH))
-                self.sb = modal.Sandbox.create(
-                    image=sandbox_image,
-                    app=app,
-                    name=str(self.project_id),
-                    volumes={"/app": self.vol},
-                    timeout=24*60*60  # 24 hours
-                )
+    async def _verify_package_is_installed(self) -> None:
+        _, err = await self.run_shell_code(f"python -c 'import {self.package_name}'")
+        if err:
+            raise RuntimeError(
+                f"Failed to import package {self.package_name}: {err}")
 
-    async def reload_container(self) -> None:
-        await self.sb.terminate.aio()
-        await self.sb.wait.aio(raise_on_termination=False)
-        sandbox_image = modal.Image.from_dockerfile(
-            str(SANDBOX_DOCKERFILE_PATH))
-        self.sb = await modal.Sandbox.create.aio(
-            image=sandbox_image,
-            app=app,
-            name=str(self.project_id),
-            volumes={"/app": self.vol}
-        )
-
-    # def reload_container_sync(self) -> None:
-    #     self.sb.terminate()
-    #     self.sb.wait(raise_on_termination=False)
-    #     sandbox_image = modal.Image.from_dockerfile(
-    #         str(SANDBOX_DOCKERFILE_PATH))
-
-    #     self.sb = modal.Sandbox.create(
-    #         image=sandbox_image,
-    #         app=app,
-    #         name=str(self.project_id),
-    #         volumes={"/app": self.vol}
-    #     )
-
-    async def setup_project(self) -> Path:
+    async def _initialize_sandbox(self, force_build: bool = False) -> None:
         local_project_package_dir = create_empty_project_package_local(
             self.project_id, self.package_name)
-
         try:
-            def _upload_directory():
-                self.sb.terminate()
-                self.sb.wait(raise_on_termination=False)
-                with self.vol.batch_upload() as batch:
-                    batch.put_directory(local_project_package_dir,
-                                        f"/{local_project_package_dir.name}")
-
-                # This is stupid, but the sandbox must terminate to reflect the changes in the volume
-                sandbox_image = modal.Image.from_dockerfile(
-                    str(SANDBOX_DOCKERFILE_PATH))
-                self.sb = modal.Sandbox.create(
-                    image=sandbox_image,
-                    app=app,
-                    name=str(self.project_id),
-                    volumes={"/app": self.vol}
-                )
-
-            await asyncio.to_thread(_upload_directory)
+            with self.vol.batch_upload() as batch:
+                batch.put_directory(local_project_package_dir,
+                                    f"/{local_project_package_dir.name}")
         except FileExistsError:
             pass
         finally:
             shutil.rmtree(local_project_package_dir)
 
-        # # Reload to reflect changes
-        # await self.reload_container()
+        sandbox_image = modal.Image.from_dockerfile(
+            str(SANDBOX_DOCKERFILE_PATH), force_build=force_build
+        ).run_commands(f"pip install -e /app/{local_project_package_dir.name}", volumes={"/app": self.vol})
 
-        # Run pip install as a background task
-        asyncio.create_task(self.run_shell_code("pip install -e ."))
+        self.sb = await modal.Sandbox.create.aio(
+            image=sandbox_image,
+            app=app,
+            name=str(self.project_id),
+            volumes={"/app": self.vol},
+            timeout=24*60*60,  # 24 hours
+            workdir=f"/app/{local_project_package_dir.name}"
 
-        return Path(f"/app/{self.package_name}")
+        )
 
-    async def delete_container_if_exists(self):
+        # await self._verify_package_is_installed()
+
+    async def create_container_if_not_exists(self, force_build: bool = False) -> bool:
+        # Return True if the container already existed, False otherwise
+        with modal.enable_output():
+            try:
+                self.sb = await modal.Sandbox.from_name.aio(MODAL_APP_NAME, str(self.project_id))
+                return True
+            except modal.exception.NotFoundError:
+                await self._initialize_sandbox(force_build=force_build)
+                return False
+
+    async def reload_container(self: Self) -> None:
+        try:
+            self.sb = await modal.Sandbox.from_name.aio(MODAL_APP_NAME, str(self.project_id))
+            await self.sb.terminate.aio()
+        except modal.exception.NotFoundError:
+            pass
+        finally:
+            self.sb = None
+            await self._initialize_sandbox()
+
+    async def delete_container_if_exists(self: Self) -> None:
         if self.sb:
             await self.sb.terminate.aio()
             self.sb = None
 
-    async def run_python_code(self, code: str, truncate_output: bool = True, max_output_length: int = 20000, timeout: int | None = None) -> Tuple[str, str]:
+    async def run_python_code(self: Self, code: str, truncate_output: bool = True, max_output_length: int = 20000, timeout: int | None = None) -> Tuple[str, str]:
+        await self.create_container_if_not_exists()
         python_code_parsed = parse_code(code)
 
         process = await self.sb.exec.aio(
@@ -136,7 +112,8 @@ class ModalSandbox(AbstractSandbox):
 
         return out_str, err_str
 
-    async def run_shell_code(self, code: str, truncate_output: bool = True, max_output_length: int = 20000, timeout: int | None = None) -> Tuple[str, str]:
+    async def run_shell_code(self: Self, code: str, truncate_output: bool = True, max_output_length: int = 20000, timeout: int | None = None) -> Tuple[str, str]:
+        await self.create_container_if_not_exists()
         shell_cmd = f"set -e; set -o pipefail;\n{code}"
         process = await self.sb.exec.aio(
             "bash", "-c", shell_cmd,
@@ -161,7 +138,8 @@ class ModalSandbox(AbstractSandbox):
 
         return out_str, err_str
 
-    async def run_shell_code_streaming(self, code: str, truncate_output: bool = True, max_output_length: int = 20000, timeout: int | None = None) -> AsyncGenerator[Tuple[str, str], None]:
+    async def run_shell_code_streaming(self: Self, code: str, truncate_output: bool = True, max_output_length: int = 20000, timeout: int | None = None) -> AsyncGenerator[Tuple[str, str], None]:
+        await self.create_container_if_not_exists()
         shell_cmd = f"set -e; set -o pipefail;\n{code}"
         process = await self.sb.exec.aio(
             "bash", "-c", shell_cmd,
@@ -258,7 +236,8 @@ class ModalSandbox(AbstractSandbox):
                 except Exception:
                     pass
 
-    async def read_file(self, path: str, truncate: bool = True, max_output_length: int = 20000) -> str:
+    async def read_file(self: Self, path: str, truncate: bool = True, max_output_length: int = 20000) -> str:
+        await self.create_container_if_not_exists()
         quoted_path = shlex.quote(path)
         out, err = await self.run_shell_code(
             f"cat {quoted_path}",
@@ -271,7 +250,8 @@ class ModalSandbox(AbstractSandbox):
 
         return out
 
-    async def write_file(self, path: str, content: str):
+    async def write_file(self: Self, path: str, content: str) -> None:
+        await self.create_container_if_not_exists()
         quoted_path = shlex.quote(path)
         dir_path = shlex.quote(str(Path(path).parent))
 
@@ -294,14 +274,16 @@ class ModalSandbox(AbstractSandbox):
             raise RuntimeError(
                 f"Failed to write file: {err_str.decode('utf-8') if err_str else 'Unknown error'}")
 
-    async def delete_file(self, path: str):
+    async def delete_file(self: Self, path: str) -> None:
+        await self.create_container_if_not_exists()
         quoted_path = shlex.quote(path)
         _, err = await self.run_shell_code(f"rm -rf {quoted_path}")
 
         if err:
             raise RuntimeError(f"Failed to delete file: {err}")
 
-    async def rename_file(self, old_path: str, new_path: str):
+    async def rename_file(self: Self, old_path: str, new_path: str) -> None:
+        await self.create_container_if_not_exists()
         quoted_old_path = shlex.quote(old_path)
         quoted_new_path = shlex.quote(new_path)
         # Create directory for new path if it doesn't exist
@@ -313,7 +295,8 @@ class ModalSandbox(AbstractSandbox):
         if err:
             raise RuntimeError(f"Failed to rename file: {err}")
 
-    async def check_file_exists(self, path: str) -> bool:
+    async def check_file_exists(self: Self, path: str) -> bool:
+        await self.create_container_if_not_exists()
         quoted_path = shlex.quote(path)
         out, _ = await self.run_shell_code(
             f"test -f {quoted_path} && echo 'exists' || echo 'not_exists'",
@@ -322,11 +305,11 @@ class ModalSandbox(AbstractSandbox):
 
         return out.strip() == "exists"
 
-    async def get_working_directory(self) -> Tuple[str, str]:
-        out, err = await self.run_shell_code("pwd", truncate_output=False)
-        return out, err if err is not None else ""
+    async def get_working_directory(self: Self) -> str:
+        return f"/app/{self.package_name}"
 
-    async def list_directory_contents(self, path: Optional[str] = None) -> Tuple[str, str]:
+    async def list_directory_contents(self: Self, path: Optional[str] = None) -> Tuple[str, str]:
+        await self.create_container_if_not_exists()
         if path is None:
             out, err = await self.run_shell_code("ls -la", truncate_output=False)
         else:
@@ -334,7 +317,8 @@ class ModalSandbox(AbstractSandbox):
             out, err = await self.run_shell_code(f"ls -la {quoted_path}", truncate_output=False)
         return out, err if err is not None else ""
 
-    async def get_folder_structure(self, path: Optional[str] = None, n_levels: int = 5, max_lines: int = 100) -> str:
+    async def get_folder_structure(self: Self, path: Optional[str] = None, n_levels: int = 5, max_lines: int = 100) -> str:
+        await self.create_container_if_not_exists()
         if path:
             quoted_path = shlex.quote(path)
         else:

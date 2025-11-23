@@ -8,10 +8,9 @@ from kvasir_research.utils.code_utils import (
     delete_lines_from_script
 )
 from kvasir_research.agents.v1.swe.deps import SWEDeps
-from kvasir_research.agents.v1.swe.utils import validate_path_permissions
 
 
-async def write_script(ctx: RunContext[SWEDeps], content: str, file_path: str) -> str:
+async def write_script(ctx: RunContext[SWEDeps], file_path: str, content: str) -> str:
     """
     Write a new script to a file. 
     This is only for creating new scripts. To modify existing scripts, use add_script_lines, replace_script_lines, or delete_script_lines instead.
@@ -19,35 +18,32 @@ async def write_script(ctx: RunContext[SWEDeps], content: str, file_path: str) -
 
     Args:
         ctx: The context.
-        content: The content to write to the file.
         file_path: The path to the file to write the content to (including the file name). Will be run from the cwd. Accepts absolute or relative paths. 
+        content: The content to write to the file.
 
     Returns:
         str: The script with line numbers.
     """
-    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_name}] write_script called: file_path={file_path}, content_length={len(content)} chars", "tool_call")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Writing new file: {file_path} ({len(content)} characters)", "tool_call")
 
-    file_path = Path(file_path)
-    if not validate_path_permissions(ctx, file_path):
+    if not _validate_path_permissions(ctx, file_path):
         raise ModelRetry(
             f"File {file_path} is not writable. It is in a read-only path. Read-only paths: {', '.join(ctx.deps.read_only_paths)}")
 
-    if await ctx.deps.sandbox.check_file_exists(str(file_path)):
+    if await ctx.deps.sandbox.check_file_exists(file_path):
         raise ModelRetry(
             f"File {file_path} already exists. To modify an existing file, use add_script_lines, replace_script_lines, or delete_script_lines instead. write_script is only for creating new files.")
 
-    await ctx.deps.sandbox.write_file(str(file_path), content)
+    await ctx.deps.sandbox.write_file(file_path, content)
 
     # Track the modified file
-    ctx.deps.modified_files[str(file_path)] = content
+    ctx.deps.modified_files[file_path] = content
 
     content_with_line_numbers = add_line_numbers_to_script(content)
 
-    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_name}] write_script completed: file_path={file_path}", "result")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Created file: {file_path}", "result")
 
-    return f"WROTE TO FILE: {file_path}\n\n<begin_file file_path={file_path}>\n\n{content_with_line_numbers}\n\n<end_file>"
+    return f"WROTE TO FILE: {file_path}\n\n<file path={file_path}>\n\n{content_with_line_numbers}\n\n</file>"
 
 
 async def replace_script_lines(
@@ -71,19 +67,17 @@ async def replace_script_lines(
     Returns:
         str: The updated script.
     """
-    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_name}] replace_script_lines called: file_path={file_path}, lines={line_number_start}-{line_number_end}, new_code_length={len(new_code)} chars", "tool_call")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Replacing lines {line_number_start}-{line_number_end} in {file_path} ({len(new_code)} characters)", "tool_call")
 
-    file_path = Path(file_path)
-    if not validate_path_permissions(ctx, file_path):
+    if not _validate_path_permissions(ctx, file_path):
         raise ModelRetry(
             f"File {file_path} is not writable. It is in a read-only path. Read-only paths: {', '.join(ctx.deps.read_only_paths)}")
 
-    if not await ctx.deps.sandbox.check_file_exists(str(file_path)):
+    if not await ctx.deps.sandbox.check_file_exists(file_path):
         raise ModelRetry(
             f"File {file_path} does not exist. To create a new file, call the write_file tool.")
 
-    old_content = await ctx.deps.sandbox.read_file(str(file_path))
+    old_content = await ctx.deps.sandbox.read_file(file_path)
 
     updated_content = replace_lines_in_script(
         old_content,
@@ -93,23 +87,22 @@ async def replace_script_lines(
         script_has_line_numbers=False
     )
 
-    await ctx.deps.sandbox.write_file(str(file_path), updated_content)
+    await ctx.deps.sandbox.write_file(file_path, updated_content)
 
     # Track the modified file
-    ctx.deps.modified_files[str(file_path)] = updated_content
+    ctx.deps.modified_files[file_path] = updated_content
 
     updated_content_with_line_numbers = add_line_numbers_to_script(
         updated_content)
-    out = f"UPDATED FILE: {file_path}\n\n <begin_file file_path={file_path}>\n\n {updated_content_with_line_numbers}\n\n <end_file>"
+    out = f"UPDATED FILE: {file_path}\n\n <file path={file_path}>\n\n {updated_content_with_line_numbers}\n\n </file>"
     out += "\n\nThe file is not automatically run and validated, you must call the final_result tool to submit the file for validation and feedback.\n"
 
-    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_name}] replace_script_lines completed: file_path={file_path}", "result")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Replaced lines {line_number_start}-{line_number_end} in {file_path}", "result")
 
     return out
 
 
-async def add_script_lines(ctx: RunContext[SWEDeps], file_name: str, new_code: str, start_line: int) -> str:
+async def add_script_lines(ctx: RunContext[SWEDeps], file_path: str, new_code: str, start_line: int) -> str:
     """
     Add lines to the current script at the given line number.
     The script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback.
@@ -122,19 +115,17 @@ async def add_script_lines(ctx: RunContext[SWEDeps], file_name: str, new_code: s
     Returns:
         str: The updated script.
     """
-    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_name}] add_script_lines called: file_name={file_name}, start_line={start_line}, new_code_length={len(new_code)} chars", "tool_call")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Adding lines at line {start_line} in {file_path} ({len(new_code)} characters)", "tool_call")
 
-    file_path = Path(file_name)
-    if not validate_path_permissions(ctx, file_path):
+    if not _validate_path_permissions(ctx, file_path):
         raise ModelRetry(
             f"File {file_path} is not writable. It is in a read-only path. Read-only paths: {', '.join(ctx.deps.read_only_paths)}")
 
-    if not await ctx.deps.sandbox.check_file_exists(str(file_path)):
+    if not await ctx.deps.sandbox.check_file_exists(file_path):
         raise ModelRetry(
-            f"Script {file_name} does not exist. To create a new script, call the write_file tool.")
+            f"Script {file_path} does not exist. To create a new script, call the write_file tool.")
 
-    old_content = await ctx.deps.sandbox.read_file(str(file_path))
+    old_content = await ctx.deps.sandbox.read_file(file_path)
 
     updated_content = add_lines_to_script_at_line(
         old_content,
@@ -143,17 +134,16 @@ async def add_script_lines(ctx: RunContext[SWEDeps], file_name: str, new_code: s
         script_has_line_numbers=False
     )
 
-    await ctx.deps.sandbox.write_file(str(file_path), updated_content)
+    await ctx.deps.sandbox.write_file(file_path, updated_content)
 
     # Track the modified file
-    ctx.deps.modified_files[str(file_path)] = updated_content
+    ctx.deps.modified_files[file_path] = updated_content
 
     script_with_line_numbers = add_line_numbers_to_script(updated_content)
-    out = f"UPDATED SCRIPT: \n\n <begin_file file_path={file_path}>\n\n {script_with_line_numbers}\n\n <end_file>"
+    out = f"UPDATED SCRIPT: \n\n <file path={file_path}>\n\n {script_with_line_numbers}\n\n </file>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
 
-    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_name}] add_script_lines completed: file_path={file_path}", "result")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Added lines at line {start_line} in {file_path}", "result")
 
     return out
 
@@ -171,20 +161,17 @@ async def delete_script_lines(ctx: RunContext[SWEDeps], file_path: str, line_num
     Returns:    
         str: The updated script.
     """
-    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_name}] delete_script_lines called: file_path={file_path}, lines={line_number_start}-{line_number_end}", "tool_call")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Deleting lines {line_number_start}-{line_number_end} from {file_path}", "tool_call")
 
-    file_path = Path(file_path)
-
-    if not validate_path_permissions(ctx, file_path):
+    if not _validate_path_permissions(ctx, file_path):
         raise ModelRetry(
             f"File {file_path} is not writable. It is in a read-only path. Read-only paths: {', '.join(ctx.deps.read_only_paths)}")
 
-    if not await ctx.deps.sandbox.check_file_exists(str(file_path)):
+    if not await ctx.deps.sandbox.check_file_exists(file_path):
         raise ModelRetry(
             f"File {file_path} does not exist. To create a new file, call the write_file tool.")
 
-    old_content = await ctx.deps.sandbox.read_file(str(file_path))
+    old_content = await ctx.deps.sandbox.read_file(file_path)
 
     updated_content = delete_lines_from_script(
         old_content,
@@ -193,17 +180,16 @@ async def delete_script_lines(ctx: RunContext[SWEDeps], file_path: str, line_num
         script_has_line_numbers=False
     )
 
-    await ctx.deps.sandbox.write_file(str(file_path), updated_content)
+    await ctx.deps.sandbox.write_file(file_path, updated_content)
 
     # Track the modified file
-    ctx.deps.modified_files[str(file_path)] = updated_content
+    ctx.deps.modified_files[file_path] = updated_content
 
     script_with_line_numbers = add_line_numbers_to_script(updated_content)
-    out = f"UPDATED SCRIPT: \n\n <begin_file file_path={file_path}>\n\n {script_with_line_numbers}\n\n <end_file>"
+    out = f"UPDATED SCRIPT: \n\n <file path={file_path}>\n\n {script_with_line_numbers}\n\n </file>"
     out += "\n\nThe script is not automatically run and validated, you must call the final_result tool to submit the script for validation and feedback."
 
-    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_name}] delete_script_lines completed: file_path={file_path}", "result")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Deleted lines {line_number_start}-{line_number_end} from {file_path}", "result")
 
     return out
 
@@ -220,25 +206,22 @@ async def delete_file(ctx: RunContext[SWEDeps], file_path: str) -> str:
     Returns:
         str: Confirmation message.
     """
-    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_name}] delete_file called: file_path={file_path}", "tool_call")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Deleting file: {file_path}", "tool_call")
 
-    path = Path(file_path)
-    if not validate_path_permissions(ctx, path):
+    if not _validate_path_permissions(ctx, file_path):
         raise ModelRetry(
-            f"File {path} is not writable. It is in a read-only path. Read-only paths: {', '.join(ctx.deps.read_only_paths)}")
+            f"File {file_path} is not writable. It is in a read-only path. Read-only paths: {', '.join(ctx.deps.read_only_paths)}")
 
-    if not await ctx.deps.sandbox.check_file_exists(str(path)):
+    if not await ctx.deps.sandbox.check_file_exists(file_path):
         raise ModelRetry(f"File {file_path} does not exist.")
 
-    await ctx.deps.sandbox.delete_file(str(path))
+    await ctx.deps.sandbox.delete_file(file_path)
 
     # Remove from modified_files tracking if it was there
-    if str(file_path) in ctx.deps.modified_files:
-        del ctx.deps.modified_files[str(file_path)]
+    if file_path in ctx.deps.modified_files:
+        del ctx.deps.modified_files[file_path]
 
-    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id,
-                                 f"SWE Agent [{ctx.deps.run_name}] delete_file completed: file_path={file_path}", "result")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Deleted file: {file_path}", "result")
 
     return f"Successfully deleted {file_path}"
 
@@ -254,3 +237,16 @@ swe_toolset = FunctionToolset(
     max_retries=3
 )
 
+
+##
+
+
+def _validate_path_permissions(ctx: RunContext[SWEDeps], path: str | Path) -> bool:
+    path = Path(path).resolve()
+
+    # Check if path is in any read-only path
+    for read_only_path in ctx.deps.read_only_paths:
+        if ctx.deps.sandbox.is_subpath(path, Path(read_only_path).resolve()):
+            return False
+
+    return True

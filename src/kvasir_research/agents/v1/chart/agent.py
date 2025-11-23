@@ -1,6 +1,5 @@
 from uuid import UUID
-from typing import Literal, List, Optional
-from typing_extensions import Self
+from typing import Optional
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models import ModelSettings
 
@@ -8,13 +7,15 @@ from kvasir_research.agents.v1.chart.deps import ChartDeps
 from kvasir_research.agents.v1.chart.output import submit_chart
 from kvasir_research.agents.v1.chart.prompt import CHART_AGENT_SYSTEM_PROMPT
 from kvasir_research.agents.v1.shared_tools import navigation_toolset
-
 from kvasir_research.agents.v1.chart.output import ChartAgentOutput
-from kvasir_research.agents.v1.base_agent import AgentV1
-
-from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
-from kvasir_research.agents.v1.data_model import RunBase, RunCreate
+from kvasir_research.agents.v1.base_agent import AgentV1, Context
+from kvasir_research.agents.v1.data_model import RunCreate
 from kvasir_research.utils.agent_utils import get_model
+from kvasir_research.agents.v1.history_processors import (
+    keep_only_most_recent_project_description,
+    keep_only_most_recent_folder_structure,
+    keep_only_most_recent_entity_context
+)
 
 
 model = get_model()
@@ -26,17 +27,18 @@ chart_agent = Agent[ChartDeps, ChartAgentOutput](
     toolsets=[navigation_toolset],
     output_type=submit_chart,
     retries=5,
+    history_processors=[
+        keep_only_most_recent_project_description,
+        keep_only_most_recent_folder_structure,
+        keep_only_most_recent_entity_context
+    ],
     model_settings=ModelSettings(temperature=0)
 )
 
 
 @chart_agent.system_prompt
 async def chart_agent_system_prompt(ctx: RunContext[ChartDeps]) -> str:
-    entity_ids = [*ctx.deps.datasets_injected, *ctx.deps.data_sources_injected]
-    entities_description = await ctx.deps.ontology.describe_entities(entity_ids)
-
     env_description = ctx.deps.sandbox.get_pyproject_for_env_description()
-    folder_structure_description = await ctx.deps.sandbox.get_folder_structure()
     object_group_description = ""
     if ctx.deps.object_group is not None:
         object_group_description = (
@@ -57,9 +59,7 @@ async def chart_agent_system_prompt(ctx: RunContext[ChartDeps]) -> str:
 
     full_prompt = (
         f"{CHART_AGENT_SYSTEM_PROMPT}\n\n"
-        f"{folder_structure_description}\n\n"
         f"{env_description}\n\n"
-        f"{entities_description}\n\n"
         f"{object_group_description}\n\n"
         f"{base_code_context}\n\n"
     )
@@ -76,13 +76,12 @@ class ChartAgentV1(AgentV1[ChartDeps, ChartAgentOutput]):
 
     async def _setup_run(self) -> UUID:
         if self.deps.run_id is None:
-            assert self.deps.run_name is not None, "Run name must be set for chart runs"
             run = await self.deps.callbacks.create_run(
                 self.deps.user_id,
                 RunCreate(
-                    type="extraction",  # Chart runs use extraction type since chart is not in RUN_TYPE_LITERAL
+                    type="chart",
                     project_id=self.deps.project_id,
-                    run_name=self.deps.run_name
+                    run_name=self.deps.run_name or "Chart Run"
                 )
             )
             self.deps.run_id = run.id
@@ -90,17 +89,5 @@ class ChartAgentV1(AgentV1[ChartDeps, ChartAgentOutput]):
         await self.deps.callbacks.set_run_status(self.deps.user_id, self.deps.run_id, "running")
         return self.deps.run_id
 
-    @classmethod
-    async def from_run(cls, user_id: UUID, run_id: UUID, callbacks: KvasirV1Callbacks, bearer_token: Optional[str] = None) -> Self:
-        return await super().from_run(user_id, run_id, callbacks, bearer_token)
-
-    async def __call__(self, prompt: str) -> ChartAgentOutput:
-        try:
-            await self._setup_run()
-            output = await self._run_agent(prompt)
-            await self.finish_run("Chart run completed")
-            return output
-
-        except Exception as e:
-            await self.fail_run_if_exists(f"Error running chart agent: {e}")
-            raise e
+    async def __call__(self, prompt: str, context: Optional[Context] = None) -> ChartAgentOutput:
+        return await super().__call__(prompt, context, describe_folder_structure=False)

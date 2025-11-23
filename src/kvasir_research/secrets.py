@@ -44,7 +44,7 @@ PROJECTS_HOST_DIR = Path(
 
 
 MODAL_APP_NAME = "kvasir-research"
-MODAL_PROJECTS_DIR = Path("/projects")
+
 
 SANDBOX_DOCKERFILE_PATH = Path(
     "/app/kvasir-research/src/kvasir_research/sandbox/Dockerfile")

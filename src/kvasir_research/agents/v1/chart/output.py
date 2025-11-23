@@ -22,6 +22,7 @@ async def submit_chart(
 
     Returns the code and function name that can be used to execute the chart.
     """
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Submitting chart code ({len(python_code)} characters)", "tool_call")
     try:
         python_code = remove_print_statements_from_code(python_code)
 
@@ -37,9 +38,8 @@ async def submit_chart(
             )
 
         validation_parts.append(python_code)
-        validation_parts.extend([
-            "from synesis_schemas.project_server import EChartsOption",
-        ])
+        validation_parts.extend(
+            ["from synesis_schemas.project_server import EChartsOption"])
 
         # Determine function call based on whether we have an object group
         if ctx.deps.object_group is not None:
@@ -60,14 +60,18 @@ async def submit_chart(
             ("[THE REST OF THE ERROR WAS TRUNCATED]" if len(err) > 2000 else "")
 
         if err:
+            await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Chart code execution error: {err_truncated}", "error")
             raise ModelRetry(f"Code execution error: {err_truncated}")
 
         try:
             json.loads(out.strip())
         except Exception as e:
+            await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Error parsing chart result: {str(e)}", "error")
             raise ModelRetry(f"Failed to parse chart result: {str(e)}.")
 
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, "Chart code validated and submitted successfully", "result")
         return ChartAgentOutput(script_content=out_code)
 
     except Exception as e:
+        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Error submitting chart: {str(e)}", "error")
         raise ModelRetry(f"Failed to submit chart function: {str(e)}")

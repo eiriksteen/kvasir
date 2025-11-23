@@ -23,3 +23,10 @@ class KvasirV1Deps(AgentDeps):
                 UUID(item) if isinstance(item, str) else item
                 for item in self.launched_swe_run_ids
             ]
+
+    def to_dict(self) -> dict:
+        return {
+            **super().to_dict(),
+            "launched_analysis_run_ids": [str(run_id) for run_id in self.launched_analysis_run_ids],
+            "launched_swe_run_ids": [str(run_id) for run_id in self.launched_swe_run_ids]
+        }

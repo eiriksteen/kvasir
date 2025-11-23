@@ -13,11 +13,20 @@ class ExtractionDeps(AgentDeps):
 
     def __post_init__(self):
         super().__post_init__()
-        if isinstance(self.object_groups_with_charts, list):
-            self.object_groups_with_charts = AgentDeps._convert_uuid_list(
-                self.object_groups_with_charts)
 
-    def _get_non_serializable_fields(self) -> set:
-        result = super()._get_non_serializable_fields()
-        result.add("created_datasets")
-        return result
+        self.object_groups_with_charts = [
+            UUID(item) if isinstance(item, str) else item
+            for item in self.object_groups_with_charts
+        ]
+
+        self.created_datasets = [
+            Dataset.model_validate(item) if isinstance(item, dict) else item
+            for item in self.created_datasets
+        ]
+
+    def to_dict(self) -> dict:
+        return {
+            **super().to_dict(),
+            "object_groups_with_charts": [str(chart) for chart in self.object_groups_with_charts],
+            "created_datasets": [dataset.model_dump(mode='json') for dataset in self.created_datasets]
+        }

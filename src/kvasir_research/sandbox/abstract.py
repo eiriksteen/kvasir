@@ -1,7 +1,7 @@
 from uuid import UUID
 from pathlib import Path
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator, Tuple, Optional
+from typing import AsyncGenerator, Tuple, Optional, Any
 
 from kvasir_research.secrets import CODEBASE_DIR, SANDBOX_PYPROJECT_PATH
 
@@ -25,24 +25,20 @@ def create_empty_project_package_local(project_id: UUID, package_name: str) -> P
 
 
 class AbstractSandbox(ABC):
+
     @abstractmethod
-    def __init__(self, project_id: UUID, package_name: str, image_name: str = "research-sandbox"):
+    def __init__(self, project_id: UUID, package_name: str) -> None:
         self.project_id = project_id
         self.package_name = package_name
-        self.image_name = image_name
-        pass
+        self.workdir = f"/app/{package_name}"
 
     @abstractmethod
-    def create_container_if_not_exists(self):
+    async def create_container_if_not_exists(self) -> bool:
         pass
 
-    @abstractmethod
-    async def reload_container(self) -> None:
-        pass
-
-    @abstractmethod
-    async def setup_project(self) -> Path:
-        pass
+    # @abstractmethod
+    # async def reload_container(self) -> None:
+    #     pass
 
     @abstractmethod
     async def delete_container_if_exists(self):
@@ -86,8 +82,8 @@ class AbstractSandbox(ABC):
         pass
 
     @abstractmethod
-    async def get_working_directory(self) -> Tuple[str, str]:
-        """Returns (stdout, stderr)."""
+    async def get_working_directory(self) -> str:
+        """Returns the working directory as a string."""
         pass
 
     @abstractmethod

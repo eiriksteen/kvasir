@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 from typing import List, Dict, Literal, Optional
 from abc import abstractmethod, ABC
 
@@ -18,7 +18,7 @@ from kvasir_research.agents.v1.data_model import (
 class KvasirV1Callbacks(ABC):
 
     @abstractmethod
-    async def log(self, user_id: UUID, run_id: UUID, message: str, type: Literal["result", "tool_call", "error"]) -> None:
+    async def log(self, user_id: UUID, run_id: UUID, message: str, type: Literal["result", "tool_call", "error", "info"]) -> None:
         pass
 
     @abstractmethod
@@ -31,7 +31,7 @@ class KvasirV1Callbacks(ABC):
 
     @abstractmethod
     async def create_swe_run(
-            self, user_id: UUID, project_id: UUID, kvasir_run_id: UUID, run_name: str | None = None, initial_status: Literal["pending", "completed", "failed", "waiting", "running"] | None = None) -> SweRun:
+            self, user_id: UUID, project_id: UUID, kvasir_run_id: UUID, pipeline_id: UUID, run_name: str | None = None, initial_status: Literal["pending", "completed", "failed", "waiting", "running"] | None = None) -> SweRun:
         pass
 
     @abstractmethod
@@ -84,7 +84,7 @@ class KvasirV1Callbacks(ABC):
         pass
 
     @abstractmethod
-    async def save_result(self, user_id: UUID, run_id: UUID, result: str, type: Literal["swe", "analysis", "kvasir"]) -> None:
+    async def save_result(self, user_id: UUID, run_id: UUID, result_content: str, type: Literal["swe", "analysis", "kvasir"]) -> None:
         pass
 
     @abstractmethod

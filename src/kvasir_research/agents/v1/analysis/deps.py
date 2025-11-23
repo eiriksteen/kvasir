@@ -1,41 +1,37 @@
 from uuid import UUID
-from typing import List, OrderedDict, Tuple, Literal, Optional
-from collections import OrderedDict as OrderedDictType
+from typing import List, Optional
 from dataclasses import dataclass, field
 
 from kvasir_research.agents.v1.kvasir.knowledge_bank import SUPPORTED_TASKS_LITERAL
 from kvasir_research.agents.v1.base_agent import AgentDeps
+from kvasir_ontology.entities.analysis.data_model import Analysis
 
 
 @dataclass(kw_only=True)
 class AnalysisDeps(AgentDeps):
     kvasir_run_id: UUID
     data_paths: List[str]
-    injected_analyses: List[UUID]
     time_limit: int
-    # Key: name, value: (type, content), content is code, markdown, or output
-    notebook: OrderedDict[str,
-                          Tuple[Literal["code", "markdown", "output"], str]]
     guidelines: List[SUPPORTED_TASKS_LITERAL] = field(default_factory=list)
     analysis_id: Optional[UUID] = None
+    # Will be set by agent during setup
+    analysis: Optional[Analysis] = None
 
     def __post_init__(self):
         super().__post_init__()
         if isinstance(self.kvasir_run_id, str):
             self.kvasir_run_id = UUID(self.kvasir_run_id)
-
-        if isinstance(self.injected_analyses, list):
-            self.injected_analyses = AgentDeps._convert_uuid_list(
-                self.injected_analyses)
-
-        if self.analysis_id is not None and isinstance(self.analysis_id, str):
+        if isinstance(self.analysis, dict):
+            self.analysis = Analysis.model_validate(self.analysis)
+        if isinstance(self.analysis_id, str):
             self.analysis_id = UUID(self.analysis_id)
 
-        if isinstance(self.notebook, dict) and type(self.notebook) is not OrderedDictType:
-            notebook = OrderedDictType()
-            for k, v in self.notebook.items():
-                if isinstance(v, list):
-                    notebook[k] = tuple(v)
-                else:
-                    notebook[k] = v
-            self.notebook = notebook
+    def to_dict(self) -> dict:
+        return {
+            **super().to_dict(),
+            "kvasir_run_id": str(self.kvasir_run_id),
+            "data_paths": self.data_paths,
+            "time_limit": self.time_limit,
+            "guidelines": self.guidelines,
+            "analysis_id": str(self.analysis_id) if self.analysis_id else None
+        }

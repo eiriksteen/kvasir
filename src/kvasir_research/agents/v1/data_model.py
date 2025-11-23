@@ -77,6 +77,7 @@ class AnalysisRun(RunBase):
 
 
 class SweRun(RunBase):
+    pipeline_id: uuid.UUID
     kvasir_run_id: uuid.UUID
     result: Optional[ResultBase] = None
 
@@ -93,11 +94,14 @@ class RunCreate(BaseModel):
 
 
 class Context(BaseModel):
-    data_source_ids: List[uuid.UUID] = Field(default_factory=list)
-    dataset_ids: List[uuid.UUID] = Field(default_factory=list)
-    analysis_ids: List[uuid.UUID] = Field(default_factory=list)
-    pipeline_ids: List[uuid.UUID] = Field(default_factory=list)
-    model_instantiated_ids: List[uuid.UUID] = Field(default_factory=list)
+    data_sources: List[uuid.UUID] = Field(default_factory=list)
+    datasets: List[uuid.UUID] = Field(default_factory=list)
+    analyses: List[uuid.UUID] = Field(default_factory=list)
+    pipelines: List[uuid.UUID] = Field(default_factory=list)
+    models: List[uuid.UUID] = Field(default_factory=list)
+
+    def get_num_entities(self) -> int:
+        return len(self.data_sources) + len(self.datasets) + len(self.analyses) + len(self.pipelines) + len(self.models)
 
 
 class MessageCreate(BaseModel):

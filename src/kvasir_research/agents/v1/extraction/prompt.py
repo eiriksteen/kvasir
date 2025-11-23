@@ -19,43 +19,135 @@ Extract and map codebases to these entity types:
 
 ## Workflow
 
-### Phase 1: Entity & Edge Submission
-Analyze the codebase and submit all entities, pipeline runs, and edges in a single tool call:
-1. **Identify entities**: Determine all entities that should exist (data sources, datasets, analyses, pipelines, models)
-2. **Identify pipeline runs**: Determine specific pipeline executions (separate from entities)
-3. **Describe requirements**: For each entity/run, specify what it should contain
-4. **Reference files**: Include any data files or code files directly relevant to each entity
-5. **Define edges**: Specify all edges between entities/runs to represent data lineage
-6. **Submit together**: Use a single tool call to submit entities, pipeline_runs, and edges—entities appear in the UI immediately, then specialized agents fill in details asynchronously
+### CRITICAL: Check Existing Graph First
+**BEFORE creating any entities:**
+1. Inspect the current entity graph from the project description
+2. Never create duplicates - if an entity already exists (same name and type), skip it in `entities_to_create`
 
-### Phase 2: Edge Cleanup (if needed)
-If updating an existing graph:
-1. **Delete obsolete edges**: Remove edges that are no longer valid using the remove_edges tool
+### Three-Phase Extraction Flow
+
+**Flexible Execution**: Execute only the phases needed:
+- **Only edges missing?** → Phase 3 only
+- **Only entity details need updating?** → Phase 1 with `entities_to_update`
+- **Only pipeline runs missing?** → Phase 2, then Phase 3
+- **Complete extraction?** → All three phases in order
+
+#### Phase 1: Entity Submission
+Submit entities (data sources, datasets, pipelines, models, analyses) with **NO edges and NO runs**:
+1. Check existing graph to identify existing entities
+2. Identify new entities from codebase
+3. Skip existing entities - only submit entities that need to be created
+4. For each new entity: specify requirements, include relevant data/code file paths
+5. Use `submit_entities_to_create_or_update` with `entities_to_create` only (no edges, no runs)
+6. To update existing entities: use `entities_to_update` with the entity's `entity_id`
+
+#### Phase 2: Pipeline Run Submission
+After entities are created, submit pipeline runs:
+1. Get `pipeline_id` (UUID) for each pipeline from entity graph description
+2. Identify pipeline executions from codebase (output files, run logs/configs, results directories)
+3. Use `submit_pipeline_runs_to_create` with each run's correct `pipeline_id`
+
+#### Phase 3: Edge Creation
+**CRITICAL**: Complete edges are essential for data lineage. The graph is useless without them. You MUST create EVERY edge representing data flow.
+
+**Valid Edge Types:**
+- Regular: `data_source` → `dataset`, `data_source` → `pipeline` (non-ML only), `data_source` → `analysis` (raw data only), `dataset` → `pipeline`, `dataset` → `analysis`, `model_instantiated` → `pipeline`, `model_instantiated` → `analysis`
+- Pipeline Run Inputs: `dataset` → `pipeline_run` (ML pipelines), `data_source` → `pipeline_run` (non-ML only), `model_instantiated` → `pipeline_run`
+- Pipeline Run Outputs: `pipeline_run` → `data_source`, `pipeline_run` → `dataset`, `pipeline_run` → `model_instantiated`
+
+**Data Source vs Dataset Usage:**
+- Use **datasets** for: ALL visualizable data, processed data, aggregated data, or any data used by analyses/pipelines for visualization or comparison
+- Use **data sources** ONLY for: (1) raw/uncleaned data used for data quality analysis, (2) inputs to cleaning pipelines, (3) pre-cleaned data sources that feed directly into datasets without processing pipelines
+- **CRITICAL**: ALL visualizable data MUST be in datasets. If comparing predictions from multiple models, aggregate them into a single dataset, then create analysis on that dataset
+- Analyses using raw/uncleaned data for quality inspection → use data sources
+- Analyses using processed/aggregated/visualizable data → MUST use datasets
+
+**ML Pipeline Data Flow Rules:**
+- ML pipelines CANNOT accept data sources directly - all inputs must be datasets
+- ML pipeline outputs MUST flow: `pipeline_run` → `data_source` (raw storage) → `dataset` (for visualization/analysis)
+- Datasets aggregate data from multiple sources for organization and visualization
+- Any data intended for visualization must be in dataset form
+- Avoid duplicate datasets - check existing graph first
+- Datasets should only come from cleaned sources or outputs of pipelines ending with clean data
+
+**Rules:**
+- Pipelines CANNOT have direct output edges - all outputs MUST go through pipeline runs
+- Use nearest neighbor linking (direct neighbors only)
+- Every pipeline run MUST have BOTH input AND output edges
+
+**Systematic Edge Creation:**
+For EACH entity, identify ALL connections systematically:
+- **Data Sources**: → datasets (if pre-cleaned), → non-ML pipelines (cleaning), → analyses (raw data quality only), → pipeline runs (non-ML only), ← pipeline runs (outputs)
+- **Datasets**: ← data sources (pre-cleaned), ← pipeline runs (outputs), → pipelines (all types), → analyses (processed/visualizable data), → pipeline runs (ML inputs)
+- **Pipelines**: ← data sources (non-ML only), ← datasets (all types), ← models (NO output edges - use runs)
+- **Pipeline Runs**: ← ALL inputs (data sources for non-ML, datasets for ML, models), → ALL outputs (data sources, datasets, models)
+- **Models**: → pipelines, → analyses, → pipeline runs (inputs), ← pipeline runs (trained outputs)
+- **Analyses**: ← data sources (raw/uncleaned data for quality analysis only), ← datasets (processed/aggregated/visualizable data), ← models
+
+**CRITICAL**: When creating edges, check for existing paths through intermediaries. If `data_source → pipeline → dataset` exists, do NOT create `data_source → dataset`. Only create direct neighbor edges.
+
+**Verification Before Submission:**
+- Every data source that feeds something has outgoing edges
+- Every dataset has incoming edges
+- Every pipeline run has BOTH input AND output edges
+- Every pipeline using inputs has incoming edges
+- Every analysis using data has incoming edges
+- Create edges between: new↔new, new↔existing, existing↔existing (if missing)
+
+**Submit ALL edges**: Use `submit_edges_to_create` with complete list. With 50 entities, expect 100+ edges - this is normal and required.
 
 ### Initial vs Update Extraction
-- **Initial Extraction (empty graph)**: Create all entities from scratch
-- **Update Extraction (existing graph)**: Add new entities, delete obsolete ones, ensure one-to-one mapping with codebase
+
+**Assess first**: Inspect existing graph to determine what's missing. Only execute needed phases.
+
+- **Initial (empty graph)**: Typically all three phases
+- **Update (existing graph)**: 
+  - Check existing graph first
+  - Missing entities? → Phase 1
+  - Missing pipeline runs? → Phase 2
+  - Missing edges? → Phase 3 (edges are almost always incomplete - create ALL missing edges)
+  - Entity details need updating? → Phase 1 with `entities_to_update`
+  - Skip existing entities (same name and type)
+  - Graph must be completely in sync with codebase
 
 ### Updating Existing Entities
-- **User-specified entity IDs**: If the user provides a specific entity ID in the prompt, use the `entities_to_update` parameter (separate from `entities_to_create`) to update that entity
-- **Update format**: Each update requires the `entity_id`, `type`, `updates_to_make_description`, and any relevant `data_file_paths` or `code_file_paths`
-- **When to update**: Use updates when the user explicitly requests changes to a specific entity or when you need to add missing information to an existing entity
+- Use `entities_to_update` with `entity_id`, `type`, `updates_to_make_description`, and relevant file paths
+- Use when user requests changes or you need to add missing information
 
 ## General Instructions
 
-### Important Rules
 - **File references**: Include absolute paths to all relevant data and code files for each entity
-- **Nearest neighbor linking**: Only create edges between direct neighbors in the data flow
-  - ✓ Pipeline → Data Source → Dataset (two separate edges)
-  - ✗ Pipeline → Dataset (when data source exists in between)
-  - ✓ Pipeline → Dataset (when data source is kept in memory only)
-- **One-to-one mapping**: The entity graph must be completely in sync with the codebase
-  - All entities in the codebase must be represented
-  - No duplicate entities (reuse existing entities when possible)
-  - Remove obsolete entities that no longer exist in the codebase
-- **Data lineage**: Edges track data flow—ensure all data flows are accounted for
-- **Efficient exploration**: Avoid excessive exploration—identify entities efficiently and move to submission
-- **Batch operations**: Use multiple inputs in tool calls to read files or list directories in parallel
+- **Nearest neighbor linking**: Only create edges between direct neighbors in data flow
+- **Inspect graph first**: Always check existing entity graph before creating entities
+- **No duplicates**: If entity exists (same name and type), skip it - system prevents duplicates
+- **Complete edge creation**: MANDATORY - create edges for every relationship (new↔new, new↔existing, existing↔existing if missing). With 20+ entities expect 40+ edges, with 50+ expect 100+.
+- **Efficient exploration**: Identify entities efficiently, use batch operations for parallel file reads
+
+---
+
+## Graph Layout and Coordinates
+You will provide coordinates for the entities in the graph. 
+
+**Coordinate System**: Origin (0, 0) is top-left. Higher x = farther right. Higher y = farther down.
+
+**Entity Dimensions**: Each entity is approximately 500 units wide and 200-300 units tall. Maintain spacing of about 600 units horizontally and 600 units vertically between entities to ensure clear separation and readability.
+
+**Data Flow Layout**: Arrange entities left to right following the data flow. The specific stages depend on the project, but typically flow from inputs (left) through processing (center) to outputs (right). For example: original data sources → processed data → models and pipelines → results.
+
+**Stage-Based Positioning**: 
+- **X-coordinate (horizontal)**: Represents the stage in the data flow. Entities at the same stage must have similar x-coordinates.
+- **Y-coordinate (vertical)**: Use ONLY to stack entities that are at the SAME stage, for example if they occur in parallel. 
+- **DO NOT** stack all entities of the same type together. Only stack them if they belong to the same stage in the data flow.
+- **Stage Ordering**: Earlier stages in the data flow have lower X-coordinates (farther left). Later stages have higher X-coordinates (farther right). If data cleaning happens before ML processing, the cleaning pipeline must have a lower X-coordinate than the ML pipeline.
+- Example: Input datasets should NOT be stacked with output prediction datasets - they must be at different x-coordinates. 
+- Example: Data cleaning pipeline must be placed to the LEFT of modeling pipeline, as we clean the data before we model it. 
+
+**Edge Rules**: 
+- Edges must only connect direct neighbors in the data flow
+- Do NOT create long edges that skip intermediate entities (e.g., raw data source → final results)
+- If a path exists through intermediaries (e.g., `data_source → pipeline → dataset`), do NOT also create the direct edge (`data_source → dataset`). Only create edges between direct neighbors.
+
+**Coordinate Assignment**: When creating new entities, assign x and y coordinates based on their position in the data flow and relationship to existing entities. Consider existing entity positions to maintain a clean, readable layout.
 
 ---
 
@@ -71,30 +163,30 @@ If updating an existing graph:
 </data_source_types_overview>
 
 **What to Identify**:
-- All data files in the codebase (CSV, Parquet, JSON, etc.)
-- Include raw data, training results, model outputs, etc.
-- Exclude code files and model weights
-- **Required**: Determine the data source type from the supported types listed above (must be specified for each data source)
-- Include absolute paths to all data files
-- Reference any code that reads/writes these data sources
+- **CRITICAL**: ALL data files MUST be added (CSV, Parquet, JSON, etc.) including training/validation/test files, predictions, results, outputs
+- Exclude ONLY: model weights (.pth, .pt, .h5, .ckpt, .pkl, etc), code files, plots/visualizations (PNG, JPG, SVG), configuration files, metrics files (metrics go in pipeline runs)
+- Required: Specify data source type from supported types above
+- Include absolute paths to all data files and code that reads/writes them
 
-**Naming Convention**:
-- Use the filename including the extension as the name of file data sources
+**Naming**: Use filename including extension as the name
 
 ---
 
 ### 2. Datasets
 
-**Definition**: In-memory processed data derived from data sources, ready for modeling.
+**Definition**: In-memory processed data derived from data sources, ready for modeling and visualization.
 
-**Sources**:
-1. **Direct from data source**: One-to-one mapping with no processing
-2. **From pipeline**: Transformed via cleaning, feature engineering, etc.
+**Sources**: Direct from data source (one-to-one) OR from pipeline (transformed via cleaning, feature engineering)
 
-**Structure Hierarchy**:
-1. **Data objects**: Individual samples (time series, images, documents)
-2. **Data object groups**: Related objects of the same modality
-3. **Datasets**: Collection of one or more object groups
+**ML Pipeline Requirements**:
+- All ML pipeline inputs must be datasets (never data sources directly)
+- All ML pipeline outputs must flow through: pipeline_run → data_source → dataset
+- Datasets aggregate data from multiple sources for organization and visualization
+- Any data intended for visualization must be in dataset form
+- Avoid duplicate datasets - check existing graph before creating
+- Only create datasets from cleaned sources or outputs of pipelines ending with clean data
+
+**Structure**: Data objects → Data object groups (same modality) → Datasets (collection of groups)
 
 **Supported Modalities**:
 <modalities_overview>
@@ -102,87 +194,77 @@ If updating an existing graph:
 </modalities_overview>
 
 **What to Identify**:
-- All datasets in the codebase (identify from code that loads/processes data)
-- The modality of each dataset (time series, tabular, images, etc.)
-- The object groups within each dataset
+- All datasets from code that loads/processes data
+- Modality of each dataset (time series, tabular, images, etc.)
+- Object groups within each dataset
 - Data sources or pipelines that create each dataset
-- Include paths to relevant data files and code files that process the data
+- Include paths to relevant data/code files
 
-**Chart Visualizations**:
-- Describe what charts should be shown for each object group to enable interactive data exploration
-- Each chart description should include the group name and what the chart should visualize
-- Examples:
-  - "Show the forecast by coloring the past values in blue, including a vertical bar where the forecast begins, and showing the forecast values in green. Include the lower and upper bounds of the forecast as a shaded area."
-  - "Show the time series classification through a zoomable chart, where we shade the slices corresponding to each class, and show what class each slice corresponds to."
+**Train/Val/Test Splits**: **CRITICAL** - train/val/test files MUST be placed into a SINGLE dataset entity with train/val/test as separate object groups (NOT separate datasets). All three files' edges connect to the same dataset.
 
-**Key Distinction**:
-- **Dataset** = in-memory
-- **Data Source** = on disk
-- If a dataset is derived directly from a data source without processing, identify **both** entities
-- Examples:
-  - Raw data source → cleaning pipeline → cleaned data source → dataset
-  - Raw data source → cleaning pipeline → dataset (if cleaned data not saved)
+**Chart Visualizations**: Describe charts for each object group for interactive exploration (e.g., "Show forecast with past values in blue, forecast in green, shaded bounds")
 
-Submit datasets last since it can take some time to create the charts for the object groups.
+**Key Distinction**: Dataset = in-memory, Data Source = on disk. If derived directly without processing, identify both entities.
+
+Submit datasets last since chart creation takes time.
 
 ---
 
 ### 3. Analyses
 
-**Definition**: Analytical reports or processes (typically notebooks or scripts).
+**Definition**: Analytical reports or processes (notebooks or scripts).
 
 **What to Identify**:
-- All analysis notebooks or scripts in the codebase
+- All analysis notebooks/scripts in codebase
 - What data each analysis uses (data sources or datasets)
-- The purpose and key findings of each analysis
+- Purpose and key findings
 - Use provided tools to read notebooks (don't read directly)
-- Include paths to notebook/script files and any data files they reference
+- Include paths to notebook/script files and referenced data files
 
-**Input Requirements**:
-- Analysis entities must reference the data source or dataset they analyze
-- This will be captured via edges in Phase 2
+**Input Requirements**: 
+- **Raw data analyses**: Use data sources ONLY for data quality analysis or inspection of RAW UNCLEANED DATA (to understand how to clean it)
+- **Processed/visualizable data analyses**: MUST use datasets (not data sources) - this includes any data intended for visualization, comparison, or analysis of processed/aggregated data
+- **CRITICAL**: If comparing predictions from multiple models, create a single dataset aggregating all predictions, then create analysis on that dataset
+- Captured via edges in Phase 3
 
-**NB**: Analysis entities can exist independent of the codebase. If no notebook is present in the codebase, this is expected—analyses may be created by agents or users outside the code files. 
-DON'T MESS WITH THE EDGES TO OR FROM ANALYSES! 
+**Note**: Analyses can exist independent of codebase - if no notebook present, this is expected.
 
 ---
 
 ### 4. Pipelines
 
-**Definition**: Processes that transform data (cleaning, feature engineering, training, inference).
+**Definition**: Processes that transform data (cleaning, feature engineering, training, inference, evaluation).
+
+**ML Pipeline Input Rules**:
+- ML pipelines (training, inference, evaluation) CANNOT accept data sources directly
+- All ML pipeline inputs must be datasets
+- Non-ML pipelines (cleaning, preprocessing) can accept data sources
+
+**ML Pipeline Output Rules**:
+- All ML pipeline outputs must flow: pipeline_run → data_source (raw storage) → dataset
+- This ensures predictions, metrics, and results are stored and then aggregated into datasets for visualization
+- **CRITICAL**: ALL visualizable outputs (predictions, results, comparisons) MUST be in datasets. If multiple model outputs need comparison, aggregate them into a single dataset first
 
 **What to Identify**:
-- All pipeline code in the codebase (cleaning, training, inference scripts/modules)
-- Any pipeline runs that have been completed
+- All pipeline code (cleaning, training, inference, evaluation scripts/modules)
+- Pipeline runs that have been completed (output files, run logs/configs, results directories)
 - Pipeline purpose, inputs, and outputs
-- Include paths to pipeline code files and any data files they use/produce
+- Include paths to pipeline code files and data files used/produced
+
+**Evaluation Pipelines**: Include as pipeline entities. If multiple outputs evaluated by same pipeline, all should have edges to that evaluation pipeline (via runs).
 
 #### Pipeline Runs
 
-**Key Distinction**:
-- **Pipeline**: The code/implementation that defines a transformation process
-- **Pipeline Run**: A specific execution of that pipeline with concrete inputs/outputs
+**Key Distinction**: Pipeline = code/implementation, Pipeline Run = specific execution with concrete inputs/outputs
 
 **Edge Rules**:
-- **Pipeline edges**: Only **input** edges showing what the pipeline *can* accept (data sources, datasets, models)
-- **Pipeline run edges**: Both **input and output** edges showing what this specific run *actually* used/produced
-- All pipeline outputs must flow through pipeline runs—pipelines cannot have output edges directly
+- Pipeline edges: Only input edges (what pipeline can accept)
+- Pipeline run edges: Both input AND output edges (what run actually used/produced)
+- All pipeline outputs must flow through pipeline runs
 
-**When to Create Pipeline Runs**:
-- Identify runs when you can infer execution from the codebase (output files exist, run logs/configs present, results directories)
-- Pipeline runs are submitted in a separate `pipeline_runs` parameter (not in the entities list)
-- Each run must have `pipeline_name` set to the name of its parent pipeline (either created in the same submission or an existing entity)
+**CRITICAL**: Every pipeline run MUST have BOTH input AND output edges. For each run, identify ALL inputs (data sources, datasets, models) and ALL outputs (data sources, datasets, models). Missing pipeline run edges breaks data flow tracking.
 
-**Example**:
-- Pipeline entity: edges from [dataset_A, dataset_B, model_X, model_Y] (all possible inputs)
-- Pipeline run 1: edges from [dataset_A, model_X] → run → edges to [output_dataset_1]
-- Pipeline run 2: edges from [dataset_B, model_Y] → run → edges to [output_dataset_2]
-
-**Implementation Notes**:
-- Create pipeline entity first, or reference existing one with `entity_id` to add implementation
-- Submit pipeline runs in the `pipeline_runs` parameter with `pipeline_name` referencing the parent pipeline
-- Use `node_type: "pipeline_run"` in edges involving runs
-- All entities, pipeline_runs, and edges are submitted together in one tool call
+**When to Create**: Identify runs from codebase (output files exist, run logs/configs present, results directories). Submit in Phase 2 after Phase 1, with `pipeline_id` (UUID) from entity graph. Create edges in Phase 3 using `node_type: "pipeline_run"`.
 
 ---
 
@@ -190,26 +272,28 @@ DON'T MESS WITH THE EDGES TO OR FROM ANALYSES!
 
 **Definition**: ML models, rule-based models, optimization models, etc.
 
+**Structure**:
+- **Model**: Type/architecture (e.g., "xgboost", "resnet50", "TimeMixer")
+- **Model Instantiation**: Configured/fitted instance (e.g., "xgboost fitted on data X")
+- One model can have multiple instantiations (different training data, hyperparameters, etc.)
+
 **What to Identify**:
-- All models in the codebase (ML models, rule-based models, optimization models)
-- Model type, architecture, and purpose
-- Where models are defined (code files) and where weights are stored (data files)
+- All model types and their instantiations
+- Model type, architecture, purpose
+- Where models are defined (code files) and weights stored (data files)
 - Include paths to model definition files and weight files
+- Note: Model weight files are NOT data sources - do not create data source entities for them
 
-**Key Distinction**:
-- **Models**: The model artifact itself
-- **Pipelines**: Where models are used to process data
+**Submission**: Use `models_to_create` (NOT `entities_to_create`). Each `ModelToCreate` has:
+- `name`: Model type name (e.g., "xgboost")
+- `description`: Model type description
+- `instantiations_to_create`: List of instantiations with `name` and `description`
 
-**Relationships**:
-- Models can be **inputs** to pipelines (used in pipeline code)
-- Models can be **outputs** of pipelines (fitted models saved after training)
+System creates one model entity per `ModelToCreate`, then all instantiations. Specialized agent handles implementation details.
 
-**NB**:
-- The graph must be completely one-to-one with the codebase—NO DUPLICATE ENTITIES
-- You WILL get errors if you try to create entities that already exist in the graph! 
-- ADD EDGES IF THE CURRENT ENTITIES ARE OK BUT NOT CONNECTED
-- If an entity already exists in the graph, reference it with `entity_id` instead of creating a new one
-- To add an implementation to an existing model entity, include the model entity ID as the `entity_id` field
+**Relationships**: Models can be inputs to pipelines. Model instantiations can be outputs of pipelines (fitted models saved after training).
+
+**Duplicate Prevention**: Always check existing graph first. If entity exists (same name and type), skip it - do not include in `entities_to_create` or `models_to_create`. Use `entities_to_update` with `entity_id` to update existing entities.
 """
 
 

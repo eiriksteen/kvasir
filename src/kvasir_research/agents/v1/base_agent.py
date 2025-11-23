@@ -1,10 +1,9 @@
-from abc import ABC, abstractmethod
 from uuid import UUID
-from typing import Literal, Optional, List, AsyncGenerator, Tuple, TypeVar, Generic, Any
+from typing import Literal, Optional, List, AsyncGenerator, Tuple, TypeVar, Generic, Any, Union, Set
 from typing_extensions import Self
-from pydantic import BaseModel, ValidationError, TypeAdapter
-from dataclasses import dataclass, fields
-from collections import OrderedDict
+from abc import ABC, abstractmethod
+from pydantic import ValidationError, TypeAdapter
+from dataclasses import dataclass, field
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai import Agent
 
@@ -13,6 +12,7 @@ from kvasir_research.sandbox.local import LocalSandbox
 from kvasir_research.sandbox.modal import ModalSandbox
 from kvasir_ontology.ontology import Ontology
 from kvasir_research.sandbox.abstract import AbstractSandbox
+from kvasir_research.agents.v1.data_model import Context
 
 TDeps = TypeVar('TDeps', bound='AgentDeps')
 TOutput = TypeVar('TOutput')
@@ -30,19 +30,10 @@ class AgentDeps:
     ontology: Optional[Ontology] = None
     run_name: Optional[str] = None
     run_id: Optional[UUID] = None
+    max_entities_in_context: int = 10
+    entities_in_context: Set[UUID] = field(default_factory=set)
 
     def __post_init__(self):
-        if self.sandbox is None:
-            if self.sandbox_type == "local":
-                self.sandbox = LocalSandbox(self.project_id, self.package_name)
-            elif self.sandbox_type == "modal":
-                self.sandbox = ModalSandbox(self.project_id, self.package_name)
-            else:
-                raise ValueError(f"Invalid sandbox type: {self.sandbox_type}")
-        if self.ontology is None:
-            self.ontology = self.callbacks.create_ontology(
-                self.user_id, self.project_id, self.bearer_token)
-
         if isinstance(self.user_id, str):
             self.user_id = UUID(self.user_id)
         if isinstance(self.project_id, str):
@@ -50,37 +41,33 @@ class AgentDeps:
         if self.run_id and isinstance(self.run_id, str):
             self.run_id = UUID(self.run_id)
 
-    @staticmethod
-    def _convert_uuid_list(items: List) -> List[UUID]:
-        return [UUID(item) if isinstance(item, str) else item for item in items]
+        if self.sandbox is None:
+            if self.sandbox_type == "local":
+                self.sandbox = LocalSandbox(self.project_id, self.package_name)
+            elif self.sandbox_type == "modal":
+                self.sandbox = ModalSandbox(self.project_id, self.package_name)
+            else:
+                raise ValueError(f"Invalid sandbox type: {self.sandbox_type}")
 
-    def _get_non_serializable_fields(self) -> set:
-        return {"sandbox", "ontology", "callbacks", "bearer_token"}
+        if self.ontology is None:
+            self.ontology = self.callbacks.create_ontology(
+                self.user_id, self.project_id, self.bearer_token)
 
-    def _convert_ordered_dict_to_dict(self, obj: Any) -> Any:
-        if isinstance(obj, OrderedDict):
-            return {k: self._convert_ordered_dict_to_dict(v) for k, v in obj.items()}
-        elif isinstance(obj, dict):
-            return {k: self._convert_ordered_dict_to_dict(v) for k, v in obj.items()}
-        elif isinstance(obj, (list, tuple)):
-            return [self._convert_ordered_dict_to_dict(item) for item in obj]
-        else:
-            return obj
+        if isinstance(self.entities_in_context, list):
+            self.entities_in_context = set(self.entities_in_context)
 
     def to_dict(self) -> dict:
-        non_serializable = self._get_non_serializable_fields()
-        deps_dict = {}
-        for field in fields(self):
-            field_name = field.name
-            if field_name not in non_serializable:
-                value = getattr(self, field_name)
-                deps_dict[field_name] = self._convert_ordered_dict_to_dict(
-                    value)
-        return deps_dict
-
-
-class BaseAgentOutput(BaseModel):
-    response: str
+        return {
+            "user_id": str(self.user_id),
+            "project_id": str(self.project_id),
+            "package_name": self.package_name,
+            "sandbox_type": self.sandbox_type,
+            "run_name": self.run_name,
+            "run_id": str(self.run_id) if self.run_id else None,
+            "max_entities_in_context": self.max_entities_in_context,
+            "entities_in_context": [str(entity_id) for entity_id in list(self.entities_in_context)]
+            # We exclude bearer_token, sandbox, and ontology
+        }
 
 
 class AgentV1(ABC, Generic[TDeps, TOutput]):
@@ -91,48 +78,92 @@ class AgentV1(ABC, Generic[TDeps, TOutput]):
         self.agent = agent
         self.message_history: Optional[List[ModelMessage]] = None
 
-    @abstractmethod
-    async def __call__(self, prompt: str) -> TOutput:
-        pass
+    async def __call__(
+            self,
+            prompt: str,
+            context: Optional[Context] = None,
+            describe_folder_structure: bool = True,
+            include_positions: bool = False) -> TOutput:
 
-    @abstractmethod
-    async def _setup_run(self) -> UUID:
-        pass
-
-    async def _run_agent(self, prompt: str) -> TOutput:
-        response = await self.agent.run(
-            prompt,
-            deps=self.deps,
-            message_history=self.message_history
-        )
+        await self._setup_run()
+        prompt = await self._setup_context(prompt, context, describe_folder_structure, include_positions)
+        run = await self.agent.run(prompt, deps=self.deps, message_history=self.message_history)
 
         if self.message_history is None:
-            self.message_history = response.all_messages()
+            self.message_history = run.all_messages()
         else:
-            self.message_history += response.new_messages()
+            self.message_history += run.new_messages()
 
-        return response.output
+        await self.finish_run(f"Agent run [{self.deps.run_name or self.deps.run_id}] completed")
+        return run.output
 
-    async def _run_agent_streaming(self, prompt: str) -> AsyncGenerator[Tuple[TOutput, bool], None]:
-        async with self.agent.run_stream(
-            prompt,
-            deps=self.deps,
-            message_history=self.message_history
-        ) as run:
-            async for message, last in run.stream_responses(debounce_by=0.01):
-                try:
-                    output = await run.validate_response_output(
-                        message,
-                        allow_partial=not last
-                    )
-                    yield output, last
-                except ValidationError:
-                    continue
+    async def run_agent_streaming(
+            self,
+            prompt: str,
+            context: Optional[Context] = None,
+            describe_folder_structure: bool = True,
+            include_positions: bool = False) -> AsyncGenerator[Tuple[TOutput, bool], None]:
+
+        await self._setup_run()
+        prompt = await self._setup_context(prompt, context, describe_folder_structure, include_positions)
+
+        try:
+            async with self.agent.run_stream(
+                prompt,
+                deps=self.deps,
+                message_history=self.message_history
+            ) as run:
+                async for message, last in run.stream_responses(debounce_by=0.01):
+                    try:
+                        output = await run.validate_response_output(
+                            message,
+                            allow_partial=not last
+                        )
+                        yield output, last
+                    except ValidationError:
+                        continue
 
             if self.message_history is None:
                 self.message_history = run.all_messages()
             else:
                 self.message_history += run.new_messages()
+
+            await self.finish_run(f"Agent run [{self.deps.run_name or self.deps.run_id}] completed")
+        except Exception as e:
+            await self.fail_run_if_exists(f"Error running agent [{self.deps.run_name or self.deps.run_id}]: {e}")
+            raise e
+
+    async def run_agent_text_stream(
+            self,
+            prompt: str,
+            context: Optional[Context] = None,
+            describe_folder_structure: bool = True,
+            include_positions: bool = False) -> AsyncGenerator[str, None]:
+
+        await self._setup_run()
+        prompt = await self._setup_context(prompt, context, describe_folder_structure, include_positions)
+
+        try:
+            async with self.agent.run_stream(
+                prompt,
+                deps=self.deps,
+                message_history=self.message_history
+            ) as run:
+                prev_text = ""
+                async for output_text in run.stream_output(debounce_by=0.01):
+                    if output_text != prev_text:
+                        yield output_text
+                        prev_text = output_text
+
+            if self.message_history is None:
+                self.message_history = run.all_messages()
+            else:
+                self.message_history += run.new_messages()
+
+            await self.finish_run(f"Agent run [{self.deps.run_name or self.deps.run_id}] completed")
+        except Exception as e:
+            await self.fail_run_if_exists(f"Error running agent [{self.deps.run_name or self.deps.run_id}]: {e}")
+            raise e
 
     async def finish_run(self, success_message: Optional[str] = None):
         assert self.deps.run_id is not None, "Run ID must be set before finishing run."
@@ -149,18 +180,56 @@ class AgentV1(ABC, Generic[TDeps, TOutput]):
             await self.deps.callbacks.save_message_history(self.deps.user_id, self.deps.run_id, self.message_history)
             await self.save_deps()
 
+    async def save_deps(self):
+        assert self.deps.run_id is not None, "Run ID must be set before saving deps."
+        deps_dict = self.deps.to_dict()
+        jsonable_dict = TypeAdapter(Any).dump_python(deps_dict, mode='json')
+
+        await self.deps.callbacks.save_deps(self.deps.user_id, self.deps.run_id, jsonable_dict)
+
+    async def _setup_context(
+            self,
+            prompt: str,
+            context: Optional[Context] = None,
+            describe_folder_structure: bool = True,
+            include_positions: bool = False) -> str:
+
+        project_description = await self.deps.ontology.describe_mount_group(include_positions=include_positions)
+        prompt = f"{prompt}\n\n<project_description>\n\n{project_description}\n\n</project_description>"
+
+        if describe_folder_structure:
+            folder_structure = await self.deps.sandbox.get_folder_structure()
+            prompt = f"{prompt}\n\n<folder_structure>\n\n{folder_structure}\n\n</folder_structure>"
+
+        if context:
+            new_entities = set(context.data_sources) | set(context.datasets) | set(
+                context.analyses) | set(context.pipelines) | set(context.models)
+
+            if len(self.deps.entities_in_context | new_entities) > self.deps.max_entities_in_context:
+                if len(new_entities) <= self.deps.max_entities_in_context:
+                    # Override existing ones in this case, as the user preferences are prioritized
+                    self.deps.entities_in_context = new_entities
+                else:
+                    raise ValueError(
+                        f"Max entities in context reached: {len(new_entities)} > {self.deps.max_entities_in_context}")
+            else:
+                self.deps.entities_in_context.update(new_entities)
+
+            context_desc = await self.deps.ontology.describe_entities(list(self.deps.entities_in_context))
+            prompt = f"{prompt}\n\n<entity_context>\n\n{context_desc}\n\n</entity_context>"
+
+        return prompt
+
+    @abstractmethod
+    async def _setup_run(self) -> UUID:
+        pass
+
     @classmethod
     async def from_run(cls, user_id: UUID, run_id: UUID, callbacks: KvasirV1Callbacks, bearer_token: Optional[str] = None) -> Self:
         deps = await cls.load_deps(user_id, run_id, callbacks, bearer_token)
         agent = cls(deps)
         agent.message_history = await callbacks.get_message_history(user_id, run_id)
         return agent
-
-    async def save_deps(self):
-        assert self.deps.run_id is not None, "Run ID must be set before saving deps."
-        deps_dict = self.deps.to_dict()
-        jsonable_dict = TypeAdapter(Any).dump_python(deps_dict, mode='json')
-        await self.deps.callbacks.save_deps(self.deps.user_id, self.deps.run_id, jsonable_dict)
 
     @classmethod
     async def load_deps(cls, user_id: UUID, run_id: UUID, callbacks: KvasirV1Callbacks, bearer_token: Optional[str] = None):

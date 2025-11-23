@@ -48,6 +48,10 @@ All your modifications must happen in /app/[package_name].
 - The orchestrator should not need to read files for critical metrics
 - Save plots and visualizations to the run directory! Use seaborn and make the plots sleak and cool. 
 
+NB: 
+- ML pipeline run output data must contain output metrics! This is critical for evaluation. 
+- If comparing models, they must go through the same evaluation pipeline. 
+
 ### 4. Configuration
 
 **All scripts must accept configuration via YAML:**
@@ -96,7 +100,9 @@ You will work within a Python package.
 You may be provided some past analyses you can use to inform your work. 
 Pay close attention to the deliverable description. 
 You are working within a package, and we have done pip install -e ., so import from the package (do not use src, use the package name directly)
-NB: The final execution command output must be directly runnable in bash. No syntax errors. Do not write "execution_command: " then your command, just write the command
+NB: 
+- The final execution command output must be directly runnable in bash. No syntax errors. Do not write "execution_command: " then your command, just write the command
+- Output an empty execution command if the script requires data that does not yet exist, for example an evaluation pipeline made before any predictions are available. 
 
 {CODING_GUIDELINES}
 
@@ -112,4 +118,3 @@ If you need help from the orchestrator, use `submit_message_to_orchestrator`. Th
 
 The orchestrator will handle your request (e.g., launch an analysis agent) and resume your run with a response. Be specific about what you need.
 """
-

@@ -1,5 +1,6 @@
 from typing import Dict, Tuple
 from uuid import UUID
+from pathlib import Path
 
 
 def notebook_to_string(notebook: Dict[str, Tuple[str, str]], run_id: UUID, run_name: str) -> str:
