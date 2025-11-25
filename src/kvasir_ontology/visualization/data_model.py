@@ -1,7 +1,7 @@
 from uuid import UUID
 from datetime import datetime
 from pydantic import BaseModel
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Literal, List, Union, Optional, Any, Dict
 
 
@@ -54,13 +54,14 @@ class TableCreate(BaseModel):
 class XAxisSmall(BaseModel):
     """Simplified X-axis - only essential fields"""
     type: str  # "category", "value", "time", "log"
-    data: Optional[List[Union[str, float, int, datetime]]] = None
+    data: List[Union[str, float, int, datetime]]
     name: Optional[str] = None
 
 
 class YAxisSmall(BaseModel):
     """Simplified Y-axis - only essential fields"""
     type: str  # "category", "value", "time", "log"
+    data: List[Union[str, float, int, datetime]]
     name: Optional[str] = None
 
 
@@ -167,7 +168,7 @@ class EChartsOptionSmall(BaseModel):
 
 class XAxis(BaseModel):
     type: Literal["category", "value", "time", "log"]
-    data: Optional[List[Union[str, float, int, datetime]]] = None
+    data: List[Union[str, float, int, datetime]]
     name: Optional[str] = None
     nameLocation: Optional[Literal["start", "middle", "end"]] = None
     nameGap: Optional[int] = None
@@ -186,10 +187,12 @@ class XAxis(BaseModel):
 
 class YAxis(BaseModel):
     type: Literal["category", "value", "time", "log"]
+    data: List[Union[str, float, int, datetime]]
     name: Optional[str] = None
     nameLocation: Optional[Literal["start", "middle", "end"]] = None
     nameGap: Optional[int] = None
     nameTextStyle: Optional[Dict[str, Any]] = None
+    boundaryGap: Optional[Union[bool, List[str]]] = None
     min: Optional[Union[float, int, Literal["dataMin"]]] = None
     max: Optional[Union[float, int, Literal["dataMax"]]] = None
     splitLine: Optional[Dict[str, Any]] = None
@@ -441,6 +444,51 @@ class EChartsOption(BaseModel):
         default_factory=lambda: Tooltip(show=True, trigger="axis"))
     grid: Optional[Grid] = Field(
         default_factory=lambda: Grid(containLabel=True))
+
+    @model_validator(mode='after')
+    def validate_heatmap_boundary_gap(self) -> 'EChartsOption':
+        """
+        ECharts requires that heatmaps on cartesian coordinate systems
+        must have boundaryGap: true on both xAxis and yAxis.
+        """
+        has_heatmap = any(s.type == "heatmap" for s in self.series)
+
+        if not has_heatmap:
+            return self
+
+        updated_x_axis = self.xAxis
+        if self.xAxis is not None:
+            x_axes = self.xAxis if isinstance(
+                self.xAxis, list) else [self.xAxis]
+            updated_x_axes = []
+            for axis in x_axes:
+                if axis.boundaryGap is not True:
+                    updated_x_axes.append(axis.model_copy(
+                        update={"boundaryGap": True}))
+                else:
+                    updated_x_axes.append(axis)
+            updated_x_axis = updated_x_axes if isinstance(
+                self.xAxis, list) else updated_x_axes[0]
+
+        updated_y_axis = self.yAxis
+        if self.yAxis is not None:
+            y_axes = self.yAxis if isinstance(
+                self.yAxis, list) else [self.yAxis]
+            updated_y_axes = []
+            for axis in y_axes:
+                if axis.boundaryGap is not True:
+                    updated_y_axes.append(axis.model_copy(
+                        update={"boundaryGap": True}))
+                else:
+                    updated_y_axes.append(axis)
+            updated_y_axis = updated_y_axes if isinstance(
+                self.yAxis, list) else updated_y_axes[0]
+
+        if updated_x_axis != self.xAxis or updated_y_axis != self.yAxis:
+            object.__setattr__(self, 'xAxis', updated_x_axis)
+            object.__setattr__(self, 'yAxis', updated_y_axis)
+
+        return self
 
     class Config:
         extra = "allow"

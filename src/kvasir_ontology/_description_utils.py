@@ -467,6 +467,24 @@ async def get_pipeline_run_description(
             result.extend(_format_complex_field(
                 'output_variables', output_str, "  ", "    "))
 
+    if pipeline_run.execution_command:
+        result.append("")
+        if _is_simple_value(pipeline_run.execution_command):
+            result.append(_format_simple_field(
+                'execution_command', pipeline_run.execution_command, "  "))
+        else:
+            result.extend(_format_complex_field(
+                'execution_command', pipeline_run.execution_command, "  ", "    "))
+
+    if pipeline_run.terminal_output:
+        result.append("")
+        if _is_simple_value(pipeline_run.terminal_output):
+            result.append(_format_simple_field(
+                'terminal_output', pipeline_run.terminal_output, "  "))
+        else:
+            result.extend(_format_complex_field(
+                'terminal_output', pipeline_run.terminal_output, "  ", "    "))
+
     if show_pipeline_description:
         result.append("")
         result.append("  <pipeline>")

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel
 from typing import Optional, Literal, List
 from datetime import datetime
 from uuid import UUID
@@ -39,6 +39,8 @@ class PipelineRunBase(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     status: PIPELINE_RUN_STATUS_LITERAL
+    execution_command: Optional[str] = None
+    terminal_output: Optional[str] = None
     start_time: datetime
     end_time: Optional[datetime] = None
     created_at: datetime
@@ -74,6 +76,8 @@ class PipelineRunCreate(BaseModel):
     output_variables: dict = {}
     description: Optional[str] = None
     status: PIPELINE_RUN_STATUS_LITERAL = "running"
+    execution_command: Optional[str] = None
+    terminal_output: Optional[str] = None
 
 
 class PipelineCreate(BaseModel):

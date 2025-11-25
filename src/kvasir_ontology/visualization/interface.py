@@ -1,5 +1,5 @@
 from uuid import UUID
-from typing import List
+from typing import List, Optional
 from abc import ABC, abstractmethod
 
 from kvasir_ontology.visualization.data_model import ImageBase, EchartBase, TableBase, ImageCreate, EchartCreate, TableCreate, EChartsOption
@@ -67,5 +67,5 @@ class VisualizationInterface(ABC):
         pass
 
     @abstractmethod
-    async def download_echart(self, echart_id: UUID, mount_group_id: UUID) -> bytes:
+    async def download_echart(self, echart_id: UUID, mount_group_id: UUID, original_object_id: Optional[str] = None) -> EChartsOption:
         pass
