@@ -193,11 +193,12 @@ export const useRuns = (projectId: UUID) => {
     (_: unknown, {next}: SWRSubscriptionOptions<RunBase[]>) => {
       const eventSource = createIncompleteRunsEventSource(session ? session.APIToken.accessToken : "", projectId);
 
-      eventSource.onmessage = (ev: MessageEvent) => {
+      eventSource.onmessage = (ev: Event & { data?: string }) => {
+        if (!ev.data) return;
         const streamedRuns = snakeToCamelKeys(JSON.parse(ev.data));
         next(null, async () => {
 
-          await mutateRuns((currentRuns: RunBase[]) => {
+          await mutateRuns((currentRuns: RunBase[] | undefined) => {
             if (!currentRuns) {
               return streamedRuns;
             }
@@ -286,11 +287,12 @@ export const useRunMessages = (runId: UUID | null, projectId: UUID) => {
 
       const eventSource = createRunMessagesEventSource(session!.APIToken.accessToken, runId);
 
-      eventSource.onmessage = (ev: MessageEvent) => {
+      eventSource.onmessage = (ev: Event & { data?: string }) => {
+        if (!ev.data) return;
         const streamedMessage: Message = snakeToCamelKeys(JSON.parse(ev.data));
         
         next(null, () => {
-          mutateRunMessages((current: Message[]) => {
+          mutateRunMessages((current: Message[] | undefined) => {
 
             if (!current) return [streamedMessage];
             
@@ -316,12 +318,19 @@ export const useRunMessages = (runId: UUID | null, projectId: UUID) => {
   return { runMessages: runMessages || [], mutateRunMessages };
 };
 
-export const useKvasirRuns = (projectId: UUID) => {
+
+export const useKvasirRuns = (projectId: UUID, kvasirRunId?: UUID) => {
   const { runs, triggerLaunchRun } = useRuns(projectId)
 
   const kvasirRuns = useMemo(() => {
-    return runs.filter((run: RunBase) => run.type === "kvasir")
-  }, [runs])
+    const kvasirRunsFiltered = runs.filter((run: RunBase) => run.type === "kvasir")
+    if (kvasirRunId) {
+      return kvasirRunsFiltered.filter((run: RunBase) => run.id === kvasirRunId)
+    }
+    else {
+      return kvasirRunsFiltered;
+    }
+  }, [runs, kvasirRunId])
 
   return { kvasirRuns, triggerLaunchRun }
 }
@@ -331,7 +340,7 @@ export const useAnalysisRuns = (projectId: UUID, analysisID?: UUID, kvasirRunId?
   const { runs, triggerLaunchRun } = useRuns(projectId)
 
   const analysisRuns = useMemo(() => {
-    const analysisRunsFiltered = runs.filter((run: RunBase) => run.type === "analysis")
+    const analysisRunsFiltered = runs.filter((run: RunBase): run is AnalysisRun => run.type === "analysis")
     if (analysisID) {
       return analysisRunsFiltered.filter((run: AnalysisRun) => run.analysisId === analysisID)
     } 
@@ -351,7 +360,7 @@ export const useSWERuns = (projectId: UUID, kvasirRunId?: UUID) => {
   const { runs, triggerLaunchRun } = useRuns(projectId)
 
   const sweRuns = useMemo(() => {
-    const sweRunsFiltered = runs.filter((run: RunBase) => run.type === "swe")
+    const sweRunsFiltered = runs.filter((run: RunBase): run is SweRun => run.type === "swe")
     if (kvasirRunId) {
       return sweRunsFiltered.filter((run: SweRun) => run.kvasirRunId === kvasirRunId)
     }
@@ -363,6 +372,28 @@ export const useSWERuns = (projectId: UUID, kvasirRunId?: UUID) => {
   return { sweRuns, triggerLaunchRun };
 }
 
+
+export const useKvasirChildRuns = (projectId: UUID, kvasirRunId?: UUID) => {
+  const { runs, triggerLaunchRun } = useRuns(projectId)
+
+  const childRuns = useMemo(() => {
+    if (!kvasirRunId) {
+      return [];
+    }
+    // Filter for analysis and swe runs that belong to the given kvasirRunId
+    return runs.filter((run: RunBase): run is AnalysisRun | SweRun => {
+      if (run.type === "analysis") {
+        return (run as AnalysisRun).kvasirRunId === kvasirRunId;
+      }
+      if (run.type === "swe") {
+        return (run as SweRun).kvasirRunId === kvasirRunId;
+      }
+      return false;
+    });
+  }, [runs, kvasirRunId])
+
+  return { childRuns, triggerLaunchRun }
+}
 
 export const useRun = (projectId: UUID, runId: UUID) => {
   const { runs, triggerLaunchRun, triggerRejectRun } = useRuns(projectId)

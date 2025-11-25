@@ -65,8 +65,6 @@ export const useAnalysis = (projectId: UUID, analysisId: UUID) => {
     () => fetchAnalysis(session!.APIToken.accessToken, analysisId!)
   );  
 
-  console.log("analysis", analysis);
-
   const { analysisRuns } = useAnalysisRuns(projectId, analysisId);
 
   const runningID = useMemo(() => {

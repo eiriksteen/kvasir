@@ -6,7 +6,7 @@ import { UUID } from "crypto";
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
 import { v4 as uuidv4 } from 'uuid';
 import { useAgentContext } from "@/hooks/useAgentContext";
-import { useRunMessages } from "@/hooks/useRuns";
+import { useKvasirChildRuns, useRunMessages } from "@/hooks/useRuns";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -55,6 +55,7 @@ export const useKvasirV1 = (projectId: UUID) => {
   const { data: agentRunId, mutate: setAgentRunId } = useSWR(session ? ["agent-run-id", projectId] : null, {fallbackData: null});
   const { runMessages, mutateRunMessages } = useRunMessages(agentRunId, projectId);
   const { dataSourcesInContext, datasetsInContext, pipelinesInContext, analysesInContext, modelsInstantiatedInContext } = useAgentContext(projectId);
+  const { childRuns } = useKvasirChildRuns(projectId, agentRunId);
 
   const run = useMemo(() => {
     return null; // Will need to fetch run by ID if needed
@@ -117,7 +118,7 @@ export const useKvasirV1 = (projectId: UUID) => {
     datasetsInContext,
     pipelinesInContext,
     analysesInContext,
-    modelsInstantiatedInContext,
+    modelsInstantiatedInContext
   ]);
 
   return { 
@@ -125,6 +126,7 @@ export const useKvasirV1 = (projectId: UUID) => {
     runMessages, 
     submitPrompt,
     projectRunId: agentRunId,
-    setAgentRunId
+    setAgentRunId,
+    childRuns,
   };
 }; 

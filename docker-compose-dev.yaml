@@ -71,7 +71,7 @@ services:
           path: ./client/next.config.js
         - action: sync
           path: ./client
-          target: /app/client
+          target: /app
 
     # # These two anonymous volumes prevent host node_modules/.next from overwriting container ones
     # volumes:

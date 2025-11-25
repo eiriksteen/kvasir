@@ -44,9 +44,8 @@ async def start_swe_run_from_orchestrator(
     swe_run_result = await swe_agent(prompt, context=context)
     pipeline_desc = await swe_deps.ontology.describe_entity(swe_deps.pipeline_id, "pipeline", include_connections=False)
 
-    if not await callbacks.get_run_status(swe_deps.user_id, swe_deps.kvasir_run_id) == "running":
-        kvasir_v1 = await KvasirV1.from_run(swe_deps.user_id, swe_deps.kvasir_run_id, callbacks)
-        await kvasir_v1(f"SWE run {swe_deps.run_id} completed. The result pipeline is:\n\n{pipeline_desc}")
+    kvasir_v1 = await KvasirV1.from_run(swe_deps.user_id, swe_deps.kvasir_run_id, callbacks)
+    await kvasir_v1.provide_run_result(pipeline_desc, swe_deps.run_id)
 
     return swe_run_result
 
@@ -73,7 +72,7 @@ async def resume_swe_run_from_orchestrator(
 
     if not await callbacks.get_run_status(user_id, kvasir_run_id) == "running":
         kvasir_v1 = await KvasirV1.from_run(user_id, kvasir_run_id, callbacks)
-        await kvasir_v1(f"SWE run {swe_run_id} completed. The updated pipeline is:\n\n{pipeline_desc}")
+        await kvasir_v1.provide_run_result(pipeline_desc, swe_run_id)
 
     return swe_run_result
 
@@ -95,9 +94,8 @@ async def start_analysis_run_from_orchestrator(
     analysis_run_result = await analysis_agent(prompt, context=context)
     analysis_desc = await analysis_deps.ontology.describe_entity(analysis_deps.analysis_id, "analysis", include_connections=False)
 
-    if not await callbacks.get_run_status(analysis_deps.user_id, kvasir_run_id) == "running":
-        kvasir_v1 = await KvasirV1.from_run(analysis_deps.user_id, kvasir_run_id, callbacks)
-        await kvasir_v1(f"Analysis run {analysis_deps.run_id} completed. The result analysis is:\n\n{analysis_desc}")
+    kvasir_v1 = await KvasirV1.from_run(analysis_deps.user_id, kvasir_run_id, callbacks)
+    await kvasir_v1.provide_run_result(analysis_desc, analysis_deps.run_id)
 
     return analysis_run_result
 
@@ -122,9 +120,8 @@ async def resume_analysis_run_from_orchestrator(
     analysis_run_result = await analysis_agent(message, context=context)
     analysis_desc = await analysis_agent.deps.ontology.describe_entity(analysis_agent.deps.analysis_id, "analysis", include_connections=False)
 
-    if not await callbacks.get_run_status(user_id, kvasir_run_id) == "running":
-        kvasir_v1 = await KvasirV1.from_run(user_id, kvasir_run_id, callbacks)
-        await kvasir_v1(f"Analysis run {analysis_agent.deps.run_id} completed. The result analysis is:\n\n{analysis_desc}")
+    kvasir_v1 = await KvasirV1.from_run(user_id, kvasir_run_id, callbacks)
+    await kvasir_v1.provide_run_result(analysis_desc, analysis_agent.deps.run_id)
 
     return analysis_run_result
 
@@ -284,6 +281,7 @@ class KvasirV1(AgentV1[KvasirV1Deps, str]):
             )
         )
 
+        prompt = f"<user_prompt>\n\n{prompt}\n\n</user_prompt>"
         output_id = uuid4()
         async for response in super().run_agent_text_stream(prompt, context, describe_folder_structure=True):
             yield Message(
@@ -310,3 +308,14 @@ class KvasirV1(AgentV1[KvasirV1Deps, str]):
         async for response in self.run_agent_text_stream(prompt, context):
             yield response, False
         yield response, True
+
+    async def provide_run_result(self, result: str, run_id: UUID) -> None:
+        prompt = f"<agent_update>\n\nThe agent of run {run_id} just finished a run. Based on the result, send a summarizing message to the user, and take any actions that are necessary. The result is:\n\n{result}\n\n</agent_update>"
+        response = await super().__call__(prompt)
+
+        await self.deps.callbacks.create_message(self.deps.user_id, MessageCreate(
+            run_id=self.deps.run_id,
+            content=response,
+            role="kvasir",
+            type="chat"
+        ))

@@ -3,10 +3,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Send, Plus, History, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { useOntology, useKvasirV1 } from '@/hooks';
-import { useKvasirRuns } from '@/hooks/useRuns';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { ChatHistory } from '@/app/projects/[projectId]/_components/chat/ChatHistory';
-import { Message, RunBase } from '@/types/kvasirv1';
+import { Message, SweRun, AnalysisRun } from '@/types/kvasirv1';
 import { UUID } from 'crypto';
 import RunBox from '@/components/runs/RunBox';
 import ChatMessageBox from '@/app/projects/[projectId]/_components/chat/ChatMessageBox';
@@ -25,8 +24,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
   const [showChatHistory, setShowChatHistory] = useState(false);
   const [showAllContext, setShowAllContext] = useState(false);
 
-  const { submitPrompt, runMessages, setAgentRunId, projectRunId } = useKvasirV1(projectId);
-
+  const { submitPrompt, runMessages, setAgentRunId, projectRunId, childRuns } = useKvasirV1(projectId);
   const { 
     dataSourcesInContext, 
     removeDataSourceFromContext, 
@@ -42,8 +40,6 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
 
   // Get the actual objects to display names
   const { dataSources, datasets, pipelines, modelsInstantiated, analyses } = useOntology(projectId);
-
-  const { kvasirRuns } = useKvasirRuns(projectId);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -71,7 +67,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [runMessages, kvasirRuns]);
+  }, [runMessages, childRuns]);
 
   
   useEffect(() => {
@@ -333,7 +329,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
         item: message,
         createdAt: message.createdAt
       })),
-      ...kvasirRuns.filter((run: RunBase) => run.type !== 'kvasir').map((run: RunBase) => ({
+      ...childRuns.map((run: SweRun | AnalysisRun) => ({
         type: 'run' as const,
         item: run,
         createdAt: run.startedAt
@@ -357,8 +353,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
           <RunBox 
             key={`run-${timelineItem.item.id}`} 
             runId={timelineItem.item.id} 
-            projectId={projectId} 
-            onRunCompleteOrFail={handleRunCompleteOrFail}
+            projectId={projectId}
           />
         );
       }
@@ -423,7 +418,7 @@ export default function Chatbot({ projectId }: { projectId: UUID }) {
             className="flex-1 overflow-y-auto px-3 py-3 pb-24 scrollbar-thin scrollbar-thumb-gray-700"
             style={{ scrollBehavior: 'smooth' }}
           >
-            {runMessages.length === 0 && kvasirRuns.length === 0 && (
+            {runMessages.length === 0 && childRuns.length === 0 && (
               <div className="flex h-full items-center justify-center text-zinc-500">
                 <div className="text-center">
                   <p className="mb-2">

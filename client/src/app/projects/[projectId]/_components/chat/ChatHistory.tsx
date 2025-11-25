@@ -4,7 +4,7 @@ import { MessageSquare } from 'lucide-react';
 import { useProject } from '@/hooks/useProject';
 import { useKvasirRuns } from '@/hooks/useRuns';
 import { UUID } from 'crypto';
-import { RunBase } from '@/types/kvasirV1';
+import { RunBase } from '@/types/kvasirv1';
 
 interface ChatHistoryProps {
   onClose: () => void;
@@ -17,6 +17,7 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
 }) => {
 
   const { kvasirRuns } = useKvasirRuns(projectId);
+  
   const { 
     projectRunId,
     setAgentRunId

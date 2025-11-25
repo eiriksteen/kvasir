@@ -58,7 +58,7 @@ async def create_code_cell(
     _validate_section_exists(ctx, section_id)
     _validate_cell_order(ctx, section_id, order)
 
-    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Creating code cell in section {section_id} {code}", "tool_call")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Creating code cell in section {section_id} {len(code)} characters", "tool_call")
 
     past_code = _extract_code_from_previous_cells(
         ctx.deps.analysis, remove_print_statements=True)
@@ -111,7 +111,7 @@ async def create_markdown_cell(
     _validate_section_exists(ctx, section_id)
     _validate_cell_order(ctx, section_id, order)
 
-    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Creating markdown cell in section {section_id} {content}", "tool_call")
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Creating markdown cell in section {section_id} {len(content)} characters", "tool_call")
 
     analysis_cell = await ctx.deps.ontology.analyses.create_markdown_cell(MarkdownCellCreate(
         section_id=section_id,
@@ -275,8 +275,6 @@ def _validate_paths(paths: List[str | Path]):
         path = Path(path)
         if path.name.startswith("%"):
             raise ModelRetry(f"Path {path} is not valid. It starts with %")
-        elif not path.is_absolute():
-            raise ModelRetry(f"Path {path} is not absolute")
 
 
 def _validate_section_exists(ctx: RunContext[AnalysisDeps], section_id: uuid.UUID) -> None:

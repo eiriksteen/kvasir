@@ -19,7 +19,7 @@ export { useModelsInstantiated, useModelInstantiated } from '@/hooks/useModelsIn
 export { useAnalysis } from '@/hooks/useAnalysis';
 
 // Runs and orchestration
-export { useRuns, useRun, useKvasirRuns, useRunMessages } from '@/hooks/useRuns';
+export { useRuns, useRun, useKvasirChildRuns as useKvasirRuns, useRunMessages } from '@/hooks/useRuns';
 export { useConversations } from '@/hooks/useConversations';
 export { useAgentContext } from '@/hooks/useAgentContext';
 export { useKvasirV1 } from '@/hooks/useKvasirV1';
