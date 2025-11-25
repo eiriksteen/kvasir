@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kvasir-ontology"
+version = "0.1.0"
+description = "Kvasir Ontology"
+authors = [
+    { name = "Eirik Drage Steen", email = "eirik.drage.steen@gmail.com" }
+]
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "pydantic"
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["kvasir_ontology"]
