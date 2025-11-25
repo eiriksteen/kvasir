@@ -3,30 +3,12 @@ import { RunBase, Message, MessageCreate, RunCreate } from "@/types/kvasirv1";
 import { useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { UUID } from "crypto";
-import { SSE } from 'sse.js';
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
 import { v4 as uuidv4 } from 'uuid';
 import { useAgentContext } from "@/hooks/useAgentContext";
+import { useRunMessages } from "@/hooks/useRuns";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-async function fetchRunMessages(token: string, runId: UUID): Promise<Message[]> {
-  const response = await fetch(`${API_URL}/kvasir-v1/messages/${runId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to fetch run messages', errorText);
-    throw new Error(`Failed to fetch run messages: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
 
 async function createRun(token: string, runCreate: RunCreate): Promise<RunBase> {
   const response = await fetch(`${API_URL}/kvasir-v1/run`, {
@@ -48,48 +30,30 @@ async function createRun(token: string, runCreate: RunCreate): Promise<RunBase> 
   return snakeToCamelKeys(data);
 }
 
-function createKvasirV1EventSource(token: string, message: MessageCreate): SSE {
-  return new SSE(`${API_URL}/kvasir-v1/completions`, {
+async function postCompletion(token: string, message: MessageCreate): Promise<Message> {
+  const response = await fetch(`${API_URL}/kvasir-v1/completions`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    payload: JSON.stringify(camelToSnakeKeys(message))
+    body: JSON.stringify(camelToSnakeKeys(message))
   });
-}
 
-export const useRunMessages = (runId: UUID | null) => {
-  const { data: session } = useSession();
-
-  const { data: runMessages, mutate: mutateRunMessages, error, isLoading } = useSWR<Message[]>(
-   session && runId ? ["runMessages", runId] : null, 
-   async () => {
-    if (runId) {
-      return await fetchRunMessages(session!.APIToken.accessToken, runId);
-    }
-    else {
-      return []
-    }
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to get completion', errorText);
+    throw new Error(`Failed to get completion: ${response.status} ${errorText}`);
   }
-  );
 
-  return {
-    runMessages: runMessages || [],
-    error,
-    isLoading,
-    mutateRunMessages
-  }
+  const data = await response.json();
+  return snakeToCamelKeys(data);
 }
 
 export const useKvasirV1 = (projectId: UUID) => {
   const { data: session } = useSession();
-
-  const { data: agentRunId, mutate: setAgentRunId } = useSWR(
-    session ? ["agent-run-id", projectId] : null, {fallbackData: null}
-  );
-  const { runMessages, error, isLoading, mutateRunMessages } = useRunMessages(agentRunId);
-
+  const { data: agentRunId, mutate: setAgentRunId } = useSWR(session ? ["agent-run-id", projectId] : null, {fallbackData: null});
+  const { runMessages, mutateRunMessages } = useRunMessages(agentRunId, projectId);
   const { dataSourcesInContext, datasetsInContext, pipelinesInContext, analysesInContext, modelsInstantiatedInContext } = useAgentContext(projectId);
 
   const run = useMemo(() => {
@@ -139,28 +103,8 @@ export const useKvasirV1 = (projectId: UUID) => {
 
       mutateRunMessages([...runMessages, userMessage], {revalidate: false});
 
-      const eventSource = createKvasirV1EventSource(session.APIToken.accessToken, prompt);
-
-      eventSource.onmessage = (ev) => {
-          const data: Message = snakeToCamelKeys(JSON.parse(ev.data));
-
-          if (data.content === "DONE") {
-            // Optionally refetch runs if needed
-          }
-          else {
-            mutateRunMessages((prev: Message[] | undefined) => {
-              if (!prev) return prev;
-              // If message with the same id already exists, update it, else add it
-              const existingMessage = prev.find((msg) => msg.id === data.id);
-              if (existingMessage) {
-                return prev.map((msg) => msg.id === data.id ? data : msg)
-              }
-              else {
-                return [...prev, data]
-              }
-            }, {revalidate: false});
-        }
-      };
+      await postCompletion(session.APIToken.accessToken, prompt);
+      // mutateRunMessages([...runMessages, userMessage, assistantMessage], {revalidate: false});
     }
   }, [
     session, 
@@ -176,56 +120,11 @@ export const useKvasirV1 = (projectId: UUID) => {
     modelsInstantiatedInContext,
   ]);
 
-  const continueRun = useCallback(async (runId: UUID) => {
-
-      const prompt: MessageCreate = {
-        content: "Continue the conversation. If a run was completed suggest the next step or conclude the conversation if done. No need for long text here, something like 'The X run succeeded, and we can continue with building Y ...' is enough.",
-        runId: runId,
-        role: "user",
-        type: "chat",
-        context: {
-          dataSources: dataSourcesInContext,
-          datasets: datasetsInContext,
-          pipelines: pipelinesInContext,
-          analyses: analysesInContext,
-          models: modelsInstantiatedInContext,
-        },
-      };
-
-      const eventSource = createKvasirV1EventSource(session ? session.APIToken.accessToken : "", prompt);
-
-      eventSource.onmessage = (ev) => {
-          const data: Message = snakeToCamelKeys(JSON.parse(ev.data));
-
-          if (data.content !== "DONE") {
-              mutateRunMessages((prev: Message[] | undefined) => {
-                if (!prev) return prev;
-                // If message with the same id already exists, update it, else add it
-                const existingMessage = prev.find((msg) => msg.id === data.id);
-                if (existingMessage) {
-                  return prev.map((msg) => msg.id === data.id ? data : msg)
-                }
-                else {
-                  return [...prev, data]
-                }
-                
-            }, {revalidate: false});
-
-        }
-      };
-
-  }, [session, mutateRunMessages, dataSourcesInContext, datasetsInContext, pipelinesInContext, analysesInContext, modelsInstantiatedInContext]);
-
-
-
   return { 
     run,
     runMessages, 
     submitPrompt,
-    continueRun,
     projectRunId: agentRunId,
-    isLoading,
-    isError: error,
     setAgentRunId
   };
 }; 

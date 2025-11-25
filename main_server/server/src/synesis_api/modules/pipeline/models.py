@@ -69,6 +69,8 @@ pipeline_run = Table(
     Column("args", JSONB, nullable=True),
     # For storing metrics etc, will be updated in real time
     Column("output_variables", JSONB, nullable=True),
+    Column("execution_command", String, nullable=True),
+    Column("terminal_output", String, nullable=True),
     Column("start_time", DateTime(timezone=True), nullable=False),
     Column("end_time", DateTime(timezone=True), nullable=True),
     Column("created_at", DateTime(timezone=True),

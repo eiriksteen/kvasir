@@ -2,7 +2,7 @@ import json
 import uuid
 import modal
 from datetime import datetime, timezone
-from typing import List, Annotated
+from typing import List, Annotated, Optional
 from sqlalchemy import insert, select, and_
 from fastapi import Depends, HTTPException
 
@@ -152,7 +152,7 @@ class Visualizations(VisualizationInterface):
 
         return b"".join(chunks)
 
-    async def download_echart(self, echart_id: uuid.UUID, mount_group_id: uuid.UUID) -> EChartsOption:
+    async def download_echart(self, echart_id: uuid.UUID, mount_group_id: uuid.UUID, original_object_id: Optional[str] = None) -> EChartsOption:
         graph_service = EntityGraphs(self.user_id)
         mount_group = await graph_service.get_node_group(mount_group_id)
         if not mount_group.python_package_name:
@@ -163,9 +163,14 @@ class Visualizations(VisualizationInterface):
 
         echart = await self.get_echart(echart_id)
         sandbox = ModalSandbox(mount_group_id,
-                               mount_group.python_package_name,
-                               install_package_in_background=True)
+                               mount_group.python_package_name)
         script_content = await sandbox.read_file(echart.chart_script_path)
+
+        if original_object_id:
+            script_content = f"{script_content}\n\nresult = generate_chart('{original_object_id}')\nimport json\nprint(json.dumps(result, default=str))"
+        else:
+            script_content = f"{script_content}\n\nresult = generate_chart()\nimport json\nprint(json.dumps(result, default=str))"
+
         out, err = await sandbox.run_python_code(script_content)
 
         if err:

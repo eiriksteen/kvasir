@@ -189,6 +189,7 @@ export interface YAxis {
   nameLocation?: NameLocation | null;
   nameGap?: number | null;
   nameTextStyle?: Record<string, unknown> | null;
+  boundaryGap?: boolean | string[] | null;
   min?: number | "dataMin" | null;
   max?: number | "dataMax" | null;
   splitLine?: Record<string, unknown> | null;

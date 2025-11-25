@@ -40,8 +40,7 @@ async def post_chat(
     prompt: MessageCreate,
     user: Annotated[User, Depends(get_current_user)] = None,
     token: str = Depends(oauth2_scheme)
-) -> StreamingResponse:
-    # TODO: Add support for open connection with analysis, and add rejected status to a run so we don't keep monitoring it
+) -> Message:
 
     run_records = await _callbacks.get_runs(user.id, run_ids=[prompt.run_id])
     if not run_records:
@@ -82,71 +81,21 @@ async def post_chat(
     else:
         kvasir = await KvasirV1.from_run(user.id, run_record.id, ApplicationCallbacks(), token)
 
-    await _callbacks.create_message(user.id, MessageCreate(
-        run_id=run_record.id,
-        content=prompt.content,
-        role="user",
-        type="chat"
-    ))
+    response = await kvasir(prompt.content, context=prompt.context)
 
-    async def stream_response():
-        response_message = Message(
-            id=uuid.uuid4(),
-            run_id=run_record.id,
-            role="kvasir",
-            type="chat",
-            content="",
-            created_at=datetime.now(timezone.utc)
+    if is_new_conversation:
+        name = await helper_agent.run(
+            f"The user wants to start a new conversation. The user has written this: '{prompt.content}'.\n\n" +
+            "What is the name of the conversation? Just give me the name of the conversation, no other text.\n\n" +
+            "NB: Do not output a response to the prompt, that is done elsewhere! Just produce a suitable topic name given the prompt.",
+            output_type=str
         )
+        name = name.output.replace(
+            '"', '').replace("'", "").strip()
 
-        prev_response_text = ""
-        async for response, is_last in kvasir.run_agent_streaming(prompt.content, context=prompt.context):
-            if response != prev_response_text:
-                response_message.content = response
-                yield f"data: {response_message.model_dump_json(by_alias=True)}\n\n"
-            if is_last:
-                # Multiple messages can be streamed in one go
-                await _callbacks.create_message(user.id, MessageCreate(
-                    run_id=run_record.id,
-                    content=response,
-                    role="kvasir",
-                    type="chat"
-                ))
-                response_message = Message(
-                    id=uuid.uuid4(),
-                    run_id=run_record.id,
-                    role="kvasir",
-                    type="chat",
-                    content="",
-                    created_at=datetime.now(timezone.utc)
-                )
-                prev_response_text = ""
+        await _callbacks.update_run_name(user.id, run_record.id, name)
 
-        if is_new_conversation:
-            name = await helper_agent.run(
-                f"The user wants to start a new conversation. The user has written this: '{prompt.content}'.\n\n" +
-                "What is the name of the conversation? Just give me the name of the conversation, no other text.\n\n" +
-                "NB: Do not output a response to the prompt, that is done elsewhere! Just produce a suitable topic name given the prompt.",
-                output_type=str
-            )
-            name = name.output.replace(
-                '"', '').replace("'", "").strip()
-
-            await _callbacks.update_run_name(user.id, run_record.id, name)
-
-        success_message = Message(
-            id=uuid.uuid4(),
-            run_id=run_record.id,
-            role="kvasir",
-            type="result",
-            content="DONE",
-            created_at=datetime.now(timezone.utc)
-        )
-
-        yield f"data: {success_message.model_dump_json(by_alias=True)}\n\n"
-        await asyncio.sleep(SSE_MIN_SLEEP_TIME)
-
-    return StreamingResponse(stream_response(), media_type="text/event-stream")
+    return response
 
 
 @router.post("/run", response_model=RunBase)

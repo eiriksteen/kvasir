@@ -1,21 +1,20 @@
 import json
 import uuid
+import redis
 from uuid import UUID
 from typing import Literal, List, Dict, Optional
 from datetime import datetime, timezone
 from pydantic_ai.models import ModelMessage
 from taskiq import TaskiqState, TaskiqEvents
 from pydantic_ai.messages import ModelMessagesTypeAdapter
-from sqlalchemy import insert, select, delete, update, and_
+from sqlalchemy import insert, select, update, and_
 
 from synesis_api.database.service import execute, fetch_one, fetch_all
 from synesis_api.modules.kvasir_v1.models import (
     run,
     swe_run,
     analysis_run,
-    result,
     message,
-    results_queue,
     deps,
     pydantic_ai_message
 )
@@ -29,16 +28,14 @@ from kvasir_research.agents.v1.data_model import (
     RunCreate,
     MessageCreate,
     Message,
-    ResultsQueue,
     DepsBase,
-    ResultBase,
     PydanticAIMessage,
     RUN_TYPE_LITERAL,
-    RESULT_TYPE_LITERAL,
     MESSAGE_TYPE_LITERAL
 )
 
 from kvasir_ontology.ontology import Ontology
+from synesis_api.redis import get_redis
 
 
 class ApplicationCallbacks(KvasirV1Callbacks):
@@ -143,61 +140,6 @@ class ApplicationCallbacks(KvasirV1Callbacks):
         run_record = await self.create_run(user_id, run_create)
         return run_record
 
-    async def _get_latest_results_queue_item(self, user_id: UUID, run_id: UUID) -> Optional[ResultsQueue]:
-        await self._verify_run_ownership(user_id, run_id)
-        query = select(results_queue).where(results_queue.c.run_id == run_id).order_by(
-            results_queue.c.created_at.desc()).limit(1)
-        record = await fetch_one(query)
-        if record:
-            return ResultsQueue(**record)
-        return None
-
-    async def get_results_queue(self, user_id: UUID, run_id: UUID) -> List[str]:
-        queue_item = await self._get_latest_results_queue_item(user_id, run_id)
-        if queue_item:
-            return queue_item.content
-        return []
-
-    async def pop_result_from_queue(self, user_id: UUID, run_id: UUID) -> str:
-        queue_item = await self._get_latest_results_queue_item(user_id, run_id)
-        if not queue_item or not queue_item.content:
-            return ""
-
-        content_list = list(queue_item.content)
-        result = content_list.pop(0)
-
-        if content_list:
-            await execute(
-                update(results_queue)
-                .where(results_queue.c.id == queue_item.id)
-                .values(content=content_list),
-                commit_after=True
-            )
-        else:
-            await execute(delete(results_queue).where(results_queue.c.id == queue_item.id), commit_after=True)
-
-        return result
-
-    async def add_result_to_queue(self, user_id: UUID, run_id: UUID, result: str) -> None:
-        await self._verify_run_ownership(user_id, run_id)
-        queue_item = await self._get_latest_results_queue_item(user_id, run_id)
-        if queue_item:
-            new_content = queue_item.content + [result]
-            await execute(
-                update(results_queue)
-                .where(results_queue.c.id == queue_item.id)
-                .values(content=new_content),
-                commit_after=True
-            )
-        else:
-            results_queue_obj = ResultsQueue(
-                id=uuid.uuid4(),
-                run_id=run_id,
-                content=[result],
-                created_at=datetime.now(timezone.utc)
-            )
-            await execute(insert(results_queue).values(**results_queue_obj.model_dump()), commit_after=True)
-
     async def _get_latest_deps(self, user_id: UUID, run_id: UUID, type: Optional[RUN_TYPE_LITERAL] = None) -> Optional[DepsBase]:
         await self._verify_run_ownership(user_id, run_id)
         query = select(deps).where(deps.c.run_id == run_id)
@@ -228,34 +170,6 @@ class ApplicationCallbacks(KvasirV1Callbacks):
             return json.loads(deps_obj.content)
         return {}
 
-    async def _get_latest_result(self, user_id: UUID, run_id: UUID, type: Optional[RESULT_TYPE_LITERAL] = None) -> Optional[ResultBase]:
-        await self._verify_run_ownership(user_id, run_id)
-        query = select(result).where(result.c.run_id == run_id)
-        if type:
-            query = query.where(result.c.type == type)
-        query = query.order_by(result.c.created_at.desc()).limit(1)
-        record = await fetch_one(query)
-        if record:
-            return ResultBase(**record)
-        return None
-
-    async def save_result(self, user_id: UUID, run_id: UUID, result_content: str, type: Literal["swe", "analysis", "kvasir"]) -> None:
-        await self._verify_run_ownership(user_id, run_id)
-        result_obj = ResultBase(
-            id=uuid.uuid4(),
-            run_id=run_id,
-            type=type,
-            content=result_content,
-            created_at=datetime.now(timezone.utc)
-        )
-        await execute(insert(result).values(**result_obj.model_dump()), commit_after=True)
-
-    async def get_result(self, user_id: UUID, run_id: UUID, type: Literal["swe", "analysis", "kvasir"]) -> str:
-        result_obj = await self._get_latest_result(user_id, run_id, type=type)
-        if result_obj:
-            return result_obj.content
-        raise ValueError(f"No {type} result found for run_id {run_id}")
-
     async def get_analysis_run(self, user_id: UUID, run_id: UUID) -> AnalysisRun:
         query = select(
             run,
@@ -272,13 +186,10 @@ class ApplicationCallbacks(KvasirV1Callbacks):
 
         run_base = RunBase(**record)
 
-        result_obj = await self._get_latest_result(user_id, run_base.id, type="analysis")
-
         return AnalysisRun(
             **run_base.model_dump(),
             analysis_id=record["analysis_id"],
-            kvasir_run_id=record["kvasir_run_id"],
-            result=result_obj
+            kvasir_run_id=record["kvasir_run_id"]
         )
 
     async def get_swe_run(self, user_id: UUID, run_id: UUID) -> SweRun:
@@ -296,12 +207,9 @@ class ApplicationCallbacks(KvasirV1Callbacks):
 
         run_base = RunBase(**record)
 
-        result_obj = await self._get_latest_result(user_id, run_base.id, type="swe")
-
         return SweRun(
             **run_base.model_dump(),
-            kvasir_run_id=record["kvasir_run_id"],
-            result=result_obj
+            kvasir_run_id=record["kvasir_run_id"]
         )
 
     async def save_message_history(self, user_id: UUID, run_id: UUID, message_history: List[ModelMessage]) -> None:
@@ -327,7 +235,13 @@ class ApplicationCallbacks(KvasirV1Callbacks):
                 ModelMessagesTypeAdapter.validate_json(message["message_list"]))
         return messages if messages else None
 
-    async def log(self, user_id: UUID, run_id: UUID, message: str, type: Literal["result", "tool_call", "error", "info"]) -> None:
+    async def log(
+        self,
+        user_id: UUID,
+        run_id: UUID,
+        message: str,
+        type: Literal["result", "tool_call", "error", "info"]
+    ) -> None:
         log_message = f"[{run_id}] [{type.upper()}] {message}"
         logger.info(log_message)
         # Infer role from run type
@@ -380,19 +294,12 @@ class ApplicationCallbacks(KvasirV1Callbacks):
             analysis_run.c.kvasir_run_id
         ).where(analysis_run.c.run_id.in_(run_id_list))
         analysis_run_records = await fetch_all(analysis_run_query)
-        analysis_run_map = {record["run_id"]
-            : record for record in analysis_run_records}
+        analysis_run_map = {record["run_id"]                            : record for record in analysis_run_records}
 
         swe_run_query = select(swe_run).where(
             swe_run.c.run_id.in_(run_id_list))
         swe_run_records = await fetch_all(swe_run_query)
         swe_run_map = {record["run_id"]: record for record in swe_run_records}
-
-        run_results_query = select(result).where(
-            result.c.run_id.in_(run_id_list))
-        run_results_records = await fetch_all(run_results_query)
-        run_results_map = {record["run_id"]
-            : record for record in run_results_records}
 
         result_objs = []
         for record in records:
@@ -401,21 +308,17 @@ class ApplicationCallbacks(KvasirV1Callbacks):
 
             if run_id in analysis_run_map:
                 analysis_run_data = analysis_run_map[run_id]
-                result_obj = run_results_map.get(run_id, None)
                 result_objs.append(AnalysisRun(
                     **run_base.model_dump(),
                     analysis_id=analysis_run_data["analysis_id"],
                     kvasir_run_id=analysis_run_data["kvasir_run_id"],
-                    result=result_obj
                 ))
             elif run_id in swe_run_map:
                 swe_run_data = swe_run_map[run_id]
-                result_obj = run_results_map.get(run_id, None)
                 result_objs.append(SweRun(
                     **run_base.model_dump(),
                     kvasir_run_id=swe_run_data["kvasir_run_id"],
-                    pipeline_id=swe_run_data["pipeline_id"],
-                    result=result_obj,
+                    pipeline_id=swe_run_data["pipeline_id"]
                 ))
             else:
                 result_objs.append(run_base)
@@ -440,7 +343,11 @@ class ApplicationCallbacks(KvasirV1Callbacks):
 
         return [Message(**record) for record in records]
 
-    async def create_message(self, user_id: UUID, message_create: MessageCreate) -> Message:
+    async def create_message(
+            self,
+            user_id: UUID,
+            message_create: MessageCreate) -> Message:
+
         await self._verify_run_ownership(user_id, message_create.run_id)
         message_obj = Message(
             id=uuid.uuid4(),
@@ -449,6 +356,9 @@ class ApplicationCallbacks(KvasirV1Callbacks):
         )
 
         await execute(insert(message).values(**message_obj.model_dump()), commit_after=True)
+
+        cache = get_redis()
+        await cache.xadd(str(message_create.run_id), message_create.model_dump(mode="json", exclude={"context"}))
 
         return message_obj
 

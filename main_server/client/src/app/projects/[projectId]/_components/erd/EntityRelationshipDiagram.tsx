@@ -387,6 +387,7 @@ function EntityRelationshipDiagramContent({ projectId, openTab }: EntityRelation
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        minZoom={0.1}
         // fitView
         onNodeDragStop={handleNodeDragStop}
         // onSelectionChange={handleSelectionChange}

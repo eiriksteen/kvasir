@@ -37,8 +37,7 @@ from synesis_api.modules.visualization.models import (
 from synesis_api.modules.waitlist.models import waitlist
 from synesis_api.modules.project.models import project
 from synesis_api.modules.kvasir_v1.models import (
-    run, message, pydantic_ai_message,
-    results_queue, deps, result, analysis_run, swe_run
+    run, message, pydantic_ai_message, deps, analysis_run, swe_run
 )
 from synesis_api.app_secrets import DATABASE_URL
 from synesis_api.database.core import metadata
@@ -107,9 +106,7 @@ __all__ = [
     run,
     message,
     pydantic_ai_message,
-    results_queue,
     deps,
-    result,
     analysis_run,
     swe_run,
 ]

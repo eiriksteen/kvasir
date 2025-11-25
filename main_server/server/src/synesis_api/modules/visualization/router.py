@@ -1,7 +1,7 @@
 import pandas as pd
 from io import BytesIO
 from uuid import UUID
-from typing import Annotated, List, Dict, Any
+from typing import Annotated, List, Dict, Any, Optional
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -141,6 +141,7 @@ async def download_table_endpoint(
             data=data_dict,
             index_column=index_column
         )
+
     except HTTPException:
         raise
     except Exception as e:
@@ -154,7 +155,8 @@ async def download_table_endpoint(
 async def get_chart_endpoint(
     chart_id: UUID,
     mount_group_id: UUID,
+    original_object_id: Optional[str] = None,
     visualization_service: Annotated[VisualizationInterface, Depends(
-        get_visualization_service)]
+        get_visualization_service)] = None,
 ) -> EChartsOption:
-    return await visualization_service.download_echart(chart_id, mount_group_id)
+    return await visualization_service.download_echart(chart_id, mount_group_id, original_object_id)

@@ -92,7 +92,7 @@ switch (status) {
 };
 
 function RunMessageList({ runId, projectId }: { runId: UUID, projectId: UUID }) {
-  const { runMessages } = useRunMessages(projectId, runId);
+  const { runMessages } = useRunMessages(runId, projectId);
 
   return (
     <>

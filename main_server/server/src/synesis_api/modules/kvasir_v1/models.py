@@ -1,6 +1,6 @@
 import uuid
-from sqlalchemy import Table, Column, String, DateTime, func, ForeignKey, PrimaryKeyConstraint
-from sqlalchemy.dialects.postgresql import UUID, BYTEA, JSONB
+from sqlalchemy import Table, Column, String, DateTime, func, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID, BYTEA
 from synesis_api.database.core import metadata
 
 
@@ -56,19 +56,6 @@ pydantic_ai_message = Table(
 )
 
 
-results_queue = Table(
-    "results_queue",
-    metadata,
-    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("kvasir_v1.run.id"), nullable=False),
-    Column("content", JSONB, nullable=False),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    schema="kvasir_v1"
-)
-
-
 deps = Table(
     "deps",
     metadata,
@@ -76,21 +63,6 @@ deps = Table(
     Column("run_id", UUID(as_uuid=True),
            ForeignKey("kvasir_v1.run.id"), nullable=False),
     # swe, analysis, kvasir
-    Column("type", String, nullable=False),
-    Column("content", String, nullable=False),
-    Column("created_at", DateTime(timezone=True),
-           nullable=False, default=func.now()),
-    schema="kvasir_v1"
-)
-
-
-result = Table(
-    "result",
-    metadata,
-    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
-    Column("run_id", UUID(as_uuid=True),
-           ForeignKey("kvasir_v1.run.id"), nullable=False),
-    # swe, analysis
     Column("type", String, nullable=False),
     Column("content", String, nullable=False),
     Column("created_at", DateTime(timezone=True),
