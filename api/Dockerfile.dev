@@ -1,0 +1,17 @@
+FROM python:3.12-slim
+
+WORKDIR /app/api
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Copy the api project files
+COPY api /app/api
+COPY agents /app/agents
+COPY ontology /app/ontology
+
+RUN pip install --upgrade pip && \
+    pip install -e /app/api && \
+    pip install -e /app/agents && \
+    pip install -e /app/ontology
+
+CMD ["uvicorn", "src.kvasir_api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", ".", "--reload-dir", "../agents", "--reload-dir", "../ontology"]

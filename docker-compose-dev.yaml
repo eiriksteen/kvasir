@@ -1,0 +1,104 @@
+services:
+  db:
+    image: pgvector/pgvector:0.8.0-pg17-bookworm
+    environment:
+      POSTGRES_DB: kvasir
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data 
+    networks:
+      - main-backend
+
+  cache:
+    image: redis:latest
+    networks:
+      - main-backend
+    volumes: 
+      - cache_data:/data
+
+  api: &api
+    build:
+      context: .
+      dockerfile: api/Dockerfile.dev
+    networks:
+      - main-backend
+      - main-frontend
+    depends_on:
+      - db
+    develop:
+      watch:
+        - action: rebuild
+          path: ./api/Dockerfile.dev
+        - action: rebuild
+          path: ./api/pyproject.toml
+        - action: sync
+          path: ./api  
+          target: /app/api
+        - action: sync
+          path: ./agents
+          target: /app/agents
+        - action: sync
+          path: ./ontology
+          target: /app/ontology
+    volumes:
+      - ${HOME}/.modal.toml:/root/.modal.toml:ro
+      - ${HOME}/.ssh/es256-private.pem:/app/.ssh/es256-private.pem:ro
+      - ${HOME}/.ssh/es256-public.pem:/app/.ssh/es256-public.pem:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  taskiq-worker:
+    <<: *api
+    command: sh -c "cd /app/agents/src && taskiq worker kvasir_agents.agents.v1.broker:v1_broker --tasks-pattern '**/*agent.py' --tasks-pattern '**/*callbacks.py' -fsd --reload --reload-dir . --reload-dir ../../api --reload-dir ../../ontology"
+    environment:
+      - KVASIR_CALLBACKS_MODULE=kvasir_api.modules.kvasir_v1.callbacks
+
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile.dev
+    networks:
+      - main-frontend
+    depends_on:
+      - api
+    develop:
+      watch:
+        - action: rebuild
+          path: ./client/package.json
+        - action: rebuild
+          path: ./client/package-lock.json
+        - action: rebuild
+          path: ./client/next.config.js
+        - action: sync
+          path: ./client
+          target: /app/client
+
+    # # These two anonymous volumes prevent host node_modules/.next from overwriting container ones
+    # volumes:
+    #   - /app/client/node_modules
+    #   - /app/client/.next
+
+  proxy:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    networks:
+      - main-frontend
+    depends_on:
+      - api
+      - client
+    volumes:
+      - type: bind
+        source: nginx.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
+
+volumes:
+  postgres_data: 
+  cache_data:
+
+networks:
+  main-backend:
+    driver: bridge
+  main-frontend:
+    driver: bridge
