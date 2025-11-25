@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sandbox"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "matplotlib",
+    "seaborn",
+    "plotly",
+    "scikit-learn",
+    "xgboost",
+    "lightgbm",
+    "statsmodels",
+    "prophet",
+    "pmdarima",
+    "sktime",
+    "torch",
+    "torchvision",
+    "transformers",
+    "datasets",
+    "nltk",
+    "spacy",
+    "gensim",
+    "sentencepiece",
+    "tokenizers",
+    "pillow",
+    "scikit-image",
+    "opencv-python-headless",
+    "requests",
+    "tqdm",
+    "jupyter",
+    "ipython",
+    "pyarrow",
+    "fastparquet",
+    "openpyxl",
+    "h5py"
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["sandbox"]
+

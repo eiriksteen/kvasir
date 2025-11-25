@@ -1,0 +1,10 @@
+.kaggle
+*.egg-info
+projects_dir*
+sandbox/exp
+secrets
+__pycache__
+exp/
+.DS_Store
+.vscode/
+.pytest_cache/
