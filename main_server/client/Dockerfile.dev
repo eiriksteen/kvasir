@@ -1,0 +1,19 @@
+# Use Node.js 20 Alpine for development
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install dependencies
+COPY kvasir-app/main_server/client/package.json ./
+
+# Copy source code
+COPY kvasir-app/main_server/client .
+
+RUN npm install
+
+# Expose port 3000
+EXPOSE 3000
+
+# Start development server
+CMD ["npm", "run", "dev"]

@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.0-pg17-bookworm
+    container_name: main-db
+    environment:
+      POSTGRES_DB: synesis
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data 
+    networks:
+      - main-backend
+
+  server-dev: &server-dev
+    build:
+      context: .
+      dockerfile: server/Dockerfile.dev
+    container_name: main-server
+    working_dir: /app/server
+    networks:
+      - main-backend
+      - main-frontend
+    depends_on:
+      - db
+    develop:
+      watch:
+        - action: rebuild
+          path: ./server/Dockerfile.dev
+        - action: rebuild
+          path: ./server/requirements.txt
+        - action: rebuild
+          path: ./server/pyproject.toml
+        - action: rebuild
+          path: ./server/poetry.lock
+        - action: sync
+          path: ./server  
+          target: /app/server
+        - action: sync
+          path: ./kvasir-research
+          target: /app/kvasir-research
+        - action: sync
+          path: ./kvasir-ontology
+          target: /app/kvasir-ontology
+        - action: sync
+          path: ${HOME}/.modal.toml
+          target: /root/.modal.toml
+        - action: sync
+          path: ${HOME}/.ssh/es256-private.pem
+          target: /app/.ssh/es256-private.pem
+        - action: sync
+          path: ${HOME}/.ssh/es256-public.pem
+          target: /app/.ssh/es256-public.pem
+        - action: sync
+          path: /var/run/docker.sock
+          target: /var/run/docker.sock
+
+  taskiq-worker-dev:
+    <<: *server-dev
+    container_name: main-taskiq-worker
+    command: sh -c "cd /app/kvasir-research/src && taskiq worker kvasir_research.agents.v1.broker:v1_broker --tasks-pattern '**/*agent.py' --tasks-pattern '**/*callbacks.py' -fsd --reload"
+    environment:
+      - KVASIR_CALLBACKS_MODULE=synesis_api.modules.kvasir_v1.callbacks
+
+
+  client-dev:
+    build:
+      context: .
+      dockerfile: client/Dockerfile.dev
+    container_name: main-client
+    working_dir: /app/client
+    networks:
+      - main-frontend
+    depends_on:
+      - server-dev
+    develop:
+      watch:
+        - action: rebuild
+          path: ./client/package.json
+        - action: rebuild
+          path: ./client/package-lock.json
+        - action: rebuild
+          path: ./client/yarn.lock
+        - action: rebuild
+          path: ./client/next.config.js
+
+        - action: sync
+          path: ./client
+          target: /app/client
+
+    # These two anonymous volumes prevent host node_modules/.next from overwriting container ones
+    volumes:
+      - /app/client/node_modules
+      - /app/client/.next
+
+  proxy-dev:
+    image: nginx:latest
+    container_name: main-proxy
+    ports:
+      - "80:80"
+    networks:
+      - main-frontend
+    depends_on:
+      - server-dev
+      - client-dev
+    volumes:
+      - ./proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+
+volumes:
+  postgres_data: 
+
+networks:
+  main-backend:
+    driver: bridge
+  main-frontend:
+    driver: bridge
