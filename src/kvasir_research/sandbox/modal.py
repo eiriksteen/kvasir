@@ -67,22 +67,23 @@ class ModalSandbox(AbstractSandbox):
                 await self._initialize_sandbox(force_build=force_build)
                 return False
 
-    async def reload_container(self: Self) -> None:
+    async def reload_container(self) -> None:
         try:
             self.sb = await modal.Sandbox.from_name.aio(MODAL_APP_NAME, str(self.project_id))
             await self.sb.terminate.aio()
+            await self.sb.wait.aio(raise_on_termination=False)
         except modal.exception.NotFoundError:
             pass
         finally:
             self.sb = None
             await self._initialize_sandbox()
 
-    async def delete_container_if_exists(self: Self) -> None:
+    async def delete_container_if_exists(self) -> None:
         if self.sb:
             await self.sb.terminate.aio()
             self.sb = None
 
-    async def run_python_code(self: Self, code: str, truncate_output: bool = True, max_output_length: int = 20000, timeout: int | None = None) -> Tuple[str, str]:
+    async def run_python_code(self, code: str, truncate_output: bool = True, max_output_length: int = 20000, timeout: int | None = None) -> Tuple[str, str]:
         await self.create_container_if_not_exists()
         python_code_parsed = parse_code(code)
 
@@ -112,7 +113,7 @@ class ModalSandbox(AbstractSandbox):
 
         return out_str, err_str
 
-    async def run_shell_code(self: Self, code: str, truncate_output: bool = True, max_output_length: int = 20000, timeout: int | None = None) -> Tuple[str, str]:
+    async def run_shell_code(self, code: str, truncate_output: bool = True, max_output_length: int = 20000, timeout: int | None = None) -> Tuple[str, str]:
         await self.create_container_if_not_exists()
         shell_cmd = f"set -e; set -o pipefail;\n{code}"
         process = await self.sb.exec.aio(
@@ -138,7 +139,7 @@ class ModalSandbox(AbstractSandbox):
 
         return out_str, err_str
 
-    async def run_shell_code_streaming(self: Self, code: str, truncate_output: bool = True, max_output_length: int = 20000, timeout: int | None = None) -> AsyncGenerator[Tuple[str, str], None]:
+    async def run_shell_code_streaming(self, code: str, truncate_output: bool = True, max_output_length: int = 20000, timeout: int | None = None) -> AsyncGenerator[Tuple[str, str], None]:
         await self.create_container_if_not_exists()
         shell_cmd = f"set -e; set -o pipefail;\n{code}"
         process = await self.sb.exec.aio(
@@ -236,7 +237,7 @@ class ModalSandbox(AbstractSandbox):
                 except Exception:
                     pass
 
-    async def read_file(self: Self, path: str, truncate: bool = True, max_output_length: int = 20000) -> str:
+    async def read_file(self, path: str, truncate: bool = True, max_output_length: int = 20000) -> str:
         await self.create_container_if_not_exists()
         quoted_path = shlex.quote(path)
         out, err = await self.run_shell_code(
@@ -250,7 +251,7 @@ class ModalSandbox(AbstractSandbox):
 
         return out
 
-    async def write_file(self: Self, path: str, content: str) -> None:
+    async def write_file(self, path: str, content: str) -> None:
         await self.create_container_if_not_exists()
         quoted_path = shlex.quote(path)
         dir_path = shlex.quote(str(Path(path).parent))

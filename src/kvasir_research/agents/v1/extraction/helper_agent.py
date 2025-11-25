@@ -1,5 +1,6 @@
 import uuid
 import json
+import asyncio
 from typing import List, Optional
 from pydantic import BaseModel
 from pydantic_ai import Agent, RunContext, ModelRetry, ModelSettings
@@ -11,12 +12,12 @@ from kvasir_ontology.entities.pipeline.data_model import PipelineImplementationC
 from kvasir_ontology.entities.model.data_model import ModelImplementationCreate, ModelInstantiatedCreate
 from kvasir_ontology.visualization.data_model import EchartCreate
 from kvasir_research.utils.code_utils import remove_print_statements_from_code
-from kvasir_research.agents.v1.chart.agent import chart_agent
 from kvasir_research.agents.v1.chart.deps import ChartDeps
-from kvasir_research.agents.v1.chart.output import ChartAgentOutput
 from kvasir_research.agents.v1.extraction.deps import ExtractionDeps
 from kvasir_research.secrets import SANDBOX_INTERNAL_SCRIPT_DIR
 from kvasir_research.agents.v1.shared_tools import navigation_toolset
+from kvasir_research.agents.v1.chart.agent import ChartAgentV1
+from kvasir_research.agents.v1.base_agent import Context
 
 
 data_source_system_prompt = f"""
@@ -189,14 +190,8 @@ async def submit_object_groups(
         for object_group in object_groups:
             chart_description = chart_desc_map[object_group.name]
             await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Creating chart for object group: {object_group.name}", "result")
-            await _create_chart_for_object_group(
-                ctx=ctx,
-                object_group_id=object_group.id,
-                chart_description=chart_description,
-                datasets_to_inject=[],
-                data_sources_to_inject=[]
-            )
-
+            asyncio.create_task(_add_object_group_chart(
+                ctx, object_group.id, chart_description, Context(datasets=[object_group.dataset_id])))
         await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Completed submitting {len(object_groups)} object group(s) with charts", "result")
         if len(object_groups) == 1:
             return object_groups[0].model_dump_json(indent=4)
@@ -373,39 +368,18 @@ model_agent = Agent[ExtractionDeps, ModelAgentOutput](
 ###
 
 
-async def _create_chart_for_object_group(
-    ctx: RunContext[ExtractionDeps],
-    object_group_id: uuid.UUID,
-    chart_description: str,
-    datasets_to_inject: List[uuid.UUID],
-    data_sources_to_inject: List[uuid.UUID],
-) -> ChartAgentOutput:
+async def _add_object_group_chart(ctx: RunContext[ExtractionDeps], object_group_id: uuid.UUID, chart_description: str, context: Context) -> None:
+    deps = ChartDeps(
+        user_id=ctx.deps.user_id,
+        project_id=ctx.deps.project_id,
+        package_name=ctx.deps.package_name,
+        sandbox_type=ctx.deps.sandbox_type,
+        callbacks=ctx.deps.callbacks,
+        bearer_token=ctx.deps.bearer_token)
 
-    try:
-        object_group = await ctx.deps.ontology.datasets.get_object_group(object_group_id)
-    except Exception as e:
-        raise ModelRetry(
-            f"Failed to get object group. The ID must be the DB UUID of the group: {str(e)}")
-
-    chart_result = await chart_agent.run(
-        chart_description,
-        deps=ChartDeps(
-            user_id=ctx.deps.user_id,
-            project_id=ctx.deps.project_id,
-            package_name=ctx.deps.package_name,
-            sandbox_type=ctx.deps.sandbox_type,
-            callbacks=ctx.deps.callbacks,
-            datasets_injected=datasets_to_inject,
-            data_sources_injected=data_sources_to_inject,
-            object_group=object_group,
-            bearer_token=ctx.deps.bearer_token
-        )
-    )
-    save_path = SANDBOX_INTERNAL_SCRIPT_DIR / f"{object_group_id}.py"
-    await ctx.deps.sandbox.write_file(save_path, chart_result.output.script_content)
-    await ctx.deps.ontology.datasets.create_object_group_echart(
-        object_group_id,
-        EchartCreate(chart_script_path=str(save_path))
-    )
-
-    return chart_result.output
+    chart_agent = ChartAgentV1(deps)
+    chart_output = await chart_agent(chart_description, context)
+    save_path = SANDBOX_INTERNAL_SCRIPT_DIR / \
+        f"{object_group_id}_{uuid.uuid4()}.py"
+    await ctx.deps.sandbox.write_file(str(save_path), chart_output.script_content)
+    await ctx.deps.ontology.datasets.create_object_group_echart(object_group_id, EchartCreate(chart_script_path=str(save_path)))

@@ -1,8 +1,8 @@
-from uuid import UUID
-from pydantic import BaseModel
+import asyncio
+from uuid import UUID, uuid4
 from taskiq import Context as TaskiqContext, TaskiqDepends
 from typing import List, Tuple, Annotated, AsyncGenerator, Dict, Optional
-from pydantic_ai import Agent, RunContext, ModelSettings
+from pydantic_ai import Agent, RunContext, ModelSettings, PromptedOutput
 
 from kvasir_research.agents.v1.broker import v1_broker
 from kvasir_research.agents.v1.callbacks import KvasirV1Callbacks
@@ -12,11 +12,11 @@ from kvasir_research.agents.v1.swe.agent import SweAgentV1
 from kvasir_research.agents.v1.swe.deps import SWEDeps
 from kvasir_research.agents.v1.kvasir.deps import KvasirV1Deps
 from kvasir_research.agents.v1.base_agent import AgentV1, Context
-from kvasir_research.agents.v1.data_model import RunCreate, MessageCreate
+from kvasir_research.agents.v1.data_model import RunCreate, MessageCreate, Message
 from kvasir_research.agents.v1.shared_tools import navigation_toolset, knowledge_bank_toolset
 from kvasir_research.agents.v1.kvasir.prompt import KVASIR_V1_SYSTEM_PROMPT
 from kvasir_research.agents.v1.analysis.deps import AnalysisDeps
-from kvasir_research.agents.v1.kvasir.tools import dispatch_agents, DispatchAgentsOutput, read_entities
+from kvasir_research.agents.v1.kvasir.tools import dispatch_agents, DispatchAgentsOutput, read_entities, explain_action_plan
 from kvasir_research.utils.agent_utils import get_model
 from kvasir_research.agents.v1.history_processors import (
     keep_only_most_recent_project_description,
@@ -32,7 +32,7 @@ async def start_swe_run_from_orchestrator(
     deps_dict: Dict,
     bearer_token: str,
     taskiq_context: Annotated[TaskiqContext, TaskiqDepends()],
-    context: Optional[Context] = None,
+    context: Optional[Context] = None
 ) -> str:
 
     callbacks: KvasirV1Callbacks = taskiq_context.state.callbacks
@@ -43,18 +43,11 @@ async def start_swe_run_from_orchestrator(
     )
     swe_agent = SweAgentV1(swe_deps)
     swe_run_result = await swe_agent(prompt, context=context)
-    await callbacks.add_result_to_queue(swe_deps.user_id, swe_deps.kvasir_run_id, swe_run_result)
+    pipeline_desc = await swe_deps.ontology.describe_entity(swe_deps.pipeline_id, "pipeline", include_connections=False)
 
-    if await callbacks.get_run_status(swe_deps.user_id, swe_deps.kvasir_run_id) != "running":
+    if not await callbacks.get_run_status(swe_deps.user_id, swe_deps.kvasir_run_id) == "running":
         kvasir_v1 = await KvasirV1.from_run(swe_deps.user_id, swe_deps.kvasir_run_id, callbacks)
-        async for response, is_last in kvasir_v1.run_agent_streaming("Continue processing results from the queue."):
-            if is_last:
-                await callbacks.create_message(swe_deps.user_id, MessageCreate(
-                    run_id=swe_deps.kvasir_run_id,
-                    content=response,
-                    role="kvasir",
-                    type="chat"
-                ))
+        await kvasir_v1(f"SWE run {swe_deps.run_id} completed. The result pipeline is:\n\n{pipeline_desc}")
 
     return swe_run_result
 
@@ -77,18 +70,11 @@ async def resume_swe_run_from_orchestrator(
     swe_agent.update_time_limit(time_limit)
     swe_agent.update_guidelines(guidelines)
     swe_run_result = await swe_agent(message, context=context)
-    await callbacks.add_result_to_queue(user_id, kvasir_run_id, swe_run_result)
+    pipeline_desc = await swe_agent.deps.ontology.describe_entity(swe_agent.deps.pipeline_id, "pipeline", include_connections=False)
 
-    if await callbacks.get_run_status(user_id, kvasir_run_id) != "running":
+    if not await callbacks.get_run_status(user_id, kvasir_run_id) == "running":
         kvasir_v1 = await KvasirV1.from_run(user_id, kvasir_run_id, callbacks)
-        async for response, is_last in kvasir_v1.run_agent_streaming("Continue processing results from the queue."):
-            if is_last:
-                await callbacks.create_message(user_id, MessageCreate(
-                    run_id=kvasir_run_id,
-                    content=response,
-                    role="kvasir",
-                    type="chat"
-                ))
+        await kvasir_v1(f"SWE run {swe_run_id} completed. The updated pipeline is:\n\n{pipeline_desc}")
 
     return swe_run_result
 
@@ -108,18 +94,11 @@ async def start_analysis_run_from_orchestrator(
         **deps_dict, callbacks=callbacks, bearer_token=bearer_token)
     analysis_agent = AnalysisAgentV1(deps=analysis_deps)
     analysis_run_result = await analysis_agent(prompt, context=context)
-    await callbacks.add_result_to_queue(analysis_deps.user_id, kvasir_run_id, analysis_run_result)
+    analysis_desc = await analysis_deps.ontology.describe_entity(analysis_deps.analysis_id, "analysis", include_connections=False)
 
-    if await callbacks.get_run_status(analysis_deps.user_id, kvasir_run_id) != "running":
+    if not await callbacks.get_run_status(analysis_deps.user_id, kvasir_run_id) == "running":
         kvasir_v1 = await KvasirV1.from_run(analysis_deps.user_id, kvasir_run_id, callbacks)
-        async for response, is_last in kvasir_v1.run_agent_streaming("Continue processing results from the queue."):
-            if is_last:
-                await callbacks.create_message(analysis_deps.user_id, MessageCreate(
-                    run_id=kvasir_run_id,
-                    content=response,
-                    role="kvasir",
-                    type="chat"
-                ))
+        await kvasir_v1(f"Analysis run {analysis_deps.run_id} completed. The result analysis is:\n\n{analysis_desc}")
 
     return analysis_run_result
 
@@ -142,18 +121,11 @@ async def resume_analysis_run_from_orchestrator(
     analysis_agent.update_time_limit(time_limit)
     analysis_agent.update_guidelines(guidelines)
     analysis_run_result = await analysis_agent(message, context=context)
-    await callbacks.add_result_to_queue(user_id, kvasir_run_id, analysis_run_result)
+    analysis_desc = await analysis_agent.deps.ontology.describe_entity(analysis_agent.deps.analysis_id, "analysis", include_connections=False)
 
-    if await callbacks.get_run_status(user_id, kvasir_run_id) != "running":
+    if not await callbacks.get_run_status(user_id, kvasir_run_id) == "running":
         kvasir_v1 = await KvasirV1.from_run(user_id, kvasir_run_id, callbacks)
-        async for response, is_last in kvasir_v1.run_agent_streaming("Continue processing results from the queue."):
-            if is_last:
-                await callbacks.create_message(user_id, MessageCreate(
-                    run_id=kvasir_run_id,
-                    content=response,
-                    role="kvasir",
-                    type="chat"
-                ))
+        await kvasir_v1(f"Analysis run {analysis_agent.deps.run_id} completed. The result analysis is:\n\n{analysis_desc}")
 
     return analysis_run_result
 
@@ -255,10 +227,11 @@ kvasir_v1_agent = Agent[KvasirV1Deps, str](
     deps_type=KvasirV1Deps,
     toolsets=[navigation_toolset, knowledge_bank_toolset],
     tools=[
+        explain_action_plan,
         dispatch_agents_from_orchestrator,
         read_entities
     ],
-    output_type=str,
+    output_type=PromptedOutput(str),
     retries=3,
     model_settings=ModelSettings(temperature=0),
     history_processors=[
@@ -300,48 +273,41 @@ class KvasirV1(AgentV1[KvasirV1Deps, str]):
         await self.deps.callbacks.set_run_status(self.deps.user_id, self.deps.run_id, "running")
         return self.deps.run_id
 
-    async def __call__(self, prompt: str, context: Optional[Context] = None) -> List[str]:
-        outputs = []
-        async for response, last in self.run_agent_streaming(prompt, context):
-            if last:
-                outputs.append(response)
-        return outputs
+    async def run_agent_text_stream(self, prompt: str, context: Optional[Context] = None) -> AsyncGenerator[Message, None]:
 
-    async def run_agent_streaming(self, prompt: str, context: Optional[Context] = None) -> AsyncGenerator[Tuple[str, bool], None]:
+        await self.deps.callbacks.create_message(
+            self.deps.user_id,
+            MessageCreate(
+                run_id=self.deps.run_id,
+                content=prompt,
+                role="user",
+                type="chat"
+            )
+        )
 
-        results_queue = await self.deps.callbacks.get_results_queue(self.deps.user_id, self.deps.run_id)
-        first = True
-
-        while results_queue or first:
-            prompt = (
-                f"This is the current state of the results queue:\n\n" +
-                f"<results_queue>\n{'\n\n'.join(results_queue)}\n</results_queue>\n\n" +
-                f"The user prompt is:\n\n<user_prompt>\n{prompt}\n</user_prompt>"
+        output_id = uuid4()
+        async for response in super().run_agent_text_stream(prompt, context, describe_folder_structure=True):
+            yield Message(
+                id=output_id,
+                run_id=self.deps.run_id,
+                content=response,
+                role="kvasir",
+                type="chat"
             )
 
-            await self.deps.callbacks.log(
-                self.deps.user_id, self.deps.run_id, f"Kvasir V1 prompt:\n\n{prompt}", "info")
+        await self.deps.callbacks.create_message(self.deps.user_id, MessageCreate(
+            run_id=self.deps.run_id,
+            content=response,
+            role="kvasir",
+            type="chat"
+        ))
 
-            while results_queue or first:
-                async for response in super().run_agent_text_stream(prompt, context, describe_folder_structure=True):
-                    yield response, False
+    async def __call__(self, prompt: str, context: Optional[Context] = None) -> str:
+        async for response in self.run_agent_text_stream(prompt, context):
+            pass
+        return response
 
-                yield response, True
-
-                async for response in super().run_agent_text_stream("Now take your actions and invoke any necessary tools. " +
-                                                                    "If you have to explain results from the tool calls to the user, output your response. " +
-                                                                    "Only do this if necessary, otherwise output exactly \"none\" (without quotes).", context, describe_folder_structure=True):
-                    if response != "none":
-                        yield response, False
-
-                if response != "none":
-                    yield response, True
-
-                await self.deps.callbacks.pop_result_from_queue(self.deps.user_id, self.deps.run_id)
-                results_queue = await self.deps.callbacks.get_results_queue(self.deps.user_id, self.deps.run_id)
-                first = False
-
-                prompt = (
-                    "This is the current state of the results queue:\n\n" +
-                    f"<results_queue>{'\n\n'.join(results_queue)}</results_queue>\n\n"
-                )
+    async def run_agent_streaming(self, prompt: str, context: Optional[Context] = None) -> AsyncGenerator[Tuple[Message, bool], None]:
+        async for response in self.run_agent_text_stream(prompt, context):
+            yield response, False
+        yield response, True

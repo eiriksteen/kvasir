@@ -3,11 +3,13 @@ from typing import Literal, List, Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 
+from kvasir_ontology.entities.analysis.data_model import Analysis
+from kvasir_ontology.entities.pipeline.data_model import Pipeline
+
 
 # Schemas
 
 RUN_TYPE_LITERAL = Literal["swe", "analysis", "extraction", "kvasir", "chart"]
-RESULT_TYPE_LITERAL = Literal["swe", "analysis", "extraction", "chart"]
 RUN_STATUS_LITERAL = Literal["pending", "running",
                              "completed", "failed", "rejected", "waiting"]
 MESSAGE_ROLE_LITERAL = Literal["swe", "analysis",
@@ -45,25 +47,10 @@ class PydanticAIMessage(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc))
 
 
-class ResultsQueue(BaseModel):
-    id: uuid.UUID
-    run_id: uuid.UUID
-    content: List[str]
-    created_at: datetime
-
-
 class DepsBase(BaseModel):
     id: uuid.UUID
     run_id: uuid.UUID
     type: RUN_TYPE_LITERAL
-    content: str
-    created_at: datetime
-
-
-class ResultBase(BaseModel):
-    id: uuid.UUID
-    run_id: uuid.UUID
-    type: RESULT_TYPE_LITERAL
     content: str
     created_at: datetime
 
@@ -73,13 +60,11 @@ class ResultBase(BaseModel):
 class AnalysisRun(RunBase):
     analysis_id: uuid.UUID
     kvasir_run_id: uuid.UUID
-    result: Optional[ResultBase] = None
 
 
 class SweRun(RunBase):
     pipeline_id: uuid.UUID
     kvasir_run_id: uuid.UUID
-    result: Optional[ResultBase] = None
 
 
 # Create Schemas
@@ -112,18 +97,7 @@ class MessageCreate(BaseModel):
     context: Context = Field(default_factory=Context)
 
 
-class ResultsQueueCreate(BaseModel):
-    run_id: uuid.UUID
-    content: List[str]
-
-
 class DepsCreate(BaseModel):
     run_id: uuid.UUID
     type: RUN_TYPE_LITERAL
-    content: str
-
-
-class ResultCreate(BaseModel):
-    run_id: uuid.UUID
-    type: RESULT_TYPE_LITERAL
     content: str

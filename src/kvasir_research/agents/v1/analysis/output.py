@@ -32,7 +32,6 @@ async def submit_analysis_results(ctx: RunContext[AnalysisDeps], summary: str) -
         raise ModelRetry("Empty analysis, nothing to submit")
 
     result = await ctx.deps.ontology.describe_analysis(ctx.deps.analysis)
-
     await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Submitted analysis results ({total_cells} cells)", "result")
 
     return result

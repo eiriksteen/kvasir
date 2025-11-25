@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from pydantic_ai import RunContext
 from pydantic_ai.messages import ModelMessage, ModelRequest, ToolReturnPart
 
+from kvasir_research.utils.agent_utils import print_message_history
+
 
 def get_last_script_message_index(messages: list[ModelMessage]) -> dict[str, int]:
     """
@@ -158,6 +160,8 @@ async def keep_only_most_recent_analysis(
         messages: list[ModelMessage]) -> list[ModelMessage]:
     processed_messages = await keep_only_most_recent_by_pattern(
         _, messages, HistoryPattern(start="<analysis", end="</analysis>"))
+
+    print_message_history(processed_messages, "Processed messages")
     return processed_messages
 
 
@@ -178,10 +182,11 @@ async def keep_only_most_recent_folder_structure(
 
 
 async def keep_only_most_recent_entity_context(
-        _: RunContext,
+        ctx: RunContext,
         messages: list[ModelMessage]) -> list[ModelMessage]:
     processed_messages = await keep_only_most_recent_by_pattern(
-        _, messages, HistoryPattern(start="<entity_context", end="</entity_context>"))
+        ctx, messages, HistoryPattern(start="<entity_context", end="</entity_context>"))
+
     return processed_messages
 
 

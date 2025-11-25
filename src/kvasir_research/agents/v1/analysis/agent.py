@@ -111,8 +111,6 @@ class AnalysisAgentV1(AgentV1[AnalysisDeps, str]):
                     "analysis" / f"{self.deps.run_name}.txt"),
                 output
             )
-
-            await self.deps.callbacks.save_result(self.deps.user_id, self.deps.run_id, output, "analysis")
             return output
 
         except Exception as e:

@@ -12,6 +12,7 @@ from kvasir_research.agents.v1.base_agent import Context
 from kvasir_ontology.entities.analysis.data_model import (
     SectionCreate, CodeCellCreate, MarkdownCellCreate, CodeOutputCreate, AnalysisCell, Analysis, Section)
 from kvasir_ontology.visualization.data_model import ImageCreate, TableCreate, EchartCreate
+from kvasir_research.secrets import SANDBOX_INTERNAL_SCRIPT_DIR
 
 
 async def create_section(ctx: RunContext[AnalysisDeps], section_name: str, order: Optional[int] = None) -> str:
@@ -193,7 +194,9 @@ async def _add_analysis_chart(ctx: RunContext[AnalysisDeps], cell_id: uuid.UUID,
 
     chart_agent = ChartAgentV1(deps)
     chart_output = await chart_agent(chart_description, Context(analyses=[ctx.deps.analysis.id]))
-    await ctx.deps.ontology.analyses.create_code_output_echart(cell_id, EchartCreate(chart=chart_output.script_content))
+    save_path = SANDBOX_INTERNAL_SCRIPT_DIR / f"{cell_id}_{uuid.uuid4()}.py"
+    await ctx.deps.sandbox.write_file(str(save_path), chart_output.script_content)
+    await ctx.deps.ontology.analyses.create_code_output_echart(cell_id, EchartCreate(chart_script_path=str(save_path)))
 
 
 def _update_analysis_object_with_cell(analysis: Analysis, cell: AnalysisCell):

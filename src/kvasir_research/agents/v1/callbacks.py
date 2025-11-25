@@ -64,31 +64,11 @@ class KvasirV1Callbacks(ABC):
         pass
 
     @abstractmethod
-    async def get_results_queue(self, user_id: UUID, run_id: UUID) -> List[str]:
-        pass
-
-    @abstractmethod
-    async def pop_result_from_queue(self, user_id: UUID, run_id: UUID) -> str:
-        pass
-
-    @abstractmethod
-    async def add_result_to_queue(self, user_id: UUID, run_id: UUID, result: str) -> None:
-        pass
-
-    @abstractmethod
     async def save_deps(self, user_id: UUID, run_id: UUID, deps: Dict) -> None:
         pass
 
     @abstractmethod
     async def load_deps(self, user_id: UUID, run_id: UUID) -> Dict:
-        pass
-
-    @abstractmethod
-    async def save_result(self, user_id: UUID, run_id: UUID, result_content: str, type: Literal["swe", "analysis", "kvasir"]) -> None:
-        pass
-
-    @abstractmethod
-    async def get_result(self, user_id: UUID, run_id: UUID, type: Literal["swe", "analysis", "kvasir"]) -> str:
         pass
 
     @abstractmethod

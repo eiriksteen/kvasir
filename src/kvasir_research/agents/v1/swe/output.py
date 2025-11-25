@@ -1,10 +1,18 @@
-from pydantic_ai import RunContext, ModelRetry
 from typing import Optional
+from pydantic import BaseModel
+from pydantic_ai import RunContext, ModelRetry
+
 
 from kvasir_research.agents.v1.swe.deps import SWEDeps
 
 
-async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_command: str) -> str:
+class SweOutput(BaseModel):
+    execution_command: Optional[str] = None
+    terminal_output: Optional[str] = None
+    message: str
+
+
+async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_command: str) -> SweOutput:
     """
     Submit the execution command that runs your main script (which you should have created outside src/) and produces the output. 
     The execution_command should be a shell command (e.g., "python scripts/train_model.py --epochs 100" or "bash run_pipeline.sh").
@@ -16,7 +24,7 @@ async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_comm
     if not execution_command or execution_command.strip() == "":
         result = _modified_files_to_string(ctx)
         await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Submitted implementation results (no execution, {len(ctx.deps.modified_files)} file(s) modified)", "result")
-        return result
+        return SweOutput(execution_command=None, terminal_output=None, message=result)
 
     # Execute the command via shell with streaming and timeout
     stdout_lines = []
@@ -55,7 +63,7 @@ async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_comm
         result = _modified_files_to_string(
             ctx, execution_command=execution_command, execution_output=error_msg)
         await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Execution time limit exceeded ({ctx.deps.time_limit}s)", "error")
-        return result
+        return SweOutput(execution_command=execution_command, terminal_output=error_msg)
 
     # Combine output
     out = "\n".join(stdout_lines)
@@ -65,12 +73,10 @@ async def submit_implementation_results(ctx: RunContext[SWEDeps], execution_comm
         await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Execution error: {err}", "error")
         raise ModelRetry(f"Error running command '{execution_command}': {err}")
 
-    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Submitted implementation results (output: {len(out)} characters, {len(ctx.deps.modified_files)} file(s) modified)", "result")
-
     result = _modified_files_to_string(
         ctx, execution_command=execution_command, execution_output=out)
-
-    return result
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Submitted implementation results (output: {len(out)} characters, {len(ctx.deps.modified_files)} file(s) modified)", "result")
+    return SweOutput(execution_command=execution_command, terminal_output=out, message=result)
 
 
 async def submit_message_to_orchestrator(ctx: RunContext[SWEDeps], message: str) -> str:
@@ -79,7 +85,8 @@ async def submit_message_to_orchestrator(ctx: RunContext[SWEDeps], message: str)
     """
     await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Sending message to orchestrator: {message[:100]}...", "tool_call")
     result = _modified_files_to_string(ctx, message=message)
-    return result
+    message = f"{message}\n\n{result}"
+    return SweOutput(execution_command=None, terminal_output=None, message=message)
 
 
 ###

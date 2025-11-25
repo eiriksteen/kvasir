@@ -1,4 +1,5 @@
 from uuid import UUID
+from datetime import datetime
 from typing import List, Optional
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models import ModelSettings
@@ -10,9 +11,9 @@ from kvasir_research.agents.v1.swe.prompt import SWE_SYSTEM_PROMPT
 from kvasir_research.agents.v1.kvasir.knowledge_bank import get_guidelines, SUPPORTED_TASKS_LITERAL
 from kvasir_research.agents.v1.shared_tools import navigation_toolset, knowledge_bank_toolset
 from kvasir_research.agents.v1.swe.tools import swe_toolset
-from kvasir_research.agents.v1.swe.output import submit_implementation_results, submit_message_to_orchestrator
+from kvasir_research.agents.v1.swe.output import submit_implementation_results, submit_message_to_orchestrator, SweOutput
 from kvasir_research.agents.v1.base_agent import AgentV1
-from kvasir_ontology.entities.pipeline.data_model import PipelineCreate
+from kvasir_ontology.entities.pipeline.data_model import PipelineCreate, PipelineRunCreate
 from kvasir_research.agents.v1.extraction.agent import run_extraction_agent
 from kvasir_research.agents.v1.history_processors import keep_only_most_recent_project_description, keep_only_most_recent_folder_structure, keep_only_most_recent_entity_context
 from kvasir_research.agents.v1.base_agent import Context
@@ -21,7 +22,7 @@ from kvasir_research.agents.v1.base_agent import Context
 model = get_model()
 
 
-swe_agent = Agent[SWEDeps, str](
+swe_agent = Agent[SWEDeps, SweOutput](
     model,
     deps_type=SWEDeps,
     toolsets=[navigation_toolset, knowledge_bank_toolset, swe_toolset],
@@ -66,7 +67,7 @@ async def swe_system_prompt(ctx: RunContext[SWEDeps]) -> str:
     return full_system_prompt
 
 
-class SweAgentV1(AgentV1[SWEDeps, str]):
+class SweAgentV1(AgentV1[SWEDeps, SweOutput]):
     deps_class = SWEDeps
     deps: SWEDeps
 
@@ -103,13 +104,21 @@ class SweAgentV1(AgentV1[SWEDeps, str]):
     def update_guidelines(self, guidelines: List[SUPPORTED_TASKS_LITERAL]):
         self.deps.guidelines = guidelines
 
-    async def __call__(self, prompt: str, context: Optional[Context] = None) -> str:
+    async def __call__(self, prompt: str, context: Optional[Context] = None) -> SweOutput:
         try:
             output = await super().__call__(prompt, context, describe_folder_structure=True)
-            await self.deps.callbacks.save_result(self.deps.user_id, self.deps.run_id, output, "swe")
+
+            if output.execution_command:
+                await self.deps.ontology.pipelines.create_pipeline_run(PipelineRunCreate(
+                    name=f"{self.deps.run_name} initial run",
+                    args={},
+                    pipeline_id=self.deps.pipeline_id,
+                    execution_command=output.execution_command,
+                    terminal_output=output.terminal_output
+                ))
 
             await run_extraction_agent.kiq(
-                f"The SWE agent just finished a run. Create new entities or update existing entities based on these results:\n\n{output}",
+                f"The SWE agent just finished a run. Create new entities or update existing entities based on these results:\n\n{output.message}",
                 user_id=self.deps.user_id,
                 project_id=self.deps.project_id,
                 package_name=self.deps.package_name,

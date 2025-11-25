@@ -77,6 +77,7 @@ class AgentV1(ABC, Generic[TDeps, TOutput]):
         self.deps = deps
         self.agent = agent
         self.message_history: Optional[List[ModelMessage]] = None
+        self.new_messages: List[ModelMessage] = []
 
     async def __call__(
             self,
@@ -90,9 +91,11 @@ class AgentV1(ABC, Generic[TDeps, TOutput]):
         run = await self.agent.run(prompt, deps=self.deps, message_history=self.message_history)
 
         if self.message_history is None:
-            self.message_history = run.all_messages()
+            self.message_history = run.new_messages()
+            self.new_messages = run.new_messages()
         else:
             self.message_history += run.new_messages()
+            self.new_messages += run.new_messages()
 
         await self.finish_run(f"Agent run [{self.deps.run_name or self.deps.run_id}] completed")
         return run.output
@@ -115,6 +118,7 @@ class AgentV1(ABC, Generic[TDeps, TOutput]):
             ) as run:
                 async for message, last in run.stream_responses(debounce_by=0.01):
                     try:
+                        print(f"Message: {message}")
                         output = await run.validate_response_output(
                             message,
                             allow_partial=not last
@@ -124,9 +128,11 @@ class AgentV1(ABC, Generic[TDeps, TOutput]):
                         continue
 
             if self.message_history is None:
-                self.message_history = run.all_messages()
+                self.message_history = run.new_messages()
+                self.new_messages = run.new_messages()
             else:
                 self.message_history += run.new_messages()
+                self.new_messages += run.new_messages()
 
             await self.finish_run(f"Agent run [{self.deps.run_name or self.deps.run_id}] completed")
         except Exception as e:
@@ -147,7 +153,8 @@ class AgentV1(ABC, Generic[TDeps, TOutput]):
             async with self.agent.run_stream(
                 prompt,
                 deps=self.deps,
-                message_history=self.message_history
+                message_history=self.message_history,
+                output_type=str
             ) as run:
                 prev_text = ""
                 async for output_text in run.stream_output(debounce_by=0.01):
@@ -156,9 +163,11 @@ class AgentV1(ABC, Generic[TDeps, TOutput]):
                         prev_text = output_text
 
             if self.message_history is None:
-                self.message_history = run.all_messages()
+                self.message_history = run.new_messages()
+                self.new_messages = run.new_messages()
             else:
                 self.message_history += run.new_messages()
+                self.new_messages += run.new_messages()
 
             await self.finish_run(f"Agent run [{self.deps.run_name or self.deps.run_id}] completed")
         except Exception as e:
@@ -167,7 +176,7 @@ class AgentV1(ABC, Generic[TDeps, TOutput]):
 
     async def finish_run(self, success_message: Optional[str] = None):
         assert self.deps.run_id is not None, "Run ID must be set before finishing run."
-        await self.deps.callbacks.save_message_history(self.deps.user_id, self.deps.run_id, self.message_history)
+        await self.deps.callbacks.save_message_history(self.deps.user_id, self.deps.run_id, self.new_messages)
         await self.deps.callbacks.set_run_status(self.deps.user_id, self.deps.run_id, "completed")
         if success_message:
             await self.deps.callbacks.log(self.deps.user_id, self.deps.run_id, success_message, "result")
@@ -177,7 +186,7 @@ class AgentV1(ABC, Generic[TDeps, TOutput]):
         if self.deps.run_id is not None:
             await self.deps.callbacks.set_run_status(self.deps.user_id, self.deps.run_id, "failed")
             await self.deps.callbacks.log(self.deps.user_id, self.deps.run_id, error, "error")
-            await self.deps.callbacks.save_message_history(self.deps.user_id, self.deps.run_id, self.message_history)
+            await self.deps.callbacks.save_message_history(self.deps.user_id, self.deps.run_id, self.new_messages)
             await self.save_deps()
 
     async def save_deps(self):

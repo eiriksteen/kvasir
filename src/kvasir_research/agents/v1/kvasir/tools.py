@@ -7,6 +7,7 @@ from pydantic_ai.exceptions import ModelRetry
 from kvasir_research.agents.v1.kvasir.knowledge_bank import SUPPORTED_TASKS_LITERAL
 from kvasir_research.agents.v1.kvasir.deps import KvasirV1Deps
 from kvasir_research.agents.v1.base_agent import Context
+from kvasir_research.agents.v1.data_model import MessageCreate
 
 
 class AnalysisRunToLaunch(BaseModel):
@@ -56,6 +57,16 @@ class DispatchAgentsOutput(BaseModel):
     swe_runs_to_launch: List[SWERunToLaunch] = []
     swe_runs_to_resume: List[SWERunToResume] = []
     completed: bool = False
+
+
+async def explain_action_plan(ctx: RunContext[KvasirV1Deps], message: str) -> str:
+    """
+    Explain what action you're about to take or what tool you're about to call.
+    Use this BEFORE calling other tools (dispatch_agents, read_entities) to inform the user of your plan.
+    This is ONLY for explaining specific actions/tools you're about to execute, NOT for general conversation.
+    """
+    await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, message, "tool_call")
+    return "Success"
 
 
 async def dispatch_agents(ctx: RunContext[KvasirV1Deps], output: DispatchAgentsOutput) -> DispatchAgentsOutput:

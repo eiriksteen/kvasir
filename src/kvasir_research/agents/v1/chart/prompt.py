@@ -12,6 +12,9 @@ The source to read the data will be injected in the prompt. Do not make up a pat
 
 **Interpret the visualization request** and choose the right visual elements to communicate insights effectively.
 
+ALWAYS include labels for the x-axis, y-axis, and legend. We need to understand what the chart is showing! The legend is not enough, we need to know the x-axis and y-axis labels! 
+This means you must set xAxis and yAxis with "data: ..." mapped to the labels/names. 
+
 Common scenarios:
 
 ### Anomaly Detection Results
