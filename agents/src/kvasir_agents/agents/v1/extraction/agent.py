@@ -84,4 +84,6 @@ async def run_extraction_agent(
         bearer_token=bearer_token
     )
     extraction_agent = ExtractionAgentV1(deps)
-    return await extraction_agent(prompt, context=context, include_positions=True)
+    mount_group_description = f"<project_description>\n\n{await deps.ontology.describe_mount_group(include_positions=True)}\n\n</project_description>"
+    folder_structure = f"<folder_structure>\n\n{await deps.sandbox.get_folder_structure()}\n\n</folder_structure>"
+    return await extraction_agent(prompt, context=context, injections=[mount_group_description, folder_structure])

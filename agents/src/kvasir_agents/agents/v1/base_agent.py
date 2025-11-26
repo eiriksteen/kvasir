@@ -83,11 +83,10 @@ class AgentV1(ABC, Generic[TDeps, TOutput]):
             self,
             prompt: str,
             context: Optional[Context] = None,
-            describe_folder_structure: bool = True,
-            include_positions: bool = False) -> TOutput:
+            injections: Optional[List[str]] = None) -> TOutput:
 
         await self._setup_run()
-        prompt = await self._setup_context(prompt, context, describe_folder_structure, include_positions)
+        prompt = await self._setup_context(prompt, context, injections)
         run = await self.agent.run(prompt, deps=self.deps, message_history=self.message_history)
 
         if self.message_history is None:
@@ -104,11 +103,10 @@ class AgentV1(ABC, Generic[TDeps, TOutput]):
             self,
             prompt: str,
             context: Optional[Context] = None,
-            describe_folder_structure: bool = True,
-            include_positions: bool = False) -> AsyncGenerator[Tuple[TOutput, bool], None]:
+            injections: Optional[List[str]] = None) -> AsyncGenerator[Tuple[TOutput, bool], None]:
 
         await self._setup_run()
-        prompt = await self._setup_context(prompt, context, describe_folder_structure, include_positions)
+        prompt = await self._setup_context(prompt, context, injections)
 
         try:
             async with self.agent.run_stream(
@@ -143,11 +141,10 @@ class AgentV1(ABC, Generic[TDeps, TOutput]):
             self,
             prompt: str,
             context: Optional[Context] = None,
-            describe_folder_structure: bool = True,
-            include_positions: bool = False) -> AsyncGenerator[str, None]:
+            injections: Optional[List[str]] = None) -> AsyncGenerator[str, None]:
 
         await self._setup_run()
-        prompt = await self._setup_context(prompt, context, describe_folder_structure, include_positions)
+        prompt = await self._setup_context(prompt, context, injections)
 
         try:
             async with self.agent.run_stream(
@@ -200,15 +197,11 @@ class AgentV1(ABC, Generic[TDeps, TOutput]):
             self,
             prompt: str,
             context: Optional[Context] = None,
-            describe_folder_structure: bool = True,
-            include_positions: bool = False) -> str:
+            injections: Optional[List[str]] = None) -> str:
 
-        project_description = await self.deps.ontology.describe_mount_group(include_positions=include_positions)
-        prompt = f"{prompt}\n\n<project_description>\n\n{project_description}\n\n</project_description>"
-
-        if describe_folder_structure:
-            folder_structure = await self.deps.sandbox.get_folder_structure()
-            prompt = f"{prompt}\n\n<folder_structure>\n\n{folder_structure}\n\n</folder_structure>"
+        if injections:
+            for injection in injections:
+                prompt = f"{prompt}\n\n{injection}"
 
         if context:
             new_entities = set(context.data_sources) | set(context.datasets) | set(

@@ -264,7 +264,8 @@ class ApplicationCallbacks(KvasirV1Callbacks):
         project_id: Optional[UUID] = None,
         status: Optional[str] = None,
         filter_status: Optional[List[str]] = None,
-        type: Optional[RUN_TYPE_LITERAL] = None
+        type: Optional[RUN_TYPE_LITERAL] = None,
+        kvasir_run_id: Optional[UUID] = None
     ) -> List[RunBase]:
         query = select(run).where(run.c.user_id == user_id)
 
@@ -294,7 +295,7 @@ class ApplicationCallbacks(KvasirV1Callbacks):
             analysis_run.c.kvasir_run_id
         ).where(analysis_run.c.run_id.in_(run_id_list))
         analysis_run_records = await fetch_all(analysis_run_query)
-        analysis_run_map = {record["run_id"]                            : record for record in analysis_run_records}
+        analysis_run_map = {record["run_id"]: record for record in analysis_run_records}
 
         swe_run_query = select(swe_run).where(
             swe_run.c.run_id.in_(run_id_list))
@@ -386,6 +387,23 @@ class ApplicationCallbacks(KvasirV1Callbacks):
         )
         await execute(insert(run).values(**run_obj.model_dump()), commit_after=True)
         return run_obj
+
+    async def _get_run_ids_from_kvasir_run(self, user_id: UUID, kvasir_run_id: UUID) -> List[UUID]:
+        swe_records = await fetch_all(select(swe_run.c.run_id).where(swe_run.c.kvasir_run_id == kvasir_run_id))
+        analysis_records = await fetch_all(select(analysis_run.c.run_id).where(analysis_run.c.kvasir_run_id == kvasir_run_id))
+        return list(set([record["run_id"] for record in swe_records + analysis_records]))
+
+    async def get_runs_status_description(self, user_id: UUID, kvasir_run_id: UUID) -> str:
+        # Gets the run IDs, names, and status of all runs dispatched from the Kvasir run
+        run_ids = await self._get_run_ids_from_kvasir_run(user_id, kvasir_run_id)
+        runs = await self.get_runs(user_id=user_id, run_ids=run_ids)
+
+        out = (
+            "<launched_runs_status>" +
+            "\n".join([f"<run id=\"{run.id}\" name=\"{run.run_name}\" status=\"{run.status}\"/>" for run in runs]) +
+            "</launched_runs_status>"
+        )
+        return out
 
 
 @v1_broker.on_event(TaskiqEvents.WORKER_STARTUP)

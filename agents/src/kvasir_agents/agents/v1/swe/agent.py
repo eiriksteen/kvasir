@@ -106,7 +106,9 @@ class SweAgentV1(AgentV1[SWEDeps, SweOutput]):
 
     async def __call__(self, prompt: str, context: Optional[Context] = None) -> SweOutput:
         try:
-            output = await super().__call__(prompt, context, describe_folder_structure=True)
+            mount_group_description = f"<project_description>\n\n{await self.deps.ontology.describe_mount_group(include_positions=False)}\n\n</project_description>"
+            folder_structure = f"<folder_structure>\n\n{await self.deps.sandbox.get_folder_structure()}\n\n</folder_structure>"
+            output = await super().__call__(prompt, context, injections=[mount_group_description, folder_structure])
 
             if output.execution_command:
                 await self.deps.ontology.pipelines.create_pipeline_run(PipelineRunCreate(

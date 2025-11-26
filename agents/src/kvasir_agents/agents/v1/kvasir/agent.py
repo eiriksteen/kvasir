@@ -20,7 +20,8 @@ from kvasir_agents.utils.agent_utils import get_model
 from kvasir_agents.agents.v1.history_processors import (
     keep_only_most_recent_project_description,
     keep_only_most_recent_folder_structure,
-    keep_only_most_recent_entity_context
+    keep_only_most_recent_entity_context,
+    keep_only_most_recent_launched_runs_status
 )
 
 
@@ -233,7 +234,8 @@ kvasir_v1_agent = Agent[KvasirV1Deps, str](
     history_processors=[
         keep_only_most_recent_project_description,
         keep_only_most_recent_folder_structure,
-        keep_only_most_recent_entity_context
+        keep_only_most_recent_entity_context,
+        keep_only_most_recent_launched_runs_status
     ]
 )
 
@@ -282,8 +284,12 @@ class KvasirV1(AgentV1[KvasirV1Deps, str]):
         )
 
         prompt = f"<user_prompt>\n\n{prompt}\n\n</user_prompt>"
+        project_description = f"<project_description>\n\n{await self.deps.ontology.describe_mount_group(include_positions=False)}\n\n</project_description>"
+        folder_structure = f"<folder_structure>\n\n{await self.deps.sandbox.get_folder_structure()}\n\n</folder_structure>"
+        launched_runs_status = f"<launched_runs_status>\n\n{await self.deps.callbacks.get_runs_status_description(self.deps.user_id, self.deps.run_id)}\n\n</launched_runs_status>"
         output_id = uuid4()
-        async for response in super().run_agent_text_stream(prompt, context, describe_folder_structure=True):
+
+        async for response in super().run_agent_text_stream(prompt, context, injections=[project_description, folder_structure, launched_runs_status]):
             yield Message(
                 id=output_id,
                 run_id=self.deps.run_id,

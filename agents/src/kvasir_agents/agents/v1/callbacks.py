@@ -107,3 +107,7 @@ class KvasirV1Callbacks(ABC):
     @abstractmethod
     async def create_run(self, user_id: UUID, create: RunCreate) -> RunBase:
         pass
+
+    @abstractmethod
+    async def get_runs_status_description(self, user_id: UUID, kvasir_run_id: UUID) -> str:
+        pass

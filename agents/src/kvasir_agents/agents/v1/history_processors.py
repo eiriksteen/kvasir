@@ -194,3 +194,11 @@ async def keep_only_most_recent_mount_group(
     processed_messages = await keep_only_most_recent_by_pattern(
         _, messages, HistoryPattern(start="<mount_group", end="</mount_group>"))
     return processed_messages
+
+
+async def keep_only_most_recent_launched_runs_status(
+        _: RunContext,
+        messages: list[ModelMessage]) -> list[ModelMessage]:
+    processed_messages = await keep_only_most_recent_by_pattern(
+        _, messages, HistoryPattern(start="<launched_runs_status", end="</launched_runs_status>"))
+    return processed_messages
