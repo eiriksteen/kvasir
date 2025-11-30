@@ -14,7 +14,7 @@ from kvasir_api.modules.codebase.service import Codebase
 
 def create_ontology_for_user(
     user_id: UUID,
-    mount_group_id: UUID,
+    mount_node_id: UUID,
     bearer_token: Optional[str] = None
 ) -> Ontology:
 
@@ -25,11 +25,11 @@ def create_ontology_for_user(
     model_service = Models(user_id)
     graph_service = EntityGraphs(user_id)
     visualization_service = Visualizations(user_id)
-    code_service = Codebase(user_id, mount_group_id)
+    code_service = Codebase(user_id, mount_node_id)
 
     return Ontology(
         user_id=user_id,
-        mount_group_id=mount_group_id,
+        mount_node_id=mount_node_id,
         data_source_interface=data_source_service,
         analysis_interface=analysis_service,
         dataset_interface=dataset_service,

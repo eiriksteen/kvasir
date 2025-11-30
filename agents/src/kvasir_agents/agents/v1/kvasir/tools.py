@@ -71,36 +71,31 @@ async def explain_action_plan(ctx: RunContext[KvasirV1Deps], message: str) -> st
 async def dispatch_agents(ctx: RunContext[KvasirV1Deps], output: DispatchAgentsOutput) -> DispatchAgentsOutput:
     await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Dispatching agents: {len(output.analysis_runs_to_launch)} analysis runs to launch, {len(output.analysis_runs_to_resume)} to resume, {len(output.swe_runs_to_launch)} SWE runs to launch, {len(output.swe_runs_to_resume)} to resume", "tool_call")
 
-    # Validate that resumed runs are in the correct launched run lists
-    for analysis_run_to_resume in output.analysis_runs_to_resume:
-        if analysis_run_to_resume.run_id not in ctx.deps.launched_analysis_run_ids:
-            # Check if it's trying to resume a SWE run as an analysis run
-            if analysis_run_to_resume.run_id in ctx.deps.launched_swe_run_ids:
+    if output.analysis_runs_to_resume:
+        analysis_runs = await ctx.deps.callbacks.get_runs(ctx.deps.user_id, [run.run_id for run in output.analysis_runs_to_resume])
+        if len(analysis_runs) != len(output.analysis_runs_to_resume):
+            raise ModelRetry(
+                f"Some analysis runs were not found. Are you sure you submitted the correct run IDs? ")
+
+        for analysis_run_to_resume in output.analysis_runs_to_resume:
+            if analysis_run_to_resume.entities_to_inject.get_num_entities() > ctx.deps.max_entities_in_context:
                 raise ModelRetry(
-                    f"Analysis run {analysis_run_to_resume.run_id} is a SWE run, not an analysis run. Cannot resume SWE runs as analysis runs.")
+                    f"You can maximally inject {ctx.deps.max_entities_in_context} entities in the analysis agent's context. ")
+
+            await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Resuming analysis run {analysis_run_to_resume.run_id}", "tool_call")
+
+    if output.swe_runs_to_resume:
+        swe_runs = await ctx.deps.callbacks.get_runs(ctx.deps.user_id, [run.run_id for run in output.swe_runs_to_resume])
+        if len(swe_runs) != len(output.swe_runs_to_resume):
             raise ModelRetry(
-                f"Analysis run {analysis_run_to_resume.run_id} not in launched analysis run IDs list. Full IDs must be used, choose between {ctx.deps.launched_analysis_run_ids}")
+                f"Some SWE runs were not found. Are you sure you submitted the correct run IDs? ")
 
-        if analysis_run_to_resume.entities_to_inject.get_num_entities() > ctx.deps.max_entities_in_context:
-            raise ModelRetry(
-                f"You can maximally inject {ctx.deps.max_entities_in_context} entities in the analysis agent's context. ")
-
-        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Resuming analysis run {analysis_run_to_resume.run_id}", "tool_call")
-
-    for swe_run_to_resume in output.swe_runs_to_resume:
-        if swe_run_to_resume.run_id not in ctx.deps.launched_swe_run_ids:
-            # Check if it's trying to resume an analysis run as a SWE run
-            if swe_run_to_resume.run_id in ctx.deps.launched_analysis_run_ids:
+        for swe_run_to_resume in output.swe_runs_to_resume:
+            if swe_run_to_resume.entities_to_inject.get_num_entities() > ctx.deps.max_entities_in_context:
                 raise ModelRetry(
-                    f"SWE run {swe_run_to_resume.run_id} is an analysis run, not a SWE run. Cannot resume analysis runs as SWE runs.")
-            raise ModelRetry(
-                f"SWE run {swe_run_to_resume.run_id} not in launched SWE run IDs list. Full IDs must be used, choose between {ctx.deps.launched_swe_run_ids}")
+                    f"You can maximally inject {ctx.deps.max_entities_in_context} entities in the SWE agent's context. ")
 
-        if swe_run_to_resume.entities_to_inject.get_num_entities() > ctx.deps.max_entities_in_context:
-            raise ModelRetry(
-                f"You can maximally inject {ctx.deps.max_entities_in_context} entities in the SWE agent's context. ")
-
-        await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Resuming SWE run {swe_run_to_resume.run_id}", "tool_call")
+            await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Resuming SWE run {swe_run_to_resume.run_id}", "tool_call")
 
     for analysis_run_to_launch in output.analysis_runs_to_launch:
         if analysis_run_to_launch.entities_to_inject.get_num_entities() > ctx.deps.max_entities_in_context:
@@ -119,6 +114,7 @@ async def dispatch_agents(ctx: RunContext[KvasirV1Deps], output: DispatchAgentsO
     total_resumed = len(output.analysis_runs_to_resume) + \
         len(output.swe_runs_to_resume)
     await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Successfully dispatched {total_launched} new run(s) and {total_resumed} resumed run(s)", "result")
+
     return DispatchAgentsOutput(**output.model_dump())
 
 

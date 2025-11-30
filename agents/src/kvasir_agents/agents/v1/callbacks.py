@@ -72,7 +72,7 @@ class KvasirV1Callbacks(ABC):
         pass
 
     @abstractmethod
-    def create_ontology(self, user_id: UUID, mount_group_id: UUID, bearer_token: Optional[str] = None) -> Ontology:
+    def create_ontology(self, user_id: UUID, mount_node_id: UUID, bearer_token: Optional[str] = None) -> Ontology:
         pass
 
     @abstractmethod

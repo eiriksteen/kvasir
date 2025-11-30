@@ -5,11 +5,8 @@ import { UUID } from "crypto";
 import { snakeToCamelKeys, camelToSnakeKeys } from "@/lib/utils";
 import {
   EntityGraph,
-  EntityNode,
-  EntityNodeCreate,
+  GraphNode,
   EdgeDefinition,
-  NodeGroupBase,
-  NodeGroupCreate,
 } from "@/types/ontology/entity-graph";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -17,14 +14,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 // Fetch entity graph
 async function fetchEntityGraph(
   token: string,
-  rootGroupId?: UUID | null,
-  rootNodeId?: UUID | null
+  rootNodeId: UUID
 ): Promise<EntityGraph> {
-  const params = new URLSearchParams();
-  if (rootGroupId) params.append("root_group_id", rootGroupId);
-  if (rootNodeId) params.append("root_node_id", rootNodeId);
-
-  const url = `${API_URL}/entity-graph/entity-graph${params.toString() ? `?${params.toString()}` : ""}`;
+  const url = `${API_URL}/entity-graph/entity-graph/${rootNodeId.toString()}`;
 
   const response = await fetch(url, {
     headers: {
@@ -43,48 +35,9 @@ async function fetchEntityGraph(
   return snakeToCamelKeys(data);
 }
 
-// Add node
-async function addNode(token: string, node: EntityNodeCreate): Promise<EntityNode> {
-  const response = await fetch(`${API_URL}/entity-graph/node`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(camelToSnakeKeys(node)),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Failed to add node", errorText);
-    throw new Error(`Failed to add node: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-// Get node
-async function getNode(token: string, nodeId: UUID): Promise<EntityNode> {
-  const response = await fetch(`${API_URL}/entity-graph/node/${nodeId}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Failed to get node", errorText);
-    throw new Error(`Failed to get node: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
 
 // Update node position
-async function updateNodePosition(token: string, nodeId: UUID, xPosition: number, yPosition: number): Promise<EntityNode> {
+async function updateNodePosition(token: string, nodeId: UUID, xPosition: number, yPosition: number): Promise<GraphNode> {
   const params = new URLSearchParams();
   params.append("x_position", xPosition.toString());
   params.append("y_position", yPosition.toString());
@@ -123,38 +76,11 @@ async function deleteNode(token: string, nodeId: UUID): Promise<void> {
   }
 }
 
-// Get node edges
-async function getNodeEdges(token: string, nodeId: UUID): Promise<EdgeDefinition[]> {
-  const response = await fetch(`${API_URL}/entity-graph/node/${nodeId}/edges`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Failed to get node edges", errorText);
-    throw new Error(`Failed to get node edges: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-// Get node groups
-async function getNodeGroups(
+async function getLeafNodeByEntityId(
   token: string,
-  nodeId?: UUID,
-  groupIds?: UUID[]
-): Promise<NodeGroupBase[]> {
-  const params = new URLSearchParams();
-  if (nodeId) params.append("node_id", nodeId);
-  if (groupIds && groupIds.length > 0) {
-    groupIds.forEach((id) => params.append("group_ids", id));
-  }
-
-  const url = `${API_URL}/entity-graph/node-groups${params.toString() ? `?${params.toString()}` : ""}`;
+  entityId: UUID
+): Promise<GraphNode> {
+  const url = `${API_URL}/entity-graph/leaf-node/entity/${entityId.toString()}`;
 
   const response = await fetch(url, {
     headers: {
@@ -165,50 +91,12 @@ async function getNodeGroups(
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("Failed to get node groups", errorText);
-    throw new Error(`Failed to get node groups: ${response.status} ${errorText}`);
+    console.error("Failed to fetch leaf node by entity ID", errorText);
+    throw new Error(`Failed to fetch leaf node by entity ID: ${response.status} ${errorText}`);
   }
 
   const data = await response.json();
   return snakeToCamelKeys(data);
-}
-
-// Create node group
-async function createNodeGroup(token: string, nodeGroup: NodeGroupCreate): Promise<NodeGroupBase> {
-  const response = await fetch(`${API_URL}/entity-graph/node-group`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(camelToSnakeKeys(nodeGroup)),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Failed to create node group", errorText);
-    throw new Error(`Failed to create node group: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  return snakeToCamelKeys(data);
-}
-
-// Delete node group
-async function deleteNodeGroup(token: string, nodeGroupId: UUID): Promise<void> {
-  const response = await fetch(`${API_URL}/entity-graph/node-group/${nodeGroupId}`, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Failed to delete node group", errorText);
-    throw new Error(`Failed to delete node group: ${response.status} ${errorText}`);
-  }
 }
 
 // Add node to group
@@ -290,36 +178,24 @@ async function removeEdges(token: string, edges: EdgeDefinition[]): Promise<void
 }
 
 // Hook for entity graph operations
-export const useEntityGraph = (rootGroupId?: UUID | null, rootNodeId?: UUID | null) => {
+export const useEntityGraph = (rootNodeId?: UUID | null) => {
   const { data: session } = useSession();
 
   const { data: entityGraph, mutate: mutateEntityGraph, error, isLoading } = useSWR(
-    session && rootGroupId
-      ? ["entity-graph", rootGroupId]
+    session && rootNodeId
+      ? ["entity-graph", rootNodeId]
       : null,
     () =>
       fetchEntityGraph(
         session ? session.APIToken.accessToken : "",
-        rootGroupId,
-        rootNodeId
+        rootNodeId!
       )
-  );
-
-  // Add node mutation
-  const { trigger: triggerAddNode } = useSWRMutation(
-    session && rootGroupId
-      ? ["entity-graph", rootGroupId]
-      : null,
-    async (_, { arg }: { arg: EntityNodeCreate }) => {
-      await addNode(session ? session.APIToken.accessToken : "", arg);
-      await mutateEntityGraph();
-    }
   );
 
   // Delete node mutation
   const { trigger: triggerDeleteNode } = useSWRMutation(
-    session && rootGroupId
-      ? ["entity-graph", rootGroupId]
+    session && rootNodeId
+      ? ["entity-graph", rootNodeId]
       : null,
     async (_, { arg }: { arg: { nodeId: UUID } }) => {
       await deleteNode(session ? session.APIToken.accessToken : "", arg.nodeId);
@@ -329,8 +205,8 @@ export const useEntityGraph = (rootGroupId?: UUID | null, rootNodeId?: UUID | nu
 
   // Update node position mutation
   const { trigger: triggerUpdateNodePosition } = useSWRMutation(
-    session && rootGroupId
-      ? ["entity-graph", rootGroupId]
+    session && rootNodeId
+      ? ["entity-graph", rootNodeId]
       : null,
     async (_, { arg }: { arg: { nodeId: UUID; xPosition: number; yPosition: number } }) => {
       await updateNodePosition(session ? session.APIToken.accessToken : "", arg.nodeId, arg.xPosition, arg.yPosition);
@@ -340,8 +216,8 @@ export const useEntityGraph = (rootGroupId?: UUID | null, rootNodeId?: UUID | nu
 
   // Create edges mutation
   const { trigger: triggerCreateEdges } = useSWRMutation(
-    session && rootGroupId
-      ? ["entity-graph", rootGroupId]
+    session && rootNodeId
+      ? ["entity-graph", rootNodeId]
       : null,
     async (_, { arg }: { arg: EdgeDefinition[] }) => {
       await createEdges(session ? session.APIToken.accessToken : "", arg);
@@ -351,8 +227,8 @@ export const useEntityGraph = (rootGroupId?: UUID | null, rootNodeId?: UUID | nu
 
   // Remove edges mutation
   const { trigger: triggerRemoveEdges } = useSWRMutation(
-    session && rootGroupId
-      ? ["entity-graph", rootGroupId]
+    session && rootNodeId
+      ? ["entity-graph", rootNodeId]
       : null,
     async (_, { arg }: { arg: EdgeDefinition[] }) => {
       await removeEdges(session ? session.APIToken.accessToken : "", arg);
@@ -362,8 +238,8 @@ export const useEntityGraph = (rootGroupId?: UUID | null, rootNodeId?: UUID | nu
 
   // Add node to group mutation
   const { trigger: triggerAddNodeToGroup } = useSWRMutation(
-    session && rootGroupId
-      ? ["entity-graph", rootGroupId]
+    session && rootNodeId
+      ? ["entity-graph", rootNodeId]
       : null,
     async (_, { arg }: { arg: { nodeId: UUID; nodeGroupId: UUID } }) => {
       await addNodeToGroup(
@@ -377,8 +253,8 @@ export const useEntityGraph = (rootGroupId?: UUID | null, rootNodeId?: UUID | nu
 
   // Remove nodes from groups mutation
   const { trigger: triggerRemoveNodesFromGroups } = useSWRMutation(
-    session && rootGroupId
-      ? ["entity-graph", rootGroupId]
+    session && rootNodeId
+      ? ["entity-graph", rootNodeId]
       : null,
     async (_, { arg }: { arg: { nodeIds: UUID[]; nodeGroupIds: UUID[] } }) => {
       await removeNodesFromGroups(
@@ -395,7 +271,6 @@ export const useEntityGraph = (rootGroupId?: UUID | null, rootNodeId?: UUID | nu
     mutateEntityGraph,
     error,
     isLoading,
-    triggerAddNode,
     triggerDeleteNode,
     triggerUpdateNodePosition,
     triggerCreateEdges,
@@ -406,71 +281,20 @@ export const useEntityGraph = (rootGroupId?: UUID | null, rootNodeId?: UUID | nu
 };
 
 // Hook for individual node operations
-export const useEntityNode = (nodeId: UUID) => {
+export const useEntityNode = (entityId: UUID) => {
   const { data: session } = useSession();
 
   const { data: node, mutate: mutateNode, error, isLoading } = useSWR(
-    session && nodeId ? ["entity-node", nodeId] : null,
-    () => getNode(session ? session.APIToken.accessToken : "", nodeId)
-  );
-
-  const { data: nodeEdges, mutate: mutateNodeEdges } = useSWR(
-    session && nodeId ? ["entity-node-edges", nodeId] : null,
-    () => getNodeEdges(session ? session.APIToken.accessToken : "", nodeId)
+    session && entityId ? ["entity-node", entityId] : null,
+    () => getLeafNodeByEntityId(session ? session.APIToken.accessToken : "", entityId)
   );
 
   return {
     node,
-    nodeEdges,
     mutateNode,
-    mutateNodeEdges,
     error,
     isLoading,
   };
 };
 
-// Hook for node groups
-export const useNodeGroups = (nodeId?: UUID, groupIds?: UUID[]) => {
-  const { data: session } = useSession();
-
-  const { data: nodeGroups, mutate: mutateNodeGroups, error, isLoading } = useSWR(
-    session ? ["node-groups", nodeId, groupIds] : null,
-    () =>
-      getNodeGroups(session ? session.APIToken.accessToken : "", nodeId, groupIds)
-  );
-
-  // Create node group mutation
-  const { trigger: triggerCreateNodeGroup } = useSWRMutation(
-    session ? ["node-groups", nodeId, groupIds] : null,
-    async (_, { arg }: { arg: NodeGroupCreate }) => {
-      const newGroup = await createNodeGroup(
-        session ? session.APIToken.accessToken : "",
-        arg
-      );
-      await mutateNodeGroups();
-      return newGroup;
-    }
-  );
-
-  // Delete node group mutation
-  const { trigger: triggerDeleteNodeGroup } = useSWRMutation(
-    session ? ["node-groups", nodeId, groupIds] : null,
-    async (_, { arg }: { arg: { nodeGroupId: UUID } }) => {
-      await deleteNodeGroup(
-        session ? session.APIToken.accessToken : "",
-        arg.nodeGroupId
-      );
-      await mutateNodeGroups();
-    }
-  );
-
-  return {
-    nodeGroups,
-    mutateNodeGroups,
-    error,
-    isLoading,
-    triggerCreateNodeGroup,
-    triggerDeleteNodeGroup,
-  };
-};
 

@@ -1,40 +1,22 @@
-import { X, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
+import { useEffect } from 'react';
 import { useDataSource } from "@/hooks/useDataSources";
 import { UUID } from 'crypto';
 import JsonViewer from '@/components/JsonViewer';
-import ConfirmationPopup from '@/components/ConfirmationPopup';
-import { useOntology } from '@/hooks/useOntology';
 
 interface FileInfoTabProps {
   dataSourceId: UUID;
-  projectId: UUID;
   onClose: () => void;
-  onDelete?: () => void;
   asModal?: boolean;
 }
 
 export default function FileInfoTab({ 
   dataSourceId, 
-  projectId,
   onClose,
-  onDelete,
   asModal = false
 }: FileInfoTabProps) {
-  
-  const { dataSource } = useDataSource(dataSourceId);
-  const { deleteDataSource } = useOntology(projectId);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const handleDelete = async () => {
-    try {
-      await deleteDataSource({ dataSourceId });
-      onDelete?.();
-      onClose();
-    } catch (error) {
-      console.error('Failed to delete data source:', error);
-    }
-  };
+  const { dataSource } = useDataSource(dataSourceId);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -88,15 +70,6 @@ export default function FileInfoTab({
   const content = (
     <div className="h-full p-4 flex flex-col gap-4">
       <div className="bg-gray-50 rounded-xl p-4 flex-1 min-h-0 flex flex-col relative">
-        <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="p-2 text-red-800 hover:bg-red-100 rounded-lg transition-colors"
-            title="Delete data source"
-          >
-            <Trash2 size={18} />
-          </button>
-        </div>
         <JsonViewer 
           data={mergedData} 
           className="flex-1 min-h-0"
@@ -121,12 +94,6 @@ export default function FileInfoTab({
             {content}
           </div>
         </div>
-        <ConfirmationPopup
-          message={`Are you sure you want to delete "${dataSource.name}"? This will permanently delete the data source. This action cannot be undone.`}
-          isOpen={showDeleteConfirm}
-          onConfirm={handleDelete}
-          onCancel={() => setShowDeleteConfirm(false)}
-        />
       </div>
     );
   }
@@ -140,13 +107,6 @@ export default function FileInfoTab({
           </div>
         </div>
       </div>
-      
-      <ConfirmationPopup
-        message={`Are you sure you want to delete "${dataSource.name}"? This will permanently delete the data source. This action cannot be undone.`}
-        isOpen={showDeleteConfirm}
-        onConfirm={handleDelete}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
     </div>
   );
 }

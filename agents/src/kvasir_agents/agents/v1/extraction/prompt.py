@@ -26,20 +26,40 @@ Extract and map codebases to these entity types:
 
 ### Three-Phase Extraction Flow
 
-**Flexible Execution**: Execute only the phases needed:
-- **Only edges missing?** → Phase 3 only
-- **Only entity details need updating?** → Phase 1 with `entities_to_update`
-- **Only pipeline runs missing?** → Phase 2, then Phase 3
-- **Complete extraction?** → All three phases in order
-
 #### Phase 1: Entity Submission
-Submit entities (data sources, datasets, pipelines, models, analyses) with **NO edges and NO runs**:
+Submit entities (data sources, datasets, pipelines, models, analyses) (without edges and runs):
 1. Check existing graph to identify existing entities
 2. Identify new entities from codebase
 3. Skip existing entities - only submit entities that need to be created
 4. For each new entity: specify requirements, include relevant data/code file paths
-5. Use `submit_entities_to_create_or_update` with `entities_to_create` only (no edges, no runs)
+5. Use `submit_entities_to_create_or_update` with `entities_to_create` and `groups_to_create`
 6. To update existing entities: use `entities_to_update` with the entity's `entity_id`
+
+**Entity Grouping Strategy:**
+Group entities to maintain a clean, organized graph. Never create separate root-level entities for outputs from different runs of the same pipeline - they must be grouped.
+
+**Mandatory Grouping Rules:**
+1. **Run outputs from same pipeline**: All outputs from different runs of the same pipeline must be grouped together. Do not create separate root-level entities like `pipeline_output_model_run_1` and `pipeline_output_model_run_2`. Instead, group them in `{{pipeline_name}}_output_models`.
+2. **Train/val/test splits**: Train/val/test data sources must be grouped (e.g., `{{dataset_name}}_splits`). For datasets, they must be in a single dataset entity with train/val/test as separate object groups (not separate dataset entities).
+3. **Data sources**: Group output files from pipeline runs by default (e.g., `{{pipeline}}_output_files`).
+
+**Example - What NOT to do:**
+- Creating separate entities: `forecasting_pipeline_output_model_run_1`, `forecasting_pipeline_output_model_run_2`, `forecasting_pipeline_output_dataset_run_1`, `forecasting_pipeline_output_dataset_run_2`
+
+**Example - What TO do:**
+- Group models: Create group `forecasting_pipeline_output_models` containing `model_run_1`, `model_run_2`
+- Group datasets: Create group `forecasting_pipeline_output_datasets` containing `dataset_run_1`, `dataset_run_2`
+- Group data sources: Create group `forecasting_pipeline_output_files` containing all output files from different runs
+
+**Group Naming Convention:**
+- Format: `{{pipeline_name}}_{{suitable_name}}_{{entity_type}}` (e.g., `forecasting_pipeline_output_models`, `training_pipeline_results_datasets`)
+- For data sources: `{{pipeline}}_output_files` or `{{dataset_name}}_splits`
+- For datasets: Use descriptive names like `{{pipeline}}_output_datasets` or `{{pipeline}}_results_datasets`
+
+**Requirements:**
+- All entities in a group must be the same type
+- Set `group_name` in `entities_to_create` to match group `name` in `groups_to_create` (or `None` for individual entities)
+- Only keep entities individual if they are critical nodes feeding multiple downstream processes
 
 #### Phase 2: Pipeline Run Submission
 After entities are created, submit pipeline runs:
@@ -48,7 +68,10 @@ After entities are created, submit pipeline runs:
 3. Use `submit_pipeline_runs_to_create` with each run's correct `pipeline_id`
 
 #### Phase 3: Edge Creation
-**CRITICAL**: Complete edges are essential for data lineage. The graph is useless without them. You MUST create EVERY edge representing data flow.
+Complete edges are essential for data lineage. The graph is incomplete without them. Create every edge representing data flow.
+
+**Edge Definition on Leaf Entities:**
+Edges are defined on leaf entities (individual entities), not groups. When creating edges in Phase 3, create edges for ALL entities including those inside groups. 
 
 **Valid Edge Types:**
 - Regular: `data_source` → `dataset`, `data_source` → `pipeline` (non-ML only), `data_source` → `analysis` (raw data only), `dataset` → `pipeline`, `dataset` → `analysis`, `model_instantiated` → `pipeline`, `model_instantiated` → `analysis`
@@ -56,9 +79,9 @@ After entities are created, submit pipeline runs:
 - Pipeline Run Outputs: `pipeline_run` → `data_source`, `pipeline_run` → `dataset`, `pipeline_run` → `model_instantiated`
 
 **Data Source vs Dataset Usage:**
-- Use **datasets** for: ALL visualizable data, processed data, aggregated data, or any data used by analyses/pipelines for visualization or comparison
+- Use **datasets** for: All visualizable data, processed data, aggregated data, or any data used by analyses/pipelines for visualization or comparison
 - Use **data sources** ONLY for: (1) raw/uncleaned data used for data quality analysis, (2) inputs to cleaning pipelines, (3) pre-cleaned data sources that feed directly into datasets without processing pipelines
-- **CRITICAL**: ALL visualizable data MUST be in datasets. If comparing predictions from multiple models, aggregate them into a single dataset, then create analysis on that dataset
+- All visualizable data must be in datasets. If comparing predictions from multiple models, aggregate them into a single dataset, then create analysis on that dataset
 - Analyses using raw/uncleaned data for quality inspection → use data sources
 - Analyses using processed/aggregated/visualizable data → MUST use datasets
 
@@ -114,6 +137,12 @@ For EACH entity, identify ALL connections systematically:
 - Use `entities_to_update` with `entity_id`, `type`, `updates_to_make_description`, and relevant file paths
 - Use when user requests changes or you need to add missing information
 
+**Flexible Execution**: Execute only the phases needed:
+- **Only edges missing?** → Phase 3 only
+- **Only entity details need updating?** → Phase 1 with `entities_to_update`
+- **Only pipeline runs missing?** → Phase 2, then Phase 3
+- **Complete extraction?** → All three phases in order
+
 ## General Instructions
 
 - **File references**: Include absolute paths to all relevant data and code files for each entity
@@ -146,6 +175,7 @@ You will provide coordinates for the entities in the graph.
 - Edges must only connect direct neighbors in the data flow
 - Do NOT create long edges that skip intermediate entities (e.g., raw data source → final results)
 - If a path exists through intermediaries (e.g., `data_source → pipeline → dataset`), do NOT also create the direct edge (`data_source → dataset`). Only create edges between direct neighbors.
+- **Datasets to Models**: Datasets must go through pipelines to reach models. For example, a training pipeline should be `dataset → pipeline → model`, NOT `dataset → model`.
 
 **Coordinate Assignment**: When creating new entities, assign x and y coordinates based on their position in the data flow and relationship to existing entities. Consider existing entity positions to maintain a clean, readable layout.
 
@@ -163,12 +193,14 @@ You will provide coordinates for the entities in the graph.
 </data_source_types_overview>
 
 **What to Identify**:
-- **CRITICAL**: ALL data files MUST be added (CSV, Parquet, JSON, etc.) including training/validation/test files, predictions, results, outputs
+- All data files must be added (CSV, Parquet, JSON, etc.) including training/validation/test files, predictions, results, outputs
 - Exclude ONLY: model weights (.pth, .pt, .h5, .ckpt, .pkl, etc), code files, plots/visualizations (PNG, JPG, SVG), configuration files, metrics files (metrics go in pipeline runs)
 - Required: Specify data source type from supported types above
 - Include absolute paths to all data files and code that reads/writes them
 
 **Naming**: Use filename including extension as the name
+
+**Grouping**: Group all output files from pipeline runs (e.g., `{{pipeline}}_output_files`). Group train/val/test files together (e.g., `{{dataset_name}}_splits`). Never create separate root-level entities for outputs from different runs - always group them (e.g., do not create `{{pipeline}}_output_file_run_1` and `{{pipeline}}_output_file_run_2` as separate entities; instead group them in `{{pipeline}}_output_files`). Only leave individual if a single file is critical to multiple downstream processes.
 
 ---
 
@@ -200,7 +232,9 @@ You will provide coordinates for the entities in the graph.
 - Data sources or pipelines that create each dataset
 - Include paths to relevant data/code files
 
-**Train/Val/Test Splits**: **CRITICAL** - train/val/test files MUST be placed into a SINGLE dataset entity with train/val/test as separate object groups (NOT separate datasets). All three files' edges connect to the same dataset.
+**Train/Val/Test Splits**: Train/val/test must be in one dataset entity (not separate dataset entities). For data sources: group them (e.g., `{{dataset_name}}_splits`). For datasets: create a single dataset entity with train/val/test as separate object groups within that dataset. All three files' edges connect to the same dataset entity.
+
+**Grouping**: Never create separate root-level dataset entities for outputs from different runs of the same pipeline. Group them together (e.g., do not create `{{pipeline}}_output_dataset_run_1` and `{{pipeline}}_output_dataset_run_2` as separate entities; instead group them in `{{pipeline}}_output_datasets`).
 
 **Chart Visualizations**: Describe charts for each object group for interactive exploration (e.g., "Show forecast with past values in blue, forecast in green, shaded bounds")
 
@@ -222,9 +256,9 @@ Submit datasets last since chart creation takes time.
 - Include paths to notebook/script files and referenced data files
 
 **Input Requirements**: 
-- **Raw data analyses**: Use data sources ONLY for data quality analysis or inspection of RAW UNCLEANED DATA (to understand how to clean it)
-- **Processed/visualizable data analyses**: MUST use datasets (not data sources) - this includes any data intended for visualization, comparison, or analysis of processed/aggregated data
-- **CRITICAL**: If comparing predictions from multiple models, create a single dataset aggregating all predictions, then create analysis on that dataset
+- **Raw data analyses**: Use data sources only for data quality analysis or inspection of raw uncleaned data (to understand how to clean it)
+- **Processed/visualizable data analyses**: Must use datasets (not data sources) - this includes any data intended for visualization, comparison, or analysis of processed/aggregated data
+- If comparing predictions from multiple models, create a single dataset aggregating all predictions, then create analysis on that dataset
 - Captured via edges in Phase 3
 
 **Note**: Analyses can exist independent of codebase - if no notebook present, this is expected.
@@ -243,7 +277,7 @@ Submit datasets last since chart creation takes time.
 **ML Pipeline Output Rules**:
 - All ML pipeline outputs must flow: pipeline_run → data_source (raw storage) → dataset
 - This ensures predictions, metrics, and results are stored and then aggregated into datasets for visualization
-- **CRITICAL**: ALL visualizable outputs (predictions, results, comparisons) MUST be in datasets. If multiple model outputs need comparison, aggregate them into a single dataset first
+- All visualizable outputs (predictions, results, comparisons) must be in datasets. If multiple model outputs need comparison, aggregate them into a single dataset first
 
 **What to Identify**:
 - All pipeline code (cleaning, training, inference, evaluation scripts/modules)
@@ -262,7 +296,7 @@ Submit datasets last since chart creation takes time.
 - Pipeline run edges: Both input AND output edges (what run actually used/produced)
 - All pipeline outputs must flow through pipeline runs
 
-**CRITICAL**: Every pipeline run MUST have BOTH input AND output edges. For each run, identify ALL inputs (data sources, datasets, models) and ALL outputs (data sources, datasets, models). Missing pipeline run edges breaks data flow tracking.
+Every pipeline run must have both input and output edges. For each run, identify all inputs (data sources, datasets, models) and all outputs (data sources, datasets, models). Missing pipeline run edges breaks data flow tracking.
 
 **When to Create**: Identify runs from codebase (output files exist, run logs/configs present, results directories). Submit in Phase 2 after Phase 1, with `pipeline_id` (UUID) from entity graph. Create edges in Phase 3 using `node_type: "pipeline_run"`.
 
@@ -293,163 +327,7 @@ System creates one model entity per `ModelToCreate`, then all instantiations. Sp
 
 **Relationships**: Models can be inputs to pipelines. Model instantiations can be outputs of pipelines (fitted models saved after training).
 
+**Grouping Model Instantiations**: Never create separate root-level model instantiations for outputs from different runs of the same pipeline. Group them together (e.g., do not create `{{pipeline}}_output_model_run_1` and `{{pipeline}}_output_model_run_2` as separate entities; instead group them in `{{pipeline}}_output_models`).
+
 **Duplicate Prevention**: Always check existing graph first. If entity exists (same name and type), skip it - do not include in `entities_to_create` or `models_to_create`. Use `entities_to_update` with `entity_id` to update existing entities.
 """
-
-
-# EXAMPLE_EXTRACTION = """
-# ---
-
-# ## Example: Forecasting Project
-
-# ### Folder Structure
-# ```
-# forecasting_project/
-# ├── data/
-# │   ├── raw_time_series.csv
-# │   ├── cleaned_time_series.csv
-# ├── model_weights/
-# │   ├── model_weights.pth
-# ├── results/
-# │   ├── run_1/
-# │   │   ├── forecast_results.csv
-# │   │   ├── model_metrics.json
-# │   ├── run_2/
-# │   │   ├── forecast_results.csv
-# │   │   ├── model_metrics.json
-# ├── scripts/
-# │   ├── run_forecasting_pipeline.py
-# ├── src/
-# │   ├── pipelines/
-# │   │   ├── cleaning_pipeline.py
-# │   │   ├── forecasting_pipeline.py
-# │   ├── models/
-# │   │   ├── timemixer.py
-# │   │   ├── xgboost_model.py
-# ```
-
-# ### Extracted Graph (YAML)
-
-# ```yaml
-# data_sources:
-#   - id: raw_data_source
-#     name: raw_time_series
-#     description: Raw time series data
-#     to_entities:
-#     - pipelines: [cleaning_pipeline]
-
-#   - id: cleaned_data_source
-#     name: cleaned_time_series
-#     description: Cleaned time series data
-#     from_entities:
-#     - pipeline_runs: [cleaning_run_1]
-#     to_entities:
-#     - datasets: [dataset_1]
-
-#   - id: forecast_results_source_1
-#     name: forecast_results_run_1
-#     description: Forecast results for run 1
-#     from_entities:
-#     - pipeline_runs: [forecasting_run_1]
-#     to_entities:
-#     - datasets: [forecasting_results_run_1]
-
-#   - id: forecast_metrics_source_1
-#     name: forecast_metrics_run_1
-#     description: Forecast metrics for run 1
-#     from_entities:
-#     - pipeline_runs: [forecasting_run_1]
-#     to_entities:
-#     - datasets: [forecasting_results_run_1]
-
-#   - id: forecast_results_source_2
-#     name: forecast_results_run_2
-#     description: Forecast results for run 2
-#     from_entities:
-#     - pipeline_runs: [forecasting_run_2]
-#     to_entities:
-#     - datasets: [forecasting_results_run_2]
-
-#   - id: forecast_metrics_source_2
-#     name: forecast_metrics_run_2
-#     description: Forecast metrics for run 2
-#     from_entities:
-#     - pipeline_runs: [forecasting_run_2]
-#     to_entities:
-#     - datasets: [forecasting_results_run_2]
-
-# datasets:
-#   - id: dataset_1
-#     name: cleaned_time_series
-#     description: Cleaned time series dataset
-#     from_entities:
-#     - data_sources: [cleaned_data_source]
-#     to_entities:
-#     - pipelines: [forecasting_pipeline]
-
-#   - id: forecasting_results_run_1
-#     name: Forecasting results run 1
-#     description: Forecasting results run 1
-#     from_entities:
-#     - data_sources: [forecast_results_source_1, forecast_metrics_source_1]
-
-#   - id: forecasting_results_run_2
-#     name: Forecasting results run 2
-#     description: Forecasting results run 2
-#     from_entities:
-#     - data_sources: [forecast_results_source_2, forecast_metrics_source_2]
-
-# pipelines:
-#   - id: cleaning_pipeline
-#     name: Cleaning pipeline
-#     description: Cleaning pipeline
-#     from_entities:
-#     - data_sources: [raw_data_source]
-#     runs:
-#       - id: cleaning_run_1
-#         name: Cleaning run 1
-#         description: Cleaning run 1
-#         from_entities:
-#         - data_sources: [raw_data_source]
-#         to_entities:
-#         - data_sources: [cleaned_data_source]
-
-#   - id: forecasting_pipeline
-#     name: Forecasting pipeline
-#     description: Forecasting pipeline
-#     from_entities:
-#     - datasets: [dataset_1]
-#     - model_instantiatedies: [timemixer_model, xgboost_model]
-#     runs:
-#       - id: forecasting_run_1
-#         name: Forecasting run 1
-#         description: Forecasting run 1
-#         from_entities:
-#         - datasets: [dataset_1]
-#         - model_instantiatedies: [timemixer_model]
-#         to_entities:
-#         - data_sources: [forecast_results_source_1, forecast_metrics_source_1]
-
-#       - id: forecasting_run_2
-#         name: Forecasting run 2
-#         description: Forecasting run 2
-#         from_entities:
-#         - datasets: [dataset_1]
-#         - model_instantiatedies: [xgboost_model]
-#         to_entities:
-#         - data_sources: [forecast_results_source_2, forecast_metrics_source_2]
-
-# models:
-#   - id: timemixer_model
-#     name: TimeMixer
-#     description: TimeMixer forecasting model
-#     to_entities:
-#     - pipelines: [forecasting_pipeline]
-
-#   - id: xgboost_model
-#     name: XGBoost
-#     description: XGBoost forecasting model
-#     to_entities:
-#     - pipelines: [forecasting_pipeline]
-# ```
-# """

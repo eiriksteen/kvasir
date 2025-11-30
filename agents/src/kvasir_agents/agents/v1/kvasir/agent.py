@@ -228,7 +228,7 @@ kvasir_v1_agent = Agent[KvasirV1Deps, str](
         dispatch_agents_from_orchestrator,
         read_entities
     ],
-    output_type=PromptedOutput(str),
+    output_type=str,
     retries=3,
     model_settings=ModelSettings(temperature=0),
     history_processors=[
@@ -284,7 +284,7 @@ class KvasirV1(AgentV1[KvasirV1Deps, str]):
         )
 
         prompt = f"<user_prompt>\n\n{prompt}\n\n</user_prompt>"
-        project_description = f"<project_description>\n\n{await self.deps.ontology.describe_mount_group(include_positions=False)}\n\n</project_description>"
+        project_description = f"<project_description>\n\n{await self.deps.ontology.describe_mount_node(include_positions=False)}\n\n</project_description>"
         folder_structure = f"<folder_structure>\n\n{await self.deps.sandbox.get_folder_structure()}\n\n</folder_structure>"
         launched_runs_status = f"<launched_runs_status>\n\n{await self.deps.callbacks.get_runs_status_description(self.deps.user_id, self.deps.run_id)}\n\n</launched_runs_status>"
         output_id = uuid4()

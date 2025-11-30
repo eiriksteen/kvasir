@@ -5,7 +5,7 @@ import asyncio
 from pydantic import TypeAdapter
 from datetime import datetime, timezone
 from typing import Annotated, List, Optional, Union
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse, Response
 
 
@@ -62,15 +62,15 @@ async def post_chat(
 
     if is_new_conversation:
         graph_service = EntityGraphs(user.id)
-        node_group = await graph_service.get_node_group(run_record.project_id)
-        if not node_group:
+        node_object = await graph_service.get_node(run_record.project_id)
+        if not node_object:
             raise HTTPException(
                 status_code=404, detail="Project not found")
 
         deps = KvasirV1Deps(
             user_id=user.id,
-            project_id=node_group.id,
-            package_name=node_group.python_package_name,
+            project_id=node_object.id,
+            package_name=node_object.python_package_name,
             callbacks=ApplicationCallbacks(),
             sandbox_type="modal",
             bearer_token=token,
@@ -129,8 +129,8 @@ async def fetch_run_messages(
 
 @router.get("/stream-messages")
 async def stream_run_messages(
-    run_ids: Optional[List[uuid.UUID]] = None,
-    project_id: Optional[uuid.UUID] = None,
+    project_id: uuid.UUID,
+    run_ids: Optional[List[uuid.UUID]] = Query(None),
     cache: Annotated[redis.Redis, Depends(get_redis)] = None,
     user: Annotated[User, Depends(get_current_user)] = None,
 ) -> StreamingResponse:

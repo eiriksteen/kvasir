@@ -8,19 +8,32 @@ export type NodeType =
   | "model_instantiated"
   | "pipeline_run";
 
+export type GraphNodeType = "leaf" | "branch";
+export type EntityType = "data_source" | "dataset" | "analysis" | "pipeline" | "model_instantiated";
+export type BranchType = EntityType | "mixed";
+
 // Base Models
 
-export interface EntityNodeBase {
+export interface NodeBase {
   id: UUID;
   name: string;
-  entityType: NodeType;
+  description?: string | null;
+  nodeType: GraphNodeType;
   xPosition: number;
   yPosition: number;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface NodeGroupBase {
+export interface LeafNodeBase {
+  id: UUID;
+  entityId: UUID;
+  entityType: NodeType;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BranchNodeBase {
   id: UUID;
   name: string;
   description?: string | null;
@@ -29,159 +42,70 @@ export interface NodeGroupBase {
   updatedAt: string;
 }
 
-export interface NodeInGroup {
-  nodeId: UUID;
-  nodeGroupId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface DatasetFromDataSource {
-  dataSourceId: UUID;
-  datasetId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface DataSourceSupportedInPipeline {
-  dataSourceId: UUID;
-  pipelineId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface DatasetSupportedInPipeline {
-  datasetId: UUID;
-  pipelineId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ModelEntitySupportedInPipeline {
-  modelInstantiatedId: UUID;
-  pipelineId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface DatasetInPipelineRun {
-  pipelineRunId: UUID;
-  datasetId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface DataSourceInPipelineRun {
-  pipelineRunId: UUID;
-  dataSourceId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ModelEntityInPipelineRun {
-  pipelineRunId: UUID;
-  modelInstantiatedId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PipelineRunOutputDataset {
-  pipelineRunId: UUID;
-  datasetId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PipelineRunOutputModelEntity {
-  pipelineRunId: UUID;
-  modelInstantiatedId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PipelineRunOutputDataSource {
-  pipelineRunId: UUID;
-  dataSourceId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface DataSourceInAnalysis {
-  analysisId: UUID;
-  dataSourceId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface DatasetInAnalysis {
-  analysisId: UUID;
-  datasetId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ModelInstantiatedInAnalysis {
-  analysisId: UUID;
-  modelInstantiatedId: UUID;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Composite Models
-
-export interface EdgePoints {
+// Entity Links Model
+export interface EntityLinks {
   dataSources: UUID[];
   datasets: UUID[];
   analyses: UUID[];
   pipelines: UUID[];
   modelsInstantiated: UUID[];
-  pipelineRuns: UUID[];
 }
 
-export interface EntityNode {
-  id: UUID;
-  name: string;
-  description?: string | null;
-  xPosition: number;
-  yPosition: number;
-  fromEntities: EdgePoints;
-  toEntities: EdgePoints;
+// Composite Models
+
+export interface LeafNode extends NodeBase, LeafNodeBase {
+  nodeType: "leaf";
+  fromEntities: EntityLinks;
+  toEntities: EntityLinks;
 }
 
-export interface PipelineNode extends EntityNode {
-  id: UUID;
-  description?: string | null;
-  xPosition: number;
-  yPosition: number;
-  fromEntities: EdgePoints;
-  runs: EntityNode[];
+export interface PipelineNode extends NodeBase, LeafNodeBase {
+  nodeType: "leaf";
+  entityType: "pipeline";
+  fromEntities: EntityLinks;
+  runs: LeafNode[];
 }
+
+export interface BranchNode extends NodeBase, BranchNodeBase {
+  nodeType: "branch";
+  branchType: BranchType;
+  children: (LeafNode | PipelineNode | BranchNode)[];
+}
+
+export type GraphNode = LeafNode | PipelineNode | BranchNode;
 
 export interface EntityGraph {
-  dataSources: EntityNode[];
-  datasets: EntityNode[];
-  pipelines: PipelineNode[];
-  analyses: EntityNode[];
-  modelsInstantiated: EntityNode[];
+  dataSources: (LeafNode | BranchNode)[];
+  datasets: (LeafNode | BranchNode)[];
+  pipelines: (LeafNode | PipelineNode | BranchNode)[];
+  analyses: (LeafNode | BranchNode)[];
+  modelsInstantiated: (LeafNode | BranchNode)[];
 }
 
 // Create Models
 
-export interface NodeGroupCreate {
-  name: string;
-  description?: string | null;
-  pythonPackageName?: string | null;
-}
-
-export interface EntityNodeCreate {
-  id: UUID;
+export interface LeafNodeCreate {
+  entityId: UUID;
   name: string;
   entityType: NodeType;
   xPosition: number;
   yPosition: number;
   description?: string | null;
-  nodeGroups?: UUID[] | null;
+  parentBranchNodes?: UUID[] | null;
+  fromEntities?: UUID[] | null;
+  toEntities?: UUID[] | null;
 }
+
+export interface BranchNodeCreate {
+  name: string;
+  xPosition: number;
+  yPosition: number;
+  description?: string | null;
+  pythonPackageName?: string | null;
+  parentBranchNodes?: UUID[] | null;
+  children?: (BranchNodeCreate | LeafNodeCreate)[] | null;
+}
+
 
 // Valid edge types for entity graph
 export const VALID_EDGE_TYPES: [string, string][] = [

@@ -1,6 +1,6 @@
 import io
 from typing import Annotated, List
-from fastapi import APIRouter, Depends, UploadFile, Form
+from fastapi import APIRouter, Depends, UploadFile, Form, HTTPException
 from uuid import UUID
 
 from kvasir_api.modules.data_sources.service import get_data_sources_service
@@ -55,7 +55,13 @@ async def create_data_source_endpoint(
                                    Depends(get_data_sources_service)]
 ) -> DataSource:
     """Create a data source with conditional type-specific fields"""
-    return await data_source_service.create_data_source(data_source_create)
+    try:
+        return await data_source_service.create_data_source(data_source_create)
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(
+            status_code=400, detail=f"Invalid data source: {e}")
 
 
 @router.post("/data-source-details", response_model=DataSource)
@@ -65,18 +71,34 @@ async def add_data_source_details_endpoint(
                                    Depends(get_data_sources_service)]
 ) -> DataSource:
     """Add details to an existing data source"""
-    return await data_source_service.add_data_source_details(
-        details_create.data_source_id, details_create)
+    try:
+        return await data_source_service.add_data_source_details(
+            details_create.data_source_id, details_create)
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(
+            status_code=400, detail=f"Invalid data source details: {e}")
 
 
 @router.post("/files-data-sources", response_model=List[DataSource])
 async def create_files_data_sources_endpoint(
     files: List[UploadFile],
-    mount_group_id: Annotated[UUID, Form()],
+    mount_node_id: Annotated[UUID, Form()],
     data_source_service: Annotated[DataSourceInterface,
                                    Depends(get_data_sources_service)]
 ) -> List[DataSource]:
     """Create files data sources"""
-    file_bytes = [io.BytesIO(await file.read()) for file in files]
-    file_names = [file.filename for file in files]
-    return await data_source_service.create_files_data_sources(file_bytes, file_names, mount_group_id)
+    if not files or len(files) == 0:
+        raise HTTPException(
+            status_code=400, detail="No files provided")
+
+    try:
+        file_bytes = [io.BytesIO(await file.read()) for file in files]
+        file_names = [file.filename for file in files]
+        return await data_source_service.create_files_data_sources(file_bytes, file_names, mount_node_id)
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(
+            status_code=400, detail=f"Invalid files or data: {e}")

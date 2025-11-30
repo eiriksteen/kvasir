@@ -14,6 +14,10 @@ class DataSourceInterface(ABC):
         self.bearer_token = bearer_token
 
     @abstractmethod
+    async def create_data_sources(self, data_sources: List[DataSourceCreate]) -> List[DataSource]:
+        pass
+
+    @abstractmethod
     async def create_data_source(self, data_source: DataSourceCreate) -> DataSource:
         pass
 
@@ -34,7 +38,7 @@ class DataSourceInterface(ABC):
         pass
 
     @abstractmethod
-    async def create_files_data_sources(self, file_bytes: List[BytesIO], file_names: List[str], mount_group_id: UUID) -> Tuple[List[DataSource], List[Path]]:
+    async def create_files_data_sources(self, file_bytes: List[BytesIO], file_names: List[str], mount_node_id: UUID) -> Tuple[List[DataSource], List[Path]]:
         pass
 
     # Methods to get submission code for use in sandbox

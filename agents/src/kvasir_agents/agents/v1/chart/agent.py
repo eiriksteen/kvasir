@@ -90,5 +90,5 @@ class ChartAgentV1(AgentV1[ChartDeps, ChartAgentOutput]):
         return self.deps.run_id
 
     async def __call__(self, prompt: str, context: Optional[Context] = None) -> ChartAgentOutput:
-        mount_group_description = f"<project_description>\n\n{await self.deps.ontology.describe_mount_group(include_positions=False)}\n\n</project_description>"
-        return await super().__call__(prompt, context, injections=[mount_group_description])
+        mount_node_description = f"<project_description>\n\n{await self.deps.ontology.describe_mount_node(include_positions=False)}\n\n</project_description>"
+        return await super().__call__(prompt, context, injections=[mount_node_description])

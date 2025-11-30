@@ -49,7 +49,7 @@ services:
 
   taskiq-worker:
     <<: *api
-    command: sh -c "cd /app/agents/src && taskiq worker kvasir_agents.agents.v1.broker:v1_broker --tasks-pattern '**/*agent.py' --tasks-pattern '**/*callbacks.py' -fsd --reload --reload-dir . --reload-dir ../../api --reload-dir ../../ontology"
+    command: sh -c "cd /app/agents/src && taskiq worker kvasir_agents.agents.v1.broker:v1_broker --tasks-pattern '**/*agent.py' --tasks-pattern '**/*callbacks.py' -fsd"
     environment:
       - KVASIR_CALLBACKS_MODULE=kvasir_api.modules.kvasir_v1.callbacks
 

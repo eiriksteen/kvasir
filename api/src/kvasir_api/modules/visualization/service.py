@@ -129,10 +129,10 @@ class Visualizations(VisualizationInterface):
         )
         return [TableBase(**tbl) for tbl in table_records]
 
-    async def download_image(self, image_id: uuid.UUID, mount_group_id: uuid.UUID) -> bytes:
+    async def download_image(self, image_id: uuid.UUID, mount_node_id: uuid.UUID) -> bytes:
         image_obj = await self.get_image(image_id)
         vol = modal.Volume.from_name(
-            str(mount_group_id), create_if_missing=True)
+            str(mount_node_id), create_if_missing=True)
 
         chunks = []
         async for chunk in vol.read_file.aio(image_obj.image_path.replace("/app", "")):
@@ -140,11 +140,11 @@ class Visualizations(VisualizationInterface):
 
         return b"".join(chunks)
 
-    async def download_table(self, table_id: uuid.UUID, mount_group_id: uuid.UUID) -> bytes:
+    async def download_table(self, table_id: uuid.UUID, mount_node_id: uuid.UUID) -> bytes:
         table_obj = await self.get_table(table_id)
 
         vol = modal.Volume.from_name(
-            str(mount_group_id), create_if_missing=True)
+            str(mount_node_id), create_if_missing=True)
 
         chunks = []
         async for chunk in vol.read_file.aio(table_obj.table_path.replace("/app", "")):
@@ -152,18 +152,18 @@ class Visualizations(VisualizationInterface):
 
         return b"".join(chunks)
 
-    async def download_echart(self, echart_id: uuid.UUID, mount_group_id: uuid.UUID, original_object_id: Optional[str] = None) -> EChartsOption:
+    async def download_echart(self, echart_id: uuid.UUID, mount_node_id: uuid.UUID, original_object_id: Optional[str] = None) -> EChartsOption:
         graph_service = EntityGraphs(self.user_id)
-        mount_group = await graph_service.get_node_group(mount_group_id)
-        if not mount_group.python_package_name:
+        mount_node = await graph_service.get_node(mount_node_id)
+        if not mount_node.python_package_name:
             raise HTTPException(
                 status_code=400,
-                detail=f"Mount group with ID {mount_group_id} does not have a Python package name"
+                detail=f"Mount node with ID {mount_node_id} does not have a Python package name"
             )
 
         echart = await self.get_echart(echart_id)
-        sandbox = ModalSandbox(mount_group_id,
-                               mount_group.python_package_name)
+        sandbox = ModalSandbox(mount_node_id,
+                               mount_node.python_package_name)
         script_content = await sandbox.read_file(echart.chart_script_path)
 
         if original_object_id:

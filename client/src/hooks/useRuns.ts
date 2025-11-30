@@ -64,8 +64,8 @@ function createIncompleteRunsEventSource(token: string, projectId?: UUID): SSE {
   });
 }
 
-function createRunMessagesEventSource(token: string, runId: UUID): SSE {
-  return new SSE(`${API_URL}/kvasir-v1/stream-messages?run_ids=${runId}`, {
+function createRunMessagesEventSource(token: string, runId: UUID, projectId: UUID): SSE {
+  return new SSE(`${API_URL}/kvasir-v1/stream-messages?run_ids=${runId}&project_id=${projectId}`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -285,7 +285,7 @@ export const useRunMessages = (runId: UUID | null, projectId: UUID) => {
         return () => {};
       }
 
-      const eventSource = createRunMessagesEventSource(session!.APIToken.accessToken, runId);
+      const eventSource = createRunMessagesEventSource(session!.APIToken.accessToken, runId, projectId);
 
       eventSource.onmessage = (ev: Event & { data?: string }) => {
         if (!ev.data) return;

@@ -20,6 +20,7 @@ import CodeInfoTab from "@/components/info-tabs/CodeInfoTab";
 import { UUID } from "crypto";
 import { RefreshCw } from "lucide-react";
 import { useState, useCallback, useMemo } from "react";
+import { LeafNode, PipelineNode, BranchNode } from "@/types/ontology/entity-graph";
 
 interface DashboardProps {
   session: Session;
@@ -66,18 +67,52 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     );
   }
 
-  // Determine tab type based on activeTabId
+  // Helper to recursively find a leaf node by entityId
+  const findLeafNodeByEntityId = (nodes: (LeafNode | PipelineNode | BranchNode)[], entityId: UUID): LeafNode | PipelineNode | null => {
+    for (const node of nodes) {
+      if (node.nodeType === 'leaf' || node.nodeType === 'branch') {
+        if (node.nodeType === 'leaf' && (node as LeafNode | PipelineNode).entityId === entityId) {
+          return node as LeafNode | PipelineNode;
+        }
+        if (node.nodeType === 'branch') {
+          const found = findLeafNodeByEntityId((node as BranchNode).children, entityId);
+          if (found) return found;
+        }
+      }
+    }
+    return null;
+  };
+
   const getTabType = () => {
     if (activeTabId === null) return 'project';
     
-    // Check if it's a code tab
+    // Search recursively through all entity types
+    if (entityGraph?.dataSources) {
+      const found = findLeafNodeByEntityId(entityGraph.dataSources, activeTabId as UUID);
+      if (found && found.entityType === 'data_source') return 'data_source';
+    }
     
-    if (entityGraph?.dataSources.some(ds => ds.id === activeTabId)) return 'data_source';
-    if (entityGraph?.datasets.some(ds => ds.id === activeTabId)) return 'dataset';
-    if (entityGraph?.analyses.some(a => a.id === activeTabId)) return 'analysis';
-    if (entityGraph?.pipelines.some(p => p.id === activeTabId)) return 'pipeline';
-    if (entityGraph?.modelsInstantiated.some(m => m.id === activeTabId)) return 'model_instantiated';
-    else return 'code';
+    if (entityGraph?.datasets) {
+      const found = findLeafNodeByEntityId(entityGraph.datasets, activeTabId as UUID);
+      if (found && found.entityType === 'dataset') return 'dataset';
+    }
+    
+    if (entityGraph?.analyses) {
+      const found = findLeafNodeByEntityId(entityGraph.analyses, activeTabId as UUID);
+      if (found && found.entityType === 'analysis') return 'analysis';
+    }
+    
+    if (entityGraph?.pipelines) {
+      const found = findLeafNodeByEntityId(entityGraph.pipelines, activeTabId as UUID);
+      if (found && found.entityType === 'pipeline') return 'pipeline';
+    }
+    
+    if (entityGraph?.modelsInstantiated) {
+      const found = findLeafNodeByEntityId(entityGraph.modelsInstantiated, activeTabId as UUID);
+      if (found && found.entityType === 'model_instantiated') return 'model_instantiated';
+    }
+    
+    return 'code';
   };
 
   const tabType = getTabType();
@@ -93,9 +128,7 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
     mainContent = (
       <FileInfoTab
         dataSourceId={activeTabId as UUID}
-        projectId={projectId}
         onClose={() => closeTabToProject()}
-        onDelete={() => closeTab(activeTabId)}
       />
     );
   } else if (tabType === 'dataset' && activeTabId) {
@@ -103,7 +136,6 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
       <DatasetInfoTab
         datasetId={activeTabId as UUID}
         onClose={() => closeTabToProject()}
-        onDelete={() => closeTab(activeTabId)}
         projectId={projectId}
       />
     );
@@ -121,8 +153,6 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
       <PipelineInfoTab
         pipelineId={activeTabId as UUID}
         onClose={() => closeTabToProject()}
-        onDelete={() => closeTab(activeTabId)}
-        projectId={projectId}
         initialView={activeTab?.initialView as 'overview' | 'runs' | undefined}
       />
     );
@@ -131,8 +161,6 @@ function DashboardContent({ projectId }: { projectId: UUID }) {
       <ModelInfoTab
         modelInstantiatedId={activeTabId as UUID}
         onClose={() => closeTabToProject()}
-        onDelete={() => closeTab(activeTabId)}
-        projectId={projectId}
       />
     );
   } else if (tabType === 'code' && activeTabId) {

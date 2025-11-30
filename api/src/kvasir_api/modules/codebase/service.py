@@ -95,16 +95,16 @@ def _parse_folder_structure_to_tree(folder_structure_output: str) -> CodebasePat
 
 class Codebase(CodeInterface):
 
-    def __init__(self, user_id: UUID, mount_group_id: UUID):
-        super().__init__(user_id, mount_group_id)
+    def __init__(self, user_id: UUID, mount_node_id: UUID):
+        super().__init__(user_id, mount_node_id)
         self.user_id = user_id
-        self.mount_group_id = mount_group_id
+        self.mount_node_id = mount_node_id
         self.graph_service = EntityGraphs(user_id)
 
     async def get_codebase_tree(self) -> CodebasePath:
-        mount_group = await self.graph_service.get_node_group(self.mount_group_id)
-        sandbox = ModalSandbox(self.mount_group_id,
-                               mount_group.python_package_name)
+        mount_node = await self.graph_service.get_node(self.mount_node_id)
+        sandbox = ModalSandbox(self.mount_node_id,
+                               mount_node.description)
 
         # Get folder structure from sandbox with high depth
         folder_structure_output = await sandbox.get_folder_structure(
@@ -118,9 +118,9 @@ class Codebase(CodeInterface):
         return tree
 
     async def get_codebase_file(self, file_path: str) -> CodebaseFile:
-        mount_group = await self.graph_service.get_node_group(self.mount_group_id)
-        sandbox = ModalSandbox(self.mount_group_id,
-                               mount_group.python_package_name)
+        mount_node = await self.graph_service.get_node(self.mount_node_id)
+        sandbox = ModalSandbox(self.mount_node_id,
+                               mount_node.description)
 
         try:
             file_content = await sandbox.read_file(file_path, truncate=False)
@@ -144,9 +144,9 @@ class Codebase(CodeInterface):
         Returns:
             CodebaseFilePaginated with the requested lines and pagination metadata
         """
-        mount_group = await self.graph_service.get_node_group(self.mount_group_id)
-        sandbox = ModalSandbox(self.mount_group_id,
-                               mount_group.python_package_name)
+        mount_node = await self.graph_service.get_node(self.mount_node_id)
+        sandbox = ModalSandbox(self.mount_node_id,
+                               mount_node.description)
 
         try:
             quoted_path = shlex.quote(file_path)
@@ -194,7 +194,7 @@ class Codebase(CodeInterface):
 
 
 def get_codebase_service(
-    mount_group_id: UUID,
+    mount_node_id: UUID,
     user: Annotated[User, Depends(get_current_user)]
 ) -> Codebase:
-    return Codebase(user.id, mount_group_id)
+    return Codebase(user.id, mount_node_id)

@@ -13,8 +13,8 @@ import { EntityGraph, EdgeDefinition } from "@/types/ontology/entity-graph";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Fetch mounted data sources
-async function fetchMountedDataSources(token: string, mountGroupId: UUID): Promise<DataSource[]> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/data-sources`, {
+async function fetchMountedDataSources(token: string, mountNodeId: UUID): Promise<DataSource[]> {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/data-sources`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -32,8 +32,8 @@ async function fetchMountedDataSources(token: string, mountGroupId: UUID): Promi
 }
 
 // Fetch mounted datasets
-async function fetchMountedDatasets(token: string, mountGroupId: UUID): Promise<Dataset[]> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/datasets`, {
+async function fetchMountedDatasets(token: string, mountNodeId: UUID): Promise<Dataset[]> {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/datasets`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -51,8 +51,8 @@ async function fetchMountedDatasets(token: string, mountGroupId: UUID): Promise<
 }
 
 // Fetch mounted pipelines
-async function fetchMountedPipelines(token: string, mountGroupId: UUID): Promise<Pipeline[]> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/pipelines`, {
+async function fetchMountedPipelines(token: string, mountNodeId: UUID): Promise<Pipeline[]> {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/pipelines`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -70,8 +70,8 @@ async function fetchMountedPipelines(token: string, mountGroupId: UUID): Promise
 }
 
 // Fetch mounted models instantiated
-async function fetchMountedModelsInstantiated(token: string, mountGroupId: UUID): Promise<ModelInstantiated[]> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/models-instantiated`, {
+async function fetchMountedModelsInstantiated(token: string, mountNodeId: UUID): Promise<ModelInstantiated[]> {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/models-instantiated`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -89,8 +89,8 @@ async function fetchMountedModelsInstantiated(token: string, mountGroupId: UUID)
 }
 
 // Fetch mounted analyses
-async function fetchMountedAnalyses(token: string, mountGroupId: UUID): Promise<Analysis[]> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/analyses`, {
+async function fetchMountedAnalyses(token: string, mountNodeId: UUID): Promise<Analysis[]> {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/analyses`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -108,8 +108,8 @@ async function fetchMountedAnalyses(token: string, mountGroupId: UUID): Promise<
 }
 
 // Fetch entity graph
-async function fetchEntityGraph(token: string, mountGroupId: UUID): Promise<EntityGraph> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/entity-graph`, {
+async function fetchEntityGraph(token: string, mountNodeId: UUID): Promise<EntityGraph> {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/entity-graph`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -129,11 +129,11 @@ async function fetchEntityGraph(token: string, mountGroupId: UUID): Promise<Enti
 // Create entity functions
 async function insertDataSource(
   token: string,
-  mountGroupId: UUID,
+  mountNodeId: UUID,
   dataSourceCreate: DataSourceCreate,
   edges: EdgeDefinition[] = []
 ): Promise<DataSource> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/data-source`, {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/data-source`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -152,11 +152,11 @@ async function insertDataSource(
 
 async function insertDataset(
   token: string,
-  mountGroupId: UUID,
+  mountNodeId: UUID,
   datasetCreate: DatasetCreate,
   edges: EdgeDefinition[] = []
 ): Promise<Dataset> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/dataset`, {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/dataset`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -175,11 +175,11 @@ async function insertDataset(
 
 async function insertPipeline(
   token: string,
-  mountGroupId: UUID,
+  mountNodeId: UUID,
   pipelineCreate: PipelineCreate,
   edges: EdgeDefinition[] = []
 ): Promise<Pipeline> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/pipeline`, {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/pipeline`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -198,11 +198,11 @@ async function insertPipeline(
 
 async function insertModelInstantiated(
   token: string,
-  mountGroupId: UUID,
+  mountNodeId: UUID,
   modelInstantiatedCreate: ModelInstantiatedCreate,
   edges: EdgeDefinition[] = []
 ): Promise<ModelInstantiated> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/model-instantiated`, {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/model-instantiated`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -221,11 +221,11 @@ async function insertModelInstantiated(
 
 async function insertAnalysis(
   token: string,
-  mountGroupId: UUID,
+  mountNodeId: UUID,
   analysisCreate: AnalysisCreate,
   edges: EdgeDefinition[] = []
 ): Promise<Analysis> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/analysis`, {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/analysis`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -244,7 +244,7 @@ async function insertAnalysis(
 
 async function insertFilesDataSources(
   token: string,
-  mountGroupId: UUID,
+  mountNodeId: UUID,
   files: File[],
   edges: EdgeDefinition[] = []
 ): Promise<DataSource[]> {
@@ -254,7 +254,7 @@ async function insertFilesDataSources(
   });
   formData.append('edges', JSON.stringify(camelToSnakeKeys(edges)));
 
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/files-data-sources`, {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/files-data-sources`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -272,8 +272,8 @@ async function insertFilesDataSources(
 }
 
 // Delete entity functions
-async function deleteDataSource(token: string, mountGroupId: UUID, dataSourceId: UUID): Promise<void> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/data-source/${dataSourceId}`, {
+async function deleteDataSource(token: string, mountNodeId: UUID, dataSourceId: UUID): Promise<void> {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/data-source/${dataSourceId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -287,8 +287,8 @@ async function deleteDataSource(token: string, mountGroupId: UUID, dataSourceId:
   }
 }
 
-async function deleteDataset(token: string, mountGroupId: UUID, datasetId: UUID): Promise<void> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/dataset/${datasetId}`, {
+async function deleteDataset(token: string, mountNodeId: UUID, datasetId: UUID): Promise<void> {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/dataset/${datasetId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -302,8 +302,8 @@ async function deleteDataset(token: string, mountGroupId: UUID, datasetId: UUID)
   }
 }
 
-async function deletePipeline(token: string, mountGroupId: UUID, pipelineId: UUID): Promise<void> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/pipeline/${pipelineId}`, {
+async function deletePipeline(token: string, mountNodeId: UUID, pipelineId: UUID): Promise<void> {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/pipeline/${pipelineId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -317,8 +317,8 @@ async function deletePipeline(token: string, mountGroupId: UUID, pipelineId: UUI
   }
 }
 
-async function deleteModelInstantiated(token: string, mountGroupId: UUID, modelInstantiatedId: UUID): Promise<void> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/model-instantiated/${modelInstantiatedId}`, {
+async function deleteModelInstantiated(token: string, mountNodeId: UUID, modelInstantiatedId: UUID): Promise<void> {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/model-instantiated/${modelInstantiatedId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -332,8 +332,8 @@ async function deleteModelInstantiated(token: string, mountGroupId: UUID, modelI
   }
 }
 
-async function deleteAnalysis(token: string, mountGroupId: UUID, analysisId: UUID): Promise<void> {
-  const response = await fetch(`${API_URL}/ontology/${mountGroupId}/analysis/${analysisId}`, {
+async function deleteAnalysis(token: string, mountNodeId: UUID, analysisId: UUID): Promise<void> {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/analysis/${analysisId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -347,14 +347,29 @@ async function deleteAnalysis(token: string, mountGroupId: UUID, analysisId: UUI
   }
 }
 
+async function deleteEntityBranch(token: string, mountNodeId: UUID, nodeId: UUID): Promise<void> {
+  const response = await fetch(`${API_URL}/ontology/${mountNodeId}/entity-branch/${nodeId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete entity branch: ${response.status} ${errorText}`);
+  }
+}
+
 /**
  * Hook for accessing ontology methods for a specific project (mount group).
  * This mirrors the backend Ontology class and provides convenient access to
  * all entities mounted in a project.
  * 
- * @param mountGroupId - Required UUID of the project/mount group
+ * @param mountNodeId - Required UUID of the project/mount node
  */
-export const useOntology = (mountGroupId: UUID) => {
+export const useOntology = (mountNodeId: UUID) => {
   const { data: session } = useSession();
 
   // Fetch mounted data sources
@@ -364,8 +379,8 @@ export const useOntology = (mountGroupId: UUID) => {
     error: dataSourcesError, 
     isLoading: dataSourcesLoading 
   } = useSWR(
-    session && mountGroupId ? ["data-sources", mountGroupId] : null,
-    () => fetchMountedDataSources(session!.APIToken.accessToken, mountGroupId!)
+    session && mountNodeId ? ["data-sources", mountNodeId] : null,
+    () => fetchMountedDataSources(session!.APIToken.accessToken, mountNodeId!)
   );
 
   // Fetch mounted datasets
@@ -375,8 +390,8 @@ export const useOntology = (mountGroupId: UUID) => {
     error: datasetsError, 
     isLoading: datasetsLoading 
   } = useSWR(
-    session && mountGroupId ? ["datasets", mountGroupId] : null,
-    () => fetchMountedDatasets(session!.APIToken.accessToken, mountGroupId!)
+    session && mountNodeId ? ["datasets", mountNodeId] : null,
+    () => fetchMountedDatasets(session!.APIToken.accessToken, mountNodeId!)
   );
 
   // Fetch mounted pipelines
@@ -386,8 +401,8 @@ export const useOntology = (mountGroupId: UUID) => {
     error: pipelinesError, 
     isLoading: pipelinesLoading 
   } = useSWR(
-    session && mountGroupId ? ["pipelines", mountGroupId] : null,
-    () => fetchMountedPipelines(session!.APIToken.accessToken, mountGroupId!)
+    session && mountNodeId ? ["pipelines", mountNodeId] : null,
+    () => fetchMountedPipelines(session!.APIToken.accessToken, mountNodeId!)
   );
 
   // Fetch mounted models instantiated
@@ -397,8 +412,8 @@ export const useOntology = (mountGroupId: UUID) => {
     error: modelsInstantiatedError, 
     isLoading: modelsInstantiatedLoading 
   } = useSWR(
-    session && mountGroupId ? ["models-instantiated", mountGroupId] : null,
-    () => fetchMountedModelsInstantiated(session!.APIToken.accessToken, mountGroupId!)
+    session && mountNodeId ? ["models-instantiated", mountNodeId] : null,
+    () => fetchMountedModelsInstantiated(session!.APIToken.accessToken, mountNodeId!)
   );
 
   // Fetch mounted analyses
@@ -408,8 +423,8 @@ export const useOntology = (mountGroupId: UUID) => {
     error: analysesError, 
     isLoading: analysesLoading 
   } = useSWR(
-    session && mountGroupId ? ["analyses", mountGroupId] : null,
-    () => fetchMountedAnalyses(session!.APIToken.accessToken, mountGroupId!)
+    session && mountNodeId ? ["analyses", mountNodeId] : null,
+    () => fetchMountedAnalyses(session!.APIToken.accessToken, mountNodeId!)
   );
 
   // Fetch entity graph
@@ -419,15 +434,15 @@ export const useOntology = (mountGroupId: UUID) => {
     error: entityGraphError, 
     isLoading: entityGraphLoading 
   } = useSWR(
-    session && mountGroupId ? ["entity-graph", mountGroupId] : null,
-    () => fetchEntityGraph(session!.APIToken.accessToken, mountGroupId!)
+    session && mountNodeId ? ["entity-graph", mountNodeId] : null,
+    () => fetchEntityGraph(session!.APIToken.accessToken, mountNodeId!)
   );
 
   // Mutation hooks for insert operations
   const { trigger: triggerInsertDataSource } = useSWRMutation(
-    ["data-sources", mountGroupId],
+    ["data-sources", mountNodeId],
     async (_, { arg }: { arg: { dataSourceCreate: DataSourceCreate; edges?: EdgeDefinition[] } }) => {
-      const newDataSource = await insertDataSource(session!.APIToken.accessToken, mountGroupId, arg.dataSourceCreate, arg.edges || []);
+      const newDataSource = await insertDataSource(session!.APIToken.accessToken, mountNodeId, arg.dataSourceCreate, arg.edges || []);
       await mutateDataSources();
       await mutateEntityGraph();
       return newDataSource;
@@ -435,9 +450,9 @@ export const useOntology = (mountGroupId: UUID) => {
   );
 
   const { trigger: triggerInsertDataset } = useSWRMutation(
-    ["datasets", mountGroupId],
+    ["datasets", mountNodeId],
     async (_, { arg }: { arg: { datasetCreate: DatasetCreate; edges?: EdgeDefinition[] } }) => {
-      const newDataset = await insertDataset(session!.APIToken.accessToken, mountGroupId, arg.datasetCreate, arg.edges || []);
+      const newDataset = await insertDataset(session!.APIToken.accessToken, mountNodeId, arg.datasetCreate, arg.edges || []);
       await mutateDatasets();
       await mutateEntityGraph();
       return newDataset;
@@ -445,9 +460,9 @@ export const useOntology = (mountGroupId: UUID) => {
   );
 
   const { trigger: triggerInsertPipeline } = useSWRMutation(
-    ["pipelines", mountGroupId],
+    ["pipelines", mountNodeId],
     async (_, { arg }: { arg: { pipelineCreate: PipelineCreate; edges?: EdgeDefinition[] } }) => {
-      const newPipeline = await insertPipeline(session!.APIToken.accessToken, mountGroupId, arg.pipelineCreate, arg.edges || []);
+      const newPipeline = await insertPipeline(session!.APIToken.accessToken, mountNodeId, arg.pipelineCreate, arg.edges || []);
       await mutatePipelines();
       await mutateEntityGraph();
       return newPipeline;
@@ -455,9 +470,9 @@ export const useOntology = (mountGroupId: UUID) => {
   );
 
   const { trigger: triggerInsertModelInstantiated } = useSWRMutation(
-    ["models-instantiated", mountGroupId],
+    ["models-instantiated", mountNodeId],
     async (_, { arg }: { arg: { modelInstantiatedCreate: ModelInstantiatedCreate; edges?: EdgeDefinition[] } }) => {
-      const newModel = await insertModelInstantiated(session!.APIToken.accessToken, mountGroupId, arg.modelInstantiatedCreate, arg.edges || []);
+      const newModel = await insertModelInstantiated(session!.APIToken.accessToken, mountNodeId, arg.modelInstantiatedCreate, arg.edges || []);
       await mutateModelsInstantiated();
       await mutateEntityGraph();
       return newModel;
@@ -465,9 +480,9 @@ export const useOntology = (mountGroupId: UUID) => {
   );
 
   const { trigger: triggerInsertAnalysis } = useSWRMutation(
-    ["analyses", mountGroupId],
+    ["analyses", mountNodeId],
     async (_, { arg }: { arg: { analysisCreate: AnalysisCreate; edges?: EdgeDefinition[] } }) => {
-      const newAnalysis = await insertAnalysis(session!.APIToken.accessToken, mountGroupId, arg.analysisCreate, arg.edges || []);
+      const newAnalysis = await insertAnalysis(session!.APIToken.accessToken, mountNodeId, arg.analysisCreate, arg.edges || []);
       await mutateAnalyses();
       await mutateEntityGraph();
       return newAnalysis;
@@ -475,9 +490,9 @@ export const useOntology = (mountGroupId: UUID) => {
   );
 
   const { trigger: triggerInsertFilesDataSources } = useSWRMutation(
-    ["data-sources", mountGroupId],
+    ["data-sources", mountNodeId],
     async (_, { arg }: { arg: { files: File[]; edges?: EdgeDefinition[] } }) => {
-      const newDataSources = await insertFilesDataSources(session!.APIToken.accessToken, mountGroupId, arg.files, arg.edges || []);
+      const newDataSources = await insertFilesDataSources(session!.APIToken.accessToken, mountNodeId, arg.files, arg.edges || []);
       await mutateDataSources();
       await mutateEntityGraph();
       return newDataSources;
@@ -486,45 +501,58 @@ export const useOntology = (mountGroupId: UUID) => {
 
   // Mutation hooks for delete operations
   const { trigger: triggerDeleteDataSource } = useSWRMutation(
-    ["data-sources", mountGroupId],
+    ["data-sources", mountNodeId],
     async (_, { arg }: { arg: { dataSourceId: UUID } }) => {
-      await deleteDataSource(session!.APIToken.accessToken, mountGroupId, arg.dataSourceId);
+      await deleteDataSource(session!.APIToken.accessToken, mountNodeId, arg.dataSourceId);
       await mutateDataSources();
       await mutateEntityGraph();
     }
   );
 
   const { trigger: triggerDeleteDataset } = useSWRMutation(
-    ["datasets", mountGroupId],
+    ["datasets", mountNodeId],
     async (_, { arg }: { arg: { datasetId: UUID } }) => {
-      await deleteDataset(session!.APIToken.accessToken, mountGroupId, arg.datasetId);
+      await deleteDataset(session!.APIToken.accessToken, mountNodeId, arg.datasetId);
       await mutateDatasets();
       await mutateEntityGraph();
     }
   );
 
   const { trigger: triggerDeletePipeline } = useSWRMutation(
-    ["pipelines", mountGroupId],
+    ["pipelines", mountNodeId],
     async (_, { arg }: { arg: { pipelineId: UUID } }) => {
-      await deletePipeline(session!.APIToken.accessToken, mountGroupId, arg.pipelineId);
+      await deletePipeline(session!.APIToken.accessToken, mountNodeId, arg.pipelineId);
       await mutatePipelines();
       await mutateEntityGraph();
     }
   );
 
   const { trigger: triggerDeleteModelInstantiated } = useSWRMutation(
-    ["models-instantiated", mountGroupId],
+    ["models-instantiated", mountNodeId],
     async (_, { arg }: { arg: { modelInstantiatedId: UUID } }) => {
-      await deleteModelInstantiated(session!.APIToken.accessToken, mountGroupId, arg.modelInstantiatedId);
+      await deleteModelInstantiated(session!.APIToken.accessToken, mountNodeId, arg.modelInstantiatedId);
       await mutateModelsInstantiated();
       await mutateEntityGraph();
     }
   );
 
   const { trigger: triggerDeleteAnalysis } = useSWRMutation(
-    ["analyses", mountGroupId],
+    ["analyses", mountNodeId],
     async (_, { arg }: { arg: { analysisId: UUID } }) => {
-      await deleteAnalysis(session!.APIToken.accessToken, mountGroupId, arg.analysisId);
+      await deleteAnalysis(session!.APIToken.accessToken, mountNodeId, arg.analysisId);
+      await mutateAnalyses();
+      await mutateEntityGraph();
+    }
+  );
+
+  const { trigger: triggerDeleteEntityBranch } = useSWRMutation(
+    ["entity-graph", mountNodeId],
+    async (_, { arg }: { arg: { nodeId: UUID } }) => {
+      await deleteEntityBranch(session!.APIToken.accessToken, mountNodeId, arg.nodeId);
+      await mutateDataSources();
+      await mutateDatasets();
+      await mutatePipelines();
+      await mutateModelsInstantiated();
       await mutateAnalyses();
       await mutateEntityGraph();
     }
@@ -532,9 +560,9 @@ export const useOntology = (mountGroupId: UUID) => {
 
   // Run extraction mutation
   const { trigger: triggerRunExtraction, isMutating: isRunningExtraction } = useSWRMutation(
-    ["ontology-extraction", mountGroupId],
+    ["ontology-extraction", mountNodeId],
     async () => {
-      const response = await fetch(`${API_URL}/ontology/${mountGroupId}/run-extraction`, {
+      const response = await fetch(`${API_URL}/ontology/${mountNodeId}/run-extraction`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${session!.APIToken.accessToken}`,
@@ -611,6 +639,7 @@ export const useOntology = (mountGroupId: UUID) => {
     deletePipeline: triggerDeletePipeline,
     deleteModelInstantiated: triggerDeleteModelInstantiated,
     deleteAnalysis: triggerDeleteAnalysis,
+    deleteEntityBranch: triggerDeleteEntityBranch,
 
     // Extraction operation
     runExtraction: triggerRunExtraction,
@@ -634,11 +663,11 @@ export const useOntology = (mountGroupId: UUID) => {
  * Hook to fetch only data sources mounted in a project.
  * Lighter alternative to useOntology when you only need data sources.
  */
-export const useMountedDataSources = (mountGroupId: UUID) => {
+export const useMountedDataSources = (mountNodeId: UUID) => {
   const { data: session } = useSession();
   const { data, mutate, error, isLoading } = useSWR(
-    session && mountGroupId ? ["data-sources", mountGroupId] : null,
-    () => fetchMountedDataSources(session!.APIToken.accessToken, mountGroupId)
+    session && mountNodeId ? ["data-sources", mountNodeId] : null,
+    () => fetchMountedDataSources(session!.APIToken.accessToken, mountNodeId)
   );
 
   return {
@@ -650,8 +679,8 @@ export const useMountedDataSources = (mountGroupId: UUID) => {
 };
 
 
-export const useMountedDataSource = (dataSourceId: UUID, mountGroupId: UUID) => {
-  const {dataSources} = useMountedDataSources(mountGroupId);
+export const useMountedDataSource = (dataSourceId: UUID, mountNodeId: UUID) => {
+  const {dataSources} = useMountedDataSources(mountNodeId);
   return dataSources?.find(dataSource => dataSource.id === dataSourceId);
 }
 
@@ -659,11 +688,11 @@ export const useMountedDataSource = (dataSourceId: UUID, mountGroupId: UUID) => 
  * Hook to fetch only datasets mounted in a project.
  * Lighter alternative to useOntology when you only need datasets.
  */
-export const useMountedDatasets = (mountGroupId: UUID) => {
+export const useMountedDatasets = (mountNodeId: UUID) => {
   const { data: session } = useSession();
   const { data, mutate, error, isLoading } = useSWR(
-    session && mountGroupId ? ["datasets", mountGroupId] : null,
-    () => fetchMountedDatasets(session!.APIToken.accessToken, mountGroupId)
+    session && mountNodeId ? ["datasets", mountNodeId] : null,
+    () => fetchMountedDatasets(session!.APIToken.accessToken, mountNodeId)
   );
 
   return {
@@ -674,8 +703,8 @@ export const useMountedDatasets = (mountGroupId: UUID) => {
   };
 };
 
-export const useMountedDataset = (datasetId: UUID, mountGroupId: UUID) => {
-  const {datasets} = useMountedDatasets(mountGroupId);
+export const useMountedDataset = (datasetId: UUID, mountNodeId: UUID) => {
+  const {datasets} = useMountedDatasets(mountNodeId);
   return datasets?.find(dataset => dataset.id === datasetId);
 }
 
@@ -683,11 +712,11 @@ export const useMountedDataset = (datasetId: UUID, mountGroupId: UUID) => {
  * Hook to fetch only pipelines mounted in a project.
  * Lighter alternative to useOntology when you only need pipelines.
  */
-export const useMountedPipelines = (mountGroupId: UUID) => {
+export const useMountedPipelines = (mountNodeId: UUID) => {
   const { data: session } = useSession();
   const { data, mutate, error, isLoading } = useSWR(
-    session && mountGroupId ? ["pipelines", mountGroupId] : null,
-    () => fetchMountedPipelines(session!.APIToken.accessToken, mountGroupId)
+    session && mountNodeId ? ["pipelines", mountNodeId] : null,
+    () => fetchMountedPipelines(session!.APIToken.accessToken, mountNodeId)
   );
 
   return {
@@ -698,8 +727,8 @@ export const useMountedPipelines = (mountGroupId: UUID) => {
   };
 };
 
-export const useMountedPipeline = (pipelineId: UUID, mountGroupId: UUID) => {
-  const {pipelines} = useMountedPipelines(mountGroupId);
+export const useMountedPipeline = (pipelineId: UUID, mountNodeId: UUID) => {
+  const {pipelines} = useMountedPipelines(mountNodeId);
   return pipelines?.find(pipeline => pipeline.id === pipelineId);
 }
 
@@ -707,11 +736,11 @@ export const useMountedPipeline = (pipelineId: UUID, mountGroupId: UUID) => {
  * Hook to fetch only models instantiated mounted in a project.
  * Lighter alternative to useOntology when you only need models.
  */
-export const useMountedModelsInstantiated = (mountGroupId: UUID) => {
+export const useMountedModelsInstantiated = (mountNodeId: UUID) => {
   const { data: session } = useSession();
   const { data, mutate, error, isLoading } = useSWR(
-    session && mountGroupId ? ["models-instantiated", mountGroupId] : null,
-    () => fetchMountedModelsInstantiated(session!.APIToken.accessToken, mountGroupId)
+    session && mountNodeId ? ["models-instantiated", mountNodeId] : null,
+    () => fetchMountedModelsInstantiated(session!.APIToken.accessToken, mountNodeId)
   );
 
   return {
@@ -722,8 +751,8 @@ export const useMountedModelsInstantiated = (mountGroupId: UUID) => {
   };
 };
 
-export const useMountedModelInstantiated = (modelInstantiatedId: UUID, mountGroupId: UUID) => {
-  const {modelsInstantiated} = useMountedModelsInstantiated(mountGroupId);
+export const useMountedModelInstantiated = (modelInstantiatedId: UUID, mountNodeId: UUID) => {
+  const {modelsInstantiated} = useMountedModelsInstantiated(mountNodeId);
   return modelsInstantiated?.find(modelInstantiated => modelInstantiated.id === modelInstantiatedId);
 }
 
@@ -731,11 +760,11 @@ export const useMountedModelInstantiated = (modelInstantiatedId: UUID, mountGrou
  * Hook to fetch only analyses mounted in a project.
  * Lighter alternative to useOntology when you only need analyses.
  */
-export const useMountedAnalyses = (mountGroupId: UUID) => {
+export const useMountedAnalyses = (mountNodeId: UUID) => {
   const { data: session } = useSession();
   const { data, mutate, error, isLoading } = useSWR(
-    session && mountGroupId ? ["analyses", mountGroupId] : null,
-    () => fetchMountedAnalyses(session!.APIToken.accessToken, mountGroupId)
+    session && mountNodeId ? ["analyses", mountNodeId] : null,
+    () => fetchMountedAnalyses(session!.APIToken.accessToken, mountNodeId)
   );
 
   return {
@@ -746,8 +775,8 @@ export const useMountedAnalyses = (mountGroupId: UUID) => {
   };
 };
 
-export const useMountedAnalysis = (analysisId: UUID, mountGroupId: UUID) => {
-  const {analyses} = useMountedAnalyses(mountGroupId);
+export const useMountedAnalysis = (analysisId: UUID, mountNodeId: UUID) => {
+  const {analyses} = useMountedAnalyses(mountNodeId);
   return analyses?.find(analysis => analysis.id === analysisId);
 }
 
@@ -755,11 +784,11 @@ export const useMountedAnalysis = (analysisId: UUID, mountGroupId: UUID) => {
  * Hook to fetch only the entity graph for a project.
  * Lighter alternative to useOntology when you only need the graph structure.
  */
-export const useMountedEntityGraph = (mountGroupId: UUID) => {
+export const useMountedEntityGraph = (mountNodeId: UUID) => {
   const { data: session } = useSession();
   const { data, mutate, error, isLoading } = useSWR(
-    session && mountGroupId ? ["entity-graph", mountGroupId] : null,
-    () => fetchEntityGraph(session!.APIToken.accessToken, mountGroupId)
+    session && mountNodeId ? ["entity-graph", mountNodeId] : null,
+    () => fetchEntityGraph(session!.APIToken.accessToken, mountNodeId)
   );
 
   return {

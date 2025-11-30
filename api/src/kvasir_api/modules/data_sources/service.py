@@ -30,60 +30,75 @@ from kvasir_agents.sandbox.modal import ModalSandbox
 
 class DataSources(DataSourceInterface):
 
-    async def create_data_source(self, data_source_create: DataSourceCreate) -> DataSource:
-        # Get the fields defined in DataSourceCreate (excluding type_fields)
-        extra_fields = data_source_create.model_extra or {}
+    async def create_data_sources(self, data_sources: List[DataSourceCreate]) -> List[DataSource]:
+        if not data_sources:
+            return []
 
-        # Handle additional variables - only if type_fields is provided
-        additional_variables = {**extra_fields}
-        if data_source_create.type_fields:
-            extra_type_fields = data_source_create.type_fields.model_extra or {}
-            # We also add all fields present in type fields and not present in unknown file create into the additional variables
-            file_type_fields = {k: v for k, v in data_source_create.type_fields.model_dump().items()
-                                if k not in UnknownFileCreate.model_fields}
-            additional_variables = {**extra_fields,
-                                    **extra_type_fields,
-                                    **file_type_fields}
+        base_data_sources = []
+        file_data_sources = []
+        data_source_id_to_type_fields = {}
 
-        # Create the base data source
-        data_source_id = uuid.uuid4()
-        data_source_obj = DataSourceBase(
-            id=data_source_id,
-            user_id=self.user_id,
-            **data_source_create.model_dump(exclude={'type_fields'}),
-            additional_variables=additional_variables if additional_variables else None,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc)
-        )
+        for data_source_create in data_sources:
+            extra_fields = data_source_create.model_extra or {}
+
+            additional_variables = {**extra_fields}
+            if data_source_create.type_fields:
+                extra_type_fields = data_source_create.type_fields.model_extra or {}
+                file_type_fields = {k: v for k, v in data_source_create.type_fields.model_dump().items()
+                                    if k not in UnknownFileCreate.model_fields}
+                additional_variables = {**extra_fields,
+                                        **extra_type_fields,
+                                        **file_type_fields}
+
+            data_source_id = uuid.uuid4()
+            data_source_obj = DataSourceBase(
+                id=data_source_id,
+                user_id=self.user_id,
+                **data_source_create.model_dump(exclude={'type_fields'}),
+                additional_variables=additional_variables if additional_variables else None,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
+            )
+
+            base_data_sources.append(data_source_obj.model_dump())
+
+            type_fields = data_source_create.type_fields
+            if type_fields:
+                if data_source_create.type == "file":
+                    file_data_source_obj = FileDataSourceBase(
+                        id=data_source_id,
+                        **type_fields.model_dump(),
+                        created_at=datetime.now(timezone.utc),
+                        updated_at=datetime.now(timezone.utc)
+                    )
+                    file_data_sources.append(file_data_source_obj.model_dump())
+                    data_source_id_to_type_fields[data_source_id] = file_data_source_obj
 
         await execute(
-            insert(data_source).values(data_source_obj.model_dump()),
+            insert(data_source).values(base_data_sources),
             commit_after=True
         )
 
-        # Handle type-specific fields
-        type_fields = data_source_create.type_fields
-        type_fields_obj = None
-        if type_fields:
-            if data_source_create.type == "file":
-                # Insert into file_data_source table
-                file_data_source_obj = FileDataSourceBase(
-                    id=data_source_id,
-                    **type_fields.model_dump(),
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc)
-                )
-                await execute(
-                    insert(file_data_source).values(
-                        file_data_source_obj.model_dump()),
-                    commit_after=True
-                )
-                type_fields_obj = file_data_source_obj
+        if file_data_sources:
+            await execute(
+                insert(file_data_source).values(file_data_sources),
+                commit_after=True
+            )
 
-        return DataSource(
-            **data_source_obj.model_dump(),
-            type_fields=type_fields_obj
-        )
+        results = []
+        for base_ds_dict in base_data_sources:
+            data_source_id = base_ds_dict["id"]
+            type_fields_obj = data_source_id_to_type_fields.get(data_source_id)
+            results.append(DataSource(
+                **base_ds_dict,
+                type_fields=type_fields_obj
+            ))
+
+        return results
+
+    async def create_data_source(self, data_source_create: DataSourceCreate) -> DataSource:
+        data_sources = await self.create_data_sources([data_source_create])
+        return data_sources[0]
 
     async def add_data_source_details(self, data_source_id: uuid.UUID, data_source_details: DataSourceDetailsCreate) -> DataSource:
         # First verify the data source exists and belongs to the user
@@ -201,7 +216,7 @@ class DataSources(DataSourceInterface):
         await execute(delete(file_data_source).where(file_data_source.c.id == data_source_id), commit_after=True)
         await execute(delete(data_source).where(data_source.c.id == data_source_id), commit_after=True)
 
-    async def create_files_data_sources(self, file_bytes: List[io.BytesIO], file_names: List[str], mount_group_id: uuid.UUID) -> Tuple[List[DataSource], List[Path]]:
+    async def create_files_data_sources(self, file_bytes: List[io.BytesIO], file_names: List[str], mount_node_id: uuid.UUID) -> Tuple[List[DataSource], List[Path]]:
         """
         Create data sources from uploaded files.
 
@@ -211,14 +226,14 @@ class DataSources(DataSourceInterface):
         Args:
             file_bytes: List of file contents as BytesIO objects
             file_names: List of corresponding file names
-            mount_group_id: UUID of the mount group to add the data sources to
+            mount_node_id: UUID of the mount node to add the data sources to
 
         Returns:
             Tuple of (list of created DataSource objects, list of file paths in the sandbox)
         """
         graph_service = EntityGraphs(self.user_id)
-        mount_group = await graph_service.get_node_group(mount_group_id)
-        sandbox = ModalSandbox(mount_group_id, mount_group.python_package_name)
+        mount_node = await graph_service.get_node(mount_node_id)
+        sandbox = ModalSandbox(mount_node_id, mount_node.python_package_name)
 
         # Process files and extract zip files if present
         processed_files = []
@@ -280,7 +295,7 @@ class DataSources(DataSourceInterface):
                         created_at=datetime.now(timezone.utc),
                         updated_at=datetime.now(timezone.utc)
                     ).model_dump())
-                    new_path = f"/{mount_group.python_package_name}/data/{file_name}"
+                    new_path = f"/{mount_node.python_package_name}/data/{file_name}"
                     batch.put_file(file_byte, new_path)
                     new_path_full = Path("/app") / new_path.lstrip("/")
                     new_paths_full.append(new_path_full)

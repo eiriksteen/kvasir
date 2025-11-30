@@ -3,6 +3,7 @@ import { BarChart3 } from 'lucide-react';
 import { UUID } from 'crypto';
 import { useAgentContext } from '@/hooks/useAgentContext';
 import { useMountedAnalysis } from '@/hooks/useOntology';
+import { getEntityBoxClasses } from '@/lib/entityColors';
 
 interface AnalysisBoxProps {
   analysisId: UUID;
@@ -38,21 +39,23 @@ export default function AnalysisBox({ analysisId, projectId, openTab }: Analysis
     return null;
   }
   
+  const colors = getEntityBoxClasses('analysis');
+  
   return (
     <div
-      className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[240px] cursor-pointer hover:bg-[#004806]/10 hover:border-[#004806] ${
+      className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[240px] cursor-pointer ${colors.bgHover} ${colors.borderHover} ${
         isInContext 
-          ? 'border-[#004806] bg-[#004806]/10 ring-2 ring-[#004806]/30' 
-          : 'border-[#004806]'
+          ? `${colors.border} ${colors.bgInContext} ${colors.ring}` 
+          : colors.border
       }`}
       onClick={handleClick}
     >
       <div className="flex flex-col">
         <div className="flex items-center mb-2">
-          <div className="rounded-full w-6 h-6 flex items-center justify-center bg-[#004806]/10 border border-[#004806]/30 mr-2">
-            <BarChart3 className="w-3 h-3 text-[#004806]" />
+          <div className={`rounded-full w-6 h-6 flex items-center justify-center ${colors.iconBg} border ${colors.iconBorder} mr-2`}>
+            <BarChart3 className={`w-3 h-3 ${colors.iconColor}`} />
           </div>
-          <div className="text-[#004806] font-mono text-xs">Analysis</div>
+          <div className={`${colors.labelColor} font-mono text-xs`}>Analysis</div>
         </div>
         <div>
           <div className="text-xs font-mono text-gray-800 break-words">{analysis.name}</div>

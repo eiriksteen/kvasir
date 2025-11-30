@@ -118,7 +118,6 @@ class Datasets(DatasetInterface):
         await execute(insert(dataset).values(dataset_obj.model_dump()), commit_after=True)
 
         for group_create in dataset_create.groups:
-            # Match dataframes for this group by filename - just like the old code
             group_filename_to_dataframe = {}
             if filename_to_dataframe and group_create.objects_files:
                 for objects_file in group_create.objects_files:
@@ -130,7 +129,6 @@ class Datasets(DatasetInterface):
         return await self.get_dataset(dataset_obj.id)
 
     async def add_object_group(self, dataset_id: uuid.UUID, object_group_create: ObjectGroupCreate, filename_to_dataframe: Dict[str, pd.DataFrame]) -> ObjectGroup:
-        # Object groups must have data objects - no empty groups
         if len(filename_to_dataframe) == 0 or not object_group_create.objects_files:
             raise HTTPException(
                 status_code=400,
@@ -148,7 +146,6 @@ class Datasets(DatasetInterface):
             additional_variables=object_group_create.model_extra if object_group_create.model_extra else None,
         )
 
-        # Extract modality-specific fields
         modality_group_data = modality_model_class(
             id=object_group_data.id,
             **object_group_create.modality_fields.model_dump(),
@@ -166,7 +163,6 @@ class Datasets(DatasetInterface):
     async def add_data_objects(self, object_group_id: uuid.UUID, metadata: List[ObjectsFile], filename_to_dataframe: Dict[str, pd.DataFrame]) -> List[DataObject]:
         created_objects = []
 
-        # Match by filename - just like the old code
         for objects_file in metadata:
             if objects_file.filename not in filename_to_dataframe:
                 raise HTTPException(
@@ -497,8 +493,6 @@ class Datasets(DatasetInterface):
         for obj in objects_result:
             object_id = obj["id"]
             modality = obj["modality"]
-
-            del obj["modality"]
             data_object_record = DataObjectBase(**obj)
 
             if modality == "time_series":

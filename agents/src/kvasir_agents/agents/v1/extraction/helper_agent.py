@@ -109,6 +109,7 @@ Dataset Hierarchy:
 Chart Descriptions:
 - You must provide a chart description for each object group you create, matched by the name field
 - Example: ChartDescription(group_name="forecast_series", description="Line chart showing past values in blue, forecast values in green, ground-truth values in orange, and the forecast start point in a vertical line.")
+- You must include any relevant data paths in the descriptions to enable the chart agent to read the data.
 
 Output the object groups as a Python dictionary or list of dictionaries, abiding by the following schema:
 

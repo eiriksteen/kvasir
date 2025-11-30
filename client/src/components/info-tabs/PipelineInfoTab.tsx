@@ -1,51 +1,33 @@
 import { useEffect, useState } from 'react';
 import { UUID } from 'crypto';
 import { usePipeline } from '@/hooks/usePipelines';
-import { SquarePlay, Info, FileText, ArrowDownRight, Trash2 } from 'lucide-react';
-import ConfirmationPopup from '@/components/ConfirmationPopup';
+import { SquarePlay, Info, FileText, ArrowDownRight } from 'lucide-react';
 import JsonSchemaViewer from '@/components/JsonSchemaViewer';
 import { useEntityNode } from '@/hooks/useEntityGraph';
-import { useOntology } from '@/hooks/useOntology';
+import { PipelineNode } from '@/types/ontology/entity-graph';
 
 export type ViewType = 'overview' | 'runs';
 
 interface PipelineInfoTabProps {
   pipelineId: UUID;
-  projectId: UUID;
   onClose: () => void;
-  onDelete?: () => void;
   initialView?: ViewType;
 }
 
 export default function PipelineInfoTab({ 
   pipelineId,
-  projectId,
   onClose,
-  onDelete,
   initialView
 }: PipelineInfoTabProps) {
 
   const { pipeline } = usePipeline(pipelineId);
-  const { deletePipeline } = useOntology(projectId);
-  const { node: pipelineNode } = useEntityNode(pipelineId);
+  const { node: pipelineNode } = useEntityNode(pipelineId) as { node: PipelineNode };
 
   
   const isInProgress = !pipeline?.implementation;
   const [currentView, setCurrentView] = useState<ViewType>(
     initialView || 'overview'
   );
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-
-  const handleDelete = async () => {
-    try {
-      await deletePipeline({ pipelineId });
-      onDelete?.();
-      onClose();
-    } catch (error) {
-      console.error('Failed to delete pipeline:', error);
-    }
-  };
 
   // Update view when initialView changes (e.g., when clicking runs box on already-open tab)
   useEffect(() => {
@@ -112,13 +94,6 @@ export default function PipelineInfoTab({
           <SquarePlay className="w-4 h-4" />
         </button>
         </div>
-        <button
-          onClick={() => setShowDeleteConfirm(true)}
-          className="p-2 text-red-800 hover:bg-red-100 rounded-lg transition-colors"
-          title="Delete pipeline"
-        >
-          <Trash2 size={18} />
-        </button>
       </div>
 
       {/* Content Area */}
@@ -215,13 +190,6 @@ export default function PipelineInfoTab({
           </div>
         )}
       </div>
-      
-      <ConfirmationPopup
-        message={`Are you sure you want to delete "${pipeline.name}"? This will permanently delete the pipeline and all its runs. This action cannot be undone.`}
-        isOpen={showDeleteConfirm}
-        onConfirm={handleDelete}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
     </div>
   );
 }

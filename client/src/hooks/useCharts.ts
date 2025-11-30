@@ -10,10 +10,10 @@ type EChartsOption = Record<string, unknown>;
 async function fetchChartOption(
   token: string,
   chartId: UUID,
-  mountGroupId: UUID
+  mountNodeId: UUID
 ): Promise<EChartsOption> {
   const response = await fetch(
-    `${API_URL}/visualization/echarts/${chartId}/get-chart?mount_group_id=${mountGroupId}`,
+    `${API_URL}/visualization/echarts/${chartId}/get-chart?mount_node_id=${mountNodeId}`,
     {
       method: "POST",
       headers: {
@@ -32,14 +32,14 @@ async function fetchChartOption(
 }
 
 export function useChart(
-  mountGroupId: UUID,
+  mountNodeId: UUID,
   chartId: UUID
 ) {
   const { data: session } = useSession();
 
   const { data: chartOption, error, isLoading } = useSWR(
-    session && chartId && mountGroupId ? ["chart", chartId, mountGroupId] : null,
-    () => fetchChartOption(session!.APIToken.accessToken, chartId, mountGroupId)
+    session && chartId && mountNodeId ? ["chart", chartId, mountNodeId] : null,
+    () => fetchChartOption(session!.APIToken.accessToken, chartId, mountNodeId)
   );
 
   return {

@@ -104,8 +104,8 @@ class AnalysisAgentV1(AgentV1[AnalysisDeps, str]):
 
     async def __call__(self, prompt: str, context: Optional[Context] = None) -> str:
         try:
-            mount_group_description = f"<project_description>\n\n{await self.deps.ontology.describe_mount_group(include_positions=False)}\n\n</project_description>"
-            output = await super().__call__(prompt, context, injections=[mount_group_description])
+            mount_node_description = f"<project_description>\n\n{await self.deps.ontology.describe_mount_node(include_positions=False)}\n\n</project_description>"
+            output = await super().__call__(prompt, context, injections=[mount_node_description])
 
             await self.deps.sandbox.write_file(
                 str(Path("/app") / self.deps.package_name /

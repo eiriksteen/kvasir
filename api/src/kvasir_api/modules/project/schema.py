@@ -18,7 +18,7 @@ class Project(BaseModel):
 
 class ProjectCreate(BaseModel):
     name: str
-    mount_group_id: Optional[uuid.UUID] = None
+    mount_node_id: Optional[uuid.UUID] = None
     description: Optional[str] = None
 
 

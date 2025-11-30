@@ -48,8 +48,8 @@ class ApplicationCallbacks(KvasirV1Callbacks):
             raise ValueError(
                 f"Run with id {run_id} not found or does not belong to user {user_id}")
 
-    def create_ontology(self, user_id: UUID, mount_group_id: UUID, bearer_token: str | None = None) -> Ontology:
-        return create_ontology_for_user(user_id, mount_group_id, bearer_token)
+    def create_ontology(self, user_id: UUID, mount_node_id: UUID, bearer_token: str | None = None) -> Ontology:
+        return create_ontology_for_user(user_id, mount_node_id, bearer_token)
 
     async def get_run_status(self, user_id: UUID, run_id: UUID) -> Literal["pending", "completed", "failed", "waiting", "running"]:
         query = select(run).where(
@@ -269,15 +269,15 @@ class ApplicationCallbacks(KvasirV1Callbacks):
     ) -> List[RunBase]:
         query = select(run).where(run.c.user_id == user_id)
 
-        if run_ids:
+        if run_ids is not None:
             query = query.where(run.c.id.in_(run_ids))
-        if project_id:
+        if project_id is not None:
             query = query.where(run.c.project_id == project_id)
-        if status:
+        if status is not None:
             query = query.where(run.c.status == status)
-        if filter_status:
+        if filter_status is not None:
             query = query.where(run.c.status.in_(filter_status))
-        if type:
+        if type is not None:
             query = query.where(run.c.type == type)
 
         query = query.order_by(run.c.started_at.desc())
@@ -388,14 +388,14 @@ class ApplicationCallbacks(KvasirV1Callbacks):
         await execute(insert(run).values(**run_obj.model_dump()), commit_after=True)
         return run_obj
 
-    async def _get_run_ids_from_kvasir_run(self, user_id: UUID, kvasir_run_id: UUID) -> List[UUID]:
+    async def _get_run_ids_from_kvasir_run(self, kvasir_run_id: UUID) -> List[UUID]:
         swe_records = await fetch_all(select(swe_run.c.run_id).where(swe_run.c.kvasir_run_id == kvasir_run_id))
         analysis_records = await fetch_all(select(analysis_run.c.run_id).where(analysis_run.c.kvasir_run_id == kvasir_run_id))
         return list(set([record["run_id"] for record in swe_records + analysis_records]))
 
     async def get_runs_status_description(self, user_id: UUID, kvasir_run_id: UUID) -> str:
         # Gets the run IDs, names, and status of all runs dispatched from the Kvasir run
-        run_ids = await self._get_run_ids_from_kvasir_run(user_id, kvasir_run_id)
+        run_ids = await self._get_run_ids_from_kvasir_run(kvasir_run_id)
         runs = await self.get_runs(user_id=user_id, run_ids=run_ids)
 
         out = (

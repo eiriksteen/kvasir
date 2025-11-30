@@ -24,12 +24,7 @@ from kvasir_api.modules.analysis.models import (
     result_image, result_echart, result_table
 )
 from kvasir_api.modules.entity_graph.models import (
-    entity_node, node_group, node_in_group,
-    dataset_from_data_source,
-    data_source_supported_in_pipeline, dataset_supported_in_pipeline, model_instantiated_supported_in_pipeline,
-    dataset_in_pipeline_run, data_source_in_pipeline_run, model_instantiated_in_pipeline_run,
-    pipeline_run_output_dataset, pipeline_run_output_model_entity, pipeline_run_output_data_source,
-    dataset_in_analysis, data_source_in_analysis, model_instantiated_in_analysis,
+    node, leaf_node, branch_node, parent_child_relation, edge
 )
 from kvasir_api.modules.visualization.models import (
     image, echart, table
@@ -66,10 +61,11 @@ __all__ = [
     tabular_group,
     time_series,
     time_series_group,
-    entity_node,
-    node_group,
-    node_in_group,
-    dataset_from_data_source,
+    node,
+    leaf_node,
+    branch_node,
+    parent_child_relation,
+    edge,
     analysis,
     analysis_section,
     analysis_cell,
@@ -79,21 +75,9 @@ __all__ = [
     result_image,
     result_echart,
     result_table,
-    dataset_in_analysis,
-    data_source_in_analysis,
-    model_instantiated_in_analysis,
     pipeline,
     pipeline_implementation,
-    data_source_supported_in_pipeline,
-    dataset_supported_in_pipeline,
-    model_instantiated_supported_in_pipeline,
     pipeline_run,
-    dataset_in_pipeline_run,
-    data_source_in_pipeline_run,
-    model_instantiated_in_pipeline_run,
-    pipeline_run_output_dataset,
-    pipeline_run_output_model_entity,
-    pipeline_run_output_data_source,
     model,
     model_implementation,
     model_instantiated,
@@ -120,7 +104,7 @@ target_metadata = metadata
 
 def include_name(name, type_, parent_names):
     if type_ == "schema":
-        return name in ["public", "auth", "data_sources", "data_objects", "analysis", "pipeline", "model", "entity_graph", "visualization", "project", "kvasir_v1", "waitlist"]
+        return name in ["public", "auth", "data_sources", "data_objects", "analysis", "pipeline", "model", "visualization", "project", "kvasir_v1", "waitlist"]
     else:
         return True
 

@@ -2,23 +2,19 @@
 
 import React from 'react';
 import { Brain, BarChart3, Zap, Folder, Database } from 'lucide-react';
-import { Dataset } from '@/types/ontology/dataset';
-import { Pipeline } from '@/types/ontology/pipeline';
-import { Analysis } from '@/types/ontology/analysis';
-import { ModelInstantiated } from '@/types/ontology/model';
-import { DataSource } from '@/types/ontology/data-source';
+import { LeafNode } from '@/types/ontology/entity-graph';
 
 type ItemType = 'dataset' | 'analysis' | 'pipeline' | 'model_instantiated' | 'data_source';
 
 interface EntityItemProps {
-    item: Dataset | Analysis | Pipeline | ModelInstantiated | DataSource;
-    type: ItemType;
+    item: LeafNode;
     isInContext: boolean;
     onClick: () => void;
     onOpenTab: () => void;
 }
 
-export default function EntityItem({ item, type, isInContext, onClick, onOpenTab }: EntityItemProps) {
+export default function EntityItem({ item, isInContext, onClick, onOpenTab }: EntityItemProps) {
+    const type = item.entityType as ItemType;
     const getTheme = (type: ItemType) => {
         switch (type) {
             case 'model_instantiated':

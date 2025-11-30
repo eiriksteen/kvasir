@@ -188,11 +188,11 @@ async def keep_only_most_recent_entity_context(
 
 
 # This is a subset of the keep_only_most_recent_project_description, in case we show the mount group outside of the project description
-async def keep_only_most_recent_mount_group(
+async def keep_only_most_recent_mount_node(
         _: RunContext,
         messages: list[ModelMessage]) -> list[ModelMessage]:
     processed_messages = await keep_only_most_recent_by_pattern(
-        _, messages, HistoryPattern(start="<mount_group", end="</mount_group>"))
+        _, messages, HistoryPattern(start="<mount_node", end="</mount_node>"))
     return processed_messages
 
 

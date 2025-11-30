@@ -1,19 +1,16 @@
-import { Layers, ChevronDown, ChevronRight, Database, Calendar, Trash2, Settings } from 'lucide-react';  
+import { Layers, ChevronDown, ChevronRight, Database, Calendar, Settings } from 'lucide-react';  
 import { useEffect, useState } from 'react';
 import { useDataset } from "@/hooks/useDatasets";
 import { ObjectGroupWithObjects, DataObject, TimeSeriesBase, Modality } from "@/types/ontology/dataset";
 import EChartWrapper from '@/components/charts/EChartWrapper';
 import { UUID } from 'crypto';
-import ConfirmationPopup from '@/components/ConfirmationPopup';
 import JsonViewer from '@/components/JsonViewer';
-import { useOntology } from '@/hooks/useOntology';
 
 
 interface DatasetInfoTabProps {
   datasetId: UUID;
   projectId: UUID;
   onClose: () => void;
-  onDelete?: () => void;
 }   
 
 type SelectedDataObject = {
@@ -27,25 +24,12 @@ type SelectedDataObject = {
 export default function DatasetInfoTab({ 
   datasetId,
   projectId,
-  onClose,
-  onDelete
+  onClose
 }: DatasetInfoTabProps) {
 
   const { dataset, objectGroups } = useDataset(datasetId);
-  const { deleteDataset } = useOntology(projectId);
   const [selectedDataObject, setSelectedDataObject] = useState<SelectedDataObject | null>(null);
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(new Set());
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  const handleDelete = async () => {
-    try {
-      await deleteDataset({ datasetId });
-      onDelete?.();
-      onClose();
-    } catch (error) {
-      console.error('Failed to delete dataset:', error);
-    }
-  };
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -106,13 +90,6 @@ export default function DatasetInfoTab({
                     <p className="text-sm text-gray-400 italic">No description provided</p>
                   )}
                 </div>
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="text-red-800 hover:bg-red-100 rounded-lg transition-colors ml-4 flex-shrink-0"
-                  title="Delete dataset"
-                >
-                  <Trash2 size={18} />
-                </button>
               </div>
               {selectedDataObject && selectedDataObject.chartId ? (
                 <div className="w-full flex-1">
@@ -251,13 +228,6 @@ export default function DatasetInfoTab({
           </div>
         </div>
       </div>
-      
-      <ConfirmationPopup
-        message={`Are you sure you want to delete "${dataset.name}"? This will permanently delete the dataset and all its data. This action cannot be undone.`}
-        isOpen={showDeleteConfirm}
-        onConfirm={handleDelete}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
     </div>
   );
 }

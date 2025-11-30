@@ -104,12 +104,12 @@ async function addDataSourceDetails(token: string, detailsCreate: DataSourceDeta
   return snakeToCamelKeys(data);
 }
 
-async function createFilesDataSources(token: string, files: File[], mountGroupId: UUID): Promise<DataSource> {
+async function createFilesDataSources(token: string, files: File[], mountNodeId: UUID): Promise<DataSource> {
   const formData = new FormData();
   files.forEach(file => {
     formData.append('files', file);
   });
-  formData.append('mount_group_id', mountGroupId.toString());
+  formData.append('mount_node_id', mountNodeId.toString());
 
   const response = await fetch(`${API_URL}/data-sources/files-data-sources`, {
     method: 'POST',
@@ -152,11 +152,11 @@ export const useDataSources = () => {
 
   const { trigger: triggerCreateFilesDataSources, isMutating: isCreatingFiles } = useSWRMutation(
     "data-sources",
-    async (_, { arg }: { arg: { files: File[]; mountGroupId: UUID } }) => {
+    async (_, { arg }: { arg: { files: File[]; mountNodeId: UUID } }) => {
       if (!session?.APIToken?.accessToken) {
         throw new Error('No session token available');
       }
-      const newDataSource = await createFilesDataSources(session.APIToken.accessToken, arg.files, arg.mountGroupId);
+      const newDataSource = await createFilesDataSources(session.APIToken.accessToken, arg.files, arg.mountNodeId);
       await mutateDataSources();
       return newDataSource;
     }

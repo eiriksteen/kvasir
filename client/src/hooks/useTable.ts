@@ -13,10 +13,10 @@ export interface ResultTable {
 async function fetchTableData(
   token: string,
   tableId: UUID,
-  mountGroupId: UUID
+  mountNodeId: UUID
 ): Promise<ResultTable> {
   const response = await fetch(
-    `${API_URL}/visualization/tables/${tableId}/download?mount_group_id=${mountGroupId}`,
+    `${API_URL}/visualization/tables/${tableId}/download?mount_node_id=${mountNodeId}`,
     {
       method: "GET",
       headers: {
@@ -35,12 +35,12 @@ async function fetchTableData(
   return snakeToCamelKeys(data);
 }
 
-export function useTable(tableId: UUID, mountGroupId: UUID) {
+export function useTable(tableId: UUID, mountNodeId: UUID) {
   const { data: session } = useSession();
 
   const { data: tableData, error, isLoading } = useSWR(
-    session && tableId && mountGroupId ? ["table-data", tableId, mountGroupId] : null,
-    () => fetchTableData(session!.APIToken.accessToken, tableId, mountGroupId)
+      session && tableId && mountNodeId ? ["table-data", tableId, mountNodeId] : null,
+    () => fetchTableData(session!.APIToken.accessToken, tableId, mountNodeId)
   );
 
   return {

@@ -15,7 +15,7 @@ from kvasir_api.modules.project.schema import (
     Project,
 )
 from kvasir_api.modules.entity_graph.service import EntityGraphs
-from kvasir_ontology.graph.data_model import NodeGroupCreate
+from kvasir_ontology.graph.data_model import BranchNodeCreate
 from kvasir_agents.sandbox.modal import ModalSandbox
 
 
@@ -38,22 +38,24 @@ class Projects:
         self.graph_service = EntityGraphs(user_id)
 
     async def create_project(self, project_create: ProjectCreate) -> Project:
-        mount_group_id = project_create.mount_group_id
+        mount_node_id = project_create.mount_node_id
         name_snake_case = _to_snake_case(project_create.name)
 
-        # Create a node group if mount_group_id is not provided
-        if mount_group_id is None:
-            node_group = await self.graph_service.create_node_group(
-                NodeGroupCreate(
+        # Create a node if mount_node_id is not provided
+        if mount_node_id is None:
+            mount_node_id = (await self.graph_service.add_nodes([
+                BranchNodeCreate(
                     name=name_snake_case,
+                    x_position=0.0,
+                    y_position=0.0,
                     description=project_create.description,
-                    python_package_name=name_snake_case
-                )
-            )
-            project_create.mount_group_id = node_group.id
+                    python_package_name=name_snake_case,
+                )]
+            ))[0]
+            project_create.mount_node_id = mount_node_id
 
         project_record = Project(
-            id=project_create.mount_group_id,
+            id=mount_node_id,
             user_id=self.user_id,
             **project_create.model_dump(),
             view_port_x=0.0,
@@ -65,7 +67,7 @@ class Projects:
 
         # Run the init to get the project setup
         # Need to force_build on project creation to ensure the package is installed
-        sb = ModalSandbox(project_create.mount_group_id, name_snake_case)
+        sb = ModalSandbox(mount_node_id, name_snake_case)
         await sb.create_container_if_not_exists(force_build=True)
 
         await execute(

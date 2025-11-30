@@ -1,41 +1,23 @@
-import { Brain, FileCode, Info, Settings, ArrowLeft, ArrowRight, Trash2, FileText } from 'lucide-react';
+import { Brain, FileCode, Info, Settings, ArrowLeft, ArrowRight, FileText } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { UUID } from 'crypto';
 import { useModelInstantiated } from '@/hooks/useModelsInstantiated';
-import ConfirmationPopup from '@/components/ConfirmationPopup';
 import JsonSchemaViewer from '@/components/JsonSchemaViewer';
-import { useOntology } from '@/hooks/useOntology';
 
 interface ModelInfoTabProps {
   modelInstantiatedId: UUID;
-  projectId: UUID;
   onClose: () => void;
-  onDelete?: () => void;
 }
 
 type ViewType = 'overview' | 'code';
 
 export default function ModelInfoTab({
   modelInstantiatedId,
-  projectId,
-  onClose,
-  onDelete
+  onClose
 }: ModelInfoTabProps) {
 
   const { modelInstantiated } = useModelInstantiated(modelInstantiatedId);
-  const { deleteModelInstantiated } = useOntology(projectId);
   const [currentView, setCurrentView] = useState<ViewType>('overview');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  const handleDelete = async () => {
-    try {
-      await deleteModelInstantiated({ modelInstantiatedId });
-      onDelete?.();
-      onClose();
-    } catch (error) {
-      console.error('Failed to delete model instantiated:', error);
-    }
-  };
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -92,13 +74,6 @@ export default function ModelInfoTab({
           </button>
         )}
         </div>
-        <button
-          onClick={() => setShowDeleteConfirm(true)}
-          className="p-2 text-red-800 hover:bg-red-100 rounded-lg transition-colors"
-          title="Delete model instantiated"
-        >
-          <Trash2 size={18} />
-        </button>
       </div>
 
       {/* Content Area */}
@@ -203,13 +178,6 @@ export default function ModelInfoTab({
           </div>
         )}
       </div>
-      
-      <ConfirmationPopup
-        message={`Are you sure you want to delete "${modelInstantiated.name}"? This will permanently delete the model entity and all its implementations. This action cannot be undone.`}
-        isOpen={showDeleteConfirm}
-        onConfirm={handleDelete}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
     </div>
   );
 }

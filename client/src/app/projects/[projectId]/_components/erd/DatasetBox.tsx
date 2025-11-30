@@ -3,6 +3,7 @@ import { Folder } from 'lucide-react';
 import { UUID } from 'crypto';
 import { useMountedDataset } from '@/hooks/useOntology';
 import { useAgentContext } from '@/hooks/useAgentContext';
+import { getEntityBoxClasses } from '@/lib/entityColors';
 
 interface DatasetProps {
   datasetId: UUID;
@@ -38,21 +39,23 @@ export default function DatasetBox({ datasetId, projectId, openTab }: DatasetPro
     return null;
   }
   
+  const colors = getEntityBoxClasses('dataset');
+  
   return (
   <div
-    className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[240px] cursor-pointer hover:bg-[#0E4F70]/10 hover:border-[#0E4F70] ${
+    className={`px-3 py-3 shadow-md rounded-md border-2 relative min-w-[100px] max-w-[240px] cursor-pointer ${colors.bgHover} ${colors.borderHover} ${
       isInContext 
-        ? 'border-[#0E4F70] bg-[#0E4F70]/10 ring-2 ring-[#0E4F70]/30' 
-        : 'border-[#0E4F70]'
+        ? `${colors.border} ${colors.bgInContext} ${colors.ring}` 
+        : colors.border
     }`}
     onClick={handleClick}
   >
     <div className="flex flex-col">
       <div className="flex items-center mb-2">
-        <div className={`rounded-full w-6 h-6 flex items-center justify-center bg-[#0E4F70]/10 border border-[#0E4F70]/30 mr-2`}>
-          <Folder className="w-3 h-3 text-[#0E4F70]" />
+        <div className={`rounded-full w-6 h-6 flex items-center justify-center ${colors.iconBg} border ${colors.iconBorder} mr-2`}>
+          <Folder className={`w-3 h-3 ${colors.iconColor}`} />
         </div>
-        <div className="text-[#0E4F70] font-mono text-xs">Dataset</div>
+        <div className={`${colors.labelColor} font-mono text-xs`}>Dataset</div>
       </div>
       <div>
         <div className="text-xs font-mono text-gray-800 break-words">{dataset.name}</div>

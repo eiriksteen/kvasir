@@ -24,7 +24,7 @@ export default async function Home() {
         />
         <TypedHeading
           strings={[
-            "Agents for all your data.",
+            "Data Science Automation.",
           ]}
           typeSpeed={0.0001}
           loop={false}

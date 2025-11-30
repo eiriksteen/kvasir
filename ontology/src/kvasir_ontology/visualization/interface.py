@@ -59,13 +59,13 @@ class VisualizationInterface(ABC):
         pass
 
     @abstractmethod
-    async def download_image(self, image_id: UUID, mount_group_id: UUID) -> bytes:
+    async def download_image(self, image_id: UUID, mount_node_id: UUID) -> bytes:
         pass
 
     @abstractmethod
-    async def download_table(self, table_id: UUID, mount_group_id: UUID) -> bytes:
+    async def download_table(self, table_id: UUID, mount_node_id: UUID) -> bytes:
         pass
 
     @abstractmethod
-    async def download_echart(self, echart_id: UUID, mount_group_id: UUID, original_object_id: Optional[str] = None) -> EChartsOption:
+    async def download_echart(self, echart_id: UUID, mount_node_id: UUID, original_object_id: Optional[str] = None) -> EChartsOption:
         pass

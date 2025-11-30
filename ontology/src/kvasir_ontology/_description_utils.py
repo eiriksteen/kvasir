@@ -1,3 +1,4 @@
+from ast import Pass
 import json
 from typing import List, TYPE_CHECKING
 from uuid import UUID
@@ -5,6 +6,7 @@ from uuid import UUID
 
 if TYPE_CHECKING:
     from kvasir_ontology.ontology import Ontology
+    from kvasir_ontology.graph.data_model import CHILD_TYPE_LITERAL
 
 
 def _is_simple_value(value) -> bool:
@@ -32,120 +34,132 @@ async def _get_connections_description(
 ) -> List[str]:
     result = []
 
-    edges = await ontology.graph.get_node_edges(entity_id)
+    leaf_node = await ontology.graph.get_leaf_node_by_entity_id(entity_id)
 
-    inbound_edges = [e for e in edges if e.to_node_id == entity_id]
-    outbound_edges = [e for e in edges if e.from_node_id == entity_id]
+    num_inputs = sum([
+        len(leaf_node.from_entities.data_sources),
+        len(leaf_node.from_entities.datasets),
+        len(leaf_node.from_entities.pipelines),
+        len(leaf_node.from_entities.models_instantiated),
+        len(leaf_node.from_entities.analyses),
+    ])
 
-    if inbound_edges:
-        inputs_to_show = inbound_edges[:10]
+    result.append("")
+    result.append(
+        f'  <inputs num_inputs="{num_inputs}">')
+
+    for data_source_id in leaf_node.from_entities.data_sources:
+        entity_desc = await get_data_source_description(
+            data_source_id, ontology, include_connections=False)
+        result.append("    <input>")
+        for line in entity_desc.split("\n"):
+            result.append(f"      {line}")
+        result.append("    </input>")
+    for dataset_id in leaf_node.from_entities.datasets:
+        entity_desc = await get_dataset_description(
+            dataset_id, ontology, include_connections=False)
+        result.append("    <input>")
+        for line in entity_desc.split("\n"):
+            result.append(f"      {line}")
+        result.append("    </input>")
+    for pipeline_id in leaf_node.from_entities.pipelines:
+        entity_desc = await get_pipeline_description(
+            pipeline_id, ontology, include_connections=False, include_runs=False)
+        result.append("    <input>")
+        for line in entity_desc.split("\n"):
+            result.append(f"      {line}")
+        result.append("    </input>")
+    for model_instantiated_id in leaf_node.from_entities.models_instantiated:
+        entity_desc = await get_model_entity_description(
+            model_instantiated_id, ontology, include_connections=False)
+        result.append("    <input>")
+        for line in entity_desc.split("\n"):
+            result.append(f"      {line}")
+        result.append("    </input>")
+    for analysis_id in leaf_node.from_entities.analyses:
+        entity_desc = await get_analysis_description(
+            analysis_id, ontology, include_connections=False)
+        result.append("    <input>")
+        for line in entity_desc.split("\n"):
+            result.append(f"      {line}")
+        result.append("    </input>")
+
+    result.append("  </inputs>")
+
+    if leaf_node.entity_type == "pipeline":
+        num_outputs = len(leaf_node.runs)
         result.append("")
-        result.append(f'  <inputs num_inputs="{len(inbound_edges)}">')
-
-        for edge in inputs_to_show:
-            if edge.from_node_type == "data_source":
-                entity_desc = await get_data_source_description(
-                    edge.from_node_id, ontology, include_connections=False)
-                result.append("    <input>")
-                for line in entity_desc.split("\n"):
-                    result.append(f"      {line}")
-                result.append("    </input>")
-            elif edge.from_node_type == "dataset":
-                entity_desc = await get_dataset_description(
-                    edge.from_node_id, ontology, include_connections=False)
-                result.append("    <input>")
-                for line in entity_desc.split("\n"):
-                    result.append(f"      {line}")
-                result.append("    </input>")
-            elif edge.from_node_type == "pipeline":
-                entity_desc = await get_pipeline_description(
-                    edge.from_node_id, ontology, include_connections=False, include_runs=False)
-                result.append("    <input>")
-                for line in entity_desc.split("\n"):
-                    result.append(f"      {line}")
-                result.append("    </input>")
-            elif edge.from_node_type == "pipeline_run":
-                entity_desc = await get_pipeline_run_description(
-                    edge.from_node_id, ontology,
-                    show_pipeline_description=False,
-                    include_connections=False
-                )
-                result.append("    <input>")
-                for line in entity_desc.split("\n"):
-                    result.append(f"      {line}")
-                result.append("    </input>")
-            elif edge.from_node_type == "model_instantiated":
-                entity_desc = await get_model_entity_description(
-                    edge.from_node_id, ontology, include_connections=False)
-                result.append("    <input>")
-                for line in entity_desc.split("\n"):
-                    result.append(f"      {line}")
-                result.append("    </input>")
-            elif edge.from_node_type == "analysis":
-                entity_desc = await get_analysis_description(
-                    edge.from_node_id, ontology, include_connections=False)
-                result.append("    <input>")
-                for line in entity_desc.split("\n"):
-                    result.append(f"      {line}")
-                result.append("    </input>")
-
-        result.append("  </inputs>")
-
-    if outbound_edges:
-        outputs_to_show = outbound_edges[:10]
-        result.append("")
-        result.append(f'  <outputs num_outputs="{len(outbound_edges)}">')
-
-        for edge in outputs_to_show:
-            if edge.to_node_type == "data_source":
-                entity_desc = await get_data_source_description(
-                    edge.to_node_id, ontology, include_connections=False)
-                result.append("    <output>")
-                for line in entity_desc.split("\n"):
-                    result.append(f"      {line}")
-                result.append("    </output>")
-            elif edge.to_node_type == "dataset":
-                entity_desc = await get_dataset_description(
-                    edge.to_node_id, ontology, include_connections=False)
-                result.append("    <output>")
-                for line in entity_desc.split("\n"):
-                    result.append(f"      {line}")
-                result.append("    </output>")
-            elif edge.to_node_type == "pipeline":
-                entity_desc = await get_pipeline_description(
-                    edge.to_node_id, ontology, include_connections=False, include_runs=False)
-                result.append("    <output>")
-                for line in entity_desc.split("\n"):
-                    result.append(f"      {line}")
-                result.append("    </output>")
-            elif edge.to_node_type == "pipeline_run":
-                entity_desc = await get_pipeline_run_description(
-                    edge.to_node_id, ontology,
-                    show_pipeline_description=False,
-                    include_connections=False
-                )
-                result.append("    <output>")
-                for line in entity_desc.split("\n"):
-                    result.append(f"      {line}")
-                result.append("    </output>")
-            elif edge.to_node_type == "model_instantiated":
-                entity_desc = await get_model_entity_description(
-                    edge.to_node_id, ontology, include_connections=False)
-                result.append("    <output>")
-                for line in entity_desc.split("\n"):
-                    result.append(f"      {line}")
-                result.append("    </output>")
-            elif edge.to_node_type == "analysis":
-                entity_desc = await get_analysis_description(
-                    edge.to_node_id, ontology, include_connections=False)
-                result.append("    <output>")
-                for line in entity_desc.split("\n"):
-                    result.append(f"      {line}")
-                result.append("    </output>")
-
+        result.append(
+            f'  <outputs num_outputs="{num_outputs}">')
+        for run in leaf_node.runs:
+            entity_desc = await get_pipeline_run_description(
+                run.id, ontology, include_connections=False)
+            result.append("    <output>")
+            for line in entity_desc.split("\n"):
+                result.append(f"      {line}")
+            result.append("    </output>")
         result.append("  </outputs>")
+    else:
+        num_outputs = sum([
+            len(leaf_node.to_entities.data_sources),
+            len(leaf_node.to_entities.datasets),
+            len(leaf_node.to_entities.pipelines),
+            len(leaf_node.to_entities.models_instantiated),
+            len(leaf_node.to_entities.analyses),
+        ])
+
+        result.append("")
+        result.append(
+            f'  <outputs num_outputs="{num_outputs}">')
+
+        if leaf_node.to_entities:
+            for data_source_id in leaf_node.to_entities.data_sources:
+                entity_desc = await get_data_source_description(
+                    data_source_id, ontology, include_connections=False)
+                result.append("    <output>")
+                for line in entity_desc.split("\n"):
+                    result.append(f"      {line}")
+                result.append("    </output>")
+            for dataset_id in leaf_node.to_entities.datasets:
+                entity_desc = await get_dataset_description(
+                    dataset_id, ontology, include_connections=False)
+                result.append("    <output>")
+                for line in entity_desc.split("\n"):
+                    result.append(f"      {line}")
+                result.append("    </output>")
+            for pipeline_id in leaf_node.to_entities.pipelines:
+                entity_desc = await get_pipeline_description(
+                    pipeline_id, ontology, include_connections=False, include_runs=False)
+                result.append("    <output>")
+                for line in entity_desc.split("\n"):
+                    result.append(f"      {line}")
+                result.append("    </output>")
+            for model_instantiated_id in leaf_node.to_entities.models_instantiated:
+                entity_desc = await get_model_entity_description(
+                    model_instantiated_id, ontology, include_connections=False)
+                result.append("    <output>")
+                for line in entity_desc.split("\n"):
+                    result.append(f"      {line}")
+                result.append("    </output>")
+            result.append("  </outputs>")
 
     return result
+
+
+async def get_entity_description(entity_id: UUID, ontology: "Ontology", include_connections: bool = True) -> str:
+    entity_graph = await ontology.get_entity_graph()
+
+    def _get_entity_type(entity_id: UUID) -> CHILD_TYPE_LITERAL:
+        for entity in entity_graph.data_sources:
+            if entity.id == entity_id:
+                return "data_source"
+        for entity in entity_graph.datasets:
+            if entity.id == entity_id:
+                return "dataset"
+        for entity in entity_graph.analyses:
+            if entity.id == entity_id:
+                return "analysis"
+    pass
 
 
 async def get_data_source_description(entity_id: UUID, ontology: "Ontology", include_connections: bool = True) -> str:

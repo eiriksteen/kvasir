@@ -79,7 +79,7 @@ async def post_tables_endpoint(
 @router.get("/images/{image_id}/download")
 async def download_image_endpoint(
     image_id: UUID,
-    mount_group_id: UUID,
+    mount_node_id: UUID,
     visualization_service: Annotated[VisualizationInterface, Depends(
         get_visualization_service)]
 ) -> Response:
@@ -92,7 +92,7 @@ async def download_image_endpoint(
             detail=f"Invalid image file type: {image_path.suffix}"
         )
 
-    image_content = await visualization_service.download_image(image_id, mount_group_id)
+    image_content = await visualization_service.download_image(image_id, mount_node_id)
 
     content_type_map = {
         '.png': 'image/png',
@@ -116,7 +116,7 @@ class ResultTable(BaseModel):
 @router.get("/tables/{table_id}/download", response_model=ResultTable)
 async def download_table_endpoint(
     table_id: UUID,
-    mount_group_id: UUID,
+    mount_node_id: UUID,
     visualization_service: Annotated[VisualizationInterface, Depends(
         get_visualization_service)]
 ) -> ResultTable:
@@ -130,7 +130,7 @@ async def download_table_endpoint(
                 detail=f"Invalid table file type. Expected .parquet, got: {table_path.suffix}"
             )
 
-        table_bytes = await visualization_service.download_table(table_id, mount_group_id)
+        table_bytes = await visualization_service.download_table(table_id, mount_node_id)
 
         df = pd.read_parquet(BytesIO(table_bytes))
         data_dict = df.to_dict(orient="list")
@@ -154,9 +154,9 @@ async def download_table_endpoint(
 @router.post("/echarts/{chart_id}/get-chart", response_model=EChartsOption)
 async def get_chart_endpoint(
     chart_id: UUID,
-    mount_group_id: UUID,
+    mount_node_id: UUID,
     original_object_id: Optional[str] = None,
     visualization_service: Annotated[VisualizationInterface, Depends(
         get_visualization_service)] = None,
 ) -> EChartsOption:
-    return await visualization_service.download_echart(chart_id, mount_group_id, original_object_id)
+    return await visualization_service.download_echart(chart_id, mount_node_id, original_object_id)

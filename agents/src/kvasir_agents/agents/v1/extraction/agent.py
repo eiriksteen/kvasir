@@ -17,7 +17,7 @@ from kvasir_agents.agents.v1.history_processors import (
     keep_only_most_recent_project_description,
     keep_only_most_recent_folder_structure,
     keep_only_most_recent_entity_context,
-    keep_only_most_recent_mount_group
+    keep_only_most_recent_mount_node
 )
 
 model = get_model()
@@ -33,7 +33,7 @@ extraction_agent = Agent[ExtractionDeps, str](
         keep_only_most_recent_project_description,
         keep_only_most_recent_folder_structure,
         keep_only_most_recent_entity_context,
-        keep_only_most_recent_mount_group
+        keep_only_most_recent_mount_node
     ],
     model_settings=ModelSettings(temperature=0)
 )
@@ -84,6 +84,6 @@ async def run_extraction_agent(
         bearer_token=bearer_token
     )
     extraction_agent = ExtractionAgentV1(deps)
-    mount_group_description = f"<project_description>\n\n{await deps.ontology.describe_mount_group(include_positions=True)}\n\n</project_description>"
+    mount_node_description = f"<project_description>\n\n{await deps.ontology.describe_mount_node(include_positions=True)}\n\n</project_description>"
     folder_structure = f"<folder_structure>\n\n{await deps.sandbox.get_folder_structure()}\n\n</folder_structure>"
-    return await extraction_agent(prompt, context=context, injections=[mount_group_description, folder_structure])
+    return await extraction_agent(prompt, context=context, injections=[mount_node_description, folder_structure])

@@ -68,15 +68,16 @@ class ModalSandbox(AbstractSandbox):
                 return False
 
     async def reload_container(self) -> None:
-        try:
-            self.sb = await modal.Sandbox.from_name.aio(MODAL_APP_NAME, str(self.project_id))
-            await self.sb.terminate.aio()
-            await self.sb.wait.aio(raise_on_termination=False)
-        except modal.exception.NotFoundError:
-            pass
-        finally:
-            self.sb = None
-            await self._initialize_sandbox()
+        with modal.enable_output():
+            try:
+                self.sb = await modal.Sandbox.from_name.aio(MODAL_APP_NAME, str(self.project_id))
+                await self.sb.terminate.aio()
+                await self.sb.wait.aio(raise_on_termination=False)
+            except modal.exception.NotFoundError:
+                pass
+            finally:
+                self.sb = None
+                await self._initialize_sandbox()
 
     async def delete_container_if_exists(self) -> None:
         if self.sb:

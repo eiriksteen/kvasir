@@ -256,7 +256,7 @@ class Models(ModelInterface):
                 status_code=404, detail="Model instantiated not found or access denied")
 
         await execute(delete(model_instantiated).where(model_instantiated.c.id == model_instantiated_id), commit_after=True)
-        await self.delete_model(model_instantiated_obj.model_id)
+        # await self.delete_model(model_instantiated_obj.model_id)
 
 
 # For dependency injection

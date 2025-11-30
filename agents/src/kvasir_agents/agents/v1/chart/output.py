@@ -42,12 +42,8 @@ async def submit_chart(
             # Standalone chart - no parameters
             validation_code = f"{python_code}\n\nresult = generate_chart()"
 
-        # Validate inside the sandbox
-        # Suppress warnings and ensure clean JSON output
         validation_code = f"{validation_code}\n\nimport json\nimport warnings\nwarnings.filterwarnings('ignore')\nprint(json.dumps(result, default=str))"
-
         out, err = await ctx.deps.sandbox.run_python_code(validation_code)
-
         err_truncated = err[:2000] + \
             ("[THE REST OF THE ERROR WAS TRUNCATED]" if len(err) > 2000 else "")
 
@@ -64,8 +60,11 @@ async def submit_chart(
             raise ModelRetry(
                 f"Failed to parse chart result: {str(e)}. Output preview: {out_preview[:200]}")
         except Exception as e:
-            await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Error validating chart result: {str(e)}", "error")
-            raise ModelRetry(f"Failed to validate chart result: {str(e)}.")
+            err_truncated = str(e)[
+                :2000] + ("[THE REST OF THE ERROR WAS TRUNCATED]" if len(str(e)) > 2000 else "")
+            await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, f"Error validating chart result: {err_truncated}", "error")
+            raise ModelRetry(
+                f"Failed to validate chart result: {err_truncated}.")
 
         await ctx.deps.callbacks.log(ctx.deps.user_id, ctx.deps.run_id, "Chart code validated and submitted successfully", "result")
         return ChartAgentOutput(script_content=python_code)

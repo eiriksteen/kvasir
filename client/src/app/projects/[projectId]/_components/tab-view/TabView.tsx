@@ -15,6 +15,7 @@ import { VscJson, VscFile } from 'react-icons/vsc';
 import { TabType, Tab } from '@/hooks/useTabs';
 import { useEntityGraph } from '@/hooks';
 import { UUID } from 'crypto';
+import { LeafNode, PipelineNode, BranchNode } from '@/types/ontology/entity-graph';
 
 interface CustomTabViewProps {
   projectId: UUID;
@@ -137,39 +138,79 @@ const TabView: React.FC<CustomTabViewProps> = ({
     }
   };
   
-  // Determine the type of a tab based on its ID
+  // Helper to recursively find a leaf node by entityId
+  const findLeafNodeByEntityId = (nodes: (LeafNode | PipelineNode | BranchNode)[], entityId: UUID): LeafNode | PipelineNode | null => {
+    for (const node of nodes) {
+      if (node.nodeType === 'leaf' || node.nodeType === 'branch') {
+        if (node.nodeType === 'leaf' && (node as LeafNode | PipelineNode).entityId === entityId) {
+          return node as LeafNode | PipelineNode;
+        }
+        if (node.nodeType === 'branch') {
+          const found = findLeafNodeByEntityId((node as BranchNode).children, entityId);
+          if (found) return found;
+        }
+      }
+    }
+    return null;
+  };
+
   const getTabType = (tab: Tab): TabType => {
     const id = tab.id;
     if (id === null) return 'project';
     
-    if (entityGraph?.dataSources.some(ds => ds.id === id)) return 'data_source';
-    if (entityGraph?.datasets.some(ds => ds.id === id)) return 'dataset';
-    if (entityGraph?.analyses.some(a => a.id === id)) return 'analysis';
-    if (entityGraph?.pipelines.some(p => p.id === id)) return 'pipeline';
-    if (entityGraph?.modelsInstantiated.some(m => m.id === id)) return 'model_instantiated';
-    else return 'code';
-
+    // Search recursively through all entity types
+    if (entityGraph?.dataSources) {
+      const found = findLeafNodeByEntityId(entityGraph.dataSources, id as UUID);
+      if (found && found.entityType === 'data_source') return 'data_source';
+    }
+    
+    if (entityGraph?.datasets) {
+      const found = findLeafNodeByEntityId(entityGraph.datasets, id as UUID);
+      if (found && found.entityType === 'dataset') return 'dataset';
+    }
+    
+    if (entityGraph?.analyses) {
+      const found = findLeafNodeByEntityId(entityGraph.analyses, id as UUID);
+      if (found && found.entityType === 'analysis') return 'analysis';
+    }
+    
+    if (entityGraph?.pipelines) {
+      const found = findLeafNodeByEntityId(entityGraph.pipelines, id as UUID);
+      if (found && found.entityType === 'pipeline') return 'pipeline';
+    }
+    
+    if (entityGraph?.modelsInstantiated) {
+      const found = findLeafNodeByEntityId(entityGraph.modelsInstantiated, id as UUID);
+      if (found && found.entityType === 'model_instantiated') return 'model_instantiated';
+    }
+    
+    return 'code';
   };
-  
+
   // Get the label for a tab based on its ID and type
   const getTabLabel = (tab: Tab, type: TabType): string => {
     const id = tab.id;
     if (id === null) return ''; // Project tab has no label
-    
+
     switch (type) {
       case 'code':
         // Extract just the filename from the full path
         return tab.filePath?.split('/').pop() || '';
       case 'data_source':
-        return entityGraph?.dataSources.find(ds => ds.id === id)?.name || '';
+        const dsNode = entityGraph?.dataSources ? findLeafNodeByEntityId(entityGraph.dataSources, id as UUID) : null;
+        return dsNode?.name || '';
       case 'dataset':
-        return entityGraph?.datasets.find(ds => ds.id === id)?.name || '';
+        const datasetNode = entityGraph?.datasets ? findLeafNodeByEntityId(entityGraph.datasets, id as UUID) : null;
+        return datasetNode?.name || '';
       case 'analysis':
-        return entityGraph?.analyses.find(a => a.id === id)?.name || '';
+        const analysisNode = entityGraph?.analyses ? findLeafNodeByEntityId(entityGraph.analyses, id as UUID) : null;
+        return analysisNode?.name || '';
       case 'pipeline':
-        return entityGraph?.pipelines.find(p => p.id === id)?.name || '';
+        const pipelineNode = entityGraph?.pipelines ? findLeafNodeByEntityId(entityGraph.pipelines, id as UUID) : null;
+        return pipelineNode?.name || '';
       case 'model_instantiated':
-        return entityGraph?.modelsInstantiated.find(m => m.id === id)?.name || '';
+        const modelNode = entityGraph?.modelsInstantiated ? findLeafNodeByEntityId(entityGraph.modelsInstantiated, id as UUID) : null;
+        return modelNode?.name || '';
       default:
         return '';
     }
